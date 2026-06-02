@@ -3,7 +3,25 @@
 {% block heading %}Edit {{ t.name }}{% endblock %}
 {% block heading_help %}Change credentials, schedule, or encryption for this off-site backup target without re-running the setup wizard. The backend kind ({{ t.kind|upper }}) is fixed once a target is created — make a new target if you need to switch backends.{% endblock %}
 {% block content %}
-<div class="backups-wrap">
+{#
+  Per-kind presentation metadata for the prominent connection-type banner.
+  icon + friendly name + one-line description so the operator never has to
+  decode a bare uppercase backend code (the old "· FTP" muted label).
+#}
+{% set _kind_meta = {
+  'tspro_backup': {'icon': 'shield', 'name': 'TS Pro Backup', 'tag': 'End-to-end encrypted', 'tag_icon': 'lock',
+                   'desc': 'Off-site, end-to-end-encrypted destination. Each archive is encrypted to the backup server before it ever leaves this machine.'},
+  'sftp':         {'icon': 'server', 'name': 'SFTP', 'tag': 'SSH file transfer', 'tag_icon': 'lock',
+                   'desc': 'Secure file transfer over SSH — authenticate with a password, a private key, or both.'},
+  'ftp':          {'icon': 'server', 'name': 'FTP / FTPS', 'tag': 'File transfer', 'tag_icon': 'server',
+                   'desc': 'Classic FTP, optionally wrapped in TLS (FTPS). Uploads land in the remote folder you choose below.'},
+  'dropbox':      {'icon': 'box', 'name': 'Dropbox', 'tag': 'Cloud storage', 'tag_icon': 'cloud',
+                   'desc': 'Uploads into your Dropbox app folder over an OAuth refresh-token connection.'},
+} %}
+{% set _km = _kind_meta.get(t.kind, {'icon': 'cloud-upload', 'name': t.kind|upper, 'tag': '', 'tag_icon': 'cloud-upload', 'desc': ''}) %}
+{% set _kind_tag = 'FTPS · TLS encrypted' if (t.kind == 'ftp' and t.use_tls) else ('Plain FTP · no TLS' if t.kind == 'ftp' else _km.tag) %}
+
+<div class="backups-wrap backup-edit">
   <div class="backups-toolbar">
     {% if embed %}
     <a class="btn" href="{{ url_for('main.backups_list', embed=1) }}">← Back to backups</a>
@@ -12,21 +30,37 @@
     {% endif %}
   </div>
 
-  <form class="form" method="post"
+  <form class="form backup-edit-form" method="post"
         action="{{ url_for('main.backups_edit_post', target_id=t.id) }}"
         enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
 
+    {# ── Connection-type banner — the kind, made prominent ────────── #}
+    <header class="backup-edit-hero backup-edit-hero--{{ t.kind }}">
+      <span class="backup-edit-hero-icon" aria-hidden="true">{{ icon(_km.icon) }}</span>
+      <div class="backup-edit-hero-main">
+        <span class="backup-edit-hero-eyebrow">Backup connection type</span>
+        <span class="backup-edit-hero-name">{{ _km.name }}</span>
+        {% if _km.desc %}<p class="backup-edit-hero-desc">{{ _km.desc }}</p>{% endif %}
+      </div>
+      {% if _kind_tag %}
+      <span class="backup-edit-hero-badge">{{ icon(_km.tag_icon) }} {{ _kind_tag }}</span>
+      {% endif %}
+    </header>
+    <p class="backup-edit-hero-note muted smaller">
+      The connection type is fixed once a target is created — create a new target to switch backends.
+    </p>
+
     {# ── Connection — same fields as wizard step 2 ────────────────── #}
     <section class="card backup-step-card">
       <div class="card-head">
-        <h2>{{ icon('key') }} Connection</h2>
-        <span class="muted smaller">{{ t.kind|upper }}{% if t.kind == 'ftp' and t.use_tls %} · FTPS{% endif %}</span>
+        <h2>{{ icon('key') }} Connection details</h2>
       </div>
 
       <label>Target name
-        <input type="text" name="name" value="{{ t.name }}" required maxlength="128">
+        <input type="text" name="name" value="{{ t.name }}" required maxlength="128"
+               placeholder="A name you'll recognize, e.g. “Off-site NAS”">
       </label>
 
       {% if t.kind in ('ftp', 'sftp') %}
@@ -72,6 +106,17 @@
         </p>
       </details>
       {% endif %}
+      {% elif t.kind == 'tspro_backup' %}
+      <label>Backup server API endpoint
+        <input type="url" name="api_base_url" value="{{ t.api_base_url or '' }}" required placeholder="https://backup.example.org/api/v1">
+      </label>
+      <label>Site API key
+        <input type="password" name="api_key" autocomplete="new-password" placeholder="{% if t.api_key_enc %}(leave blank to keep current){% else %}tspb_…{% endif %}">
+      </label>
+      <p class="muted smaller">
+        {% if t.e2ee_public_key %}🔑 Encryption key fingerprint: <code>{{ t.e2ee_public_key|tspro_fp }}</code> — confirm it matches the backup server's console.
+        {% else %}Run “Test connection” to fetch this site's encryption key.{% endif %}
+      </p>
       {% else %}
       {# Dropbox — same refresh-token flow as the wizard. Shared partial
          so a future change to the OAuth fields lands in one place. #}
@@ -123,6 +168,14 @@
     <section class="card backup-step-card">
       <div class="card-head"><h2>{{ icon('lock') }} Encryption at rest</h2></div>
 
+      {% if t.kind == 'tspro_backup' %}
+      <p class="muted">
+        {{ icon('shield') }} <strong>End-to-end encrypted automatically.</strong>
+        Every archive is encrypted to the backup server's public key
+        {% if t.e2ee_public_key %}(fingerprint <code>{{ t.e2ee_public_key|tspro_fp }}</code>){% endif %}
+        before upload. There's no passphrase here — restore with the site's private key.
+      </p>
+      {% else %}
       <label class="check">
         <input type="checkbox" name="encrypt_archive" value="1" data-encrypt-toggle {% if t.encrypt_archive %}checked{% endif %}>
         <span>
@@ -153,6 +206,7 @@
           {% if t.archive_passphrase_enc %}<span class="muted smaller">(only required when setting a new passphrase)</span>{% endif %}
         </label>
       </div>
+      {% endif %}
     </section>
 
     <div class="form-actions">
@@ -192,7 +246,8 @@
       var connNames = ['csrf_token', 'embed', 'name',
                        'host', 'port', 'username', 'password',
                        'remote_path', 'use_tls',
-                       'private_key', 'private_key_text', 'oauth_token'];
+                       'private_key', 'private_key_text', 'oauth_token',
+                       'api_base_url', 'api_key'];
       var data = new FormData();
       connNames.forEach(function (n) {
         form.querySelectorAll('[name="' + n + '"]').forEach(function (el) {

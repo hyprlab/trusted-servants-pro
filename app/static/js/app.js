@@ -630,6 +630,13 @@
           if (f && !f.src && f.dataset.src) f.src = f.dataset.src;
         }
       });
+      // Re-probe the email relay each time the Email tab is opened so its
+      // status pill reflects the live connection, not just the value
+      // persisted at last test. No-op unless relay creds are configured.
+      if (name === "email") {
+        const rc = settingsModal.querySelector(".relay-conn");
+        if (rc && rc._relayRefresh) rc._relayRefresh();
+      }
     };
     tabs.forEach(t => t.addEventListener("click", () => activate(t.dataset.tab)));
 
@@ -673,6 +680,101 @@
       f.dispatchEvent(new CustomEvent("settings:saved", { bubbles: true, detail: data }));
       return data;
     }
+
+    // Email transport toggle: the <select> is the SMTP-vs-relay switch.
+    // Show only the field group for the chosen transport — relay fields
+    // in relay mode, the SMTP host/port/auth fields otherwise.
+    (function () {
+      const sel = document.getElementById("mailTransportSelect");
+      const relayFields = document.getElementById("relayFields");
+      const smtpFields = document.getElementById("smtpFields");
+      if (!sel || (!relayFields && !smtpFields)) return;
+      const sync = () => {
+        const relay = sel.value === "relay";
+        if (relayFields) relayFields.style.display = relay ? "" : "none";
+        if (smtpFields) smtpFields.style.display = relay ? "none" : "";
+      };
+      sel.addEventListener("change", sync);
+      sync();
+    })();
+
+    // API-relay connection test + status pill (Settings → Domain / Email).
+    // The pill server-renders the last persisted /api/health outcome; this
+    // wires the "Test connection" button (validates the URL + key typed
+    // above, before they're saved) and a re-probe whenever the tab opens.
+    (function () {
+      const wrap = settingsModal.querySelector(".relay-conn");
+      if (!wrap) return;
+      const pill = wrap.querySelector("[data-relay-pill]");
+      const detail = wrap.querySelector("[data-relay-detail]");
+      const btn = wrap.querySelector("[data-relay-test]");
+      const testUrl = wrap.dataset.relayTestUrl;
+      const relayForm = settingsModal.querySelector('form[action$="/settings/email-save"]');
+
+      function setPill(state, label) {
+        pill.className = "backup-status-pill " + (
+          state === "ok" ? "backup-status-ok" :
+          state === "fail" ? "backup-status-failed" :
+          state === "checking" ? "backup-status-running" :
+          "backup-status-never_run");
+        pill.textContent = label;
+      }
+      function setDetail(msg, isFail) {
+        if (msg) {
+          detail.textContent = msg;
+          detail.hidden = false;
+          detail.classList.toggle("relay-conn-fail", !!isFail);
+        } else {
+          detail.hidden = true;
+          detail.textContent = "";
+          detail.classList.remove("relay-conn-fail");
+        }
+      }
+
+      // POST the relay form (relay_url + relay_api_key, falling back to the
+      // stored key when the write-only field is blank) to /settings/relay-test
+      // and reflect the result in the pill. `silent` keeps the prior detail
+      // text visible while a background re-probe is in flight.
+      async function runTest(opts) {
+        opts = opts || {};
+        setPill("checking", "Checking…");
+        if (!opts.silent) setDetail("", false);
+        if (btn) btn.disabled = true;
+        try {
+          const fd = relayForm ? new FormData(relayForm) : new FormData();
+          const r = await fetch(testUrl, {
+            method: "POST", body: fd,
+            headers: { "X-Requested-With": "fetch" },
+            credentials: "same-origin",
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = await r.json();
+          if (data.ok) {
+            setPill("ok", "Connected");
+            setDetail(data.message || "", false);
+          } else {
+            setPill("fail", "Not connected");
+            setDetail(data.message || "Connection failed.", true);
+          }
+        } catch (err) {
+          setPill("fail", "Not connected");
+          setDetail("Couldn't run the test: " + err.message, true);
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      if (btn) btn.addEventListener("click", () => runTest());
+
+      // Called by the tab-activate hook. Only re-probes when relay mode is
+      // the active transport and credentials are stored — otherwise the pill
+      // (hidden in SMTP mode, or meaningless with no creds) is left as-is.
+      wrap._relayRefresh = function () {
+        const sel = document.getElementById("mailTransportSelect");
+        const relayActive = !sel || sel.value === "relay";
+        if (relayActive && wrap.dataset.relayConfigured === "1") runTest({ silent: true });
+      };
+    })();
 
     settingsModal.querySelectorAll("form").forEach(f => {
       if (f.closest(".settings-frame")) return;
@@ -1945,6 +2047,14 @@
   // [data-otp-widget] that carries the fetch URL and the result/error/
   // code/meta targets.
   (function initOtpFetch() {
+    // Zoom is slow to send the passcode email, so a single check usually
+    // comes up empty. On click we poll the inbox for up to 3 minutes,
+    // every few seconds, until a code lands — showing a spinner the whole
+    // time. We stop early on a configuration/login error (retryable:false)
+    // since retrying that would never succeed.
+    const POLL_MS = 6000;          // gap between checks
+    const DEADLINE_MS = 3 * 60 * 1000;  // give up after 3 minutes
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
     document.querySelectorAll("[data-otp-fetch]").forEach(btn => {
       const scope = btn.closest("[data-otp-widget]") || document;
       const fetchUrl = scope.dataset ? scope.dataset.fetchUrl : null;
@@ -1953,32 +2063,97 @@
       const codeEl = scope.querySelector("[data-otp-code]");
       const metaEl = scope.querySelector("[data-otp-meta]");
       const errEl = scope.querySelector("[data-otp-error]");
+      const countdownEl = scope.querySelector("[data-otp-countdown]");
       const label = btn.querySelector("[data-otp-fetch-label], .zg-otp-fetch-label");
       const setLabel = (t) => { if (label) label.textContent = t; };
+
+      // Live "expires in m:ss" countdown — Zoom codes die 10 minutes after
+      // the email is sent, so the server hands us the seconds remaining at
+      // fetch time and we tick it down once a second.
+      let countdownTimer = null;
+      const stopCountdown = () => {
+        if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+      };
+      function startCountdown(seconds) {
+        stopCountdown();
+        if (!countdownEl || typeof seconds !== "number") return;
+        let remaining = Math.max(0, Math.floor(seconds));
+        const tick = () => {
+          if (remaining <= 0) {
+            countdownEl.innerHTML = "<strong>Code expired</strong> — request a new code from Zoom.";
+            countdownEl.classList.add("is-expired");
+            countdownEl.classList.remove("is-warning");
+            countdownEl.hidden = false;
+            stopCountdown();
+            return;
+          }
+          const m = Math.floor(remaining / 60);
+          const s = String(remaining % 60).padStart(2, "0");
+          countdownEl.innerHTML = `Expires in <strong>${m}:${s}</strong>`;
+          countdownEl.classList.toggle("is-warning", remaining <= 60);
+          countdownEl.classList.remove("is-expired");
+          countdownEl.hidden = false;
+          remaining -= 1;
+        };
+        tick();
+        countdownTimer = setInterval(tick, 1000);
+      }
+      // Spinner is injected (not in markup) so all three call sites get it
+      // without template edits; CSS reveals it while .is-loading is set.
+      const spinner = document.createElement("span");
+      spinner.className = "otp-spinner";
+      spinner.setAttribute("aria-hidden", "true");
+      btn.insertBefore(spinner, btn.firstChild);
+
+      let polling = false;
       btn.addEventListener("click", async () => {
+        if (polling) return;
+        polling = true;
+        const deadline = Date.now() + DEADLINE_MS;
         btn.disabled = true;
         btn.classList.add("is-loading");
-        setLabel("Retrieving…");
+        if (result) result.hidden = true;
         if (errEl) { errEl.hidden = true; errEl.textContent = ""; }
+        if (countdownEl) { stopCountdown(); countdownEl.hidden = true; }
+        setLabel("Checking for code…");
         try {
-          const r = await fetch(fetchUrl, { headers: { "X-Requested-With": "fetch" } });
-          const j = await r.json();
-          if (j.ok) {
-            if (codeEl) { codeEl.textContent = j.code; codeEl.dataset.copy = j.code; }
-            if (metaEl) metaEl.innerHTML = `Received <strong>${j.sent_at}</strong> · ${j.age_label}`;
-            if (result) result.hidden = false;
-            setLabel("Retrieve again");
-          } else {
-            if (errEl) { errEl.textContent = j.error || "Could not retrieve a code."; errEl.hidden = false; }
-            if (result) result.hidden = true;
-            setLabel("Retrieve code");
+          while (true) {
+            let j;
+            try {
+              const r = await fetch(fetchUrl, { headers: { "X-Requested-With": "fetch" } });
+              j = await r.json();
+            } catch (e) {
+              j = { ok: false, retryable: true, error: "Network error" };
+            }
+            if (j.ok) {
+              if (codeEl) { codeEl.textContent = j.code; codeEl.dataset.copy = j.code; }
+              if (metaEl) metaEl.innerHTML = `Received <strong>${j.sent_at}</strong> · ${j.age_label}`;
+              if (result) result.hidden = false;
+              startCountdown(j.expires_in_seconds);
+              setLabel("Retrieve again");
+              break;
+            }
+            // Hard error (no IMAP, bad login) — retrying won't help.
+            if (!j.retryable) {
+              if (errEl) { errEl.textContent = j.error || "Could not retrieve a code."; errEl.hidden = false; }
+              setLabel("Retrieve code");
+              break;
+            }
+            // Retryable: keep checking until the 3-minute deadline.
+            if (Date.now() + POLL_MS >= deadline) {
+              if (errEl) {
+                errEl.textContent = "No code arrived after 3 minutes. Make sure you triggered the Zoom passcode, then try again.";
+                errEl.hidden = false;
+              }
+              setLabel("Retrieve code");
+              break;
+            }
+            await wait(POLL_MS);
           }
-        } catch (e) {
-          if (errEl) { errEl.textContent = "Network error — please try again."; errEl.hidden = false; }
-          setLabel("Retrieve code");
         } finally {
           btn.disabled = false;
           btn.classList.remove("is-loading");
+          polling = false;
         }
       });
     });

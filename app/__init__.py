@@ -310,6 +310,12 @@ def create_app():
         except (ValueError, TypeError):
             return []
 
+    @app.template_filter("tspro_fp")
+    def tspro_fp_filter(public_key):
+        """Short fingerprint of a TS Pro Backup site public key."""
+        from .pubkey import fingerprint
+        return fingerprint(public_key or "")
+
     @app.template_filter("regex_search")
     def regex_search_filter(value, pattern):
         """Run `re.search(pattern, value)` and return the match's groups
@@ -1510,6 +1516,14 @@ def _migrate_sqlite(app):
                          ("smtp_from_email", "VARCHAR(255)"),
                          ("smtp_from_name", "VARCHAR(200)"),
                          ("smtp_security", "VARCHAR(16) NOT NULL DEFAULT 'starttls'"),
+                         # Outgoing-mail transport: SMTP (default) vs HTTPS API relay
+                         ("mail_transport", "VARCHAR(16) NOT NULL DEFAULT 'smtp'"),
+                         ("relay_url", "VARCHAR(500)"),
+                         ("relay_api_key_enc", "BLOB"),
+                         # Persisted relay connection-test result (status pill)
+                         ("relay_status", "VARCHAR(16)"),
+                         ("relay_status_detail", "VARCHAR(500)"),
+                         ("relay_checked_at", "DATETIME"),
                          ("access_request_to", "VARCHAR(500)"),
                          ("submission_to", "VARCHAR(500)"),
                          ("submission_form_enabled", "BOOLEAN NOT NULL DEFAULT 1"),
@@ -1834,7 +1848,13 @@ def _migrate_sqlite(app):
         # access tokens on every call instead of failing every 4 hours.
         for col, ddl in (("app_key", "VARCHAR(64)"),
                          ("app_secret_enc", "BLOB"),
-                         ("refresh_token_enc", "BLOB")):
+                         ("refresh_token_enc", "BLOB"),
+                         # TS Pro Backup target (end-to-end encrypted HTTP
+                         # destination): API endpoint, Fernet-encrypted API
+                         # key, and the site's tsppk_ recipient public key.
+                         ("api_base_url", "VARCHAR(500)"),
+                         ("api_key_enc", "BLOB"),
+                         ("e2ee_public_key", "VARCHAR(80)")):
             add("backup_target", col, ddl)
         for col, ddl in (("asset_files_json", "TEXT"),):
             add("custom_font", col, ddl)

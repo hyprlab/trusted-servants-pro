@@ -6,6 +6,58 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.10.3] — 2026-06-02
+
+### Added
+
+- **Contact and Recovery Contacts pages now honour the Dynamic Background picker (Settings → Web Frontend → Templates).** Both pages previously hard-coded the `aurora-blobs` backdrop directly in their templates, so the backdrop couldn't be changed from the admin. They now resolve their dynamic background from the same per-template settings every other list/detail surface uses — `template_settings(site, 'contact', 'split')` and `template_settings(site, 'recovery_contacts', 'default')` — and apply it through `frontend/_dynbg_apply.html` (recipe + custom colours + overlay + per-preset knobs). The admin picker and its save path (`frontend_template_settings_save`) already existed for both surfaces; only the public templates (`frontend/contact.html`, `frontend/recovery_contacts.html`) were ignoring the saved value. Each page **defaults to `aurora-blobs` when nothing is saved**, so existing sites render identically until an admin picks something. (The `/chat` page is a regular `Page` and was already dynbg-configurable via the page editor, so it was left as-is.)
+- **Colour-coded backend chips on the Manage Backups screen.** Each configured off-site target now shows a prominent, colour-coded chip with an icon and friendly name — **TS Pro Backup** (shield/indigo), **SFTP** (server/green), **FTP/FTPS** (server/slate), **Dropbox** (box/sky) — beside its status pill, replacing the tiny muted `· FTP` backend code so the backend each target uses reads at a glance (`backups_list.html` + a new `.backup-kind-chip` rule set in `app.css`, dark-mode aware; FTP rows show `FTPS` when TLS is on).
+
+### Changed
+
+- **Redesigned the off-site backup connection edit screen.** The edit form now leads with a prominent connection-type banner — a large kind icon, the friendly backend name, a one-line description, and a status badge ("End-to-end encrypted", "FTPS · TLS encrypted", "SSH file transfer", "Cloud storage") — instead of a tiny muted backend code. Fields fill the panel width and are sized up (the setup wizard's 720px card cap is dropped on this screen), with endpoints, hosts, and remote paths rendered in a monospace face so long strings read clearly. All new styling is scoped under `.backup-edit`, so the setup wizard is untouched.
+- **Moved the WordPress importer card to the bottom of Settings → Data.** It now sits below the everyday data tools (full archive, frontend bundle, off-site backups, database snapshots) since it's a one-off migration aid rather than routine maintenance.
+
+### Fixed
+
+- **Off-site backup targets no longer get stuck showing "Running" forever.** `run_target()` runs synchronously: it flips the target's status mirror (and the `BackupRun` row) to `running`, uploads, then flips to `ok`/`failed`. If the process was interrupted mid-run by a restart — a deploy, OOM, or a long upload that overran a worker timeout (a scheduled 3 AM run is a prime candidate) — the final flip never happened and the pill read "Running…" indefinitely with no recovery path. The scheduler now reconciles orphaned `running` rows on boot (only the lock-winning worker does this, so workers don't race): each interrupted `BackupRun` is marked `failed` with an "Interrupted — the server restarted while this backup was in progress." message and a `finished_at`, and every affected target's status mirror is resynced to its most recent resolved (`ok`/`failed`) run, or `never_run` if none.
+
+## [2.10.2] — 2026-06-01
+
+### Added
+
+- **TS Pro Backup — an off-site, end-to-end-encrypted backup destination.** A fourth backup `kind` (`tspro_backup`) joins FTP/SFTP/Dropbox, targeting a dedicated [`tspro-backup`](https://hub.docker.com/r/viibeware/tspro-backup) server over its `/api/v1` HTTP API. New `app/pubkey.py` implements the client half of a hybrid ECIES scheme (`TSPEPK01` envelope): ephemeral X25519 → HKDF-SHA256 → AES-256-GCM, streamed in 1 MiB blocks so multi-GB archives cost O(1) memory. The backup server issues each site an X25519 keypair and advertises the **public** key via `/api/v1/ping`; `TSProBackupBackend` (in `backup_backends.py`) encrypts every archive to that key before upload, so the server only ever stores ciphertext it cannot read. The matching **private** key is held by the operator out-of-band and is only ever supplied at restore — it is never stored in the portal. New `BackupTarget` columns `api_base_url`, `api_key_enc` (Fernet), and `e2ee_public_key` (additively migrated); the backend learns chunked-upload capability + chunk size from `/ping` and splits large ciphertext so a body-size-limited proxy (e.g. Cloudflare's 100 MiB cap) can't reject it.
+  - **Wizard + edit integration.** The backup wizard gained a TS Pro Backup option on step 1; step 2 collects the API endpoint + per-site key; **Test connection** pings the server, *pins* its current public key on the target, and shows the key's fingerprint (`tspro_fp` Jinja filter) so the admin can confirm it against the backup server's console. A server-side key rotation is surfaced as an error rather than silently re-pointing backups at an undecryptable key. The encryption-at-rest step is replaced by an "end-to-end encrypted automatically" notice (the passphrase layer is never double-wrapped on top of `TSPEPK01`).
+  - **Restore + recovery.** The target's Restore page accepts the site's `tspsk_…` private key and decrypts by *content* (magic bytes), not file extension. The data-import flow (`_decrypt_if_encrypted`) also learned the `TSPEPK01` envelope, so an operator can recover directly from a downloaded `.enc` by pasting the private key into Settings → Import even when the Restore page isn't reachable. Legacy passphrase bundles (`TSPENC01`) continue to work unchanged.
+- **Watchtower notification chips are now pinned to the tab that owns them, plus a "Needs attention" widget on the Overview.** The sidebar Watchtower quicknav button already showed a combined attention count, but once an admin clicked through there was nothing indicating *which* of the six tabs the number lived in. Each attention source now renders a colour-coded chip on its owning tab in `templates/watchtower/_tabs.html` — `recovery_contacts_abuse_count` (danger/red) on **Overview** (where the flagged-requests panel lives), `locked_accounts_count` (blue) on **Access**, and `pending_access_count` (warn/amber) on **Requests** — using the same three counts already provided by `inject_globals()`, so no new queries were added. The Overview also gained a **Needs attention** card (`templates/watchtower/overview.html`) that lists every active item with an icon, count badge, one-line description, and a clickable row linking straight to the area needing attention (`#wt-rc-abuse`, `/watchtower/requests`, `/watchtower/access`); it collapses to a green "All clear" line when nothing is pending.
+
+### Fixed
+
+- **Synchronous backup runs no longer 500 with `DetachedInstanceError`.** The "run now" button and the wizard's first run read `run.status` after the app context (and its session) tore down, raising on a detached instance whose attributes had been expired by commit — masking the real outcome. `run_target()` now `refresh()`es and `expunge()`es the row before returning so the status stays readable after detach.
+- **`.nav-badge-warn` now renders amber instead of brand-blue.** The warn modifier was defined *before* the base `.nav-badge` rule in `app.css`, so the base brand-blue background overrode it by source order (the same trap `.nav-badge-danger` already sidestepped by being defined after the base). Moved the warn rule below the base so the amber colour wins everywhere it's used — including the new Watchtower Requests-tab chip and the existing pending-access quicknav chip.
+
+## [2.10.1] — 2026-05-31
+
+### Added
+
+- **API-relay connection test + live status pill (Settings → Domain / Email).** The API-relay transport gained a **Test connection** button and a colour-coded status pill (Connected / Not connected / Not tested) that surfaces the relay's reachability and API-key validity *without sending a message*. The Test button validates the URL + key typed into the form **before** they're saved; opening the Email tab re-probes the saved relay so the pill reflects the live connection, and a failure shows the underlying reason (a rejected key, an unreachable host, etc.). Backed by a new `POST /settings/relay-test` route and `app/mail.py`'s `relay_health()`, which calls the relay's Bearer-authenticated `GET /api/health` (added in [`viibeware/tspro-relay`](https://hub.docker.com/r/viibeware/tspro-relay) **v0.1.1**) and falls back to an auth-only `POST /api/send` probe for older relays — so the key is still validated without delivering mail. New `SiteSetting` columns `relay_status`, `relay_status_detail`, and `relay_checked_at` (additively migrated) persist the last outcome for the pill's initial render.
+
+### Changed
+
+- **Saving changed relay credentials clears the cached connection-test result**, so the pill never claims "Connected" against a URL or key that no longer applies — the Email tab re-probes on its next open to refill it.
+
+## [2.10.0] — 2026-05-30
+
+### Added
+
+- **Email relay transport — an alternative to direct SMTP for hosts that block outbound SMTP ports (e.g. DigitalOcean).** Under **Settings → Domain / Email**, a new **Sending method** selector toggles between **Direct SMTP** and **API relay (HTTPS)**. In relay mode the portal POSTs each message as JSON over HTTPS to a companion relay container ([`viibeware/tspro-relay`](https://hub.docker.com/r/viibeware/tspro-relay)) that performs the actual SMTP delivery, so SMTP credentials never need to live on the app host. New `SiteSetting` columns `mail_transport`, `relay_url`, and `relay_api_key_enc` (Fernet-encrypted, additively migrated); the API key field follows the same "leave blank to keep / clear" pattern as the SMTP password.
+- **`SiteSetting.mail_ready()`** — a transport-aware helper that reports whether outgoing mail is configured for the *active* transport (relay needs a URL + From address; SMTP needs a host + From address). `app/mail.py`'s `send_mail()` now branches on `mail_transport`, with `_send_via_relay()` handling the HTTPS POST (base64 attachments, Reply-To, JSON error surfacing).
+
+### Changed
+
+- **All notification call-sites now gate on `mail_ready()` instead of `smtp_host`**, so access-request emails, contact-form sends, recovery-contact alerts, and backup-failure alerts all work under either transport. The frontend Reply-To sender delegates to the relay in relay mode.
+- **The Email settings UI hides the SMTP server fields when API relay is selected** (and shows the relay URL / key fields instead), driven by the sending-method toggle, so only the relevant fields are visible. The test-send reports which transport it exercised.
+
 ## [2.9.5] — 2026-05-30
 
 ### Added
@@ -17,6 +69,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ### Changed
 
+- **The "Retrieve latest code" button now polls the inbox for up to 3 minutes.** Zoom is slow to send the passcode email, so a single check usually came up empty. Clicking Retrieve now keeps checking every ~6 seconds (showing a spinner and "Checking for code…") until a code lands or 3 minutes elapse; it stops early on a configuration/login error. Backed by a new `retryable` flag on the fetch response (the "no email/code yet" and transient-network cases are retryable; config/login errors are terminal). Copy updated to "it may take up to a minute to retrieve a code".
+- **A live expiry countdown is shown next to a retrieved code.** Zoom codes die 10 minutes after the email is sent, so the fetch response carries `expires_in_seconds` (`600 − age`) and the client renders a ticking `m:ss` countdown beside the code — green normally, amber under a minute, and a red "Code expired — request a new code from Zoom." at zero. Wired into all three retrieve spots (wizard, meeting detail, Zoom Accounts) via the shared `initOtpFetch()` handler.
+- **OTP section renamed to "Zoom One-Time-Passcodes (OTP)"** everywhere it appears (meeting detail, Zoom Accounts page, Settings → Security), and on the meeting detail page it's wrapped in a `zg-card` panel matching the Schedule/Location cards.
 - **Meeting detail page restyled into a balanced two-column card layout.** The Zoom section is wrapped in its own `data-card` (brand-accent panel) in the right column, the full-height vertical divider is gone, the logo moved into the left column so the Zoom card rises to the top, and the Schedule and Location sections sit in their own card-style containers. The 50/50 grid is preserved even for in-person meetings (the right column simply renders blank).
 - **OTP code freshness window tightened to 10 minutes, and the newest code always wins** when several arrive in the window (ranked by Zoom-origin, then code confidence, then recency — so a genuine code can't be hijacked by a stray number in a newer non-code notice).
 - **Click-to-copy chips render in Inter with normal letter spacing, and the "Click to copy" tooltip now has a green background.**

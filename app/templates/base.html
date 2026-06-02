@@ -1111,27 +1111,69 @@
           </p>
           <form class="form" method="post" action="{{ url_for('main.email_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="row">
-              <label>SMTP host<input name="smtp_host" type="text" value="{{ site.smtp_host or '' }}" placeholder="smtp.example.com"></label>
-              <label>Port<input name="smtp_port" type="number" min="1" max="65535" value="{{ site.smtp_port or '' }}" placeholder="587"></label>
-            </div>
-            <div class="row">
-              <label>Username<input name="smtp_username" type="text" value="{{ site.smtp_username or '' }}" autocomplete="off"></label>
-              <label>Security
-                <select name="smtp_security">
-                  <option value="starttls" {% if site.smtp_security == 'starttls' %}selected{% endif %}>STARTTLS (port 587)</option>
-                  <option value="ssl" {% if site.smtp_security == 'ssl' %}selected{% endif %}>SSL/TLS (port 465)</option>
-                  <option value="none" {% if site.smtp_security == 'none' %}selected{% endif %}>None (plain)</option>
-                </select>
-              </label>
-            </div>
-            <label>Password
-              <input name="smtp_password" type="password" autocomplete="new-password"
-                     placeholder="{% if site.smtp_password_enc %}(leave blank to keep existing){% else %}Enter password{% endif %}">
+            <label>Sending method
+              <select name="mail_transport" id="mailTransportSelect">
+                <option value="smtp" {% if (site.mail_transport or 'smtp') != 'relay' %}selected{% endif %}>Direct SMTP</option>
+                <option value="relay" {% if (site.mail_transport or 'smtp') == 'relay' %}selected{% endif %}>API relay (HTTPS)</option>
+              </select>
+              <span class="muted smaller">Use <b>API relay</b> when your host blocks outbound SMTP ports (e.g. DigitalOcean). The app sends each message over HTTPS to a relay container that does the SMTP delivery. <b>From email / From name</b> and access-request recipients apply to both modes.</span>
             </label>
-            {% if site.smtp_password_enc %}
-            <label class="check"><input type="checkbox" name="smtp_password_clear" value="1"><span>Remove stored password</span></label>
-            {% endif %}
+            <div id="relayFields">
+              <div class="row">
+                <label>Relay URL<input name="relay_url" type="url" value="{{ site.relay_url or '' }}" placeholder="https://relay.example.com"></label>
+              </div>
+              <label>Relay API key
+                <input name="relay_api_key" type="password" autocomplete="new-password"
+                       placeholder="{% if site.relay_api_key_enc %}(leave blank to keep existing){% else %}Shared secret from the relay{% endif %}">
+              </label>
+              {% if site.relay_api_key_enc %}
+              <label class="check"><input type="checkbox" name="relay_api_key_clear" value="1"><span>Remove stored API key</span></label>
+              {% endif %}
+              {# Connection status pill + Test button. The pill renders the
+                 last persisted relay-test outcome; opening this tab re-probes
+                 the relay (Bearer GET /api/health) and the Test button checks
+                 the values typed above before they're saved. #}
+              <div class="relay-conn"
+                   data-relay-test-url="{{ url_for('main.relay_test') }}"
+                   data-relay-configured="{% if site.relay_url and site.relay_api_key_enc %}1{% else %}0{% endif %}">
+                <div class="relay-conn-row">
+                  {% if site.relay_status == 'ok' %}
+                    {% set _pill_cls, _pill_txt = 'backup-status-ok', 'Connected' %}
+                  {% elif site.relay_status == 'fail' %}
+                    {% set _pill_cls, _pill_txt = 'backup-status-failed', 'Not connected' %}
+                  {% else %}
+                    {% set _pill_cls, _pill_txt = 'backup-status-never_run', 'Not tested' %}
+                  {% endif %}
+                  <span class="backup-status-pill {{ _pill_cls }}" data-relay-pill>{{ _pill_txt }}</span>
+                  <button type="button" class="btn btn-sm" data-relay-test>Test connection</button>
+                </div>
+                <p class="muted smaller relay-conn-detail" data-relay-detail
+                   {% if not site.relay_status_detail %}hidden{% endif %}>{{ site.relay_status_detail or '' }}</p>
+              </div>
+            </div>
+            <div id="smtpFields">
+              <div class="row">
+                <label>SMTP host<input name="smtp_host" type="text" value="{{ site.smtp_host or '' }}" placeholder="smtp.example.com"></label>
+                <label>Port<input name="smtp_port" type="number" min="1" max="65535" value="{{ site.smtp_port or '' }}" placeholder="587"></label>
+              </div>
+              <div class="row">
+                <label>Username<input name="smtp_username" type="text" value="{{ site.smtp_username or '' }}" autocomplete="off"></label>
+                <label>Security
+                  <select name="smtp_security">
+                    <option value="starttls" {% if site.smtp_security == 'starttls' %}selected{% endif %}>STARTTLS (port 587)</option>
+                    <option value="ssl" {% if site.smtp_security == 'ssl' %}selected{% endif %}>SSL/TLS (port 465)</option>
+                    <option value="none" {% if site.smtp_security == 'none' %}selected{% endif %}>None (plain)</option>
+                  </select>
+                </label>
+              </div>
+              <label>Password
+                <input name="smtp_password" type="password" autocomplete="new-password"
+                       placeholder="{% if site.smtp_password_enc %}(leave blank to keep existing){% else %}Enter password{% endif %}">
+              </label>
+              {% if site.smtp_password_enc %}
+              <label class="check"><input type="checkbox" name="smtp_password_clear" value="1"><span>Remove stored password</span></label>
+              {% endif %}
+            </div>
             <div class="row">
               <label>From email<input name="smtp_from_email" type="email" value="{{ site.smtp_from_email or '' }}" placeholder="noreply@example.com"></label>
               <label>From name<input name="smtp_from_name" type="text" value="{{ site.smtp_from_name or '' }}" placeholder="Trusted Servants Pro"></label>
@@ -1223,11 +1265,11 @@
       </div>
       <div class="settings-pane" data-pane="security">
 
-        {# ── Zoom OTP Email ──────────────────────────────────────── #}
+        {# ── Zoom One-Time-Passcodes (OTP) ───────────────────────── #}
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('key') }}
-            <span>Zoom OTP Email</span>
+            <span>Zoom One-Time-Passcodes (OTP)</span>
           </div>
           <p class="muted small data-card-lead">
             Shared inbox where Zoom sends one-time-password codes. These credentials are shown to users on Online/Hybrid meeting pages so they can retrieve OTP codes when logging into Zoom.
@@ -1268,7 +1310,7 @@
             <label class="check"><input type="checkbox" name="clear_imap_password" value="1"><span>Clear stored IMAP password</span></label>
             {% endif %}
 
-            <div class="data-card-actions"><button class="btn btn-primary">Save OTP Email</button></div>
+            <div class="data-card-actions"><button class="btn btn-primary">Save Passcode Settings</button></div>
           </form>
         </section>
 
@@ -1349,9 +1391,19 @@
                     data-finalize-action="{{ url_for('main.data_import_finalize') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>Export archive (.zip or .zip.enc)<input type="file" name="archive" accept=".zip,.enc,application/zip,application/octet-stream" required></label>
-                <label>Decryption passphrase <span class="muted smaller">(required for <code>.zip.enc</code> bundles, leave blank otherwise)</span>
-                  <input type="password" name="passphrase" autocomplete="off" placeholder="Required only for encrypted bundles">
+                <label>Decryption passphrase <span class="muted smaller">(legacy <code>.zip.enc</code> passphrase bundles only; leave blank otherwise)</span>
+                  <input type="password" name="passphrase" autocomplete="off" placeholder="Only for passphrase-encrypted bundles">
                 </label>
+                <label>Private key <span class="muted smaller">(end-to-end-encrypted TS&nbsp;Pro Backup <code>.enc</code> files only)</span>
+                  <input type="password" name="private_key" autocomplete="off" placeholder="tspsk_… — leave blank for ordinary .zip imports">
+                </label>
+                <p class="muted smaller">
+                  {{ icon('shield') }} Restoring an <strong>end-to-end-encrypted TS&nbsp;Pro Backup</strong>? Two ways:
+                  decrypt it on that target's
+                  <a href="{{ url_for('main.backups_list', embed=1 if request.args.get('embed') else None) }}">Off-site backups → Restore</a>
+                  page first, then import the resulting <code>.zip</code> here with both fields blank — or, if Restore isn't available,
+                  download the <code>.enc</code> from the backup server and paste the site's <strong>private key</strong> above to import it directly.
+                </p>
                 <label>Type <code>REPLACE</code> to confirm<input type="text" name="confirm" placeholder="REPLACE" autocomplete="off" required></label>
                 <div class="form-actions"><button class="btn btn-danger" data-import-bundle-submit>Import &amp; Replace All Data</button></div>
               </form>
@@ -1459,7 +1511,7 @@
                   return { uploadId: uploadId, totalChunks: total };
                 }
 
-                function finalize(uploadId, totalChunks, confirmValue, csrfToken, passphrase) {
+                function finalize(uploadId, totalChunks, confirmValue, csrfToken, passphrase, privateKey) {
                   // Hand off to a synthetic form POST so the browser
                   // follows the server's redirect-to-logout natively
                   // (carrying the flashed status message).
@@ -1476,6 +1528,7 @@
                     expected_chunks: String(totalChunks),
                     confirm: confirmValue,
                     passphrase: passphrase || '',
+                    private_key: privateKey || '',
                   };
                   Object.keys(fields).forEach(function (k) {
                     var input = document.createElement('input');
@@ -1493,6 +1546,7 @@
                   var confirmInput = form.querySelector('input[name="confirm"]');
                   var csrfInput    = form.querySelector('input[name="csrf_token"]');
                   var passInput    = form.querySelector('input[name="passphrase"]');
+                  var pkInput      = form.querySelector('input[name="private_key"]');
                   if (!fileInput || !fileInput.files || !fileInput.files[0]) return;
                   if (!confirmInput || confirmInput.value !== 'REPLACE') return;
 
@@ -1506,7 +1560,8 @@
                     var info = await uploadChunked(fileInput.files[0], csrfInput ? csrfInput.value : '');
                     finalize(info.uploadId, info.totalChunks, confirmInput.value,
                              csrfInput ? csrfInput.value : '',
-                             passInput ? passInput.value : '');
+                             passInput ? passInput.value : '',
+                             pkInput ? pkInput.value : '');
                   } catch (err) {
                     if (btn) { btn.disabled = false; btn.textContent = 'Import & Replace All Data'; }
                     setStatus('Upload failed',
@@ -1692,32 +1747,6 @@
           </div>
         </section>
 
-        {# ── WordPress importer wizard ─────────────────────────── #}
-        <section class="card data-card">
-          <div class="data-card-head">
-            {{ icon('globe') }}
-            <span>WordPress importer</span>
-          </div>
-          <p class="muted small data-card-lead">
-            Pull recovery stories, announcements, or events out of an existing
-            WordPress site. Connect over the WP REST API or upload a posts CSV.
-            The wizard previews exactly what will be created — including slug
-            clashes and image downloads — before anything is saved.
-          </p>
-          <p class="muted smaller data-card-sub">
-            Maps each post (or every post in a category) onto <b>Stories</b>,
-            <b>Announcements</b>, <b>Events</b>, or skip. Featured images are
-            deduplicated by content hash on import.
-          </p>
-          <div class="data-card-actions">
-            <button type="button" class="btn btn-primary"
-                    data-open-modal="wp-import-modal"
-                    data-close-modal="settings-modal">
-              Launch importer →
-            </button>
-          </div>
-        </section>
-
         {# ── Off-site backups ──────────────────────────────────── #}
         <section class="card data-card">
           <div class="data-card-head">
@@ -1798,6 +1827,32 @@
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn">Snapshot now</button>
             </form>
+          </div>
+        </section>
+
+        {# ── WordPress importer wizard ─────────────────────────── #}
+        <section class="card data-card">
+          <div class="data-card-head">
+            {{ icon('globe') }}
+            <span>WordPress importer</span>
+          </div>
+          <p class="muted small data-card-lead">
+            Pull recovery stories, announcements, or events out of an existing
+            WordPress site. Connect over the WP REST API or upload a posts CSV.
+            The wizard previews exactly what will be created — including slug
+            clashes and image downloads — before anything is saved.
+          </p>
+          <p class="muted smaller data-card-sub">
+            Maps each post (or every post in a category) onto <b>Stories</b>,
+            <b>Announcements</b>, <b>Events</b>, or skip. Featured images are
+            deduplicated by content hash on import.
+          </p>
+          <div class="data-card-actions">
+            <button type="button" class="btn btn-primary"
+                    data-open-modal="wp-import-modal"
+                    data-close-modal="settings-modal">
+              Launch importer →
+            </button>
           </div>
         </section>
 
