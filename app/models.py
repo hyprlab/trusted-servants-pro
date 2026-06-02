@@ -663,7 +663,41 @@ class SiteSetting(db.Model):
     smtp_from_email = db.Column(db.String(255))
     smtp_from_name = db.Column(db.String(200))
     smtp_security = db.Column(db.String(16), nullable=False, default="starttls")  # none|starttls|ssl
+    # --- Outgoing mail transport selection ---
+    # 'smtp' (default) sends directly via the smtp_* columns above.
+    # 'relay' POSTs each message as JSON to a TSP email-relay container
+    # over HTTPS (port 443 behind a reverse proxy) — for hosts like
+    # DigitalOcean that block outbound SMTP ports (25/465/587). The
+    # relay holds the real SMTP credentials; this app only needs the
+    # relay base URL + a shared API key. The smtp_from_email /
+    # smtp_from_name columns are reused for the From header in both
+    # modes, so switching transports doesn't change the sender.
+    mail_transport = db.Column(db.String(16), nullable=False, default="smtp")  # smtp|relay
+    relay_url = db.Column(db.String(500))            # e.g. https://relay.example.com
+    relay_api_key_enc = db.Column(db.LargeBinary)    # Fernet-encrypted shared secret
+    # Last relay connection-test outcome, shown as a status pill on the
+    # Settings → Domain / Email tab. Written by /settings/relay-test
+    # (a Bearer-auth GET to the relay's /api/health). relay_status is
+    # 'ok' | 'fail' | None (never tested); relay_status_detail holds the
+    # human-readable reason (the relay's error or our connection error)
+    # so the pill can surface why a failed relay isn't working.
+    relay_status = db.Column(db.String(16))          # ok|fail|None
+    relay_status_detail = db.Column(db.String(500))
+    relay_checked_at = db.Column(db.DateTime)
     access_request_to = db.Column(db.String(500))  # comma-separated recipients
+
+    def mail_ready(self):
+        """True when outgoing mail is configured for the active transport.
+
+        Callers gate notification sends on this instead of checking
+        ``smtp_host`` directly, so the API-relay transport (which has
+        no local SMTP host) still sends. Both transports need a From
+        address — without one the message has no usable sender."""
+        if not self.smtp_from_email:
+            return False
+        if (self.mail_transport or "smtp") == "relay":
+            return bool(self.relay_url)
+        return bool(self.smtp_host)
     # Where to email new submissions made via the public /submissionform.
     # Comma-separated list, mirrors access_request_to. Falls back to
     # access_request_to when blank so installs that already configured
@@ -3052,7 +3086,7 @@ class NotFoundEvent(db.Model):
     )
 
 
-BACKUP_KINDS = ("ftp", "sftp", "dropbox")
+BACKUP_KINDS = ("ftp", "sftp", "dropbox", "tspro_backup")
 BACKUP_STATUS = ("ok", "failed", "running", "never_run")
 
 
@@ -3067,7 +3101,7 @@ class BackupTarget(db.Model):
     __tablename__ = "backup_target"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
-    kind = db.Column(db.String(16), nullable=False)  # ftp | sftp | dropbox
+    kind = db.Column(db.String(16), nullable=False)  # ftp | sftp | dropbox | tspro_backup
     enabled = db.Column(db.Boolean, nullable=False, default=False)
 
     # Connection — FTP/SFTP use host/port/username/password_enc; SFTP can
@@ -3091,6 +3125,17 @@ class BackupTarget(db.Model):
     app_key = db.Column(db.String(64))
     app_secret_enc = db.Column(db.LargeBinary)
     refresh_token_enc = db.Column(db.LargeBinary)
+
+    # TS Pro Backup: an off-site, end-to-end-encrypted destination running
+    # the tspro-backup server. ``api_base_url`` is its ``/api/v1`` endpoint,
+    # ``api_key_enc`` the per-site bearer key (Fernet-encrypted), and
+    # ``e2ee_public_key`` the site's ``tsppk_…`` recipient public key that
+    # ``TSProBackupBackend`` encrypts every archive to before upload. The
+    # matching private key is held by the operator out-of-band and is only
+    # needed at restore — it is never stored here.
+    api_base_url = db.Column(db.String(500))
+    api_key_enc = db.Column(db.LargeBinary)
+    e2ee_public_key = db.Column(db.String(80))
 
     # FTPS toggle (FTP only). When false, plain FTP — surface a warning
     # in the wizard so the admin opts in deliberately.

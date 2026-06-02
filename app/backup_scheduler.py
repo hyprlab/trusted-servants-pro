@@ -128,7 +128,8 @@ def _send_failure_email(app, target, error):
         from . import mail
         from .models import SiteSetting, User
         ss = SiteSetting.query.first()
-        if not ss or not getattr(ss, "smtp_host", None):
+        if not ss or not (ss.mail_ready() if hasattr(ss, "mail_ready")
+                          else getattr(ss, "smtp_host", None)):
             return
         admin_emails = [u.email for u in User.query.filter_by(role="admin").all() if u.email]
         if not admin_emails:
@@ -177,7 +178,12 @@ def run_target(app, target_id, triggered_by="schedule"):
             archive_path, archive_name, _size = build_export_archive(app)
 
             upload_path = archive_path
-            if target.encrypt_archive and target.archive_passphrase_enc:
+            # TS Pro Backup encrypts to the site's public key inside the
+            # backend's put(), so never apply the passphrase layer on top of
+            # it — that would double-wrap and the server expects the
+            # public-key (TSPEPK01) envelope as the outermost layer.
+            if (target.encrypt_archive and target.archive_passphrase_enc
+                    and target.kind != "tspro_backup"):
                 passphrase = decrypt(target.archive_passphrase_enc)
                 if not passphrase:
                     raise RuntimeError("archive encryption configured but passphrase is unreadable")
@@ -252,7 +258,58 @@ def run_target(app, target_id, triggered_by="schedule"):
                     try: os.unlink(p)
                     except OSError: pass
 
+        # Detach the row with its columns loaded before this app context
+        # (and its session) tears down on ``with`` exit. Otherwise the
+        # synchronous callers (run-now, the wizard's first run) read
+        # ``run.status`` on a detached instance whose attributes were
+        # expired by commit, raising DetachedInstanceError → a 500 that
+        # masks the real outcome. refresh() repopulates, expunge() keeps
+        # those values readable after detach.
+        if run is not None:
+            try:
+                db.session.refresh(run)
+            except Exception:  # noqa: BLE001 — never let cleanup mask the result
+                pass
+            db.session.expunge(run)
         return run
+
+
+def _reconcile_orphaned_runs(app):
+    """Clear backups stuck at 'running' after an interrupted process.
+
+    ``run_target`` is synchronous: it flips ``last_status`` to 'running',
+    does the upload, then flips to 'ok'/'failed'. If the process is killed
+    mid-run (a deploy/restart, OOM, or a long upload that overran a worker
+    timeout — a scheduled 3 AM run is a prime candidate) the final flip
+    never happens, so both the BackupRun row and the target's status mirror
+    stay 'running' indefinitely and the pill reads "Running…" forever.
+
+    Nothing survives a process restart, so any 'running' row we see at boot
+    is necessarily dead. Mark those runs failed-interrupted and resync each
+    affected target's status mirror to its most recent resolved run.
+    """
+    from .models import db, BackupTarget, BackupRun
+    with app.app_context():
+        now = datetime.utcnow()
+        orphans = BackupRun.query.filter_by(status="running").all()
+        for r in orphans:
+            r.status = "failed"
+            r.finished_at = r.finished_at or now
+            if not r.error_message:
+                r.error_message = ("Interrupted — the server restarted while "
+                                   "this backup was in progress.")
+        stuck_targets = BackupTarget.query.filter_by(last_status="running").all()
+        for t in stuck_targets:
+            last_done = (BackupRun.query
+                         .filter(BackupRun.target_id == t.id)
+                         .filter(BackupRun.status.in_(("ok", "failed")))
+                         .order_by(BackupRun.started_at.desc())
+                         .first())
+            t.last_status = last_done.status if last_done else "never_run"
+        if orphans or stuck_targets:
+            db.session.commit()
+            logger.info("reconciled %d orphaned 'running' backup run(s), "
+                        "%d stuck target(s)", len(orphans), len(stuck_targets))
 
 
 def _scheduler_loop(app, lock_handle):
@@ -294,6 +351,13 @@ def start_scheduler(app):
         logger.info("backup scheduler: lock held by another worker, idle")
         app.config["_BACKUP_SCHEDULER_STARTED"] = True
         return None
+
+    # Clear any backups left stuck at 'running' by a previous process that
+    # died mid-run — only the lock winner does this so workers don't race.
+    try:
+        _reconcile_orphaned_runs(app)
+    except Exception:
+        logger.exception("backup scheduler: failed to reconcile orphaned runs")
 
     # Seed next_run_at for targets that have none (rows just created,
     # or rows from an upgrade prior to this feature).
