@@ -270,6 +270,13 @@ services:
       - TSP_HOST_PROC=/host/proc
       - TSP_HOST_ETC=/host/etc
     restart: unless-stopped
+    # Cap container logs so an unattended box can't fill its disk with
+    # JSON log files over time (default json-file driver is unbounded).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   caddy:
     image: caddy:2-alpine
@@ -284,6 +291,11 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   watchtower:
     image: nickfedor/watchtower:latest
@@ -291,11 +303,47 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
+      # CLEANUP removes the previous image after each successful update —
+      # without it, every auto-update leaves the old image behind and they
+      # accumulate until the disk fills (170 stale images = a full 24 GB box).
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
       - WATCHTOWER_POLL_INTERVAL=86400
       - WATCHTOWER_LABEL_ENABLE=false
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Independent safety net for disk growth. WATCHTOWER_CLEANUP only removes
+  # images from updates Watchtower itself performs — it does NOT clean up
+  # images orphaned by manual \`docker compose pull\`, re-tagged :latest churn,
+  # or partial pulls, which is how a box can still pile up hundreds of stale
+  # images. This janitor sweeps everything unused for >72h once a day, so disk
+  # use stays bounded no matter how an image got orphaned. NOTE: prune is
+  # host-wide (every unused image on the daemon), which is correct for a
+  # dedicated TSP host; don't add it on a shared host running other stacks.
+  docker-prune:
+    image: docker:cli
+    container_name: tspro-prune
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          docker image prune -af --filter "until=72h" || true
+          docker builder prune -af --filter "until=72h" || true
+          sleep 86400
+        done
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   caddy_data:

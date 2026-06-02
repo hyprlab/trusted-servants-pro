@@ -7,7 +7,32 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.10.3 — 2026-06-02 (latest) — Configurable page backgrounds + clearer, friendlier backups
+## 2.10.8 — 2026-06-02 (latest) — Encrypted backups to Dropbox/FTP/SFTP now work on large portals
+
+- **Fixed: encrypted off-site backups failing with a "server offline" error.** If you turned on archive encryption for an FTP, SFTP, or Dropbox backup, a larger portal could grind for a while and then show a "server offline" error — the encryption step was loading the whole backup into memory at once and running the server out of RAM. Encryption (and decryption on restore) now processes the backup in small pieces, so memory stays low no matter how big your portal is — a multi-gigabyte backup uses the same memory as a tiny one. Backups encrypted before this update still restore normally.
+- **Fixed: a confusing "connection failed" message in the Dropbox setup wizard.** After clicking **Test connection** (which showed a green OK) and then **Continue to schedule**, you'd get a red "connection failed" error on the first click and have to click again. That's resolved — the wizard no longer re-uses the single-use Dropbox authorization code, so Continue works the first time.
+
+## 2.10.7 — 2026-06-02 — See your disk space right on the dashboard
+
+- **Disk space is now on your dashboard.** The Server panel on the dashboard (which already shows CPU, memory, uptime, and who's online) now includes a **Disk** tile — how full your server's disk is, with the space used and total (e.g. "92 GB / 196 GB"). It tracks the disk that holds your data, uploads, and backups. The tile turns amber when it crosses 85% full — the same point at which the low-space warning kicks in — so you can keep an eye on it at a glance without leaving the dashboard. Shown to admins only.
+
+## 2.10.6 — 2026-06-02 — A real guarantee against a full disk, plus a heads-up before it happens
+
+- **Your server now actively keeps its own disk tidy.** A small daily housekeeper automatically clears out old, unused Docker images and build leftovers — the stuff that quietly piled up and filled disks before. Unlike the previous auto-cleanup (which only tidied up after automatic updates), this one cleans up *everything* unused, no matter how it got left behind, so the disk stays under control on its own.
+- **You'll get a warning before the disk is ever full.** When the server's disk passes 85% full, admins now see a clear **"Low disk space"** banner at the top of every admin page *and* a matching alert in the Notification Center — with how much space is left and what to do about it. That gives you plenty of runway to act before backups, uploads, or updates could fail. The warning is shown to admins only, and disappears on its own once space is freed.
+- **Already running an older install?** Re-run the installer to adopt the new housekeeper (your data and settings are preserved) — see the README's **"Keeping disk usage in check"** section.
+
+## 2.10.5 — 2026-06-02 — Keep your server from filling its own disk
+
+- **Your server won't quietly fill its own disk anymore.** Over many months, an unattended portal could slowly use up all its disk space in two ways — automatic updates kept piling up old, unused copies of the app, and the behind-the-scenes activity logs grew without limit. Once the disk filled, things like off-site backups (and even installing updates) would start failing with "disk full" errors. New installs now automatically clean up old images after each update and keep logs trimmed, so this won't happen.
+- **Already running an older install?** If your disk is filling up, you can clean it up and adopt the new safeguards without reinstalling — the README's new **"Keeping disk usage in check"** section walks you through it (a couple of `docker` cleanup commands, then re-running the installer to refresh your setup). Your data and settings are preserved.
+- This release changes only the deployment setup and documentation — the app itself is unchanged from 2.10.4.
+
+## 2.10.4 — 2026-06-02 — Fix: off-site backups failing with "disk is full"
+
+- **Fixed: off-site backups failing with a "database or disk is full" error.** On some servers, clicking **Run Now** (or a scheduled run) on any off-site backup — TS Pro Backup, Dropbox, FTP, or SFTP — could fail with an internal server error mentioning "database or disk is full," even though the server had plenty of room. The cause was that the app built each backup in the system's small scratch area (`/tmp`) rather than next to your actual data; once a site's backup grew past what that scratch area could hold, the backup couldn't be assembled. Backups are now built on the same disk that holds your data — which always has the space — so this no longer happens. Advanced operators can point the scratch space at a dedicated disk with the new `TSP_TMP_DIR` setting.
+
+## 2.10.3 — 2026-06-02 — Configurable page backgrounds + clearer, friendlier backups
 
 - **Pick the background for your Contact and Recovery Contacts pages.** These two pages used to have a fixed animated background baked in. Now they use the same **Dynamic Background** picker as the rest of your site — open **Settings → Web Frontend → Templates**, find the Contact or Recovery Contacts page, and choose any pattern, colours, or texture in its **Customize** panel. They look exactly as before until you change them, so nothing moves unless you want it to. (The Join the Chat page was already adjustable this way.)
 - **See at a glance what each backup is.** On **Off-site Backups → Manage**, every configured destination now wears a clear, colour-coded label — **TS Pro Backup**, **SFTP**, **FTP/FTPS**, or **Dropbox** — right next to its status, instead of a tiny grey code.
