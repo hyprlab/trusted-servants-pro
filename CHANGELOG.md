@@ -6,6 +6,45 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.10.8] — 2026-06-02
+
+### Fixed
+
+- **Encrypted off-site backups no longer crash the worker ("server offline") on large archives.** `encrypt_archive_file()` read the entire archive into memory and called `Fernet.encrypt()` on the whole blob — peak memory ran to ~1 GB+ for a ~294 MB archive (input + ciphertext + a ~33%-larger base64 token + copies), which OOM-killed the gunicorn worker (SIGKILL / exit 137) mid-request and surfaced in the browser as a "server offline" error after a long pause. Encryption (and the matching decrypt on restore) is now **streamed in 4 MiB chunks** — each chunk is one length-prefixed Fernet token — so peak memory stays flat (~200 MB total process, independent of archive size; a 4 GB backup encrypts in the same footprint as a 4 MB one). Measured: the 294 MB archive now encrypts in ~2 s instead of being killed. The on-disk format is bumped to **v0x02**; the legacy **v0x01** single-token format is still readable by `decrypt_archive_file`, so encrypted backups taken before this change still restore. Affects **every passphrase-encrypted target** (FTP/SFTP/Dropbox); TS Pro Backup was already streamed (`app/pubkey.py`) and was unaffected.
+- **Dropbox backup wizard no longer shows a spurious "connection failed" error on the first "Continue to schedule" click.** The wizard's "Test connection" button submits the form first — which exchanges the Dropbox **one-time** authorization code for a refresh token and stores it — then tests. Because the auth-code field still held the now-spent code, clicking "Continue to schedule" re-submitted it, and `backups_wizard_step2_post` tried to exchange the single-use code a second time, which Dropbox rejects; the second click then worked only because the redirect had cleared the field. `step2_post` is now idempotent: if an auth-code exchange fails **but a working refresh token is already stored**, the spent code is treated as a harmless stale value and the wizard proceeds, instead of blocking with a misleading error. (A genuine first-time failure — no stored token and a bad code — still blocks and surfaces the error.) The wizard also now clears the consumed auth-code field after a successful test, avoiding the redundant exchange entirely.
+
+## [2.10.7] — 2026-06-02
+
+### Added
+
+- **Disk-space tile on the dashboard Server widget.** The admin-only Server widget (Dashboard → "Your Role and Server Stats") gains a **Disk** tile alongside CPU and Memory, showing percent used plus `used / total` (e.g. "92 GB / 196 GB") and a sparkline. Measured on the **data volume** (`DATA_DIR` — the disk that actually fills, since the DB, uploads, and backups all live there), falling back to the host root. The tile turns amber at ≥85% — the same threshold as the low-disk banner and Notification Center entry — so the dashboard reads as a live monitor at a glance. `metrics.snapshot()` now takes an optional `disk_path` and returns `disk_total`/`disk_used`/`disk_percent`; `/api/server-metrics` passes the configured data dir. The admin metrics grid widens from 5 to 6 tiles (`server-metrics-grid-6`), with the responsive breakpoints updated to match. Admin-only by construction (the whole Server column is gated on `is_admin()`).
+
+## [2.10.6] — 2026-06-02
+
+### Added
+
+- **Daily image-prune janitor (`docker-prune` compose service).** A new sidecar in both production compose definitions (`install.sh`'s generated `docker-compose.yml` and `docker-compose.deploy.yml`) runs `docker image prune -af --filter until=72h` and `docker builder prune -af --filter until=72h` once a day. This is the actual guarantee against the disk-fill class of failure: `WATCHTOWER_CLEANUP=true` only reclaims images from updates Watchtower *itself* performs, so images orphaned by manual `docker compose pull`, re-tagged `:latest` churn, or partial pulls accumulate unbounded (a long-lived box was observed with 170 images / ~20 GB reclaimable on a full 24 GB disk). The janitor sweeps everything unused for >72h regardless of how it was orphaned. It mounts `docker.sock` (same privilege Watchtower already holds); the prune is host-wide, so it's intended for a dedicated TSP host. Left out of the dev `docker-compose.yml`, where a host-wide prune would disrupt other local projects.
+- **Low-disk-space warning for admins.** New `app/diskcheck.py` runs a cached (5-min TTL), log-throttled (hourly) `shutil.disk_usage()` check on the data volume and host root, de-duplicated by device id. When either crosses 85%, admins see a banner on every admin page (`base.html`, gated in both the `inject_globals` context processor and the template) and a `disk_space:low` entry in the Notification Center (`app/notifications.py`, inside the admin-only source block). The notification uses a stable key so a dismissal sticks until the condition clears (then re-surfaces if it crosses again via the existing prune-on-resolve logic), while its body re-derives each render so the figures stay live. A `WARNING` is logged when the threshold is first crossed. Both surfaces are strictly admin-only — verified for admin (shown), viewer (hidden), and anonymous (hidden).
+
+### Changed
+
+- README's "Keeping disk usage in check" section documents the new prune janitor and the admin low-disk warning, and notes that re-running `install.sh` adopts the janitor on existing installs.
+
+## [2.10.5] — 2026-06-02
+
+### Changed
+
+- **Deployment hardening so an unattended host can't fill its own disk.** Two compounding gaps could fill a server's disk over months of unattended operation, after which *every* disk-backed operation failed — including off-site backups (`database or disk is full`) and even `docker compose pull` (`no space left on device`):
+  - **Container log rotation.** All three compose definitions (`install.sh`'s generated `docker-compose.yml`, `docker-compose.deploy.yml`, and the dev `docker-compose.yml`) now set `logging: { driver: json-file, options: { max-size: 10m, max-file: 3 } }` on every service. Docker's default `json-file` driver is unbounded; on a long-running box the container writable layers had grown to multiple GB of unrotated logs.
+  - **Watchtower image cleanup (documented + reinforced).** `install.sh` already set `WATCHTOWER_CLEANUP=true`, but installs predating that flag accumulate one stale image per 24-hour auto-update — a long-lived box was observed with **170 images (167 unused, ~20 GB reclaimable)** filling a 24 GB disk. Added an explanatory comment in the generated compose and a new **"Keeping disk usage in check"** section in the README documenting the settings and the manual remediation (`docker image prune -af` / `docker builder prune -af`, then re-run `install.sh` to adopt the hardened compose) for boxes that predate them.
+- No application code changed in this release; it is compose/installer/documentation only. (Existing deployments must refresh their `docker-compose.yml` — re-run `install.sh` — to pick up the new settings, since `docker compose pull` only updates images, not the compose file.)
+
+## [2.10.4] — 2026-06-02
+
+### Fixed
+
+- **Off-site backups no longer fail with `database or disk is full` when the system temp dir is small.** `build_export_archive()` staged its scratch files — the `VACUUM INTO` copy of the database and the in-progress zip — in the system temp dir (`/tmp`) via `tempfile.NamedTemporaryFile()` with no `dir=`. On many production hosts `/tmp` is a small tmpfs or a space-constrained container overlay, while `VACUUM INTO` needs roughly the full database size in free space at the destination; once a portal's archive grew large enough the export aborted with `(sqlite3.OperationalError) database or disk is full [SQL: VACUUM INTO '/tmp/tsp-export-…db']`, taking down **every** off-site target (TS Pro Backup, Dropbox, FTP/SFTP) since they all build the same archive first. Scratch files now stage on the **data volume** (`UPLOAD_FOLDER`'s parent — the same mount that holds `tsp.db` and `uploads/`, so headroom is guaranteed), with the encrypted-restore decrypt (`decrypt_archive_file`) and the TS Pro Backup e2ee `put()` ciphertext staging alongside their source files for the same reason. A new optional `TSP_TMP_DIR` env var overrides the scratch location for installs that mount a dedicated scratch volume; if the chosen directory isn't writable the code falls back to the system temp dir.
+
 ## [2.10.3] — 2026-06-02
 
 ### Added

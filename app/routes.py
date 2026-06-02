@@ -359,6 +359,16 @@ def inject_globals():
             notifications_count = _notif.unread_count(current_user)
     except Exception:
         notifications_count = 0
+    # Low-disk warning banner — admin-only. Cheap (cached statvfs); surfaces
+    # before a full disk breaks backups, uploads, or image pulls. See
+    # app/diskcheck.py for the threshold + caching/log-throttle behaviour.
+    disk_warning = None
+    try:
+        if current_user.is_authenticated and current_user.is_admin():
+            from .diskcheck import disk_warning as _disk_warning
+            disk_warning = _disk_warning(current_app.config.get("DATA_DIR"))
+    except Exception:
+        disk_warning = None
     return {"CATEGORY_LABELS": CATEGORY_LABELS, "FILE_CATEGORIES": FILE_CATEGORIES,
             "DAYS_OF_WEEK": DAYS_OF_WEEK, "site": site, "nav_links": nav_links,
             "pending_access_count": pending_access_count,
@@ -368,7 +378,8 @@ def inject_globals():
             "pending_stories_count": pending_stories_count,
             "pending_recovery_contacts_count": pending_recovery_contacts_count,
             "recovery_contacts_abuse_count": recovery_contacts_abuse_count,
-            "notifications_count": notifications_count, "otp": otp}
+            "notifications_count": notifications_count, "otp": otp,
+            "disk_warning": disk_warning}
 
 
 DASHBOARD_WIDGET_KEYS = ("server-metrics", "visitor-metrics", "currently-online", "backups", "trusted-servants", "release-notes", "meetings", "libraries", "files", "access-requests", "forms", "deletions")
@@ -915,7 +926,7 @@ def dashboard_customize():
 @admin_required
 def api_server_metrics():
     from .metrics import snapshot
-    return jsonify(snapshot())
+    return jsonify(snapshot(current_app.config.get("DATA_DIR")))
 
 
 @bp.route("/api/version")
@@ -5109,15 +5120,26 @@ def backups_wizard_step2_post(target_id):
                             or (decrypt(t.app_secret_enc) if t.app_secret_enc else None))
             refresh, err = _exchange_dropbox_auth_code(
                 t.app_key, secret_plain, auth_code)
-            if err:
+            if refresh:
+                t.refresh_token_enc = encrypt(refresh)
+                # Refresh token supersedes any legacy short-lived access
+                # token — clear it so DropboxBackend doesn't fall back.
+                t.oauth_token_enc = None
+            elif not t.refresh_token_enc:
+                # No usable token and the code didn't exchange — genuinely
+                # can't connect yet. Surface the error and stay on step 2.
                 flash(err, "danger")
                 return redirect(url_for("main.backups_wizard",
                                         target_id=t.id, step=2,
                                         **_backup_embed_kwargs()))
-            t.refresh_token_enc = encrypt(refresh)
-            # Refresh token supersedes any legacy short-lived access
-            # token — clear it so DropboxBackend doesn't fall back.
-            t.oauth_token_enc = None
+            # else: exchange failed but a refresh token is already stored.
+            # A Dropbox auth code is single-use, and the wizard's "Test
+            # connection" button already submits this form (consuming the
+            # code and storing the refresh token) before the user clicks
+            # "Continue". So on Continue the field still holds the spent
+            # code; re-exchanging it fails, but the connection already
+            # works — treat the stale code as a no-op and proceed rather
+            # than blocking with a misleading error.
         legacy_token = (request.form.get("oauth_token") or "").strip()
         if legacy_token:
             t.oauth_token_enc = encrypt(legacy_token)
