@@ -153,6 +153,22 @@ bp = Blueprint("main", __name__, url_prefix="/tspro")
 # /pub/*, /site-branding/footer-logo, /site-branding/og-image, /request-access.
 public_bp = Blueprint("public", __name__)
 
+# Inbound machine-to-machine API served at the *root* (not under /tspro):
+# the paired TS Pro Backup server pushes a remote restore to
+# /api/v1/restore[...]. Mounted at root so the backup server can reach it at
+# ``<portal public URL>/api/v1/restore`` without needing to know the console's
+# /tspro prefix. CSRF-exempt as a whole in create_app (token-authenticated).
+restore_bp = Blueprint("restore_api", __name__)
+
+# Inbound machine-to-machine API for frontend *staging sync*, also at the
+# root. A paired sibling install (dev⇄prod) pulls our scoped frontend
+# bundle from ``/api/v1/frontend-sync/pull`` or pushes one to
+# ``/api/v1/frontend-sync/push``. Shared-secret token auth; CSRF-exempt as a
+# whole in create_app. Distinct from restore_bp because the scope is just
+# the public frontend (settings/theme/nav/layouts + Pages + assets), never
+# the whole database.
+frontend_sync_bp = Blueprint("frontend_sync_api", __name__)
+
 CATEGORY_LABELS = {
     "readings": "Readings",
     "scripts": "Scripts",
@@ -270,6 +286,93 @@ def _require_can_edit_library(library):
     return None
 
 
+def _attention_counts(*, include_dashboard=False):
+    """Every live "needs attention" count for the current user, keyed by
+    the same ``data-live-chip`` keys the templates use.
+
+    Single source of truth for the attention chips: ``inject_globals``
+    calls this to seed the initial render and the ``/_live/counts``
+    poller calls it to refresh them in place, so a chip's polled value
+    can never drift from what the page first rendered. Every value
+    defaults to 0 and is role-gated exactly like the rendered chip, so
+    a user only ever gets counts for sections they can act on.
+
+    ``include_dashboard`` adds the two dashboard-only widget chips
+    (failed off-site backups, forms awaiting action). Off by default so
+    the per-request context processor stays lean — the poller turns it
+    on only when the dashboard grid is actually on screen."""
+    counts = {
+        "pending_access": 0, "unread_contact": 0, "locked_accounts": 0,
+        "pending_posts": 0, "pending_stories": 0,
+        "pending_recovery_contacts": 0, "recovery_contacts_abuse": 0,
+        "notifications": 0,
+    }
+    if include_dashboard:
+        counts["backups_failed"] = 0
+        counts["forms_attention"] = 0
+    if not getattr(current_user, "is_authenticated", False):
+        return counts
+    try:
+        site = SiteSetting.query.first()
+    except Exception:
+        site = None
+    is_admin = getattr(current_user, "is_admin", lambda: False)
+    can_edit = getattr(current_user, "can_edit", lambda: False)
+    try:
+        if is_admin():
+            counts["pending_access"] = AccessRequest.query.filter_by(
+                status="pending", is_archived=False).count()
+            counts["unread_contact"] = ContactSubmission.query.filter_by(
+                is_read=False, is_archived=False).count()
+            try:
+                from .auth import currently_locked_usernames
+                counts["locked_accounts"] = len(currently_locked_usernames())
+            except Exception:
+                pass
+            try:
+                from . import watchtower as _wt
+                counts["recovery_contacts_abuse"] = _wt.recovery_contact_abuse_count()
+            except Exception:
+                pass
+        # Editor-visible submission chips, each gated by its module toggle.
+        if can_edit() and site and getattr(site, "posts_enabled", False):
+            counts["pending_posts"] = Post.query.filter(
+                Post.is_pending_review.is_(True),
+                Post.is_archived.is_(False)).count()
+        if can_edit() and site and getattr(site, "stories_enabled", False):
+            counts["pending_stories"] = Story.query.filter(
+                Story.is_pending_review.is_(True),
+                Story.is_archived.is_(False)).count()
+        if site and getattr(site, "recovery_contacts_enabled", False):
+            from .permissions import user_meets_role
+            if user_meets_role(current_user,
+                               getattr(site, "recovery_contacts_required_role", "admin") or "admin"):
+                counts["pending_recovery_contacts"] = RecoveryContact.query.filter_by(approved=False).count()
+    except Exception:
+        # Any DB hiccup leaves the safe all-zero seed in place.
+        for k in ("pending_access", "unread_contact", "locked_accounts",
+                  "pending_posts", "pending_stories",
+                  "pending_recovery_contacts", "recovery_contacts_abuse"):
+            counts[k] = 0
+    try:
+        from . import notifications as _notif
+        counts["notifications"] = _notif.unread_count(current_user)
+    except Exception:
+        counts["notifications"] = 0
+    if include_dashboard and is_admin():
+        try:
+            counts["backups_failed"] = sum(
+                1 for t in BackupTarget.query.all() if t.last_status == "failed")
+        except Exception:
+            pass
+        try:
+            _rows, _attn, _total = _forms_widget_data()
+            counts["forms_attention"] = _attn
+        except Exception:
+            pass
+    return counts
+
+
 @bp.app_context_processor
 def inject_globals():
     try:
@@ -280,85 +383,22 @@ def inject_globals():
         nav_links = NavLink.query.order_by(NavLink.position, NavLink.id).all()
     except Exception:
         nav_links = []
-    pending_access_count = 0
-    unread_contact_count = 0
-    locked_accounts_count = 0
-    pending_posts_count = 0
-    pending_stories_count = 0
-    pending_recovery_contacts_count = 0
-    recovery_contacts_abuse_count = 0
-    try:
-        if current_user.is_authenticated and current_user.is_admin():
-            pending_access_count = AccessRequest.query.filter_by(
-                status="pending", is_archived=False).count()
-            unread_contact_count = ContactSubmission.query.filter_by(
-                is_read=False, is_archived=False).count()
-            # Locked-accounts count drives the second chip on the
-            # Watchtower quicknav button. One query against
-            # LoginFailure aggregated by username — small table,
-            # cheap to compute per-request for admin viewers only.
-            try:
-                from .auth import currently_locked_usernames
-                locked_accounts_count = len(currently_locked_usernames())
-            except Exception:
-                locked_accounts_count = 0
-            # Flagged Recovery Contacts update/removal requests (rate-limited
-            # 2nd updates + owner-disavowed requests) drive a red attention
-            # chip on the Watchtower quicknav so admins catch abuse fast.
-            try:
-                from . import watchtower as _wt
-                recovery_contacts_abuse_count = _wt.recovery_contact_abuse_count()
-            except Exception:
-                recovery_contacts_abuse_count = 0
-        # Pending Announcements/Events submissions chip. Shown to anyone
-        # who can act on the holding tank — same gate the Posts route
-        # uses to enable the "approve" action. Computed outside the
-        # admin-only block so editors see the chip too.
-        if (current_user.is_authenticated
-                and getattr(current_user, "can_edit", lambda: False)()
-                and site and getattr(site, "posts_enabled", False)):
-            pending_posts_count = Post.query.filter(
-                Post.is_pending_review.is_(True),
-                Post.is_archived.is_(False)).count()
-        # Pending Stories submissions chip. Same shape as the posts
-        # chip — gated by editor role + the stories module being on.
-        if (current_user.is_authenticated
-                and getattr(current_user, "can_edit", lambda: False)()
-                and site and getattr(site, "stories_enabled", False)):
-            pending_stories_count = Story.query.filter(
-                Story.is_pending_review.is_(True),
-                Story.is_archived.is_(False)).count()
-        # Pending Recovery Contacts entries chip. Gated by the module's own
-        # admin role (who can approve entries) rather than the editor
-        # gate, since the Recovery Contacts section defaults to admin-tier.
-        if (current_user.is_authenticated
-                and site and getattr(site, "recovery_contacts_enabled", False)):
-            from .permissions import user_meets_role
-            if user_meets_role(current_user,
-                               getattr(site, "recovery_contacts_required_role", "admin") or "admin"):
-                pending_recovery_contacts_count = RecoveryContact.query.filter_by(approved=False).count()
-    except Exception:
-        pending_access_count = 0
-        unread_contact_count = 0
-        locked_accounts_count = 0
-        pending_posts_count = 0
-        pending_stories_count = 0
-        pending_recovery_contacts_count = 0
-        recovery_contacts_abuse_count = 0
+    # All "needs attention" counts come from one shared helper so the
+    # chips' initial render here and their live ``/_live/counts`` refresh
+    # can never disagree. See _attention_counts() for the role gating.
+    _counts = _attention_counts()
+    pending_access_count = _counts["pending_access"]
+    unread_contact_count = _counts["unread_contact"]
+    locked_accounts_count = _counts["locked_accounts"]
+    pending_posts_count = _counts["pending_posts"]
+    pending_stories_count = _counts["pending_stories"]
+    pending_recovery_contacts_count = _counts["pending_recovery_contacts"]
+    recovery_contacts_abuse_count = _counts["recovery_contacts_abuse"]
+    notifications_count = _counts["notifications"]
     try:
         otp = _get_otp_email()
     except Exception:
         otp = None
-    # Notifications Center chip — uncleared count for the current user.
-    # Read-only; derived from the same attention sources as the badges
-    # above (see app/notifications.py).
-    notifications_count = 0
-    try:
-        if current_user.is_authenticated:
-            from . import notifications as _notif
-            notifications_count = _notif.unread_count(current_user)
-    except Exception:
-        notifications_count = 0
     # Low-disk warning banner — admin-only. Cheap (cached statvfs); surfaces
     # before a full disk breaks backups, uploads, or image pulls. See
     # app/diskcheck.py for the threshold + caching/log-throttle behaviour.
@@ -369,8 +409,14 @@ def inject_globals():
             disk_warning = _disk_warning(current_app.config.get("DATA_DIR"))
     except Exception:
         disk_warning = None
+    try:
+        from .models import FrontendSyncPeer
+        fe_sync_peer = FrontendSyncPeer.query.first()
+    except Exception:
+        fe_sync_peer = None
     return {"CATEGORY_LABELS": CATEGORY_LABELS, "FILE_CATEGORIES": FILE_CATEGORIES,
             "DAYS_OF_WEEK": DAYS_OF_WEEK, "site": site, "nav_links": nav_links,
+            "fe_sync_peer": fe_sync_peer,
             "pending_access_count": pending_access_count,
             "unread_contact_count": unread_contact_count,
             "locked_accounts_count": locked_accounts_count,
@@ -436,83 +482,49 @@ def _guard_frontend_module():
     return redirect(url_for("main.index"))
 
 
-# Endpoint-name suffixes that identify asset-serving / sub-resource
-# routes (file downloads, image fetches, PDF generators, JSON probes,
-# logo fetches, etc.). Resolving an endpoint to one of these means the
-# request is fetching a *resource* belonging to a page, not navigating
-# to a page itself, so it must not flip the user's "where they are
-# right now" pointer to a download URL.
-_LOCATION_SKIP_SUFFIXES = (
-    "_download", "_pdf", "_content", "_image", "_logo",
-    "_favicon", "_serve", "_json", "_thumb", "_thumbnail",
-)
-# Path extensions (case-insensitive) that always indicate a sub-
-# resource even when the endpoint name doesn't follow the convention
-# above — covers static-passthrough routes and any new asset endpoint
-# that ships before the suffix list catches up.
-_LOCATION_SKIP_EXTS = (
-    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".avif", ".ico",
-    ".pdf", ".json", ".woff", ".woff2", ".ttf", ".otf",
-    ".mp4", ".webm", ".mp3", ".zip", ".db", ".css", ".js",
-)
-
-
-@bp.before_app_request
-def _track_last_seen():
+@bp.after_app_request
+def _track_last_seen(response):
     """Throttled last_seen_at update for the authenticated user.
 
     Also captures the user's current navigation location (endpoint +
     path) so the User Log live widget can show where each online
-    person is right now. Skips:
+    person is right now — but *only* for navigations to a real,
+    rendered backend page. The "is this a page?" test is the response
+    itself: a ``200 text/html`` body is a page someone actually
+    landed on; anything else (an icon or other image, a PDF, a file
+    download, a JSON API/metrics poll, a 30x redirect, a 4xx/5xx) is a
+    sub-resource the page loaded or a non-navigation, and must not
+    flip the user's "where they are right now" pointer or keep them
+    counted as Currently Online.
 
-      • Non-GET requests — POSTs redirect to the destination, which
-        re-fires this hook with the friendlier final URL.
-      • API / metrics polling endpoints — these would otherwise pin
-        every viewer to ``/api/online-users`` etc.
-      • Static + favicon assets.
-      • **Sub-resource fetches** — any endpoint whose name ends in
-        ``_download`` / ``_image`` / ``_logo`` / ``_pdf`` / ``_content``
-        / ``_favicon`` / ``_serve`` / ``_json`` / ``_thumb`` and any
-        request whose path ends in a known asset extension. These are
-        files the page being viewed is loading, not the page itself,
-        so we hold the location pointer at the parent page.
+    Running as an ``after_request`` hook (rather than the old
+    ``before_request`` blocklist of endpoint-name suffixes / file
+    extensions) is what makes this robust: we no longer have to
+    enumerate every asset route — the apple-touch-icon, favicons, font
+    assets, logos, and any future asset endpoint are all excluded for
+    free because none of them return ``text/html``. Skips:
+
+      • Non-GET requests — POSTs redirect to the destination, whose
+        GET re-fires this hook with the friendlier final URL.
+      • Anything that isn't a ``200 text/html`` response — files,
+        icons, images, PDFs, JSON API/metrics polling, redirects,
+        and error pages.
 
     Within those rules the location is written either when it
     actually changed (snappy: navigation flips inside one tick of the
     5-second poll) OR when the standard last-seen throttle lapses
     (keeps a pure idle user's row warm enough that they don't drop
     off the online list)."""
-    if not getattr(current_user, "is_authenticated", False):
-        return
     if request.method != "GET":
-        return
-    endpoint = request.endpoint or ""
-    if endpoint == "static":
-        return
-    # Skip background-polled `/api/*` endpoints regardless of which
-    # blueprint they live on. Without this, a public tab left open
-    # pins the user's last_path to the polled URL (notably
-    # `frontend.api_live_meeting`, hit every 30s by the utility bar)
-    # which keeps `last_seen_at` warm forever — they show up as
-    # "persistently online on /api/live-meeting" in the Currently
-    # Online widget. Match by request.path so future API endpoints
-    # on any blueprint inherit the skip automatically.
-    if request.path.startswith("/api/"):
-        return
-    if endpoint.startswith("main.api_"):
-        return
-    if endpoint.endswith("_metrics"):
-        return
-    # The forgot/reset and login pages aren't reachable when
-    # authenticated, but be defensive.
-    if endpoint in ("auth.login", "auth.logout", "auth.forgot_password",
-                    "auth.reset_password"):
-        return
-    if endpoint and endpoint.endswith(_LOCATION_SKIP_SUFFIXES):
-        return
-    path_lower = request.path.lower()
-    if path_lower.endswith(_LOCATION_SKIP_EXTS):
-        return
+        return response
+    if not getattr(current_user, "is_authenticated", False):
+        return response
+    # The definitive "actual page" gate: only a successfully rendered
+    # HTML page counts as presence. This is what restricts Currently
+    # Online to real pages and excludes files/icons regardless of how
+    # the serving endpoint or its URL is named.
+    if response.status_code != 200 or response.mimetype != "text/html":
+        return response
     now = datetime.utcnow()
     last_seen = getattr(current_user, "last_seen_at", None)
     last_path = getattr(current_user, "last_path", None)
@@ -520,10 +532,10 @@ def _track_last_seen():
     path_changed = (path != last_path)
     seen_throttled = last_seen is not None and (now - last_seen) < LAST_SEEN_THROTTLE
     if not path_changed and seen_throttled:
-        return
+        return response
     try:
         current_user.last_seen_at = now
-        current_user.last_endpoint = endpoint[:128] or None
+        current_user.last_endpoint = (request.endpoint or "")[:128] or None
         current_user.last_path = path or None
         db.session.commit()
         # Touch the open login session too so the User Log's session
@@ -532,6 +544,7 @@ def _track_last_seen():
         activity.touch_session(current_user)
     except Exception:
         db.session.rollback()
+    return response
 
 
 def _online_users():
@@ -2807,6 +2820,19 @@ def sidebar_save():
     return redirect(_safe_referrer() or url_for("main.index"))
 
 
+@bp.route("/_live/counts")
+@login_required
+def live_counts():
+    """JSON map of every attention count, keyed by ``data-live-chip``
+    key. Polled by the sidebar/dashboard so the number chips appear,
+    update, and disappear without a page reload. ``?dash=1`` adds the
+    dashboard-only widget chips (failed backups, forms attention); the
+    poller sets it only while the dashboard grid is on screen so other
+    pages don't pay for those extra queries."""
+    include_dash = request.args.get("dash") == "1"
+    return jsonify(_attention_counts(include_dashboard=include_dash))
+
+
 @bp.route("/_sidebar/nav")
 @login_required
 def sidebar_nav_fragment():
@@ -4429,6 +4455,405 @@ def data_import_finalize():
         shutil.rmtree(staging, ignore_errors=True)
 
 
+# ─────────────────────────────────────────────────────────────────────
+# Inbound remote restore (push from a paired TS Pro Backup server)
+# ─────────────────────────────────────────────────────────────────────
+# Out-of-band disaster recovery: when this portal's data is corrupted or
+# the admin is locked out, the operator triggers a restore from the *backup
+# server's* console; it pushes a stored backup here and these endpoints
+# apply it. They are deliberately NOT @admin_required (browser auth is the
+# very thing that's unavailable). Two independent secrets gate them: the
+# shared restore token (X-Restore-Token header) AND the operator's private
+# key, which must both decrypt the archive and derive to the public key on
+# file. CSRF-exempt because they're machine-to-machine, like the upload API.
+
+
+def _restore_chunk_root():
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    data_dir = os.path.dirname(upload_dir.rstrip("/"))
+    root = os.path.join(data_dir, "restore-chunks")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
+def _cleanup_stale_restore_chunk_dirs(max_age_seconds=6 * 60 * 60):
+    import shutil as _shutil, time as _time
+    cutoff = _time.time() - max_age_seconds
+    root = _restore_chunk_root()
+    try:
+        for name in os.listdir(root):
+            d = os.path.join(root, name)
+            try:
+                if os.path.getmtime(d) < cutoff:
+                    _shutil.rmtree(d, ignore_errors=True)
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
+def _restore_target_for_token(token):
+    """The BackupTarget that authorized this push, or None. Constant-time
+    match across every target that has remote restore enabled."""
+    if not token:
+        return None
+    for t in BackupTarget.query.filter_by(kind="tspro_backup",
+                                          allow_remote_restore=True).all():
+        if t.verify_restore_token(token):
+            return t
+    return None
+
+
+def _restore_rate_limited(ip):
+    """Light defence-in-depth on top of the 256-bit token: cap failed
+    restore auth attempts per IP. Uses a distinct LoginFailure ``kind`` so
+    it never interferes with (or is cleared by) the console login limiter."""
+    from .models import LoginFailure
+    window = datetime.utcnow() - timedelta(minutes=15)
+    return LoginFailure.query.filter(
+        LoginFailure.kind == "restore",
+        LoginFailure.key == (ip or "?"),
+        LoginFailure.failed_at >= window).count() >= 10
+
+
+def _record_restore_failure(ip):
+    from .models import LoginFailure
+    try:
+        db.session.add(LoginFailure(kind="restore", key=(ip or "?")))
+        db.session.commit()
+    except Exception:  # noqa: BLE001
+        db.session.rollback()
+
+
+def _apply_remote_restore(target, archive_path, private_key):
+    """Decrypt (verifying the key matches the target's public key) and apply
+    a pushed restore via the shared ``_perform_data_import``. Returns a JSON
+    response tuple. The private key is used in-memory only — never logged."""
+    import tempfile
+    from . import pubkey
+
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    data_dir = os.path.dirname(upload_dir.rstrip("/"))
+
+    try:
+        with open(archive_path, "rb") as fh:
+            is_e2ee = pubkey.head_is_e2ee(fh.read(8))
+    except OSError:
+        is_e2ee = False
+
+    decrypted_path = None
+    try:
+        if is_e2ee:
+            private_key = (private_key or "").strip()
+            if not private_key:
+                return jsonify(ok=False, error="private key required to decrypt this archive"), 400
+            # Second factor: the supplied private key must derive to the
+            # public key we hold for this target. Blocks a stolen token from
+            # pushing an attacker-crafted archive under a foreign key.
+            if target.e2ee_public_key:
+                try:
+                    derived = pubkey.public_from_private(private_key)
+                except pubkey.E2EEKeyError as e:
+                    return jsonify(ok=False, error=f"invalid private key: {e}"), 400
+                if derived != target.e2ee_public_key:
+                    current_app.logger.warning(
+                        "remote restore rejected: private key does not match target %s key", target.id)
+                    return jsonify(ok=False,
+                                   error="private key does not match this target's encryption key"), 403
+            dec = tempfile.NamedTemporaryFile(prefix="tsp-remote-dec-", suffix=".zip",
+                                              delete=False, dir=data_dir)
+            dec.close()
+            decrypted_path = dec.name
+            try:
+                pubkey.decrypt_with_privkey(archive_path, decrypted_path, private_key)
+            except (pubkey.E2EEDecryptError, pubkey.E2EEKeyError) as e:
+                return jsonify(ok=False, error=f"could not decrypt: {e}"), 400
+            import_path = decrypted_path
+        else:
+            import_path = archive_path
+
+        current_app.logger.warning("remote restore: applying archive to target %s", target.id)
+        # _perform_data_import swaps the DB + uploads + keys, runs migrations,
+        # clears login lockouts and SIGHUPs the workers. It removes the
+        # session/engine, so we must NOT touch the ORM after it returns.
+        ok, _redirect = _perform_data_import(import_path)
+        if not ok:
+            return jsonify(ok=False, error="archive rejected — not a valid TS Pro export"), 400
+        return jsonify(ok=True, message="restore applied; the portal is recycling its workers")
+    finally:
+        if decrypted_path:
+            try: os.unlink(decrypted_path)
+            except OSError: pass
+
+
+@restore_bp.route("/api/v1/restore", methods=["POST"])
+def remote_restore():
+    """Single-shot inbound restore pushed by a paired backup server."""
+    import tempfile
+    ip = request.remote_addr
+    if _restore_rate_limited(ip):
+        return jsonify(ok=False, error="too many restore attempts; try again later"), 429
+    target = _restore_target_for_token((request.headers.get("X-Restore-Token") or "").strip())
+    if target is None:
+        _record_restore_failure(ip)
+        current_app.logger.warning("remote restore rejected: bad token from %s", ip)
+        return jsonify(ok=False, error="invalid restore token"), 401
+
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify(ok=False, error="missing 'file' part"), 400
+    if (request.form.get("scope") or "full").strip() != "full":
+        return jsonify(ok=False, error="only full (whole-site) backups can be restored remotely"), 400
+    private_key = (request.form.get("private_key") or "").strip()
+
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    data_dir = os.path.dirname(upload_dir.rstrip("/"))
+    tmp = tempfile.NamedTemporaryFile(prefix="tsp-remote-restore-", suffix=".bin",
+                                      delete=False, dir=data_dir)
+    tmp.close()
+    try:
+        f.save(tmp.name)
+        return _apply_remote_restore(target, tmp.name, private_key)
+    finally:
+        try: os.unlink(tmp.name)
+        except OSError: pass
+        private_key = None
+
+
+@restore_bp.route("/api/v1/restore/chunk", methods=["POST"])
+def remote_restore_chunk():
+    """One chunk of a large inbound restore. Staged per (target, upload_id)."""
+    ip = request.remote_addr
+    target = _restore_target_for_token((request.headers.get("X-Restore-Token") or "").strip())
+    if target is None:
+        _record_restore_failure(ip)
+        return jsonify(ok=False, error="invalid restore token"), 401
+    upload_id = (request.form.get("upload_id") or "").strip().lower()
+    if not _safe_upload_id(upload_id):
+        return jsonify(ok=False, error="invalid upload_id"), 400
+    try:
+        chunk_index = int(request.form.get("chunk_index", ""))
+        total_chunks = int(request.form.get("total_chunks", ""))
+    except ValueError:
+        return jsonify(ok=False, error="bad chunk metadata"), 400
+    if chunk_index < 0 or total_chunks < 1 or chunk_index >= total_chunks:
+        return jsonify(ok=False, error="chunk index out of range"), 400
+    chunk = request.files.get("chunk")
+    if not chunk:
+        return jsonify(ok=False, error="no chunk file"), 400
+
+    _cleanup_stale_restore_chunk_dirs()
+    staging = os.path.join(_restore_chunk_root(), f"{target.id}-{upload_id}")
+    os.makedirs(staging, exist_ok=True)
+    chunk.save(os.path.join(staging, f"{chunk_index:08d}.bin"))
+    return jsonify(ok=True, chunk_index=chunk_index, total_chunks=total_chunks)
+
+
+@restore_bp.route("/api/v1/restore/finalize", methods=["POST"])
+def remote_restore_finalize():
+    """Reassemble a chunked inbound restore and apply it."""
+    import shutil, tempfile
+    ip = request.remote_addr
+    if _restore_rate_limited(ip):
+        return jsonify(ok=False, error="too many restore attempts; try again later"), 429
+    target = _restore_target_for_token((request.headers.get("X-Restore-Token") or "").strip())
+    if target is None:
+        _record_restore_failure(ip)
+        return jsonify(ok=False, error="invalid restore token"), 401
+    upload_id = (request.form.get("upload_id") or "").strip().lower()
+    if not _safe_upload_id(upload_id):
+        return jsonify(ok=False, error="invalid upload_id"), 400
+    if (request.form.get("scope") or "full").strip() != "full":
+        return jsonify(ok=False, error="only full (whole-site) backups can be restored remotely"), 400
+    private_key = (request.form.get("private_key") or "").strip()
+
+    staging = os.path.join(_restore_chunk_root(), f"{target.id}-{upload_id}")
+    if not os.path.isdir(staging):
+        return jsonify(ok=False, error="upload session not found"), 400
+    chunks = sorted(n for n in os.listdir(staging) if n.endswith(".bin"))
+    try:
+        expected = int(request.form.get("total_chunks", "0"))
+    except ValueError:
+        expected = 0
+    if expected and len(chunks) != expected:
+        shutil.rmtree(staging, ignore_errors=True)
+        return jsonify(ok=False,
+                       error=f"upload incomplete — expected {expected} chunks, got {len(chunks)}"), 400
+
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    data_dir = os.path.dirname(upload_dir.rstrip("/"))
+    tmp = tempfile.NamedTemporaryFile(prefix="tsp-remote-restore-", suffix=".bin",
+                                      delete=False, dir=data_dir)
+    try:
+        for name in chunks:
+            with open(os.path.join(staging, name), "rb") as src:
+                while True:
+                    block = src.read(8 * 1024 * 1024)
+                    if not block:
+                        break
+                    tmp.write(block)
+    finally:
+        tmp.close()
+
+    try:
+        return _apply_remote_restore(target, tmp.name, private_key)
+    finally:
+        try: os.unlink(tmp.name)
+        except OSError: pass
+        shutil.rmtree(staging, ignore_errors=True)
+        private_key = None
+
+
+# ─── Frontend staging sync — inbound API + shared helpers ────────────
+# Mirrors the remote-restore security shape (shared token, per-IP rate
+# limit) but applies only the scoped frontend bundle. See FrontendSyncPeer
+# in models.py for the pairing model.
+
+def _frontend_sync_peer_for_token(token):
+    """The FrontendSyncPeer that authorized this request, or None.
+    Constant-time match across every peer with inbound sync enabled."""
+    from .models import FrontendSyncPeer
+    if not token:
+        return None
+    for p in FrontendSyncPeer.query.filter_by(allow_inbound=True).all():
+        if p.verify_token(token):
+            return p
+    return None
+
+
+def _frontend_sync_rate_limited(ip):
+    """Cap failed sync-auth attempts per IP — defence-in-depth on top of
+    the shared token. Distinct LoginFailure ``kind`` so it never touches
+    the console login or restore limiters."""
+    from .models import LoginFailure
+    window = datetime.utcnow() - timedelta(minutes=15)
+    return LoginFailure.query.filter(
+        LoginFailure.kind == "frontend_sync",
+        LoginFailure.key == (ip or "?"),
+        LoginFailure.failed_at >= window).count() >= 10
+
+
+def _record_frontend_sync_failure(ip):
+    from .models import LoginFailure
+    try:
+        db.session.add(LoginFailure(kind="frontend_sync", key=(ip or "?")))
+        db.session.commit()
+    except Exception:  # noqa: BLE001
+        db.session.rollback()
+
+
+def _frontend_sync_snapshot():
+    """Write a FULL frontend bundle (incl. stories) of the current state to
+    the snapshots dir and return its filename. The rollback point taken
+    before a sync overwrites this install's frontend — an admin can restore
+    it via the Frontend bundle import form. Pruned to the most recent 10."""
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    data_dir = os.path.dirname(upload_dir.rstrip("/"))
+    root = os.path.join(data_dir, "frontend-sync-snapshots")
+    os.makedirs(root, exist_ok=True)
+    stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    name = f"frontend-pre-sync-{stamp}.zip"
+    _write_frontend_bundle_zip(os.path.join(root, name), include_stories=True)
+    # Prune oldest beyond the 10 most recent.
+    try:
+        snaps = sorted(n for n in os.listdir(root)
+                       if n.startswith("frontend-pre-sync-") and n.endswith(".zip"))
+        for old in snaps[:-10]:
+            try: os.unlink(os.path.join(root, old))
+            except OSError: pass
+    except OSError:
+        pass
+    return name
+
+
+@frontend_sync_bp.route("/api/v1/frontend-sync/ping")
+def frontend_sync_ping():
+    """Reachability + compatibility probe for the peer's "Test connection"
+    button. Token-authenticated so a stranger can't fingerprint the install."""
+    from .version import __version__
+    ip = request.remote_addr
+    if _frontend_sync_rate_limited(ip):
+        return jsonify(ok=False, error="too many attempts; try again later"), 429
+    peer = _frontend_sync_peer_for_token((request.headers.get("X-Frontend-Sync-Token") or "").strip())
+    if peer is None:
+        _record_frontend_sync_failure(ip)
+        return jsonify(ok=False, error="invalid sync token"), 401
+    s = _get_site_setting()
+    return jsonify(ok=True, app="trusted-servants-pro", version=__version__,
+                   format_version=5,
+                   name=(getattr(s, "frontend_title", None) or "Trusted Servants Pro"))
+
+
+@frontend_sync_bp.route("/api/v1/frontend-sync/pull")
+def frontend_sync_pull():
+    """Stream our scoped frontend bundle (presentation + Pages, no Stories)
+    to a paired peer that's pulling our live frontend down to work on."""
+    import tempfile
+    from flask import send_file
+    ip = request.remote_addr
+    if _frontend_sync_rate_limited(ip):
+        return jsonify(ok=False, error="too many attempts; try again later"), 429
+    peer = _frontend_sync_peer_for_token((request.headers.get("X-Frontend-Sync-Token") or "").strip())
+    if peer is None:
+        _record_frontend_sync_failure(ip)
+        return jsonify(ok=False, error="invalid sync token"), 401
+
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    data_dir = os.path.dirname(upload_dir.rstrip("/"))
+    tmp = tempfile.NamedTemporaryFile(prefix="tsp-fe-sync-pull-", suffix=".zip",
+                                      delete=False, dir=data_dir)
+    tmp.close()
+    _write_frontend_bundle_zip(tmp.name, include_stories=False)
+    peer.last_inbound_at = datetime.utcnow()
+    db.session.commit()
+
+    stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    response = send_file(tmp.name, mimetype="application/zip",
+                         as_attachment=True, download_name=f"tsp-frontend-sync-{stamp}.zip")
+    @response.call_on_close
+    def _cleanup():
+        try: os.unlink(tmp.name)
+        except OSError: pass
+    return response
+
+
+@frontend_sync_bp.route("/api/v1/frontend-sync/push", methods=["POST"])
+def frontend_sync_push():
+    """Accept a frontend bundle pushed by a paired peer, snapshot our
+    current frontend first (rollback point), then apply it. Returns a JSON
+    summary of what changed."""
+    import tempfile
+    ip = request.remote_addr
+    if _frontend_sync_rate_limited(ip):
+        return jsonify(ok=False, error="too many attempts; try again later"), 429
+    peer = _frontend_sync_peer_for_token((request.headers.get("X-Frontend-Sync-Token") or "").strip())
+    if peer is None:
+        _record_frontend_sync_failure(ip)
+        return jsonify(ok=False, error="invalid sync token"), 401
+
+    f = request.files.get("archive")
+    if not f or not f.filename:
+        return jsonify(ok=False, error="missing 'archive' part"), 400
+
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    data_dir = os.path.dirname(upload_dir.rstrip("/"))
+    fd, zip_path = tempfile.mkstemp(prefix="tsp-fe-sync-push-", suffix=".zip", dir=data_dir)
+    os.close(fd)
+    try:
+        f.save(zip_path)
+        snapshot = _frontend_sync_snapshot()
+        ok, result = _import_frontend_bundle_zip(zip_path)
+    finally:
+        try: os.unlink(zip_path)
+        except OSError: pass
+
+    if not ok:
+        return jsonify(ok=False, error=result), 400
+    peer.last_inbound_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(ok=True, applied=result, snapshot=snapshot)
+
+
 # Settings on SiteSetting that make up the public frontend. Used by the
 # scoped frontend export/import so a single site can ship its look-and-feel
 # (content + navigation + assets) without carrying the whole database.
@@ -4497,8 +4922,14 @@ def _collect_asset_refs(value):
     return set(_ASSET_REF_RE.findall(text))
 
 
-def _frontend_export_payload():
+def _frontend_export_payload(include_stories=True):
     """Build a content-complete frontend bundle.
+
+    ``include_stories=False`` drops the recovery-stories list (and its
+    asset scan) from the payload. The frontend *staging sync* uses this:
+    stories are often submitted/edited on the production copy, so a
+    dev→prod push must not clobber them. The import side already no-ops
+    when the ``stories`` key is absent, so omitting it here is enough.
 
     The payload covers everything that shapes the public site:
 
@@ -4717,7 +5148,7 @@ def _frontend_export_payload():
     # a frontend usually want the full editorial state) but body /
     # summary blobs feed asset_refs so embedded images come along.
     stories = []
-    for st in Story.query.order_by(Story.id).all():
+    for st in (Story.query.order_by(Story.id).all() if include_stories else []):
         stories.append({
             "slug": st.slug, "title": st.title,
             "summary": st.summary, "body": st.body,
@@ -4832,7 +5263,7 @@ def _frontend_export_payload():
             "mime_type": m.mime_type,
         })
 
-    return {
+    payload = {
         "kind": "frontend", "format_version": 5,
         "settings": settings,
         "nav_items": nav_items,
@@ -4842,10 +5273,14 @@ def _frontend_export_payload():
         "custom_icons": custom_icons,
         "pages": pages,
         "intergroup_officers": intergroup_officers,
-        "stories": stories,
         "media_items": media_items,
         "assets": sorted(final_assets),
     }
+    # Omit the key entirely (not an empty list) when stories are excluded,
+    # so the import side's "stories in payload" guard leaves them alone.
+    if include_stories:
+        payload["stories"] = stories
+    return payload
 
 
 @bp.route("/settings/db-snapshot/<name>")
@@ -5066,6 +5501,24 @@ def _tspro_backup_pin_pubkey(t):
         return False, ("This site has no encryption key yet — rotate its keypair in the "
                        "backup server's console, then test again.")
     t.e2ee_public_key = server_pub
+
+    # Publish (or clear) our remote-restore pairing while we have a live,
+    # authenticated session. Best-effort: a registration hiccup must never
+    # fail the connection test — remote restore is a recovery convenience.
+    if caps.get("remote_restore"):
+        try:
+            if t.allow_remote_restore and t.public_url:
+                payload = {"restore_enabled": True,
+                           "callback_url": t.public_url.rstrip("/"),
+                           "restore_token": t.ensure_restore_token()}
+            else:
+                payload = {"restore_enabled": False}
+            requests.post(f"{base}/register",
+                          headers={"Authorization": f"Bearer {api_key}"},
+                          json=payload, timeout=30)
+        except requests.RequestException:
+            pass
+
     db.session.commit()
     return True, pubkey.fingerprint(server_pub)
 
@@ -5353,7 +5806,20 @@ def backups_edit_post(target_id):
         api_key = (request.form.get("api_key") or "").strip()
         if api_key:
             t.api_key_enc = encrypt(api_key)
-        _tspro_backup_pin_pubkey(t)  # best-effort re-pin / refresh fingerprint
+        # Remote restore opt-in. Requires this portal's public URL so the
+        # backup server knows where to push a restore back to.
+        allow_restore = (request.form.get("allow_remote_restore") == "1")
+        t.public_url = (request.form.get("public_url") or "").strip().rstrip("/") or None
+        if allow_restore and not t.public_url:
+            flash("Set this portal's public URL to enable remote restore.", "danger")
+            return redirect(url_for("main.backups_edit", target_id=t.id,
+                                    **_backup_embed_kwargs()))
+        t.allow_remote_restore = allow_restore
+        if allow_restore:
+            t.ensure_restore_token()
+        else:
+            t.clear_restore_token()
+        _tspro_backup_pin_pubkey(t)  # best-effort re-pin + (de)register restore pairing
 
     # ── Schedule (same as step 3) ──
     preset = request.form.get("schedule_preset") or ""
@@ -6112,19 +6578,25 @@ def wp_import_cancel(token):
     return redirect(url_for("main.wp_import_start", **_wp_embed_kwargs()))
 
 
-@bp.route("/settings/frontend-export")
-@admin_required
-def data_frontend_export():
-    import io, json, tempfile, zipfile
+def _write_frontend_bundle_zip(dest_path, *, include_stories=True):
+    """Build a frontend bundle (``manifest.json`` + ``frontend.json`` +
+    ``assets/``) and write it to ``dest_path``. Shared by the manual
+    export route, the staging-sync pull/push, and the pre-apply snapshot.
+
+    ``include_stories`` rides through to ``_frontend_export_payload`` and
+    is recorded in the manifest as ``sync_scope`` so the receiving side
+    can tell a presentation-only sync from a full bundle.
+    """
+    import json, zipfile
     from datetime import datetime
-    from flask import send_file
 
     upload_dir = current_app.config["UPLOAD_FOLDER"]
-    payload = _frontend_export_payload()
+    payload = _frontend_export_payload(include_stories=include_stories)
     manifest = {
         "app": "trusted-servants-pro",
         "kind": "frontend",
         "format_version": 5,
+        "sync_scope": "full" if include_stories else "presentation_pages",
         "exported_at": datetime.utcnow().isoformat() + "Z",
         "content_filename": "frontend.json",
         "assets_dir": "assets/",
@@ -6140,10 +6612,10 @@ def data_frontend_export():
                  "per-page spacing controls pad_top / pad_bottom / "
                  "pad_x / section_gap / block_margin_y and the per-page "
                  "Open Graph title / description / image overrides), "
-                 "intergroup officers, stories (with publication "
-                 "timestamp), posts (drafts and archives "
-                 "included; pending submissions skipped), post slug "
-                 "history, MediaItem catalog, plus every uploaded "
+                 "intergroup officers, " +
+                 ("stories (with publication timestamp), " if include_stories
+                  else "(stories omitted — presentation+pages sync scope), ") +
+                 "MediaItem catalog, plus every uploaded "
                  "file referenced from any of the above. Import via "
                  "the Data tab on another install to overlay the "
                  "public site without touching users, meetings, or "
@@ -6153,15 +6625,26 @@ def data_frontend_export():
                  "auto-seed wrote."),
     }
 
-    tmp_zip = tempfile.NamedTemporaryFile(prefix="tsp-fe-export-", suffix=".zip", delete=False)
-    tmp_zip.close()
-    with zipfile.ZipFile(tmp_zip.name, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as z:
+    with zipfile.ZipFile(dest_path, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as z:
         z.writestr("manifest.json", json.dumps(manifest, indent=2))
         z.writestr("frontend.json", json.dumps(payload, indent=2))
         for fn in payload["assets"]:
             src = os.path.join(upload_dir, fn)
             if os.path.isfile(src):
                 z.write(src, arcname=os.path.join("assets", fn))
+    return dest_path
+
+
+@bp.route("/settings/frontend-export")
+@admin_required
+def data_frontend_export():
+    import tempfile
+    from datetime import datetime
+    from flask import send_file
+
+    tmp_zip = tempfile.NamedTemporaryFile(prefix="tsp-fe-export-", suffix=".zip", delete=False)
+    tmp_zip.close()
+    _write_frontend_bundle_zip(tmp_zip.name, include_stories=True)
 
     stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
     response = send_file(tmp_zip.name, mimetype="application/zip",
@@ -6173,60 +6656,50 @@ def data_frontend_export():
     return response
 
 
-@bp.route("/settings/frontend-import", methods=["POST"])
-@admin_required
-def data_frontend_import():
+def _import_frontend_bundle_zip(zip_path):
+    """Validate + apply a frontend bundle ``.zip`` already saved at
+    ``zip_path``. Returns ``(ok, result)`` — ``result`` is a summary dict
+    of what was applied on success, or a human-readable error string on
+    failure. Shared by the admin import form (``data_frontend_import``)
+    and the staging-sync push endpoint, so the apply logic lives in one
+    place. Stories are only touched when the payload carries a ``stories``
+    key — a presentation+pages sync omits it and leaves them alone.
+    """
     import json, shutil, tempfile, zipfile
-
-    f = request.files.get("archive")
-    if not f or not f.filename:
-        flash("Choose a frontend bundle (.zip) to import", "danger")
-        return redirect(_safe_referrer() or url_for("main.index"))
-    if request.form.get("confirm") != "REPLACE":
-        flash('Type REPLACE in the confirmation box to overwrite frontend content', "danger")
-        return redirect(_safe_referrer() or url_for("main.index"))
 
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     data_dir = os.path.dirname(upload_dir.rstrip("/"))
     staging = tempfile.mkdtemp(prefix="tsp-fe-import-", dir=data_dir)
     try:
-        zip_path = os.path.join(staging, "in.zip")
-        f.save(zip_path)
         try:
             with zipfile.ZipFile(zip_path) as z:
                 names = z.namelist()
                 for n in names:
                     if n.startswith("/") or ".." in n.split("/"):
-                        flash(f"Archive contains unsafe path: {n}", "danger")
-                        return redirect(_safe_referrer() or url_for("main.index"))
+                        return (False, f"Archive contains unsafe path: {n}")
                 if "frontend.json" not in names or "manifest.json" not in names:
-                    flash("Archive is missing frontend.json or manifest.json — not a valid frontend bundle", "danger")
-                    return redirect(_safe_referrer() or url_for("main.index"))
+                    return (False, "Archive is missing frontend.json or manifest.json — not a valid frontend bundle")
                 try:
                     manifest = json.loads(z.read("manifest.json").decode("utf-8"))
                 except (ValueError, UnicodeDecodeError):
-                    flash("Archive manifest.json is invalid", "danger")
-                    return redirect(_safe_referrer() or url_for("main.index"))
+                    return (False, "Archive manifest.json is invalid")
                 if manifest.get("app") not in ("trusted-servants-pro", "trusted-servants-portal"):
-                    flash("Archive manifest does not identify a Trusted Servants Pro export", "danger")
-                    return redirect(_safe_referrer() or url_for("main.index"))
+                    return (False, "Archive manifest does not identify a Trusted Servants Pro export")
                 if manifest.get("kind") != "frontend":
-                    flash("This looks like a full archive, not a frontend bundle. Use the Import &amp; Replace form instead.", "danger")
-                    return redirect(_safe_referrer() or url_for("main.index"))
+                    return (False, "This looks like a full archive, not a frontend bundle.")
                 try:
                     payload = json.loads(z.read("frontend.json").decode("utf-8"))
                 except (ValueError, UnicodeDecodeError):
-                    flash("Archive frontend.json is invalid", "danger")
-                    return redirect(_safe_referrer() or url_for("main.index"))
+                    return (False, "Archive frontend.json is invalid")
                 extract_dir = os.path.join(staging, "extracted")
                 os.makedirs(extract_dir, exist_ok=True)
                 z.extractall(extract_dir)
         except zipfile.BadZipFile:
-            flash("File is not a valid zip archive", "danger")
-            return redirect(_safe_referrer() or url_for("main.index"))
+            return (False, "File is not a valid zip archive")
 
         # 1. Copy assets into uploads/ (preserve filenames — they're already
         #    UUID-prefixed on the source install and won't collide in practice).
+        assets_copied = 0
         assets_src = os.path.join(extract_dir, "assets")
         os.makedirs(upload_dir, exist_ok=True)
         if os.path.isdir(assets_src):
@@ -6234,6 +6707,7 @@ def data_frontend_import():
                 src = os.path.join(assets_src, entry)
                 if os.path.isfile(src):
                     shutil.copy2(src, os.path.join(upload_dir, entry))
+                    assets_copied += 1
 
         # 2. Apply settings onto the singleton SiteSetting row.
         # Use the dynamic key list so a column added after the bundle
@@ -6242,9 +6716,11 @@ def data_frontend_import():
         s = _get_site_setting()
         incoming = payload.get("settings") or {}
         valid_keys = set(_frontend_setting_keys())
+        settings_applied = 0
         for key in valid_keys:
             if key in incoming:
                 setattr(s, key, incoming[key])
+                settings_applied += 1
 
         # 3. Rebuild the nav tree. Cascade deletes columns + links.
         for it in FrontendNavItem.query.all():
@@ -6652,10 +7128,243 @@ def data_frontend_import():
         from . import _backfill_media
         _backfill_media(current_app)
 
-        flash("Frontend bundle imported — content, navigation, layouts, fonts, icons, and assets are in place.", "success")
-        return redirect(_safe_referrer() or url_for("main.frontend_dashboard"))
+        summary = {
+            "sync_scope": manifest.get("sync_scope")
+                          or ("full" if "stories" in payload else "presentation_pages"),
+            "settings": settings_applied,
+            "nav_items": len(payload.get("nav_items") or []),
+            "hero_buttons": len(payload.get("hero_buttons") or []),
+            "custom_layouts": len(payload.get("custom_layouts") or []),
+            "custom_fonts": len(payload.get("custom_fonts") or []),
+            "custom_icons": len(payload.get("custom_icons") or []),
+            "pages": len(payload.get("pages") or []),
+            "stories": len(payload.get("stories") or []),
+            "assets": assets_copied,
+        }
+        return (True, summary)
+    except Exception as exc:  # noqa: BLE001
+        db.session.rollback()
+        current_app.logger.exception("frontend bundle import failed")
+        return (False, f"Import failed: {exc}")
     finally:
         shutil.rmtree(staging, ignore_errors=True)
+
+
+@bp.route("/settings/frontend-import", methods=["POST"])
+@admin_required
+def data_frontend_import():
+    import tempfile
+
+    f = request.files.get("archive")
+    if not f or not f.filename:
+        flash("Choose a frontend bundle (.zip) to import", "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+    if request.form.get("confirm") != "REPLACE":
+        flash('Type REPLACE in the confirmation box to overwrite frontend content', "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    data_dir = os.path.dirname(upload_dir.rstrip("/"))
+    fd, zip_path = tempfile.mkstemp(prefix="tsp-fe-import-", suffix=".zip", dir=data_dir)
+    os.close(fd)
+    try:
+        f.save(zip_path)
+        ok, result = _import_frontend_bundle_zip(zip_path)
+    finally:
+        try: os.unlink(zip_path)
+        except OSError: pass
+
+    if not ok:
+        flash(result, "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+    flash("Frontend bundle imported — content, navigation, layouts, fonts, icons, and assets are in place.", "success")
+    return redirect(_safe_referrer() or url_for("main.frontend_dashboard"))
+
+
+# ─── Frontend staging sync — admin (outbound) routes ────────────────
+def _get_frontend_sync_peer(create=False):
+    """The single configured sync peer (or None). One pairing per install
+    keeps the UI simple; the model could hold more if that ever changes."""
+    from .models import FrontendSyncPeer
+    peer = FrontendSyncPeer.query.order_by(FrontendSyncPeer.id).first()
+    if peer is None and create:
+        peer = FrontendSyncPeer()
+        db.session.add(peer)
+    return peer
+
+
+def _fe_sync_summary_msg(applied):
+    """Human one-liner from an apply-summary dict for the flash."""
+    parts = []
+    for key, label in (("pages", "pages"), ("nav_items", "nav items"),
+                       ("custom_layouts", "layouts"), ("custom_fonts", "fonts"),
+                       ("custom_icons", "icons"), ("assets", "assets")):
+        n = applied.get(key)
+        if n:
+            parts.append(f"{n} {label}")
+    return ", ".join(parts) if parts else "settings only"
+
+
+def _fe_sync_wants_json():
+    """The wizard submits via fetch with an X-Requested-With header so it can
+    stay in the settings modal (no full-page reload). Anything else — a
+    no-JS form post — falls back to the flash + redirect path."""
+    return request.headers.get("X-Requested-With") == "fetch"
+
+
+def _fe_sync_state(peer):
+    """Snapshot of the peer used to drive the wizard client-side."""
+    return dict(self_role=peer.self_role if peer else "",
+                has_token=bool(peer and peer.token_enc),
+                has_url=bool(peer and peer.base_url),
+                token=(peer.token if (peer and peer.token_enc) else ""),
+                base_url=(peer.base_url if peer else ""),
+                allow_inbound=bool(peer and peer.allow_inbound))
+
+
+@bp.route("/settings/frontend-sync/save", methods=["POST"])
+@admin_required
+def frontend_sync_save():
+    peer = _get_frontend_sync_peer(create=True)
+    # Role drives the asymmetric pairing: a Live install mints the token and
+    # serves/accepts syncs (inbound on); a Staging install pastes the token,
+    # stores the Live URL, and initiates pull/push (inbound off). Deriving
+    # allow_inbound from the role keeps the two consistent without a checkbox.
+    role = (request.form.get("self_role") or "").strip().lower()
+    if role in ("live", "staging"):
+        peer.self_role = role
+        peer.allow_inbound = (role == "live")
+        # The Live install never initiates, so it carries no peer URL; clear
+        # any stale value left from a prior Staging setup on this install.
+        if role == "live":
+            peer.base_url = ""
+            peer.label = peer.label or "Staging copy"
+        else:
+            peer.label = peer.label or "Live site"
+    # Only overwrite fields actually present in this (role-scoped) POST so a
+    # form that omits a field doesn't wipe it.
+    if "base_url" in request.form:
+        peer.base_url = (request.form.get("base_url") or "").strip()[:500]
+    if "label" in request.form:
+        peer.label = (request.form.get("label") or "").strip()[:128]
+    # Token: "generate" mints a fresh one to paste into the peer; otherwise a
+    # non-blank token field is stored verbatim (paired from the peer). A blank
+    # token field with no generate leaves the existing token alone.
+    generated = False
+    if request.form.get("generate"):
+        peer.token_enc = None  # force a brand-new value even if one existed
+        peer.ensure_token()
+        generated = True
+    else:
+        token_field = (request.form.get("token") or "").strip()
+        if token_field:
+            peer.set_token(token_field)
+    db.session.commit()
+    if _fe_sync_wants_json():
+        state = _fe_sync_state(peer)
+        state["ok"] = True
+        state["generated"] = generated
+        state["message"] = "New shared token generated." if generated else "Saved."
+        return jsonify(state)
+    if generated:
+        flash(f"New sync token generated — copy it into the peer install: {peer.token}", "success")
+    else:
+        flash("Frontend sync peer saved.", "success")
+    return redirect(_safe_referrer() or url_for("main.index"))
+
+
+@bp.route("/settings/frontend-sync/test", methods=["POST"])
+@admin_required
+def frontend_sync_test():
+    from . import frontend_sync as fs
+    peer = _get_frontend_sync_peer()
+    if peer is None or not peer.base_url:
+        msg = "Enter your Live site's address and token first."
+        if _fe_sync_wants_json():
+            return jsonify(ok=False, message=msg)
+        flash(msg, "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+    try:
+        info = fs.ping(peer)
+    except fs.FrontendSyncError as exc:
+        if _fe_sync_wants_json():
+            return jsonify(ok=False, message=f"Connection test failed: {exc}")
+        flash(f"Connection test failed: {exc}", "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+    msg = f"Connected to “{info.get('name')}” (v{info.get('version')})."
+    if _fe_sync_wants_json():
+        return jsonify(ok=True, message=msg)
+    flash(msg, "success")
+    return redirect(_safe_referrer() or url_for("main.index"))
+
+
+@bp.route("/settings/frontend-sync/pull", methods=["POST"])
+@admin_required
+def frontend_sync_pull():
+    from . import frontend_sync as fs
+    if request.form.get("confirm") != "REPLACE":
+        msg = "Type REPLACE to confirm overwriting this install's frontend."
+        if _fe_sync_wants_json():
+            return jsonify(ok=False, message=msg)
+        flash(msg, "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+    peer = _get_frontend_sync_peer()
+    if peer is None or not peer.base_url:
+        msg = "Enter your Live site's address and token first."
+        if _fe_sync_wants_json():
+            return jsonify(ok=False, message=msg)
+        flash(msg, "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+    try:
+        applied, snapshot = fs.pull_from_peer(peer)
+    except fs.FrontendSyncError as exc:
+        if _fe_sync_wants_json():
+            return jsonify(ok=False, message=f"Pull failed: {exc}")
+        flash(f"Pull failed: {exc}", "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+    msg = (f"Pulled frontend from peer ({_fe_sync_summary_msg(applied)}). "
+           f"Rollback snapshot saved as {snapshot}.")
+    if _fe_sync_wants_json():
+        return jsonify(ok=True, message=msg,
+                       last_pulled_at=peer.last_pulled_at.strftime('%Y-%m-%d %H:%M')
+                       if peer.last_pulled_at else None)
+    flash(msg, "success")
+    return redirect(_safe_referrer() or url_for("main.frontend_dashboard"))
+
+
+@bp.route("/settings/frontend-sync/push", methods=["POST"])
+@admin_required
+def frontend_sync_push():
+    from . import frontend_sync as fs
+    if request.form.get("confirm") != "REPLACE":
+        msg = "Type REPLACE to confirm overwriting the peer's frontend."
+        if _fe_sync_wants_json():
+            return jsonify(ok=False, message=msg)
+        flash(msg, "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+    peer = _get_frontend_sync_peer()
+    if peer is None or not peer.base_url:
+        msg = "Enter your Live site's address and token first."
+        if _fe_sync_wants_json():
+            return jsonify(ok=False, message=msg)
+        flash(msg, "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+    try:
+        applied = fs.push_to_peer(peer)
+    except fs.FrontendSyncError as exc:
+        if _fe_sync_wants_json():
+            return jsonify(ok=False, message=f"Push failed: {exc}")
+        flash(f"Push failed: {exc}", "danger")
+        return redirect(_safe_referrer() or url_for("main.index"))
+    snap = applied.get("snapshot")
+    msg = (f"Pushed frontend to peer ({_fe_sync_summary_msg(applied)})."
+           + (f" Peer saved rollback snapshot {snap}." if snap else ""))
+    if _fe_sync_wants_json():
+        return jsonify(ok=True, message=msg,
+                       last_pushed_at=peer.last_pushed_at.strftime('%Y-%m-%d %H:%M')
+                       if peer.last_pushed_at else None)
+    flash(msg, "success")
+    return redirect(_safe_referrer() or url_for("main.index"))
 
 
 @bp.route("/uploads/<path:stored>")
@@ -15138,12 +15847,15 @@ def watchtower():
     nothing — every panel renders from a fresh DB read so a refresh
     always shows current state."""
     from . import watchtower as wt
+    from .timezone import site_tz_label
+    site = SiteSetting.query.first()
     return render_template(
         "watchtower/overview.html",
         active_tab="overview",
         kpis=wt.overview_kpis(),
         daily=wt.daily_visits(days=30),
-        hourly_fail=wt.hourly_failed_logins(hours=24),
+        tz_label=site_tz_label(site),
+        hourly_fail=wt.hourly_failed_logins(hours=24, site=site),
         anomalies=wt.anomaly_signals(),
         top_ips=wt.top_failed_login_ips(days=7, limit=10),
         recent=wt.recent_admin_activity(limit=12),
@@ -15171,16 +15883,19 @@ def watchtower_visitors():
     # when /tspro/frontend/metrics was retired and its donuts moved
     # here.
     hourly_days = min(30, window)
+    from .timezone import site_tz_label
+    site = SiteSetting.query.first()
     return render_template(
         "watchtower/visitors.html",
         active_tab="visitors",
         window=window,
         hr_days=hourly_days,
+        tz_label=site_tz_label(site),
         windows=(7, 14, 30, 60, 90, 180, 365),
         summary=vm.summary(days=window),
         daily=vm.daily_series(days=window),
-        hourly_views=vm.hourly_distribution(days=hourly_days, metric="views"),
-        hourly_uniques=vm.hourly_distribution(days=hourly_days, metric="uniques"),
+        hourly_views=vm.hourly_distribution(days=hourly_days, metric="views", site=site),
+        hourly_uniques=vm.hourly_distribution(days=hourly_days, metric="uniques", site=site),
         # Big enough pool that the client-side "Show 30 more" expand
         # rarely runs out without paying for another round-trip.
         top_paths_views=vm.top_paths(days=window, limit=300, metric="views"),
@@ -15225,10 +15940,13 @@ def watchtower_visitors_csv():
         window = 30
     hr_days = min(30, window)
 
+    from .timezone import site_tz_label
+    site = SiteSetting.query.first()
+    tz_label = site_tz_label(site)
     s = vm.summary(days=window)
     daily = vm.daily_series(days=window)
-    hourly_v = vm.hourly_distribution(days=hr_days, metric="views")
-    hourly_u = vm.hourly_distribution(days=hr_days, metric="uniques")
+    hourly_v = vm.hourly_distribution(days=hr_days, metric="views", site=site)
+    hourly_u = vm.hourly_distribution(days=hr_days, metric="uniques", site=site)
 
     def _merge(views_rows, uniques_rows):
         """Union two ranked breakdowns into one label -> {views, uniques}
@@ -15290,7 +16008,7 @@ def watchtower_visitors_csv():
     w.writerow([])
 
     # ── Hour of day ────────────────────────────────────────────────
-    w.writerow([f"## Hour of day (UTC, last {hr_days}d)"])
+    w.writerow([f"## Hour of day ({tz_label}, last {hr_days}d)"])
     w.writerow(["hour", "views", "unique_visitors"])
     uniques_by_hour = {r["hour"]: r["count"] for r in hourly_u}
     for r in hourly_v:
@@ -15368,6 +16086,7 @@ def watchtower_not_found():
     # banned IPs. One indexed query against IPBlock per page load.
     recent_ips = {e.ip for e in recent if e.ip}
     blocked_ips = set()
+    trusted_ips = {}
     if recent_ips:
         from .models import IPBlock as _IPBlock
         now_ = datetime.utcnow()
@@ -15375,6 +16094,9 @@ def watchtower_not_found():
                        .filter(_IPBlock.ip.in_(recent_ips))
                        .filter((_IPBlock.expires_at.is_(None)) |
                                (_IPBlock.expires_at > now_)).all()}
+        # IPs a real user signed in from within the last 30 days, mapped
+        # to the username — the table greys out their Block button.
+        trusted_ips = wt.recent_login_user_ips(recent_ips)
 
     return render_template(
         "watchtower/not_found.html",
@@ -15388,6 +16110,7 @@ def watchtower_not_found():
         recent=recent,
         existing_redirects=existing_redirects,
         blocked_ips=blocked_ips,
+        trusted_ips=trusted_ips,
     )
 
 
@@ -15650,8 +16373,14 @@ def watchtower_requests():
 @bp.route("/watchtower/ban-ip", methods=["POST"])
 @admin_required
 def watchtower_ban_ip():
-    """Add (or refresh) an IP block. ``ttl_hours=0`` is permanent."""
+    """Add (or refresh) an IP block. ``ttl_hours=0`` is permanent.
+
+    When the caller asks for JSON (``Accept: application/json`` — the 404s
+    tab's inline Block buttons do), the result comes back as JSON so the
+    admin can keep blocking down the IP list without a page reload.
+    Otherwise it redirects back as before for the no-JS form path."""
     from . import watchtower as wt, activity
+    wants_json = "application/json" in request.headers.get("Accept", "")
     ip = (request.form.get("ip") or "").strip()
     reason = request.form.get("reason") or ""
     try:
@@ -15659,16 +16388,38 @@ def watchtower_ban_ip():
     except (TypeError, ValueError):
         ttl_hours = 0
     if not ip:
+        if wants_json:
+            return jsonify(ok=False, error="Provide an IP to block."), 400
         flash("Provide an IP to block.", "danger")
         return redirect(url_for("main.watchtower_access"))
+    # Guard real users: the 404s-tab Block buttons send ``protect_known_users``
+    # so we refuse to block an IP a signed-in user was active from in the last
+    # 30 days (the button is also greyed there, this is belt-and-suspenders).
+    # The Access / overview block forms don't send it, so an admin can still
+    # deliberately block such an IP from those surfaces.
+    if request.form.get("protect_known_users"):
+        known_user = wt.recent_login_user_for_ip(ip)
+        if known_user:
+            msg = (f"Didn't block {ip} — {known_user} signed in from this IP "
+                   "in the last 30 days, so blocking it could lock out a real "
+                   "user. Block it from Watchtower → Access if you're sure.")
+            if wants_json:
+                return jsonify(ok=False, error=msg, protected=True), 409
+            flash(msg, "warning")
+            return redirect(request.form.get("return_url")
+                            or url_for("main.watchtower_not_found"))
     row = wt.ban_ip(ip, reason, current_user.id,
                     ttl_hours=ttl_hours if ttl_hours > 0 else None)
     if row:
         activity.log("watchtower.ban_ip", entity_type="ip_block",
                      entity_id=row.id,
                      summary=f"Banned {ip}" + (f" ({reason})" if reason else ""))
+        if wants_json:
+            return jsonify(ok=True, ip=ip)
         flash(f"Blocked {ip}.", "success")
     else:
+        if wants_json:
+            return jsonify(ok=False, error="Couldn't block — invalid input."), 400
         flash("Couldn't block — invalid input.", "danger")
     return redirect(request.form.get("return_url") or url_for("main.watchtower_access"))
 

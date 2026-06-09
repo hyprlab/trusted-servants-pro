@@ -6,6 +6,241 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.12.3] — 2026-06-09
+
+### Added
+
+- **Staging-sync Pull/Push controls on the Web Frontend overview**
+  (`app/templates/frontend_dashboard.html`, `app/static/css/app.css`,
+  `app/static/js/app.js`). Nested inside the existing **Status** widget on a
+  **Staging** install: a live connection pill (an async ping to the peer via the
+  frontend-sync `test` route), the paired Live site's label + URL, and
+  arm-then-confirm **Pull from Live** / **Push to Live** buttons that reuse the
+  AJAX `frontend_sync_pull` / `frontend_sync_push` routes — so the frontend can
+  be moved without opening Settings. Results and last-pulled/pushed timestamps
+  update in place. Gated on `self_role == 'staging'` + a configured token and
+  Live URL, so it never renders on the Live (receiver) install.
+
+## [2.12.2] — 2026-06-09
+
+Reshapes the frontend staging-sync wizard (2.12.1) around an explicit **role**
+choice and moves every wizard action to AJAX so the settings modal never reloads.
+
+### Added
+
+- **`FrontendSyncPeer.self_role`** (`app/models.py`) — `'live'` or `'staging'`
+  (`''` until chosen). The wizard's first step asks which install this is and
+  then shows only that role's fields. `allow_inbound` is derived from the role
+  (live ⇒ on, staging ⇒ off) instead of a separate checkbox, so the two stay
+  consistent. Back-filled on existing 2.12.0/2.12.1 installs by a new
+  `_migrate_sqlite` entry (`app/__init__.py`); fresh installs get it from
+  `db.create_all()`.
+
+### Changed
+
+- **Role-scoped wizard** (`app/templates/base.html`, `app/static/js/app.js`,
+  `app/static/css/app.css`). A **Live** install only mints the shared token and
+  is set to receive (its "Finish" step hands off the token + this site's address
+  to paste into Staging). A **Staging** install pastes the token, enters the Live
+  URL, tests, then Pulls/Pushes. The stepper is built client-side from the chosen
+  role's step list. Choosing Staging is gated behind a "set up your Live site
+  first" confirmation, enforcing the pairing order.
+- **All wizard actions submit over AJAX** (save / generate / test / pull / push).
+  The outbound routes (`app/routes.py`) return JSON when called with
+  `X-Requested-With: fetch` and keep the flash + redirect path as a no-JS
+  fallback. Field updates (the new token, paired state, last-synced timestamps)
+  apply in place, so the settings modal stays open throughout.
+
+### Fixed
+
+- **The settings modal no longer closes/reopens on every wizard action.** 2.12.1
+  worked around the full-page reload by reopening the modal afterward, which
+  flickered on each "Save & continue"; the AJAX submit path removes the reload
+  entirely.
+
+## [2.12.1] — 2026-06-09
+
+Reworks the **frontend staging sync** setup UI (shipped in 2.12.0) from a single
+flat card into a guided five-step wizard, and fixes the settings modal closing
+out from under the admin on every sync action. No model, route, or wire-format
+changes — purely the admin-facing setup experience in **Settings → Data**.
+
+### Changed
+
+- **Frontend staging sync is now a step-by-step wizard** (`app/templates/base.html`)
+  — Overview → Pair token → Peer address → Test → Sync, driven by a clickable
+  stepper. The overview draws the two installs with explicit Push/Pull arrows so
+  "which side am I on, and which way does the frontend move" is no longer
+  ambiguous. The token step now renders the actual shared token in a copy-to-
+  clipboard box (the model already exposes a decrypt `token` property) instead of
+  only flashing it once at generation, and the inbound checkbox spells out which
+  install should tick it. Styles live under `.fe-sync-*` in `app/static/css/app.css`,
+  mirroring the existing `.wp-wizard-stepper` pattern; with JS disabled every step
+  stays visible so the card still works.
+
+### Fixed
+
+- **The settings modal no longer closes when you run a sync action.** The wizard's
+  forms do full-page POSTs (`data-no-ajax`), which dropped the admin back to the
+  page behind the modal after Generate / Save / Test / Pull / Push. A new
+  `feSyncWizard` handler in `app/static/js/app.js` records a reopen flag plus the
+  target step before each submit and, on the resulting reload, reopens the modal to
+  the **Data** tab and restores the wizard step — so generating a token leaves you
+  looking at the freshly minted token with its Copy button.
+
+## [2.12.0] — 2026-06-08
+
+Adds **frontend staging sync**: an authenticated, bidirectional HTTP sync that
+moves the scoped frontend bundle between two paired installs, so a developer can
+iterate on a dev/staging copy and push the result to production (or pull prod's
+live frontend down to work on). Only the public frontend moves — presentation
+(theme / nav / mega-menus / layouts / fonts / icons / `frontend_*` settings),
+page-builder Pages, and referenced assets — never users, meetings, libraries,
+Zoom accounts, backups, or recovery Stories. Built on the existing scoped
+frontend bundle (`_frontend_export_payload` / frontend import), wrapped in a
+network API that mirrors the remote-restore security shape.
+
+### Added
+
+- **`FrontendSyncPeer` model** (`app/models.py`) — one paired sibling install:
+  `base_url` + a Fernet-encrypted shared `token` (the same secret lives on both
+  installs and authenticates traffic in both directions, constant-time compared)
+  + `allow_inbound` (off by default; gates whether this install will serve a
+  pull or accept a push) + `last_pulled_at` / `last_pushed_at` / `last_inbound_at`
+  audit columns. Kept in its own table rather than on `SiteSetting` so a
+  `frontend_*` column can't sweep the token into the synced bundle. New table is
+  auto-created by `db.create_all()` at boot — no `_migrate_sqlite` entry needed.
+- **Inbound API** on a new CSRF-exempt `frontend_sync_bp` blueprint
+  (`app/routes.py`, registered + exempted in `app/__init__.py`), token in the
+  `X-Frontend-Sync-Token` header, rate-limited per IP via
+  `LoginFailure(kind="frontend_sync")`: `GET /api/v1/frontend-sync/ping`
+  (reachability + version probe), `GET /api/v1/frontend-sync/pull` (streams a
+  scoped bundle), `POST /api/v1/frontend-sync/push` (snapshots the current
+  frontend, then applies the pushed bundle, returning a JSON summary).
+- **Outbound client** (`app/frontend_sync.py`) — `ping` / `pull_from_peer` /
+  `push_to_peer` using `requests`, with friendly error mapping (unreachable,
+  bad token, rate-limited, version mismatch) and audit-timestamp updates.
+- **Admin UI** — a "Frontend staging sync" card in **Settings → Data**
+  (`app/templates/base.html`) with peer label / base URL / shared-token fields,
+  a **Generate token** action, an **Allow inbound** toggle, and
+  **Test connection** / **Pull from peer** / **Push to peer** actions (typed
+  `REPLACE` confirm). Backed by four `@admin_required` routes
+  (`/settings/frontend-sync/{save,test,pull,push}`). The configured peer is
+  injected into templates via `inject_globals`.
+- **Pre-apply snapshot** (`_frontend_sync_snapshot`) — the receiving side writes
+  a FULL frontend bundle (including Stories) to
+  `<data>/frontend-sync-snapshots/frontend-pre-sync-<stamp>.zip` before applying
+  (pruned to the 10 most recent), so any sync is reversible via the existing
+  Frontend bundle import.
+
+### Changed
+
+- Refactored the existing frontend export/import into reusable helpers shared by
+  the manual admin forms and the new sync (`app/routes.py`):
+  `_frontend_export_payload(include_stories=…)` (omits the `stories` key for the
+  presentation+pages sync scope — import already no-ops when it's absent),
+  `_write_frontend_bundle_zip(dest, include_stories)` (manifest now records a
+  `sync_scope`), and `_import_frontend_bundle_zip(zip) -> (ok, summary)`. The
+  `/settings/frontend-import` form route is now a thin wrapper over the helper;
+  its REPLACE-confirm + flash behavior is unchanged.
+
+## [2.11.1] — 2026-06-08
+
+Makes the **hour-of-day charts read in the portal's configured timezone**
+instead of UTC. Both the Watchtower "Failed logins · last 24 hours" chart and
+the frontend visitor-metrics "Hour of day" chart now bucket by the IANA zone
+set in **Settings → Server Timezone** (`SiteSetting.timezone`), so the busy-hour
+bars line up with the fellowship's wall clock rather than the host's UTC.
+
+### Changed
+
+- **Visitor "Hour of day" distribution** (`visitor_metrics.hourly_distribution`)
+  shifts each UTC timestamp by the site's current offset inside the SQLite
+  `strftime` rollup, keeping the aggregation server-side. The chart caption and
+  CSV export section now show the active zone label (e.g. `EDT`) in place of the
+  old hard-coded `UTC`. (`app/visitor_metrics.py`, `app/templates/watchtower/visitors.html`, `app/routes.py`.)
+- **Watchtower failed-login hourly chart** (`watchtower.hourly_failed_logins`)
+  builds its rolling 24-hour window and buckets per row in site-local time
+  (DST-correct), and the card now labels the active zone. (`app/watchtower.py`,
+  `app/templates/watchtower/overview.html`, `app/routes.py`.)
+- New `site_offset_seconds()` and `site_tz_label()` helpers in `app/timezone.py`.
+
+Note: SQLite has no IANA-tz support, so the visitor chart applies the zone's
+*current* offset — a window straddling a DST change is approximate by one hour
+at the boundary. The Watchtower chart converts per row and is fully DST-correct.
+
+## [2.11.0] — 2026-06-07
+
+Adds **remote restore**: the off-site TS Pro Backup server can push a stored
+backup back into this portal on operator request — out-of-band recovery for a
+corrupted database, a locked-out admin, or an accidental login/IP lockout, when
+you can't drive a restore from inside the portal. **Off by default**; the admin
+opts in per backup target. Pairs with TS Pro Backup **1.3.0+**.
+
+### Added
+
+- **Inbound remote-restore API** (`POST /api/v1/restore`, `/restore/chunk`,
+  `/restore/finalize`), served on a dedicated root-level blueprint
+  (`restore_bp`) and CSRF-exempt — it's machine-to-machine, like the upload
+  side. It is deliberately **not** behind the admin session (that's the access
+  that's unavailable in a lockout). It reassembles the pushed archive, decrypts
+  it, and applies it through the existing `_perform_data_import()` (which swaps
+  the DB + uploads + `zoom.key`, runs migrations, clears login lockouts,
+  scrubs domain-bound Turnstile, and recycles workers). (`app/routes.py`.)
+- **Auto-pairing.** When remote restore is enabled on a TS Pro Backup target,
+  `TSProBackupBackend.open()` (and "Test connection") publish this portal's
+  public URL + a shared restore token to the backup server via its
+  `POST /api/v1/register` endpoint — best-effort, so a registration hiccup
+  never blocks a backup. (`app/backup_backends.py`, `app/routes.py`.)
+- **Admin opt-in** on the backup-target edit form: an **"Allow remote restore"**
+  toggle plus a **public URL** field (off by default). Enabling mints the token;
+  the next save / test publishes it. (`app/templates/backups_edit.html`.)
+- **`pubkey.public_from_private()`** — derives the `tsppk_…` public key from a
+  `tspsk_…` private key, used to verify a supplied restore key matches the key
+  on file before any destructive action. (`app/pubkey.py`.)
+
+### Security
+
+- **Two independent secrets gate every inbound restore.** The push must carry
+  the per-target restore token (`X-Restore-Token`, constant-time compared,
+  Fernet-encrypted at rest) **and** a private key that both decrypts the
+  archive *and* derives to the target's stored `e2ee_public_key` — checked
+  *before* any DB swap. A stolen token alone cannot push an attacker-crafted
+  archive. Failed attempts are rate-limited per IP (a distinct `LoginFailure`
+  kind, so it never interferes with the console login limiter) and audit-logged.
+  The supplied private key is used in-memory only — never stored or logged.
+
+### Schema
+
+- `BackupTarget` gains `allow_remote_restore`, `restore_token_enc`,
+  `public_url`, and `last_remote_restore_at` (additive boot migration).
+
+## [2.10.10] — 2026-06-07
+
+### Fixed
+
+- **Visitor IPs behind Cloudflare are now recorded correctly instead of the Cloudflare edge IP.** With the app fronted by Cloudflare (→ Caddy → gunicorn), the login log, Watchtower 404 tracker, IP-block gate, activity log, and form submissions were all recording a Cloudflare address (e.g. `172.71.x.x`) rather than the real visitor — because `ProxyFix(x_for=1)` peels back only one `X-Forwarded-For` hop, but Cloudflare adds a second. A new `_CloudflareRemoteAddr` WSGI shim (installed inside ProxyFix) rewrites `REMOTE_ADDR` from Cloudflare's `CF-Connecting-IP` header — a single, Cloudflare-set value holding the true client IP, immune to the XFF hop-count guesswork and to client-supplied XFF spoofing. Because every IP consumer reads `request.remote_addr`, all of them are corrected at once. Falls back cleanly to the previous XFF behaviour when the header is absent, is only active when a proxy is trusted (`TSP_TRUSTED_PROXIES` > 0, the default), and can be disabled with `TSP_TRUST_CF_HEADER=0` for non-Cloudflare proxies. Already-logged rows are not rewritten. (`app/__init__.py`.)
+
+### Changed
+
+- **The Watchtower 404s tab won't let you block an IP a real user signed in from.** To avoid accidentally 403-ing a legitimate visitor out of the portal, every IP shown on the 404s tab (the Top-missing-URLs expandable IP list and the Recent-404s table) is now cross-referenced against successful logins from the last 30 days. If a user signed in from that IP, the 404 row still shows but its "Block" button is greyed out and disabled, with a tooltip explaining why and naming the user (e.g. "Can't block — jason signed in from this IP in the last 30 days…"). The `/watchtower/ban-ip` route enforces the same guard server-side for the 404 flow (the Access / Overview block forms are unaffected, so an admin can still deliberately block such an IP there). Two batched helpers (`recent_login_user_ips` / `recent_login_user_for_ip`) resolve the IP→username map without N+1 queries. (`app/watchtower.py`, `app/routes.py`, `app/templates/watchtower/not_found.html`, `app/templates/watchtower/_not_found_ips.html`.)
+
+- **Blocking an IP from the Watchtower 404s tab no longer reloads the page.** Under **Watchtower → 404s → Top missing URLs**, expanding a missing URL lists the IPs hitting it, each with a "Block IP" button. Clicking Block used to POST the form and reload the whole tab, throwing you back to the top of the list. It now blocks via `fetch` (the `/watchtower/ban-ip` route returns JSON when called with `Accept: application/json`) and swaps that row in place for a "Blocked" chip with a small confirmation toast — so the expanded list stays open and you can keep working down it, blocking more IPs without losing your place. The no-JS form path still posts-and-redirects as before. (`app/routes.py`, `app/templates/watchtower/not_found.html`, `app/templates/watchtower/_not_found_ips.html`.)
+
+### Added
+
+- **A public "Copy URL" button on the event and meeting detail pages.** The event/announcement/archive detail head (`classic` event template) and the meeting detail head (`classic` meeting template) now show a "Copy URL" pill to the right of the category chips, above the title. It carries a link icon and copies the canonical page URL (`request.base_url`) to the clipboard, flashing green to confirm. The button reuses the existing `.fe-copy-btn` clipboard handler (`navigator.clipboard` with the `document.execCommand` fallback for plain-HTTP LAN access), so it works in non-secure contexts. Styled as a `.fe-copy-url-pill` — a pill matching the `.fe-meeting-type` chip height with a slight 1-px border like the "Edit" shortcut. Visible to everyone (not role-gated). On the meeting head the chip + button are wrapped in a new `.fe-meeting-detail-chips` flex row. (`app/templates/frontend/events/classic.html`, `app/templates/frontend/meetings/classic.html`, `app/static/css/frontend.css`.)
+
+## [2.10.9] — 2026-06-05
+
+### Changed
+
+- **The dashboard's "Currently Online" count and the User Log live widget now track only real page views — not asset fetches.** Presence was recorded by a `before_request` blocklist that tried to enumerate every asset route by endpoint-name suffix (`_image`, `_logo`, `_favicon`, …) and URL file extension. Routes that didn't fit the naming convention slipped through — notably the home-screen icon endpoints (`site_apple_touch_icon` / `site_frontend_apple_touch_icon`, whose names end in `_icon` and whose URLs carry no extension), so a browser quietly refetching `/site-branding/apple-touch-icon` kept its user pinned as "online" and parked their live location on a non-page URL. Tracking moved to an `after_request` hook gated on the **response itself**: presence is recorded only for a `200 text/html` response. That definitively excludes icons, images, PDFs, file downloads, JSON API/metrics polls, redirects, and error pages — regardless of how the serving route or its URL is named — and it's self-maintaining, so any future asset endpoint is excluded for free. The throttle/change-detection behaviour is unchanged. (`app/routes.py`, comment sync in `app/auth.py`.)
+
+### Added
+
+- **Sidebar and dashboard attention chips now update live, without a page reload.** The number chips on the backend sidebar (per-section nav badges, the Watchtower quick-nav chips, the Notifications bell) and the dashboard widget badges (Access Requests, Locked Accounts, Off-site Backups, Forms) used to reflect new submissions/requests only on the next full page load. They now poll a new `GET /tspro/_live/counts` endpoint every 20 s (and immediately when a backgrounded tab regains focus) and reconcile each chip in place — so a chip appears, increments, and disappears on its own as work arrives and is cleared. The counts come from one shared helper (`_attention_counts()`) that also seeds the initial render, so a polled value can never drift from what the page first showed; every count stays role-gated exactly as the rendered chip is. Chips now always exist in the DOM (hidden at 0) and carry a `data-live-chip` key; the poller only flips the number + the `hidden` flag, never replacing elements, so bound handlers (dashboard drag-reorder, the Notifications modal trigger) are untouched. Dashboard-only counts (failed backups, forms attention) are requested via `?dash=1` only while the dashboard is on screen, keeping every other page's poll cheap. Also fixed a latent CSS issue where `.nav-badge`'s `display` outranked the UA `[hidden]` rule, so an always-rendered chip wouldn't hide at 0 (`.nav-badge[hidden] { display: none }`).
+
 ## [2.10.8] — 2026-06-02
 
 ### Fixed

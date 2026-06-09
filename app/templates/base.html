@@ -147,19 +147,18 @@
          title="Watchtower — security, access requests, deletions, and user activity">
         <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('shield') }}</span>
         <span class="sidebar-quicknav-label">Watchtower</span>
-        {% if _watchtower_total %}
-        <span class="sidebar-quicknav-chips" aria-label="{{ _watchtower_total }} item{{ 's' if _watchtower_total != 1 else '' }} need attention">
-          {% if recovery_contacts_abuse_count %}
-          <span class="nav-badge nav-badge-danger" title="{{ recovery_contacts_abuse_count }} flagged Recovery Contacts request{{ 's' if recovery_contacts_abuse_count != 1 else '' }}">{{ recovery_contacts_abuse_count }}</span>
-          {% endif %}
-          {% if pending_access_count %}
-          <span class="nav-badge nav-badge-warn" title="{{ pending_access_count }} pending access request{{ 's' if pending_access_count != 1 else '' }}">{{ pending_access_count }}</span>
-          {% endif %}
-          {% if locked_accounts_count %}
-          <span class="nav-badge" title="{{ locked_accounts_count }} locked account{{ 's' if locked_accounts_count != 1 else '' }}">{{ locked_accounts_count }}</span>
-          {% endif %}
+        {#- Always render the chip group (hidden at 0) so the /_live/counts
+            poller can reveal/update/hide each chip — and the group wrapper —
+            without a page reload. data-live-chip-group lists the keys it
+            sums to decide its own visibility + aria-label. -#}
+        <span class="sidebar-quicknav-chips"
+              data-live-chip-group="recovery_contacts_abuse pending_access locked_accounts"
+              aria-label="{{ _watchtower_total }} item{{ 's' if _watchtower_total != 1 else '' }} need attention"
+              {% if not _watchtower_total %}hidden{% endif %}>
+          <span class="nav-badge nav-badge-danger" data-live-chip="recovery_contacts_abuse" title="Flagged Recovery Contacts requests" {% if not recovery_contacts_abuse_count %}hidden{% endif %}>{{ recovery_contacts_abuse_count or 0 }}</span>
+          <span class="nav-badge nav-badge-warn" data-live-chip="pending_access" title="Pending access requests" {% if not pending_access_count %}hidden{% endif %}>{{ pending_access_count or 0 }}</span>
+          <span class="nav-badge" data-live-chip="locked_accounts" title="Locked accounts" {% if not locked_accounts_count %}hidden{% endif %}>{{ locked_accounts_count or 0 }}</span>
         </span>
-        {% endif %}
       </a>
       {% endif %}
     </div>
@@ -174,6 +173,7 @@
       <span class="sidebar-notif-icon" aria-hidden="true">{{ icon('bell') }}</span>
       <span class="sidebar-notif-label">Notifications</span>
       <span class="nav-badge nav-badge-warn sidebar-notif-chip" data-notif-chip
+            data-live-chip="notifications"
             {% if not notifications_count %}hidden{% endif %}>{{ notifications_count or 0 }}</span>
     </button>
     {% endif %}
@@ -1754,6 +1754,223 @@
                 <a class="btn btn-primary" href="{{ url_for('main.data_frontend_export') }}">Export frontend bundle (.zip)</a>
               </div>
             </div>
+          </div>
+        </section>
+
+        {# ── Frontend staging sync — role-aware setup wizard ── #}
+        {% set _fs_role = fe_sync_peer.self_role if fe_sync_peer else '' %}
+        {% set _fs_has_token = fe_sync_peer and fe_sync_peer.token_enc %}
+        {% set _fs_has_url = fe_sync_peer and fe_sync_peer.base_url %}
+        <section class="card data-card fe-sync-wizard" data-fe-sync-wizard
+                 data-self-role="{{ _fs_role }}"
+                 data-has-token="{{ '1' if _fs_has_token else '0' }}"
+                 data-has-url="{{ '1' if _fs_has_url else '0' }}">
+          <div class="data-card-head">
+            {{ icon('refresh-cw') }}
+            <span>Frontend staging sync</span>
+          </div>
+          <p class="muted small data-card-lead">
+            Build your public website on a separate <strong>Staging</strong> copy, then
+            move it to your <strong>Live</strong> site over the network — no bundle to
+            download and re-upload. This wizard pairs the two installs. Only the frontend
+            travels (presentation, navigation, page-builder Pages, and the assets they
+            use); recovery <em>Stories</em>, users, meetings, and libraries are never
+            touched, and the receiving side auto-saves a rollback snapshot first.
+          </p>
+          <input type="hidden" data-fe-sync-csrf value="{{ csrf_token() }}">
+
+          <nav class="fe-sync-stepper" aria-label="Staging sync setup steps">
+            <ol data-fe-sync-stepper></ol>
+          </nav>
+
+          {# ── Step: choose this install's role ─────────────────── #}
+          <div class="fe-sync-panel" data-fe-sync-panel="role">
+            <div class="u-name">Which install is this?</div>
+            <p class="muted small">
+              Staging sync links two installs. <strong>Set up your Live site first</strong> —
+              it mints the shared token you'll paste into Staging.
+            </p>
+            <div class="fe-sync-roles">
+              <button type="button" class="fe-sync-role-card" data-fe-sync-role="live">
+                <span class="fe-sync-role-name">This is my Live site</span>
+                <span class="fe-sync-role-desc">My public production site. Start here — it creates the token and receives syncs.</span>
+              </button>
+              <button type="button" class="fe-sync-role-card" data-fe-sync-role="staging">
+                <span class="fe-sync-role-name">This is my Staging copy</span>
+                <span class="fe-sync-role-desc">A separate dev copy where I rebuild the site, then push it Live.</span>
+              </button>
+            </div>
+            <div class="fe-sync-gate" data-fe-sync-gate hidden>
+              <p class="muted small">
+                <strong>Set up your Live site first.</strong> Run this wizard on your Live
+                install, choose <em>“This is my Live site”</em>, and copy the token it
+                generates. Once you have that token, continue here.
+              </p>
+              <div class="form-actions">
+                <button type="button" class="btn" data-fe-sync-gate-cancel>← Choose again</button>
+                <button type="button" class="btn btn-primary" data-fe-sync-role-confirm="staging">I have the token from Live →</button>
+              </div>
+            </div>
+          </div>
+
+          {# ── Live: create the shared token ────────────────────── #}
+          <div class="fe-sync-panel" data-fe-sync-panel="live-token">
+            <div class="u-name">Create the shared token</div>
+            <p class="muted small">
+              This secret lets your Staging copy sync with this Live site. Generate it
+              here, then paste it into Staging.
+            </p>
+            <form class="form" method="post" action="{{ url_for('main.frontend_sync_save') }}"
+                  data-no-ajax="1" data-fe-sync-action="save" data-fe-sync-land="live-done">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="self_role" value="live">
+              <div class="fe-sync-tokenbox" data-fe-sync-tokenbox {{ '' if _fs_has_token else 'hidden' }}>
+                <code class="fe-sync-token-value" data-fe-sync-token>{{ fe_sync_peer.token if _fs_has_token else '' }}</code>
+                <button type="button" class="btn btn-sm" data-copy-text="{{ fe_sync_peer.token if _fs_has_token else '' }}">Copy</button>
+              </div>
+              <div class="form-actions fe-sync-nav">
+                <button type="button" class="btn" data-fe-sync-go="role">← Back</button>
+                <button class="btn btn-primary" name="generate" value="1" data-fe-sync-generate>{{ 'Regenerate token' if _fs_has_token else 'Generate token' }}</button>
+                <button type="button" class="btn" data-fe-sync-go="live-done" data-fe-sync-next {{ '' if _fs_has_token else 'disabled' }}>Next →</button>
+              </div>
+            </form>
+            <p class="muted small">This Live site is set to receive syncs automatically — nothing else to configure here.</p>
+          </div>
+
+          {# ── Live: handoff / done ─────────────────────────────── #}
+          <div class="fe-sync-panel" data-fe-sync-panel="live-done">
+            <div class="u-name">Live site ready ✓</div>
+            <p class="muted small">
+              This site will now serve and accept syncs from your Staging copy. To finish,
+              open this wizard on your <strong>Staging</strong> install, choose
+              <em>“This is my Staging copy”</em>, and give it:
+            </p>
+            <div class="fe-sync-handoff">
+              <div class="fe-sync-handoff-row">
+                <span class="fe-sync-handoff-label">Shared token</span>
+                <div class="fe-sync-tokenbox" data-fe-sync-tokenbox {{ '' if _fs_has_token else 'hidden' }}>
+                  <code class="fe-sync-token-value" data-fe-sync-token>{{ fe_sync_peer.token if _fs_has_token else '' }}</code>
+                  <button type="button" class="btn btn-sm" data-copy-text="{{ fe_sync_peer.token if _fs_has_token else '' }}">Copy</button>
+                </div>
+              </div>
+              {% if site and site.site_url %}
+              <div class="fe-sync-handoff-row">
+                <span class="fe-sync-handoff-label">This site's address</span>
+                <div class="fe-sync-tokenbox">
+                  <code class="fe-sync-token-value">{{ site.site_url }}</code>
+                  <button type="button" class="btn btn-sm" data-copy-text="{{ site.site_url }}">Copy</button>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+            <div class="form-actions fe-sync-nav">
+              <button type="button" class="btn" data-fe-sync-go="live-token">← Back</button>
+            </div>
+          </div>
+
+          {# ── Staging: paste the token ─────────────────────────── #}
+          <div class="fe-sync-panel" data-fe-sync-panel="stg-token">
+            <div class="u-name">Paste the token from your Live site</div>
+            <p class="muted small">
+              On your Live site you generated a shared token. Paste it here so the two
+              installs match.
+            </p>
+            <form class="form" method="post" action="{{ url_for('main.frontend_sync_save') }}"
+                  data-no-ajax="1" data-fe-sync-action="save" data-fe-sync-land="stg-url">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="self_role" value="staging">
+              <label>Shared token
+                <input type="text" name="token" autocomplete="off"
+                       placeholder="{{ 'unchanged — leave blank to keep' if _fs_has_token else 'fesync_…' }}">
+              </label>
+              <div class="form-actions fe-sync-nav">
+                <button type="button" class="btn" data-fe-sync-go="role">← Back</button>
+                <button class="btn btn-primary">Save &amp; continue →</button>
+              </div>
+            </form>
+          </div>
+
+          {# ── Staging: Live site address ───────────────────────── #}
+          <div class="fe-sync-panel" data-fe-sync-panel="stg-url">
+            <div class="u-name">Your Live site's address</div>
+            <p class="muted small">
+              The address of your Live site — what you'd type in a browser to reach it.
+              An <code>https://</code> address is strongly recommended.
+            </p>
+            <form class="form" method="post" action="{{ url_for('main.frontend_sync_save') }}"
+                  data-no-ajax="1" data-fe-sync-action="save" data-fe-sync-land="stg-test">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="self_role" value="staging">
+              <label>Live site URL
+                <input type="url" name="base_url" placeholder="https://prod.example.org"
+                       value="{{ fe_sync_peer.base_url if fe_sync_peer else '' }}" autocomplete="off">
+              </label>
+              <div class="form-actions fe-sync-nav">
+                <button type="button" class="btn" data-fe-sync-go="stg-token">← Back</button>
+                <button class="btn btn-primary">Save &amp; continue →</button>
+              </div>
+            </form>
+          </div>
+
+          {# ── Staging: test ────────────────────────────────────── #}
+          <div class="fe-sync-panel" data-fe-sync-panel="stg-test">
+            <div class="u-name">Check the connection</div>
+            <p class="muted small">
+              Confirm this Staging copy can reach your Live site with the shared token
+              before moving anything.
+            </p>
+            <form class="form" method="post" action="{{ url_for('main.frontend_sync_test') }}"
+                  data-no-ajax="1" data-fe-sync-action="test">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="form-actions fe-sync-nav">
+                <button type="button" class="btn" data-fe-sync-go="stg-url">← Back</button>
+                <button class="btn">Test connection</button>
+                <button type="button" class="btn btn-primary" data-fe-sync-go="stg-sync">Skip to sync →</button>
+              </div>
+            </form>
+            <p class="muted small fe-sync-hint">
+              A failure usually means the Live URL is wrong, the Live site is offline, or
+              the tokens don't match — or the Live site wasn't set up with
+              <em>“This is my Live site”</em>.
+            </p>
+          </div>
+
+          {# ── Staging: sync ────────────────────────────────────── #}
+          <div class="fe-sync-panel" data-fe-sync-panel="stg-sync">
+            <div class="u-name">Sync the frontend</div>
+            <p class="muted small">
+              Each direction overwrites one side and saves a rollback snapshot on the
+              receiving side first. Type <code>REPLACE</code> to confirm.
+            </p>
+            <div class="data-card-grid">
+              <div class="data-card-col">
+                <div class="fe-sync-subhead">Pull&nbsp;&nbsp;Live&nbsp;→&nbsp;here</div>
+                <p class="muted small">Overwrites <strong>this Staging copy</strong> with your Live site's frontend.</p>
+                <form class="form" method="post" action="{{ url_for('main.frontend_sync_pull') }}"
+                      data-no-ajax="1" data-fe-sync-action="pull">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <label>Type <code>REPLACE</code> to confirm<input type="text" name="confirm" placeholder="REPLACE" autocomplete="off" required></label>
+                  <div class="form-actions"><button class="btn btn-danger">Pull from Live</button></div>
+                </form>
+              </div>
+              <div class="data-card-col">
+                <div class="fe-sync-subhead">Push&nbsp;&nbsp;here&nbsp;→&nbsp;Live</div>
+                <p class="muted small">Overwrites <strong>your Live site</strong> with this Staging copy's frontend.</p>
+                <form class="form" method="post" action="{{ url_for('main.frontend_sync_push') }}"
+                      data-no-ajax="1" data-fe-sync-action="push">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <label>Type <code>REPLACE</code> to confirm<input type="text" name="confirm" placeholder="REPLACE" autocomplete="off" required></label>
+                  <div class="form-actions"><button class="btn btn-danger">Push to Live</button></div>
+                </form>
+              </div>
+            </div>
+            <div class="form-actions fe-sync-nav">
+              <button type="button" class="btn" data-fe-sync-go="stg-test">← Back to test</button>
+            </div>
+            <p class="muted small" data-fe-sync-timestamps style="margin-top:.75rem;">
+              {% if fe_sync_peer and fe_sync_peer.last_pulled_at %}Last pulled {{ fe_sync_peer.last_pulled_at.strftime('%Y-%m-%d %H:%M') }} UTC. {% endif %}
+              {% if fe_sync_peer and fe_sync_peer.last_pushed_at %}Last pushed {{ fe_sync_peer.last_pushed_at.strftime('%Y-%m-%d %H:%M') }} UTC.{% endif %}
+            </p>
           </div>
         </section>
 

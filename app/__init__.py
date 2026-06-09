@@ -17,6 +17,36 @@ login_manager.login_message_category = "warning"
 csrf = CSRFProtect()
 
 
+class _CloudflareRemoteAddr:
+    """Rewrite ``REMOTE_ADDR`` from Cloudflare's ``CF-Connecting-IP`` header.
+
+    When the app is fronted by Cloudflare (Cloudflare → Caddy → gunicorn),
+    the real visitor IP rides in ``CF-Connecting-IP`` as a single,
+    Cloudflare-set value. That's more reliable than counting
+    ``X-Forwarded-For`` hops: the XFF chain length varies (Cloudflare +
+    Caddy = two entries), so a fixed ``ProxyFix(x_for=1)`` peels off only
+    the last hop and lands on the Cloudflare edge IP (e.g. 172.71.x.x)
+    instead of the client. Reading the dedicated header sidesteps the
+    hop-count guesswork entirely.
+
+    Wired up *inside* ProxyFix so it runs after XFF processing and wins
+    when the header is present, while still falling back to ProxyFix's
+    XFF result (and to the bare socket ``REMOTE_ADDR``) when it isn't.
+    Only installed when a proxy is trusted, so direct-bind deploys never
+    honor a header a client could forge; disable explicitly with
+    ``TSP_TRUST_CF_HEADER=0`` if a non-Cloudflare proxy sits in front.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, environ, start_response):
+        cf_ip = environ.get("HTTP_CF_CONNECTING_IP")
+        if cf_ip:
+            environ["REMOTE_ADDR"] = cf_ip.strip()
+        return self.app(environ, start_response)
+
+
 def create_app():
     app = Flask(__name__, instance_relative_config=False)
     # Accept URLs with or without a trailing slash. Werkzeug's
@@ -36,11 +66,20 @@ def create_app():
     # Flask remedy. Hop count is configurable via TSP_TRUSTED_PROXIES so
     # direct-bind deploys can disable it (set to 0) to avoid trusting
     # spoofable headers when no proxy sits in front.
+    #
+    # Cloudflare adds a second hop, so XFF hop-counting alone lands on the
+    # CF edge IP — _CloudflareRemoteAddr (installed inside ProxyFix) reads
+    # CF-Connecting-IP to recover the true client. See that class's docstring.
     try:
         _proxy_hops = int(os.environ.get("TSP_TRUSTED_PROXIES", "1"))
     except ValueError:
         _proxy_hops = 1
     if _proxy_hops > 0:
+        # Added first so it sits *inside* ProxyFix: ProxyFix runs first and
+        # sets REMOTE_ADDR from XFF, then this overrides it with the
+        # Cloudflare header when present (and is a no-op when it isn't).
+        if os.environ.get("TSP_TRUST_CF_HEADER", "1") != "0":
+            app.wsgi_app = _CloudflareRemoteAddr(app.wsgi_app)
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
             x_for=_proxy_hops,
@@ -395,12 +434,19 @@ def create_app():
         return u
 
     from .auth import bp as auth_bp
-    from .routes import bp as main_bp, public_bp
+    from .routes import bp as main_bp, public_bp, restore_bp, frontend_sync_bp
     from .frontend import bp as frontend_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(public_bp)
     app.register_blueprint(frontend_bp)
+    app.register_blueprint(restore_bp)
+    app.register_blueprint(frontend_sync_bp)
+    # Inbound remote-restore + frontend-sync APIs are authenticated by a
+    # shared token, not a session cookie — exempt the whole blueprints from
+    # form-CSRF.
+    csrf.exempt(restore_bp)
+    csrf.exempt(frontend_sync_bp)
 
     # Common attacker probe paths (env files, git internals, server config
     # files, off-the-shelf admin panels). We don't serve any of these — Flask
@@ -1854,7 +1900,13 @@ def _migrate_sqlite(app):
                          # key, and the site's tsppk_ recipient public key.
                          ("api_base_url", "VARCHAR(500)"),
                          ("api_key_enc", "BLOB"),
-                         ("e2ee_public_key", "VARCHAR(80)")):
+                         ("e2ee_public_key", "VARCHAR(80)"),
+                         # Remote restore (push a stored backup back to this
+                         # portal): opt-in flag, shared token, our public URL.
+                         ("allow_remote_restore", "BOOLEAN NOT NULL DEFAULT 0"),
+                         ("restore_token_enc", "BLOB"),
+                         ("public_url", "VARCHAR(500)"),
+                         ("last_remote_restore_at", "DATETIME")):
             add("backup_target", col, ddl)
         for col, ddl in (("asset_files_json", "TEXT"),):
             add("custom_font", col, ddl)
@@ -2021,6 +2073,12 @@ def _migrate_sqlite(app):
         # this URL" and offer a one-click block. Existing rows get NULL
         # IPs (the column was added after the fact); new 404s carry IPs.
         add("not_found_event", "ip", "VARCHAR(45)")
+
+        # FrontendSyncPeer.self_role — added in 2.12.1. The 2.12.0 table was
+        # created without it, so existing paired installs need the column
+        # back-filled. "" means "role not chosen yet"; the setup wizard sets
+        # it to 'live' or 'staging'.
+        add("frontend_sync_peer", "self_role", "VARCHAR(16) NOT NULL DEFAULT ''")
 
         # One-shot data migration: when the new frontend_og_* columns are
         # added on an existing deployment, seed them from the legacy og_*

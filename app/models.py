@@ -3137,6 +3137,19 @@ class BackupTarget(db.Model):
     api_key_enc = db.Column(db.LargeBinary)
     e2ee_public_key = db.Column(db.String(80))
 
+    # Remote restore (TS Pro Backup only). When the admin opts in, the
+    # backup server may push a stored backup back to *this* portal — an
+    # out-of-band recovery path for when the data is corrupted or the admin
+    # is locked out. We mint a shared ``restore_token`` and publish it (plus
+    # ``public_url`` — where our inbound /api/v1/restore lives) to the backup
+    # server on every backend ``open()``. The token authenticates the push;
+    # it is Fernet-encrypted at rest and is a high-value secret. Off by
+    # default — a destructive inbound endpoint must be deliberately enabled.
+    allow_remote_restore = db.Column(db.Boolean, nullable=False, default=False)
+    restore_token_enc = db.Column(db.LargeBinary)
+    public_url = db.Column(db.String(500))
+    last_remote_restore_at = db.Column(db.DateTime)
+
     # FTPS toggle (FTP only). When false, plain FTP — surface a warning
     # in the wizard so the admin opts in deliberately.
     use_tls = db.Column(db.Boolean, nullable=False, default=True)
@@ -3174,6 +3187,40 @@ class BackupTarget(db.Model):
         order_by="BackupRun.started_at.desc()",
     )
 
+    # ── Remote-restore token helpers ───────────────────────────────
+    def ensure_restore_token(self) -> str:
+        """Return the plaintext restore token, minting + storing one
+        (Fernet-encrypted) on first use. Stable across calls so the value
+        published to the backup server keeps matching what we verify."""
+        from .crypto import encrypt, decrypt
+        if self.restore_token_enc:
+            existing = decrypt(self.restore_token_enc)
+            if existing:
+                return existing
+        import secrets
+        raw = "tsprt_" + secrets.token_urlsafe(32)
+        self.restore_token_enc = encrypt(raw)
+        return raw
+
+    @property
+    def restore_token(self) -> str:
+        from .crypto import decrypt
+        return decrypt(self.restore_token_enc) if self.restore_token_enc else ""
+
+    def clear_restore_token(self):
+        self.restore_token_enc = None
+
+    def verify_restore_token(self, raw: str) -> bool:
+        """Constant-time check of a presented token against the stored one.
+        Only valid when remote restore is enabled and a token exists."""
+        import hmac
+        if not (self.allow_remote_restore and self.restore_token_enc):
+            return False
+        mine = self.restore_token
+        if not mine or not raw:
+            return False
+        return hmac.compare_digest(mine, raw)
+
 
 class BackupRun(db.Model):
     """One execution attempt of a BackupTarget — success or failure."""
@@ -3187,6 +3234,92 @@ class BackupRun(db.Model):
     bytes_uploaded = db.Column(db.BigInteger)
     error_message = db.Column(db.Text)
     triggered_by = db.Column(db.String(16), default="schedule")  # schedule|manual
+
+
+class FrontendSyncPeer(db.Model):
+    """A paired sibling install for frontend staging sync.
+
+    Lets a developer iterate on the public site on a *dev* copy of the
+    portal and then push the result to *prod* (or pull prod's current
+    frontend down to dev to start from live state). Only the scoped
+    "frontend bundle" moves — settings/theme/nav/layouts/fonts/icons +
+    page-builder Pages + referenced assets — never users, meetings,
+    libraries, Zoom accounts, or backups. Stories are deliberately left
+    alone on the receiving side (they're often submitted/edited on prod).
+
+    Pairing is a single shared secret: the *same* ``token`` lives on both
+    installs and authenticates traffic in both directions (each side also
+    stores the peer's ``base_url``). It is Fernet-encrypted at rest and is
+    a high-value secret — it gates writes to the public site. The config
+    lives in its own table rather than on ``SiteSetting`` on purpose: a
+    ``frontend_*`` column would be swept into the synced bundle itself by
+    ``_frontend_setting_keys()`` and leak the token to the peer.
+
+    ``allow_inbound`` gates whether this install will serve a pull or
+    accept a push *from* the peer; off by default so a destructive inbound
+    path is opt-in (the same posture as remote restore). The outbound
+    direction — this admin clicking Pull/Push — is always available once a
+    peer + token are configured.
+    """
+    __tablename__ = "frontend_sync_peer"
+    id = db.Column(db.Integer, primary_key=True)
+    label = db.Column(db.String(128), nullable=False, default="")
+    base_url = db.Column(db.String(500), nullable=False, default="")
+    token_enc = db.Column(db.LargeBinary)
+    allow_inbound = db.Column(db.Boolean, nullable=False, default=False)
+    # Which install THIS one is in the pair: "live" (production source of
+    # truth — mints the token, serves pulls, accepts pushes) or "staging"
+    # (the dev copy that pulls/pushes). Drives the setup wizard's role-scoped
+    # fields; "" until the admin picks one. allow_inbound is derived from it
+    # (live ⇒ inbound on, staging ⇒ off), so the two stay consistent.
+    self_role = db.Column(db.String(16), nullable=False, default="")
+
+    last_pulled_at = db.Column(db.DateTime)   # we pulled FROM the peer
+    last_pushed_at = db.Column(db.DateTime)   # we pushed TO the peer
+    last_inbound_at = db.Column(db.DateTime)  # the peer pulled/pushed against us
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # ── Shared-secret token helpers (mirror BackupTarget) ───────────
+    def ensure_token(self) -> str:
+        """Return the plaintext token, minting + storing one (Fernet-
+        encrypted) on first use. Stable across calls so the value the
+        admin copies to the peer keeps matching what we verify."""
+        from .crypto import encrypt, decrypt
+        if self.token_enc:
+            existing = decrypt(self.token_enc)
+            if existing:
+                return existing
+        import secrets
+        raw = "fesync_" + secrets.token_urlsafe(32)
+        self.token_enc = encrypt(raw)
+        return raw
+
+    @property
+    def token(self) -> str:
+        from .crypto import decrypt
+        return decrypt(self.token_enc) if self.token_enc else ""
+
+    def set_token(self, raw: str):
+        """Store a token the admin pasted in from the peer (or clear it)."""
+        from .crypto import encrypt
+        raw = (raw or "").strip()
+        self.token_enc = encrypt(raw) if raw else None
+
+    def clear_token(self):
+        self.token_enc = None
+
+    def verify_token(self, raw: str) -> bool:
+        """Constant-time check of a presented token against the stored one.
+        Only valid when inbound sync is enabled and a token exists."""
+        import hmac
+        if not (self.allow_inbound and self.token_enc):
+            return False
+        mine = self.token
+        if not mine or not raw:
+            return False
+        return hmac.compare_digest(mine, raw)
 
 
 class TrustedServantSubscriber(db.Model):

@@ -656,6 +656,9 @@
       clearTimeout(showSettingsToast._h);
       showSettingsToast._h = setTimeout(() => t.classList.remove("show"), 2200);
     }
+    // Exposed so the frontend-sync wizard (a separate IIFE) can surface its
+    // own AJAX results in the same in-modal toast.
+    window.showSettingsToast = showSettingsToast;
 
     // Shared AJAX submit for any settings-modal form. Returns a promise
     // that resolves with the parsed JSON body (if any) on success and
@@ -2496,6 +2499,65 @@
     const h = setInterval(tick, 30000);
     window.addEventListener("beforeunload", () => clearInterval(h));
   })();
+})();
+
+// ── LIVE ATTENTION CHIPS ────────────────────────────────────────────────────
+// Poll /tspro/_live/counts and reconcile every [data-live-chip] number chip in
+// place — sidebar nav badges, the Watchtower quicknav chips, the Notifications
+// bell, and the dashboard widget badges — so new access requests / submissions
+// / locked accounts surface their counts without a page reload. Chips always
+// exist in the DOM (hidden at 0); we only flip the number + the hidden flag,
+// never replacing elements, so bound listeners (dashboard drag handles, the
+// notifications button's open handler) stay intact.
+(function () {
+  if (!document.querySelector("[data-live-chip]")) return;
+  const POLL_MS = 20000;
+  // Ask for the dashboard-only chips (failed backups, forms attention) only
+  // while the dashboard grid is on screen, so every other page's poll stays
+  // cheap.
+  const onDashboard = !!document.querySelector(".dash-widget[data-widget-key]");
+  const endpoint = "/tspro/_live/counts" + (onDashboard ? "?dash=1" : "");
+
+  function setChip(el, n) {
+    el.textContent = n;
+    el.hidden = !n;
+  }
+  function apply(counts) {
+    if (!counts || typeof counts !== "object") return;
+    Object.keys(counts).forEach(key => {
+      const n = counts[key] | 0;
+      document.querySelectorAll('[data-live-chip="' + key + '"]')
+              .forEach(el => setChip(el, n));
+    });
+    // Group wrappers (the Watchtower quicknav chips) reveal themselves when the
+    // sum of their listed keys is non-zero and mirror that total in aria-label.
+    document.querySelectorAll("[data-live-chip-group]").forEach(group => {
+      const keys = (group.getAttribute("data-live-chip-group") || "")
+                     .split(/\s+/).filter(Boolean);
+      const total = keys.reduce((s, k) => s + (counts[k] | 0), 0);
+      group.hidden = !total;
+      group.setAttribute("aria-label",
+        total + (total === 1 ? " item" : " items") + " need attention");
+    });
+  }
+
+  async function tick() {
+    if (document.hidden) return;
+    try {
+      const r = await fetch(endpoint, {
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "fetch" },
+      });
+      if (!r.ok) return;
+      apply(await r.json());
+    } catch (_) {}
+  }
+
+  const h = setInterval(tick, POLL_MS);
+  window.addEventListener("beforeunload", () => clearInterval(h));
+  // Reconcile the moment a backgrounded tab regains focus, so the operator
+  // doesn't wait up to POLL_MS to see counts that changed while they were away.
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
 })();
 
 // ── MEGA MENU AJAX (ADD BLOCK / ADD COLUMN / DELETE) ────────────────────────
@@ -5892,4 +5954,381 @@
       });
     });
   });
+})();
+
+/* ── Frontend staging sync wizard ──────────────────────────────
+   Drives the stepped pairing UI in the settings "Data" tab. The
+   underlying forms still do full-page POSTs (data-no-ajax), so the
+   wizard resumes on the right step after each reload:
+     • A button with [data-fe-sync-land="N"] (a submit) records N as the
+       step to show once the page comes back.
+     • [data-fe-sync-go="N"] navigates in-page without submitting.
+   Landing step is kept in sessionStorage so it survives the reload;
+   the server-rendered data-start-step is the first-visit default. */
+/* ── Frontend staging sync wizard ──────────────────────────────
+   Role-aware setup flow that submits every action over AJAX so the
+   settings modal never reloads (and so never closes mid-setup). The
+   admin first declares whether this install is the Live site or the
+   Staging copy; each role then shows only the fields it needs. */
+(function feSyncWizard () {
+  const STORE = "feSyncStepKey";
+
+  // Ordered per-role flows. The "role" chooser is always step 1.
+  const ROLE_STEP = { key: "role", label: "This install" };
+  const FLOWS = {
+    "": [],
+    live: [
+      { key: "live-token", label: "Token" },
+      { key: "live-done",  label: "Finish" },
+    ],
+    staging: [
+      { key: "stg-token", label: "Token" },
+      { key: "stg-url",   label: "Live URL" },
+      { key: "stg-test",  label: "Test" },
+      { key: "stg-sync",  label: "Sync" },
+    ],
+  };
+
+  function init() {
+    const root = document.querySelector("[data-fe-sync-wizard]");
+    if (!root) return;
+    // Enables single-panel mode in CSS; without JS every panel stays visible.
+    root.setAttribute("data-fe-sync-js", "1");
+
+    const stepperOl = root.querySelector("[data-fe-sync-stepper]");
+    const panels = Array.from(root.querySelectorAll("[data-fe-sync-panel]"));
+    let role = root.dataset.selfRole || "";
+
+    const flow = () => [ROLE_STEP].concat(FLOWS[role] || []);
+    const inFlow = key => flow().some(s => s.key === key);
+
+    function csrf() {
+      const el = root.querySelector("[data-fe-sync-csrf]")
+              || root.querySelector('input[name="csrf_token"]');
+      return el ? el.value : "";
+    }
+    function saveAction() {
+      const f = root.querySelector('form[data-fe-sync-action="save"]');
+      return f ? f.action : "";
+    }
+    function toast(msg, kind) {
+      if (window.showSettingsToast) window.showSettingsToast(msg, kind);
+    }
+
+    async function postFields(action, fields) {
+      const fd = new FormData();
+      fd.set("csrf_token", csrf());
+      Object.keys(fields).forEach(k => fd.set(k, fields[k]));
+      const r = await fetch(action, {
+        method: "POST", body: fd,
+        headers: { "X-Requested-With": "fetch" },
+        credentials: "same-origin",
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }
+
+    function buildStepper(activeKey) {
+      const steps = flow();
+      const activeIdx = steps.findIndex(s => s.key === activeKey);
+      stepperOl.innerHTML = "";
+      steps.forEach((s, i) => {
+        const li = document.createElement("li");
+        if (s.key === activeKey) li.className = "is-active";
+        else if (i < activeIdx) li.className = "is-done";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        const num = document.createElement("span");
+        num.className = "fe-sync-num";
+        num.textContent = String(i + 1);
+        const lbl = document.createElement("span");
+        lbl.className = "fe-sync-step-label";
+        lbl.textContent = s.label;
+        btn.appendChild(num);
+        btn.appendChild(lbl);
+        btn.addEventListener("click", () => show(s.key));
+        li.appendChild(btn);
+        stepperOl.appendChild(li);
+      });
+    }
+
+    function show(key) {
+      if (!inFlow(key)) key = "role";
+      panels.forEach(p => p.classList.toggle("is-active", p.dataset.feSyncPanel === key));
+      buildStepper(key);
+      try { sessionStorage.setItem(STORE, key); } catch (e) {}
+    }
+
+    function setRole(r) { role = r; root.dataset.selfRole = r; }
+
+    // Reflect a save payload into the Live token boxes + Next button.
+    function applyState(data) {
+      if (data && data.token) {
+        root.querySelectorAll("[data-fe-sync-token]").forEach(c => { c.textContent = data.token; });
+        root.querySelectorAll("[data-fe-sync-tokenbox]").forEach(b => {
+          b.hidden = false;
+          const copyBtn = b.querySelector("[data-copy-text]");
+          if (copyBtn && b.querySelector("[data-fe-sync-token]")) copyBtn.dataset.copyText = data.token;
+        });
+        const next = root.querySelector("[data-fe-sync-next]");
+        if (next) next.removeAttribute("disabled");
+        // The Generate button's "Regenerate" relabel is handled by the submit
+        // handler's restoreLabel (the finally block would otherwise clobber it).
+      }
+      if (data && typeof data.has_url !== "undefined") {
+        root.dataset.hasUrl = data.has_url ? "1" : "0";
+      }
+    }
+
+    // ── Role selection (force Live first) ──
+    root.querySelectorAll("[data-fe-sync-role]").forEach(card => {
+      card.addEventListener("click", async () => {
+        const r = card.dataset.feSyncRole;
+        if (r === "staging") {
+          const gate = root.querySelector("[data-fe-sync-gate]");
+          if (gate) gate.hidden = false;   // gate: must confirm Live is done
+          return;
+        }
+        setRole("live");
+        try { await postFields(saveAction(), { self_role: "live" }); } catch (e) {}
+        show("live-token");
+      });
+    });
+    const gateCancel = root.querySelector("[data-fe-sync-gate-cancel]");
+    if (gateCancel) gateCancel.addEventListener("click", () => {
+      const gate = root.querySelector("[data-fe-sync-gate]");
+      if (gate) gate.hidden = true;
+    });
+    const gateConfirm = root.querySelector("[data-fe-sync-role-confirm]");
+    if (gateConfirm) gateConfirm.addEventListener("click", async () => {
+      setRole("staging");
+      try { await postFields(saveAction(), { self_role: "staging" }); } catch (e) {}
+      const gate = root.querySelector("[data-fe-sync-gate]");
+      if (gate) gate.hidden = true;
+      show("stg-token");
+    });
+
+    // ── In-panel navigation ──
+    root.querySelectorAll("[data-fe-sync-go]").forEach(btn => {
+      btn.addEventListener("click", () => show(btn.dataset.feSyncGo));
+    });
+
+    // ── AJAX form submits — no reload, modal stays open ──
+    root.querySelectorAll("form[data-fe-sync-action]").forEach(form => {
+      form.addEventListener("submit", async e => {
+        e.preventDefault();
+        const action = form.dataset.feSyncAction;
+        const submitter = e.submitter;
+        const btn = submitter || form.querySelector('button[type="submit"], button:not([type])');
+        const orig = btn ? btn.textContent : null;
+        let restoreLabel = orig;   // finally restores this; success may change it
+        const busy = action === "test" ? "Testing…"
+                   : (action === "pull" || action === "push") ? "Working…" : "Saving…";
+        if (btn) { btn.disabled = true; btn.textContent = busy; }
+        try {
+          const fd = new FormData(form);
+          if (submitter && submitter.name) fd.set(submitter.name, submitter.value || "");
+          const r = await fetch(form.action, {
+            method: "POST", body: fd,
+            headers: { "X-Requested-With": "fetch" },
+            credentials: "same-origin",
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const data = await r.json();
+          if (action === "save") {
+            applyState(data);
+            const generated = !!(submitter && submitter.dataset && "feSyncGenerate" in submitter.dataset);
+            toast(data.message || "Saved", "success");
+            // Generate keeps you on the token panel to copy the new value (and
+            // its button now offers to mint a replacement); Save & continue
+            // advances to the form's declared next step.
+            if (generated) restoreLabel = "Regenerate token";
+            else if (form.dataset.feSyncLand) show(form.dataset.feSyncLand);
+          } else if (action === "test") {
+            toast(data.message || (data.ok ? "Connected" : "Test failed"), data.ok ? "success" : "danger");
+          } else if (action === "pull" || action === "push") {
+            toast(data.message || (data.ok ? "Done" : "Failed"), data.ok ? "success" : "danger");
+            if (data.ok) {
+              const ts = root.querySelector("[data-fe-sync-timestamps]");
+              if (ts && (data.last_pulled_at || data.last_pushed_at)) {
+                const parts = [];
+                if (data.last_pulled_at) parts.push("Last pulled " + data.last_pulled_at + " UTC.");
+                if (data.last_pushed_at) parts.push("Last pushed " + data.last_pushed_at + " UTC.");
+                if (parts.length) ts.textContent = parts.join(" ");
+              }
+              form.reset();
+            }
+          }
+        } catch (err) {
+          const pfx = action === "save" ? "Save failed: "
+                    : action === "test" ? "Test failed: " : "Failed: ";
+          toast(pfx + err.message, "danger");
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = restoreLabel; }
+        }
+      });
+    });
+
+    // ── Initial step ──
+    function startKey() {
+      let saved = null;
+      try { saved = sessionStorage.getItem(STORE); } catch (e) {}
+      if (saved && inFlow(saved)) return saved;
+      const hasToken = root.dataset.hasToken === "1";
+      const hasUrl = root.dataset.hasUrl === "1";
+      if (role === "live") return hasToken ? "live-done" : "live-token";
+      if (role === "staging") {
+        if (hasToken && hasUrl) return "stg-sync";
+        if (hasToken) return "stg-url";
+        return "stg-token";
+      }
+      return "role";
+    }
+    show(startKey());
+  }
+
+  // Copy buttons: <button data-copy-text="…"> — mirrors the [data-copy-url]
+  // helper's "Copied!" feedback but copies a literal string.
+  document.addEventListener("click", e => {
+    const btn = e.target.closest("[data-copy-text]");
+    if (!btn) return;
+    e.preventDefault();
+    const text = btn.dataset.copyText || "";
+    const done = ok => {
+      const orig = btn.textContent;
+      btn.textContent = ok ? "Copied!" : "Copy failed";
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => done(true)).catch(() => done(false));
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.cssText = "position:fixed;left:-9999px;top:-9999px;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand("copy"); } catch (err) {}
+      document.body.removeChild(ta);
+      done(ok);
+    }
+  });
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+
+/* ── Staging Sync dashboard widget ─────────────────────────────
+   One-click Pull/Push to the paired Live site from the dashboard,
+   without opening Settings. Pings the peer for a live connection
+   status on load, and arms each destructive action with a second
+   click (sending the REPLACE confirm the routes require). All over
+   AJAX — feedback shows inline in the widget. */
+(function dashStagingSync () {
+  function init() {
+    const root = document.querySelector("[data-dash-sync]");
+    if (!root) return;
+    const pill = root.querySelector("[data-dash-sync-pill]");
+    const msg = root.querySelector("[data-dash-sync-msg]");
+    const whenEl = root.querySelector("[data-dash-sync-when]");
+    const buttons = Array.from(root.querySelectorAll("[data-dash-sync-action]"));
+
+    const csrf = () => {
+      const el = root.querySelector("[data-dash-sync-csrf]");
+      return el ? el.value : "";
+    };
+    function setPill(state, text, title) {
+      pill.className = "backup-status-pill backup-status-" + state;
+      pill.textContent = text;
+      pill.title = title || "";
+    }
+    function showMsg(text, ok) {
+      if (!msg) return;
+      msg.hidden = false;
+      msg.textContent = text;
+      msg.className = "dash-sync-msg " + (ok ? "is-ok" : "is-err");
+    }
+    async function post(url, fields) {
+      const fd = new FormData();
+      fd.set("csrf_token", csrf());
+      Object.keys(fields || {}).forEach(k => fd.set(k, fields[k]));
+      const r = await fetch(url, {
+        method: "POST", body: fd,
+        headers: { "X-Requested-With": "fetch" },
+        credentials: "same-origin",
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }
+
+    // Live connection check on load (a real ping to the peer).
+    setPill("running", "Checking…");
+    post(root.dataset.pingUrl)
+      .then(d => d.ok ? setPill("ok", "Connected", d.message)
+                      : setPill("failed", "Unreachable", d.message))
+      .catch(() => setPill("failed", "Unreachable"));
+
+    // Arm-then-confirm: first click reveals the danger label, second runs it.
+    let armed = null, armTimer = null;
+    function labelOf(b) { return b.querySelector(".dash-sync-label"); }
+    function disarm() {
+      if (!armed) return;
+      armed.classList.remove("btn-danger");
+      labelOf(armed).textContent = armed.dataset.idleLabel;
+      armed = null;
+      clearTimeout(armTimer);
+    }
+    function arm(b) {
+      disarm();
+      armed = b;
+      b.classList.add("btn-danger");
+      labelOf(b).textContent = b.dataset.armLabel;
+      armTimer = setTimeout(disarm, 4500);
+    }
+    async function run(b) {
+      const action = b.dataset.dashSyncAction;
+      const url = action === "pull" ? root.dataset.pullUrl : root.dataset.pushUrl;
+      disarm();
+      buttons.forEach(x => { x.disabled = true; });
+      labelOf(b).textContent = b.dataset.busyLabel;
+      if (msg) msg.hidden = true;
+      try {
+        const d = await post(url, { confirm: "REPLACE" });
+        showMsg(d.message || (d.ok ? "Done." : "Failed."), !!d.ok);
+        if (d.ok) {
+          if (action === "pull" && d.last_pulled_at) root.dataset.lastPulled = d.last_pulled_at;
+          if (action === "push" && d.last_pushed_at) root.dataset.lastPushed = d.last_pushed_at;
+          if (whenEl) {
+            const parts = [];
+            if (root.dataset.lastPulled) parts.push("Pulled " + root.dataset.lastPulled + " UTC.");
+            if (root.dataset.lastPushed) parts.push("Pushed " + root.dataset.lastPushed + " UTC.");
+            whenEl.textContent = parts.join(" ");
+          }
+          setPill("ok", "Connected");   // a successful sync proves reachability
+        }
+      } catch (err) {
+        showMsg("Failed: " + err.message, false);
+      } finally {
+        buttons.forEach(x => { x.disabled = false; });
+        labelOf(b).textContent = b.dataset.idleLabel;
+      }
+    }
+
+    buttons.forEach(b => {
+      b.addEventListener("click", () => { (armed === b) ? run(b) : arm(b); });
+    });
+    // A click anywhere outside the action buttons cancels a pending confirm.
+    document.addEventListener("click", e => {
+      if (armed && !e.target.closest("[data-dash-sync-action]")) disarm();
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();

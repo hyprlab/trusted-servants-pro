@@ -7,7 +7,48 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.10.8 — 2026-06-02 (latest) — Encrypted backups to Dropbox/FTP/SFTP now work on large portals
+## 2.12.3 — 2026-06-09 (latest) — Pull/Push your Live site right from the Web Frontend overview
+
+- **On your Staging copy, the Web Frontend overview now has Pull and Push buttons built into its Status card.** Once staging sync is set up, you can bring your Live site's frontend down to keep working on it, or send your changes up to Live, in one click — with a live "Connected / Unreachable" check and a last-pulled/pushed timestamp — without ever opening Settings. Each direction asks for a quick second-click confirmation before it overwrites anything.
+- **It only appears on the Staging copy, never on the Live site** — the Live install is the receiver, so there's nothing for it to push or pull.
+
+## 2.12.2 — 2026-06-09 — Staging sync asks which site is Live vs Staging
+
+- **The wizard now starts by asking which install this is — your Live site or your Staging copy — and shows only the fields that side needs.** Pick *“This is my Live site”* and it just creates the shared token for you to copy; pick *“This is my Staging copy”* and it asks for the token, your Live site's address, then a connection test and the Pull/Push controls. No more guessing which boxes to fill on which install.
+- **You're guided to set up the Live site first.** Choosing Staging reminds you to run the wizard on your Live site first and copy the token it generates — so the two installs always end up paired correctly, in the right order.
+- **The whole setup now happens without the Settings window ever closing.** Generating the token, saving, testing, and syncing all complete in place — no page reloads, no being bounced out of Settings mid-step.
+- **Where to find it:** **Settings → Data → Frontend staging sync.**
+
+## 2.12.1 — 2026-06-09 — A guided setup wizard for frontend staging sync
+
+- **Setting up staging sync is now a step-by-step wizard.** The old single panel left it unclear which install you were on and which way your website would move. The new wizard walks you through it: an **Overview** that draws both sites with Push/Pull arrows, **Pair token**, **Peer address**, **Test**, and **Sync** — one step at a time, with a progress bar across the top you can click to jump around.
+- **The shared token is easier to copy between the two sites.** Step 2 now shows the actual token in a box with a **Copy** button, so you can paste it into the other install at any time — not just in the one-time message when you first generate it. It also makes clear that both sites must end up with the same token, and that you can start the wizard on either one.
+- **The Settings window no longer closes on you mid-setup.** Generating a token, saving, testing, or running a sync used to bounce you out of Settings and back to the page behind it. It now stays open on **Settings → Data**, right where you left off — so after you generate a token you're looking straight at it, Copy button ready.
+- **Where to find it:** **Settings → Data → Frontend staging sync.**
+
+## 2.12.0 — 2026-06-08 — Sync your website's frontend from a dev copy to your live site
+
+- **You can now build your public website on a separate copy and push it to your live site over the network.** Run a second "staging" install to redesign the site — theme, colors, navigation and mega-menus, layouts, fonts, icons, and your page-builder Pages — then send the finished result to production with one click, instead of downloading a bundle and re-uploading it. It works both ways: **Pull** brings your live site's current frontend down to the staging copy to start from, and **Push** sends your changes back up when they're ready.
+- **Only the frontend moves — nothing else.** The look-and-feel, navigation, and Pages (plus every image and file they reference) transfer. Your recovery Stories, users, meetings, libraries, and meeting uploads on the receiving site are left exactly as they were. (Stories are usually submitted or edited on the live site, so a push never touches them.)
+- **Safe by default.** Before either site is overwritten, it automatically saves a complete rollback snapshot of its current frontend — if a sync isn't what you wanted, you can put it back from **Settings → Data → Frontend bundle**. Each install also has to opt in to being synced ("Allow inbound"), every request is protected by a shared secret token you set on both installs, and repeated bad attempts are rate-limited. Use an `https://` address between the two sites.
+- **Where to find it:** **Settings → Data → Frontend staging sync.** Enter the other install's address, paste the same token on both, tick **Allow inbound** on whichever side should receive, then use **Test connection**, **Pull**, or **Push**.
+
+## 2.11.1 — 2026-06-08 — Hour-of-day charts follow your portal's timezone
+
+- **The "when do people visit" and failed-login charts now read in your timezone, not UTC.** The Web Frontend visitor metrics' **Hour of day** chart and Watchtower's **Failed logins · last 24 hours** chart used to bucket activity by UTC hour, so the busy-hour bars could sit hours off from your fellowship's actual clock. They now follow the timezone set in **Settings → Server Timezone**, and the charts are labelled with the active zone (e.g. `EDT`).
+
+## 2.11.0 — 2026-06-07 — Recover a corrupted or locked-out portal from your backup server
+
+- **You can now restore from your off-site backup server even when you can't get into the portal.** Until now, restoring a backup meant logging into the portal and importing it from the inside — no help at all on the day the portal's data is corrupted, or you're locked out and can't sign in. There's now an out-of-band path: from the **TS Pro Backup** server's own console (a separate machine you can still reach), pick a stored full backup, paste the site's private key, and it pushes the backup straight back into your portal, which restores itself — no portal login required. Your old data is set aside with a timestamp first, and login lockouts are cleared so you can sign back in right after.
+- **It's off until you turn it on, per backup target.** Because this is a powerful recovery path, it stays disabled until you opt in. On the backup target for your TS Pro Backup server (**Settings → Off-site backups →** your target → **Edit**), tick **"Allow remote restore"** and fill in your portal's public URL. Save or test the connection and it pairs with the backup server automatically — after that, the backup server's console offers a **Remote restore** button on your full backups. Requires **TS Pro Backup 1.3.0 or later**.
+- **Locked down by design.** A restore can only be applied if it arrives with both a secret token your portal shared with the backup server *and* the correct private key — the same key that already encrypts your backups. One without the other is rejected before anything is touched, so a leaked token alone can't be used to overwrite your portal. The backup server never sees your unencrypted data or your private key.
+
+## 2.10.9 — 2026-06-05 — Live notification chips, and a more accurate "who's online"
+
+- **The little number badges update on their own now.** The attention chips on the left sidebar (Watchtower, Notifications, and the per-section counts) and on your dashboard (Access Requests, Locked Accounts, Off-site Backups, Forms) used to only refresh when you reloaded the page. Now they update themselves every few seconds — when a new access request or form submission comes in, the count just appears and ticks up, and when you clear it, the badge disappears on its own. No more reloading to see what's waiting.
+- **"Currently Online" is more accurate.** The dashboard's online count (and the live "who's online" view in the User Log) was sometimes counting people who'd actually left — a browser quietly refetching an icon in the background could keep someone showing as online, parked on a non-page address like `/site-branding/apple-touch-icon`. Now only real page views count, so the online list reflects who's actually using the portal.
+
+## 2.10.8 — 2026-06-02 — Encrypted backups to Dropbox/FTP/SFTP now work on large portals
 
 - **Fixed: encrypted off-site backups failing with a "server offline" error.** If you turned on archive encryption for an FTP, SFTP, or Dropbox backup, a larger portal could grind for a while and then show a "server offline" error — the encryption step was loading the whole backup into memory at once and running the server out of RAM. Encryption (and decryption on restore) now processes the backup in small pieces, so memory stays low no matter how big your portal is — a multi-gigabyte backup uses the same memory as a tiny one. Backups encrypted before this update still restore normally.
 - **Fixed: a confusing "connection failed" message in the Dropbox setup wizard.** After clicking **Test connection** (which showed a green OK) and then **Continue to schedule**, you'd get a red "connection failed" error on the first click and have to click again. That's resolved — the wizard no longer re-uses the single-use Dropbox authorization code, so Continue works the first time.
