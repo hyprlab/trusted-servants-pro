@@ -7,7 +7,7 @@ import time
 import uuid
 from functools import wraps
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, send_from_directory, abort, current_app, jsonify)
+                   flash, send_from_directory, abort, current_app, jsonify, session)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
@@ -780,7 +780,12 @@ def index():
         if not site.setup_complete:
             return redirect(url_for("main.setup_step", step=1))
     meetings = Meeting.query.filter(Meeting.archived_at.is_(None)).order_by(Meeting.name).all()
-    libraries = Library.query.order_by(Library.name).all()
+    # Mirror the /libraries page: exclude Intergroup-flagged libraries
+    # from the dashboard widget. They're surfaced through the dedicated
+    # Intergroup sidebar subsection, not the general Libraries module.
+    libraries = (Library.query
+                 .filter(Library.is_intergroup == False)  # noqa: E712
+                 .order_by(Library.name).all())
     recent_files = MediaItem.query.order_by(MediaItem.created_at.desc()).limit(6).all()
     access_requests = []
     online_count = 0
@@ -791,20 +796,15 @@ def index():
     visitor_sparkline = []
     backup_summary = None
     backup_recent_runs = []
-    # Trusted Servants widget state — visible to every signed-in user
-    # (admin or not) until they've added themselves to the list. The
-    # template hides the card entirely once a subscription row exists,
-    # so the widget self-retires after the user has joined.
+    # Trusted Servants widget — always renders as a blank "join the
+    # list" form for every signed-in user while the module is on. The
+    # portal account may be shared by several people, so the form never
+    # remembers a prior submission or offers a self-removal: each submit
+    # creates a fresh admin-managed entry. Editing/removing entries is
+    # admin-only on /email-list.
     site = _get_site_setting()
     trusted_servants_enabled = bool(site and getattr(site, "trusted_servants_enabled", False))
     trusted_servants_subscription = None
-    if trusted_servants_enabled:
-        try:
-            trusted_servants_subscription = (TrustedServantSubscriber.query
-                                             .filter_by(user_id=current_user.id)
-                                             .first())
-        except Exception:  # noqa: BLE001
-            trusted_servants_subscription = None
     if current_user.is_admin():
         access_requests = (AccessRequest.query
                            .filter_by(status="pending", is_archived=False)
@@ -1035,34 +1035,27 @@ def _endpoint_label(endpoint, path):
     return stub
 
 
-@bp.route("/api/search")
-@login_required
-def api_search():
-    """Backend-wide search. Returns grouped results across the
+def _search_sections(tokens, per_section):
+    """Backend-wide search. Returns grouped result sections across the
     content the user can already see in the sidebar — meetings,
     libraries + library items, meeting attachments, posts (when
     the module is enabled), media files, locations, and (admin-only)
     users.
 
-    The query is split into whitespace-separated tokens; every token
-    must match somewhere in the row (case-insensitive ``LIKE %tok%``
-    on each searchable column, AND'd across tokens, OR'd across
-    columns). Per-section cap of 8 keeps the modal compact; results
-    arrive grouped + ready-to-render.
+    ``tokens`` is the whitespace-split query; every token must match
+    somewhere in the row (case-insensitive ``LIKE %tok%`` on each
+    searchable column, AND'd across tokens, OR'd across columns).
+    ``per_section`` caps each section — the live palette passes a small
+    cap (8) to stay compact; the full results page passes a large one.
 
-    Each result carries a ``url`` (relative path the modal navigates
-    to on click), a ``label`` (the visible row), a ``snippet``
-    (small muted line), an ``icon`` (Lucide name), and a ``type``
-    label keyed by section."""
+    Each result carries a ``url`` (relative path navigated to on
+    click), a ``label`` (the visible row), a ``snippet`` (small muted
+    line), an ``icon`` (Lucide name), a ``_ts`` (epoch seconds of the
+    row's last-touched timestamp, 0 when none — used by the full page's
+    "Recently updated" sort), and the section carries a ``type``."""
     from sqlalchemy import or_, and_, func as _sa_func
-    raw = (request.args.get("q") or "").strip()
-    if len(raw) < 2:
-        return jsonify(query=raw, total=0, sections=[])
-    tokens = [t for t in raw.split() if t]
-    if not tokens:
-        return jsonify(query=raw, total=0, sections=[])
 
-    PER_SECTION = 8
+    PER_SECTION = per_section
 
     def _match(cols):
         """Build the AND-of-tokens / OR-of-columns predicate. ``cols``
@@ -1073,6 +1066,15 @@ def api_search():
             like = f"%{tok.lower()}%"
             clauses.append(or_(*[_sa_func.lower(c).like(like) for c in cols]))
         return and_(*clauses)
+
+    def _ts_of(obj):
+        """Epoch seconds of a row's last-touched time (updated_at then
+        created_at), or 0.0 when the model carries neither."""
+        dt = getattr(obj, "updated_at", None) or getattr(obj, "created_at", None)
+        try:
+            return dt.timestamp() if dt else 0.0
+        except Exception:  # noqa: BLE001
+            return 0.0
 
     sections = []
 
@@ -1092,6 +1094,7 @@ def api_search():
                 "snippet": (m.location or m.description or "").strip()[:140],
                 "url": url_for("main.meeting_detail", slug=m.public_slug),
                 "icon": "calendar",
+                "_ts": _ts_of(m),
             } for m in meetings],
         })
 
@@ -1112,6 +1115,7 @@ def api_search():
                         if l.is_intergroup
                         else url_for("main.library_detail", slug=l.public_slug)),
                 "icon": "book",
+                "_ts": _ts_of(l),
             } for l in libraries],
         })
 
@@ -1145,6 +1149,7 @@ def api_search():
                         if (it.library and it.library.is_intergroup)
                         else url_for("main.library_detail", slug=it.library.public_slug)) if it.library else "#",
                 "icon": "file-text",
+                "_ts": _ts_of(it),
             } for it in visible_items],
         })
 
@@ -1167,29 +1172,95 @@ def api_search():
                 "url": (url_for("main.meeting_detail", slug=f.meeting.public_slug)
                         + f"#{f.category}") if f.meeting else "#",
                 "icon": "file",
+                "_ts": _ts_of(f),
             } for f in mfiles],
         })
 
-    # --- Posts (announcements & events) ------------------------------------
+    # --- Content state/trim helpers (shared by posts/stories/blog) ---------
+    def _state_label(obj):
+        if getattr(obj, "is_pending_review", False):
+            return "Pending review"
+        if getattr(obj, "is_draft", False):
+            return "Draft"
+        if getattr(obj, "is_archived", False):
+            return "Archived"
+        return "Published"
+
+    def _trim(text, n=110):
+        return (text or "").strip()[:n]
+
+    # --- Posts (announcements & events) — all states, exhaustive -----------
     s = _get_site_setting()
     if s and s.posts_enabled:
         posts = (Post.query
-                 .filter(Post.is_archived.is_(False))
                  .filter(_match([Post.title, Post.summary, Post.body,
                                  Post.location_name]))
                  .order_by(Post.updated_at.desc())
                  .limit(PER_SECTION).all())
         if posts:
+            def _post_kind(p):
+                k = []
+                if p.is_announcement:
+                    k.append("Announcement")
+                if p.is_event:
+                    k.append("Event")
+                return " / ".join(k) or "Post"
             sections.append({
                 "type": "post",
                 "label": "Announcements & events",
                 "icon": "megaphone",
                 "items": [{
                     "label": p.title,
-                    "snippet": (p.summary or (p.body or ""))[:140],
+                    "snippet": f"{_post_kind(p)} · {_state_label(p)}"
+                               + (f" · {_trim(p.summary or p.body)}" if (p.summary or p.body) else ""),
                     "url": url_for("main.post_edit", pid=p.id),
                     "icon": "megaphone",
+                    "_ts": _ts_of(p),
                 } for p in posts],
+            })
+
+    # --- Stories (editors+, module enabled) — all states -------------------
+    if s and getattr(s, "stories_enabled", False) and current_user.can_edit():
+        stories = (Story.query
+                   .filter(_match([Story.title, Story.summary, Story.body,
+                                   Story.author_name]))
+                   .order_by(Story.updated_at.desc())
+                   .limit(PER_SECTION).all())
+        if stories:
+            sections.append({
+                "type": "story",
+                "label": "Stories",
+                "icon": "book-open",
+                "items": [{
+                    "label": st.title or "(untitled story)",
+                    "snippet": _state_label(st)
+                               + (f" · {st.author_name}" if st.author_name else ""),
+                    "url": url_for("main.story_edit", sid=st.id),
+                    "icon": "book-open",
+                    "_ts": _ts_of(st),
+                } for st in stories],
+            })
+
+    # --- Blog posts (editors+, module enabled) — all states ----------------
+    if s and getattr(s, "blog_enabled", False) and current_user.can_edit():
+        blogs = (BlogPost.query
+                 .filter(_match([BlogPost.title, BlogPost.summary, BlogPost.body,
+                                 BlogPost.author_name]))
+                 .order_by(BlogPost.updated_at.desc())
+                 .limit(PER_SECTION).all())
+        if blogs:
+            sections.append({
+                "type": "blog",
+                "label": "Blog posts",
+                "icon": "rss",
+                "items": [{
+                    "label": b.title or "(untitled)",
+                    "snippet": _state_label(b)
+                               + (f" · {_trim(b.summary or b.body)}" if (b.summary or b.body) else ""),
+                    "url": url_for("main.blog_edit", bid=b.id),
+                    "icon": "rss",
+                    "_ts": _ts_of(b),
+                } for b in blogs],
             })
 
     # --- Media files (the File Browser) ------------------------------------
@@ -1217,6 +1288,7 @@ def api_search():
                 "snippet": (m.mime_type or "File"),
                 "url": url_for("main.media_list") + "?q=" + (m.original_filename or "")[:80],
                 "icon": "folder",
+                "_ts": _ts_of(m),
             } for m in media],
         })
 
@@ -1235,6 +1307,7 @@ def api_search():
                 "snippet": (l.address or "").strip()[:140] or "Meeting location",
                 "url": url_for("main.locations"),
                 "icon": "map-pin",
+                "_ts": _ts_of(l),
             } for l in locs],
         })
 
@@ -1254,11 +1327,235 @@ def api_search():
                     "snippet": (u.email or "") + " · " + u.role.replace("_", " "),
                     "url": url_for("main.watchtower_access") + "?user_id=" + str(u.id),
                     "icon": "user",
+                    "_ts": _ts_of(u),
                 } for u in users],
             })
 
+    # --- Frontend pages (page builder) — frontend editors only -------------
+    if current_user.can_edit_frontend():
+        pages = (Page.query
+                 .filter(_match([Page.title, Page.slug]))
+                 .order_by(Page.updated_at.desc())
+                 .limit(PER_SECTION).all())
+        if pages:
+            def _page_state(pg):
+                st = "Published" if pg.is_published else "Unpublished"
+                if pg.is_private:
+                    st += " · Private"
+                return st
+            sections.append({
+                "type": "page",
+                "label": "Pages",
+                "icon": "file",
+                "items": [{
+                    "label": pg.title or pg.slug or "(untitled page)",
+                    "snippet": f"Page · {_page_state(pg)}"
+                               + (f" · /{pg.slug}" if pg.slug else ""),
+                    "url": url_for("main.frontend_page_edit", page_id=pg.id),
+                    "icon": "file",
+                    "_ts": _ts_of(pg),
+                } for pg in pages],
+            })
+
+    # === Navigation: jump straight to a settings tab or a Web Frontend
+    # section. Role-gated so a non-admin never sees an admin-only
+    # destination. These trail the content sections so search stays
+    # content-first; they turn the modal into a lightweight command
+    # palette ("settings data", "branding", …). ----------------------------
+    from werkzeug.routing import BuildError as _BuildError
+
+    def _nav_match(*texts):
+        hay = " ".join(t for t in texts if t).lower()
+        return all(tok.lower() in hay for tok in tokens)
+
+    def _safe_url(endpoint, **kw):
+        try:
+            return url_for(endpoint, **kw)
+        except _BuildError:
+            return None
+
+    _is_admin = current_user.is_admin()
+
+    # Settings modal tabs — appearance / your-access / about are visible to
+    # everyone; the rest are admin-only, mirroring the tab gating in base.html.
+    _settings_tabs = [
+        ("appearance",  "Appearance",     "theme branding colors login screen logo", True),
+        ("your-access", "Your Access",    "role permissions access what can i do", True),
+        ("users",       "Users",          "manage user accounts roles passwords disable", False),
+        ("locations",   "Global",         "global meeting locations defaults", False),
+        ("sidebar",     "Sidebar",        "sidebar layout order navigation modules", False),
+        ("modules",     "Modules",        "enable disable modules features toggles", False),
+        ("email",       "Domain / Email", "smtp email domain notifications relay sending", False),
+        ("timezone",    "Timezone",       "server timezone clock", False),
+        ("security",    "Security",       "login security sessions turnstile captcha lockout", False),
+        ("data",        "Data",           "export import backup restore frontend bundle staging sync snapshots", False),
+        ("about",       "About",          "version release notes changelog updates", True),
+    ]
+    settings_items = []
+    for key, label, kw, everyone in _settings_tabs:
+        if not everyone and not _is_admin:
+            continue
+        if _nav_match("settings", label, kw):
+            settings_items.append({
+                "label": "Settings · " + label,
+                "snippet": "Open Settings → " + label,
+                "settings_tab": key,
+                "icon": "settings",
+                "_ts": 0.0,
+            })
+    if settings_items:
+        sections.append({"type": "settings", "label": "Settings",
+                         "icon": "settings", "items": settings_items[:PER_SECTION]})
+
+    # Web Frontend module sections — frontend editors only.
+    if current_user.can_edit_frontend():
+        _fe_sections = [
+            ("main.frontend_dashboard",          "Overview",           "web frontend dashboard status staging sync pull push"),
+            ("main.frontend_branding",           "Branding & SEO",     "logo brand name seo favicon og meta"),
+            ("main.frontend_fonts_icons",        "Fonts & Icons",      "custom fonts icons typography"),
+            ("main.frontend_design",             "Design",             "theme colors design palette"),
+            ("main.frontend_caching",            "Caching",            "cache performance speed"),
+            ("main.frontend_cookie_compliance",  "Cookie Compliance",  "cookie banner consent gdpr privacy"),
+            ("main.frontend_header",             "Header",             "header editor utility bar top"),
+            ("main.frontend_footer",             "Footer",             "footer editor bottom"),
+            ("main.frontend_navigation",         "Navigation",         "menu nav mega menu links"),
+            ("main.frontend_templates",          "Templates",          "page templates layouts"),
+            ("main.frontend_forms",              "Forms",              "submission contact forms public"),
+            ("main.frontend_redirects",          "Redirects",          "url redirects 301 moved"),
+            ("main.frontend_pages",              "Pages",              "page builder pages list"),
+            ("main.frontend_popups",             "Popups",             "popups modals"),
+        ]
+        fe_items = []
+        for endpoint, label, kw in _fe_sections:
+            if not _nav_match("web frontend", label, kw):
+                continue
+            u = _safe_url(endpoint)
+            if u:
+                fe_items.append({
+                    "label": "Web Frontend · " + label,
+                    "snippet": "Open Web Frontend → " + label,
+                    "url": u,
+                    "icon": "layout-grid",
+                    "_ts": 0.0,
+                })
+        if fe_items:
+            sections.append({"type": "frontend_section", "label": "Web Frontend",
+                            "icon": "layout-grid", "items": fe_items[:PER_SECTION]})
+
+    # Snippets are sliced from raw stored text, which for some rows
+    # (meeting/library descriptions, post bodies) carries inline HTML.
+    # Flatten to plain text so neither the palette nor the results page
+    # shows literal "<b><i>…" tags. A char-budget slice can also clip a
+    # tag mid-token, so drop any dangling "<…" tail too.
+    import re as _re
+    import html as _html
+    for sec in sections:
+        for it in sec["items"]:
+            snip = it.get("snippet")
+            if not snip:
+                continue
+            snip = _re.sub(r"<[^>]*>", " ", snip)   # whole tags
+            snip = _re.sub(r"<[^>]*$", "", snip)     # dangling truncated tag
+            snip = _html.unescape(snip)
+            it["snippet"] = _re.sub(r"\s+", " ", snip).strip()
+
+    return sections
+
+
+# How strongly the live palette and the full results page weight a row.
+# Sorting on the full page reuses these tiers; "relevance" is the default.
+_SEARCH_SCORE_LABEL_PREFIX = 5   # token starts the label ("zoom" → "Zoom tech")
+_SEARCH_SCORE_LABEL = 3          # token appears anywhere in the label
+_SEARCH_SCORE_SNIPPET = 1        # token only in the muted snippet line
+
+
+def _search_relevance(item, toks_lower):
+    """Cheap relevance score for one result against the lowercased query
+    tokens. Label hits outrank snippet hits; a token that *starts* the
+    label outranks one buried mid-string. Used to order the full results
+    page; the DB order is the stable tiebreak."""
+    label = (item.get("label") or "").lower()
+    snip = (item.get("snippet") or "").lower()
+    score = 0
+    for tok in toks_lower:
+        if tok in label:
+            score += _SEARCH_SCORE_LABEL_PREFIX if label.startswith(tok) else _SEARCH_SCORE_LABEL
+        elif tok in snip:
+            score += _SEARCH_SCORE_SNIPPET
+    return score
+
+
+@bp.route("/api/search")
+@login_required
+def api_search():
+    """Live search palette (⌘K). Thin wrapper over ``_search_sections``
+    with a small per-section cap so the popup stays compact; the full
+    results page (:func:`search_page`) shares the same backend."""
+    raw = (request.args.get("q") or "").strip()
+    if len(raw) < 2:
+        return jsonify(query=raw, total=0, sections=[])
+    tokens = [t for t in raw.split() if t]
+    if not tokens:
+        return jsonify(query=raw, total=0, sections=[])
+    sections = _search_sections(tokens, 8)
     total = sum(len(s["items"]) for s in sections)
     return jsonify(query=raw, total=total, sections=sections)
+
+
+@bp.route("/search")
+@login_required
+def search_page():
+    """Full-page search — everything the palette finds, uncapped, with
+    type filtering and sorting. ``q`` is the query; ``type`` narrows to a
+    single section type (default ``all``); ``sort`` is one of
+    ``relevance`` (default), ``name``, ``name_desc``, ``recent``."""
+    raw = (request.args.get("q") or "").strip()
+    type_filter = (request.args.get("type") or "all").strip()
+    sort = (request.args.get("sort") or "relevance").strip()
+    if sort not in ("relevance", "name", "name_desc", "recent"):
+        sort = "relevance"
+
+    tokens = [t for t in raw.split() if t] if len(raw) >= 2 else []
+    # Generous per-section cap — the page is meant to show "all" results
+    # without the palette's 8-row squeeze, while still bounding a runaway
+    # query. Sections at the cap surface a "showing first N" note.
+    PAGE_CAP = 100
+    sections = _search_sections(tokens, PAGE_CAP) if tokens else []
+
+    toks_lower = [t.lower() for t in tokens]
+    for sec in sections:
+        for it in sec["items"]:
+            it["_score"] = _search_relevance(it, toks_lower)
+
+    # Counts + chip metadata reflect the *unfiltered* result set so the
+    # type pills always show the full breakdown.
+    type_labels = [(s["type"], s["label"], s.get("icon", "search"), len(s["items"]))
+                   for s in sections]
+    total = sum(len(s["items"]) for s in sections)
+
+    if type_filter != "all":
+        sections = [s for s in sections if s["type"] == type_filter]
+
+    def _sort_items(items):
+        if sort == "name":
+            return sorted(items, key=lambda i: (i.get("label") or "").lower())
+        if sort == "name_desc":
+            return sorted(items, key=lambda i: (i.get("label") or "").lower(), reverse=True)
+        if sort == "recent":
+            return sorted(items, key=lambda i: i.get("_ts") or 0, reverse=True)
+        # relevance — stable sort keeps the DB order as the tiebreak
+        return sorted(items, key=lambda i: i.get("_score") or 0, reverse=True)
+
+    for s in sections:
+        s["items"] = _sort_items(s["items"])
+
+    ctx = dict(q=raw, sections=sections, type_filter=type_filter, sort=sort,
+               type_labels=type_labels, total=total, page_cap=PAGE_CAP)
+    # AJAX filter/sort changes (X-Requested-With set by the page's fetch) only
+    # need the swappable results region, not the whole page chrome.
+    if request.headers.get("X-Requested-With") == "fetch":
+        return render_template("_search_results_region.html", **ctx)
+    return render_template("search_results.html", **ctx)
 
 
 @bp.route("/dashboard/order", methods=["POST"])
@@ -3428,10 +3725,12 @@ def trusted_servants_blast_send():
 @bp.route("/email-list/subscribe", methods=["POST"])
 @login_required
 def trusted_servants_subscribe():
-    """Upsert the current user's subscription. Hit by the dashboard
-    widget's form; creates a new row if the user hasn't subscribed yet,
-    updates the existing row otherwise (one subscription per user is
-    enforced by the unique constraint on ``user_id``).
+    """Add a new entry to the Trusted Servants email list. Hit by the
+    dashboard widget's form. The portal account may be shared by several
+    people, so every submission creates a fresh row with ``user_id =
+    NULL`` (admin-managed, like the manual-add path) rather than upserting
+    a single per-account subscription. End users can only add themselves;
+    editing and removing entries is admin-only on /email-list.
     """
     s = _get_site_setting()
     if not s.trusted_servants_enabled:
@@ -3446,32 +3745,15 @@ def trusted_servants_subscribe():
         flash("An email address is required to join the list.", "danger")
         return redirect(_safe_referrer() or url_for("main.index"))
 
-    sub = TrustedServantSubscriber.query.filter_by(user_id=current_user.id).first()
-    if sub is None:
-        sub = TrustedServantSubscriber(user_id=current_user.id)
-        db.session.add(sub)
-        action = "joined"
-    else:
-        action = "updated"
-    sub.name = name
-    sub.phone = phone or None
-    sub.email = email
+    sub = TrustedServantSubscriber(
+        user_id=None,
+        name=name,
+        phone=phone or None,
+        email=email,
+    )
+    db.session.add(sub)
     db.session.commit()
-    flash("You've " + ("joined" if action == "joined" else "updated your details on")
-          + " the Trusted Servants Email List.", "success")
-    return redirect(_safe_referrer() or url_for("main.index"))
-
-
-@bp.route("/email-list/unsubscribe", methods=["POST"])
-@login_required
-def trusted_servants_unsubscribe():
-    """Remove the current user from the list. The admin keeps no
-    archived copy — once the user clicks unsubscribe, the row is gone."""
-    sub = TrustedServantSubscriber.query.filter_by(user_id=current_user.id).first()
-    if sub is not None:
-        db.session.delete(sub)
-        db.session.commit()
-    flash("You've been removed from the Trusted Servants Email List.", "info")
+    flash("You've been added to the Trusted Servants Email List.", "success")
     return redirect(_safe_referrer() or url_for("main.index"))
 
 
@@ -4742,14 +5024,20 @@ def _record_frontend_sync_failure(ip):
         db.session.rollback()
 
 
+def _frontend_sync_snapshot_dir():
+    """Directory holding the pre-sync rollback bundles. Lives next to
+    ``uploads/`` under the data dir so it rides the same volume + backups."""
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    data_dir = os.path.dirname(upload_dir.rstrip("/"))
+    return os.path.join(data_dir, "frontend-sync-snapshots")
+
+
 def _frontend_sync_snapshot():
     """Write a FULL frontend bundle (incl. stories) of the current state to
     the snapshots dir and return its filename. The rollback point taken
     before a sync overwrites this install's frontend — an admin can restore
     it via the Frontend bundle import form. Pruned to the most recent 10."""
-    upload_dir = current_app.config["UPLOAD_FOLDER"]
-    data_dir = os.path.dirname(upload_dir.rstrip("/"))
-    root = os.path.join(data_dir, "frontend-sync-snapshots")
+    root = _frontend_sync_snapshot_dir()
     os.makedirs(root, exist_ok=True)
     stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
     name = f"frontend-pre-sync-{stamp}.zip"
@@ -7365,6 +7653,57 @@ def frontend_sync_push():
                        if peer.last_pushed_at else None)
     flash(msg, "success")
     return redirect(_safe_referrer() or url_for("main.index"))
+
+
+def _fe_snapshot_human_size(n):
+    """Compact size label for a snapshot zip (KB / MB / GB)."""
+    n = float(n or 0)
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return (f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}")
+        n /= 1024
+
+
+@bp.route("/settings/frontend-sync/snapshots")
+@admin_required
+def frontend_sync_snapshots():
+    """JSON list of the pre-sync rollback bundles, newest first, for the
+    dashboard snapshots modal. Each entry carries a download URL."""
+    root = _frontend_sync_snapshot_dir()
+    try:
+        names = [n for n in os.listdir(root)
+                 if n.startswith("frontend-pre-sync-") and n.endswith(".zip")]
+    except OSError:
+        names = []
+    items = []
+    for n in sorted(names, reverse=True):
+        try:
+            size = os.path.getsize(os.path.join(root, n))
+        except OSError:
+            continue
+        stamp = n[len("frontend-pre-sync-"):-len(".zip")]
+        try:
+            date = datetime.strptime(stamp, "%Y%m%d-%H%M%S").strftime("%Y-%m-%d %H:%M UTC")
+        except ValueError:
+            date = ""
+        items.append({"name": n, "size": _fe_snapshot_human_size(size), "date": date,
+                      "url": url_for("main.frontend_sync_snapshot_download", name=n)})
+    return jsonify(ok=True, snapshots=items)
+
+
+@bp.route("/settings/frontend-sync/snapshots/<name>")
+@admin_required
+def frontend_sync_snapshot_download(name):
+    """Download one rollback bundle. Filename is validated against the
+    snapshot naming pattern so this can't read arbitrary files."""
+    safe = secure_filename(name)
+    if not (safe.startswith("frontend-pre-sync-") and safe.endswith(".zip")):
+        abort(404)
+    root = _frontend_sync_snapshot_dir()
+    if not os.path.isfile(os.path.join(root, safe)):
+        abort(404)
+    return send_from_directory(root, safe, as_attachment=True,
+                               download_name=safe, mimetype="application/zip")
 
 
 @bp.route("/uploads/<path:stored>")
@@ -15599,6 +15938,105 @@ def turnstile_save():
     return redirect(_safe_referrer() or url_for("main.index"))
 
 
+# --- Multi-factor authentication (TOTP) -------------------------------------
+# Self-enrolment for the signed-in admin. Three steps:
+#   begin  → mint a provisional secret (held in the session, not the DB) and
+#            return the QR + manual key for the authenticator app.
+#   enable → confirm the app is producing valid codes, then persist the
+#            encrypted secret + freshly minted recovery codes.
+#   disable / regen-recovery → re-authenticate with the account password
+#            before mutating an already-active second factor.
+# All four are admin-only and operate strictly on current_user — an admin
+# can never read or change another account's MFA here.
+
+def _mfa_issuer():
+    s = SiteSetting.query.first()
+    name = ((s.smtp_from_name if s else None) or "Trusted Servants Pro").strip()
+    return name or "Trusted Servants Pro"
+
+
+@bp.route("/settings/mfa/begin", methods=["POST"])
+@login_required
+def mfa_begin():
+    """Mint a provisional TOTP secret for enrolment and return its QR +
+    manual key. The secret lives in the session only until /mfa/enable
+    confirms it — abandoning setup never touches the stored credential."""
+    from . import totp
+    secret = totp.generate_secret()
+    session["mfa_setup_secret"] = secret
+    uri = totp.provisioning_uri(secret, current_user.username, _mfa_issuer())
+    return jsonify(ok=True, secret=secret, otpauth_uri=uri,
+                   qr=totp.qr_data_uri(uri))
+
+
+@bp.route("/settings/mfa/enable", methods=["POST"])
+@login_required
+def mfa_enable():
+    """Confirm the provisional secret with a live code, then turn MFA on
+    and hand back one-time recovery codes (shown to the admin exactly
+    once — only their hashes are stored)."""
+    from . import totp
+    if current_user.mfa_enabled:
+        return jsonify(ok=False, error="Two-factor authentication is already enabled."), 400
+    secret = session.get("mfa_setup_secret")
+    if not secret:
+        return jsonify(ok=False, error="Setup expired — start again."), 400
+    code = (request.form.get("code") or "").strip()
+    if not totp.verify(secret, code):
+        return jsonify(ok=False, error="That code didn't match. Check the app and try again."), 400
+    user = db.session.get(User, current_user.id)
+    recovery = user.enroll_mfa(secret)
+    db.session.commit()
+    session.pop("mfa_setup_secret", None)
+    from . import activity
+    activity.log("mfa.enable", user=user,
+                 summary="Enabled two-factor authentication")
+    return jsonify(ok=True, recovery_codes=recovery)
+
+
+@bp.route("/settings/mfa/disable", methods=["POST"])
+@login_required
+def mfa_disable():
+    """Turn MFA off. Re-authenticates with the account password first so a
+    walked-up-to, already-unlocked session can't silently strip the second
+    factor — and so it works even if the authenticator device is lost."""
+    from werkzeug.security import check_password_hash
+    user = db.session.get(User, current_user.id)
+    if not (user.mfa_required or user.mfa_enabled):
+        return jsonify(ok=False, error="Two-factor authentication isn't enabled."), 400
+    password = request.form.get("password") or ""
+    if not check_password_hash(user.password_hash, password):
+        return jsonify(ok=False, error="Password incorrect."), 400
+    user.clear_mfa()
+    db.session.commit()
+    from . import activity
+    activity.log("mfa.disable", user=user,
+                 summary="Disabled two-factor authentication")
+    return jsonify(ok=True)
+
+
+@bp.route("/settings/mfa/regenerate-recovery", methods=["POST"])
+@login_required
+def mfa_regenerate_recovery():
+    """Issue a fresh set of recovery codes (invalidating the old set).
+    Password-gated, mirroring disable."""
+    from werkzeug.security import check_password_hash
+    from . import totp
+    user = db.session.get(User, current_user.id)
+    if not user.mfa_enabled:
+        return jsonify(ok=False, error="Two-factor authentication isn't enabled."), 400
+    password = request.form.get("password") or ""
+    if not check_password_hash(user.password_hash, password):
+        return jsonify(ok=False, error="Password incorrect."), 400
+    recovery = totp.generate_recovery_codes()
+    user.mfa_recovery_codes_json = json.dumps(totp.hash_recovery_codes(recovery))
+    db.session.commit()
+    from . import activity
+    activity.log("mfa.recovery.regenerate", user=user,
+                 summary="Regenerated MFA recovery codes")
+    return jsonify(ok=True, recovery_codes=recovery)
+
+
 # --- Email / SMTP settings ---
 
 @bp.route("/settings/email-save", methods=["POST"])
@@ -17059,11 +17497,13 @@ def posts():
     items = q.offset((page - 1) * per_page).limit(per_page).all()
     pending_count = (Post.query.filter(Post.is_pending_review.is_(True),
                                         Post.is_archived.is_(False)).count())
+    from .timezone import now_local_naive as _now_local
     resp = current_app.make_response(
         render_template("posts.html", posts=items, show=show, kind=kind,
                         sort=sort, page=page, per_page=per_page,
                         total=total, total_pages=total_pages,
-                        pending_count=pending_count))
+                        pending_count=pending_count,
+                        now_local=_now_local(_get_site_setting())))
     # Remember the user's chosen sort so the next visit lands on
     # the same order. Skip persistence on the pending tab — its
     # ``submitted_desc`` default is contextual to that view and
@@ -17128,19 +17568,27 @@ def post_save():
     if current_user.is_authenticated and current_user.can_edit_frontend():
         explicit_slug = _normalize_slug(request.form.get("slug"))
 
-    # Slug resolution. Two modes:
-    #   1. Title CHANGED on this save (or creating a new post) — re-
-    #      derive the slug from the new title and ignore whatever the
-    #      slug input carried (the input is pre-populated from the
-    #      database, so without this branch the stale slug would win
-    #      and the public URL would never track the new title). The
-    #      uniqueness sweep appends -2/-3/… on collision.
-    #   2. Title UNCHANGED — respect the editor's explicit slug input
-    #      so they can rename the URL without touching the title. When
-    #      the input is blank, fall back to the title-derived slug.
+    # Slug resolution:
+    #   • Editor gave an explicit slug AND the post has no public URL yet
+    #     (draft, pending-review, or being created) — honor it verbatim
+    #     (uniqueness-swept). The admin is crafting the final URL before it
+    #     goes live, so it publishes with exactly that URL and never needs
+    #     an after-the-fact rename/redirect. Also honored when the title
+    #     didn't change on a public post (a deliberate URL rename).
+    #   • Title CHANGED on an already-public post (no honored slug) — re-
+    #     derive from the new title so the public URL tracks it (the input
+    #     is pre-populated from the DB, so without this the stale slug would
+    #     win). Renaming a live post logs a redirect further down.
+    #   • Otherwise fall back to the title-derived slug.
     title_slug = _normalize_slug(post.title)
     title_changed = creating or (_prev_title != title)
-    if title_changed:
+    if explicit_slug and (not _was_public or not title_changed):
+        unique = _unique_post_slug(explicit_slug,
+                                   exclude_id=post.id if not creating else None)
+        post.slug = unique
+        if explicit_slug != unique:
+            flash(f"URL already taken — saved as “{unique}”.", "info")
+    elif title_changed:
         unique = _unique_post_slug(title_slug,
                                    exclude_id=post.id if not creating else None)
         post.slug = None if unique == title_slug else unique
@@ -17149,15 +17597,9 @@ def post_save():
         if unique and unique != title_slug:
             flash(f"URL auto-derived to “{unique}” to avoid collision with another post.", "info")
     else:
-        base = explicit_slug or title_slug
-        unique = _unique_post_slug(base,
+        unique = _unique_post_slug(title_slug,
                                    exclude_id=post.id if not creating else None)
-        if explicit_slug:
-            post.slug = unique
-            if explicit_slug != unique:
-                flash(f"URL already taken — saved as “{unique}”.", "info")
-        else:
-            post.slug = None if unique == title_slug else unique
+        post.slug = None if unique == title_slug else unique
     post.summary = (request.form.get("summary") or "").strip() or None
     post.body = (request.form.get("body") or "").strip() or None
 
@@ -17341,7 +17783,13 @@ def post_save():
     from .timezone import now_local_naive as _now_local
     _site = _get_site_setting()
     if _was_draft and action == "publish":
-        post.published_at = _now_local(_site)
+        # Normally publishing a draft resets "Published on" to now. But if the
+        # admin set a *future* date they're scheduling the post — keep their
+        # chosen moment; the public frontend hides it until then (see
+        # frontend._post_live_clause), and it appears automatically.
+        _nowl = _now_local(_site)
+        if post.published_at is None or post.published_at <= _nowl:
+            post.published_at = _nowl
 
     # Default published_at on first save when the admin didn't set
     # one — keeps every row sortable by posted date without forcing

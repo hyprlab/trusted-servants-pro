@@ -119,6 +119,12 @@
               {% if fe_sync_peer.last_pushed_at %}Pushed {{ fe_sync_peer.last_pushed_at.strftime('%Y-%m-%d %H:%M') }} UTC.{% endif %}
             </p>
             <p class="dash-sync-msg" data-dash-sync-msg hidden></p>
+            <div class="dash-sync-foot">
+              <button type="button" class="btn btn-sm"
+                      data-open-modal="fe-sync-snapshots-modal" data-fe-snap-open>
+                {{ icon('history') }} Rollback snapshots
+              </button>
+            </div>
           </div>
           {% endif %}
         {% endcall %}
@@ -349,4 +355,6 @@
     </form>
   </div>
 </div>
+{# The rollback-snapshots modal it opens is shared chrome in base.html
+   (also opened from Settings → Data), so it isn't duplicated here. #}
 {% endblock %}

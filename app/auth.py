@@ -340,6 +340,193 @@ def _verify_turnstile(site, token, remote_ip):
     return False, "Security check failed — please try again"
 
 
+# How long a "password OK, awaiting second factor" state stays valid. Long
+# enough to fish a phone out of a pocket and read a code, short enough that a
+# walked-away-from session can't be completed by someone else much later.
+_MFA_PENDING_TTL = 600  # seconds
+
+
+def _finalize_login(user, ip, next_url):
+    """Start the real session once authentication is fully satisfied —
+    shared by the password-only path and the MFA-completed path so both
+    clear the lockout buckets, stamp presence, and log identically.
+
+    Returns the post-login redirect response.
+    """
+    _clear_login_failures(ip=ip, username=user.username)
+    session.permanent = True
+    login_user(user, remember=True)
+    # Stamp `last_seen_at` here (in addition to the throttled after_request
+    # hook in routes.py::_track_last_seen) so the user shows up in the
+    # Currently-Online widget on the very next 5-second poll — even when the
+    # post-login redirect's GET lands on a non-page response the request
+    # tracker skips, or the visitor closes the tab before it resolves.
+    user.last_seen_at = datetime.utcnow()
+    from . import activity
+    activity.open_session(user)
+    activity.log("login", user=user, summary=f"Signed in from {ip}")
+    if next_url and _is_safe_url(next_url):
+        return redirect(next_url)
+    return redirect(url_for("main.index"))
+
+
+def _consume_recovery_code(user, code):
+    """If ``code`` matches one of ``user``'s unused recovery codes, remove
+    it (single-use) and return True. The change is staged on the session;
+    the caller's commit (via _finalize_login) persists it. Returns False on
+    no match or no codes."""
+    import json
+    from . import totp
+    raw = user.mfa_recovery_codes_json
+    if not raw:
+        return False
+    try:
+        hashes = json.loads(raw)
+    except (ValueError, TypeError):
+        return False
+    h = totp.hash_recovery_code(code)
+    if h not in hashes:
+        return False
+    hashes.remove(h)
+    user.mfa_recovery_codes_json = json.dumps(hashes)
+    return True
+
+
+@bp.route("/mfa", methods=["GET", "POST"])
+def mfa_challenge():
+    """Second step of an MFA sign-in. Reachable only with a valid, unexpired
+    ``mfa_pending`` marker set by ``login()`` after a correct password —
+    accepts a 6-digit TOTP code or a single-use recovery code."""
+    if current_user.is_authenticated:
+        return redirect(url_for("main.index"))
+    ip = request.remote_addr or "unknown"
+    pending = session.get("mfa_pending")
+
+    def _expired():
+        session.pop("mfa_pending", None)
+        flash("Your sign-in attempt timed out. Please sign in again.", "danger")
+        return redirect(url_for("auth.login"))
+
+    if not pending or (datetime.utcnow().timestamp() - pending.get("ts", 0)) > _MFA_PENDING_TTL:
+        return _expired()
+    user = db.session.get(User, pending.get("uid"))
+    # Re-validate eligibility on every hit: the account could have been
+    # disabled, demoted, or had MFA turned off between the password step
+    # and now. Any of those drops us back to a clean login.
+    if not user or user.disabled or not user.mfa_active():
+        return _expired()
+
+    if request.method == "POST":
+        # MFA only applies to admins, who are exempt from the per-username
+        # lockout (see login()), so only the IP bucket guards this step.
+        blocked, retry = _login_rate_limit_hit(ip, None)
+        if blocked:
+            flash(f"Too many attempts. Try again in {max(retry, 1) // 60 + 1} minutes.",
+                  "danger")
+            return render_template("mfa_challenge.html"), 429
+        code = (request.form.get("code") or "").strip()
+        from . import totp
+        ok_totp = totp.verify(decrypt(user.mfa_secret_enc), code)
+        ok_recovery = _consume_recovery_code(user, code) if not ok_totp else False
+        if ok_totp or ok_recovery:
+            session.pop("mfa_pending", None)
+            from . import activity
+            activity.log("login.mfa.recovery" if ok_recovery else "login.mfa.ok",
+                         user=user,
+                         summary=("Signed in with a recovery code"
+                                  if ok_recovery else "MFA code verified")
+                                 + f" from {ip}")
+            return _finalize_login(user, ip, pending.get("next"))
+        _record_login_failure(ip, None)
+        from . import activity
+        activity.log("login.mfa.failed", user=user,
+                     summary=f"Incorrect MFA code from {ip}")
+        flash("Invalid authentication code.", "danger")
+
+    return render_template("mfa_challenge.html")
+
+
+def _mfa_issuer():
+    site = SiteSetting.query.first()
+    name = ((site.smtp_from_name if site else None) or "Trusted Servants Pro").strip()
+    return name or "Trusted Servants Pro"
+
+
+@bp.route("/mfa-setup", methods=["GET", "POST"])
+def mfa_setup():
+    """One-time 2FA enrolment wizard shown at login when an account is
+    flagged ``mfa_required`` but hasn't enrolled yet. Runs on the same
+    half-authenticated ``mfa_setup`` session marker as the challenge.
+    The user can enrol or skip; skipping signs them in without 2FA (the
+    wizard reappears next login until they enrol or turn 2FA off in
+    Settings)."""
+    if current_user.is_authenticated:
+        return redirect(url_for("main.index"))
+    ip = request.remote_addr or "unknown"
+    pending = session.get("mfa_setup")
+
+    def _expired():
+        session.pop("mfa_setup", None)
+        session.pop("mfa_setup_wizard_secret", None)
+        flash("Your sign-in attempt timed out. Please sign in again.", "danger")
+        return redirect(url_for("auth.login"))
+
+    if not pending or (datetime.utcnow().timestamp() - pending.get("ts", 0)) > _MFA_PENDING_TTL:
+        return _expired()
+    user = db.session.get(User, pending.get("uid"))
+    if not user or user.disabled:
+        return _expired()
+
+    from . import totp, activity
+    if request.method == "POST":
+        action = request.form.get("action")
+        # ``skip`` (decline) and ``finish`` (Continue after the recovery-codes
+        # step) just complete the half-authenticated session — they must work
+        # regardless of whether enrolment has happened, so they're handled
+        # before the setup-pending check below.
+        if action in ("skip", "finish"):
+            session.pop("mfa_setup", None)
+            session.pop("mfa_setup_wizard_secret", None)
+            if action == "skip":
+                activity.log("login.mfa.setup.skip", user=user,
+                             summary=f"Skipped the 2FA setup wizard from {ip}")
+            return _finalize_login(user, ip, pending.get("next"))
+        if action == "enroll":
+            secret = session.get("mfa_setup_wizard_secret")
+            if not secret:
+                return _expired()
+            code = (request.form.get("code") or "").strip()
+            if not totp.verify(secret, code):
+                uri = totp.provisioning_uri(secret, user.username, _mfa_issuer())
+                return render_template("mfa_setup.html", qr=totp.qr_data_uri(uri),
+                                       secret=secret,
+                                       error="That code didn't match. Check the app and try again.")
+            codes = user.enroll_mfa(secret)
+            db.session.commit()
+            session.pop("mfa_setup_wizard_secret", None)
+            activity.log("login.mfa.setup.enrolled", user=user,
+                         summary="Enrolled in 2FA via the login setup wizard")
+            return render_template("mfa_setup.html", recovery_codes=codes)
+        # Unknown action — fall through and re-render the enrol step.
+
+    # If 2FA is no longer pending for this account (enrolment finished in
+    # another tab, or an admin cleared the requirement), there's nothing to
+    # set up — just complete the sign-in.
+    if not user.mfa_setup_pending():
+        session.pop("mfa_setup", None)
+        session.pop("mfa_setup_wizard_secret", None)
+        return _finalize_login(user, ip, pending.get("next"))
+
+    # GET (or fall-through): keep a stable provisional secret for this
+    # wizard session so a reload doesn't churn the QR.
+    secret = session.get("mfa_setup_wizard_secret")
+    if not secret:
+        secret = totp.generate_secret()
+        session["mfa_setup_wizard_secret"] = secret
+    uri = totp.provisioning_uri(secret, user.username, _mfa_issuer())
+    return render_template("mfa_setup.html", qr=totp.qr_data_uri(uri), secret=secret)
+
+
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -377,26 +564,37 @@ def login():
                                       f"'{user.username}' from {ip}"))
                 flash("Invalid credentials", "danger")
                 return render_template("login.html")
-            _clear_login_failures(ip=ip, username=user.username)
-            session.permanent = True
-            login_user(user, remember=True)
-            # Stamp `last_seen_at` here (in addition to the throttled
-            # after_request hook in routes.py::_track_last_seen) so the
-            # user shows up in the Currently-Online widget on the very
-            # next 5-second poll — even when the post-login redirect's
-            # GET lands on a non-page response the request-tracker skips
-            # (it only counts 200 text/html pages), or the visitor closes
-            # the tab before the redirect resolves. Pure additive: the
-            # request tracker still owns ongoing freshness updates.
-            from datetime import datetime as _dt
-            user.last_seen_at = _dt.utcnow()
-            from . import activity
-            activity.open_session(user)
-            activity.log("login", user=user, summary=f"Signed in from {ip}")
             next_url = request.args.get("next") or request.form.get("next")
-            if next_url and _is_safe_url(next_url):
-                return redirect(next_url)
-            return redirect(url_for("main.index"))
+            # Second factor. If this (admin) account has TOTP enabled, the
+            # password alone isn't enough: stash a short-lived "password
+            # OK, awaiting code" marker and bounce to the MFA challenge.
+            # Crucially we do NOT clear the failure buckets yet — that only
+            # happens once the code verifies (see _finalize_login), so a
+            # stolen password can't reset the lockout budget by itself.
+            safe_next = next_url if (next_url and _is_safe_url(next_url)) else None
+            if user.mfa_active():
+                session["mfa_pending"] = {
+                    "uid": user.id,
+                    "ts": datetime.utcnow().timestamp(),
+                    "next": safe_next,
+                }
+                from . import activity
+                activity.log("login.mfa.challenge", user=user,
+                             summary=f"Password accepted; awaiting MFA code from {ip}")
+                return redirect(url_for("auth.mfa_challenge"))
+            # 2FA required but not yet enrolled → the one-time setup wizard.
+            # Still half-authenticated until they finish or skip it.
+            if user.mfa_setup_pending():
+                session["mfa_setup"] = {
+                    "uid": user.id,
+                    "ts": datetime.utcnow().timestamp(),
+                    "next": safe_next,
+                }
+                from . import activity
+                activity.log("login.mfa.setup", user=user,
+                             summary=f"Password accepted; 2FA setup wizard shown to {user.username}")
+                return redirect(url_for("auth.mfa_setup"))
+            return _finalize_login(user, ip, next_url)
         _record_login_failure(ip, lockout_username)
         from . import activity
         # Log the failed attempt against the matched user when one
@@ -691,6 +889,10 @@ def users_create():
         return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
     u = User(username=username, email=email, name=name, phone=phone,
              password_hash=generate_password_hash(password), role=role)
+    # New admin accounts default to requiring 2FA (set up via the one-time
+    # wizard at first login, which they may skip). Other roles default off;
+    # an admin can flip the per-row switch in the Users tab for anyone.
+    u.mfa_required = (role == "admin")
     db.session.add(u)
     db.session.commit()
     from . import activity
@@ -787,6 +989,14 @@ def users_update(uid):
                  .update({"ended_at": datetime.utcnow(),
                           "end_reason": "admin_reset"},
                          synchronize_session=False))
+    # 2FA toggle from the edit modal (marker key distinguishes "untouched"
+    # from "unticked", same pattern as the disabled / self-reset toggles).
+    if "mfa_present" in request.form:
+        want_mfa = request.form.get("mfa_required") == "1"
+        if want_mfa and not u.mfa_required:
+            u.mfa_required = True
+        elif not want_mfa and (u.mfa_required or u.mfa_enabled):
+            u.clear_mfa()
     if "reset_allowed_present" in request.form:
         new_allowed = request.form.get("password_reset_allowed") == "1"
         if new_allowed != u.password_reset_allowed:
@@ -931,6 +1141,36 @@ def users_set_reset_allowed(uid):
     return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
 
 
+@bp.route("/users/<int:uid>/mfa", methods=["POST"])
+@login_required
+def users_set_mfa(uid):
+    """Admin toggle for whether an account uses two-factor authentication.
+    Turning it ON sets the requirement — the user enrols via the one-time
+    wizard at their next login. Turning it OFF fully clears 2FA (requirement,
+    enrolment, secret, recovery codes). Posted by the per-row switch in
+    Settings → Users; returns JSON for the AJAX caller."""
+    from flask import jsonify
+    if not current_user.is_admin():
+        return jsonify({"error": "forbidden"}), 403
+    u = db.session.get(User, uid)
+    if not u:
+        return jsonify({"error": "not found"}), 404
+    want = request.form.get("required") == "1"
+    if want:
+        u.mfa_required = True
+    else:
+        # Full off — clears any in-progress or completed enrolment too.
+        u.clear_mfa()
+    db.session.commit()
+    from . import activity
+    activity.log("user.mfa_gate", entity_type="user", entity_id=u.id,
+                 summary=(f"{'Enabled' if want else 'Disabled'} two-factor "
+                          f"authentication for {u.username}"))
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify(ok=True, required=want)
+    return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
+
+
 @bp.route("/users/<int:uid>/delete", methods=["POST"])
 @login_required
 def users_delete(uid):
@@ -952,3 +1192,35 @@ def users_delete(uid):
         db.session.commit()
         flash("User deleted", "success")
     return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
+
+
+@bp.route("/users/bulk-delete", methods=["POST"])
+@login_required
+def users_bulk_delete():
+    """Delete the checked users in one POST. Mirrors ``users_delete``'s
+    guards: admin-only, and the current admin is never deleted (their id
+    is silently skipped even if it arrives in the list)."""
+    embed = request.form.get("embed") == "1"
+    back = url_for("auth.users", embed=1) if embed else url_for("auth.users")
+    if not current_user.is_admin():
+        return redirect(url_for("main.index"))
+    ids = []
+    for raw in request.form.getlist("ids"):
+        try:
+            ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    ids = [i for i in set(ids) if i != current_user.id]
+    if not ids:
+        flash("No users selected.", "info")
+        return redirect(back)
+    from . import activity
+    deleted = 0
+    for u in User.query.filter(User.id.in_(ids)).all():
+        activity.log("user.delete", entity_type="user", entity_id=u.id,
+                     summary=f"Deleted user {u.username}")
+        db.session.delete(u)
+        deleted += 1
+    db.session.commit()
+    flash(f"Deleted {deleted} user{'s' if deleted != 1 else ''}.", "success")
+    return redirect(back)
