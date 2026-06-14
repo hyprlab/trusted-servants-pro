@@ -7,7 +7,71 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.12.3 — 2026-06-09 (latest) — Pull/Push your Live site right from the Web Frontend overview
+## 2.14.3 — 2026-06-14 (latest) — Fix: non-admins can turn their own two-factor off
+
+- **Turning two-factor off now works for every role.** Previously, only admins could turn their own two-factor on or off — for other roles the "Turn off two-factor" button silently did nothing, so the setup wizard kept reappearing at each login. Now any user can fully manage two-factor for their own account under **Settings → Your Access**.
+- Small spacing fix on the two-factor setup screen.
+
+## 2.14.2 — 2026-06-13 — Two-factor on/off polish
+
+- **Turning two-factor off now clearly shows it's off.** The yellow notice and the red "Turn off two-factor" button disappear the moment you switch it off under **Settings → Your Access**.
+- **Admins see the change right away.** If you turn your own two-factor on or off, the **Settings → Users** list updates that account's Two-factor toggle to match.
+- **Clearer wording** on the setup screen — two-factor is described as "available for your account" rather than "required," since it's optional and you can skip it.
+
+## 2.14.1 — 2026-06-13 — Turn two-factor on for any account, with a setup wizard
+
+- **Admins can switch two-factor on or off for any account** from **Settings → Users** — there's a new **Two-factor** toggle on each user row (and in the Edit-user dialog). New admin accounts now have it on by default.
+- **Two-factor works for every role now,** not just admins.
+- **A friendly setup wizard greets people at login.** When an account is set to use two-factor but hasn't set it up yet, the next sign-in walks the user through scanning the QR code and confirming a code — then shows their recovery codes. They can **Skip for now** and set it up later if they prefer.
+- **Anyone can manage their own two-factor under Settings → Your Access** — turn it on, see whether setup is still required, or turn it off (confirming their password first).
+
+## 2.14.0 — 2026-06-13 — Two-factor authentication for admins
+
+- **You can now turn on two-factor authentication (2FA) for your admin account.** Open **Settings → Security → Set up two-factor authentication**, scan the QR code with an authenticator app, and enter the 6-digit code to confirm. It works with any standard app — **2FAS**, Google Authenticator, Aegis, 1Password, and the rest.
+- **It's optional and admin-only.** Each admin chooses whether to switch it on; other roles never see this step. Once enabled, you'll be asked for a code from your app after entering your password each time you sign in.
+- **Recovery codes mean you can't get locked out.** When you enable 2FA you get ten one-time recovery codes — save them somewhere safe. If you ever lose your phone, any one of them gets you in. You can regenerate a fresh set anytime (you'll confirm your password first).
+- **Turning it off is protected too.** Disabling 2FA or generating new recovery codes asks for your account password first, so nobody can quietly remove the extra protection from a logged-in screen.
+
+## 2.13.2 — 2026-06-13 — Toasts no longer cover the topbar
+
+- **Pop-up "Saved" and error messages now appear just below the top bar** instead of on top of it, so they no longer hide the buttons in the header while you're working.
+
+## 2.13.1 — 2026-06-12 — A full search results page and a smarter search palette
+
+- **There's now a full search results page.** When a search turns up more than the quick palette can show, click **"See all results"** to open a dedicated page listing everything — meetings, libraries and files, announcements and events, stories, blog posts, locations, users, pages, and more. Filter to a single type with one click and sort by Relevance, Name (A–Z / Z–A), or Recently updated.
+- **Filtering and sorting are instant.** Clicking a type or changing the sort updates the results in place — no full page reload, your scroll position stays put, and the browser's Back/Forward buttons work as expected.
+- **The search palette remembers your last search.** Open a result and come back, and the palette still shows what you searched for, so you can jump between results without retyping. A **Clear** button wipes it (and it clears on its own when you close the window). A new **"See all results"** button is pinned to the bottom of the palette.
+- **Cleaner result previews.** Search snippets no longer show stray formatting tags from descriptions — just clean, readable text.
+
+## 2.13.0 — 2026-06-12 — A cleaner post editor and a sticky, full-width header
+
+- **The announcement / event editor is reorganized and de-cluttered.** Fields now flow in a logical order — what the post is (type, title, URL, and when it publishes) → its content → event details → links → images — with Links moved above Images. The old separate "Publishing" card was folded into the top card, the cramped monospaced fields now use the regular Inter font, and the spacing between sections is tighter.
+- **Pick a featured image and see it right away.** Choosing an image now shows the thumbnail instantly, before you save. And clicking "Remove current image" hides the thumbnail on the spot so you can see the change before saving — the removal still only takes effect when you save.
+- **The "Auto-archive this announcement" control looks like one tidy setting** — a single panel with the switch and the date picker together — matching the "Online event" toggle. "Remove current image" is now a clear red pill instead of a stray checkbox.
+- **The page header bar now stays pinned to the top as you scroll** on every admin page, uses the same background as the sidebar, and looks right in dark mode. It also now stretches the full width of the screen to the right edge.
+- **On phones, the header's buttons are swipeable.** Instead of wrapping onto several lines, the action buttons sit in a single row you can swipe left/right.
+
+## 2.12.6 — 2026-06-11 — Shared-account sign-ups & a cleaner Libraries widget
+
+- **The Trusted Servants sign-up widget now works for shared accounts.** If several people share one portal login, each can add themselves to the email list: the dashboard form always starts blank, never pre-fills or "remembers" the last person, and never offers to remove anyone. Every submission creates its own new entry. Editing and removing entries stays admin-only on the Email List page.
+- **The Libraries dashboard widget no longer lists Intergroup libraries.** It now shows only the regular Libraries-module entries — matching the Libraries page itself. Intergroup-flagged libraries remain in their dedicated Intergroup sidebar section.
+
+## 2.12.5 — 2026-06-10 — Schedule posts, a smarter search, and Users/editor polish
+
+- **Schedule announcements & events for the future.** In the post editor, set the "Posted on / schedule for" field to a future date & time and Publish — the post stays hidden from the public site until then, then appears automatically. The admin list flags it with a teal "Scheduled · <date>" badge, and there's a one-click "Today" button on the date fields.
+- **Exhaustive backend search.** Search now finds every post type and state (announcements, events — including drafts, archived, and pending), plus Stories, Blog posts, and page-builder Pages. It also jumps to sections: type "data" or "security" to open that Settings tab, or "branding"/"navigation" to open the matching Web Frontend page — all role-gated so people only see what they're allowed to.
+- **Users tab: filter, sort, and multi-delete.** Type to filter the user list by name/username/email/phone/role, click any column header to sort, and use the new checkboxes to delete several users at once (you can never select yourself).
+- **Set a custom URL while a post is still a draft.** A hand-picked URL now sticks through editing and publishing, so a draft goes live at the right address with no after-the-fact rename or redirect.
+- **Download a rollback snapshot from Settings too.** The "Rollback snapshots" button now also lives on the Settings → Data staging-sync card (with the matching card icon), not just the Web Frontend overview.
+- **Dashboard is now a button.** The sidebar Dashboard link moved into the fixed button cluster at the top, styled like the Notifications and Watchtower buttons.
+- **No more sideways scrolling on the post editor on phones.** Long links and fields no longer overflow the screen.
+
+## 2.12.4 — 2026-06-09 — Download a rollback snapshot to undo a sync
+
+- **The Staging Sync card now has a "Rollback snapshots" button.** Every sync automatically saves a complete rollback bundle of your frontend (including recovery Stories) before it overwrites anything — this opens a popup listing those bundles, newest first, with the date, size, and a one-click **Download** for each.
+- **Built-in restore instructions.** The popup explains exactly how to put a snapshot back: download the `.zip`, then go to **Settings → Data → Frontend bundle → Import frontend** and import it. The 10 most recent snapshots are kept automatically.
+
+## 2.12.3 — 2026-06-09 — Pull/Push your Live site right from the Web Frontend overview
 
 - **On your Staging copy, the Web Frontend overview now has Pull and Push buttons built into its Status card.** Once staging sync is set up, you can bring your Live site's frontend down to keep working on it, or send your changes up to Live, in one click — with a live "Connected / Unreachable" check and a last-pulled/pushed timestamp — without ever opening Settings. Each direction asks for a quick second-click confirmation before it overwrites anything.
 - **It only appears on the Staging copy, never on the Live site** — the Live install is the receiver, so there's nothing for it to push or pull.

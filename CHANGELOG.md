@@ -6,6 +6,293 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.14.3] — 2026-06-14
+
+### Fixed
+
+- **Non-admin users can now manage their own 2FA.** The self-service endpoints
+  (`/settings/mfa/begin|enable|disable|regenerate-recovery`) were still gated
+  `@admin_required` from when 2FA was admin-only — so after the card moved to
+  Settings → Your Access (any role), a non-admin's "Turn off two-factor" (or
+  setup) silently failed, leaving `mfa_required` set and re-prompting the setup
+  wizard at every login. Changed them to `@login_required`; they only ever act
+  on `current_user`, so each user manages their own 2FA and no one else's.
+
+### Changed
+
+- 1rem gap between the authentication-code field and the Verify button on the
+  login 2FA setup wizard.
+
+## [2.14.2] — 2026-06-13
+
+### Fixed
+
+- **Turning 2FA off in Settings → Your Access now fully reflects the off state.**
+  The yellow "2FA has been turned on for your account" notice and the red
+  "Turn off two-factor" button now disappear when you turn it off (a scoped
+  `.mfa-card [hidden]` CSS rule — the elements' `display: flex` / `inline-flex`
+  was beating the `[hidden]` attribute, so toggling them had no visible effect).
+- **The Users-tab Two-factor toggle stays in sync.** When a user enables or
+  disables their own 2FA from Your Access, the admin Users tab iframe (if open
+  in the same Settings modal) reloads so its per-row toggle reflects the new
+  state instead of going stale until the modal is reopened.
+
+### Changed
+
+- Reworded the login setup wizard from "Two-factor authentication is **required**
+  for your account" to "**available** for your account" — it's optional and
+  skippable, so "available" reads truer.
+
+## [2.14.1] — 2026-06-13
+
+### Added
+
+- **Per-account 2FA control in Settings → Users.** Each user row has a
+  **Two-factor** toggle (also in the Edit-user modal). Turning it on flags the
+  account as requiring 2FA; turning it off fully clears any requirement,
+  enrolment, secret, and recovery codes. New admin accounts default to
+  requiring 2FA at creation time (other roles default off).
+- **2FA is available to any role**, not just admins. The login challenge gate
+  dropped its `is_admin()` restriction; `mfa_required` is now the master "2FA
+  on for this account" switch (distinct from `mfa_enabled`, which means
+  enrolment is complete).
+- **One-time login setup wizard.** When an account is flagged to require 2FA
+  but hasn't enrolled, the next sign-in (after the correct password) routes to
+  `/tspro/auth/mfa-setup`: scan the QR / enter the key, confirm a code, and save
+  the recovery codes. The user may **Skip for now** to sign in without enrolling
+  — the wizard reappears at each login until they enrol or turn 2FA off.
+
+### Changed
+
+- **Personal 2FA self-management moved to Settings → Your Access** (visible to
+  every role) from the admin-only Security tab, since 2FA now applies to any
+  role. The card shows three states — Off, **Setup required** (with an admin
+  notice and a one-click turn-off), and Enabled. Disabling or regenerating
+  recovery codes remains password-gated. The Security tab keeps the
+  portal-wide settings (Turnstile, Zoom OTP).
+- New `user.mfa_required` column (added by `_migrate_sqlite`). On the boot that
+  adds it, any account already enrolled is backfilled to `mfa_required = 1` so
+  live 2FA keeps challenging under the new master-gate model.
+
+## [2.14.0] — 2026-06-13
+
+### Added
+
+- **Optional two-factor authentication (2FA) for admin accounts.** Admins can
+  enable a time-based one-time-password (TOTP) second factor from
+  **Settings → Security**. Enrolment shows a QR code plus a manually-typeable
+  key; the codes are standard RFC 6238 (HMAC-SHA1, 6 digits, 30 s), so any
+  authenticator works — 2FAS, Google Authenticator, Aegis, 1Password, etc. The
+  TOTP engine is stdlib-only (`hmac`/`hashlib`) and validated against the
+  RFC 6238 test vectors; the shared secret is stored Fernet-encrypted, never in
+  clear. 2FA is strictly admin-only and per-account — other roles never see the
+  step, and an admin who is later demoted is silently exempt rather than locked
+  out (`User.mfa_active()` re-checks `is_admin()`).
+- **Single-use recovery codes.** Ten one-time codes are generated at enrolment
+  and shown exactly once; only their SHA-256 hashes are stored. Either a TOTP
+  code or a recovery code completes the sign-in, so a lost authenticator doesn't
+  lock an admin out of the only admin account. Codes can be regenerated from the
+  Security card (password-gated).
+- **Two-step sign-in challenge.** After a correct password, an MFA-enabled admin
+  is routed to a dedicated `/tspro/auth/mfa` page to enter their code before the
+  session starts. The challenge is IP rate-limited (reusing the login limiter)
+  and the half-authenticated state expires after 10 minutes.
+
+### Changed
+
+- New dependency: `qrcode==7.4.2` (enrolment QR rendering; uses the already-
+  vendored Pillow backend). The verification path itself pulls in nothing new.
+- New `user` columns `mfa_enabled`, `mfa_secret_enc`, `mfa_recovery_codes_json`
+  (added by `_migrate_sqlite`; fresh installs via `create_all`).
+
+### Security
+
+- Disabling 2FA and regenerating recovery codes both require re-entering the
+  account password, so a walked-up-to, already-unlocked session can't silently
+  strip the second factor. Login failure buckets are cleared only after the
+  second factor verifies — a stolen password alone can't reset the lockout
+  budget on the MFA step.
+
+## [2.13.2] — 2026-06-13
+
+### Changed
+
+- **Backend flash/toast messages now appear below the topbar** instead of
+  floating over it, so transient "Saved" / error toasts no longer cover the
+  topbar's action buttons. The offset tracks the live topbar height (which can
+  wrap taller on narrow viewports) via a small `--topbar-h` measurement.
+
+## [2.13.1] — 2026-06-12
+
+### Added
+
+- **Full-page search results at `/tspro/search`.** Surfaces everything the live
+  search palette (⌘K) finds, uncapped, with type-filter chips (per-type counts)
+  and sorting — Relevance (default), Name A–Z / Z–A, and Recently updated.
+  Covers every searchable type: meetings, libraries + library files, meeting
+  attachments, announcements/events, stories, blog posts, files, locations,
+  users, pages, and Settings / Web-Frontend jump targets. The palette and the
+  page share one backend helper (`_search_sections`) so matching and
+  role-gating stay identical; a lightweight relevance score (label-prefix >
+  label > snippet hits, DB order as the stable tiebreak) drives the default
+  sort.
+- **AJAX filtering & sorting on the results page.** Clicking a type chip or
+  changing the sort fetches only the swappable results region (a new
+  `_search_results_region.html` partial, returned when the request carries
+  `X-Requested-With: fetch`) and replaces it in place — no full-page reload.
+  The URL stays in sync via `history.pushState`, back/forward re-fetch via
+  `popstate`, and the swap preserves the current scroll position. Falls back to
+  a real navigation if the fetch fails; chips remain plain links for no-JS.
+
+### Changed
+
+- **Search palette is now stateful.** A full-width "See all results" button is
+  pinned as a sticky footer linking to the full page. The last query + results
+  are preserved in `sessionStorage`, so opening a result and coming back
+  restores where you left off; a Clear button (and closing the window) wipes
+  that state.
+- **Result snippets are flattened to plain text.** Inline HTML carried in some
+  descriptions/bodies (e.g. `<b><i>…`) is stripped — and any tag clipped by the
+  char-budget slice is dropped — so neither the palette nor the page shows
+  literal markup.
+
+## [2.13.0] — 2026-06-12
+
+### Changed
+
+- **Announcement / event post editor relaid out.** `post_edit.html` is split
+  into a logical top-to-bottom card flow — **Type & title** (now also holding
+  "Posted on / schedule for" and the announcement auto-archive control, merged
+  in from the former standalone Publishing card) → **Content** → **Event
+  details** → **Links** → **Images**. Links moved above Images. All monospace
+  faces on the page (body/summary textareas, slug input + prefix, slug-history
+  chips, inline `code`) now inherit Inter via `.post-form` overrides. Inter-card
+  spacing tightened (`.form.post-form` gap 1.25rem; cards lose their own
+  bottom margin) and datetime inputs capped at 320px so the "Today" button
+  hugs the field.
+- **Auto-archive control restyled as a cohesive panel.** The "Auto-archive this
+  announcement" switch + datetime now share one bordered, panel-tinted block
+  matching the "Online event" toggle row (shared `.post-toggle-row` /
+  `.post-toggle-info` classes), with the date field revealing below a divider
+  inside the same panel.
+- **"Remove current image" restyled as a pill toggle.** The featured-image
+  clear checkbox renders as a chip (`.post-featured-clear`) — neutral outline
+  at rest, red fill + × icon when armed — instead of a bare checkbox.
+- **Topbar header is now sticky and full-width.** `.topbar` is pinned
+  (`position: sticky; top: 0`) across every backend page with the sidebar's
+  `var(--panel)` background, a `var(--border)` bottom border, and a soft
+  shadow — fully theme-aware (dark/night-mode compatible). The readable-width
+  cap moved off `.content` onto the inner `.page` body
+  (`max-width: calc(1400px - 2 * var(--content-px))`), so the bar bleeds the
+  full grid column out to the right edge of the viewport while page content
+  keeps its prior width and left alignment. Frontend-admin / 404 full-bleed
+  opt-outs moved to `.page:has(…)`. The bar's bottom margin uses
+  `var(--content-px)` so the gap below it matches the container's
+  left/right gutters at every breakpoint.
+
+### Added
+
+- **Instant featured-image preview.** Choosing a file in "Upload new image"
+  swaps the thumbnail immediately via `URL.createObjectURL` (no save needed),
+  hiding the empty placeholder and clearing any stale File-Browser pick.
+- **Live "Remove current image".** Arming the clear pill hides the thumbnail
+  on the spot (`.is-cleared`); unchecking — or picking a new upload — restores
+  it. The actual delete still happens server-side on save.
+- **Swipeable mobile topbar actions.** On phones the top-actions row is a
+  single non-wrapping, horizontally swipeable strip (`overflow-x: auto`,
+  `flex-wrap: nowrap`, hidden scrollbar, `touch-action: pan-x`) instead of
+  wrapping to multiple rows; list-page view controls ride in the same strip.
+
+### Fixed
+
+- **Gallery "Choose from File Browser" alignment.** The button bottom-aligns
+  with the file input instead of floating to the upload-label column's center.
+- **Zoom OTP retrieve copy reworded** on the Meeting and Zoom Accounts pages:
+  "After Zoom prompts for the code, click this retrieve button and the system
+  will fetch it — it may take up to a minute to retrieve."
+
+## [2.12.6] — 2026-06-11
+
+### Changed
+
+- **Trusted Servants sign-up widget reworked for shared accounts.** The
+  dashboard widget (`index.html`) now always renders a single blank "Join the
+  list" form — no per-user subscription state, no pre-filled account details
+  (fields default to empty with `autocomplete="off"`), no "Save changes" /
+  "Remove me" variant. `main.trusted_servants_subscribe` no longer upserts on
+  `user_id`; it inserts a fresh `TrustedServantSubscriber` with `user_id = NULL`
+  on every submit, so multiple people sharing one login each get their own
+  admin-managed entry. `index()` stops looking up the per-user subscription.
+  Editing/removing entries remains admin-only on `/email-list`.
+- **Libraries dashboard widget excludes Intergroup libraries.** `index()` now
+  filters `Library.is_intergroup == False`, mirroring the `/libraries` page, so
+  the widget only lists general Libraries-module entries.
+
+### Removed
+
+- **`main.trusted_servants_unsubscribe` route** (`/email-list/unsubscribe`) and
+  its widget form — end users no longer self-remove from the list.
+
+## [2.12.5] — 2026-06-10
+
+### Added
+
+- **Scheduled / future posts.** A published announcement/event with a future
+  `published_at` is now hidden from every public surface until that moment, then
+  appears automatically. Centralized in `frontend._post_live_clause()` (NULL =
+  legacy/always visible; site-local-naive comparison) and chained onto all nine
+  public `Post` queries (lists, past/archive, canonical resolver, the three
+  detail routes, both sitemap feeds). `post_save` keeps a future date on publish
+  instead of stamping "now"; the admin list shows a teal "Scheduled" badge
+  (`posts.html`, `posts()` passes `now_local`); the editor relabels the field
+  and adds a "Today" button.
+- **Exhaustive backend search** (`api_search`). All post states (drafts,
+  archived, pending) with type/state labels, plus Stories, Blog posts, and
+  page-builder Pages. New role-gated navigation results jump to a Settings tab
+  (opens the modal) or a Web Frontend section. Non-admins never receive
+  admin-only destinations.
+- **Users tab: filter, sort, multi-delete** (`users.html`). Client-side filter
+  box, sortable columns (username/name/email/phone/role), and checkbox
+  multi-select backed by a new admin-only `auth.users_bulk_delete` route (skips
+  self + invalid ids).
+- **Rollback snapshots button in Settings → Data.** The snapshots modal is now
+  shared chrome in `base.html` (de-duped from `frontend_dashboard.html`) and
+  opened from both the staging-sync card and the Web Frontend overview; the
+  staging-sync card's header icon now matches the Frontend bundle card.
+- **"Today" button** on the event start/end datetime fields, which also keeps
+  the end ≥ start automatically.
+
+### Changed
+
+- **Dashboard moved to a pinned sidebar button** styled like the Notifications /
+  Watchtower buttons (`_is_visible('dashboard')` → False, button in `base.html`).
+- **Custom post URL is honored on drafts.** `post_save` honors an explicit slug
+  whenever the post isn't publicly addressable yet, and the editor stops
+  auto-deriving the slug once the admin customizes it — so a draft publishes at
+  the chosen URL with no redirect.
+
+### Fixed
+
+- **Mobile horizontal overflow on the post editor.** `.post-form` pins
+  `min-width: 0` on grid rows/fields, keeps inputs fluid, and clips horizontal
+  overflow so long URLs/fields no longer cause a horizontal scrollbar.
+
+## [2.12.4] — 2026-06-09
+
+### Added
+
+- **Rollback snapshots modal on the Staging Sync card** (`app/routes.py`,
+  `app/templates/frontend_dashboard.html`, `app/static/css/app.css`,
+  `app/static/js/app.js`). A "Rollback snapshots" button opens a popup listing
+  the auto-saved pre-sync bundles (newest first) with date, size, and a download
+  link each, plus step-by-step restore instructions (download → Settings → Data
+  → Frontend bundle → Import frontend). Two new admin-only routes back it:
+  `GET /settings/frontend-sync/snapshots` (JSON list) and
+  `…/snapshots/<name>` (download, filename-pattern validated like the DB-snapshot
+  route). The snapshot directory is now a shared `_frontend_sync_snapshot_dir()`
+  helper. The list is fetched on each open so it stays fresh after a Pull/Push.
+  Staging-install only, matching the sync controls.
+
 ## [2.12.3] — 2026-06-09
 
 ### Added

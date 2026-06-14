@@ -77,6 +77,15 @@
         <div class="brand-sub">Pro</div>
       </div>
     </div>
+    {# Dashboard — pinned button (styled like the Notifications / Watchtower
+       buttons) rather than a regular nav link, so the home view always has
+       a fixed entry point at the top. Its catalog entry is hidden from the
+       nav list via _is_visible('dashboard') → False in app/sidebar.py. #}
+    <a class="sidebar-dash-btn{% if request.endpoint == 'main.index' %} is-active{% endif %}"
+       href="{{ url_for('main.index') }}" title="Dashboard — your home view">
+      <span class="sidebar-dash-icon" aria-hidden="true">{{ icon('home') }}</span>
+      <span class="sidebar-dash-label">Dashboard</span>
+    </a>
     {# Sidebar quick-jump cluster — pinned buttons that replace their
        regular sidebar links. Each button's gate matches the legacy
        link's visibility predicate in app/sidebar.py so the user
@@ -267,10 +276,16 @@
       <span class="search-modal-icon" aria-hidden="true">{{ icon('search') }}</span>
       <input type="search" id="search-input" autocomplete="off" spellcheck="false"
              placeholder="Search meetings, libraries, files, posts…" aria-label="Search">
+      <button type="button" class="search-modal-clear" id="search-modal-clear" hidden>Clear</button>
       <kbd class="search-modal-esc" aria-hidden="true">Esc</kbd>
     </div>
     <div class="search-modal-body" id="search-modal-body">
       <p class="muted search-modal-hint">Start typing to search across meetings, libraries, files, posts, and more.</p>
+    </div>
+    <div class="search-modal-foot" id="search-modal-foot" hidden>
+      <a class="btn btn-primary search-modal-all" id="search-modal-all" href="#">
+        {{ icon('search') }} <span>See all results</span>
+      </a>
     </div>
   </div>
 </div>
@@ -704,6 +719,105 @@
           <span class="perm-badge {{ _badge_cls }}">{{ _role_label }}</span>
         </div>
 
+        {# ── Two-Factor Authentication (TOTP) — personal, any role ── #}
+        {% set _mfa_pending = current_user.mfa_required and not current_user.mfa_enabled %}
+        <section class="card data-card mfa-card"
+                 data-mfa-enabled="{{ '1' if current_user.mfa_enabled else '0' }}"
+                 data-mfa-required="{{ '1' if current_user.mfa_required else '0' }}"
+                 data-begin-url="{{ url_for('main.mfa_begin') }}"
+                 data-enable-url="{{ url_for('main.mfa_enable') }}"
+                 data-disable-url="{{ url_for('main.mfa_disable') }}"
+                 data-regen-url="{{ url_for('main.mfa_regenerate_recovery') }}">
+          <div class="data-card-head">
+            {{ icon('shield') }}
+            <span>Two-Factor Authentication</span>
+            <span class="mfa-status-pill {{ 'on' if current_user.mfa_enabled else ('warn' if _mfa_pending else 'off') }}">
+              {{ 'Enabled' if current_user.mfa_enabled else ('Setup required' if _mfa_pending else 'Off') }}
+            </span>
+          </div>
+          <p class="muted small data-card-lead">
+            Add a one-time code from an authenticator app (2FAS, Google
+            Authenticator, Aegis, 1Password…) on top of your password for this
+            account.
+          </p>
+
+          {# State: OFF / setup-pending — the enrol entry point #}
+          <div class="mfa-off" {% if current_user.mfa_enabled %}hidden{% endif %}>
+            <div class="mfa-required-note" {% if not _mfa_pending %}hidden{% endif %}>
+              {{ icon('shield') }}
+              <span>Two-factor authentication has been turned on for your account.
+              Set it up below, or turn it off if you'd rather not use it.</span>
+            </div>
+            <div class="mfa-off-actions">
+              <button type="button" class="btn btn-primary mfa-begin-btn">Set up two-factor authentication</button>
+              <button type="button" class="btn btn-danger mfa-disable-btn mfa-off-disable" {% if not _mfa_pending %}hidden{% endif %}>Turn off two-factor</button>
+            </div>
+
+            {# Enrolment panel, revealed after /mfa/begin returns the QR #}
+            <div class="mfa-setup" hidden>
+              <div class="mfa-setup-grid">
+                <div class="mfa-qr-wrap"><img class="mfa-qr" alt="2FA setup QR code"></div>
+                <div class="mfa-setup-steps">
+                  <p class="mfa-step"><span class="mfa-step-n">1</span>
+                    Scan this QR code in your authenticator app — in 2FAS, tap
+                    <strong>＋ → Scan QR code</strong>.</p>
+                  <p class="muted smaller mfa-manual-lead">Can't scan? Enter this key manually (Time-based, SHA-1, 6 digits):</p>
+                  <code class="mfa-secret" tabindex="0"></code>
+                  <p class="mfa-step"><span class="mfa-step-n">2</span>
+                    Enter the 6-digit code the app shows to confirm:</p>
+                  <div class="mfa-confirm-row">
+                    <input type="text" class="mfa-code-input" inputmode="numeric"
+                           autocomplete="one-time-code" maxlength="6" placeholder="123456">
+                    <button type="button" class="btn btn-primary mfa-enable-btn">Verify &amp; enable</button>
+                    <button type="button" class="btn mfa-cancel-btn">Cancel</button>
+                  </div>
+                  <p class="mfa-error" role="alert" hidden></p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {# State: ON — status + manage actions #}
+          <div class="mfa-on" {% if not current_user.mfa_enabled %}hidden{% endif %}>
+            <p class="mfa-on-lead">
+              {{ icon('check') }}
+              Two-factor authentication is protecting this account. You'll be
+              asked for a code from your authenticator each time you sign in.
+            </p>
+            <div class="mfa-manage-actions">
+              <button type="button" class="btn mfa-regen-btn">Regenerate recovery codes</button>
+              <button type="button" class="btn btn-danger mfa-disable-btn">Disable two-factor</button>
+            </div>
+          </div>
+
+          {# Shared re-auth gate. JS sets data-action to 'disable' or 'regen'
+             before revealing it; works from either the off or on state. #}
+          <div class="mfa-pw-confirm" hidden data-action="">
+            <label class="mfa-pw-label"><span class="mfa-pw-prompt"></span>
+              <input type="password" class="mfa-pw-input" autocomplete="current-password" placeholder="Your account password">
+            </label>
+            <div class="mfa-confirm-row">
+              <button type="button" class="btn btn-primary mfa-pw-go">Confirm</button>
+              <button type="button" class="btn mfa-pw-cancel">Cancel</button>
+            </div>
+            <p class="mfa-error" role="alert" hidden></p>
+          </div>
+
+          {# Recovery codes — shown once after enable / regenerate #}
+          <div class="mfa-recovery" hidden>
+            <div class="mfa-recovery-head">{{ icon('key') }} <strong>Save your recovery codes</strong></div>
+            <p class="muted small">
+              Each code works once if you lose access to your authenticator.
+              Store them somewhere safe — they won't be shown again.
+            </p>
+            <ul class="mfa-recovery-list"></ul>
+            <div class="mfa-recovery-actions">
+              <button type="button" class="btn mfa-recovery-copy">Copy codes</button>
+              <button type="button" class="btn btn-primary mfa-recovery-done">Done</button>
+            </div>
+          </div>
+        </section>
+
         {# Permission matrix — comparison table across every role. The
            Admin column is shown only to admins (non-admin viewers
            don't need the row aimed at people who outrank them). The
@@ -829,7 +943,7 @@
               </div>
             </div>
             <p class="muted small data-card-lead">
-              Reorder the items in the main sidebar and manage external links inline. Dashboard is always pinned at the top. Auto modes alphabetise items inside each section (Main → External → Admin order); pick Manual to drag any item or section to a new position.
+              Reorder the items in the main sidebar and manage external links inline. Dashboard, Watchtower, and Web Frontend sit in the fixed button cluster at the top and aren't part of this list. Auto modes alphabetise items inside each section (Main → External → Admin order); pick Manual to drag any item or section to a new position.
             </p>
 
             <fieldset class="sidebar-mode-fieldset">
@@ -1766,7 +1880,7 @@
                  data-has-token="{{ '1' if _fs_has_token else '0' }}"
                  data-has-url="{{ '1' if _fs_has_url else '0' }}">
           <div class="data-card-head">
-            {{ icon('refresh-cw') }}
+            {{ icon('layout-grid') }}
             <span>Frontend staging sync</span>
           </div>
           <p class="muted small data-card-lead">
@@ -1777,6 +1891,14 @@
             use); recovery <em>Stories</em>, users, meetings, and libraries are never
             touched, and the receiving side auto-saves a rollback snapshot first.
           </p>
+          {% if _fs_has_token %}
+          <div class="fe-sync-snap-row">
+            <button type="button" class="btn btn-sm"
+                    data-open-modal="fe-sync-snapshots-modal" data-fe-snap-open>
+              {{ icon('history') }} Rollback snapshots
+            </button>
+          </div>
+          {% endif %}
           <input type="hidden" data-fe-sync-csrf value="{{ csrf_token() }}">
 
           <nav class="fe-sync-stepper" aria-label="Staging sync setup steps">
@@ -2232,6 +2354,195 @@
       setTimeout(function(){ if (window.tspTour) window.tspTour.start(); }, 150);
     });
   })();
+
+  // Expose the live topbar height as --topbar-h so the fixed flash/toast
+  // stack (.flashes) can sit just below the sticky topbar instead of over
+  // its action buttons. The bar wraps taller on narrow viewports, so track
+  // it with a ResizeObserver rather than hard-coding a height.
+  (function(){
+    var bar = document.querySelector('.content > .topbar');
+    if (!bar) return;
+    var root = document.documentElement;
+    function sync(){ root.style.setProperty('--topbar-h', bar.offsetHeight + 'px'); }
+    sync();
+    if (window.ResizeObserver) new ResizeObserver(sync).observe(bar);
+    else window.addEventListener('resize', sync);
+  })();
+
+  // ── Settings → Security: Two-Factor Authentication enrolment ──────
+  // Drives the self-enrolment card. All four endpoints are admin-only and
+  // act on the signed-in user; the CSRF header is attached automatically
+  // by the global fetch wrapper in app.js.
+  (function(){
+    const card = document.querySelector('.mfa-card');
+    if (!card) return;
+    const $ = sel => card.querySelector(sel);
+    const toast = (m, k) => (window.showSettingsToast || window.tspShowToast || (()=>{}))(m, k);
+
+    async function post(url, data){
+      const body = new URLSearchParams(data || {});
+      const resp = await fetch(url, { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+      let json = {};
+      try { json = await resp.json(); } catch (_) {}
+      if (!resp.ok || json.ok === false) throw new Error(json.error || 'Request failed');
+      return json;
+    }
+    function showErr(el, msg){ el.textContent = msg; el.hidden = false; }
+    function clearErr(el){ el.hidden = true; el.textContent = ''; }
+
+    // When the user changes their own 2FA here, reload the admin Users tab
+    // iframe (if it's already loaded in this open modal) so its per-row
+    // Two-factor toggle reflects the new state — otherwise it stays stale
+    // until the modal is reopened. No-op for non-admins (no Users pane) or
+    // when the iframe hasn't been opened yet (it loads fresh on first open).
+    function refreshUsersTab(){
+      const f = document.querySelector('.settings-pane[data-pane="users"] iframe.settings-frame');
+      if (f && f.src && f.src !== 'about:blank' && f.dataset.src) f.src = f.dataset.src;
+    }
+
+    // Render the one-time recovery codes panel and hide whatever state
+    // the card was in.
+    function showRecovery(codes){
+      const list = $('.mfa-recovery-list');
+      list.innerHTML = '';
+      codes.forEach(c => { const li = document.createElement('li'); li.textContent = c; list.appendChild(li); });
+      $('.mfa-off').hidden = true;
+      $('.mfa-on').hidden = true;
+      $('.mfa-recovery').hidden = false;
+      card.dataset.recoveryCodes = codes.join('\n');
+    }
+    function flipToEnabled(){
+      const pill = $('.mfa-status-pill');
+      pill.textContent = 'Enabled'; pill.classList.remove('off', 'warn'); pill.classList.add('on');
+      card.dataset.mfaEnabled = '1';
+      card.dataset.mfaRequired = '1';
+      const note = $('.mfa-required-note'); if (note) note.hidden = true;
+      const offDisable = $('.mfa-off-disable'); if (offDisable) offDisable.hidden = true;
+    }
+
+    // — Begin enrolment: fetch QR + secret —
+    const beginBtn = $('.mfa-begin-btn');
+    if (beginBtn) beginBtn.addEventListener('click', async () => {
+      beginBtn.disabled = true;
+      try {
+        const r = await post(card.dataset.beginUrl);
+        $('.mfa-qr').src = r.qr;
+        $('.mfa-secret').textContent = r.secret;
+        $('.mfa-setup').hidden = false;
+        beginBtn.hidden = true;
+        $('.mfa-code-input').focus();
+      } catch (e) { toast(e.message, 'danger'); beginBtn.disabled = false; }
+    });
+
+    // — Confirm + enable —
+    const enableBtn = $('.mfa-enable-btn');
+    if (enableBtn) enableBtn.addEventListener('click', async () => {
+      const input = $('.mfa-code-input');
+      const err = $('.mfa-setup .mfa-error');
+      clearErr(err);
+      const code = (input.value || '').trim();
+      if (!/^\d{6}$/.test(code)) { showErr(err, 'Enter the 6-digit code.'); return; }
+      enableBtn.disabled = true;
+      try {
+        const r = await post(card.dataset.enableUrl, { code });
+        flipToEnabled();
+        showRecovery(r.recovery_codes);
+        refreshUsersTab();
+        toast('Two-factor authentication enabled', 'success');
+      } catch (e) { showErr(err, e.message); }
+      enableBtn.disabled = false;
+    });
+    const codeInput = $('.mfa-code-input');
+    if (codeInput) codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); enableBtn.click(); } });
+
+    // — Cancel enrolment —
+    const cancelBtn = $('.mfa-cancel-btn');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => {
+      $('.mfa-setup').hidden = true;
+      $('.mfa-code-input').value = '';
+      clearErr($('.mfa-setup .mfa-error'));
+      beginBtn.hidden = false; beginBtn.disabled = false;
+    });
+
+    // — Password-gated manage actions (disable / regenerate) —
+    const pwPanel = $('.mfa-pw-confirm');
+    // The action buttons live in two places: .mfa-manage-actions (enrolled
+    // state) and .mfa-off-actions (setup-pending state). Hide whichever are
+    // present while the re-auth gate is open.
+    function setActionsHidden(h){
+      ['.mfa-manage-actions', '.mfa-off-actions'].forEach(sel => {
+        const el = $(sel); if (el) el.hidden = h;
+      });
+    }
+    function openPw(action, promptText){
+      pwPanel.dataset.action = action;
+      $('.mfa-pw-prompt').textContent = promptText;
+      $('.mfa-pw-input').value = '';
+      clearErr($('.mfa-pw-confirm .mfa-error'));
+      pwPanel.hidden = false;
+      setActionsHidden(true);
+      $('.mfa-pw-input').focus();
+    }
+    function closePw(){
+      pwPanel.hidden = true;
+      setActionsHidden(false);
+    }
+    // Both the enrolled-state and setup-pending-state disable buttons.
+    card.querySelectorAll('.mfa-disable-btn').forEach(b =>
+      b.addEventListener('click', () => openPw('disable', 'Confirm your password to turn two-factor off:')));
+    const regenBtn = $('.mfa-regen-btn');
+    if (regenBtn) regenBtn.addEventListener('click', () => openPw('regen', 'Confirm your password to generate new recovery codes:'));
+    $('.mfa-pw-cancel').addEventListener('click', closePw);
+    $('.mfa-pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('.mfa-pw-go').click(); } });
+    $('.mfa-pw-go').addEventListener('click', async () => {
+      const err = $('.mfa-pw-confirm .mfa-error');
+      clearErr(err);
+      const password = $('.mfa-pw-input').value;
+      if (!password) { showErr(err, 'Enter your password.'); return; }
+      const action = pwPanel.dataset.action;
+      try {
+        if (action === 'disable') {
+          await post(card.dataset.disableUrl, { password });
+          const pill = $('.mfa-status-pill');
+          pill.textContent = 'Off'; pill.classList.remove('on', 'warn'); pill.classList.add('off');
+          card.dataset.mfaEnabled = '0';
+          card.dataset.mfaRequired = '0';
+          closePw();
+          $('.mfa-on').hidden = true;
+          $('.mfa-off').hidden = false;
+          // Drop the admin-required notice + its turn-off button now that
+          // 2FA is fully off for this account.
+          const note = $('.mfa-required-note'); if (note) note.hidden = true;
+          const offDisable = $('.mfa-off-disable'); if (offDisable) offDisable.hidden = true;
+          beginBtn.hidden = false; beginBtn.disabled = false;
+          $('.mfa-setup').hidden = true;
+          refreshUsersTab();
+          toast('Two-factor authentication disabled', 'success');
+        } else {
+          const r = await post(card.dataset.regenUrl, { password });
+          closePw();
+          showRecovery(r.recovery_codes);
+          toast('New recovery codes generated', 'success');
+        }
+      } catch (e) { showErr(err, e.message); }
+    });
+
+    // — Recovery panel: copy + done —
+    $('.mfa-recovery-copy').addEventListener('click', () => {
+      const text = card.dataset.recoveryCodes || '';
+      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
+        .then(() => toast('Recovery codes copied', 'success'))
+        .catch(() => toast('Copy failed — select the codes manually', 'danger'));
+    });
+    $('.mfa-recovery-done').addEventListener('click', () => {
+      $('.mfa-recovery').hidden = true;
+      delete card.dataset.recoveryCodes;
+      // Land on whichever state the card is now in.
+      if (card.dataset.mfaEnabled === '1') $('.mfa-on').hidden = false;
+      else { $('.mfa-off').hidden = false; beginBtn.hidden = false; beginBtn.disabled = false; }
+    });
+  })();
 </script>
 
 {# WordPress importer modal (shared). Iframe loads lazily — src is set
@@ -2297,6 +2608,45 @@
   </div>
 </div>
 
+{# Frontend rollback snapshots modal (shared). Opened from the Settings →
+   Data staging-sync card and the Web Frontend overview Status card. Lists
+   the auto-saved pre-sync bundles with download links + restore steps;
+   populated via AJAX on open so it stays current after a Pull/Push.
+   Rendered whenever staging sync is configured on this install. #}
+{% if fe_sync_peer and fe_sync_peer.token_enc %}
+<div class="modal" id="fe-sync-snapshots-modal" aria-hidden="true"
+     data-snapshots-url="{{ url_for('main.frontend_sync_snapshots') }}">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2>Frontend rollback snapshots</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted small">
+        Before every sync overwrites this site's frontend, a complete rollback
+        bundle — including recovery Stories — is saved automatically. The 10 most
+        recent are kept.
+      </p>
+      <div class="fe-snap-howto">
+        <div class="fe-snap-howto-head">How to restore one</div>
+        <ol class="fe-snap-howto-steps">
+          <li>Download the snapshot you want below (a <code>.zip</code> bundle).</li>
+          <li>Open <strong>Settings → Data → Frontend bundle → Import frontend</strong>.</li>
+          <li>Choose the downloaded <code>.zip</code> and click <strong>Import frontend bundle</strong>. It replaces the frontend (settings, navigation, layouts, fonts, icons, assets, and Pages) with the snapshot — users, meetings, and libraries are left untouched.</li>
+        </ol>
+      </div>
+      <ul class="fe-snap-list" data-fe-snap-list>
+        <li class="fe-snap-empty muted small">Loading…</li>
+      </ul>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close>Close</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% else %}
 {# embed mode: render only the page content, no chrome #}
 <main class="embed-content">
@@ -2331,9 +2681,18 @@
   const modal = document.getElementById('search-modal');
   const input = document.getElementById('search-input');
   const body  = document.getElementById('search-modal-body');
+  const clearBtn = document.getElementById('search-modal-clear');
+  const foot = document.getElementById('search-modal-foot');
+  const allLink = document.getElementById('search-modal-all');
   if (!modal || !input || !body) return;
 
   const SEARCH_URL = "{{ url_for('main.api_search') }}";
+  const FULL_URL   = "{{ url_for('main.search_page') }}";
+  // Persist the palette's last query for the tab's lifetime so the user can
+  // open a result, come back, and pick up where they left off. sessionStorage
+  // survives navigation + reload but is wiped when the window/tab closes —
+  // exactly the lifecycle asked for. The Clear button removes it explicitly.
+  const SS_KEY = 'tsp.search.q';
   const HINT_HTML = '<p class="muted search-modal-hint">Start typing to search across meetings, libraries, files, posts, and more.</p>';
   const MOBILE_QUERY = window.matchMedia('(max-width: 880px)');
 
@@ -2370,20 +2729,77 @@
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+    // Restore the last search when opening a fresh palette (e.g. after
+    // navigating to a result and coming back). If the input already holds
+    // text — a same-page reopen that we never cleared — leave it untouched.
+    if (!input.value) {
+      let saved = '';
+      try { saved = sessionStorage.getItem(SS_KEY) || ''; } catch (e) {}
+      if (saved) { input.value = saved; runSearch(saved); }
+    }
+    syncClearBtn();
     setTimeout(() => input.focus(), 30);
   }
 
+  // Closing the palette preserves its contents (query, results, scroll) so
+  // reopening is instant and stateful. State is only dropped by the Clear
+  // button or by the browser discarding sessionStorage on window close.
   function closeSearch(){
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
+  }
+
+  // Wipe everything — input, results, persisted query — and reset to hint.
+  function clearSearch(){
     input.value = '';
     body.innerHTML = HINT_HTML;
     lastQ = '';
+    try { sessionStorage.removeItem(SS_KEY); } catch (e) {}
+    hideFooter();
+    syncClearBtn();
+    input.focus();
   }
+
+  function syncClearBtn(){
+    if (clearBtn) clearBtn.hidden = !input.value;
+  }
+
+  // The "See all results" footer button is pinned to the bottom of the
+  // palette. Show it (pointed at the full results page for the current
+  // query) only when there are results to expand on; hide it otherwise.
+  function showFooter(q){
+    if (!foot || !allLink) return;
+    allLink.href = FULL_URL + '?q=' + encodeURIComponent(q || '');
+    foot.hidden = false;
+  }
+  function hideFooter(){ if (foot) foot.hidden = true; }
 
   modal.querySelectorAll('[data-close]').forEach(el =>
     el.addEventListener('click', closeSearch));
+
+  if (clearBtn) clearBtn.addEventListener('click', clearSearch);
+
+  // Settings-tab results open the Settings modal to a specific tab. Search
+  // results are inserted dynamically, so app.js's static [data-open-modal]
+  // binding doesn't reach them — replicate openModal here (the .settings-tab
+  // click handlers themselves are bound to static markup at init, so the
+  // tab switch works). Non-admins never receive admin-only tab results, and
+  // the matching tab button only exists in the DOM for admins anyway.
+  body.addEventListener('click', e => {
+    const link = e.target.closest('[data-settings-tab]');
+    if (!link) return;
+    e.preventDefault();
+    const tab = link.getAttribute('data-settings-tab');
+    closeSearch();
+    const sm = document.getElementById('settings-modal');
+    if (!sm) return;
+    sm.classList.add('open');
+    sm.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    const tabBtn = sm.querySelector('.settings-tab[data-tab="' + tab + '"]');
+    if (tabBtn) tabBtn.click();
+  });
 
   // Sidebar Search button (and any other) toggle the modal open.
   document.querySelectorAll('[data-open-search]').forEach(el =>
@@ -2407,6 +2823,7 @@
     if (!data || !data.sections || !data.sections.length) {
       body.innerHTML = '<p class="muted search-modal-empty">No matches for <b>'
         + escapeHtml(data && data.query || '') + '</b>.</p>';
+      hideFooter();
       return;
     }
     let html = '';
@@ -2418,7 +2835,13 @@
         + '</div>'
         + '<ul class="search-results">';
       section.items.forEach(item => {
-        html += '<li><a class="search-result" href="' + escapeHtml(item.url) + '" data-search-result>'
+        // Most results navigate to item.url. Settings-tab results have no
+        // URL — they open the Settings modal to the named tab instead
+        // (handled by the delegated click below).
+        const href = item.url ? escapeHtml(item.url) : '#';
+        const tabAttr = item.settings_tab
+          ? ' data-settings-tab="' + escapeHtml(item.settings_tab) + '"' : '';
+        html += '<li><a class="search-result" href="' + href + '" data-search-result' + tabAttr + '>'
           + '<span class="search-result-label">' + highlight(item.label || '', tokens) + '</span>'
           + (item.snippet
               ? '<span class="search-result-snippet muted smaller">' + highlight(item.snippet, tokens) + '</span>'
@@ -2428,6 +2851,10 @@
       html += '</ul></div>';
     });
     body.innerHTML = html;
+    // The footer button lives outside the scrolling body (pinned to the
+    // bottom of the palette) and points at the full results page — the
+    // palette caps each section at 8, so there may be more to see.
+    showFooter(data.query);
   }
 
   async function runSearch(q){
@@ -2435,12 +2862,15 @@
     lastQ = q;
     if (q.length < 2) {
       body.innerHTML = HINT_HTML;
+      hideFooter();
       return;
     }
+    try { sessionStorage.setItem(SS_KEY, q); } catch (e) {}
     if (inflight) inflight.abort();
     const ctl = new AbortController();
     inflight = ctl;
     body.innerHTML = '<p class="muted search-modal-hint">Searching…</p>';
+    hideFooter();
     try {
       const r = await fetch(SEARCH_URL + '?q=' + encodeURIComponent(q), {
         credentials: 'same-origin', signal: ctl.signal,
@@ -2453,6 +2883,7 @@
     } catch (err) {
       if (err.name === 'AbortError') return;
       body.innerHTML = '<p class="muted search-modal-empty">Couldn’t reach the search service.</p>';
+      hideFooter();
     } finally {
       if (inflight === ctl) inflight = null;
     }
@@ -2460,6 +2891,7 @@
 
   input.addEventListener('input', () => {
     clearTimeout(debounce);
+    syncClearBtn();
     const q = input.value.trim();
     debounce = setTimeout(() => runSearch(q), 150);
   });

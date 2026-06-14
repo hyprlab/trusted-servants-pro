@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Search{% if q %} · {{ q }}{% endif %} — Trusted Servants Pro{% endblock %}
+{% block heading %}Search{% endblock %}
+{% block heading_help %}Search across meetings, libraries, files, posts, locations and more — filter by type and sort the results.{% endblock %}
+{% block content %}
+<form class="search-page-form card" method="get" action="{{ url_for('main.search_page') }}" role="search">
+  <span class="search-page-form-icon" aria-hidden="true">{{ icon('search') }}</span>
+  <input type="search" name="q" value="{{ q }}" placeholder="Search everything…"
+         autocomplete="off" spellcheck="false" aria-label="Search" {% if not q %}autofocus{% endif %}>
+  {# Preserve sort across a fresh query; a new query resets the type filter to All. #}
+  <input type="hidden" name="sort" value="{{ sort }}">
+  {% if q %}<a class="btn btn-sm search-page-clear" href="{{ url_for('main.search_page') }}">Clear</a>{% endif %}
+  <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+{% if q and q|length >= 2 %}
+  {# Swappable region — filter/sort changes fetch only this partial and
+     replace it in place (see the script below), so the page never reloads. #}
+  <div id="search-ajax" class="search-ajax">
+    {% include "_search_results_region.html" %}
+  </div>
+{% else %}
+  <div class="card search-page-empty">
+    <span aria-hidden="true">{{ icon('search') }}</span>
+    <p class="muted">Type at least two characters to search across the portal.</p>
+  </div>
+{% endif %}
+
+<script>
+(function(){
+  const region = document.getElementById('search-ajax');
+  // Keep the search form's hidden sort field in sync so a fresh query
+  // submit (full navigation) carries the user's current sort choice.
+  const sortHidden = document.querySelector('.search-page-form input[name="sort"]');
+  if (!region) return;
+
+  let inflight = null;
+
+  // Filter chips and the sort <select> open the shared Settings modal? No —
+  // those are settings-tab *results*. Bind every interactive control inside
+  // the region; called again after each swap since innerHTML replaces nodes.
+  function bind(){
+    region.querySelectorAll('.search-page-filters a.chip').forEach(function(a){
+      a.addEventListener('click', function(e){ e.preventDefault(); navigate(a.href); });
+    });
+    const sel = region.querySelector('select[data-search-sort]');
+    if (sel) sel.addEventListener('change', function(){ navigate(sel.value); });
+    // Settings-tab results carry no URL — open the shared Settings modal
+    // (present on every page via base.html) to the named tab, mirroring the
+    // palette's delegated handler.
+    region.querySelectorAll('[data-settings-tab]').forEach(function(a){
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        var sm = document.getElementById('settings-modal');
+        if (!sm) return;
+        sm.classList.add('open');
+        sm.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        var btn = sm.querySelector('.settings-tab[data-tab="' + a.getAttribute('data-settings-tab') + '"]');
+        if (btn) btn.click();
+      });
+    });
+  }
+
+  async function load(url, push){
+    if (inflight) inflight.abort();
+    const ctl = new AbortController();
+    inflight = ctl;
+    region.classList.add('is-loading');
+    try {
+      const r = await fetch(url, {
+        credentials: 'same-origin', signal: ctl.signal,
+        headers: { 'X-Requested-With': 'fetch' },
+      });
+      if (!r.ok) throw new Error('search failed: ' + r.status);
+      region.innerHTML = await r.text();
+      if (push) history.pushState({ searchAjax: true }, '', url);
+      try {
+        if (sortHidden) sortHidden.value =
+          new URL(url, location.origin).searchParams.get('sort') || 'relevance';
+      } catch (e) {}
+      bind();
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      window.location.href = url;   // fall back to a real navigation
+    } finally {
+      region.classList.remove('is-loading');
+      if (inflight === ctl) inflight = null;
+    }
+  }
+
+  function navigate(url){ load(url, true); }
+
+  // Back/forward between filter/sort states stays on this document — re-fetch
+  // and swap rather than letting the stale DOM stand.
+  window.addEventListener('popstate', function(){ load(window.location.href, false); });
+
+  bind();
+})();
+</script>
+{% endblock %}

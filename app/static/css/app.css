@@ -858,12 +858,12 @@ html[data-theme="dark"] .perm-badge-viewer { background: rgba(100, 116, 139, 0.2
 
 
 /* ===== 404 page (admin) =====
-   The card itself stays a centered ~720px column. The outer .content
-   wrapper is widened to the full viewport width via the :has() rule
-   below so the card auto-centers between the sidebar and the right
-   edge of the screen rather than the narrow normal content column. */
+   The card itself stays a centered ~720px column. The .page body is
+   widened to the full content width via the :has() rule below so the
+   card auto-centers between the sidebar and the right edge of the
+   screen rather than the narrow normal content column. */
 .admin-404 { text-align: center; padding: 3rem 2rem; max-width: 720px; margin: 2rem auto; }
-.content:has(.admin-404) { max-width: none; }
+.page:has(.admin-404) { max-width: none; }
 .admin-404-art { max-width: 320px; margin: 0 auto 1rem; }
 .admin-404-title {
   font-family: var(--fe-font-heading, inherit);
@@ -910,6 +910,8 @@ html[data-theme="dark"] .perm-badge-viewer { background: rgba(100, 116, 139, 0.2
 .post-chip-event        { background: rgba(11, 92, 255, 0.12);  color: #1d4ed8; border-color: rgba(11, 92, 255, 0.32); }
 .post-chip-online       { background: rgba(20, 184, 166, 0.12); color: #0f766e; border-color: rgba(20, 184, 166, 0.32); }
 .post-chip-draft        { background: rgba(100, 116, 139, 0.14); color: #475569; border-color: rgba(100, 116, 139, 0.34); }
+.post-chip-scheduled    { background: rgba(13, 148, 136, 0.14); color: #0f766e; border-color: rgba(13, 148, 136, 0.4); }
+html[data-theme="dark"] .post-chip-scheduled { background: rgba(20, 184, 166, 0.22); color: #5eead4; border-color: rgba(20, 184, 166, 0.5); }
 .post-chip-warning      { background: rgba(245, 158, 11, 0.18);  color: #b45309; border-color: rgba(245, 158, 11, 0.5); }
 .post-chip-private      { background: rgba(168, 85, 247, 0.14); color: #6b21a8; border-color: rgba(168, 85, 247, 0.36); }
 .post-chip-pending-draft { background: rgba(245, 158, 11, 0.14); color: #92400e; border-color: rgba(245, 158, 11, 0.4); display: inline-flex; align-items: center; gap: 4px; }
@@ -970,6 +972,21 @@ html[data-theme="dark"] .post-chip-private      { background: rgba(168, 85, 247,
 /* Reusable two-column row for short fields (start/end, phone/email, etc.) */
 .post-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 720px) { .post-form .form-row { grid-template-columns: 1fr; } }
+
+/* Mobile: nothing in the editor may force horizontal page scroll. Grid and
+   flex children default to min-width:auto, so a long unbreakable value (a
+   pasted URL, the slug prefix, a wide field) can widen a column past the
+   viewport and spawn a horizontal scrollbar. Pin min-width:0, keep every
+   field fluid, and clip as a final guarantee (the body is a plain textarea,
+   so there's no toolbar to hide). */
+.post-form { max-width: 100%; overflow-x: clip; }
+.post-form .form-row,
+.post-form .form-row > * { min-width: 0; }
+.post-form label { min-width: 0; }
+.post-form input,
+.post-form select,
+.post-form textarea { max-width: 100%; box-sizing: border-box; }
+.post-form textarea { resize: vertical; }
 
 .post-form .post-subhead {
   margin: 1.5rem 0 0.5rem; font-size: 0.85rem; font-weight: 700;
@@ -1444,7 +1461,10 @@ html[data-theme="dark"] .post-chip-private      { background: rgba(168, 85, 247,
 .post-gallery-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  /* Bottom-align so "Choose from File Browser" lines up with the
+     file input at the foot of the upload-label column rather than
+     floating to the column's vertical center. */
+  align-items: flex-end;
   gap: .75rem;
 }
 .post-gallery-upload-label {
@@ -1551,23 +1571,22 @@ html[data-theme="dark"] .post-chip-private      { background: rgba(168, 85, 247,
   .schedule-change-form-row { grid-template-columns: 1fr; }
 }
 
-/* Announcement auto-archive toggle + datetime picker on the
-   announcement / event edit page. Hidden entirely until the
-   Announcement type is selected; the inner datetime input is
-   hidden until the toggle inside is flipped on. Visual treatment
-   mirrors .public-alert-expiry on the meeting modal so the two
-   "auto-clear after a date" controls read as siblings. */
-.post-announcement-expiry { margin-top: 1rem; }
-.post-announcement-expiry-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: .55rem;
-  margin: .25rem 0 .5rem;
+/* Announcement auto-archive panel on the announcement / event edit
+   page. Hidden entirely until the Announcement type is selected.
+   One bordered panel holds the toggle row (info left, switch right —
+   same shape as the Online-event row) and, when the toggle is on,
+   the datetime field reveals below a divider inside the same panel
+   so the control reads as a single cohesive setting. */
+.post-announcement-expiry {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
 }
 .post-announcement-expiry-field {
-  padding: .55rem .75rem;
-  border-left: 3px solid var(--border);
-  margin-left: .35rem;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 .post-announcement-expiry-input {
   display: flex;
@@ -1581,14 +1600,91 @@ html[data-theme="dark"] .post-chip-private      { background: rgba(168, 85, 247,
   line-height: 1.4;
 }
 
-/* Headline card on the announcement / event edit page — adds 1rem
-   of vertical breathing room between each grouping (card-head,
-   type pills, title, public URL, GSR summary, body, posted-on,
-   auto-archive). Uses adjacent-sibling so the first element keeps
-   the card's own top padding without doubling. */
-.post-edit-headline-card > * + * {
+/* Uniform vertical rhythm inside every card on the announcement /
+   event edit page — 1rem between each grouping (card-head, pills,
+   labels, sub-blocks). Adjacent-sibling so the first element keeps
+   the card's own top padding without doubling. Sub-section headers
+   (.post-subhead) get a little extra air above so the card visually
+   splits into its sub-groups. */
+.post-form > .card > * + * {
   margin-top: 1rem;
 }
+.post-form > .card > .post-subhead,
+.post-form > .card > .post-zoom-block {
+  margin-top: 1.5rem;
+}
+
+/* The whole post editor reads in the body face (Inter) — no
+   monospace anywhere on this page. Overrides the global
+   `.form textarea` and slug-input / slug-history monospace rules. */
+.form.post-form textarea { font-family: inherit; }
+.post-form .slug-input-prefix,
+.post-form .slug-input-row > .slug-input-field,
+.post-form .slug-history-old,
+.post-form .slug-history-new,
+.post-form code { font-family: inherit; }
+
+/* Shared setting-toggle row on the post editor — info (title +
+   description) on the left, switch on the right. The --panel variant
+   carries its own border/tint (Online event); the bare variant sits
+   inside an already-tinted panel (auto-archive). */
+.post-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem;
+}
+.post-toggle-row--panel {
+  padding: 12px 16px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--panel-2);
+}
+.post-toggle-info { min-width: 0; flex: 1; }
+.post-toggle-title { font-weight: 600; }
+.post-toggle-info p { margin: 2px 0 0; }
+
+/* "Remove current image" — a real checkbox dressed as a pill chip
+   under the featured-image thumbnail. Neutral outline at rest;
+   fills in red once armed so "this will delete on save" is obvious. */
+.post-featured-clear {
+  display: inline-flex; cursor: pointer; margin-top: 8px;
+  /* don't stretch to the preview column's full width */
+  align-self: flex-start; justify-self: start;
+}
+.post-featured-clear input {
+  position: absolute; opacity: 0; width: 1px; height: 1px;
+  pointer-events: none;
+}
+.post-featured-clear span {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--panel); color: var(--muted);
+  font-size: 0.8125rem; font-weight: 600; line-height: 1.2;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+.post-featured-clear span .icon { width: 13px; height: 13px; }
+.post-featured-clear:hover span { border-color: #ef4444; color: #ef4444; }
+.post-featured-clear input:checked + span {
+  border-color: #ef4444; background: rgba(239, 68, 68, 0.12); color: #b91c1c;
+}
+.post-featured-clear input:focus-visible + span {
+  outline: none; box-shadow: 0 0 0 3px var(--brand-soft);
+}
+html[data-theme="dark"] .post-featured-clear input:checked + span {
+  color: #fca5a5;
+}
+/* Live "armed for removal" state — JS adds .is-cleared to the
+   preview <img> when the Remove checkbox is checked so the thumbnail
+   disappears before the save round-trip. */
+.og-image-preview img.is-cleared { display: none; }
+
+/* Tighter page rhythm — the global .form gap (2rem) plus each card's
+   own 16px bottom margin left oversized gaps between the editor's
+   cards. Collapse to a single 1.25rem gap. */
+.form.post-form { gap: 1.25rem; }
+.post-form > .card { margin-bottom: 0; }
+
+/* Datetime fields don't need to span the card — cap them so the
+   Today button hugs the input instead of drifting to the far edge. */
+.post-form .dt-field > input[type="datetime-local"] { max-width: 320px; }
 
 /* Multi-row Links editor on the announcement/event edit page.
    Each row is a card-ish stack: URL + label inputs side-by-side on
@@ -2540,10 +2636,38 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
 [data-theme="neobrutal-dark"] .theme-icon-light,
 [data-theme="cyberpunk"] .theme-icon-light { display: inline; }
 
-.content { padding: 22px 28px 48px; min-width: 0; max-width: 1400px; }
-.content:has(.fe-admin-layout) { max-width: none; }
+.content {
+  --content-px: 28px; --content-pt: 22px;
+  padding: var(--content-pt) var(--content-px) 48px;
+  min-width: 0;
+}
+/* The readable-width cap lives on the inner .page body, NOT on .content
+   itself. That way .content (and the sticky .topbar that bleeds to its
+   padding edges) spans the full grid column out to the right edge of
+   the viewport, while the page content stays capped + left-aligned.
+   The calc keeps the body's usable width identical to the old
+   max-width:1400px-on-.content (which included the 2× side padding). */
+.page { max-width: calc(1400px - 2 * var(--content-px)); }
+/* Full-bleed page bodies (frontend admin builder) opt out of the cap. */
+.page:has(.fe-admin-layout) { max-width: none; }
+/* Sticky page header — pinned to the top of the main content column on
+   every backend page. Negative margins cancel the .content padding so
+   the bar bleeds edge-to-edge (its own padding restores inner
+   alignment); var(--panel) matches the sidebar and var(--border) keeps
+   it theme-aware, so it's dark/night-mode compatible out of the box.
+   z-index 20 sits above page content but below the mobile sidebar
+   overlay (30) and modals/toasts (1000). */
 .topbar {
-  display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 14px;
+  /* Bottom margin matches the container's left/right padding
+     (--content-px) so the gap below the bar reads congruent with the
+     side gutters. */
+  margin: calc(var(--content-pt) * -1) calc(var(--content-px) * -1) var(--content-px);
+  padding: 14px var(--content-px);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.35);
 }
 .topbar h1 { font-size: 1.375rem; font-weight: 700; flex: 1; display: flex; align-items: center; gap: 8px; }
 .heading-help { position: relative; display: inline-flex; font-size: 0.875rem; font-weight: 400; }
@@ -2575,6 +2699,12 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
   display: flex; flex-direction: column; gap: 8px;
   margin: 0; pointer-events: none; max-width: calc(100vw - 32px);
 }
+/* In the chromed admin layout, drop the flash/toast stack below the
+   sticky topbar so transient messages never cover its action buttons.
+   --topbar-h is measured from the live topbar in base.html (handles the
+   bar wrapping taller on mobile); the fallback covers first paint before
+   the observer runs. Embed mode has no topbar, so it keeps top: 16px. */
+body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
 .flash {
   pointer-events: auto;
   box-shadow: 0 6px 24px rgba(0,0,0,0.18);
@@ -3412,6 +3542,35 @@ button.chip { font-family: inherit; }
 }
 .tbl td.users-actions form { display: inline-flex; margin: 0; }
 
+/* Users list: filter + bulk toolbar, sortable headers, checkbox column. */
+.users-toolbar {
+  display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  margin: 0 0 .85rem;
+}
+.users-filter {
+  flex: 1 1 280px; min-width: 0;
+  padding: 7px 11px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--panel); color: var(--text); font-size: .92rem;
+}
+.users-filter:focus { border-color: var(--brand); outline: none; }
+.users-bulkbar {
+  display: flex; align-items: center; gap: .5rem; flex: 0 0 auto;
+  padding: .35rem .5rem; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--brand-soft);
+}
+.users-bulkbar-count { font-size: .85rem; font-weight: 600; }
+.users-count { margin-left: .4rem; }
+
+.users-th-check, .users-td-check { width: 1%; white-space: nowrap; text-align: center; }
+.users-check-wrap { display: inline-flex; align-items: center; cursor: pointer; margin: 0; }
+.users-check-wrap input { width: 16px; height: 16px; cursor: pointer; }
+
+.users-th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+.users-th-sort:hover { color: var(--brand); }
+.users-th-sort::after { content: "\2195"; opacity: .3; margin-left: .35rem; font-size: .85em; }
+.users-th-sort.sort-asc::after  { content: "\2191"; opacity: .9; }
+.users-th-sort.sort-desc::after { content: "\2193"; opacity: .9; }
+
 .reading-body {
   white-space: pre-wrap; font-family: Georgia, "Times New Roman", serif;
   font-size: 1rem; line-height: 1.7; margin: 0; background: transparent; color: var(--text);
@@ -3794,6 +3953,8 @@ button.chip { font-family: inherit; }
   max-height: 80vh;
   overflow: hidden;
   padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 .search-modal-head {
   display: flex; align-items: center; gap: 12px;
@@ -3817,7 +3978,8 @@ button.chip { font-family: inherit; }
 }
 .search-modal-body {
   padding: 8px 8px 14px;
-  overflow-y: auto; max-height: calc(80vh - 64px);
+  overflow-y: auto;
+  flex: 1 1 auto; min-height: 0;
 }
 .search-modal-hint, .search-modal-empty {
   margin: 24px 14px; text-align: center; line-height: 1.5;
@@ -3847,6 +4009,121 @@ button.chip { font-family: inherit; }
   background: color-mix(in srgb, var(--brand) 25%, transparent);
   color: inherit; padding: 0 1px; border-radius: 3px;
 }
+
+/* Palette "Clear" button — appears only when the input holds text. */
+.search-modal-clear {
+  flex: 0 0 auto; cursor: pointer;
+  font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 9px;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.search-modal-clear:hover { color: var(--brand); border-color: var(--brand); }
+
+/* Palette footer — a full-width button pinned to the bottom of the
+   palette (outside the scrolling body) that opens the full results page. */
+.search-modal-foot {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+.search-modal-all {
+  width: 100%;
+  font-size: 0.875rem;
+}
+.search-modal-all .icon { width: 16px; height: 16px; }
+
+/* ================================================================
+   Full search results page (templates/search_results.html). Reuses
+   the palette's grouped layout but full-width, with a real search
+   box, type-filter chips, and a sort control.
+   ================================================================ */
+.search-page-form {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin-bottom: 16px;
+}
+.search-page-form-icon { color: var(--muted); display: inline-flex; flex: 0 0 auto; }
+.search-page-form-icon .icon { width: 20px; height: 20px; }
+.search-page-form input[type="search"] {
+  flex: 1; min-width: 0;
+  padding: 8px 0; border: none; outline: none;
+  background: transparent; color: var(--text);
+  font-size: 1.0625rem; font-weight: 500;
+}
+.search-page-form input::placeholder { color: var(--muted); }
+.search-page-clear { flex: 0 0 auto; }
+
+/* AJAX results region — dim + lock while a filter/sort swap is in flight. */
+.search-ajax { transition: opacity 120ms ease; }
+.search-ajax.is-loading { opacity: 0.5; pointer-events: none; }
+
+.search-page-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.search-page-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.search-page-filters .chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  text-decoration: none; padding: 6px 12px; font-size: 0.8125rem;
+}
+.search-page-filters .chip.active,
+.search-page-filters .chip.active:hover {
+  background: var(--brand); border-color: var(--brand); color: var(--bg);
+}
+.search-page-count {
+  font-size: 0.6875rem; font-weight: 700;
+  background: var(--panel-2); color: var(--muted);
+  border-radius: 999px; padding: 1px 7px; min-width: 18px; text-align: center;
+}
+.search-page-filters .chip.active .search-page-count {
+  background: color-mix(in srgb, var(--bg) 25%, transparent); color: var(--bg);
+}
+
+.search-page-section { padding: 6px 8px 8px; margin-bottom: 16px; }
+.search-page-section-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px 10px; flex-wrap: wrap;
+}
+.search-page-section-icon { color: var(--brand); display: inline-flex; }
+.search-page-section-icon .icon { width: 18px; height: 18px; }
+.search-page-section-head h2 {
+  font-size: 0.9375rem; font-weight: 700; margin: 0;
+  letter-spacing: .02em;
+}
+.search-page-capped { margin-left: auto; }
+
+.search-page-results { list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 2px; }
+.search-page-result {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px; border-radius: 10px;
+  text-decoration: none; color: var(--text);
+  transition: background 120ms ease;
+}
+.search-page-result:hover,
+.search-page-result:focus { background: var(--panel-2); outline: none; }
+.search-page-result:focus { box-shadow: 0 0 0 2px var(--brand-soft); }
+.search-page-result-icon { color: var(--muted); display: inline-flex; flex: 0 0 auto; }
+.search-page-result-icon .icon { width: 18px; height: 18px; }
+.search-page-result-text {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;
+}
+.search-page-result-label { font-weight: 600; font-size: 0.9375rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-page-result-snippet { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-page-result-go { color: var(--muted); display: inline-flex; flex: 0 0 auto;
+  opacity: 0; transition: opacity 120ms ease; }
+.search-page-result-go .icon { width: 16px; height: 16px; }
+.search-page-result:hover .search-page-result-go,
+.search-page-result:focus .search-page-result-go { opacity: 1; }
+
+.search-page-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  text-align: center; padding: 48px 24px;
+}
+.search-page-empty .icon { width: 32px; height: 32px; color: var(--muted); }
+.search-page-empty p { margin: 0; }
 
 /* Web Frontend quick-jump cluster — two pinned buttons above the
    search bar (admin / view-site) so admins can hop into the public
@@ -4014,6 +4291,31 @@ button.chip { font-family: inherit; }
 .sidebar-notif-label { flex: 1; text-align: left; }
 .sidebar-notif-chip { flex: 0 0 auto; margin-left: 0; }
 .sidebar-notif-chip[hidden] { display: none; }
+
+/* Dashboard button — same pill treatment as the Notifications / Watchtower
+   buttons, pinned at the top of the sidebar in place of a nav link. */
+.sidebar-dash-btn {
+  display: flex; align-items: center; gap: 8px;
+  margin: 10px 12px 0; padding: 9px 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--panel-2); color: var(--muted);
+  text-decoration: none; cursor: pointer;
+  font-size: 0.875rem; font-weight: 500;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.sidebar-dash-btn:hover {
+  background: var(--panel); color: var(--text);
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--border));
+  text-decoration: none;
+}
+.sidebar-dash-btn.is-active {
+  background: color-mix(in srgb, var(--brand) 12%, var(--panel-2));
+  border-color: color-mix(in srgb, var(--brand) 50%, var(--border));
+  color: var(--text);
+}
+.sidebar-dash-icon { display: inline-flex; flex: 0 0 auto; }
+.sidebar-dash-icon .icon { width: 16px; height: 16px; display: block; }
+.sidebar-dash-label { flex: 1; text-align: left; }
 
 /* Modal */
 .modal-panel-notifications { width: min(480px, 100%); }
@@ -5253,6 +5555,11 @@ body.embed .card.data-card:last-child {
 
 /* "/meetings/" static prefix sitting flush against the slug input —
    visually communicates that only the trailing slug is editable. */
+/* Event datetime field + inline "Today" button. */
+.dt-field { display: flex; align-items: center; gap: .4rem; }
+.dt-field > input[type="datetime-local"] { flex: 1 1 auto; min-width: 0; }
+.dt-field > .dt-today { flex: 0 0 auto; white-space: nowrap; }
+
 .slug-input-row {
   display: flex; align-items: stretch; width: 100%;
   border: 1px solid var(--border); border-radius: 6px;
@@ -6742,6 +7049,9 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
     letter-spacing: 0.04em; margin-bottom: 2px; }
   .users-tbl td select,
   .users-tbl td input { width: 100%; box-sizing: border-box; }
+  /* Keep the row checkbox a checkbox (not a full-width bar) in card mode. */
+  .users-tbl td.users-td-check { padding: 2px 0 6px; }
+  .users-tbl td.users-td-check input { width: 16px; height: 16px; }
   .users-tbl td.users-actions { padding-top: 10px; }
   .users-tbl td.users-actions .users-actions-row { display: flex; gap: 8px; }
   .users-tbl td.users-actions .users-actions-row > .btn,
@@ -6760,19 +7070,38 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .media-tbl td.row-actions > .btn,
   .media-tbl td.row-actions > form { flex: 1 1 0; min-width: 0; }
   .media-tbl td.row-actions > form > .btn { width: 100%; }
-  .content { padding: 14px 14px 32px; }
+  .content { --content-px: 14px; --content-pt: 14px; padding: var(--content-pt) var(--content-px) 32px; }
   .card { padding: 16px; }
   .stat { padding: 16px; }
-  .topbar { flex-wrap: wrap; gap: 10px; }
+  /* Bar stays pinned; the heading takes the first line and the actions
+     drop to a second line that is a single, horizontally swipeable
+     strip. Buttons keep their natural width and overflow sideways
+     (swipe left/right) instead of wrapping to multiple rows. */
+  .topbar { flex-wrap: wrap; gap: 10px; padding-top: 12px; padding-bottom: 12px; }
   .topbar h1 { flex: 1 1 auto; min-width: 0; font-size: 1.125rem; }
-  .top-actions { flex: 0 0 100%; order: 2; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+  .top-actions {
+    flex: 0 0 100%; order: 2;
+    flex-wrap: nowrap;
+    overflow-x: auto; overflow-y: hidden;
+    gap: 8px; justify-content: flex-start;
+    /* horizontal pan, momentum scroll, and a hidden scrollbar gutter
+       so the bar reads clean — same treatment as the sidebar nav */
+    touch-action: pan-x; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; -ms-overflow-style: none;
+  }
+  .top-actions::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* every action (button or inline <form>) keeps its intrinsic width
+     and never shrinks, so the row stays a swipe strip */
+  .top-actions > * { flex: 0 0 auto; }
   .top-actions > .btn,
-  .top-actions > .btn-primary { flex: 1 1 auto; min-width: 140px; justify-content: center; }
-  .view-controls { width: 100%; margin-right: 0; flex-wrap: wrap; gap: 8px; }
-  .view-controls > .view-toggle { flex: 1 1 auto; min-width: 0; }
-  .view-toggle .btn { flex: 1 1 0; min-width: 0; padding: 7px 10px; text-align: center; }
-  .sort-select { flex: 1 1 140px; min-width: 0; }
-  .sort-select select { flex: 1; min-width: 0; }
+  .top-actions > .btn-primary { min-width: 0; white-space: nowrap; justify-content: center; }
+  /* view-controls (toggles + sort) ride inside the same strip as one
+     non-wrapping inline group */
+  .view-controls { width: auto; flex: 0 0 auto; margin-right: 0; flex-wrap: nowrap; gap: 8px; }
+  .view-controls > .view-toggle { flex: 0 0 auto; min-width: 0; }
+  .view-toggle .btn { flex: 0 0 auto; min-width: 0; padding: 7px 10px; text-align: center; white-space: nowrap; }
+  .sort-select { flex: 0 0 auto; min-width: 0; }
+  .sort-select select { flex: 0 0 auto; min-width: 0; }
   .sort-dir { flex: 0 0 auto; }
   .heading-help { display: none; }
   .media-search { flex-wrap: wrap; }
@@ -13635,7 +13964,37 @@ body.embed .backups-wrap {
 .dash-sync-msg.is-err { color: #991b1b; }
 [data-theme="dark"] .dash-sync-msg.is-ok  { color: #bbf7d0; }
 [data-theme="dark"] .dash-sync-msg.is-err { color: #fecaca; }
+.dash-sync-foot { margin-top: .15rem; }
+/* Rollback-snapshots button row in the Settings staging-sync card. */
+.fe-sync-snap-row { margin: .1rem 0 1rem; }
 @media (max-width: 480px) { .dash-sync-actions { grid-template-columns: 1fr; } }
+
+/* Rollback snapshots modal — restore how-to + downloadable bundle list. */
+.fe-snap-howto {
+  margin: .9rem 0;
+  padding: .85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2, var(--panel));
+}
+.fe-snap-howto-head { font-weight: 600; margin-bottom: .35rem; }
+.fe-snap-howto-steps { margin: 0; padding-left: 1.2rem; }
+.fe-snap-howto-steps li { margin: .3rem 0; line-height: 1.45; }
+.fe-snap-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
+.fe-snap-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .6rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.fe-snap-info { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.fe-snap-date { font-weight: 600; font-variant-numeric: tabular-nums; }
+.fe-snap-meta { color: var(--muted, var(--text)); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fe-snap-row .btn { flex: 0 0 auto; }
+.fe-snap-empty { padding: .5rem 0; }
 
 /* Backend-kind chip — colour-coded icon + name so each configured target
    makes its backend (TS Pro Backup / SFTP / FTP / Dropbox) obvious at a
@@ -15311,3 +15670,114 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 .fe-theme-mode-opt input { margin-top: 4px; flex: 0 0 auto; }
 .fe-theme-mode-opt strong { display: block; margin-bottom: 2px; }
 .fe-theme-mode-opt .muted { display: block; }
+
+/* ===== Settings → Security: Two-Factor Authentication card ===== */
+/* Status pill in the card head — green when active, neutral when off. */
+.mfa-status-pill { margin-left: auto; font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 10px;
+  border-radius: 999px; border: 1px solid var(--border); color: var(--muted);
+  background: var(--panel); }
+.mfa-status-pill.on { color: #14532d; background: #e7f8ee; border-color: #b5e5cd; }
+[data-theme="dark"] .mfa-status-pill.on { color: #b7f5cf; background: #15341f; border-color: #1c5a35; }
+
+/* Enrolment: QR on the left, numbered steps on the right. Wraps to a
+   single stacked column on narrow viewports. */
+.mfa-setup { margin-top: 16px; }
+.mfa-setup-grid { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+.mfa-setup-steps { flex: 1 1 260px; min-width: 240px; }
+.mfa-step { display: flex; gap: 9px; align-items: flex-start; line-height: 1.5; margin: 0; }
+.mfa-step + .mfa-step { margin-top: 16px; }
+.mfa-step-n { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent, #1883d5); color: #fff; font-size: 0.78rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+.mfa-manual-lead { margin: 4px 0 6px 31px; }
+
+/* QR + manual key */
+.mfa-qr-wrap { flex: 0 0 auto; padding: 10px;
+  background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+.mfa-qr { display: block; width: 180px; height: 180px; image-rendering: pixelated; }
+.mfa-secret { display: inline-block; margin-left: 31px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.95rem; letter-spacing: 0.12em; word-break: break-all;
+  padding: 7px 12px; background: var(--panel-2, rgba(127,127,127,0.08));
+  border: 1px solid var(--border); border-radius: 8px; user-select: all; }
+
+/* Confirm rows (enable + password gate) */
+.mfa-confirm-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  margin-top: 10px; }
+.mfa-code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.15rem; letter-spacing: 0.3em; width: 7.5em; text-align: center; }
+.mfa-error { color: var(--danger); font-size: 0.85rem; margin: 8px 0 0; }
+.mfa-setup-steps .mfa-confirm-row,
+.mfa-setup-steps > .mfa-error { margin-left: 31px; }
+
+/* Enabled-state lead + manage actions */
+.mfa-on-lead { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0 14px;
+  color: var(--text); }
+.mfa-on-lead svg { flex: 0 0 auto; color: #16a34a; margin-top: 2px; }
+.mfa-manage-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* Re-auth gate */
+.mfa-pw-confirm { margin-top: 14px; padding: 14px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--panel-2, rgba(127,127,127,0.05)); }
+.mfa-pw-confirm .mfa-pw-label { display: block; }
+.mfa-pw-input { width: 100%; max-width: 320px; }
+
+/* One-time recovery codes panel */
+.mfa-recovery { margin-top: 16px; padding: 16px; border: 1px solid #fde4b3;
+  background: #fff6e1; border-radius: 10px; }
+[data-theme="dark"] .mfa-recovery { background: #2e2410; border-color: #5a4514; }
+.mfa-recovery-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.mfa-recovery-list { list-style: none; margin: 12px 0; padding: 0;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95rem;
+  letter-spacing: 0.06em; }
+.mfa-recovery-list li { padding: 4px 8px; background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(0,0,0,0.06); border-radius: 6px; text-align: center; user-select: all; }
+[data-theme="dark"] .mfa-recovery-list li { background: rgba(0,0,0,0.25); border-color: rgba(255,255,255,0.08); }
+.mfa-recovery-actions { display: flex; gap: 10px; }
+
+/* ===== MFA challenge page (login-split reuse) ===== */
+.mfa-form-title { font-size: 1.4rem; font-weight: 700; margin: 0 0 4px; }
+.mfa-form-lead { margin: 0 0 18px; }
+.mfa-form .mfa-form-recovery { margin-top: 12px; }
+.mfa-form-back { margin-top: 16px; }
+.mfa-form input[name="code"] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.2rem; letter-spacing: 0.25em; text-align: center; }
+
+/* ===== 2FA additions: required-pending state, Users toggle, wizard ===== */
+/* Bulletproof: the card's elements set display:flex/inline-flex (the note,
+   .btn buttons, the action rows), which would otherwise beat the UA
+   [hidden]{display:none} rule. Without this, toggling `.hidden` in JS — e.g.
+   hiding the yellow notice + "Turn off two-factor" button after a user turns
+   2FA off — has no visible effect. */
+.mfa-card [hidden] { display: none !important; }
+.mfa-status-pill.warn { color: #7c4a03; background: #fff6e1; border-color: #fde4b3; }
+[data-theme="dark"] .mfa-status-pill.warn { color: #f5d9a8; background: #2e2410; border-color: #5a4514; }
+
+/* "Your admin turned on 2FA" notice in the setup-pending state */
+.mfa-required-note { display: flex; align-items: flex-start; gap: 9px; margin: 0 0 14px;
+  padding: 11px 13px; border: 1px solid #fde4b3; background: #fff6e1; color: #7c4a03;
+  border-radius: 9px; font-size: 0.9rem; line-height: 1.45; }
+[data-theme="dark"] .mfa-required-note { background: #2e2410; border-color: #5a4514; color: #f5d9a8; }
+.mfa-required-note svg { flex: 0 0 auto; margin-top: 1px; }
+.mfa-off-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* Users tab: stack the Self-reset + Two-factor toggles in the cell */
+.users-mfa-toggle { margin-top: 8px; }
+.users-mfa-enrolled { color: #16a34a; font-weight: 700; }
+.users-mfa-pending { filter: grayscale(0.2); }
+
+/* Login-time setup wizard (reuses the login split) */
+.mfa-wizard-qr-wrap { display: inline-block; margin: 12px 0; padding: 10px;
+  background: #fff; border: 1px solid var(--border); border-radius: 10px; }
+.mfa-wizard-qr-wrap .mfa-qr { display: block; width: 168px; height: 168px; image-rendering: pixelated; }
+.mfa-wizard-secret { display: inline-block; margin: 0 0 16px; }
+.mfa-wizard-recovery { margin: 16px 0 20px; }
+/* 1rem between the authentication-code field and the Verify button (and the
+   inline error, when present). The inner form is its own element, so it
+   doesn't inherit .login-form's flex gap. */
+.mfa-wizard-form { display: flex; flex-direction: column; gap: 1rem; }
+.mfa-wizard-skip { margin-top: 16px; display: flex; flex-direction: column; gap: 2px; }
+.mfa-skip-btn { background: none; border: 0; padding: 0; color: var(--accent, #1883d5);
+  font: inherit; font-weight: 600; cursor: pointer; text-align: left; width: max-content; }
+.mfa-skip-btn:hover { text-decoration: underline; }
