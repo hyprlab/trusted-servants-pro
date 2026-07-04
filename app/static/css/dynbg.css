@@ -368,7 +368,7 @@ body.fe-frontend-force-dark .fe-dynbg-diagonal-lines,
   /* Above content (host promotes content to z-index: 1) but well
      below modals (z-index: 100+). The texture rides on top of the
      hero / cards / typography to give the whole surface a tactile
-     finish, the way the viibeware project's body::before does
+     finish, the way the Hyprlab project's body::before does
      site-wide. The `--bg-only` modifier below opts out of this
      placement and tucks the overlay between the base dynbg and
      content, so cards / typography paint without the texture. */
@@ -383,15 +383,15 @@ body.fe-frontend-force-dark .fe-dynbg-diagonal-lines,
      to work; _dynbg_apply.html follows that order. */
   z-index: 0;
 }
-/* ── noise-grain ─── viibeware's recipe: SVG fractal-noise tiled.
+/* ── noise-grain ─── Hyprlab's recipe: SVG fractal-noise tiled.
    Data-URL (vs inline <svg>) because inline SVGs without an explicit
    viewBox sometimes render blank when sized 100%/100% inside a
    positioned parent — particularly under <body> on Safari. The
    data-URL has its own viewBox so the SVG paints reliably and tiles
    via the default `background-repeat: repeat`. The 0.03 alpha on the
-   rect inside the SVG matches the viibeware recipe exactly; CSS-side
+   rect inside the SVG matches the Hyprlab recipe exactly; CSS-side
    opacity stays at 1 so the texture reads at the same intensity it
-   does on viibeware. */
+   does on Hyprlab. */
 .fe-dynbg-overlay-noise-grain {
   background-image: url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
 }

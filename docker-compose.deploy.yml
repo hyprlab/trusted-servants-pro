@@ -1,6 +1,6 @@
 services:
   tsp:
-    image: viibeware/trusted-servants-pro:latest
+    image: hyprlab/tspro:latest
     container_name: tspro
     ports:
       - "8090:8000"
