@@ -97,7 +97,7 @@ Open http://localhost:8090 and sign in with the seeded admin (defaults: `admin` 
 ```yaml
 services:
   tsp:
-    image: viibeware/trusted-servants-pro:latest
+    image: hyprlab/tspro:latest
     container_name: tspro
     ports:
       - "8090:8000"
@@ -143,10 +143,10 @@ SSH in and run one of these from the server:
 
 ```bash
 # Pipe directly from GitHub (recommended):
-curl -fsSL https://raw.githubusercontent.com/viibeware/trusted-servants-pro/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hyprlab/trusted-servants-pro/main/install.sh | sudo bash
 
 # Or clone and run locally if you'd rather read it first:
-git clone https://github.com/viibeware/trusted-servants-pro.git
+git clone https://github.com/hyprlab/trusted-servants-pro.git
 cd trusted-servants-pro
 sudo bash install.sh
 ```
@@ -157,7 +157,7 @@ The installer will:
 2. Prompt for a **domain** — enter the hostname you set up in step 2, or leave blank for a self-signed cert.
 3. Prompt for a **contact email** if you entered a domain (used for Let's Encrypt renewal notices).
 4. Generate a random `TSP_SECRET_KEY` and write it to `/opt/tspro/.env` (mode `600`).
-5. Pull `viibeware/trusted-servants-pro:latest`, start the container, and wait for it to respond.
+5. Pull `hyprlab/tspro:latest`, start the container, and wait for it to respond.
 
 Typical runtime is 2–5 minutes on a fresh VM.
 
@@ -184,7 +184,7 @@ sudo TSP_DOMAIN=portal.example.org \
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `TSP_INSTALL_DIR` | `/opt/tspro` | Where compose/data/backups live. |
-| `TSP_IMAGE` | `viibeware/trusted-servants-pro:latest` | Image tag to deploy. |
+| `TSP_IMAGE` | `hyprlab/tspro:latest` | Image tag to deploy. |
 | `TSP_DOMAIN` | _unset_ | Public hostname — if set, Caddy requests a Let's Encrypt cert. |
 | `TSP_ACME_EMAIL` | `admin@$TSP_DOMAIN` | Contact address for cert renewal notices. |
 | `TSP_ADMIN_USERNAME` / `TSP_ADMIN_PASSWORD` / `TSP_ADMIN_EMAIL` | `admin` / `admin` / `admin@example.com` | Seeded on first boot only. |
@@ -235,7 +235,7 @@ To pick up the prune janitor, `WATCHTOWER_CLEANUP`, and log-rotation settings on
 sudo bash uninstall.sh
 
 # Or pipe directly from GitHub:
-curl -fsSL https://raw.githubusercontent.com/viibeware/trusted-servants-pro/main/uninstall.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hyprlab/trusted-servants-pro/main/uninstall.sh | sudo bash
 ```
 
 You'll be asked to type `yes` before anything is removed. Add flags to go further:
@@ -346,4 +346,4 @@ Trusted Servants Pro is released under the [GNU Affero General Public License v3
 
 You're free to run, copy, modify, and redistribute the portal. If you host a modified version for other users to interact with over a network, you must make the corresponding source code available to those users under the same license. See the `LICENSE` file for the full text.
 
-© Viibeware Corp. Open-source contributions welcome.
+© Hyprlab Open-source contributions welcome.

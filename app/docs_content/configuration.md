@@ -45,6 +45,7 @@ explicitly in production.
 | `TSP_ADMIN_EMAIL` | `admin@example.com` | Seeded on first boot only. |
 | `TSP_DATA_DIR` | `/data` | In-container data directory. Mounted to `./data` by default. |
 | `TSP_UPLOAD_DIR` | `$TSP_DATA_DIR/uploads` | Where uploaded files are stored. |
+| `TSP_TMP_DIR` | _the data volume_ | Scratch location for building backup archives. Defaults to the data volume (guaranteed headroom); point it at a dedicated scratch disk to override. Falls back to the system temp dir if unwritable. |
 | `TSP_MAX_UPLOAD_MB` | `4096` | Maximum upload size in MiB (default 4 GiB). |
 | `TSP_FERNET_KEY` | _auto-generated_ | Encryption key for stored credentials. If unset, a key is generated and saved to `data/zoom.key`. |
 
@@ -93,5 +94,7 @@ secrets differ from public files.
 
 ## Next steps
 
+- [Email Relay](/docs/email-relay) — send mail even when your host blocks outbound SMTP ports.
 - [Backup &amp; Restore](/docs/backup-restore) — export, import, and migrate.
+- [Disk Space &amp; Housekeeping](/docs/disk-space) — keep an unattended server from filling its disk.
 - [Upgrading &amp; Uninstalling](/docs/upgrading) — keep the portal current.

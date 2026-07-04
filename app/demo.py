@@ -256,6 +256,37 @@ def reset_session():
     _local.upload_dir = None
 
 
+def _wipe_session_state():
+    """Clear all per-session DBs + upload dirs left in the data volume.
+
+    Per-session SQLite files are copy-on-touch clones of the golden DB. After
+    an image rebuild that changed the schema, any clone made under the old
+    schema is stale — it lacks the new columns and raises OperationalError on
+    the first query (e.g. ``no such column: site_setting.mail_transport``).
+    Sessions are ephemeral by design (the janitor sweeps idle ones anyway), so
+    we clear them at boot and let :func:`_provision` re-clone each one from the
+    freshly-migrated golden DB. Best-effort: a failure here never blocks boot."""
+    cleared = 0
+    for d in (SESSIONS_DIR, SESSION_UPLOADS_DIR):
+        if not d or not os.path.isdir(d):
+            continue
+        for name in os.listdir(d):
+            full = os.path.join(d, name)
+            try:
+                if os.path.isdir(full) and not os.path.islink(full):
+                    shutil.rmtree(full, ignore_errors=True)
+                else:
+                    os.remove(full)
+                cleared += 1
+            except OSError:
+                pass
+    if cleared:
+        # Printed (not logged): under gunicorn --preload this runs in the master
+        # before log handlers are attached, so app.logger would be silent.
+        print(f"[demo] cleared {cleared} stale per-session item(s) at boot",
+              flush=True)
+
+
 # ── Wiring ─────────────────────────────────────────────────────────────────
 def configure(app, *, data_dir, upload_dir, db_path):
     """Pre-``db.init_app`` setup: record golden paths and install the
@@ -268,6 +299,10 @@ def configure(app, *, data_dir, upload_dir, db_path):
     DATA_DIR = data_dir
     SESSIONS_DIR = os.path.join(data_dir, "demo_sessions")
     SESSION_UPLOADS_DIR = os.path.join(data_dir, "demo_uploads")
+    # Drop stale per-session state from a previous boot so a rebuilt image
+    # (possibly with a new schema) always serves sessions cloned from the
+    # current, migrated golden DB rather than an out-of-date copy.
+    _wipe_session_state()
     os.makedirs(SESSIONS_DIR, exist_ok=True)
     os.makedirs(SESSION_UPLOADS_DIR, exist_ok=True)
 

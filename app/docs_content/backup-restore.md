@@ -61,6 +61,30 @@ docker compose down
 docker compose up -d
 ```
 
+## Scheduled off-site backups
+
+The export above is the *local*, on-demand layer. For automatic, off-machine
+copies — pushed on a schedule to **TS Pro Backup**, SFTP, FTP/FTPS, or Dropbox —
+set up an off-site target under **Settings → Data → Off-site backups**. The
+dedicated [TS Pro Backup](/docs/tspro-backup) guide walks through the
+end-to-end-encrypted option end to end.
+
+Two robustness details are worth knowing, because they remove the disk-related
+ways a large portal's off-site backup used to fail:
+
+- **Archives are built on the data volume, not `/tmp`.** Assembling a backup
+  needs scratch room for a `VACUUM`-copied database and the in-progress zip.
+  That scratch now stages on the same mount as your data (guaranteed headroom)
+  instead of the system temp dir, which on many hosts is too small to hold a
+  full bundle. Point `TSP_TMP_DIR` at a dedicated scratch disk to override — see
+  [Disk Space &amp; Housekeeping](/docs/disk-space#where-backups-stage-their-scratch-files).
+- **Passphrase-encrypted bundles are encrypted in a stream.** When you turn on
+  archive encryption for an FTP/SFTP/Dropbox target, the encrypt (and the
+  matching decrypt on restore) processes the archive in small chunks, so peak
+  memory stays flat no matter how big the portal is — a multi-gigabyte backup
+  uses the same memory as a tiny one. Bundles encrypted before this change still
+  restore. (TS Pro Backup's end-to-end encryption was already streamed.)
+
 ## Migrating to a new host
 
 1. **Export** from the old portal (UI export, or copy `./data`).
@@ -76,6 +100,10 @@ docker compose up -d
 
 ## Next steps
 
+- [Off-site Backups with TS Pro Backup](/docs/tspro-backup) — encrypted,
+  scheduled, off-machine backups.
+- [Disk Space &amp; Housekeeping](/docs/disk-space) — where backups stage, and
+  keeping the server's disk healthy.
 - [Configuration &amp; Security](/docs/configuration) — how `zoom.key` and
   encryption work.
 - [Upgrading &amp; Uninstalling](/docs/upgrading) — staying current and clean

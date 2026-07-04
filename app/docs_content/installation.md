@@ -47,13 +47,16 @@ Whichever path you choose, it helps to have these ready:
 
 1. Updates apt, installs **Docker Engine** and the **Compose plugin**, and opens
    the firewall (UFW) for ports `22`, `80`, and `443`.
-2. Writes a hardened `docker-compose.yml` to the install directory.
+2. Writes a hardened `docker-compose.yml` to the install directory — complete
+   with capped container logs and a daily image-prune janitor so the box can't
+   fill its own disk over time (see
+   [Disk Space &amp; Housekeeping](/docs/disk-space)).
 3. Generates a random `TSP_SECRET_KEY` and stores it in a `.env` file with
    mode `600` (readable only by root).
 4. Configures **Caddy** for automatic TLS — a real Let's Encrypt certificate if
    you provide a domain, or a self-signed one if you don't.
-5. Installs **Watchtower** so the portal pulls and restarts on new releases on
-   its own.
+5. Installs **Watchtower** (with image cleanup) so the portal pulls and restarts
+   on new releases on its own.
 6. Pulls the image, starts everything, and waits for the portal to respond.
 
 ### 1. Provision a server
@@ -98,13 +101,13 @@ to a real cert.
 Pipe it straight from GitHub — the recommended path:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/viibeware/trusted-servants-pro/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hyprlab/trusted-servants-pro/main/install.sh | sudo bash
 ```
 
 Or clone the repository first if you'd like to read the script before running it:
 
 ```bash
-git clone https://github.com/viibeware/trusted-servants-pro.git
+git clone https://github.com/hyprlab/trusted-servants-pro.git
 cd trusted-servants-pro
 sudo bash install.sh
 ```
@@ -123,7 +126,7 @@ Contact email: you@yourfellowship.org
 - **Contact email** — only asked if you entered a domain; Let's Encrypt uses it
   for renewal notices.
 
-It then pulls `viibeware/trusted-servants-pro:latest`, starts the stack, and
+It then pulls `hyprlab/tspro:latest`, starts the stack, and
 waits for a healthy response. Typical runtime is **2–5 minutes** on a fresh VM.
 
 ### 5. Sign in and secure it
@@ -157,7 +160,7 @@ Recognized installer variables:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `TSP_INSTALL_DIR` | `/opt/tspro` | Where the compose file, data, and backups live. |
-| `TSP_IMAGE` | `viibeware/trusted-servants-pro:latest` | Image tag to deploy. |
+| `TSP_IMAGE` | `hyprlab/tspro:latest` | Image tag to deploy. |
 | `TSP_DOMAIN` | _unset_ | Public hostname. If set, Caddy requests a Let's Encrypt cert. |
 | `TSP_ACME_EMAIL` | `admin@$TSP_DOMAIN` | Contact address for renewal notices. |
 | `TSP_ADMIN_USERNAME` | `admin` | Seeded on first boot only. |
@@ -188,7 +191,7 @@ directory:
 ```yaml
 services:
   tsp:
-    image: viibeware/trusted-servants-pro:latest
+    image: hyprlab/tspro:latest
     container_name: tspro
     ports:
       - "8090:8000"
@@ -200,10 +203,23 @@ services:
       - TSP_ADMIN_PASSWORD=admin
       - TSP_ADMIN_EMAIL=admin@example.com
     restart: unless-stopped
+    # Cap container logs so they can't grow without bound over time.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 ```
 
 The host serves on port **8090**; the container listens on `8000`. Your
 database and uploads persist in `./data` next to the compose file.
+
+!!! tip "Running this unattended for the long haul?"
+    The production installer (Path A) also adds a daily image-prune janitor that
+    keeps a long-lived Docker host from filling its disk with stale images. It's
+    host-wide, so it's left out of this minimal single-machine file — see
+    [Disk Space &amp; Housekeeping](/docs/disk-space) if you want to add it, plus
+    how the built-in low-disk warning works.
 
 ### 3. Set a secret key
 
@@ -273,5 +289,7 @@ another admin account under Settings → Users.
   variable, the `.env` file, and how credentials are encrypted.
 - [Backup &amp; Restore](/docs/backup-restore) — export a portable archive and
   migrate to a new host.
+- [Disk Space &amp; Housekeeping](/docs/disk-space) — the safeguards that keep an
+  unattended server from filling its own disk.
 - [Upgrading &amp; Uninstalling](/docs/upgrading) — Watchtower auto-updates,
   manual upgrades, and a clean teardown.

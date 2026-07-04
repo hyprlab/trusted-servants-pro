@@ -24,7 +24,7 @@ Make an empty directory and add a `docker-compose.yml`:
 ```yaml
 services:
   tsp:
-    image: viibeware/trusted-servants-pro:latest
+    image: hyprlab/tspro:latest
     container_name: tspro
     ports:
       - "8090:8000"
