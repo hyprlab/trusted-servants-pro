@@ -1,6 +1,6 @@
 Title: Upgrading & Uninstalling
 Category: Operations
-Order: 2
+Order: 4
 Slug: upgrading
 Icon: refresh
 Summary: How automatic updates work, how to force an upgrade or roll day-to-day commands, and how to cleanly uninstall everything the installer added.
@@ -15,6 +15,14 @@ If you used the [one-command installer](/docs/installation#path-a-one-command-in
 **Watchtower** is already running. It polls Docker Hub every 24 hours and
 restarts the `tspro` container whenever a new image is published. No action is
 required on your part.
+
+Watchtower also removes the superseded image after each update
+(`WATCHTOWER_CLEANUP=true`), and the installer's compose file adds a daily
+image-prune janitor to catch anything that escapes — so a long-running host
+doesn't quietly fill its disk with stale images. If you installed an **older
+release** that predates those safeguards, see
+[Disk Space &amp; Housekeeping](/docs/disk-space) for how to reclaim space and
+adopt them by re-running `install.sh` (your `.env` and `data/` are preserved).
 
 ## Forcing an upgrade
 
@@ -54,7 +62,7 @@ you ask.
 sudo bash uninstall.sh
 
 # Or pipe directly from GitHub:
-curl -fsSL https://raw.githubusercontent.com/viibeware/trusted-servants-pro/main/uninstall.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hyprlab/trusted-servants-pro/main/uninstall.sh | sudo bash
 ```
 
 You'll be asked to type `yes` before anything is removed. Flags let you go
@@ -84,5 +92,7 @@ sudo bash uninstall.sh --nuke --yes
 
 - [Backup &amp; Restore](/docs/backup-restore) — protect your data before any
   big change.
+- [Disk Space &amp; Housekeeping](/docs/disk-space) — keep an unattended server
+  from filling its disk.
 - [Configuration &amp; Security](/docs/configuration) — environment variables and
   encryption.

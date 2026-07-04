@@ -219,7 +219,7 @@ def knobs_to_css_vars(preset_key, knobs):
 # Independent visual layer that paints ABOVE the base dynbg (and
 # above content, with `pointer-events: none`) to add a tactile
 # texture / mood pass over the whole surface. Inspired by the
-# viibeware project's fixed-position fractal-noise grain — the
+# Hyprlab project's fixed-position fractal-noise grain — the
 # subtle 3% noise overlay that gave that site its premium feel.
 # Overlays compose with any base dynbg (or none — an admin can run
 # a solid colour with just an overlay on top).
@@ -229,7 +229,7 @@ OVERLAYS = [
         "name": "Noise grain",
         "description": (
             "Subtle SVG fractal-noise sandpaper texture across the "
-            "whole surface. The viibeware-recipe overlay — sits at "
+            "whole surface. The Hyprlab-recipe overlay — sits at "
             "~3% opacity so content stays crisp."
         ),
     },
@@ -372,7 +372,7 @@ ANIMATED_KEYS = {"aurora-blobs", "aurora-bands"}
 # values produce finer ones. Intensity is the SVG-encoded rect alpha;
 # tuned together with baseFrequency, the duo covers everything from
 # heavy film grain (size 0.4, intensity 0.06) to barely-there sand
-# (size 1.5, intensity 0.02). Defaults match the viibeware recipe.
+# (size 1.5, intensity 0.02). Defaults match the Hyprlab recipe.
 NOISE_SIZE_DEFAULT = 0.9
 NOISE_SIZE_MIN, NOISE_SIZE_MAX = 0.1, 2.0
 NOISE_INTENSITY_DEFAULT = 0.03
@@ -425,7 +425,7 @@ def overlay_knobs(key):
 
 
 def normalize_scope(value):
-    """Coerce overlay scope to 'all' (above content — viibeware-style)
+    """Coerce overlay scope to 'all' (above content — Hyprlab-style)
     or 'bg' (between base dynbg and content). Default is None which
     consumers treat as 'all'."""
     if not value:

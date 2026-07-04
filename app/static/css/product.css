@@ -16,11 +16,9 @@
   font-weight: 100 900; font-style: normal; font-display: swap;
 }
 
-/* ── theme tokens: dark is the base ──────────────────────────────────────── */
-/* NB: theme variables are declared on :root (the <html> element) ONLY, not on
-   the generic `.pp` — because `.pp` is also on <body>, and if the conditional
-   light rules matched <body> independently it would ignore the data-theme
-   toggle set on <html>. Declaring vars on :root lets <body> inherit them. */
+/* ── theme tokens: dark-only ─────────────────────────────────────────────── */
+/* Variables are declared on :root (the <html> element); <body> (also `.pp`)
+   inherits them. The marketing site and docs ship a single dark theme. */
 :root.pp {
   --brand: #6366f1;
   --brand-2: #8b5cf6;
@@ -46,24 +44,8 @@
   --teal-on: #06241f;       /* text on the teal button */
   color-scheme: dark;
 }
-/* light overrides — applied when the user picks light OR the OS prefers light
-   and they haven't forced dark. (Block intentionally duplicated; CSS can't
-   share a declaration body between a media query and a plain selector.) */
-:root.pp[data-theme="light"] {
-  --ink: #f5f7fc; --ink-2: #ffffff;
-  --panel: rgba(14, 19, 48, 0.035); --panel-2: rgba(14, 19, 48, 0.06);
-  --line: rgba(14, 19, 48, 0.12);
-  --text: #0e1330; --muted: #4c5478; --muted-2: #8a90b3;
-  --grad-1: #0e1330; --grad-2: #4338ca; --grad-3: #0d9488;
-  --aurora-op: 0.42;
-  --grain-op: 0.10; --grain-blend: multiply;
-  --nav-top: rgba(255, 255, 255, 0.88); --nav-bot: rgba(255, 255, 255, 0.45);
-  --shot-shadow: 0 34px 70px -36px rgba(24, 34, 90, 0.30);
-  color-scheme: light;
-}
-/* Dark is the default for everyone — the page does NOT follow the OS theme.
-   Light is only applied when the visitor explicitly picks it via the toggle
-   (which sets data-theme="light" and persists it in localStorage). */
+/* The marketing site and docs are dark-only — there is no light theme and no
+   theme toggle. The page does NOT follow the OS theme. */
 
 .pp {
   margin: 0; background: var(--ink); color: var(--text);
@@ -129,11 +111,10 @@
 .pp-nav { position: sticky; top: 0; z-index: 40; backdrop-filter: blur(14px); background: linear-gradient(to bottom, var(--nav-top), var(--nav-bot)); border-bottom: 1px solid var(--line); }
 .pp-nav-in { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 0; gap: 1rem; }
 .pp-brand { display: inline-flex; align-items: center; gap: 0.6rem; }
-/* SVG wordmark logo. Original brand color ships in the file; in dark mode
-   (the default) we flatten it to white via filter, and restore the original
-   in light mode. */
-.pp-brand-mark { height: 32px; width: auto; flex: none; display: block; filter: brightness(0) invert(1); }
-:root.pp[data-theme="light"] .pp-brand-mark { filter: none; }
+/* SVG wordmark logo. The brand color ships in the file (teal #2fd0c8) and
+   reads well on both dark and light backgrounds, so we render it as-is in
+   both themes rather than flattening it to white. */
+.pp-brand-mark { height: 32px; width: auto; flex: none; display: block; }
 .pp-brand-name { font-family: "Inter", var(--body); font-weight: 600; font-size: 1.12rem; letter-spacing: -0.01em; color: var(--text); white-space: nowrap; }
 .pp-nav-cta { display: flex; align-items: center; gap: 0.6rem; }
 .pp-nav-menu { display: flex; align-items: center; gap: 0.6rem; }
@@ -141,14 +122,6 @@
 .pp-navtoggle { display: none; place-items: center; width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; transition: background .2s ease; }
 .pp-navtoggle:hover { background: var(--panel-2); }
 .pp-navtoggle svg { width: 20px; height: 20px; }
-.pp-themetoggle { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; transition: background .2s ease; }
-.pp-themetoggle:hover { background: var(--panel-2); }
-.pp-themetoggle svg { width: 18px; height: 18px; }
-/* default is dark → show the moon; the sun only appears once the visitor
-   switches to light (data-theme="light"). */
-.pp-themetoggle .pp-sun { display: none; }
-:root.pp[data-theme="light"] .pp-themetoggle .pp-sun { display: block; }
-:root.pp[data-theme="light"] .pp-themetoggle .pp-moon { display: none; }
 @media (max-width: 560px) { .pp-brand-name { display: none; } }
 
 /* ── hero ───────────────────────────────────────────────────────────────── */
@@ -340,7 +313,6 @@
   .pp-nav-cta .pp-nav-docs { order: 1; }
   .pp-nav-cta .pp-nav-frontend { order: 2; }
   .pp-nav-cta > .pp-btn-primary { order: 3; }
-  .pp-nav-cta .pp-themetoggle { order: 4; }
 }
 /* Mobile nav: keep "Launch live demo" + the hamburger in the bar; everything
    else collapses into a full-width dropdown of centered, full-width pills. */
@@ -357,7 +329,6 @@
   .pp-nav-menu .pp-btn { width: 100%; justify-content: center; }
   .pp-nav-menu .pp-navlink { display: flex; justify-content: center; align-items: center; width: 100%; padding: 0.85rem 1.4rem; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-weight: 600; }
   .pp-nav-menu .pp-navlink:hover { background: var(--panel-2); color: var(--text); }
-  .pp-nav-menu .pp-themetoggle { width: 100%; height: auto; padding: 0.8rem; border-radius: 999px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pp-aurora::before, .pp-aurora::after, .pp-window { animation: none; }
@@ -379,7 +350,6 @@
   --code-bg: #05071a;
   --code-fg: #c8cdf5;
 }
-:root.pp[data-theme="light"] { --doc-link: #2563eb; }
 
 /* extra nav links used on docs pages */
 .pp-navlink { font: 600 0.92rem/1 var(--body); color: var(--muted); padding: 0.5rem 0.2rem; transition: color .15s ease; }

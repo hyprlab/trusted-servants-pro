@@ -131,7 +131,7 @@ if command -v docker >/dev/null 2>&1; then
     log "Removing Docker images pulled by the installer"
     for img in \
         "$(grep -E '^\s*image:' "${INSTALL_DIR}/docker-compose.yml" 2>/dev/null | awk '{print $2}')" \
-        viibeware/trusted-servants-pro:latest \
+        hyprlab/tspro:latest \
         caddy:2-alpine \
         nickfedor/watchtower:latest
     do

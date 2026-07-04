@@ -47,20 +47,6 @@
     }, { threshold: 0.4 });
     so.observe(band);
   }
-
-  // Theme toggle — flips data-theme on <html> and persists the choice.
-  // Dark is the default; light only when the visitor has explicitly chosen it.
-  var root = document.documentElement;
-  function effectiveTheme() {
-    return root.getAttribute("data-theme") === "light" ? "light" : "dark";
-  }
-  document.querySelectorAll("[data-theme-toggle]").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var next = effectiveTheme() === "dark" ? "light" : "dark";
-      root.setAttribute("data-theme", next);
-      try { localStorage.setItem("pp-theme", next); } catch (e) {}
-    });
-  });
 })();
 
 // Lightbox — click any screenshot (.pp-browser img) to enlarge it.
@@ -107,7 +93,7 @@
     var open = menu.classList.toggle("open");
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
   });
-  // Close after tapping a link (but not the theme toggle, so it stays open).
+  // Close after tapping a link.
   menu.addEventListener("click", function (e) { if (e.target.closest("a")) close(); });
   // Close on outside click / Escape.
   document.addEventListener("click", function (e) {
