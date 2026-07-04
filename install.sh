@@ -4,7 +4,7 @@
 #
 # Run as root (or with sudo) on a fresh Ubuntu 24.04 server:
 #
-#   curl -fsSL https://raw.githubusercontent.com/<org>/trusted-servants-pro/main/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/hyprlab/trusted-servants-pro/main/install.sh | sudo bash
 #
 # Or:
 #
@@ -12,7 +12,7 @@
 #
 # Optional environment variables:
 #   TSP_INSTALL_DIR   Install directory             (default: /opt/tspro)
-#   TSP_IMAGE         Docker image to deploy        (default: viibeware/trusted-servants-pro:latest)
+#   TSP_IMAGE         Docker image to deploy        (default: hyprlab/tspro:latest)
 #   TSP_DOMAIN        Public hostname for HTTPS     (default: unset — uses self-signed cert)
 #   TSP_ACME_EMAIL    Email for Let's Encrypt cert  (default: admin@<TSP_DOMAIN>)
 #   TSP_ADMIN_USERNAME / TSP_ADMIN_PASSWORD / TSP_ADMIN_EMAIL
@@ -23,7 +23,7 @@ set -euo pipefail
 
 # ---------- config ----------
 INSTALL_DIR="${TSP_INSTALL_DIR:-/opt/tspro}"
-IMAGE="${TSP_IMAGE:-viibeware/trusted-servants-pro:latest}"
+IMAGE="${TSP_IMAGE:-hyprlab/tspro:latest}"
 DOMAIN="${TSP_DOMAIN:-}"
 ACME_EMAIL="${TSP_ACME_EMAIL:-}"
 ADMIN_USERNAME="${TSP_ADMIN_USERNAME:-admin}"

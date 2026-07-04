@@ -7,7 +7,12 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.16.5 — 2026-06-28 (latest) — Your logo really shows in emails now
+## 2.16.6 — 2026-07-04 (latest) — Now Hyprlab
+
+- **The portal is now published by Hyprlab** (formerly Viibeware). The "Built by" credit in **Settings → About** and on the login screen now shows the Hyprlab name and logo, with a link to gettspro.com. Nothing about how the portal works changes — this is a branding and hosting-account move.
+- **New home for downloads and source.** The Docker image is now `hyprlab/tspro` and the code lives at `github.com/hyprlab/trusted-servants-pro`. Existing installs update automatically; only fresh installs pointed at the old image name need the new one.
+
+## 2.16.5 — 2026-06-28 — Your logo really shows in emails now
 
 - **The header logo now appears at the top of notification emails** instead of falling back to your site's name in text. If your logo is an SVG (which email apps can't display), the system now creates a PNG version automatically the first time it's needed — so the logo shows up even on sites whose logo was uploaded a while ago.
 
@@ -289,12 +294,12 @@ release notes expanded by default and the changelog collapsed.
 ## 2.10.1 — 2026-05-31 — Know at a glance whether your email relay is connected
 
 - **A connection check for the API relay, right where you set it up.** Under **Settings → Domain / Email**, the API-relay option now shows a status pill — **Connected**, **Not connected**, or **Not tested** — next to a **Test connection** button. Click it after pasting in your relay's address and API key and the portal checks, *without sending an email*, that the relay is reachable and that the key is accepted — so you can confirm everything's right **before** you save. If something's off, it tells you why (a rejected key, an unreachable address, and so on). Each time you open the tab it re-checks, so the pill always reflects the live connection.
-- **For the full check, update the companion relay to v0.1.1 or newer** (pull `viibeware/tspro-relay:latest`). On an older relay the portal still validates your API key — it just notes that the relay should be updated to report its own status.
+- **For the full check, update the companion relay to v0.1.1 or newer** (pull `hyprlab/tspro-relay:latest`). On an older relay the portal still validates your API key — it just notes that the relay should be updated to report its own status.
 
 ## 2.10.0 — 2026-05-30 — Send email even where outbound SMTP is blocked
 
 - **A new "API relay" sending option, alongside the existing direct-SMTP path.** Some hosts — DigitalOcean droplets are the classic example — block the outbound ports email normally uses, so the portal simply couldn't send mail there. Now it can: under **Settings → Domain / Email**, switch **Sending method** to **API relay (HTTPS)**, paste in your relay's address and API key, and the portal hands each message to a small companion service over the web, which does the actual sending. Your mail-server password lives only on the relay, never copied into the app. Prefer the old way? **Direct SMTP** is still right there and unchanged — the SMTP fields even tuck away when you're in relay mode so the screen only shows what you need. A **Send Test** button confirms whichever method you picked.
-- **The companion relay is its own one-click install.** It's published separately as `viibeware/tspro-relay` and comes with its own simple sign-in dashboard where you set the mail-server details, copy the API key, watch a log of everything sent, and optionally turn on a bot challenge for its login.
+- **The companion relay is its own one-click install.** It's published separately as `hyprlab/tspro-relay` and comes with its own simple sign-in dashboard where you set the mail-server details, copy the API key, watch a log of everything sent, and optionally turn on a bot challenge for its login.
 - **Seamless upgrade.** Existing sites that send over SMTP keep working exactly as before — the new settings are added automatically on first start, and you only see the relay option if you go looking for it.
 
 ## 2.9.5 — 2026-05-30 — Guided Zoom launcher + automatic OTP-code retrieval
