@@ -7,7 +7,11 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.16.8 — 2026-07-16 (latest) — Off-site backups keep the disk tidy
+## 2.16.9 — 2026-07-16 (latest) — Manage jumps straight to a backup's settings
+
+- **"Manage" next to a configured off-site backup now opens that backup's settings directly.** Previously it opened the general backups list; now you land right on the connection, schedule, and encryption settings for the target you clicked, with a "← Back to backups" link if you want the full list.
+
+## 2.16.8 — 2026-07-16 — Off-site backups keep the disk tidy
 
 - **Off-site backups no longer leave stray files on your server.** Backup archives are staged in a dedicated temporary folder and removed as soon as they finish uploading. If a backup is ever interrupted partway (a restart or crash mid-upload), the leftover file is now automatically cleaned up on the next boot or backup run instead of quietly taking up disk space. Your live data, uploads, and daily snapshots are never affected.
 

@@ -2169,7 +2169,8 @@
               <span class="muted smaller">
                 {% if t.last_run_at %}last {{ t.last_run_at.strftime('%b %-d, %H:%M') }}{% else %}—{% endif %}
               </span>
-              <button type="button" class="btn btn-sm" data-open-modal="backups-modal">Manage</button>
+              <button type="button" class="btn btn-sm" data-open-modal="backups-modal"
+                      data-modal-src="{{ url_for('main.backups_edit', target_id=t.id, embed=1) }}">Manage</button>
             </li>
             {% endfor %}
           </ul>
