@@ -7,7 +7,11 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.16.7 — 2026-07-16 (latest) — Clickable email footer
+## 2.16.8 — 2026-07-16 (latest) — Off-site backups keep the disk tidy
+
+- **Off-site backups no longer leave stray files on your server.** Backup archives are staged in a dedicated temporary folder and removed as soon as they finish uploading. If a backup is ever interrupted partway (a restart or crash mid-upload), the leftover file is now automatically cleaned up on the next boot or backup run instead of quietly taking up disk space. Your live data, uploads, and daily snapshots are never affected.
+
+## 2.16.7 — 2026-07-16 — Clickable email footer
 
 - **The "Powered by Trusted Servants Pro" line at the bottom of notification emails is now a link to gettspro.com.** It looks exactly the same — just clickable now.
 

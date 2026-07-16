@@ -116,6 +116,94 @@ def _prune(backups, retain_days):
                 logger.warning("daily_snapshot: could not prune %s: %s", f.name, e)
 
 
+# Dedicated subdir of the data volume for the off-site backup path's
+# transient files. Keeping them out of the data-volume root means the live
+# data files (``tsp.db``, ``zoom.key``, ``uploads/``, the ``backups/``
+# snapshot dir) never share a directory with throwaway archives, and the
+# orphan sweep operates on a directory that, by construction, holds ONLY
+# disposable files.
+TEMP_SUBDIR = "temp"
+
+# Temp-file prefixes written to the temp dir by the off-site backup path.
+# Each is normally removed in a ``finally`` once its upload completes — but
+# an interrupted run (container restart mid deploy, OOM, crash during a slow
+# chunked upload) never reaches that cleanup, orphaning a full-size archive.
+# These two prefixes are the ONLY things the sweep touches: ``tsp-export-*``
+# is the plaintext export archive (and its VACUUM'd DB copy), ``tsp-e2ee-*``
+# is the TS Pro Backup public-key ciphertext. Both are exclusively transient,
+# and the sweep only ever runs inside ``<DATA_DIR>/temp`` — so it can never
+# reach a live data file even by accident.
+ORPHAN_TEMP_PREFIXES = ("tsp-export-", "tsp-e2ee-")
+
+# Only sweep temp files older than this. A backup that is *currently* being
+# written (a concurrent run, or one that started moments ago) has a fresh
+# mtime and is left untouched; only genuinely-abandoned orphans are removed.
+ORPHAN_MIN_AGE_SECONDS = 60 * 60  # 1 hour
+
+
+def _data_dir(app):
+    """The data volume root — the parent of the uploads dir, matching how
+    ``build_export_archive`` derives it, with config/env fallbacks."""
+    upload_dir = app.config.get("UPLOAD_FOLDER") or ""
+    if upload_dir:
+        return os.path.dirname(upload_dir.rstrip("/"))
+    return app.config.get("DATA_DIR") or os.environ.get("TSP_DATA_DIR", "/data")
+
+
+def _temp_dir(app):
+    """The dedicated scratch dir for transient backup files: ``<DATA_DIR>/temp``.
+
+    ``TSP_TMP_DIR`` still overrides the location wholesale for installs that
+    mount a dedicated scratch volume. Created on demand. Returns None only if
+    the directory can't be created — callers then fall back to the system
+    temp dir (``tempfile`` default) or skip the sweep."""
+    override = os.environ.get("TSP_TMP_DIR")
+    base = override if override else os.path.join(_data_dir(app), TEMP_SUBDIR)
+    try:
+        os.makedirs(base, exist_ok=True)
+        return base
+    except OSError:
+        return None
+
+
+def sweep_orphan_temp_files(app, min_age_seconds=ORPHAN_MIN_AGE_SECONDS):
+    """Delete abandoned off-site backup temp files from ``<DATA_DIR>/temp``.
+
+    Removes files whose name starts with one of ``ORPHAN_TEMP_PREFIXES`` and
+    whose mtime is older than ``min_age_seconds`` (so a backup in flight is
+    never touched). Returns the number of bytes reclaimed. Never raises —
+    a cleanup failure must never block boot or a backup run."""
+    scratch = _temp_dir(app)
+    reclaimed = 0
+    if not scratch:
+        return 0
+    try:
+        entries = os.listdir(scratch)
+    except OSError:
+        return 0
+    now = datetime.utcnow().timestamp()
+    for name in entries:
+        if not name.startswith(ORPHAN_TEMP_PREFIXES):
+            continue
+        path = os.path.join(scratch, name)
+        try:
+            st = os.stat(path)
+            if not os.path.isfile(path):
+                continue
+            if (now - st.st_mtime) < min_age_seconds:
+                continue  # fresh — could be an in-flight backup
+            size = st.st_size
+            os.unlink(path)
+            reclaimed += size
+            logger.info("sweep_orphan_temp_files: removed %s (%d bytes)", name, size)
+        except OSError as e:
+            logger.warning("sweep_orphan_temp_files: could not remove %s: %s", name, e)
+    if reclaimed:
+        logger.info("sweep_orphan_temp_files: reclaimed %d bytes from %s",
+                    reclaimed, scratch)
+    return reclaimed
+
+
 def build_export_archive(app):
     """Produce a full app backup archive at a temp path.
 
@@ -137,18 +225,17 @@ def build_export_archive(app):
     # state — same guarantee as the daily .backup() snapshot, but
     # invoked via the SQLAlchemy engine so it works in any request /
     # background context without needing a raw sqlite3 connect.
-    # Scratch files (the VACUUM copy and the in-progress zip) go on the
-    # data volume, NOT the system temp dir. /tmp is frequently a small
-    # tmpfs or a space-constrained container overlay; VACUUM INTO needs
-    # roughly the full DB size in free space and fails with "database or
-    # disk is full" there. The data dir already holds tsp.db + uploads,
-    # so it's guaranteed to have room for a copy. Honour TSP_TMP_DIR as an
-    # explicit override for installs that mount a dedicated scratch volume.
-    scratch_dir = os.environ.get("TSP_TMP_DIR") or data_dir
-    try:
-        os.makedirs(scratch_dir, exist_ok=True)
-    except OSError:
-        scratch_dir = None  # fall back to the system temp dir
+    # Scratch files (the VACUUM copy and the in-progress zip) go in a
+    # dedicated ``<DATA_DIR>/temp`` subdir on the data volume, NOT the system
+    # temp dir. /tmp is frequently a small tmpfs or a space-constrained
+    # container overlay; VACUUM INTO needs roughly the full DB size in free
+    # space and fails with "database or disk is full" there. The data volume
+    # already holds tsp.db + uploads, so it's guaranteed to have room. Using a
+    # ``temp`` subdir (rather than the volume root) keeps live data files and
+    # throwaway archives in separate directories. ``_temp_dir`` honours the
+    # TSP_TMP_DIR override and returns None if the dir can't be created, in
+    # which case we fall back to the system temp dir.
+    scratch_dir = _temp_dir(app)
 
     from .models import db as _db
     tmp_db = tempfile.NamedTemporaryFile(prefix="tsp-export-", suffix=".db", dir=scratch_dir, delete=False)
