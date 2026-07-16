@@ -705,7 +705,11 @@ def create_app():
     # Defensive — any failure is logged, never raised, so a backup
     # hiccup can't block the app from coming up.
     try:
-        from .backup import daily_snapshot, list_snapshots as _list_snapshots
+        from .backup import (daily_snapshot, list_snapshots as _list_snapshots,
+                             sweep_orphan_temp_files)
+        # Reclaim any off-site backup archives orphaned by an interrupted run
+        # (restart/OOM/crash mid-upload) before they pile up on the data volume.
+        sweep_orphan_temp_files(app)
         daily_snapshot(app)
 
         def _snapshots_for_template():
