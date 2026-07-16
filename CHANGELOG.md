@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.16.8] — 2026-07-16
+
+### Changed
+
+- **Off-site backup temp files now stage in a dedicated `<DATA_DIR>/temp` subdir instead of the data-volume root, and orphans are auto-reclaimed.** The export archive (`tsp-export-*`), its VACUUM'd DB copy, and the encryption ciphertext (`tsp-e2ee-*` for TS Pro Backup, `*.enc` for passphrase targets) are all written under `/data/temp` and deleted after a successful upload — as before. New: a startup + pre-run **orphan sweep** removes any of those temp files left behind by an interrupted run (container restart mid-deploy, OOM, or a crash during a slow chunked upload), which previously accumulated on disk indefinitely. The sweep is scoped to `/data/temp`, matches only the two backup temp prefixes, and skips anything newer than 1 hour, so an in-flight backup and every live data file (`tsp.db`, `zoom.key`, `uploads/`, daily `backups/` snapshots) are never touched. `TSP_TMP_DIR` still overrides the scratch location wholesale.
+
 ## [2.16.7] — 2026-07-16
 
 ### Changed
