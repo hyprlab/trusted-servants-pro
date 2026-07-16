@@ -7,7 +7,11 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.16.6 — 2026-07-04 (latest) — Now Hyprlab
+## 2.16.7 — 2026-07-16 (latest) — Clickable email footer
+
+- **The "Powered by Trusted Servants Pro" line at the bottom of notification emails is now a link to gettspro.com.** It looks exactly the same — just clickable now.
+
+## 2.16.6 — 2026-07-04 — Now Hyprlab
 
 - **The portal is now published by Hyprlab** (formerly Viibeware). The "Built by" credit in **Settings → About** and on the login screen now shows the Hyprlab name and logo, with a link to gettspro.com. Nothing about how the portal works changes — this is a branding and hosting-account move.
 - **New home for downloads and source.** The Docker image is now `hyprlab/tspro` and the code lives at `github.com/hyprlab/trusted-servants-pro`. Existing installs update automatically; only fresh installs pointed at the old image name need the new one.
