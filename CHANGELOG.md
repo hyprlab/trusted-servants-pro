@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.16.7] — 2026-07-16
+
+### Changed
+
+- **The "Powered by Trusted Servants Pro" footer in notification emails now links to [gettspro.com](https://gettspro.com).** Each footer element (the "Powered by" label, the logo, and the "Trusted Servants Pro" wordmark) is wrapped in its own anchor — email clients can't wrap a table row in a single link — with inline color and `text-decoration:none` so the footer looks identical but is now clickable. Applies to both `email/branded.html` and `email/form_submission.html`.
+
 ## [2.16.6] — 2026-07-04
 
 ### Changed
