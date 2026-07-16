@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.16.9] — 2026-07-16
+
+### Changed
+
+- **In Settings → Data, the per-target "Manage" button next to a configured off-site backup now opens that target's edit modal directly** (connection, schedule, encryption), instead of the general "Manage backups" list. The row button carries a `data-modal-src` pointing at `backups_edit` for its target — reusing the existing `openModal` per-trigger override — so the separate "Manage backups" button still opens the full list, and each target's edit view has a "← Back to backups" link.
+
 ## [2.16.8] — 2026-07-16
 
 ### Changed
