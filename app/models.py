@@ -3,6 +3,7 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 
 db = SQLAlchemy()
 
@@ -2185,8 +2186,55 @@ class Post(db.Model):
     # gated to admins + frontend editors; history tracked in
     # EntitySlugHistory so renames don't break existing links.
     slug = db.Column(db.String(255))
-    summary = db.Column(db.Text)        # short blurb shown in lists / link previews
-    body = db.Column(db.Text)           # full content (markdown supported)
+    # Authored text. The DB columns are still named ``summary`` /
+    # ``body``; the leading underscore only renames the *Python*
+    # attribute so the public ``summary`` / ``body`` names can be
+    # hybrid properties that expand ``{event_date}``-style tags (see
+    # app/event_tokens.py and the properties below). Writers assign
+    # ``post.summary = …`` as before — the setter stores the raw text.
+    _summary = db.Column("summary", db.Text)   # short blurb shown in lists / link previews
+    _body = db.Column("body", db.Text)         # full content (markdown supported)
+
+    @hybrid_property
+    def summary(self):
+        """Summary with event date/time tags resolved."""
+        from .event_tokens import expand_for_post
+        return expand_for_post(self._summary, self)
+
+    @summary.setter
+    def summary(self, value):
+        self._summary = value
+
+    @summary.expression
+    def summary(cls):
+        # Queries (search LIKEs, ordering, bulk updates) address the
+        # stored column — matching what the admin actually typed.
+        return cls._summary
+
+    @hybrid_property
+    def body(self):
+        """Body with event date/time tags resolved."""
+        from .event_tokens import expand_for_post
+        return expand_for_post(self._body, self)
+
+    @body.setter
+    def body(self, value):
+        self._body = value
+
+    @body.expression
+    def body(cls):
+        return cls._body
+
+    @property
+    def summary_raw(self):
+        """Authored summary, tags intact — for the edit form + Duplicate."""
+        return self._summary
+
+    @property
+    def body_raw(self):
+        """Authored body, tags intact — for the edit form + Duplicate."""
+        return self._body
+
     featured_image_filename = db.Column(db.String(500))
 
     # Type tags — independent so a single post can be both.

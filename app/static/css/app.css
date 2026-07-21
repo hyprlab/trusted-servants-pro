@@ -1696,6 +1696,54 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 /* Multi-row Links editor on the announcement/event edit page.
    Each row is a card-ish stack: URL + label inputs side-by-side on
    top, the "open in new tab" toggle + remove button on the bottom. */
+/* Event date/time tag palette under the Content card. Collapsed by
+   default so the editor stays calm; open it and each chip shows the
+   tag itself over the value it currently resolves to. */
+.event-tags {
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--panel-2);
+}
+.event-tags-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer; list-style: none;
+}
+.event-tags-head::-webkit-details-marker { display: none; }
+.event-tags-head::after {
+  content: ""; margin-left: auto; flex: none;
+  width: 7px; height: 7px; border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted); transform: rotate(45deg);
+  transition: transform 140ms ease;
+}
+.event-tags[open] .event-tags-head::after { transform: rotate(-135deg); }
+.event-tags-head:hover { color: var(--brand); }
+.event-tags-icon { display: inline-flex; color: var(--brand); }
+.event-tags-icon .icon { width: 17px; height: 17px; }
+.event-tags-head-text { display: flex; flex-direction: column; min-width: 0; }
+.event-tags-title { font-weight: 600; }
+.event-tags-body { padding: 0 14px 14px; }
+.event-tags-help { margin: 0 0 .85rem; line-height: 1.5; }
+.event-tags-help code {
+  padding: 1px 5px; border-radius: 5px;
+  background: var(--panel); border: 1px solid var(--border);
+}
+.event-tags-group + .event-tags-group { margin-top: .85rem; }
+.event-tags-group-label {
+  font-size: .75rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: .4rem;
+}
+.event-tags-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.event-tag {
+  display: flex; flex-direction: column; gap: 1px; text-align: left;
+  padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--panel); color: inherit; cursor: pointer;
+  font: inherit; line-height: 1.25;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.event-tag:hover { border-color: var(--brand); background: var(--brand-soft); }
+.event-tag:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--brand-soft); }
+.event-tag-name { font-size: .8125rem; font-weight: 600; font-family: inherit; }
+.event-tag-ex { font-size: .75rem; color: var(--muted); }
+
 .post-links-editor { margin-top: .5rem; }
 .post-links-list {
   list-style: none;
