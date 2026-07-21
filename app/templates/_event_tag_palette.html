@@ -1,0 +1,44 @@
+{# Event date/time tag palette for the announcement / event editor.
+
+   Chips insert an auto-updating tag (e.g. `{event_date}`) into
+   whichever of the Content textareas the admin last touched. The
+   stored text keeps the tag; the public site renders the post's real
+   event date, so moving the event updates every mention at once.
+
+   Examples are rendered server-side from `app/event_tokens.py` and
+   refreshed from `main.post_event_tag_preview` whenever the Starts /
+   Ends inputs change, so Python stays the single source of truth for
+   how each tag formats.
+
+   Requires: `event_tag_groups` (from event_tokens.catalog()). #}
+<details class="event-tags" data-event-tags>
+  <summary class="event-tags-head">
+    <span class="event-tags-icon" aria-hidden="true">{{ icon('calendar-clock') }}</span>
+    <span class="event-tags-head-text">
+      <span class="event-tags-title">Insert event date &amp; time</span>
+      <span class="muted smaller">Auto-updating tags for the summary and body — they follow the event's date.</span>
+    </span>
+  </summary>
+  <div class="event-tags-body">
+    <p class="muted smaller event-tags-help">
+      Click a tag to drop it into the field you last typed in. It saves as text
+      (<code>{event_date}</code>) and renders as the real date everywhere the post appears —
+      change <b>Starts</b> or <b>Ends</b> below and every mention follows.
+      Previews use <span data-event-tags-basis>a sample date</span>.
+    </p>
+    {% for _g in event_tag_groups %}
+    <div class="event-tags-group">
+      <div class="event-tags-group-label">{{ _g.label }}</div>
+      <div class="event-tags-chips">
+        {% for _t in _g.tags %}
+        <button type="button" class="event-tag" data-event-tag="{{ _t.tag }}"
+                title="{{ _t.desc }} — click to insert {{ _t.tag }}">
+          <code class="event-tag-name">{{ _t.tag }}</code>
+          <span class="event-tag-ex" data-tag-example>{{ _t.example }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</details>
