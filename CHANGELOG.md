@@ -6,6 +6,19 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.17.0] — 2026-07-21
+
+### Added
+
+- **Auto-updating event date/time tags in a Post's GSR Summary and Body.** New `app/event_tokens.py` resolves `{event_*}` tags (single braces, case-insensitive) against `Post.event_starts_at` / `event_ends_at`: `datetime`, `datetime_short`, `full`, `date`, `date_short`, `date_numeric`, `time`, `time_short`, `weekday`, `weekday_short`, `month`, `month_short`, `month_num`, `day`, `day_ordinal`, `year` — each also available as `{event_end_…}` — plus `{event_range}`, `{event_time_range}`, `{event_time_range_short}`. An end equal to the start is treated as no end (the editor pins a blank Ends to Starts), a tag with no source datetime resolves to empty string, and an unrecognised `{event_…}` word is left verbatim so typos stay visible.
+- **Tag palette in the announcement/event editor** (`templates/_event_tag_palette.html`): a collapsed `<details>` panel under the Content card whose chips insert at the caret of the last-focused Content textarea. Examples render server-side from `event_tokens.catalog()` and refresh from the new `main.post_event_tag_preview` JSON route (debounced on the Starts/Ends inputs), so formatting rules are never duplicated in JS.
+- **Save-time warning** when a post carries tags but has no `event_starts_at` — they'd otherwise render as blank text publicly.
+
+### Changed
+
+- **`Post.summary` / `Post.body` are now hybrid properties that expand tags on read**; the mapped columns moved to `Post._summary` / `Post._body` (`db.Column("summary"/"body", …)`, so the SQLite schema and `_migrate_sqlite` are untouched). Every existing renderer — lists, cards, event/announcement detail templates, the GSR sheet, OG/link previews, ICS + calendar JSON, notification emails, and the Python-side search blobs — picks up resolved text for free. The hybrid `expression` returns the raw column, so query filters (`ilike`, `contains`, ordering, bulk updates) and constructor kwargs behave exactly as before.
+- **`Post.summary_raw` / `Post.body_raw`** expose the authored text; the edit form and the Duplicate action read these so tags survive a round trip instead of being flattened into literal dates.
+
 ## [2.16.9] — 2026-07-16
 
 ### Changed

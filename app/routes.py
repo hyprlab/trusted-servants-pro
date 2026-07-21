@@ -18026,15 +18026,51 @@ def posts():
 @login_required
 def post_new():
     _require_posts_enabled()
-    return render_template("post_edit.html", post=None)
+    from .event_tokens import catalog
+    return render_template("post_edit.html", post=None, event_tag_groups=catalog())
 
 
 @bp.route("/announcementsevents/<int:pid>")
 @login_required
 def post_edit(pid):
     _require_posts_enabled()
+    from .event_tokens import catalog
     post = db.session.get(Post, pid) or abort(404)
-    return render_template("post_edit.html", post=post)
+    # Palette examples resolve against this post's own event window
+    # when it has one, so the admin previews their real dates.
+    return render_template("post_edit.html", post=post,
+                           event_tag_groups=catalog(post.event_starts_at,
+                                                    post.event_ends_at))
+
+
+@bp.route("/announcementsevents/tag-preview")
+@login_required
+def post_event_tag_preview():
+    """Live examples for the editor's event-tag palette.
+
+    Takes the Starts / Ends values the admin currently has typed
+    (``datetime-local`` strings) and returns the same catalog the page
+    was rendered with, re-resolved. Keeps the formatting rules in
+    ``app/event_tokens.py`` rather than duplicating them in JS."""
+    _require_posts_enabled()
+    from .event_tokens import catalog
+
+    def _parse(raw):
+        raw = (raw or "").strip()
+        if not raw:
+            return None
+        for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"):
+            try:
+                return datetime.strptime(raw, fmt)
+            except ValueError:
+                continue
+        return None
+
+    start = _parse(request.args.get("start"))
+    end = _parse(request.args.get("end"))
+    examples = {t["tag"]: t["example"]
+                for g in catalog(start, end) for t in g["tags"]}
+    return jsonify({"ok": True, "sample": start is None, "examples": examples})
 
 
 @bp.route("/announcementsevents/save", methods=["POST"])
@@ -18325,6 +18361,15 @@ def post_save():
                 and _prev_public_slug != post.public_slug):
             _record_slug_change("post", post.id, _prev_public_slug, post.public_slug)
     db.session.commit()
+    # Date tags with nothing to resolve against render as blank text on
+    # the public site, which reads as a typo rather than a missing
+    # date. Warn instead of failing the save — the admin may be
+    # drafting the copy before the date is settled.
+    from .event_tokens import has_tokens
+    if (not post.event_starts_at
+            and (has_tokens(post.summary_raw) or has_tokens(post.body_raw))):
+        flash("This post uses event date tags but has no event start date yet — "
+              "they'll render as blank until you set Starts.", "warning")
     from . import activity
     activity.log("post.create" if creating else "post.update",
                  entity_type="post", entity_id=post.id,
@@ -18546,8 +18591,10 @@ def post_duplicate(pid):
     src = db.session.get(Post, pid) or abort(404)
     copy = Post(
         title=(src.title or "Untitled")[:240] + " (copy)",
-        summary=src.summary,
-        body=src.body,
+        # Raw text so any {event_date} tags stay live on the copy
+        # instead of freezing at the source post's dates.
+        summary=src.summary_raw,
+        body=src.body_raw,
         featured_image_filename=src.featured_image_filename,
         is_announcement=src.is_announcement,
         is_event=src.is_event,

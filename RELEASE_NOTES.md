@@ -7,7 +7,14 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.16.9 — 2026-07-16 (latest) — Manage jumps straight to a backup's settings
+## 2.17.0 — 2026-07-21 (latest) — Event dates that write themselves
+
+- **You can now drop the event's date and time straight into a post's GSR Summary and Body, and it updates itself.** Type a tag like `{event_date}` and it renders as the real date everywhere the post appears — the announcements and events lists, the event page, the GSR summary sheet, link previews, and notification emails. Move the event and every mention follows; there's nothing to go back and re-type.
+- **Use the whole date or just the piece you want.** `{event_datetime}` gives "July 18, 2026 at 11:00 AM", `{event_date}` just the date, `{event_time_short}` an "11am", and there are individual tags for the weekday, month, day (including "18th"), and year — plus `{event_end_…}` versions for the end time and `{event_range}` for the full span.
+- **A tag picker in the editor.** Open **Insert event date & time** under the Content fields and click any tag to drop it in where you were typing. Each one shows exactly what it will look like using that post's own dates, updating live as you change **Starts** and **Ends**.
+- Announcement-only posts can use the tags too — set an event date on the post and they fill in. If you save a post that uses tags without a start date, the portal tells you so they don't quietly render blank.
+
+## 2.16.9 — 2026-07-16 — Manage jumps straight to a backup's settings
 
 - **"Manage" next to a configured off-site backup now opens that backup's settings directly.** Previously it opened the general backups list; now you land right on the connection, schedule, and encryption settings for the target you clicked, with a "← Back to backups" link if you want the full list.
 
