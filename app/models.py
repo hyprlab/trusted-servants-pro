@@ -3,6 +3,7 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
 
 db = SQLAlchemy()
 
@@ -228,6 +229,16 @@ class User(UserMixin, db.Model):
         role that has editor tools also passes the broad editor gate."""
         return self.can_edit()
 
+    def can_access_form_submissions(self, form):
+        """Manage a single CustomForm's submissions — view the inbox /
+        archive, archive/restore, delete, and CSV export. Admins always
+        qualify; other roles only when the form explicitly grants their
+        role (per-form ``submission_roles_csv``). Editing the form itself
+        (the builder) stays admin-only and is gated separately."""
+        if self.is_admin():
+            return True
+        return bool(form) and self.role in form.submission_role_set()
+
     def can_create_meetings(self):
         """Authorized to provision new meetings or delete existing ones.
         Admins and Intergroup Members only — Editors keep their
@@ -378,6 +389,20 @@ class Meeting(db.Model):
     zoom_passcode = db.Column(db.String(128))
     zoom_link = db.Column(db.String(1000))
     zoom_opens_time = db.Column(db.String(16))  # "HH:MM"
+    # Per-platform enable toggles. Zoom defaults on so existing online
+    # meetings keep showing their Zoom details after upgrade; Meet/Teams
+    # default off. When a platform is off it renders nowhere (backend
+    # detail page or any frontend theme); its stored values are kept so
+    # re-enabling restores them.
+    zoom_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    gmeet_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    gmeet_link = db.Column(db.String(1000))
+    gmeet_meeting_id = db.Column(db.String(64))
+    gmeet_passcode = db.Column(db.String(128))
+    teams_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    teams_link = db.Column(db.String(1000))
+    teams_meeting_id = db.Column(db.String(64))
+    teams_passcode = db.Column(db.String(128))
     meeting_type = db.Column(db.String(16), nullable=False, default="in_person")  # in_person|online|hybrid
     logo_filename = db.Column(db.String(500))
     zoom_account_id = db.Column(db.Integer, db.ForeignKey("zoom_account.id", ondelete="SET NULL"))
@@ -396,6 +421,33 @@ class Meeting(db.Model):
     schedules = db.relationship("MeetingSchedule", backref="meeting",
                                 cascade="all, delete-orphan", lazy="select",
                                 order_by="MeetingSchedule.day_of_week, MeetingSchedule.start_time")
+
+    @property
+    def conferencing_platforms(self):
+        """Normalized list of enabled + populated video platforms, in
+        display order (Zoom, Google Meet, Teams). Backend detail page and
+        every frontend theme iterate this so the three platforms render
+        identically. A platform is included only when its toggle is on AND
+        it has at least a join link / meeting ID / passcode — so an enabled
+        but empty platform never renders an empty card. ``opens_time`` is
+        Zoom-only (others carry None). ``short`` is the compact name used on
+        "Join …" buttons (Teams → "Teams"); ``label`` is the full name used
+        for card headings."""
+        specs = (
+            ("zoom", "Zoom", "Zoom", self.zoom_enabled, self.zoom_link,
+             self.zoom_meeting_id, self.zoom_passcode, self.zoom_opens_time),
+            ("gmeet", "Google Meet", "Google Meet", self.gmeet_enabled, self.gmeet_link,
+             self.gmeet_meeting_id, self.gmeet_passcode, None),
+            ("teams", "Microsoft Teams", "Teams", self.teams_enabled, self.teams_link,
+             self.teams_meeting_id, self.teams_passcode, None),
+        )
+        out = []
+        for key, label, short, enabled, link, mid, passcode, opens in specs:
+            if enabled and (link or mid or passcode):
+                out.append({"key": key, "label": label, "short": short,
+                            "link": link, "meeting_id": mid,
+                            "passcode": passcode, "opens_time": opens})
+        return out
 
     def files_by_category(self, category):
         return self.files.filter_by(category=category).order_by(MeetingFile.position, MeetingFile.id).all()
@@ -1647,6 +1699,9 @@ class AccessRequest(db.Model):
     roles_json = db.Column(db.Text)  # JSON array of selected role labels
     meeting_name = db.Column(db.String(255))
     status = db.Column(db.String(16), nullable=False, default="pending")  # pending|handled
+    # IP the request was submitted from (best-effort, via _client_ip()).
+    # Lets an admin block an abusive requester from Watchtower → Requests.
+    ip_address = db.Column(db.String(64))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     handled_at = db.Column(db.DateTime)
     # Soft-archive flag: handled rows that the admin no longer wants
@@ -2131,8 +2186,55 @@ class Post(db.Model):
     # gated to admins + frontend editors; history tracked in
     # EntitySlugHistory so renames don't break existing links.
     slug = db.Column(db.String(255))
-    summary = db.Column(db.Text)        # short blurb shown in lists / link previews
-    body = db.Column(db.Text)           # full content (markdown supported)
+    # Authored text. The DB columns are still named ``summary`` /
+    # ``body``; the leading underscore only renames the *Python*
+    # attribute so the public ``summary`` / ``body`` names can be
+    # hybrid properties that expand ``{event_date}``-style tags (see
+    # app/event_tokens.py and the properties below). Writers assign
+    # ``post.summary = …`` as before — the setter stores the raw text.
+    _summary = db.Column("summary", db.Text)   # short blurb shown in lists / link previews
+    _body = db.Column("body", db.Text)         # full content (markdown supported)
+
+    @hybrid_property
+    def summary(self):
+        """Summary with event date/time tags resolved."""
+        from .event_tokens import expand_for_post
+        return expand_for_post(self._summary, self)
+
+    @summary.setter
+    def summary(self, value):
+        self._summary = value
+
+    @summary.expression
+    def summary(cls):
+        # Queries (search LIKEs, ordering, bulk updates) address the
+        # stored column — matching what the admin actually typed.
+        return cls._summary
+
+    @hybrid_property
+    def body(self):
+        """Body with event date/time tags resolved."""
+        from .event_tokens import expand_for_post
+        return expand_for_post(self._body, self)
+
+    @body.setter
+    def body(self, value):
+        self._body = value
+
+    @body.expression
+    def body(cls):
+        return cls._body
+
+    @property
+    def summary_raw(self):
+        """Authored summary, tags intact — for the edit form + Duplicate."""
+        return self._summary
+
+    @property
+    def body_raw(self):
+        """Authored body, tags intact — for the edit form + Duplicate."""
+        return self._body
+
     featured_image_filename = db.Column(db.String(500))
 
     # Type tags — independent so a single post can be both.
@@ -3458,8 +3560,32 @@ class CustomForm(db.Model):
     redirect_url = db.Column(db.String(500))
     thank_you_message = db.Column(db.Text)
     enabled = db.Column(db.Boolean, nullable=False, default=True)
+    # Non-admin roles (CSV, e.g. "editor,viewer") allowed to MANAGE this
+    # form's submissions — view the inbox/archive, archive/restore, delete,
+    # and CSV export. Admins always qualify; empty/NULL = admins only. Drives
+    # the per-form "Forms" sidebar list + submission-route gating. Editing
+    # the form itself stays admin-only.
+    submission_roles_csv = db.Column(db.String(200))
+    # Optional dynamic background for the public form page. Same dynbg
+    # system as Page/SiteSetting surfaces: ``bg_dynamic_key`` is a
+    # catalog key from ``app/dynbg.py`` (None = no dynbg), and
+    # ``bg_dynbg_config_json`` holds the sibling overlay + custom-colour
+    # config (same shape as ``Page.bg_dynbg_config_json``). When unset
+    # the form falls through to the site-wide submission-form background.
+    bg_dynamic_key = db.Column(db.String(64))
+    bg_dynbg_config_json = db.Column(db.Text)
+    # Open Graph / link-preview image for the public form page (UUID-
+    # prefixed filename in UPLOAD_FOLDER). None = fall back to the site
+    # frontend OG image. og:title / og:description derive from the form's
+    # title + description, so no separate columns are needed.
+    og_image_filename = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def submission_role_set(self):
+        """Set of non-admin role names granted submission access."""
+        return {r.strip() for r in (self.submission_roles_csv or "").split(",")
+                if r.strip()}
 
     submissions = db.relationship(
         "FormSubmission",
@@ -3483,3 +3609,14 @@ class FormSubmission(db.Model):
     payload_json = db.Column(db.Text)
     ip = db.Column(db.String(45))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    # Archive flag — archived rows drop out of the default submissions
+    # list (viewable via the Archived tab) without being deleted, so an
+    # operator can clear the inbox without losing the record.
+    is_archived = db.Column(db.Boolean, nullable=False, default=False)
+    archived_at = db.Column(db.DateTime)
+    # "Seen" flag — set the first time an operator opens the submission's
+    # detail view. Drives the per-form sidebar/widget "new" count chips:
+    # an un-archived, un-seen submission counts as new; viewing it clears
+    # the chip. Distinct from archiving (a deliberate filing action).
+    is_seen = db.Column(db.Boolean, nullable=False, default=False)
+    seen_at = db.Column(db.DateTime)

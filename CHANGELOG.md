@@ -6,6 +6,550 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.17.0] — 2026-07-21
+
+### Added
+
+- **Auto-updating event date/time tags in a Post's GSR Summary and Body.** New `app/event_tokens.py` resolves `{event_*}` tags (single braces, case-insensitive) against `Post.event_starts_at` / `event_ends_at`: `datetime`, `datetime_short`, `full`, `date`, `date_short`, `date_numeric`, `time`, `time_short`, `weekday`, `weekday_short`, `month`, `month_short`, `month_num`, `day`, `day_ordinal`, `year` — each also available as `{event_end_…}` — plus `{event_range}`, `{event_time_range}`, `{event_time_range_short}`. An end equal to the start is treated as no end (the editor pins a blank Ends to Starts), a tag with no source datetime resolves to empty string, and an unrecognised `{event_…}` word is left verbatim so typos stay visible.
+- **Tag palette in the announcement/event editor** (`templates/_event_tag_palette.html`): a collapsed `<details>` panel under the Content card whose chips insert at the caret of the last-focused Content textarea. Examples render server-side from `event_tokens.catalog()` and refresh from the new `main.post_event_tag_preview` JSON route (debounced on the Starts/Ends inputs), so formatting rules are never duplicated in JS.
+- **Save-time warning** when a post carries tags but has no `event_starts_at` — they'd otherwise render as blank text publicly.
+
+### Changed
+
+- **`Post.summary` / `Post.body` are now hybrid properties that expand tags on read**; the mapped columns moved to `Post._summary` / `Post._body` (`db.Column("summary"/"body", …)`, so the SQLite schema and `_migrate_sqlite` are untouched). Every existing renderer — lists, cards, event/announcement detail templates, the GSR sheet, OG/link previews, ICS + calendar JSON, notification emails, and the Python-side search blobs — picks up resolved text for free. The hybrid `expression` returns the raw column, so query filters (`ilike`, `contains`, ordering, bulk updates) and constructor kwargs behave exactly as before.
+- **`Post.summary_raw` / `Post.body_raw`** expose the authored text; the edit form and the Duplicate action read these so tags survive a round trip instead of being flattened into literal dates.
+
+## [2.16.9] — 2026-07-16
+
+### Changed
+
+- **In Settings → Data, the per-target "Manage" button next to a configured off-site backup now opens that target's edit modal directly** (connection, schedule, encryption), instead of the general "Manage backups" list. The row button carries a `data-modal-src` pointing at `backups_edit` for its target — reusing the existing `openModal` per-trigger override — so the separate "Manage backups" button still opens the full list, and each target's edit view has a "← Back to backups" link.
+
+## [2.16.8] — 2026-07-16
+
+### Changed
+
+- **Off-site backup temp files now stage in a dedicated `<DATA_DIR>/temp` subdir instead of the data-volume root, and orphans are auto-reclaimed.** The export archive (`tsp-export-*`), its VACUUM'd DB copy, and the encryption ciphertext (`tsp-e2ee-*` for TS Pro Backup, `*.enc` for passphrase targets) are all written under `/data/temp` and deleted after a successful upload — as before. New: a startup + pre-run **orphan sweep** removes any of those temp files left behind by an interrupted run (container restart mid-deploy, OOM, or a crash during a slow chunked upload), which previously accumulated on disk indefinitely. The sweep is scoped to `/data/temp`, matches only the two backup temp prefixes, and skips anything newer than 1 hour, so an in-flight backup and every live data file (`tsp.db`, `zoom.key`, `uploads/`, daily `backups/` snapshots) are never touched. `TSP_TMP_DIR` still overrides the scratch location wholesale.
+
+## [2.16.7] — 2026-07-16
+
+### Changed
+
+- **The "Powered by Trusted Servants Pro" footer in notification emails now links to [gettspro.com](https://gettspro.com).** Each footer element (the "Powered by" label, the logo, and the "Trusted Servants Pro" wordmark) is wrapped in its own anchor — email clients can't wrap a table row in a single link — with inline color and `text-decoration:none` so the footer looks identical but is now clickable. Applies to both `email/branded.html` and `email/form_submission.html`.
+
+## [2.16.6] — 2026-07-04
+
+### Changed
+
+- **Rebranded from Viibeware to Hyprlab, and moved the project to the `hyprlab` GitHub and Docker Hub accounts.** The published image is now `hyprlab/tspro` (was `viibeware/trusted-servants-pro`); the source repo is now `github.com/hyprlab/trusted-servants-pro`. Updated across `README.md`, `install.sh`, `uninstall.sh`, `docker-compose.deploy.yml`, and the changelog/release-notes links to the companion `hyprlab/tspro-relay` and `hyprlab/tspro-backup` images.
+- **The "Built by" credit in Settings → About and the login footer now read Hyprlab**, using the new `icon_hyprlab.png` mark (the old `viibeware.svg` and its CSS-mask treatment are removed — the login-footer logo is now a plain image). Added a **gettspro.com** link under the About credit. Copyright line updated to © Hyprlab.
+
+## [2.16.5] — 2026-06-28
+
+### Fixed
+
+- **The header logo now actually appears at the top of emails (was falling back to text).**
+  The header logo is an SVG, which email clients can't render, so it needs a `.png` twin.
+  The gate that decided whether to show the logo only emitted its URL when the twin
+  *already existed on disk*, and the on-demand rasterizer lived in the image route — which
+  never runs unless that URL is emitted. Result: on any install whose logo predated the
+  auto-twin-on-upload (i.e. no twin on disk), every email showed the site name as text.
+  `_email_logo_png_ready` now rasterizes the SVG→PNG twin on the spot when it's missing,
+  then emits the logo URL, falling back to text only when no raster can be produced.
+
+## [2.16.4] — 2026-06-27
+
+### Fixed
+
+- **Admin password resets now send a password-reset email, not a new-account welcome.**
+  The reset action reused `_send_welcome_email`, so the recipient got an "An account has
+  been created for you / Welcome aboard" message that read as a brand-new account. The
+  helper now takes a `reason` (`created` vs `reset`); the reset path frames the email as
+  a password reset — subject `Your … password has been reset`, header `Password reset`,
+  and an intro noting an administrator reset the password — while the credential/role
+  content stays identical.
+- **The reset confirmation shows as two separate toasts.** The "Reset & send email"
+  success previously bundled both notices into one flash; it now emits two separate
+  flashes (`Password reset for X.` and `Password reset email sent to Y.`) so they render
+  as distinct toasts.
+
+### Changed
+
+- **Admin reset-password modal copy** now says "a password reset email will be sent"
+  (was "the welcome email will be re-sent"), matching the email the recipient receives.
+
+## [2.16.3] — 2026-06-27
+
+### Fixed
+
+- **Logos in HTML emails now render in Thunderbird (and other CORP-respecting
+  clients).** Every response carried `Cross-Origin-Resource-Policy: same-origin`,
+  which Gecko-based mail clients honor — so the logo images were blocked when loaded
+  into the non-same-origin context of a rendered email, even with remote content
+  allowed and the images returning a clean `200 image/png`. The public asset responses
+  that `imgcache` already owns (static + image endpoints) now send
+  `Cross-Origin-Resource-Policy: cross-origin` so they're embeddable in email; every
+  non-asset response keeps the strict `same-origin` default, so page security is
+  unchanged. (The `?v=` cache-bust token was never the cause.)
+
+### Changed
+
+- **Email logo URLs build from the canonical `site_url` instead of the request host.**
+  `_email_asset_url`/`_email_tspro_logo_url` route both the bundled TSP logo and the
+  uploaded site logo through the admin-configured `site_url`, so they resolve to the
+  public domain even for admin-triggered or background sends whose request host could
+  be an internal/Docker hostname a mail client can't reach.
+
+## [2.16.2] — 2026-06-27
+
+### Added
+
+- **Creating a user straight from an access request now closes the request out
+  automatically.** The Create User button on Watchtower → Requests forwards the
+  request id (`access_request_id`) through the prefilled Settings → Users form; on
+  successful creation `users_create` marks that request handled and archived (logging
+  `access_request.archive`). It's a silent no-op for ordinary user creation and for
+  missing/already-archived rows.
+- **The Requests page drops the row live, no refresh.** After the create, the reloaded
+  Users iframe `postMessage`s the parent (`tsp:access-request-archived`); the Requests
+  page removes the matching row, adjusts the Active/Archived tab counts, and swaps in
+  the empty state if the list runs out. Tab counts are now always-rendered spans so JS
+  can update them.
+
+### Fixed
+
+- **The Users tab no longer hides the Edit/Delete buttons behind a horizontal
+  overflow.** With every column present the users table can be wider than the Settings
+  modal on smaller laptops, pushing the right-most actions column off the edge where it
+  got clipped. The Edit/Delete buttons now stack in a narrow hugging column on desktop,
+  and the table sits in a horizontal-scroll wrapper so nothing is ever clipped out of
+  reach. On mobile the actions stay side-by-side in the card layout.
+
+### Changed
+
+- **The Settings modal is a touch wider on desktop (1180px → 1280px)** so dense panes
+  like the Users table fit without horizontal scrolling. It still shrinks to fit
+  narrower viewports.
+
+## [2.16.1] — 2026-06-21
+
+### Fixed
+
+- **The yellow save bar no longer overflows when its button changes to "Saving…".**
+  The save-bar button can't shrink and several bars pin/fix their width the instant
+  Save is clicked, so swapping the label to the wider "Saving…" spilled the button out
+  of the rounded bar. The shared `.fe-save-bar-btn` now reserves `min-width` for its
+  widest label ("Save" → "Saving…" → "Saved"), so the bar is sized for it up front —
+  no overflow and no width jiggle. Applies to every save bar (meeting modal, Settings,
+  frontend editor, Users, etc.).
+
+## [2.16.0] — 2026-06-21
+
+### Added
+
+- **Google Meet and Microsoft Teams alongside Zoom on meetings.** Each meeting can
+  now carry up to three video platforms. Every platform has an enable toggle in the
+  meeting editor; when a toggle is off, its fields collapse to a single toggle row
+  and the platform renders nowhere (backend detail page or any frontend theme).
+  Disabling keeps the stored link/ID/passcode so re-enabling restores them. New
+  `Meeting` columns (`zoom_enabled`, `gmeet_*`, `teams_*`) with matching
+  `_migrate_sqlite` entries; `zoom_enabled` defaults on so existing online meetings
+  are unchanged. A `Meeting.conferencing_platforms` property drives identical
+  rendering across the backend detail page, the shared meeting-list card (all
+  layouts), and all four detail themes (classic, minimal, card_stack, magazine).
+- **IP tracking on access requests + one-click IP blocking.** Each access request now
+  records the submitter's IP (best-effort, via the same Cloudflare-aware helper the
+  contact form uses; new `access_request.ip_address` column). Watchtower → Requests
+  shows the IP per row with a **Block IP** / **Unblock** control wired to the existing
+  IP blocklist. The block sends `protect_known_users`, so it won't lock out an IP a
+  signed-in user recently used (pointing the admin to Watchtower → Access to override).
+
+### Changed
+
+- **Backend meeting detail page: External links card now sits directly under
+  Libraries** (template-local reorder; the global `FILE_CATEGORIES` order — and the
+  frontend/upload forms that depend on it — are unchanged).
+- **Conferencing card accents on the backend detail page.** Google Meet gets a green
+  left border, Microsoft Teams a purple (`#8157f6`) one, distinct from Zoom's.
+- **The Teams join button reads "Join Teams"** on the frontend (the card heading still
+  shows the full "Microsoft Teams").
+
+## [2.15.13] — 2026-06-15
+
+### Added
+
+- **Per-row archive and delete buttons on the submission inbox.** Each row now has
+  archive (or restore, on the Archived tab) and delete buttons right in the list —
+  always visible alongside View — so a single submission can be filed or removed
+  without opening it or using the bulk bar. They're inline POST forms targeting the
+  existing endpoints; delete still confirms first.
+
+## [2.15.12] — 2026-06-15
+
+### Changed
+
+- **The "View" button is always visible on a submission row**, even while the card
+  is collapsed — moved from inside the expandable panel into the row header (next to
+  the expand chevron), so the full record is one click away without expanding first.
+  Collapses to an icon-only button on narrow screens.
+
+## [2.15.11] — 2026-06-15
+
+### Changed
+
+- **"View Submission" now opens a modal** instead of navigating to the detail page.
+  The popup is styled like the detail record: a sticky header (submitter name +
+  close), a scrollable email-style body, and a sticky footer with Archive/Restore +
+  Delete. Closes via the ✕, the backdrop, or Escape. Opening it marks the submission
+  seen and updates the sidebar count chip live (preserving the behaviour the
+  detail-page view had).
+
+## [2.15.10] — 2026-06-15
+
+### Added
+
+- **Open Graph / link previews for custom form pages.** A custom form's public page
+  now emits OG + Twitter tags — `og:title` from the form title, `og:description` from
+  the form description, and `og:image` from a per-form preview image (a new upload in
+  the form editor's **Link preview (Open Graph)** card). When no per-form image is
+  set, it falls back to the site-wide frontend OG image.
+
+### Changed
+
+- **Submission rows expand/collapse with a smooth animation** instead of snapping
+  open, using a CSS grid-rows height transition (respects reduced-motion).
+
+## [2.15.9] — 2026-06-15
+
+### Added
+
+- **Expand a submission inline from the inbox.** Each row in a form's submission
+  inbox now expands on click to show the full record in the same email/detail style
+  (labelled fields, checkbox/radio options as check pills, clickable email/phone,
+  file download links) without leaving the list. Each expanded row has a **View
+  Submission** button through to the full detail page. The field rendering is now a
+  shared partial, so the inline view and the detail page stay identical.
+
+## [2.15.8] — 2026-06-15
+
+### Added
+
+- **"View on frontend" link on the form backend page.** A form's submissions inbox
+  now has a button that opens that form's live public page in a new tab (shown when
+  the form is enabled), available to admins and granted non-admin managers alike.
+
+### Fixed
+
+- **Collapsed sidebar sections no longer flash open on navigation.** Their collapsed
+  state is now applied before the sidebar paints (via the same pre-paint head script
+  that sets the theme), so a section you collapsed stays collapsed across page loads
+  instead of briefly expanding and snapping shut.
+
+## [2.15.7] — 2026-06-15
+
+### Added
+
+- **Submissions now have a "seen" state.** Opening a submission's detail view marks
+  it seen, which clears it from the form's "new" count chip (sidebar **and** the
+  dashboard Forms widget) and removes its entry from the Notifications Center. "New"
+  now means un-archived **and** un-seen, so the count reads like an unread inbox.
+- **Click a notification to clear it.** Clicking a notification in the Notifications
+  Center now dismisses it (dropping the sidebar bell count) before navigating to its
+  target. Cmd/Ctrl/Shift-click (open in a new tab) clears it without hijacking the
+  navigation.
+- **"Your Access" documents per-form submission access.** The Settings → Your Access
+  permission matrix has a new row — *Manage submissions for a form an admin grants
+  your role* — shown as a "granted per-form" marker for Editor / Intergroup Member /
+  Viewer, with a footnote. The role-capability bullets (dashboard card + welcome
+  email) gained matching lines.
+
+### Fixed
+
+- **The form pages no longer collapse the main sidebar.** The submission-inbox and
+  custom-form pages share the Web Frontend's ``main.frontend_*`` endpoint prefix,
+  which had triggered the editor's auto-hide-sidebar behaviour — wrong for non-admins
+  who manage a granted form but have no Web Frontend access. Those pages now always
+  render the normal app sidebar.
+
+## [2.15.6] — 2026-06-15
+
+### Added
+
+- **Every form email now uses the branded HTML style.** A new shared template
+  (`email/branded.html`) gives every email the app sends the same polished,
+  mobile-friendly look introduced for custom-form submissions: brand gradient,
+  site logo, labelled field sections (with email/phone/URL links and check-pill
+  options), optional call-to-action button(s), and a "Powered by Trusted Servants
+  Pro" footer. Each email keeps its plain-text version as the multipart fallback.
+  Converted: the **contact form**, **story submission**, **announcements/events
+  submission**, **access request**, **Recovery Contacts** new-listing notification
+  and "contact a listing" message, the Recovery Contacts **verification email**
+  (with **Confirm** + **I didn't request this** buttons), the **removal-confirmed**
+  and **disavow** operator alerts, the **welcome email** for new accounts, and the
+  **password-reset email**.
+
+### Changed
+
+- The Forms-sidebar submission-count chips are **blue** (matching the other
+  attention chips) instead of orange.
+
+### Fixed
+
+- N/A
+
+## [2.15.5] — 2026-06-15
+
+### Added
+
+- **Per-form submission access for non-admin roles.** Each custom form can now
+  grant Editors / Intergroup Members / Viewers access to *its* submissions only.
+  Granted roles get the form in a new sidebar **Forms** section with its own inbox
+  + archive, and can view, archive, delete, and export entries (editing the form
+  itself stays admin-only). The old monolithic "Custom Form Submissions" admin
+  link is retired in favour of this per-form list — shown to admins too. The
+  built-in **Contact Form** inbox and the three module forms (Announcements/Events,
+  Story Submission, Recovery Contacts) now also live in the Forms section.
+- **Per-form submission-count chips.** Each Forms-section inbox carries an orange
+  number chip showing its un-archived submission count, updated live by the
+  attention-count poller and re-hidden at zero.
+- **Custom-form submissions in the Notifications Center.** New submissions surface
+  as notifications (role-gated per form, 14-day window), each linking to the
+  submission detail page.
+- **Dynamic backgrounds for custom forms.** Each custom form's edit page has a
+  **Background** card with the full dynbg picker (presets, overlays, custom
+  palette, knobs). When set it overrides the site-wide Forms background on that
+  form's public page; when unset it inherits the shared background as before.
+- **"View submission in app" button** in the submission notification email, linking
+  straight to that submission's detail page in the backend.
+- **CSV export for role-gated managers.** Non-admin managers can download a form's
+  entries as CSV, same as admins.
+- **"Submit another response" button** on a custom form's thank-you page, re-opening
+  the empty form for another entry.
+
+### Changed
+
+- **Submission detail page redesigned** to match the branded submission email:
+  gradient accent bar, an identity hero (avatar, submitter name, form, submitted
+  time / IP / field count, clickable email & phone chips), one labelled row per
+  answered field with selected options as check pills and live email/phone/file
+  links, and a clean actions footer. Theme-aware.
+- **Submission progress UX.** Submitting a custom form now locks the form, swaps the
+  button into a spinner state, and shows an elegant blurred overlay ("Submitting… —
+  please keep this page open") so visitors see clear progress during a slow upload
+  and don't double-submit.
+- **The custom-form thank-you page is cleaner** — the form description is hidden once
+  the green confirmation appears, so only the confirmation (and the "Submit another"
+  button) shows.
+- **Submission backend pages show their visibility roles** in the topbar, and the
+  per-form **Submission access** card was restyled (left-aligned checkboxes).
+- **Notifications sidebar chip is now orange.**
+- Removed the now-redundant form-switcher dropdown from the submission pages (each
+  form has its own sidebar entry).
+
+### Fixed
+
+- **Submission IP capture prefers IPv4.** The submitter's IP now unwraps
+  IPv4-mapped IPv6 and honours Cloudflare's Pseudo-IPv4 header, so submissions show
+  a real IPv4 where one exists (genuine IPv6-only clients still show IPv6).
+
+## [2.15.4] — 2026-06-15
+
+### Added
+
+- **Branded HTML emails for custom-form submissions.** Notifications now go out
+  as a polished, mobile-friendly HTML message (with a plain-text fallback): brand
+  gradient, the site's logo, the form title + site-timezone submitted time, each
+  field in its own labelled section (email/phone become clickable links),
+  selected checkbox/radio options shown with check marks, an attachments card,
+  and a "Powered by Trusted Servants Pro" footer. Email-safe table layout with
+  hosted-image logos, so it renders across the mainstream clients (Apple Mail /
+  iOS Mail / Gmail).
+- **Archive a single submission from its detail view.** The submission detail
+  page has an **Archive** button (it returns you to the submissions list); on an
+  already-archived submission it reads **Restore**. Complements the bulk
+  archive/restore on the list.
+- **SVG → PNG rasterizer.** Added `cairosvg` (rendering through the existing
+  libcairo runtime). Uploading an SVG now auto-generates a same-stem PNG twin for
+  raster-only contexts — notably the HTML emails above, which can't display SVG —
+  served at `/site-branding/footer-logo.png`. The PNG twin is cleaned up when its
+  SVG is retired.
+
+### Changed
+
+- **Submission emails list only the options the submitter selected.** Checkbox
+  and radio fields now show just the ticked/chosen items (each with a check mark)
+  instead of every option with its state.
+
+### Removed
+
+- **The "Import to Stories pending review" button** is gone from the
+  custom-form submission detail view — a leftover migration tool that didn't
+  belong on general custom-form submissions.
+
+## [2.15.3] — 2026-06-15
+
+### Changed
+
+- **The custom-form "Name" field is a single full-name input again** (not a
+  split First / Last). It's still recognised as the submitter's display name in
+  the submissions list, and now stores one plain value like a text field. The
+  builder's Placeholder field is re-enabled for it. Existing submissions captured
+  under the old composite remain readable (stored as the joined "First Last"
+  string).
+- **More breathing room on the public form** — 2rem of space between a custom
+  form's description and its first field (scoped to custom forms).
+- **Field help text now renders under the field title, above the field**
+  (previously it sat below the field). The validation error still shows below
+  the field, and help + error are now independent (help no longer disappears
+  when an error is shown). Custom forms only.
+
+### Fixed
+
+- **Public-form checkbox/radio options stacked their box above the label.** The
+  public page also loads `app.css`, whose `.form label { flex-direction: column }`
+  outranked the option rule — so each box rendered on top of its text. Scoped the
+  option rule so the box sits inline-left of its label, one option per line.
+
+## [2.15.2] — 2026-06-15
+
+### Added
+
+- **"View on frontend" button for custom forms.** Appears on the form edit page
+  (top bar) when the form is enabled, and on each row of the Forms list when the
+  form is toggled on — the list button shows/hides live as you flip the enable
+  switch (no reload). Both open the form's public URL
+  (`url_for('frontend.page_detail', slug=…)`) in a new tab.
+
+### Fixed
+
+- **The public custom-form page rendered its description and fields
+  side-by-side.** A CSS class-name collision: the admin "Custom Form
+  Submissions" list rows and the public form page both use
+  `.fe-submission-card`, so the `display: flex; align-items: center` added to it
+  for the list checkboxes in 2.15.1 leaked onto the public form — floating the
+  intro into a left column and cramping the fields on the right. Scoped the admin
+  rule to `.fe-submissions-list .fe-submission-card`, so the public form returns
+  to its proper stacked layout (description on top, full-width fields).
+
+### Changed
+
+- **Public form polish.** Option-type fields (select / radio / checkboxes) with
+  no options configured are now skipped on the public page instead of rendering
+  an empty, unusable label, and the Submit button is right-aligned.
+
+## [2.15.1] — 2026-06-15
+
+### Added
+
+- **Archiving + bulk actions for Custom Form Submissions.** The submissions page
+  now has **Active / Archived** tabs (with counts scoped to the form filter), a
+  checkbox on every row, and a bulk bar to **Archive**, **Restore**, or
+  **Delete** the selected submissions — the action buttons appear only once a row
+  is ticked, and each action returns you to the same form-filter + tab. New
+  `is_archived` / `archived_at` columns on `FormSubmission` (added in
+  `_migrate_sqlite`, mirroring the `access_request` archive pattern).
+- **Download a form's submissions as CSV.** Filter to a single form and click
+  **Download CSV** to export its entries — columns are the form's fields by label
+  (builder order), preceded by Submitted + IP. Checkbox values are joined with
+  `;`, file fields show the original filename, and timestamps render in the site
+  timezone. Respects the active/archived tab.
+- **Enable/disable toggle on each custom form** in the Forms list, matching the
+  built-in "Available forms" switches (new JSON-in/JSON-out
+  `frontend_custom_form_toggle` route, reusing the existing per-row toggle JS).
+
+### Changed
+
+- **Add field no longer auto-opens the field editor.** Clicking *Add field* drops
+  a collapsed, type-labelled block into the form; its editor modal opens only
+  when you click the block — so adding several fields in a row doesn't keep
+  popping modals open.
+- **The custom-form edit page no longer has collapsible cards.** The Visibility /
+  Settings / Fields cards are always expanded (page-level `data-no-collapse`
+  opt-out for the collapsible-cards feature) — no click-to-collapse title bars.
+
+### Fixed
+
+- **Hidden buttons stayed visible.** `.btn { display: inline-flex }` outranks the
+  UA `[hidden]` rule (equal specificity, later wins), so the bulk "Delete
+  selected" / "Archive" buttons — which hide until a row is ticked — still
+  showed. Added a global `.btn[hidden] { display: none !important }`.
+- **The form-builder card title bars read as clickable** even with collapse
+  disabled. The page-level `data-no-collapse` opt-out now also resets the pointer
+  cursor and the blue heading hover-colour the collapsible cards use to advertise
+  their toggle.
+
+## [2.15.0] — 2026-06-14
+
+### Added
+
+- **New "Name" field for custom forms.** The custom-form field-type dropdown now
+  leads with a **Name** type that renders two inputs on the public form — *First
+  name* and *Last name* — and stores the joined full name under the field's key,
+  so it reads as a single value in the submissions list, the detail view, and the
+  notification email. A composite Name field is also picked first as the
+  submitter's display name in the submissions list. Scoped to custom forms; the
+  built-in Contact/Story/Events builders keep the primitive set.
+- **"Auto convert to WebP" for featured images.** The Announcements/Events edit
+  page has a checkbox that transcodes an uploaded featured image to WebP on save
+  (quality 82, EXIF-orientation honoured, alpha preserved). SVGs, already-WebP
+  files, and undecodable uploads pass through unchanged.
+- **Multi-select bulk delete for custom forms.** The Forms page lists each custom
+  form with a checkbox plus a "Select all / N selected / Delete selected" bar.
+  The Delete button only appears once at least one form is ticked; submissions
+  cascade away with their form. Per-row delete stays as the no-JS path.
+
+### Changed
+
+- **Custom-form field editor is now a popup modal** instead of an inline
+  accordion. Clicking a field block opens a centered modal (backdrop, ✕, Escape,
+  one-open-at-a-time); the inputs stay inside the form so saves are unaffected.
+- **Add field drops a collapsed block** with its label pre-filled from the field
+  type (e.g. "Email", "Name") — the editor modal opens when you click the block,
+  not automatically. Clicking anywhere on a field block's head opens its editor.
+- **The URL slug follows the form name as you type** and stops once you edit the
+  slug yourself; existing forms whose slug already differs from their title are
+  treated as already-edited, so renaming never silently changes a live URL.
+- **The yellow save bar appears immediately on a brand-new form** so it can be
+  saved without touching a field, and the separate "Save settings" button was
+  removed — saves happen only via the save bar.
+- **Submission timestamps for Announcements/Events render in the site timezone**
+  (with a `%Z` abbreviation) instead of a hard-coded "UTC", matching how Stories
+  already display. Storage is unchanged (UTC-naive); only the display was fixed.
+- **Web Frontend dashboard count chips are now blue.** Orange "needs attention"
+  chips are reserved for Watchtower and the dashboard alert badges; the
+  Notifications sidebar chip is also blue now — only Watchtower stays orange.
+
+### Fixed
+
+- **The custom-form field editor wouldn't open.** The JS toggled the body's
+  `hidden` attribute, but visibility is CSS-driven by an `.is-open` class on the
+  card — and `.fe-form-field-body { display:flex }` outranked the UA `[hidden]`
+  rule, so clicking *Edit* did nothing and new fields couldn't get a label
+  (then vanished on save, since blank-label fields are dropped). The toggle now
+  drives `.is-open`.
+- **Form slug fields failed validation in current browsers.** `pattern="[a-z0-9-]*"`
+  is an invalid regex under Chrome's new `v`-flag pattern compilation (dangling
+  hyphen), throwing during `checkValidity()`. Escaped the hyphen
+  (`[a-z0-9\-]*`) across every affected template.
+- **The Web Frontend admin subnav drifted under the topbar while scrolling.** Its
+  sticky offset now equals its natural position (`--topbar-h + --content-px`),
+  so it stays put with zero travel.
+- **The main app sidebar bounced on overscroll.** It was `position: sticky`, so
+  the page's rubber-band dragged it; it's now `position: fixed` (pinned to the
+  viewport), with `.content` explicitly anchored to its grid column so the
+  layout is unchanged at desktop and mobile widths.
+- **The Forms page "Available forms" rows were squished** after the bulk-select
+  column was added (the checkbox grid column leaked onto the checkbox-less
+  built-in rows). The extra column is now scoped to the custom-forms list.
+
+## [2.14.4] — 2026-06-14
+
+### Changed
+
+- The dashboard's **"Currently online"** widget now lists only backend (`/tspro`)
+  activity — a signed-in user sitting on a public Web Frontend page no longer
+  appears — and continues to exclude the viewing admin from their own list.
+
 ## [2.14.3] — 2026-06-14
 
 ### Fixed
@@ -3951,4 +4495,4 @@ A full content-page CMS, accessible via **Web Frontend → Pages** in the admin 
 
 - **Page settings + Page width + Background → single `.fe-page-settings-card`.** Three subsections separated by 1 px hairline + an inline `<h3>` sub-heading paired with the muted helper text. First subsection's border is suppressed via `:first-of-type`. Sub-heading uses `flex` so the muted helper sits inline on wide viewports and wraps below on narrow. All form input names (`title`, `slug`, `is_published`, `width_mode`, `max_width`, `full_padding_pct`, `bg_image`, `clear_bg`, `bg_mode`, `bg_tile_scale`) unchanged — the save route's form parsing keeps working without changes.
 
-[Unreleased]: https://github.com/your-org/tspro/compare/v1.8.6...HEAD
+[Unreleased]: https://github.com/hyprlab/trusted-servants-pro/compare/v1.8.6...HEAD

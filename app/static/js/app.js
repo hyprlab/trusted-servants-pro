@@ -119,6 +119,12 @@
       const items = document.getElementById(btn.getAttribute("aria-controls"));
       if (items) items.hidden = collapsed;
     });
+    // The pre-paint preload <style> (injected in <head> to stop collapsed
+    // sections flashing open on load) has done its job now that the
+    // `hidden` attributes carry the same state — drop it so toggling a
+    // section open isn't blocked by a lingering `display:none` rule.
+    const preload = document.getElementById("tsp-sidebar-collapse-preload");
+    if (preload) preload.remove();
   }
   document.addEventListener("click", e => {
     const btn = e.target.closest(".sidebar-section-toggle");
@@ -553,6 +559,7 @@
       const email = btn.dataset.email || "";
       const name = btn.dataset.name || "";
       const phone = btn.dataset.phone || "";
+      const rid = btn.dataset.rid || "";
       const modal = document.getElementById("settings-modal");
       if (!modal) return;
       openModal("settings-modal");
@@ -566,6 +573,9 @@
         if (email) params.set("prefill", email);
         if (name)  params.set("prefill_name", name);
         if (phone) params.set("prefill_phone", phone);
+        // Carry the originating access-request id so creating the user
+        // auto-marks that request handled + archived (see auth.users_create).
+        if (rid)   params.set("prefill_rid", rid);
         params.set("_", Date.now().toString());
         const sep = base.includes("?") ? "&" : "?";
         iframe.src = base + sep + params.toString();
@@ -3889,6 +3899,11 @@
 (function feCollapsibleCards() {
   const main = document.querySelector(".fe-admin-main");
   if (!main) return;
+  // Page-level opt-out: a [data-no-collapse] main column keeps every card
+  // permanently expanded (no chevron, no click-to-collapse) — e.g. the
+  // custom-form edit page, where collapsing the settings/fields cards just
+  // gets in the way of building the form.
+  if (main.hasAttribute("data-no-collapse")) return;
 
   const STORAGE_KEY = "fe-card-collapse:" + window.location.pathname;
   let stored = {};
@@ -4086,6 +4101,14 @@
     }
   }
   main.querySelectorAll('form').forEach(f => { if (trackable(f)) instrument(f); });
+
+  // Opt-in: a form marked [data-fe-savebar-force] surfaces the save bar on
+  // load, before any edit — e.g. a freshly-created form stub the operator
+  // should be able to save straight away. We seed it into the dirty set so
+  // the Save click actually POSTs it (an empty dirty set would just hide).
+  main.querySelectorAll('form[data-fe-savebar-force]').forEach(f => {
+    if (trackable(f)) { dirty.add(f); show(); }
+  });
 
   // Some forms are spliced in later (e.g. mega menu blocks via fetch); pick
   // them up via a MutationObserver so they participate too.

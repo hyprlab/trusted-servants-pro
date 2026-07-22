@@ -736,10 +736,17 @@ def create_app():
     # Defensive — any failure is logged, never raised, so a backup
     # hiccup can't block the app from coming up.
     try:
-        from .backup import daily_snapshot, list_snapshots as _list_snapshots
-        # >>> TSP demo overlay: skip snapshots in demo mode (raw sqlite3 on the
-        #     shared data dir; would only capture the golden DB) >>>
+        from .backup import (daily_snapshot, list_snapshots as _list_snapshots,
+                             sweep_orphan_temp_files)
+        # >>> TSP demo overlay: skip snapshots + the orphan sweep in demo mode
+        #     (raw sqlite3 on the shared data dir; a snapshot would only
+        #     capture the golden DB, and there are no off-site backups to
+        #     leave temp files behind) >>>
         if not demo_mode:
+            # Reclaim any off-site backup archives orphaned by an interrupted
+            # run (restart/OOM/crash mid-upload) before they pile up on the
+            # data volume.
+            sweep_orphan_temp_files(app)
             daily_snapshot(app)
         # <<< TSP demo overlay <<<
 
@@ -1451,7 +1458,16 @@ def _migrate_sqlite(app):
                          ("show_otp", "BOOLEAN NOT NULL DEFAULT 1"),
                          ("location_notes", "TEXT"),
                          ("extended_content_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
-                         ("extended_blocks_json", "TEXT")):
+                         ("extended_blocks_json", "TEXT"),
+                         ("zoom_enabled", "BOOLEAN NOT NULL DEFAULT 1"),
+                         ("gmeet_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
+                         ("gmeet_link", "VARCHAR(1000)"),
+                         ("gmeet_meeting_id", "VARCHAR(64)"),
+                         ("gmeet_passcode", "VARCHAR(128)"),
+                         ("teams_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
+                         ("teams_link", "VARCHAR(1000)"),
+                         ("teams_meeting_id", "VARCHAR(64)"),
+                         ("teams_passcode", "VARCHAR(128)")):
             add("meeting", col, ddl)
         for col, ddl in (("alert_message", "TEXT"),
                          ("is_intergroup", "BOOLEAN NOT NULL DEFAULT 0"),
@@ -1954,8 +1970,19 @@ def _migrate_sqlite(app):
         for col, ddl in (("body_blocks_json", "TEXT"),):
             add("blog_post", col, ddl)
         for col, ddl in (("is_archived", "BOOLEAN NOT NULL DEFAULT 0"),
-                         ("archived_at", "DATETIME")):
+                         ("archived_at", "DATETIME"),
+                         ("ip_address", "VARCHAR(64)")):
             add("access_request", col, ddl)
+        for col, ddl in (("is_archived", "BOOLEAN NOT NULL DEFAULT 0"),
+                         ("archived_at", "DATETIME"),
+                         ("is_seen", "BOOLEAN NOT NULL DEFAULT 0"),
+                         ("seen_at", "DATETIME")):
+            add("form_submission", col, ddl)
+        for col, ddl in (("submission_roles_csv", "VARCHAR(200)"),
+                         ("bg_dynamic_key", "VARCHAR(64)"),
+                         ("bg_dynbg_config_json", "TEXT"),
+                         ("og_image_filename", "VARCHAR(500)")):
+            add("custom_form", col, ddl)
         for col, ddl in (("contact_form_enabled",       "BOOLEAN NOT NULL DEFAULT 0"),
                          ("contact_form_to",            "VARCHAR(500)"),
                          ("contact_form_heading",       "VARCHAR(200)"),

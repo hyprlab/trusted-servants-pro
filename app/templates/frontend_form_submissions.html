@@ -1,89 +1,361 @@
 {% extends "base.html" %}
-{% block heading %}Custom Form Submissions{% endblock %}
-{% block heading_help %}Everything visitors have submitted through your custom forms. Filter by form using the dropdown; click any row for the full detail view. Most recent 200 shown.{% endblock %}
+{% block heading %}{{ selected_form.title }}{% endblock %}
+{% block heading_help %}Submissions to <b>{{ selected_form.title }}</b> — switch to the Archived tab to view filed entries, archive what you've handled, and download entries as a CSV. Most recent 200 shown.{% endblock %}
 {% block top_actions %}
-<a class="btn" href="{{ url_for('main.frontend_forms') }}">{{ icon('settings') }} Manage forms</a>
+{% set _rl = {'editor': 'Editors', 'intergroup_member': 'Intergroup Members', 'viewer': 'Viewers'} %}
+<span class="fe-vis-roles" title="Who can manage this form's submissions">
+  <span class="fe-vis-roles-label">Visible to</span>
+  <span class="fe-vis-role">Admins</span>
+  {% for r in selected_form.submission_role_set() %}<span class="fe-vis-role">{{ _rl.get(r, r) }}</span>{% endfor %}
+</span>
+{% if selected_form.enabled %}
+<a class="btn" href="{{ url_for('frontend.page_detail', slug=selected_form.slug) }}" target="_blank" rel="noopener">{{ icon('external-link') }} View on frontend ↗</a>
+{% endif %}
+{% if can_edit_form %}
+<a class="btn" href="{{ url_for('main.frontend_custom_form_edit', form_id=selected_form.id) }}">{{ icon('settings') }} Edit form</a>
+{% endif %}
 {% endblock %}
 {% block content %}
 <section class="card">
   <div class="card-head">
-    <h2>All submissions</h2>
+    <h2>{% if show_archived %}Archived{% else %}Inbox{% endif %}</h2>
     <span class="muted smaller">
       {{ submissions|length }} row{{ '' if submissions|length == 1 else 's' }} shown
     </span>
   </div>
 
+  {# Active / Archived tabs — scoped to this form. #}
+  <div class="fe-subs-tabs">
+    <a class="fe-subs-tab{% if not show_archived %} is-active{% endif %}"
+       href="{{ url_for('main.frontend_form_submissions', form=selected_form_id) }}">
+      Active <span class="fe-subs-tab-count">{{ active_count }}</span>
+    </a>
+    <a class="fe-subs-tab{% if show_archived %} is-active{% endif %}"
+       href="{{ url_for('main.frontend_form_submissions', form=selected_form_id, archived=1) }}">
+      Archived <span class="fe-subs-tab-count">{{ archived_count }}</span>
+    </a>
+  </div>
+
   <form method="get" class="form fe-submissions-filter">
-    <label>Filter by form
-      <select name="form" onchange="this.form.submit()">
-        <option value="" {% if not selected_form_id %}selected{% endif %}>— All forms —</option>
-        {% for f in forms %}
-        <option value="{{ f.id }}" {% if selected_form_id == f.id %}selected{% endif %}>{{ f.title }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    {% if selected_form_id %}
-    <a class="btn btn-sm" href="{{ url_for('main.frontend_form_submissions') }}">Clear filter</a>
+    {% if show_archived %}<input type="hidden" name="archived" value="1">{% endif %}
+    {% if submissions %}
+    <a class="btn btn-sm" href="{{ url_for('main.frontend_form_submissions_csv', form=selected_form_id, archived=(1 if show_archived else none)) }}">{{ icon('download') }} Download CSV</a>
     {% endif %}
   </form>
 
   {% if submissions %}
-  <ul class="fe-submissions-list">
+  {# Bulk-action bar — revealed by JS. data-form / data-archived ride along
+     on every bulk POST so the action returns to this exact view. #}
+  <div class="fe-subs-bulkbar" data-subs-bulkbar hidden
+       data-form="{{ selected_form_id or '' }}" data-archived="{{ '1' if show_archived else '' }}">
+    <label class="fe-subs-bulk-all">
+      <input type="checkbox" data-subs-select-all aria-label="Select all submissions">
+      <span>Select all</span>
+    </label>
+    <span class="muted smaller" data-subs-bulk-count>0 selected</span>
+    <div class="fe-subs-bulk-actions">
+      {% if show_archived %}
+      <button type="button" class="btn btn-sm" data-subs-action
+              data-bulk-url="{{ url_for('main.frontend_form_submissions_bulk_archive') }}"
+              data-target="0" data-verb="Restore" hidden>{{ icon('rotate-ccw') }} Restore</button>
+      {% else %}
+      <button type="button" class="btn btn-sm" data-subs-action
+              data-bulk-url="{{ url_for('main.frontend_form_submissions_bulk_archive') }}"
+              data-target="1" data-verb="Archive" hidden>{{ icon('box') }} Archive</button>
+      {% endif %}
+      <button type="button" class="btn btn-sm btn-danger" data-subs-action
+              data-bulk-url="{{ url_for('main.frontend_form_submissions_bulk_delete') }}"
+              data-verb="Delete" data-danger="1" hidden>{{ icon('trash') }} Delete</button>
+    </div>
+  </div>
+
+  <ul class="fe-submissions-list" data-subs-list>
     {% for sub in submissions %}
     {% set p = previews[sub.id] %}
     {% set initial = (p.display_name or '?')[:1]|upper %}
     {% set anonymous = (p.display_name == 'Anonymous') %}
     <li class="fe-submission-card{% if anonymous %} is-anonymous{% endif %}">
-      <a class="fe-submission-card-main"
-         href="{{ url_for('main.frontend_form_submission_detail', sub_id=sub.id) }}">
-        <span class="fe-submission-avatar" aria-hidden="true">{{ initial }}</span>
-        <div class="fe-submission-body">
-          <div class="fe-submission-head">
-            <span class="fe-submission-name">{{ p.display_name }}</span>
-            <span class="fe-submission-form-pill">
-              {{ icon('send') }} {{ sub.form.title if sub.form else '(deleted form)' }}
-            </span>
-            <span class="fe-submission-when muted smaller">{{ sub.created_at|fmt_site_local('%b %-d, %-I:%M %p') }}</span>
+      <div class="fe-submission-row">
+        <label class="fe-submission-check" aria-label="Select submission">
+          <input type="checkbox" data-subs-select value="{{ sub.id }}">
+        </label>
+        <button type="button" class="fe-submission-card-main" data-subs-toggle
+                aria-expanded="false" aria-controls="sub-panel-{{ sub.id }}">
+          <span class="fe-submission-avatar" aria-hidden="true">{{ initial }}</span>
+          <div class="fe-submission-body">
+            <div class="fe-submission-head">
+              <span class="fe-submission-name">{{ p.display_name }}</span>
+              <span class="fe-submission-form-pill">
+                {{ icon('send') }} {{ sub.form.title if sub.form else '(deleted form)' }}
+              </span>
+              <span class="fe-submission-when muted smaller">{{ sub.created_at|fmt_site_local('%b %-d, %-I:%M %p') }}</span>
+            </div>
+            {% if p.headline %}
+            <div class="fe-submission-headline">{{ p.headline }}</div>
+            {% endif %}
+            <div class="fe-submission-meta">
+              {% if p.email %}
+              <span class="fe-submission-chip">
+                {{ icon('mail') }}
+                <span>{{ p.email }}</span>
+              </span>
+              {% endif %}
+              {% if p.phone %}
+              <span class="fe-submission-chip">
+                {{ icon('phone') }}
+                <span>{{ p.phone }}</span>
+              </span>
+              {% endif %}
+              <span class="fe-submission-chip fe-submission-chip--ghost" title="Fields answered">
+                {{ icon('list') }}
+                <span>{{ p.field_count }} field{{ '' if p.field_count == 1 else 's' }}</span>
+              </span>
+              {% if p.file_count %}
+              <span class="fe-submission-chip fe-submission-chip--ghost" title="File attachments">
+                {{ icon('paperclip') }}
+                <span>{{ p.file_count }}</span>
+              </span>
+              {% endif %}
+              <span class="fe-submission-chip fe-submission-chip--ghost" title="Submitter IP address">
+                {{ icon('globe') }}
+                <span class="mono">{{ sub.ip or 'unknown' }}</span>
+              </span>
+            </div>
           </div>
-          {% if p.headline %}
-          <div class="fe-submission-headline">{{ p.headline }}</div>
-          {% endif %}
-          <div class="fe-submission-meta">
-            {% if p.email %}
-            <span class="fe-submission-chip">
-              {{ icon('mail') }}
-              <span>{{ p.email }}</span>
-            </span>
-            {% endif %}
-            {% if p.phone %}
-            <span class="fe-submission-chip">
-              {{ icon('phone') }}
-              <span>{{ p.phone }}</span>
-            </span>
-            {% endif %}
-            <span class="fe-submission-chip fe-submission-chip--ghost" title="Fields answered">
-              {{ icon('list') }}
-              <span>{{ p.field_count }} field{{ '' if p.field_count == 1 else 's' }}</span>
-            </span>
-            {% if p.file_count %}
-            <span class="fe-submission-chip fe-submission-chip--ghost" title="File attachments">
-              {{ icon('paperclip') }}
-              <span>{{ p.file_count }}</span>
-            </span>
-            {% endif %}
-            <span class="fe-submission-chip fe-submission-chip--ghost" title="Submitter IP address">
-              {{ icon('globe') }}
-              <span class="mono">{{ sub.ip or 'unknown' }}</span>
-            </span>
+          <span class="fe-submission-cta" aria-hidden="true">{{ icon('chevron-down') }}</span>
+        </button>
+        {# Per-row actions — always visible (even when the card is
+           collapsed): open the full record, plus archive/restore and
+           delete right from the list. Archive + delete are tiny inline
+           POST forms so they need no JS. #}
+        <div class="fe-submission-row-actions">
+          <button type="button" class="btn btn-sm fe-submission-view-btn" data-view-submission
+                  data-sub-id="{{ sub.id }}"
+                  data-sub-name="{{ p.display_name }}"
+                  data-sub-initial="{{ initial }}"
+                  data-sub-anon="{{ '1' if anonymous else '' }}"
+                  data-sub-form="{{ sub.form.title if sub.form else '' }}"
+                  data-sub-when="{{ sub.created_at|fmt_site_local('%b %-d, %Y · %-I:%M %p') }}"
+                  data-sub-ip="{{ sub.ip or 'unknown' }}"
+                  data-archive-url="{{ url_for('main.frontend_form_submission_archive', sub_id=sub.id) }}"
+                  data-delete-url="{{ url_for('main.frontend_form_submission_delete', sub_id=sub.id) }}"
+                  data-seen-url="{{ url_for('main.frontend_form_submission_seen', sub_id=sub.id) }}"
+                  title="View submission"><span class="fe-submission-view-icon">{{ icon('maximize-2') }}</span><span class="fe-submission-view-label">View</span></button>
+          <form method="post" class="fe-submission-rowact-form"
+                action="{{ url_for('main.frontend_form_submission_archive', sub_id=sub.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="target" value="{{ '0' if show_archived else '1' }}">
+            <button type="submit" class="btn btn-sm fe-submission-rowact-btn"
+                    title="{{ 'Restore submission' if show_archived else 'Archive submission' }}"
+                    aria-label="{{ 'Restore submission' if show_archived else 'Archive submission' }}">{{ icon('rotate-ccw' if show_archived else 'box') }}</button>
+          </form>
+          <form method="post" class="fe-submission-rowact-form"
+                action="{{ url_for('main.frontend_form_submission_delete', sub_id=sub.id) }}"
+                onsubmit="return confirm('Delete this submission permanently?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-danger fe-submission-rowact-btn"
+                    title="Delete submission" aria-label="Delete submission">{{ icon('trash') }}</button>
+          </form>
+        </div>
+      </div>
+      {# Inline expand — the full record in the same email style as the
+         detail page, plus a button through to that detail page. Three
+         nesting levels drive a smooth height animation: the panel is a
+         grid that transitions 0fr→1fr, the clip hides overflow, and the
+         inner carries the visible chrome so nothing shows while collapsed. #}
+      <div class="fe-submission-detail-panel" id="sub-panel-{{ sub.id }}">
+        <div class="fe-submission-detail-clip">
+          <div class="fe-submission-detail-inner">
+            <div class="fe-sub-detail-fields fe-sub-detail-fields--inline">
+              {% with fields=form_fields, fvals=payloads[sub.id].fields, files=payloads[sub.id].files %}
+              {% include "_submission_fields.html" %}
+              {% endwith %}
+            </div>
           </div>
         </div>
-        <span class="fe-submission-cta" aria-hidden="true">{{ icon('chevron-right') }}</span>
-      </a>
+      </div>
     </li>
     {% endfor %}
   </ul>
+
+  <script>
+  (function () {
+    // Inline expand/collapse — clicking a row's main button reveals the
+    // full submission record (email-style) below it.
+    var list = document.querySelector('[data-subs-list]');
+    if (list) {
+      list.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-subs-toggle]');
+        if (!btn) return;
+        var open = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+        // The grid 0fr→1fr transition (CSS) animates the open/close; we
+        // just flip the class. No `hidden` toggle — display:none would
+        // kill the transition.
+        btn.closest('.fe-submission-card').classList.toggle('is-expanded', !open);
+      });
+    }
+  })();
+  (function () {
+    var bar = document.querySelector('[data-subs-bulkbar]');
+    var list = document.querySelector('[data-subs-list]');
+    if (!bar || !list) return;
+    var boxes = function () { return Array.prototype.slice.call(list.querySelectorAll('input[data-subs-select]')); };
+    if (!boxes().length) return;
+    bar.hidden = false;
+    var all = bar.querySelector('[data-subs-select-all]');
+    var count = bar.querySelector('[data-subs-bulk-count]');
+    var actions = Array.prototype.slice.call(bar.querySelectorAll('[data-subs-action]'));
+    function selected() { return boxes().filter(function (b) { return b.checked; }); }
+    function refresh() {
+      var sel = selected(), total = boxes();
+      count.textContent = sel.length + ' selected';
+      // Action buttons only appear once something is ticked.
+      actions.forEach(function (b) { b.hidden = sel.length === 0; });
+      all.checked = sel.length > 0 && sel.length === total.length;
+      all.indeterminate = sel.length > 0 && sel.length < total.length;
+    }
+    list.addEventListener('change', function (e) {
+      if (e.target.matches('input[data-subs-select]')) refresh();
+    });
+    all.addEventListener('change', function () {
+      boxes().forEach(function (b) { b.checked = all.checked; });
+      refresh();
+    });
+    function addHidden(form, name, value) {
+      var i = document.createElement('input');
+      i.type = 'hidden'; i.name = name; i.value = value;
+      form.appendChild(i);
+    }
+    actions.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var ids = selected().map(function (b) { return b.value; });
+        if (!ids.length) return;
+        var noun = ids.length === 1 ? 'submission' : 'submissions';
+        var verb = btn.getAttribute('data-verb') || 'Update';
+        var msg = verb + ' ' + ids.length + ' ' + noun + '?';
+        if (btn.getAttribute('data-danger')) msg += ' This cannot be undone.';
+        if (!confirm(msg)) return;
+        var f = document.createElement('form');
+        f.method = 'POST'; f.action = btn.dataset.bulkUrl;
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) addHidden(f, 'csrf_token', meta.content);
+        addHidden(f, 'form', bar.dataset.form || '');
+        addHidden(f, 'archived', bar.dataset.archived || '');
+        if (btn.dataset.target !== undefined) addHidden(f, 'target', btn.dataset.target);
+        ids.forEach(function (id) { addHidden(f, 'submission_ids', id); });
+        document.body.appendChild(f); f.submit();
+      });
+    });
+    refresh();
+  })();
+  </script>
+
+  {# Submission modal — opened by a row's "View Submission" button. Styled
+     like the detail page: gradient accent, a sticky identity header with
+     the close button, a scrollable email-style body, and a sticky footer
+     with Archive/Restore + Delete. Populated client-side from the row's
+     data + its already-rendered inline fields, so no round-trip. #}
+  <div class="modal fe-sub-modal" id="submission-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel fe-sub-modal-panel" role="dialog" aria-modal="true" aria-labelledby="fe-sub-modal-name">
+      <div class="fe-sub-detail-accent" aria-hidden="true"></div>
+      <header class="fe-sub-modal-head">
+        <div class="fe-sub-modal-head-id">
+          <span class="fe-sub-detail-avatar fe-sub-modal-avatar" data-sub-avatar aria-hidden="true"></span>
+          <div class="fe-sub-modal-head-text">
+            <div class="fe-sub-detail-eyebrow" data-sub-eyebrow></div>
+            <h2 class="fe-sub-modal-name" id="fe-sub-modal-name" data-sub-name></h2>
+            <div class="fe-sub-modal-metarow muted smaller" data-sub-meta></div>
+          </div>
+        </div>
+        <button type="button" class="icon-btn fe-sub-modal-close" data-close aria-label="Close">{{ icon('x') }}</button>
+      </header>
+      <div class="fe-sub-modal-body" data-sub-body></div>
+      <footer class="fe-sub-modal-foot">
+        <form method="post" data-sub-archive-form style="margin:0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          {% if show_archived %}
+          <input type="hidden" name="target" value="0">
+          <button type="submit" class="btn">{{ icon('rotate-ccw') }} Restore submission</button>
+          {% else %}
+          <input type="hidden" name="target" value="1">
+          <button type="submit" class="btn">{{ icon('box') }} Archive submission</button>
+          {% endif %}
+        </form>
+        <form method="post" data-sub-delete-form style="margin:0; margin-left:auto;"
+              onsubmit="return confirm('Delete this submission permanently?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger">{{ icon('trash') }} Delete</button>
+        </form>
+      </footer>
+    </div>
+  </div>
+  <script>
+  (function () {
+    var modal = document.getElementById('submission-modal');
+    var list = document.querySelector('[data-subs-list]');
+    if (!modal || !list) return;
+    var elName = modal.querySelector('[data-sub-name]');
+    var elAvatar = modal.querySelector('[data-sub-avatar]');
+    var elEyebrow = modal.querySelector('[data-sub-eyebrow]');
+    var elMeta = modal.querySelector('[data-sub-meta]');
+    var elBody = modal.querySelector('[data-sub-body]');
+    var archiveForm = modal.querySelector('[data-sub-archive-form]');
+    var deleteForm = modal.querySelector('[data-sub-delete-form]');
+
+    function open(btn) {
+      var id = btn.getAttribute('data-sub-id');
+      var name = btn.getAttribute('data-sub-name') || 'Submission';
+      elName.textContent = name;
+      elAvatar.textContent = (btn.getAttribute('data-sub-initial') || '?');
+      elAvatar.classList.toggle('is-anon', btn.getAttribute('data-sub-anon') === '1');
+      elEyebrow.textContent = btn.getAttribute('data-sub-form') || '';
+      var when = btn.getAttribute('data-sub-when') || '';
+      var ip = btn.getAttribute('data-sub-ip') || '';
+      elMeta.textContent = [when ? 'Submitted ' + when : '', ip ? 'IP ' + ip : '']
+                             .filter(Boolean).join('  ·  ');
+      // Body: clone the already-rendered inline field rows for this row.
+      elBody.innerHTML = '';
+      var src = document.querySelector('#sub-panel-' + id + ' .fe-sub-detail-fields');
+      if (src) elBody.appendChild(src.cloneNode(true));
+      // Wire the action forms to this submission.
+      archiveForm.setAttribute('action', btn.getAttribute('data-archive-url'));
+      deleteForm.setAttribute('action', btn.getAttribute('data-delete-url'));
+      // Show (mirrors the app's openModal): the global [data-close] +
+      // Escape handlers in app.js close it.
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      elBody.scrollTop = 0;
+      var closeBtn = modal.querySelector('.fe-sub-modal-close');
+      if (closeBtn) closeBtn.focus();
+      // Mark seen (the modal replaced the detail-page view that used to do
+      // this) and update the sidebar count chip live. Fire-and-forget; the
+      // global fetch wrapper adds the CSRF header.
+      var seenUrl = btn.getAttribute('data-seen-url');
+      if (seenUrl) {
+        fetch(seenUrl, { method: 'POST', credentials: 'same-origin',
+                         headers: { 'X-Requested-With': 'fetch' } })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (!d || !d.ok) return;
+            document.querySelectorAll('[data-live-chip="form_submissions_' + d.form_id + '"]')
+              .forEach(function (chip) { chip.textContent = d.count; chip.hidden = !d.count; });
+          }).catch(function () {});
+      }
+    }
+
+    list.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-view-submission]');
+      if (!btn) return;
+      e.preventDefault();
+      open(btn);
+    });
+  })();
+  </script>
   {% else %}
-  <p class="muted">No submissions yet{% if selected_form_id %} for this form{% endif %}.</p>
+  <p class="muted">No {% if show_archived %}archived {% endif %}submissions{% if selected_form_id %} for this form{% endif %} yet.</p>
   {% endif %}
 </section>
 {% endblock %}

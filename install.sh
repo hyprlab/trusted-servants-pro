@@ -4,7 +4,7 @@
 #
 # Run as root (or with sudo) on a fresh Ubuntu 24.04 server:
 #
-#   curl -fsSL https://raw.githubusercontent.com/<org>/trusted-servants-pro/main/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/hyprlab/trusted-servants-pro/main/install.sh | sudo bash
 #
 # Or:
 #

@@ -359,6 +359,29 @@ def _attention_counts(*, include_dashboard=False):
         counts["notifications"] = _notif.unread_count(current_user)
     except Exception:
         counts["notifications"] = 0
+    # Per-form inbox counts (un-archived submissions) for the Forms-section
+    # number chips, keyed ``form_submissions_<id>``. Role-gated exactly like
+    # the sidebar items: admins see every form; other roles only forms whose
+    # ``submission_roles_csv`` grants them. Always computed (not dashboard-
+    # gated) so the chips poll-update on every page.
+    try:
+        from .models import CustomForm, FormSubmission
+        from sqlalchemy import func as _func
+        _forms = CustomForm.query.all()
+        _allowed_ids = {cf.id for cf in _forms
+                        if is_admin() or (current_user.role in cf.submission_role_set())}
+        if _allowed_ids:
+            for fid, n in (db.session.query(FormSubmission.form_id, _func.count())
+                           .filter(FormSubmission.is_archived.is_(False),
+                                   FormSubmission.is_seen.is_(False),
+                                   FormSubmission.form_id.in_(_allowed_ids))
+                           .group_by(FormSubmission.form_id).all()):
+                counts[f"form_submissions_{fid}"] = n
+        # Seed the rest to 0 so the poller can re-hide an emptied inbox.
+        for fid in _allowed_ids:
+            counts.setdefault(f"form_submissions_{fid}", 0)
+    except Exception:
+        pass
     if include_dashboard and is_admin():
         try:
             counts["backups_failed"] = sum(
@@ -720,13 +743,14 @@ def _forms_widget_data():
     for cf in custom_forms:
         total = (FormSubmission.query
                  .filter_by(form_id=cf.id).count())
-        # FormSubmission has no read/unread state, so "attention" for
-        # custom forms means submissions in the last 7 days — a soft
-        # cue that there's recent traffic the operator may not have
-        # looked at yet. Lifetime total still shows alongside.
-        recent = (FormSubmission.query
-                  .filter(FormSubmission.form_id == cf.id,
-                          FormSubmission.created_at >= week_cutoff).count())
+        # "Attention" = un-archived, un-seen submissions (the same "new"
+        # count the sidebar chip uses). Opening a submission's detail view
+        # marks it seen and drops it from this count; archiving also clears
+        # it. Lifetime total still shows alongside.
+        new_count = (FormSubmission.query
+                     .filter(FormSubmission.form_id == cf.id,
+                             FormSubmission.is_archived.is_(False),
+                             FormSubmission.is_seen.is_(False)).count())
         last = (FormSubmission.query
                 .filter_by(form_id=cf.id)
                 .order_by(FormSubmission.created_at.desc()).first())
@@ -736,8 +760,8 @@ def _forms_widget_data():
             "subtitle": "Custom form",
             "icon": "file-text",
             "url": url_for("main.frontend_form_submissions", form=cf.id),
-            "attention": recent,
-            "attention_label": "new this week",
+            "attention": new_count,
+            "attention_label": "new",
             "total": total,
             "last_at": last.created_at if last else None,
             "enabled": bool(cf.enabled),
@@ -819,8 +843,13 @@ def index():
         # *other* people on the portal.
         _active_count, _online_full = _online_users()
         active_cutoff = datetime.utcnow() - ONLINE_WINDOW
+        # Mirror the /api/online-users filter: only other people whose
+        # current page is a backend ("/tspro") page — public Web
+        # Frontend visits never appear in this admin widget.
         online_users = [u for u in _online_full
-                        if u.id != current_user.id and u.last_seen_at >= active_cutoff]
+                        if u.id != current_user.id
+                        and u.last_seen_at >= active_cutoff
+                        and (u.last_path or "").startswith("/tspro")]
         online_count = len(online_users)
         from sqlalchemy import func as _sa_func
         from .auth import currently_locked_usernames, user_lockout_expires_in
@@ -957,9 +986,16 @@ def api_online_users():
     _full_count, users = _online_users()
     # Drop the viewing admin from the list — they already know they're
     # signed in, and surfacing their own row inflates the count + adds
-    # noise. Recompute the active count AFTER the filter so the header
-    # tally matches what's visible.
-    users = [u for u in users if u.id != current_user.id]
+    # noise. Also drop anyone whose current location is a public Web
+    # Frontend page: this widget is a backend operational view, so only
+    # backend ("/tspro") pages should ever appear here. last_path holds
+    # the most recent rendered HTML page, so a user who just navigated
+    # out to the frontend falls off the list until they return.
+    # Recompute the active count AFTER the filter so the header tally
+    # matches what's visible.
+    users = [u for u in users
+             if u.id != current_user.id
+             and (u.last_path or "").startswith("/tspro")]
     active_cutoff = datetime.utcnow() - ONLINE_WINDOW
     count = sum(1 for u in users if u.last_seen_at >= active_cutoff)
     return jsonify(count=count, users=[
@@ -2059,18 +2095,39 @@ def _apply_meeting_form(m, form, schedules, files=None):
     else:
         m.extended_blocks_json = None
     if mtype == "in_person":
+        m.zoom_enabled = False
         m.zoom_meeting_id = ""
         m.zoom_passcode = ""
         m.zoom_opens_time = ""
         m.zoom_link = ""
         m.zoom_account_id = None
+        m.gmeet_enabled = False
+        m.gmeet_link = ""
+        m.gmeet_meeting_id = ""
+        m.gmeet_passcode = ""
+        m.teams_enabled = False
+        m.teams_link = ""
+        m.teams_meeting_id = ""
+        m.teams_passcode = ""
     else:
+        # Field values are always read/stored regardless of the per-platform
+        # enable toggle, so disabling a platform keeps its details for an
+        # easy re-enable. Display is gated by the *_enabled flags everywhere.
+        m.zoom_enabled = form.get("zoom_enabled") == "1"
         m.zoom_meeting_id = form.get("zoom_meeting_id", "").strip()
         m.zoom_passcode = form.get("zoom_passcode", "").strip()
         m.zoom_opens_time = form.get("zoom_opens_time", "").strip()
         m.zoom_link = form.get("zoom_link", "").strip()
         acct_raw = form.get("zoom_account_id", "")
         m.zoom_account_id = int(acct_raw) if acct_raw else None
+        m.gmeet_enabled = form.get("gmeet_enabled") == "1"
+        m.gmeet_link = form.get("gmeet_link", "").strip()
+        m.gmeet_meeting_id = form.get("gmeet_meeting_id", "").strip()
+        m.gmeet_passcode = form.get("gmeet_passcode", "").strip()
+        m.teams_enabled = form.get("teams_enabled") == "1"
+        m.teams_link = form.get("teams_link", "").strip()
+        m.teams_meeting_id = form.get("teams_meeting_id", "").strip()
+        m.teams_passcode = form.get("teams_passcode", "").strip()
     if files is not None:
         uploaded = files.get("logo")
         if uploaded and uploaded.filename:
@@ -7738,6 +7795,22 @@ def public_page_bg(page_id):
                                page.bg_image_filename)
 
 
+@public_bp.route("/pub/form-og-image/<int:form_id>")
+def custom_form_og_image(form_id):
+    """Serve a CustomForm's Open Graph preview image. Crawlers (Slack /
+    iMessage / Facebook) fetch it anonymously so a shared form link gets a
+    per-form preview. 404s when the form is disabled or has no OG image —
+    the public form route then advertises the site-wide frontend OG image
+    instead."""
+    cf = CustomForm.query.get(form_id)
+    if not cf or not cf.og_image_filename or not cf.enabled:
+        abort(404)
+    response = send_from_directory(current_app.config["UPLOAD_FOLDER"],
+                                   cf.og_image_filename)
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
 @public_bp.route("/pub/page-og-image/<int:page_id>")
 def public_page_og_image(page_id):
     """Serve a Page's per-page Open Graph preview image. The page edit
@@ -7832,6 +7905,27 @@ def site_footer_logo():
     if not s.footer_logo_filename:
         abort(404)
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], s.footer_logo_filename)
+
+
+@public_bp.route("/site-branding/footer-logo.png")
+def site_footer_logo_png():
+    """Raster (PNG) version of the footer logo for HTML emails — email
+    clients don't render SVG. Serves the original when it's already a
+    raster, otherwise a same-stem ``.png`` sibling generated alongside an
+    uploaded SVG (see scripts/gen_email_logos.py / the upload handler)."""
+    s = _get_site_setting()
+    fn = s.footer_logo_filename
+    if not fn:
+        abort(404)
+    folder = current_app.config["UPLOAD_FOLDER"]
+    ext = fn.rsplit(".", 1)[-1].lower() if "." in fn else ""
+    if ext in ("png", "jpg", "jpeg", "gif", "webp"):
+        return send_from_directory(folder, fn)
+    stem = fn.rsplit(".", 1)[0] if "." in fn else fn
+    png = stem + ".png"
+    if os.path.isfile(os.path.join(folder, png)):
+        return send_from_directory(folder, png)
+    abort(404)
 
 
 _HERO_BG_STYLES = {"frosty", "solid", "gradient", "image", "sinewave", "video", "dynamic"}
@@ -9009,9 +9103,19 @@ _RESERVED_FORM_SLUGS = {
 # Field types the form builder allows. Anything else in incoming blocks
 # JSON gets coerced to "text" so a poked-with-curl payload can't store
 # a renderer the public template doesn't know about.
-_FORM_FIELD_TYPES = {"text", "email", "phone", "textarea",
+_FORM_FIELD_TYPES = {"name", "text", "email", "phone", "textarea",
                      "select", "radio", "checkboxes", "file"}
 _FORM_FIELD_TYPES_WITH_OPTIONS = {"select", "radio", "checkboxes"}
+# Dropdown order for the Custom Form builder. "name" is a composite
+# first+last name field, offered first; the rest follow in a natural
+# data-entry order. The Contact / Story / Events module forms reuse the
+# same builder + parser but DON'T expose the composite name field (their
+# public render + submit handlers are bespoke and only know the
+# primitives), so they get _MODULE_FORM_FIELD_TYPES instead.
+_CUSTOM_FORM_FIELD_TYPE_ORDER = ("name", "text", "email", "phone",
+                                 "textarea", "select", "radio",
+                                 "checkboxes", "file")
+_MODULE_FORM_FIELD_TYPES = sorted(_FORM_FIELD_TYPES - {"name"})
 
 
 def _name_from_label(label, existing_names=()):
@@ -9387,6 +9491,33 @@ def frontend_custom_form_edit(form_id):
         cf.redirect_url = (request.form.get("redirect_url") or "").strip() or None
         cf.thank_you_message = (request.form.get("thank_you_message") or "").strip() or None
         cf.enabled = request.form.get("enabled") == "1"
+        # Per-form submission access for non-admin roles. Admins always
+        # qualify, so they're not a checkbox option; only valid non-admin
+        # roles are stored.
+        _picked = set(request.form.getlist("submission_roles"))
+        _allowed = [r for r in ("editor", "intergroup_member", "viewer") if r in _picked]
+        cf.submission_roles_csv = ",".join(_allowed) or None
+        # Optional per-form dynamic background. Same picker macro + save
+        # path the page / site surfaces use: a normalised base key plus
+        # the bundled overlay/colour/knob config JSON. Tampered values
+        # collapse to None via the dynbg normalisers.
+        from . import dynbg as _dynbg
+        cf.bg_dynamic_key = _dynbg.normalize(request.form.get("bg_dynamic_key")) or None
+        cf.bg_dynbg_config_json = _dynbg_config_from_form(request.form, "bg_dynbg_config_json")
+        # Open Graph / link-preview image. Clear or replace the per-form
+        # image; when unset the public page falls back to the frontend OG
+        # image. Same upload + retired-asset cleanup the page editor uses.
+        if request.form.get("clear_og_image") == "1":
+            _old_og = cf.og_image_filename
+            cf.og_image_filename = None
+            _cleanup_retired_asset(_old_og)
+        _og_upload = request.files.get("og_image")
+        if _og_upload and _og_upload.filename:
+            _old_og = cf.og_image_filename
+            _stored_og, _ = _save_upload(_og_upload)
+            cf.og_image_filename = _stored_og
+            if _old_og and _old_og != _stored_og:
+                _cleanup_retired_asset(_old_og)
         # Field builder payload — the page's JS serialises into
         # ``field_<idx>_<attr>`` inputs + a ``field_order`` index list.
         # We always rebuild blocks_json from the incoming form so an
@@ -9400,7 +9531,7 @@ def frontend_custom_form_edit(form_id):
     return render_template("frontend_custom_form_edit.html",
                            form=cf,
                            fields=_load_form_fields(cf),
-                           field_types=sorted(_FORM_FIELD_TYPES))
+                           field_types=_CUSTOM_FORM_FIELD_TYPE_ORDER)
 
 
 def _summarise_form_submission(sub):
@@ -9470,10 +9601,14 @@ def _summarise_form_submission(sub):
         return None, None
 
     # display_name resolution order:
-    # 1. text field with "name" in the slug
-    # 2. local part of any email field
-    # 3. "Anonymous"
-    _, name_val = _first_by(types={"text"}, name_hints=NAME_HINTS)
+    # 1. a composite "name" field (first+last, stored joined) — the most
+    #    authoritative submitter name when the operator added one
+    # 2. text field with "name" in the slug
+    # 3. local part of any email field
+    # 4. "Anonymous"
+    _, name_val = _first_by(types={"name"})
+    if not name_val:
+        _, name_val = _first_by(types={"text"}, name_hints=NAME_HINTS)
     _, email_val = _first_by(types={"email"})
     _, phone_val = _first_by(types={"text", "phone"}, name_hints=PHONE_HINTS)
 
@@ -9517,35 +9652,102 @@ def _summarise_form_submission(sub):
     }
 
 
+def _accessible_forms(user):
+    """CustomForms whose submissions ``user`` may manage, by title. Admins
+    → every form; other roles → only forms whose ``submission_roles_csv``
+    grants their role. Mirrors the sidebar "Forms" list."""
+    forms = CustomForm.query.order_by(CustomForm.title).all()
+    if user.is_admin():
+        return forms
+    return [f for f in forms if user.role in f.submission_role_set()]
+
+
+def _form_access_or_403(form):
+    """Abort 403 unless the current user may manage ``form``'s submissions."""
+    if not form or not current_user.can_access_form_submissions(form):
+        abort(403)
+
+
 @bp.route("/frontend/forms/submissions")
-@admin_required
+@login_required
 def frontend_form_submissions():
-    """List of every FormSubmission across every CustomForm, newest
-    first. Filterable by form via ``?form=<id>``. Per-submission row
-    surfaces the submitter's name (or email local-part / "Anonymous"
-    when no name field exists), inline contact links, a short
-    headline from the first subject/textarea field, and badges for
-    field count + file-attachment count."""
+    """A single form's submission inbox — its Active / Archived tabs, bulk
+    actions, and CSV export. Access is per-form: admins see every form,
+    other roles only the forms whose ``submission_roles_csv`` grants their
+    role (the sidebar "Forms" list mirrors this). The view is always scoped
+    to one form (``?form=<id>``); a missing/inaccessible id lands on the
+    first form the user can reach."""
+    accessible = _accessible_forms(current_user)
+    if not accessible:
+        abort(403)
+    show_archived = request.args.get("archived") == "1"
     form_id_raw = (request.args.get("form") or "").strip()
     form_id = int(form_id_raw) if form_id_raw.isdigit() else None
-    q = FormSubmission.query
-    if form_id is not None:
-        q = q.filter_by(form_id=form_id)
-    submissions = q.order_by(FormSubmission.created_at.desc()).limit(200).all()
-    forms = CustomForm.query.order_by(CustomForm.title).all()
-    # Pre-compute per-row preview dicts so the template stays declarative
-    # (no payload JSON parsing in Jinja). Mapping by id keeps the lookup
-    # cheap inside the loop.
+    cf = next((f for f in accessible if f.id == form_id), None)
+    if cf is None:
+        kwargs = {"form": accessible[0].id}
+        if show_archived:
+            kwargs["archived"] = 1
+        return redirect(url_for("main.frontend_form_submissions", **kwargs))
+
+    submissions = (FormSubmission.query
+                   .filter_by(form_id=cf.id, is_archived=show_archived)
+                   .order_by(FormSubmission.created_at.desc())
+                   .limit(200).all())
+
+    def _count(archived):
+        return FormSubmission.query.filter_by(form_id=cf.id, is_archived=archived).count()
+    active_count = _count(False)
+    archived_count = _count(True)
+
+    import json as _json
     previews = {sub.id: _summarise_form_submission(sub) for sub in submissions}
+    # Decoded payloads keyed by submission id, so each row can expand inline
+    # to show the full email-style record without a round-trip. The form's
+    # field set (blocks) is shared across every row.
+    form_fields = _load_form_fields(cf)
+    payloads = {}
+    for sub in submissions:
+        try:
+            data = _json.loads(sub.payload_json or "{}")
+        except (ValueError, TypeError):
+            data = {}
+        payloads[sub.id] = {"fields": data.get("fields") or {},
+                            "files": data.get("files") or {}}
     return render_template("frontend_form_submissions.html",
                            submissions=submissions,
                            previews=previews,
-                           forms=forms,
-                           selected_form_id=form_id)
+                           form_fields=form_fields,
+                           payloads=payloads,
+                           forms=accessible,
+                           selected_form=cf,
+                           selected_form_id=cf.id,
+                           show_archived=show_archived,
+                           active_count=active_count,
+                           archived_count=archived_count,
+                           can_edit_form=current_user.is_admin())
+
+
+@bp.route("/frontend/forms/submissions/<int:sub_id>/seen", methods=["POST"])
+@login_required
+def frontend_form_submission_seen(sub_id):
+    """Mark a submission seen without leaving the inbox — fired when the
+    "View Submission" modal opens (the modal replaced the detail-page
+    navigation, which used to mark it seen). Returns the form's new
+    un-seen, un-archived count so the sidebar chip can update live."""
+    sub = db.session.get(FormSubmission, sub_id) or abort(404)
+    _form_access_or_403(sub.form)
+    if not sub.is_seen:
+        sub.is_seen = True
+        sub.seen_at = datetime.utcnow()
+        db.session.commit()
+    n = FormSubmission.query.filter_by(
+        form_id=sub.form_id, is_archived=False, is_seen=False).count()
+    return jsonify(ok=True, form_id=sub.form_id, count=n)
 
 
 @bp.route("/frontend/forms/submissions/<int:sub_id>")
-@admin_required
+@login_required
 def frontend_form_submission_detail(sub_id):
     """Per-submission detail view. Pairs each value in the submission's
     payload with the field label from the form's blocks_json (since
@@ -9554,26 +9756,184 @@ def frontend_form_submission_detail(sub_id):
     import json as _json
     sub = db.session.get(FormSubmission, sub_id) or abort(404)
     cf = sub.form
+    _form_access_or_403(cf)
+    # Mark seen on first view — clears this submission from the form's
+    # "new" count chip (sidebar + dashboard widget) and its notification.
+    if not sub.is_seen:
+        sub.is_seen = True
+        sub.seen_at = datetime.utcnow()
+        db.session.commit()
     fields = _load_form_fields(cf) if cf else []
     label_for = {f["name"]: f["label"] for f in fields if isinstance(f, dict) and "name" in f}
     try:
         payload = _json.loads(sub.payload_json or "{}")
     except (ValueError, TypeError):
         payload = {}
+    # Reuse the list-view summariser for the hero (submitter name + the
+    # primary email/phone), so the detail page leads with who submitted it.
+    summary = _summarise_form_submission(sub) if cf else None
     return render_template("frontend_form_submission_detail.html",
                            sub=sub, cf=cf, fields=fields,
-                           payload=payload, label_for=label_for)
+                           payload=payload, label_for=label_for,
+                           summary=summary)
 
 
 @bp.route("/frontend/forms/submissions/<int:sub_id>/delete", methods=["POST"])
-@admin_required
+@login_required
 def frontend_form_submission_delete(sub_id):
     sub = db.session.get(FormSubmission, sub_id) or abort(404)
+    _form_access_or_403(sub.form)
     form_id = sub.form_id
     db.session.delete(sub)
     db.session.commit()
     flash("Submission deleted.", "success")
     return redirect(url_for("main.frontend_form_submissions", form=form_id))
+
+
+@bp.route("/frontend/forms/submissions/<int:sub_id>/archive", methods=["POST"])
+@login_required
+def frontend_form_submission_archive(sub_id):
+    """Archive (or, with ``target=0``, restore) a single submission from
+    its detail view, then return to the submissions list — the active
+    list after archiving, the archived list after restoring (i.e. the
+    tab the row now lives on)."""
+    sub = db.session.get(FormSubmission, sub_id) or abort(404)
+    _form_access_or_403(sub.form)
+    form_id = sub.form_id
+    restore = request.form.get("target") == "0"
+    sub.is_archived = not restore
+    sub.archived_at = None if restore else datetime.utcnow()
+    db.session.commit()
+    flash("Submission restored." if restore else "Submission archived.", "success")
+    kwargs = {"form": form_id}
+    if restore:
+        kwargs["archived"] = 1
+    return redirect(url_for("main.frontend_form_submissions", **kwargs))
+
+
+def _submissions_redirect():
+    """Send a bulk action back to the view it came from — same form
+    filter + active/archived tab — read from the POST so the operator
+    lands where they were."""
+    form_id = (request.form.get("form") or "").strip()
+    archived = request.form.get("archived") == "1"
+    kwargs = {}
+    if form_id.isdigit():
+        kwargs["form"] = int(form_id)
+    if archived:
+        kwargs["archived"] = 1
+    return redirect(url_for("main.frontend_form_submissions", **kwargs))
+
+
+@bp.route("/frontend/forms/submissions/bulk-delete", methods=["POST"])
+@login_required
+def frontend_form_submissions_bulk_delete():
+    """Permanently delete a multi-select set of submissions. Rows belonging
+    to a form the user can't manage are silently skipped, so a crafted POST
+    can't reach another form's submissions."""
+    ids = set(request.form.getlist("submission_ids", type=int))
+    if not ids:
+        flash("Pick at least one submission to delete.", "danger")
+        return _submissions_redirect()
+    subs = [s for s in FormSubmission.query.filter(FormSubmission.id.in_(ids)).all()
+            if current_user.can_access_form_submissions(s.form)]
+    n = 0
+    for s in subs:
+        db.session.delete(s)
+        n += 1
+    db.session.commit()
+    if n:
+        flash(f"Deleted {n} submission{'' if n == 1 else 's'}.", "success")
+    return _submissions_redirect()
+
+
+@bp.route("/frontend/forms/submissions/bulk-archive", methods=["POST"])
+@login_required
+def frontend_form_submissions_bulk_archive():
+    """Archive (or, with ``archived=0``, restore) a multi-select set of
+    submissions. Archived rows leave the default list but are kept. Rows on
+    a form the user can't manage are silently skipped."""
+    ids = set(request.form.getlist("submission_ids", type=int))
+    target = request.form.get("target") != "0"  # default: archive; "0" restores
+    if not ids:
+        flash("Pick at least one submission first.", "danger")
+        return _submissions_redirect()
+    subs = [s for s in FormSubmission.query.filter(FormSubmission.id.in_(ids)).all()
+            if current_user.can_access_form_submissions(s.form)]
+    n = 0
+    for s in subs:
+        s.is_archived = target
+        s.archived_at = datetime.utcnow() if target else None
+        n += 1
+    db.session.commit()
+    if n:
+        verb = "Archived" if target else "Restored"
+        flash(f"{verb} {n} submission{'' if n == 1 else 's'}.", "success")
+    return _submissions_redirect()
+
+
+@bp.route("/frontend/forms/submissions/export.csv")
+@login_required
+def frontend_form_submissions_csv():
+    """Download one form's submissions as CSV. Columns are the form's
+    fields (by label), in builder order, preceded by Submitted + IP.
+    Respects the active/archived tab so the export matches the view.
+    Available to any role that may manage the form's submissions."""
+    import csv as _csv
+    import json as _json
+    from io import StringIO
+    from datetime import timezone as _tz
+    from flask import make_response
+    from .timezone import site_timezone
+    form_id_raw = (request.args.get("form") or "").strip()
+    if not form_id_raw.isdigit():
+        flash("Pick a form from the dropdown before exporting to CSV.", "danger")
+        return redirect(url_for("main.frontend_form_submissions"))
+    cf = db.session.get(CustomForm, int(form_id_raw)) or abort(404)
+    _form_access_or_403(cf)
+    show_archived = request.args.get("archived") == "1"
+    subs = (FormSubmission.query
+            .filter_by(form_id=cf.id, is_archived=show_archived)
+            .order_by(FormSubmission.created_at.desc())
+            .all())
+    fields = _load_form_fields(cf)
+
+    zone = site_timezone(_get_site_setting())
+    def _local(dt):
+        if not dt:
+            return ""
+        return dt.replace(tzinfo=_tz.utc).astimezone(zone).strftime("%Y-%m-%d %H:%M %Z")
+
+    buf = StringIO()
+    w = _csv.writer(buf)
+    w.writerow(["Submitted", "IP"] + [f.get("label") or f.get("name") for f in fields])
+    for s in subs:
+        try:
+            payload = _json.loads(s.payload_json or "{}")
+        except (ValueError, TypeError):
+            payload = {}
+        fvals = payload.get("fields") or {}
+        files = payload.get("files") or {}
+        row = [_local(s.created_at), s.ip or ""]
+        for f in fields:
+            name, ftype = f.get("name"), f.get("type")
+            if ftype == "file":
+                info = files.get(name) or {}
+                row.append(info.get("original") or "")
+            else:
+                v = fvals.get(name)
+                if isinstance(v, (list, tuple)):
+                    v = "; ".join(str(x) for x in v)
+                row.append("" if v is None else str(v))
+        w.writerow(row)
+
+    resp = make_response(buf.getvalue())
+    resp.headers["Content-Type"] = "text/csv; charset=utf-8"
+    suffix = "-archived" if show_archived else ""
+    filename = f"{cf.slug}-submissions{suffix}-{datetime.utcnow():%Y%m%d}.csv"
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @bp.route("/frontend/forms/submissions/<int:sub_id>/import-to-stories", methods=["POST"])
@@ -9765,6 +10125,43 @@ def frontend_custom_form_delete(form_id):
     return redirect(url_for("main.frontend_forms"))
 
 
+@bp.route("/frontend/forms/custom/<int:form_id>/toggle", methods=["POST"])
+@admin_required
+def frontend_custom_form_toggle(form_id):
+    """Inline enable/disable switch for a custom form on the Forms list.
+    JSON in / JSON out so the per-row toggle can fire-and-forget — mirrors
+    ``frontend_form_toggle`` for the registered built-in forms."""
+    cf = db.session.get(CustomForm, form_id) or abort(404)
+    payload = request.get_json(silent=True) or {}
+    cf.enabled = bool(payload.get("enabled"))
+    db.session.commit()
+    return jsonify(id=cf.id, enabled=cf.enabled)
+
+
+@bp.route("/frontend/forms/custom/bulk-delete", methods=["POST"])
+@admin_required
+def frontend_custom_forms_bulk_delete():
+    """Delete several custom forms at once (the multi-select on the Forms
+    page). Each form's submissions cascade away via the CustomForm →
+    FormSubmission ``delete-orphan`` relationship, same as the single
+    delete. Ids that no longer exist are simply skipped."""
+    ids = set(request.form.getlist("form_ids", type=int))
+    if not ids:
+        flash("Pick at least one form to delete.", "danger")
+        return redirect(url_for("main.frontend_forms"))
+    forms = CustomForm.query.filter(CustomForm.id.in_(ids)).all()
+    deleted = 0
+    for cf in forms:
+        db.session.delete(cf)
+        deleted += 1
+    db.session.commit()
+    if deleted:
+        flash(f"Deleted {deleted} form{'' if deleted == 1 else 's'}.", "success")
+    else:
+        flash("No matching forms found.", "warning")
+    return redirect(url_for("main.frontend_forms"))
+
+
 @bp.route("/frontend/forms/<key>/toggle", methods=["POST"])
 @admin_required
 def frontend_form_toggle(key):
@@ -9821,7 +10218,7 @@ def frontend_form_submission():
                            form_fields=_resolve_module_form_fields(
                                s.submission_form_blocks_json,
                                _default_submission_form_blocks),
-                           field_types=sorted(_FORM_FIELD_TYPES))
+                           field_types=_MODULE_FORM_FIELD_TYPES)
 
 
 @bp.route("/frontend/forms/story", methods=["GET", "POST"])
@@ -9864,7 +10261,7 @@ def frontend_form_story():
                            form_fields=_resolve_module_form_fields(
                                s.story_form_blocks_json,
                                _default_story_form_blocks),
-                           field_types=sorted(_FORM_FIELD_TYPES))
+                           field_types=_MODULE_FORM_FIELD_TYPES)
 
 
 @bp.route("/frontend/forms/contact", methods=["GET", "POST"])
@@ -9896,7 +10293,7 @@ def frontend_form_contact():
                            form_fields=_resolve_module_form_fields(
                                s.contact_form_blocks_json,
                                _default_contact_form_blocks),
-                           field_types=sorted(_FORM_FIELD_TYPES))
+                           field_types=_MODULE_FORM_FIELD_TYPES)
 
 
 @bp.route("/frontend/forms/recovery-contacts", methods=["GET", "POST"])
@@ -14360,6 +14757,34 @@ def site_frontend_logo():
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], s.frontend_logo_filename)
 
 
+@public_bp.route("/site-branding/frontend-logo.png")
+def site_frontend_logo_png():
+    """Raster (PNG) version of the header logo (Web Frontend → Header) for
+    HTML emails — email clients don't render SVG. Serves the original when
+    it's already a raster, otherwise a same-stem ``.png`` twin. The twin is
+    auto-generated on upload (see ``_save_upload``); we also rasterize it
+    on demand here so logos uploaded before that twin existed still work."""
+    s = SiteSetting.query.first()
+    fn = s.frontend_logo_filename if s else None
+    if not fn:
+        abort(404)
+    folder = current_app.config["UPLOAD_FOLDER"]
+    ext = fn.rsplit(".", 1)[-1].lower() if "." in fn else ""
+    if ext in ("png", "jpg", "jpeg", "gif", "webp"):
+        return send_from_directory(folder, fn)
+    stem = fn.rsplit(".", 1)[0] if "." in fn else fn
+    png = stem + ".png"
+    png_path = os.path.join(folder, png)
+    if not os.path.isfile(png_path) and ext == "svg":
+        # Best-effort one-time rasterization for older SVG uploads with no
+        # twin on disk; a missing rasterizer just leaves no PNG → 404.
+        from .svg_raster import svg_file_to_png
+        svg_file_to_png(os.path.join(folder, fn), png_path, output_width=640)
+    if os.path.isfile(png_path):
+        return send_from_directory(folder, png)
+    abort(404)
+
+
 @public_bp.route("/site-branding/frontend-brand-logo")
 def site_frontend_brand_logo():
     """Custom logo for the public footer's Brand block. Distinct from
@@ -15421,6 +15846,45 @@ BLOCKED_UPLOAD_EXTENSIONS = {
 ADMIN_ONLY_UPLOAD_EXTENSIONS = {".svg"}
 
 
+def _to_webp_upload(uploaded):
+    """Transcode an uploaded raster image to WebP, returning a fresh
+    FileStorage the caller can hand straight to ``_save_upload``.
+
+    Honours EXIF orientation and preserves alpha (RGBA/LA/palette).
+    Anything that isn't a Pillow-decodable raster — SVG, an already-WebP
+    file, or a decode failure — is returned UNCHANGED with its stream
+    rewound, so the caller's save path proceeds with the original."""
+    from io import BytesIO
+    from werkzeug.datastructures import FileStorage
+    ext = os.path.splitext(secure_filename(uploaded.filename or ""))[1].lower()
+    if ext in (".webp", ".svg"):
+        return uploaded
+    try:
+        from PIL import Image, ImageOps
+        raw = uploaded.read()
+        im = ImageOps.exif_transpose(Image.open(BytesIO(raw)))
+        if im.mode in ("RGBA", "LA", "P"):
+            im = im.convert("RGBA")
+        elif im.mode != "RGB":
+            im = im.convert("RGB")
+        out = BytesIO()
+        # quality 82 matches thumbnails.py; method 6 = best compression
+        # (a one-time cost on upload that shrinks every later download).
+        im.save(out, format="WEBP", quality=82, method=6)
+        out.seek(0)
+        base = os.path.splitext(uploaded.filename or "image")[0]
+        return FileStorage(stream=out, filename=base + ".webp",
+                           content_type="image/webp")
+    except Exception:
+        # Not a convertible image (or Pillow choked) — fall back to the
+        # original bytes. Rewind so _save_upload's read() sees the file.
+        try:
+            uploaded.stream.seek(0)
+        except Exception:
+            pass
+        return uploaded
+
+
 def _save_upload(uploaded):
     """Save a Werkzeug FileStorage to uploads; also create/reuse a MediaItem. Returns (stored, original)."""
     original = secure_filename(uploaded.filename) or "upload"
@@ -15455,6 +15919,13 @@ def _save_upload(uploaded):
     path = os.path.join(current_app.config["UPLOAD_FOLDER"], stored)
     with open(path, "wb") as f:
         f.write(data)
+    if ext == ".svg":
+        # Auto-generate a same-stem PNG twin for raster contexts that
+        # can't show SVG — notably the branded form-submission emails
+        # (see public.site_footer_logo_png). Best-effort; a missing
+        # rasterizer just leaves no PNG and callers fall back.
+        from .svg_raster import svg_bytes_to_png
+        svg_bytes_to_png(data, os.path.splitext(path)[0] + ".png", output_width=640)
     m = MediaItem(stored_filename=stored, original_filename=original,
                   content_hash=h, size_bytes=len(data),
                   mime_type=getattr(uploaded, "mimetype", None),
@@ -15631,6 +16102,11 @@ def _cleanup_retired_asset(stored):
     except Exception:  # noqa: BLE001 — cleanup is best-effort
         pass
     _delete_upload(stored)
+    # Drop the auto-generated PNG twin of a retired SVG (see _save_upload).
+    # _delete_upload no-ops when the sibling doesn't exist, so this is safe
+    # for SVGs uploaded before the twin existed.
+    if stored.lower().endswith(".svg"):
+        _delete_upload(os.path.splitext(stored)[0] + ".png")
     MediaItem.query.filter_by(stored_filename=stored).delete()
     db.session.flush()
 
@@ -16216,8 +16692,10 @@ def request_access_submit():
         flash(msg, "danger")
         return redirect(url_for("auth.login"))
 
+    from .frontend import _client_ip
     req = AccessRequest(name=name, phone=phone, email=email,
-                        roles_json=json.dumps(roles), meeting_name=meeting_name)
+                        roles_json=json.dumps(roles), meeting_name=meeting_name,
+                        ip_address=(_client_ip() or "")[:64] or None)
     db.session.add(req)
     db.session.commit()
 
@@ -16235,9 +16713,27 @@ def request_access_submit():
         if meeting_name:
             lines.append(f"Meeting: {meeting_name}")
         lines += ["", "Review pending requests in the portal under Access Requests."]
+        # Branded HTML twin — same style as every other form email.
+        from .frontend import _render_branded_email, _branded_field
+        try:
+            review_url = url_for("main.watchtower_requests", _external=True)
+        except Exception:  # noqa: BLE001
+            review_url = None
+        body_html = _render_branded_email(
+            s, eyebrow="New access request", title=f"Access request from {name}",
+            intro="It's awaiting your review and isn't active yet.",
+            fields=[
+                _branded_field("Name", name),
+                _branded_field("Phone", phone, "phone"),
+                _branded_field("Email", email, "email"),
+                _branded_field("Roles", ", ".join(roles)),
+                _branded_field("Meeting", meeting_name),
+            ],
+            cta_url=review_url, cta_label="Review access requests",
+        )
         ok, err = send_mail(s, s.access_request_to,
                             f"Access request: {name}",
-                            "\n".join(lines))
+                            "\n".join(lines), body_html=body_html)
         if not ok:
             mail_error = err
 
@@ -16799,13 +17295,25 @@ def watchtower_requests():
             })
         recent_resets.sort(key=lambda r: r["requested_at"], reverse=True)
         recent_resets = recent_resets[:100]
+    # Which of the displayed requests' IPs are currently blocked? Map
+    # ip -> IPBlock row so each row can render Block vs Unblock.
+    from .models import IPBlock
+    req_ips = {r.ip_address for r in items if r.ip_address}
+    blocked_ips = {}
+    if req_ips:
+        now2 = datetime.utcnow()
+        for b in (IPBlock.query.filter(IPBlock.ip.in_(req_ips))
+                  .filter(IPBlock.expires_at.is_(None)
+                          | (IPBlock.expires_at > now2)).all()):
+            blocked_ips[b.ip] = b
     return render_template("watchtower/requests.html",
                            active_tab="requests",
                            items=items, view=view,
                            archived_count=archived_count,
                            active_count=active_count,
                            pending_resets=pending_resets,
-                           recent_resets=recent_resets)
+                           recent_resets=recent_resets,
+                           blocked_ips=blocked_ips)
 
 
 @bp.route("/watchtower/ban-ip", methods=["POST"])
@@ -17518,15 +18026,51 @@ def posts():
 @login_required
 def post_new():
     _require_posts_enabled()
-    return render_template("post_edit.html", post=None)
+    from .event_tokens import catalog
+    return render_template("post_edit.html", post=None, event_tag_groups=catalog())
 
 
 @bp.route("/announcementsevents/<int:pid>")
 @login_required
 def post_edit(pid):
     _require_posts_enabled()
+    from .event_tokens import catalog
     post = db.session.get(Post, pid) or abort(404)
-    return render_template("post_edit.html", post=post)
+    # Palette examples resolve against this post's own event window
+    # when it has one, so the admin previews their real dates.
+    return render_template("post_edit.html", post=post,
+                           event_tag_groups=catalog(post.event_starts_at,
+                                                    post.event_ends_at))
+
+
+@bp.route("/announcementsevents/tag-preview")
+@login_required
+def post_event_tag_preview():
+    """Live examples for the editor's event-tag palette.
+
+    Takes the Starts / Ends values the admin currently has typed
+    (``datetime-local`` strings) and returns the same catalog the page
+    was rendered with, re-resolved. Keeps the formatting rules in
+    ``app/event_tokens.py`` rather than duplicating them in JS."""
+    _require_posts_enabled()
+    from .event_tokens import catalog
+
+    def _parse(raw):
+        raw = (raw or "").strip()
+        if not raw:
+            return None
+        for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"):
+            try:
+                return datetime.strptime(raw, fmt)
+            except ValueError:
+                continue
+        return None
+
+    start = _parse(request.args.get("start"))
+    end = _parse(request.args.get("end"))
+    examples = {t["tag"]: t["example"]
+                for g in catalog(start, end) for t in g["tags"]}
+    return jsonify({"ok": True, "sample": start is None, "examples": examples})
 
 
 @bp.route("/announcementsevents/save", methods=["POST"])
@@ -17689,6 +18233,11 @@ def post_save():
         _cleanup_retired_asset(old)
     uploaded = request.files.get("featured_image")
     if uploaded and uploaded.filename:
+        # Optional "Auto convert to WebP" — transcode the upload before
+        # storing so the featured image lands as .webp regardless of the
+        # source format. No-op for SVG / already-webp / decode failures.
+        if request.form.get("convert_featured_to_webp") == "1":
+            uploaded = _to_webp_upload(uploaded)
         old = post.featured_image_filename
         stored, _original = _save_upload(uploaded)
         post.featured_image_filename = stored
@@ -17812,6 +18361,15 @@ def post_save():
                 and _prev_public_slug != post.public_slug):
             _record_slug_change("post", post.id, _prev_public_slug, post.public_slug)
     db.session.commit()
+    # Date tags with nothing to resolve against render as blank text on
+    # the public site, which reads as a typo rather than a missing
+    # date. Warn instead of failing the save — the admin may be
+    # drafting the copy before the date is settled.
+    from .event_tokens import has_tokens
+    if (not post.event_starts_at
+            and (has_tokens(post.summary_raw) or has_tokens(post.body_raw))):
+        flash("This post uses event date tags but has no event start date yet — "
+              "they'll render as blank until you set Starts.", "warning")
     from . import activity
     activity.log("post.create" if creating else "post.update",
                  entity_type="post", entity_id=post.id,
@@ -18033,8 +18591,10 @@ def post_duplicate(pid):
     src = db.session.get(Post, pid) or abort(404)
     copy = Post(
         title=(src.title or "Untitled")[:240] + " (copy)",
-        summary=src.summary,
-        body=src.body,
+        # Raw text so any {event_date} tags stay live on the copy
+        # instead of freezing at the source post's dates.
+        summary=src.summary_raw,
+        body=src.body_raw,
         featured_image_filename=src.featured_image_filename,
         is_announcement=src.is_announcement,
         is_event=src.is_event,
