@@ -227,7 +227,14 @@ p { margin: .25rem 0; }
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
   padding: 18px 14px;
-  position: sticky; top: 0; height: 100vh;
+  /* Pinned to the viewport (not sticky) so an overscroll/rubber-band
+     bounce at the end of the page can't drag the sidebar with it — it
+     stays welded to the left edge. The grid still reserves its column
+     (``--sidebar-w`` is a fixed track), but a fixed element drops out of
+     grid auto-placement, so ``.content`` is explicitly pinned to column
+     2 below (and reset to column 1 in the single-column mobile / autohide
+     states where the sidebar goes off-canvas). */
+  position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh; z-index: 25;
   /* Three-zone layout: brand stays pinned at top, the nav middle
      scrolls when its content overflows, and the footer is pinned at
      the bottom. flex-shrink: 0 on brand + footer keeps them out of
@@ -1689,6 +1696,54 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 /* Multi-row Links editor on the announcement/event edit page.
    Each row is a card-ish stack: URL + label inputs side-by-side on
    top, the "open in new tab" toggle + remove button on the bottom. */
+/* Event date/time tag palette under the Content card. Collapsed by
+   default so the editor stays calm; open it and each chip shows the
+   tag itself over the value it currently resolves to. */
+.event-tags {
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--panel-2);
+}
+.event-tags-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer; list-style: none;
+}
+.event-tags-head::-webkit-details-marker { display: none; }
+.event-tags-head::after {
+  content: ""; margin-left: auto; flex: none;
+  width: 7px; height: 7px; border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted); transform: rotate(45deg);
+  transition: transform 140ms ease;
+}
+.event-tags[open] .event-tags-head::after { transform: rotate(-135deg); }
+.event-tags-head:hover { color: var(--brand); }
+.event-tags-icon { display: inline-flex; color: var(--brand); }
+.event-tags-icon .icon { width: 17px; height: 17px; }
+.event-tags-head-text { display: flex; flex-direction: column; min-width: 0; }
+.event-tags-title { font-weight: 600; }
+.event-tags-body { padding: 0 14px 14px; }
+.event-tags-help { margin: 0 0 .85rem; line-height: 1.5; }
+.event-tags-help code {
+  padding: 1px 5px; border-radius: 5px;
+  background: var(--panel); border: 1px solid var(--border);
+}
+.event-tags-group + .event-tags-group { margin-top: .85rem; }
+.event-tags-group-label {
+  font-size: .75rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: .4rem;
+}
+.event-tags-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.event-tag {
+  display: flex; flex-direction: column; gap: 1px; text-align: left;
+  padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--panel); color: inherit; cursor: pointer;
+  font: inherit; line-height: 1.25;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.event-tag:hover { border-color: var(--brand); background: var(--brand-soft); }
+.event-tag:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--brand-soft); }
+.event-tag-name { font-size: .8125rem; font-weight: 600; font-family: inherit; }
+.event-tag-ex { font-size: .75rem; color: var(--muted); }
+
 .post-links-editor { margin-top: .5rem; }
 .post-links-list {
   list-style: none;
@@ -2359,7 +2414,13 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 .fe-tbl-scroll .tbl td.trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fe-tbl-scroll .tbl .row-actions { flex-wrap: nowrap; justify-content: flex-end; }
 .fe-tbl-scroll .tbl .row-actions .btn { white-space: nowrap; }
-.fe-subnav { position: sticky; top: 22px; }
+/* Stick the subnav so it never moves a pixel as the main column
+   scrolls. Its natural flow position is exactly the sticky topbar's
+   height plus the topbar's bottom margin (``--content-px``) — so pinning
+   at that same offset means the sidebar is "stuck" from scroll 0 with
+   zero travel. (A smaller offset, e.g. the old 16px, let it slide up ~12px
+   before locking.) ``--topbar-h`` is measured live in base.html. */
+.fe-subnav { position: sticky; top: calc(var(--topbar-h, 56px) + var(--content-px, 28px)); }
 /* Save bar fixed to the viewport bottom-left, aligned with the frontend
    admin sidebar column (main app sidebar width + .content padding-left).
    Stays anchored to the viewport bottom regardless of scroll position. */
@@ -2442,7 +2503,14 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 }
 .fe-save-bar-btn.btn { background: #422006; color: #facc15;
   border-color: #422006; padding: 6px 14px;
-  flex: 0 0 auto; white-space: nowrap; }
+  flex: 0 0 auto; white-space: nowrap;
+  /* Reserve enough width for the widest label this button cycles through
+     ("Save" → "Saving…" → "Saved"), centred. Several callers pin the bar's
+     width the instant Save is clicked, then swap the text to the wider
+     "Saving…" — without a floor the button grew past the pinned width and
+     spilled out of the rounded bar. Sizing for "Saving…" up front means the
+     bar is already wide enough, so the swap neither overflows nor jiggles. */
+  min-width: 5.75rem; text-align: center; }
 .fe-save-bar-btn.btn:hover { background: #1c0f02; color: #fde047; }
 /* Save-Draft secondary button — page-edit screen only. Outlined
    variant tinted with the Publish button's fill colour (#422006) for
@@ -2640,6 +2708,11 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
   --content-px: 28px; --content-pt: 22px;
   padding: var(--content-pt) var(--content-px) 48px;
   min-width: 0;
+  /* The sidebar is position:fixed (out of grid flow), so anchor the
+     content to the second column explicitly — otherwise grid
+     auto-placement would slide it under the sidebar into column 1.
+     Reset to column 1 in the single-column mobile / autohide states. */
+  grid-column: 2;
 }
 /* The readable-width cap lives on the inner .page body, NOT on .content
    itself. That way .content (and the sticky .topbar that bleeds to its
@@ -2791,10 +2864,16 @@ body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
 /* Opted-out cards (``data-no-collapse``) are non-interactive — they
    never collapse, so they shouldn't read as clickable: reset the
    pointer cursor + the hover heading-colour shift the collapsible
-   cards use to advertise their toggle. */
+   cards use to advertise their toggle. The opt-out works both per-card
+   (``.card[data-no-collapse]``) and page-wide
+   (``.fe-admin-main[data-no-collapse]``, which disables collapse for
+   every card on the page). */
 .fe-admin-main .card[data-no-collapse],
-.fe-admin-main .card[data-no-collapse] .card-head { cursor: default; }
-.fe-admin-main .card[data-no-collapse] .card-head:hover h2 { color: inherit; }
+.fe-admin-main .card[data-no-collapse] .card-head,
+.fe-admin-main[data-no-collapse] .card,
+.fe-admin-main[data-no-collapse] .card-head { cursor: default; }
+.fe-admin-main .card[data-no-collapse] .card-head:hover h2,
+.fe-admin-main[data-no-collapse] .card-head:hover h2 { color: inherit; }
 /* Re-enable spacing under the head when expanded (we cleared the default
    margin-bottom above so the chevron alignment stays consistent). */
 .fe-admin-main .card:not(.is-collapsed) .card-head { margin-bottom: 12px; }
@@ -3253,6 +3332,11 @@ button.chip { font-family: inherit; }
   font-weight: 600; font-size: 1rem; line-height: 1.25; text-decoration: none;
   box-sizing: border-box; font-family: inherit;
 }
+/* ``.btn`` sets ``display: inline-flex``, which (equal specificity, later
+   in the cascade) outranks the UA ``[hidden] { display: none }`` rule — so
+   a button toggled hidden via the ``hidden`` attribute (e.g. the bulk
+   "Delete selected" / "Archive" actions) would still show. Force it shut. */
+.btn[hidden] { display: none !important; }
 .btn:hover { background: var(--brand-soft); text-decoration: none; }
 .btn-primary { background: var(--access); color: white; border-color: transparent; }
 .btn-primary:hover { background: var(--access-hover); color: white; }
@@ -3522,6 +3606,22 @@ button.chip { font-family: inherit; }
 .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .check { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); cursor: pointer; }
 .check input { accent-color: var(--brand); }
+/* Per-form "Submission access" role checkboxes. Left-aligned column of
+   pills, each with the checkbox to the LEFT of its label — the higher
+   specificity beats ``.form label { flex-direction: column }`` (the edit
+   page is one big .form), which was stacking the box above the text. */
+/* Topbar "Visible to: Admins · Editors …" chips on the forms backend
+   pages (submission inbox + form editor) — at-a-glance role visibility. */
+.fe-vis-roles { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.fe-vis-roles-label { color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+.fe-vis-role {
+  display: inline-block; padding: 2px 10px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--border);
+  color: var(--text); font-size: 0.76rem; font-weight: 700; white-space: nowrap;
+}
+.fe-form-access-roles { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; padding: 1rem; }
+.fe-form-access-roles .check { display: flex; flex-direction: row; align-items: center; gap: 10px; }
+.fe-form-access-roles .check input { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; }
 
 .lib-block { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--border); }
 
@@ -3535,12 +3635,29 @@ button.chip { font-family: inherit; }
    Flex layout lives on an inner wrapper so the <td> itself stays a
    normal table-cell; making the td a flex container breaks the
    table's row-height contract and causes its bottom border to land
-   above the sibling cells'. */
-.tbl td.users-actions { vertical-align: middle; }
+   above the sibling cells'.
+
+   The buttons stack vertically and the cell hugs its content
+   (width: 1%) so this right-most column stays narrow — with all the
+   other columns (username/name/email/phone/role/password) the table
+   can get wide enough to overflow the settings modal, which would
+   otherwise push Edit/Delete off the right edge where they can't be
+   reached. */
+.tbl td.users-actions { vertical-align: middle; width: 1%; white-space: nowrap; }
 .tbl td.users-actions .users-actions-row {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
 }
-.tbl td.users-actions form { display: inline-flex; margin: 0; }
+.tbl td.users-actions form { display: flex; margin: 0; }
+.tbl td.users-actions .users-actions-row > .btn,
+.tbl td.users-actions .users-actions-row > form .btn { width: 100%; }
+
+/* Safety net for the users table: with every column present it can be
+   wider than the settings modal on smaller laptops. Let it scroll
+   horizontally inside its card rather than spill past the modal edge
+   (which clips the right-most Edit/Delete column out of reach). On
+   mobile the table collapses to a block stack, so the scroll is moot
+   there. */
+.users-tbl-scroll { max-width: 100%; overflow-x: auto; }
 
 /* Users list: filter + bulk toolbar, sortable headers, checkbox column. */
 .users-toolbar {
@@ -4290,6 +4407,9 @@ button.chip { font-family: inherit; }
 .sidebar-notif-icon .icon { width: 16px; height: 16px; display: block; }
 .sidebar-notif-label { flex: 1; text-align: left; }
 .sidebar-notif-chip { flex: 0 0 auto; margin-left: 0; }
+/* Specificity 0,2,0 beats the base .nav-badge (0,1,0) defined later in
+   source order, so the orange wins over the brand-blue default. */
+.nav-badge.sidebar-notif-chip { background: #f59e0b; color: #fff; }
 .sidebar-notif-chip[hidden] { display: none; }
 
 /* Dashboard button — same pill treatment as the Notifications / Watchtower
@@ -4950,10 +5070,14 @@ form[data-savebar-row].is-dirty {
 .reading-hero { max-width: 320px; max-height: 220px; border-radius: 10px;
   border: 1px solid var(--border); margin-bottom: 12px; display: block; }
 form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
+/* Video-conferencing platform fieldsets: the enable toggle sits at the top;
+   when off the fields collapse so the fieldset is just the toggle row. */
+.conf-fields { margin-top: 10px; }
+.conf-fieldset.conf-off { padding-bottom: 12px; }
 
 /* Settings modal */
 .modal-lg .modal-panel { max-width: 1180px; }
-#settings-modal .modal-panel { height: calc(100vh - 10vh); max-width: 1180px; }
+#settings-modal .modal-panel { height: calc(100vh - 10vh); max-width: 1280px; }
 
 /* WordPress importer modal — same full-height treatment as the
    settings modal so the iframe has a tall canvas to render the
@@ -5348,6 +5472,15 @@ body.embed .card.data-card:last-child {
    becomes the card's first child — drop its top hairline/padding so it
    doesn't double up with the card's own top edge. */
 .zoom-card > .detail-section-divider:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+/* Per-platform accent: a colored left border distinguishes the conferencing
+   cards at a glance — green for Google Meet, purple for Teams. The detail
+   page renders inside an embed iframe whose `body.embed .card.data-card`
+   rule paints a 4px --brand (blue) left border, so these are scoped to the
+   same depth to win, with a plain fallback for any non-embed context. */
+.data-card.gmeet-card,
+body.embed .card.data-card.gmeet-card { border-left: 4px solid #22c55e; }
+.data-card.teams-card,
+body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
 /* Divider line between sub-sections inside a detail-block (e.g. the
    right column's Location → Zoom transition). Adds a hairline +
    breathing room in one rule so the inline `margin-top` style on
@@ -6336,10 +6469,12 @@ html[data-theme="dark"] .access-matrix .is-current { background: rgba(11, 92, 25
   display: inline-block; }
 .access-matrix .access-cell-yes .access-mark { color: #16a34a; }
 .access-matrix .access-cell-partial .access-mark { color: #ca8a04; }
+.access-matrix .access-cell-grant .access-mark { color: #2563eb; }
 .access-matrix .access-cell-no .access-mark { color: var(--muted); font-weight: 500; }
 .access-matrix .access-foot-mark { color: #ca8a04; font-size: 0.6875rem; margin-left: 1px; }
 html[data-theme="dark"] .access-matrix .access-cell-yes .access-mark { color: #4ade80; }
 html[data-theme="dark"] .access-matrix .access-cell-partial .access-mark { color: #facc15; }
+html[data-theme="dark"] .access-matrix .access-cell-grant .access-mark { color: #60a5fa; }
 html[data-theme="dark"] .access-matrix .access-foot-mark { color: #facc15; }
 .access-matrix-footnote { margin: 8px 4px 0; line-height: 1.45; }
 
@@ -6349,6 +6484,7 @@ html[data-theme="dark"] .access-matrix .access-foot-mark { color: #facc15; }
    accent + border; the count chip mirrors the other small badges. */
 .ar-card-head { display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 12px; }
+.ar-ip-action { margin-top: 4px; display: flex; gap: 6px; align-items: center; }
 .ar-view-tabs { display: inline-flex; gap: 4px; padding: 3px;
   background: var(--panel-2); border: 1px solid var(--border);
   border-radius: 999px; }
@@ -6933,6 +7069,9 @@ h5.block-heading { font-size: 0.875rem; font-weight: 600; margin: 12px 0 4px; }
 
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
+  /* Single-column grid: the off-canvas fixed sidebar reserves no track,
+     so the content owns the only column. */
+  .content { grid-column: 1; }
   .sidebar {
     position: fixed; left: 0; top: 0; width: 260px;
     height: 100dvh;
@@ -6957,6 +7096,7 @@ h5.block-heading { font-size: 0.875rem; font-weight: 600; margin: 12px 0 4px; }
    above; the existing menu-toggle JS handler already drives .sidebar
    .open and works unchanged when this class is on at desktop widths. */
 body.fe-admin-autohide .layout { grid-template-columns: 1fr; }
+body.fe-admin-autohide .content { grid-column: 1; }
 body.fe-admin-autohide .sidebar {
   position: fixed; left: 0; top: 0; width: 260px;
   height: 100dvh;
@@ -7051,8 +7191,11 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   /* Keep the row checkbox a checkbox (not a full-width bar) in card mode. */
   .users-tbl td.users-td-check { padding: 2px 0 6px; }
   .users-tbl td.users-td-check input { width: 16px; height: 16px; }
-  .users-tbl td.users-actions { padding-top: 10px; }
-  .users-tbl td.users-actions .users-actions-row { display: flex; gap: 8px; }
+  /* In card mode the actions cell is full-width, so restore the
+     side-by-side Edit | Delete row (the desktop base stacks them in a
+     narrow column) and undo the desktop width:1%/nowrap clamp. */
+  .users-tbl td.users-actions { padding-top: 10px; width: auto; white-space: normal; }
+  .users-tbl td.users-actions .users-actions-row { display: flex; flex-direction: row; gap: 8px; }
   .users-tbl td.users-actions .users-actions-row > .btn,
   .users-tbl td.users-actions .users-actions-row > form { flex: 1 1 0; }
   .users-tbl td.users-actions .users-actions-row > form .btn { width: 100%; }
@@ -10444,6 +10587,27 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
   border: 1px solid var(--border);
   border-radius: 10px;
 }
+/* Custom-forms list rows carry a leading select checkbox, so they get an
+   extra column. The "Available forms" list above shares .fe-forms-row but
+   has no checkbox — it keeps the 3-column layout. */
+[data-forms-list] .fe-forms-row { grid-template-columns: auto 44px 1fr auto; }
+.fe-forms-row-check { display: grid; place-items: center; margin: 0; cursor: pointer; }
+.fe-forms-row-check input { width: 16px; height: 16px; cursor: pointer; }
+/* Multi-select bulk-delete bar above the custom forms list. */
+.fe-forms-bulkbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.fe-forms-bulk-all { display: flex; align-items: center; gap: 7px; margin: 0; font-weight: 600; cursor: pointer; }
+.fe-forms-bulkbar [data-forms-bulk-delete] { margin-left: auto; }
+/* Breathing room above the "Add form" button below the custom forms list. */
+.fe-new-form-row { margin-top: 1rem; }
 .fe-forms-row-icon {
   display: grid; place-items: center;
   width: 44px; height: 44px;
@@ -10771,32 +10935,52 @@ input.page-typo-color-text.is-invalid {
    inside the rectangle. The bordered centre + axis lines mirror
    the actual padding the box represents. */
 .be-container-row--pad-box {
-  grid-template-columns: 140px 1fr;
+  /* Full-width single column: the "Padding" / "Padding (mobile)"
+     row label stacks above the diagram so the 5-column cross below
+     has the whole modal width to breathe. The old 140px label
+     gutter squeezed the box and forced the LEFT/RIGHT labels to
+     overlap their inputs. */
+  grid-template-columns: 1fr;
   align-items: start;
 }
+/* The shared hint sits under the *control* in normal 2-column rows
+   via `grid-column: 2 / -1`. Pad-box rows are a single column, so
+   that placement would conjure a phantom second track and shove the
+   diagram sideways — pin the hint back to the lone column here. */
+.be-container-row--pad-box .be-container-row-hint {
+  grid-column: 1 / -1;
+}
 .be-pad-box {
+  /* 5 columns × 5 rows. Each side label owns its OWN column/row so
+     it never shares a grid cell with an input (the previous 3-col
+     layout put LEFT/RIGHT labels in the same cell as their inputs,
+     so they overlapped and overflowed). Centre column is the only
+     flexible track; the four input chips + their labels are sized
+     to content. */
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: auto auto minmax(72px, 1fr) auto auto;
   grid-template-rows: auto auto auto auto auto;
   gap: 4px 8px;
   justify-items: center; align-items: center;
-  max-width: 360px;
+  justify-self: start;
+  max-width: 440px;
   padding: 4px;
 }
 .be-pad-box-axis {
   font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--muted);
+  white-space: nowrap;
 }
-.be-pad-box-axis--top    { grid-row: 1; grid-column: 2; }
-.be-pad-box-axis--bottom { grid-row: 5; grid-column: 2; }
-.be-pad-box-axis--left   { grid-row: 3; grid-column: 1; justify-self: end; }
-.be-pad-box-axis--right  { grid-row: 3; grid-column: 3; justify-self: start; }
-.be-pad-box-cell--top    { grid-row: 2; grid-column: 2; }
-.be-pad-box-cell--bottom { grid-row: 4; grid-column: 2; }
-.be-pad-box-cell--left   { grid-row: 3; grid-column: 1; }
-.be-pad-box-cell--right  { grid-row: 3; grid-column: 3; }
+.be-pad-box-axis--top    { grid-row: 1; grid-column: 3; }
+.be-pad-box-axis--bottom { grid-row: 5; grid-column: 3; }
+.be-pad-box-axis--left   { grid-row: 3; grid-column: 1; }
+.be-pad-box-axis--right  { grid-row: 3; grid-column: 5; }
+.be-pad-box-cell--top    { grid-row: 2; grid-column: 3; }
+.be-pad-box-cell--bottom { grid-row: 4; grid-column: 3; }
+.be-pad-box-cell--left   { grid-row: 3; grid-column: 2; }
+.be-pad-box-cell--right  { grid-row: 3; grid-column: 4; }
 .be-pad-box-center {
-  grid-row: 3; grid-column: 2;
+  grid-row: 3; grid-column: 3;
   min-width: 80px; min-height: 44px;
   display: flex; align-items: center; justify-content: center;
   background: var(--panel-2);
@@ -15264,7 +15448,42 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
    on the right. Anonymous submissions get a muted avatar to fade
    into the rail. Hover lifts the border to brand-blue without
    shifting layout. */
-.fe-submissions-filter { margin-bottom: 1rem; }
+.fe-submissions-filter {
+  margin-bottom: 1rem;
+  display: flex; flex-direction: row; flex-wrap: wrap;
+  align-items: flex-end; gap: 12px;
+}
+.fe-subs-csv-hint { padding-bottom: 8px; }
+/* Active / Archived tabs */
+.fe-subs-tabs { display: flex; gap: 2px; margin-bottom: 1rem; border-bottom: 1px solid var(--border); }
+.fe-subs-tab {
+  padding: 8px 14px; text-decoration: none; color: var(--muted);
+  font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.fe-subs-tab:hover { color: var(--text); }
+.fe-subs-tab.is-active { color: var(--brand, #0B5CFF); border-bottom-color: var(--brand, #0B5CFF); }
+.fe-subs-tab-count {
+  min-width: 18px; padding: 0 6px; border-radius: 999px;
+  background: var(--panel-2); color: var(--muted);
+  font-size: 0.72rem; font-weight: 700; text-align: center;
+}
+.fe-subs-tab.is-active .fe-subs-tab-count {
+  background: color-mix(in srgb, var(--brand, #0B5CFF) 16%, transparent); color: var(--brand, #0B5CFF);
+}
+/* Bulk-action bar + per-row select checkbox */
+.fe-subs-bulkbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 12px; margin-bottom: 10px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+}
+.fe-subs-bulk-all { display: flex; align-items: center; gap: 7px; margin: 0; font-weight: 600; cursor: pointer; }
+.fe-subs-bulk-actions { margin-left: auto; display: flex; gap: 8px; }
+.fe-submission-check {
+  flex: 0 0 auto; display: grid; place-items: center;
+  align-self: stretch; padding: 0 2px 0 14px; cursor: pointer;
+}
+.fe-submission-check input { width: 16px; height: 16px; cursor: pointer; }
 .fe-submissions-list {
   list-style: none;
   margin: 0;
@@ -15280,9 +15499,37 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
   overflow: hidden;
 }
+/* Row = checkbox + clickable card. SCOPED to the admin submissions list:
+   ``.fe-submission-card`` is ALSO the class the public form page uses
+   (frontend.css), so an unscoped ``display:flex`` here leaked onto the
+   public form and laid its intro + fields out side-by-side. */
+/* Card = a header row (checkbox + clickable toggle) stacked above an
+   inline detail panel that expands on click. */
+.fe-submissions-list .fe-submission-card { display: block; }
+.fe-submission-row { display: flex; align-items: center; }
+.fe-submission-row .fe-submission-card-main { flex: 1 1 auto; min-width: 0; }
+/* Always-visible per-row actions — View + archive/restore + delete, at
+   the right of the row, reachable even while the card is collapsed. */
+.fe-submission-row-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 14px 0 2px;
+}
+.fe-submission-view-btn { white-space: nowrap; }
+.fe-submission-view-btn .icon { width: 15px; height: 15px; }
+.fe-submission-rowact-form { margin: 0; display: inline-flex; }
+/* Compact square icon-only buttons for archive / delete. */
+.fe-submission-rowact-btn { padding: 7px; line-height: 0; }
+.fe-submission-rowact-btn .icon { width: 16px; height: 16px; }
 .fe-submission-card:hover {
   border-color: var(--brand, #0B5CFF);
   box-shadow: 0 2px 8px rgba(11, 92, 255, .08);
+}
+.fe-submission-card.is-expanded {
+  border-color: var(--brand, #0B5CFF);
+  box-shadow: 0 2px 10px rgba(11, 92, 255, .10);
 }
 .fe-submission-card-main {
   display: grid;
@@ -15292,6 +15539,13 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   padding: 14px 16px;
   text-decoration: none;
   color: inherit;
+  /* <button> resets — this is now a toggle, not a link. */
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 .fe-submission-avatar {
   width: 44px;
@@ -15398,16 +15652,49 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   flex: 0 0 auto;
   transition: transform 120ms ease, color 120ms ease;
 }
-.fe-submission-card:hover .fe-submission-cta {
+.fe-submission-card:hover .fe-submission-cta { color: var(--brand, #0B5CFF); }
+.fe-submission-card-main[aria-expanded="true"] .fe-submission-cta {
+  transform: rotate(180deg);
   color: var(--brand, #0B5CFF);
-  transform: translateX(2px);
 }
 .fe-submission-cta .icon { width: 18px; height: 18px; }
 
+/* Inline detail panel — the full record in the email/detail style, with
+   a smooth open/close. The panel is a CSS grid whose single row animates
+   0fr→1fr; the clip hides the overflow during the transition; the inner
+   carries the visible chrome (border / padding / fill) so nothing shows
+   while collapsed. */
+.fe-submission-detail-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 240ms ease;
+}
+.fe-submission-card.is-expanded .fe-submission-detail-panel { grid-template-rows: 1fr; }
+.fe-submission-detail-clip { overflow: hidden; min-height: 0; }
+.fe-submission-detail-inner {
+  border-top: 1px solid var(--border);
+  padding: 2px 18px 16px;
+  background: var(--panel-2);
+}
+.fe-submission-detail-panel .fe-sub-detail-fields--inline { padding: 0; max-width: none; }
+.fe-submission-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fe-submission-detail-panel { transition: none; }
+}
 @media (max-width: 640px) {
-  .fe-submission-card-main { grid-template-columns: auto 1fr; gap: 12px; padding: 12px; }
-  .fe-submission-cta { display: none; }
+  .fe-submission-card-main { gap: 12px; padding: 12px; }
   .fe-submission-when { margin-left: 0; width: 100%; }
+  .fe-submission-detail-inner { padding: 2px 12px 14px; }
+  /* Compact to icon-only buttons on narrow screens. */
+  .fe-submission-view-label { display: none; }
+  .fe-submission-row-actions { gap: 4px; margin: 0 8px 0 2px; }
 }
 
 [data-theme="dark"] .fe-submission-card:hover {
@@ -15423,6 +15710,222 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 }
 .fe-submission-raw { background: var(--panel-2); padding: .75rem;
   border-radius: 8px; overflow-x: auto; font-size: .8rem; }
+
+/* ── Submission detail — elegant "card" presentation that mirrors the
+   branded submission email: gradient accent bar, an identity hero, then
+   one labelled row per answered field with options as check pills and
+   live email/phone/file links. Theme-aware via design tokens. ─────── */
+.fe-sub-detail { max-width: 760px; }
+.fe-sub-detail-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, .07);
+}
+.fe-sub-detail-accent {
+  height: 6px;
+  background: linear-gradient(90deg, #0b5cff 0%, #5164ff 50%, #2ad4c3 100%);
+}
+.fe-sub-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--border);
+}
+.fe-sub-detail-avatar {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, #0b5cff, #5164ff);
+  box-shadow: 0 6px 18px rgba(11, 92, 255, .35);
+}
+.fe-sub-detail-hero-main { min-width: 0; }
+.fe-sub-detail-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--brand, #0b5cff);
+  margin-bottom: 4px;
+}
+.fe-sub-detail-archived {
+  color: #b45309;
+  background: rgba(245, 158, 11, .16);
+  padding: 1px 7px;
+  border-radius: 999px;
+  letter-spacing: .02em;
+}
+.fe-sub-detail-name {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--text);
+  word-break: break-word;
+}
+.fe-sub-detail-metarow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.fe-sub-detail-metarow span { display: inline-flex; align-items: center; gap: 5px; }
+.fe-sub-detail-metarow .icon { width: 14px; height: 14px; opacity: .8; }
+.fe-sub-detail-contact { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.fe-sub-detail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.fe-sub-detail-chip:hover { border-color: var(--brand, #0b5cff); color: var(--brand, #0b5cff); }
+.fe-sub-detail-chip .icon { width: 15px; height: 15px; }
+
+.fe-sub-detail-fields { padding: 6px 28px; }
+.fe-sub-detail-field { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.fe-sub-detail-field:last-child { border-bottom: 0; }
+.fe-sub-detail-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+.fe-sub-detail-value {
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-line;
+  word-break: break-word;
+}
+.fe-sub-detail-link { color: var(--brand, #0b5cff); text-decoration: none; font-weight: 600; }
+.fe-sub-detail-link:hover { text-decoration: underline; }
+
+.fe-sub-detail-opts { display: flex; flex-direction: column; gap: 8px; }
+.fe-sub-detail-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.fe-sub-detail-opt-tick {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--brand, #0b5cff);
+  color: #fff;
+}
+.fe-sub-detail-opt-tick.is-square { border-radius: 6px; }
+.fe-sub-detail-opt-tick .icon { width: 13px; height: 13px; stroke-width: 3; }
+
+.fe-sub-detail-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  max-width: 100%;
+}
+.fe-sub-detail-file:hover { border-color: var(--brand, #0b5cff); }
+.fe-sub-detail-file-icon { color: var(--brand, #0b5cff); display: inline-flex; }
+.fe-sub-detail-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fe-sub-detail-file-go { margin-left: auto; opacity: .6; display: inline-flex; }
+.fe-sub-detail-file .icon { width: 16px; height: 16px; }
+
+.fe-sub-detail-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 18px 28px;
+  background: var(--panel-2);
+  border-top: 1px solid var(--border);
+}
+.fe-sub-detail-foot form { margin: 0; }
+
+[data-theme="dark"] .fe-sub-detail-card { box-shadow: 0 12px 36px rgba(0, 0, 0, .35); }
+
+@media (max-width: 600px) {
+  .fe-sub-detail-hero { padding: 20px; gap: 14px; }
+  .fe-sub-detail-fields { padding: 4px 20px; }
+  .fe-sub-detail-foot { padding: 16px 20px; }
+  .fe-sub-detail-name { font-size: 21px; }
+}
+
+/* ── Submission modal — the detail card rendered as a popup: sticky
+   identity header + close, a scrollable email-style body, and a sticky
+   Archive/Delete footer. Reuses the .modal / .modal-panel flex-column
+   chrome, so header + footer stay put while only the body scrolls. ── */
+.fe-sub-modal-panel { max-width: 720px; }
+.fe-sub-modal-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.fe-sub-modal-head-id { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.fe-sub-modal-avatar { width: 44px; height: 44px; font-size: 1.05rem; flex: 0 0 auto; }
+.fe-sub-modal-avatar.is-anon { background: var(--border); color: var(--muted); box-shadow: none; }
+.fe-sub-modal-head-text { min-width: 0; }
+.fe-sub-modal-name {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--text);
+  word-break: break-word;
+}
+.fe-sub-modal-metarow { margin-top: 3px; }
+.fe-sub-modal-close { flex: 0 0 auto; }
+.fe-sub-modal-body { flex: 1 1 auto; overflow-y: auto; padding: 2px 22px 10px; }
+.fe-sub-modal-body .fe-sub-detail-fields { padding: 0; max-width: none; }
+.fe-sub-modal-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--panel-2);
+}
+@media (max-width: 600px) {
+  .fe-sub-modal-head, .fe-sub-modal-foot { padding: 14px 16px; }
+  .fe-sub-modal-body { padding: 2px 16px 8px; }
+  .fe-sub-modal-name { font-size: 1.1rem; }
+}
 
 /* Custom-form field builder. Each field is a card with a head row
    (drag handle + type pill + title + edit/delete buttons) and a
@@ -15465,6 +15968,11 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   gap: .5rem;
   padding: .55rem .65rem;
   user-select: none;
+  /* The whole head toggles the field's edit body (see wireCard in
+     frontend_custom_form_edit.html / _form_field_builder.html), so cue
+     it as clickable. The drag handle and the Edit/Delete buttons set
+     their own cursors locally. */
+  cursor: pointer;
 }
 .fe-form-field-chev {
   margin-left: auto;
@@ -15477,26 +15985,67 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 .fe-form-field-card.is-open > .fe-form-field-head .fe-form-field-chev {
   transform: rotate(180deg);
 }
-/* Collapsed by default; opens with a 200ms max-height + opacity
-   transition driven by the ``is-open`` class on the parent card.
-   ``max-height: 1500px`` is generously above the natural height of
-   any field card we render, so the animation reaches the natural
-   bottom without clipping while still being short enough that
-   close transitions complete in the 200ms window. */
-.fe-form-field-body {
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  padding: 0 .75rem;
-  border-top-width: 0;
-  transition: max-height 200ms ease, opacity 200ms ease,
-              padding 200ms ease, border-top-width 200ms ease;
-}
+/* The field editor opens as a centered popup MODAL (not an inline
+   accordion). The body stays inside the builder <form> so its inputs
+   still submit with everything else; it's just lifted out of document
+   flow and centered over a shared backdrop when the card is open. No
+   ancestor of the body sets transform/filter/contain, so
+   ``position: fixed`` anchors to the viewport as intended. */
+.fe-form-field-body { display: none; }
+/* The builder JS toggles the ``hidden`` attribute on the placeholder /
+   options / accept sub-fields by field type. ``.form label`` sets
+   ``display: flex`` and outranks the UA ``[hidden]`` rule, so without
+   this those wraps stay visible on freshly-added cards (e.g. an empty
+   Options box on a text field, a Placeholder on a name field). Re-assert
+   the hide at higher specificity. */
+.fe-form-field-body label[hidden] { display: none; }
 .fe-form-field-card.is-open > .fe-form-field-body {
-  max-height: 1500px;
-  opacity: 1;
-  padding: .5rem .75rem .75rem;
-  border-top-width: 1px;
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+  position: fixed;
+  z-index: 1001;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 32px));
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 1rem 1.15rem 1.15rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.35);
+}
+/* Injected modal header (title + close ✕) — built in wireCard(). */
+.fe-form-field-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  margin-bottom: .15rem;
+}
+.fe-form-field-modal-title { font-weight: 700; font-size: 1.05rem; }
+.fe-form-field-modal-close {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 6px;
+}
+.fe-form-field-modal-close:hover { background: var(--panel-2); color: var(--text); }
+/* Shared full-screen backdrop, created + toggled by the builder JS. */
+.fe-form-field-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(17, 24, 39, 0.45);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 .fe-form-field-drag {
   cursor: grab;
@@ -15525,19 +16074,8 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Body's static layout (border + flex column gap) lives here.
-   Sizing / animation is set in the collapsible-body rule above
-   (max-height + opacity transition driven by ``.is-open``). The
-   padding has to live in the animated rule too so it can ease to
-   zero on collapse — duplicating it here would break the
-   transition by setting a non-zero floor that overrides the
-   closed state's zero padding. */
-.fe-form-field-body {
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-}
+/* Body layout (flex column gap) now lives in the ``.is-open`` modal
+   rule above — the collapsed body is simply ``display: none``. */
 .fe-form-builder-toolbar {
   display: flex;
   align-items: center;

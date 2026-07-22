@@ -151,7 +151,7 @@ def _send_failure_email(app, target, error):
 def run_target(app, target_id, triggered_by="schedule"):
     """Execute one backup. Returns the BackupRun row (committed)."""
     from .models import db, BackupTarget, BackupRun
-    from .backup import build_export_archive, encrypt_archive_file
+    from .backup import build_export_archive, encrypt_archive_file, sweep_orphan_temp_files
     from .backup_backends import make_backend, BackendError
     from .crypto import decrypt
 
@@ -160,6 +160,13 @@ def run_target(app, target_id, triggered_by="schedule"):
         if target is None:
             logger.warning("run_target: target %d disappeared", target_id)
             return None
+
+        # Reclaim archives orphaned by a prior interrupted run before we add
+        # another. Age-guarded, so a concurrent run's in-flight file is safe.
+        try:
+            sweep_orphan_temp_files(app)
+        except Exception:  # noqa: BLE001 — cleanup must never block a backup
+            logger.exception("run_target: orphan sweep failed (continuing)")
 
         run = BackupRun(
             target_id=target.id,

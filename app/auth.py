@@ -31,6 +31,7 @@ _VIEWER_BASE = [
     "View meetings, libraries, readings, and uploaded files.",
     "View Zoom accounts and the calendar.",
     "Customize your own dashboard widgets and order.",
+    "Manage submissions for any form an admin grants your role access to — the form appears in the sidebar's Forms section with its own inbox and archive, where you can view, archive, delete, and export entries (you cannot edit the form itself).",
 ]
 
 _EDITOR_BASE = _VIEWER_BASE + [
@@ -52,6 +53,7 @@ ROLE_PERMISSIONS = {
         "Edit the Intergroup Documents and Intergroup Minutes libraries.",
         "Read and edit the Intergroup Email Accounts page.",
         "Manage users, access requests, modules, site settings, and security.",
+        "Manage submissions for every form, and grant other roles per-form access to specific form inboxes.",
         "Import and export the full data archive (database + uploads).",
         "Customize your own dashboard widgets and order.",
     ],
@@ -136,12 +138,15 @@ def _generate_password(length=16):
     return "".join(chars)
 
 
-def _send_welcome_email(user, plaintext_password):
-    """Send a freshly-created user their login credentials + a plain-
-    English breakdown of what their role can do. Returns ``(ok, err)``
-    matching the ``mail.send_mail`` contract; silently no-ops (with an
-    informative reason) when SMTP isn't configured or the user has no
-    email on file."""
+def _send_welcome_email(user, plaintext_password, *, reason="created"):
+    """Send a user their login credentials + a plain-English breakdown of
+    what their role can do. ``reason`` frames *why* they're getting the
+    email — ``"created"`` (new account) or ``"reset"`` (an admin reset
+    their password). The credential/role content is identical either way;
+    only the subject, header, and intro line change so a password reset
+    doesn't read as a brand-new welcome. Returns ``(ok, err)`` matching
+    the ``mail.send_mail`` contract; silently no-ops (with an informative
+    reason) when SMTP isn't configured or the user has no email on file."""
     from .mail import send_mail
     site = SiteSetting.query.first()
     if not site or not site.smtp_host or not site.smtp_from_email:
@@ -152,6 +157,24 @@ def _send_welcome_email(user, plaintext_password):
     role_label = ROLE_LABELS.get(user.role, user.role)
     perms = ROLE_PERMISSIONS.get(user.role, [])
     portal_name = (site.smtp_from_name or "Trusted Servants Pro").strip() or "Trusted Servants Pro"
+    is_reset = (reason == "reset")
+    # Subject + framing differ by reason; the credential block below is
+    # shared so the recipient sees the same details regardless.
+    if is_reset:
+        subject = f"Your {portal_name} password has been reset"
+        text_intro = (f"An administrator has reset your password on {portal_name}. "
+                      f"Use the updated sign-in details below.")
+        html_eyebrow = "Password reset"
+        html_title = f"Your {portal_name} password was reset"
+        html_intro = (f"Hello {user.username}, an administrator has reset your password "
+                      f"on {portal_name}. Use the updated details below to sign in.")
+    else:
+        subject = f"Your {portal_name} account"
+        text_intro = f"An account has been created for you on {portal_name}."
+        html_eyebrow = "Welcome aboard"
+        html_title = f"Your {portal_name} account"
+        html_intro = (f"Hello {user.username}, an account has been created for you on "
+                      f"{portal_name}. Use the details below to sign in.")
     # Prefer the admin-configured canonical URL so the email body never
     # surfaces a Docker bridge IP / internal hostname. Falls back to the
     # request-context URL builder when no override is set.
@@ -161,7 +184,7 @@ def _send_welcome_email(user, plaintext_password):
     lines = [
         f"Hello {user.username},",
         "",
-        f"An account has been created for you on {portal_name}.",
+        text_intro,
         "",
         "Your sign-in details:",
         f"  Username: {user.username}",
@@ -182,9 +205,23 @@ def _send_welcome_email(user, plaintext_password):
         "— Trusted Servants Pro",
     ]
     body = "\n".join(lines)
-    return send_mail(site, user.email,
-                     f"Your {portal_name} account",
-                     body)
+    from .frontend import _render_branded_email, _branded_field
+    body_html = _render_branded_email(
+        site, eyebrow=html_eyebrow, title=html_title,
+        intro=html_intro,
+        fields=[
+            _branded_field("Username", user.username),
+            _branded_field("Email", user.email, "email"),
+            _branded_field("Password", plaintext_password),
+            _branded_field("Role", role_label),
+            _branded_field(f"What your {role_label} role can do",
+                           "\n".join(f"• {p}" for p in perms) if perms else None),
+        ],
+        cta_url=login_url, cta_label="Sign in",
+        meta_text="If you did not expect this email, please ignore it or let an administrator know.",
+    )
+    return send_mail(site, user.email, subject,
+                     body, body_html=body_html)
 
 TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
@@ -694,18 +731,28 @@ def _send_reset_email(user, token):
     from .routes import _public_url_for
     link = _public_url_for("auth.reset_password", token=token)
     portal_name = (site.smtp_from_name or "Trusted Servants Pro").strip() or "Trusted Servants Pro"
+    _ttl = f"{RESET_TOKEN_TTL_HOURS} hour{'s' if RESET_TOKEN_TTL_HOURS != 1 else ''}"
     body = (
         f"Hello {user.username},\n\n"
         f"Someone requested a password reset for your {portal_name} account. "
         f"If that was you, follow the link below to choose a new password. "
-        f"The link is valid for {RESET_TOKEN_TTL_HOURS} hour"
-        f"{'s' if RESET_TOKEN_TTL_HOURS != 1 else ''} and can only be used once.\n\n"
+        f"The link is valid for {_ttl} and can only be used once.\n\n"
         f"  {link}\n\n"
         f"If you didn't request this, you can safely ignore this email — "
         f"your password will stay the same.\n\n"
         f"— Trusted Servants Pro"
     )
-    return send_mail(site, user.email, f"Reset your {portal_name} password", body)
+    from .frontend import _render_branded_email
+    body_html = _render_branded_email(
+        site, eyebrow="Password reset", title=f"Reset your {portal_name} password",
+        intro=(f"Hello {user.username}, someone requested a password reset for your "
+               f"{portal_name} account. If that was you, use the button below to choose "
+               f"a new password. The link is valid for {_ttl} and can only be used once."),
+        cta_url=link, cta_label="Choose a new password",
+        meta_text="If you didn't request this, you can safely ignore this email — your password will stay the same.",
+    )
+    return send_mail(site, user.email, f"Reset your {portal_name} password",
+                     body, body_html=body_html)
 
 
 @bp.route("/forgot-password", methods=["GET", "POST"])
@@ -868,6 +915,34 @@ def users_unlock(uid):
     return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
 
 
+def _close_access_request(raw_rid, user):
+    """Mark an access request handled + archived after its account is
+    created. ``raw_rid`` is the form-supplied id (may be blank/garbage);
+    a missing or already-archived row is a silent no-op so manual user
+    creation is unaffected. Returns the archived request id on success
+    (so the caller can tell the Access Requests page to drop the row),
+    else ``None``."""
+    try:
+        rid = int(raw_rid)
+    except (TypeError, ValueError):
+        return None
+    from .models import AccessRequest
+    r = db.session.get(AccessRequest, rid)
+    if not r or r.is_archived:
+        return None
+    r.status = "handled"
+    r.handled_at = datetime.utcnow()
+    r.is_archived = True
+    r.archived_at = datetime.utcnow()
+    db.session.commit()
+    from . import activity
+    activity.log("access_request.archive", entity_type="access_request",
+                 entity_id=r.id,
+                 summary=f"Archived request from {r.name} <{r.email}> "
+                         f"(created user {user.username})")
+    return r.id
+
+
 @bp.route("/users/create", methods=["POST"])
 @login_required
 def users_create():
@@ -900,6 +975,13 @@ def users_create():
                  summary=f"Created user {username} ({role})")
     flash(f"User {username} created", "success")
 
+    # When this account was created straight from an Access Request (the
+    # Create User button forwards the row id as ``access_request_id``),
+    # close that request out automatically: mark it handled and archive
+    # it so it drops off the active list — the admin shouldn't have to
+    # tidy up the request they just acted on.
+    archived_rid = _close_access_request(request.form.get("access_request_id"), u)
+
     # Optional welcome email. Defaults to opt-in via the form checkbox;
     # falls back to the success path silently when SMTP isn't configured
     # or sending fails — the admin keeps the credentials they typed in
@@ -911,7 +993,15 @@ def users_create():
         else:
             flash(f"User created but welcome email failed: {err}", "warning")
 
-    return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
+    if request.form.get("embed") == "1":
+        # Carry the archived request id back to the reloaded iframe so it
+        # can ping the parent Access Requests page to drop that row live
+        # (see the postMessage in users.html).
+        kwargs = {"embed": 1}
+        if archived_rid:
+            kwargs["archived_request"] = archived_rid
+        return redirect(url_for("auth.users", **kwargs))
+    return redirect(url_for("auth.users"))
 
 
 @bp.route("/users/<int:uid>/update", methods=["POST"])
@@ -1062,9 +1152,9 @@ def users_reset_password(uid):
         # Send first; only persist on success so an SMTP failure doesn't
         # silently invalidate the user's existing password and lock them
         # out of an account they were otherwise still using.
-        ok, err = _send_welcome_email(u, new_pw)
+        ok, err = _send_welcome_email(u, new_pw, reason="reset")
         if not ok:
-            flash(f"Could not send welcome email: {err} — password was not changed.", "danger")
+            flash(f"Could not send password reset email: {err} — password was not changed.", "danger")
             return _bounce()
 
     u.password_hash = generate_password_hash(new_pw)
@@ -1087,7 +1177,11 @@ def users_reset_password(uid):
                  summary=(f"Admin reset password for {u.username} "
                           f"(mode={mode}, email_sent={'yes' if send_email else 'no'})"))
     if send_email:
-        flash(f"Password reset for {u.username}; welcome email sent to {u.email}.", "success")
+        # Two separate flashes → two separate toasts (rather than one
+        # combined notice) so the outcome and the email confirmation read
+        # as distinct messages.
+        flash(f"Password reset for {u.username}.", "success")
+        flash(f"Password reset email sent to {u.email}.", "success")
     elif mode == "custom":
         flash(f"Password reset for {u.username}. No email was sent — share the new password with them through another channel.", "success")
     else:

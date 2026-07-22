@@ -346,4 +346,4 @@ Trusted Servants Pro is released under the [GNU Affero General Public License v3
 
 You're free to run, copy, modify, and redistribute the portal. If you host a modified version for other users to interact with over a network, you must make the corresponding source code available to those users under the same license. See the `LICENSE` file for the full text.
 
-© Hyprlab Open-source contributions welcome.
+© Hyprlab. Open-source contributions welcome.

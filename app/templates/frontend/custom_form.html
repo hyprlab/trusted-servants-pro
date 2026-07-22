@@ -28,6 +28,9 @@
           action="{{ url_for('frontend.custom_form_submit', slug=cform.slug) }}"
           enctype="multipart/form-data" novalidate>
       {% for block in cform_blocks %}
+        {% if block.type in ('select', 'radio', 'checkboxes') and not block.get('options') %}
+        {# Option-type field with no options configured — skip it. #}
+        {% else %}
         {% set err = cform_errors.get(block.name) %}
         {% set val = cform_values.get(block.name, '') %}
         <label class="fe-custom-form-field fe-custom-form-field--{{ block.type }}
@@ -36,9 +39,18 @@
             {{ block.label }}{% if block.required %} <span class="muted smaller">*</span>{% endif %}
           </span>
 
+          {# Help text sits directly under the title, above the field. #}
+          {% if block.get('help') %}
+          <span class="fe-custom-form-help muted small">{{ block.help }}</span>
+          {% endif %}
+
           {% if block.type == 'text' %}
             <input type="text" name="{{ block.name }}" value="{{ val }}"
                    placeholder="{{ block.get('placeholder', '') }}"
+                   {% if block.required %}required{% endif %}>
+          {% elif block.type == 'name' %}
+            <input type="text" name="{{ block.name }}" value="{{ val }}"
+                   placeholder="{{ block.get('placeholder', '') }}" autocomplete="name"
                    {% if block.required %}required{% endif %}>
           {% elif block.type == 'email' %}
             <input type="email" name="{{ block.name }}" value="{{ val }}"
@@ -88,10 +100,9 @@
 
           {% if err %}
           <span class="fe-custom-form-err">{{ err }}</span>
-          {% elif block.get('help') %}
-          <span class="fe-custom-form-help muted small">{{ block.help }}</span>
           {% endif %}
         </label>
+        {% endif %}
       {% else %}
       <p class="muted">This form has no fields configured yet.</p>
       {% endfor %}

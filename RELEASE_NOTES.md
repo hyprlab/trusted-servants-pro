@@ -7,7 +7,161 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.14.3 — 2026-06-14 (latest) — Fix: non-admins can turn their own two-factor off
+## 2.17.0 — 2026-07-21 (latest) — Event dates that write themselves
+
+- **You can now drop the event's date and time straight into a post's GSR Summary and Body, and it updates itself.** Type a tag like `{event_date}` and it renders as the real date everywhere the post appears — the announcements and events lists, the event page, the GSR summary sheet, link previews, and notification emails. Move the event and every mention follows; there's nothing to go back and re-type.
+- **Use the whole date or just the piece you want.** `{event_datetime}` gives "July 18, 2026 at 11:00 AM", `{event_date}` just the date, `{event_time_short}` an "11am", and there are individual tags for the weekday, month, day (including "18th"), and year — plus `{event_end_…}` versions for the end time and `{event_range}` for the full span.
+- **A tag picker in the editor.** Open **Insert event date & time** under the Content fields and click any tag to drop it in where you were typing. Each one shows exactly what it will look like using that post's own dates, updating live as you change **Starts** and **Ends**.
+- Announcement-only posts can use the tags too — set an event date on the post and they fill in. If you save a post that uses tags without a start date, the portal tells you so they don't quietly render blank.
+
+## 2.16.9 — 2026-07-16 — Manage jumps straight to a backup's settings
+
+- **"Manage" next to a configured off-site backup now opens that backup's settings directly.** Previously it opened the general backups list; now you land right on the connection, schedule, and encryption settings for the target you clicked, with a "← Back to backups" link if you want the full list.
+
+## 2.16.8 — 2026-07-16 — Off-site backups keep the disk tidy
+
+- **Off-site backups no longer leave stray files on your server.** Backup archives are staged in a dedicated temporary folder and removed as soon as they finish uploading. If a backup is ever interrupted partway (a restart or crash mid-upload), the leftover file is now automatically cleaned up on the next boot or backup run instead of quietly taking up disk space. Your live data, uploads, and daily snapshots are never affected.
+
+## 2.16.7 — 2026-07-16 — Clickable email footer
+
+- **The "Powered by Trusted Servants Pro" line at the bottom of notification emails is now a link to gettspro.com.** It looks exactly the same — just clickable now.
+
+## 2.16.6 — 2026-07-04 — Now Hyprlab
+
+- **The portal is now published by Hyprlab** (formerly Viibeware). The "Built by" credit in **Settings → About** and on the login screen now shows the Hyprlab name and logo, with a link to gettspro.com. Nothing about how the portal works changes — this is a branding and hosting-account move.
+- **New home for downloads and source.** The Docker image is now `hyprlab/tspro` and the code lives at `github.com/hyprlab/trusted-servants-pro`. Existing installs update automatically; only fresh installs pointed at the old image name need the new one.
+
+## 2.16.5 — 2026-06-28 — Your logo really shows in emails now
+
+- **The header logo now appears at the top of notification emails** instead of falling back to your site's name in text. If your logo is an SVG (which email apps can't display), the system now creates a PNG version automatically the first time it's needed — so the logo shows up even on sites whose logo was uploaded a while ago.
+
+## 2.16.4 — 2026-06-27 — Password-reset emails make sense now
+
+- **Resetting a user's password sends a proper "password reset" email** instead of a "welcome to your new account" one. Same login details as before, just with a clear heading, subject line, and a note that an administrator reset the password — so the recipient isn't confused into thinking a brand-new account was created.
+- **The confirmation after a reset shows as two tidy toasts** ("Password reset for …" and "Password reset email sent to …") instead of one run-together message.
+
+## 2.16.3 — 2026-06-27 — Email logos show up in Thunderbird
+
+- **Logos in notification emails now display in Thunderbird** (and similar mail apps). A privacy header on the server was telling these apps to refuse the logo images, so they showed up blank even when you'd allowed remote images. The header is now relaxed just for public images like logos, so they load — while the rest of the site keeps its stricter protection.
+- **Email logos always point at your real site address.** They now use your configured site URL, so they resolve correctly no matter where the email was sent from.
+
+## 2.16.2 — 2026-06-27 — Turn an access request into a user in one go
+
+- **Create a user from an access request and the request tidies itself away.** When you click **Create User** on an access request, the new-user form arrives pre-filled — and once you create the account, that request is automatically marked handled and moved to the archive. No more going back to clean up the request you just acted on.
+- **The Requests list updates on the spot.** The request disappears from the Active list and the tab counts adjust the moment the account is created — no need to refresh the page.
+- **Edit and Delete buttons stay reachable on the Users tab.** On smaller laptop screens the users table could run wide enough to push the Edit/Delete buttons off the right edge of the Settings window. They now stack neatly and the table scrolls if it ever needs to, so the buttons are always within reach — on phones too.
+- **The Settings window is a little wider on desktop**, giving the Users table and other busy panels more breathing room.
+
+## 2.16.1 — 2026-06-21 — Save bar fits the "Saving…" label
+
+- **Fixed a yellow save bar that could spill its button outside the bar.** When you clicked Save and the button briefly changed to "Saving…", the longer text could push past the edge of the rounded bar. The bar now reserves room for the label up front, so it stays tidy with no overflow or jiggle.
+
+## 2.16.0 — 2026-06-21 — Google Meet & Microsoft Teams join meetings
+
+- **Meetings now support Google Meet and Microsoft Teams, right alongside Zoom.** Each meeting can offer any combination of the three. In the meeting editor, every platform has its own on/off switch — flip one on and its link, meeting ID, and passcode fields appear; flip it off and it tucks away to a single row, and that platform won't show anywhere on the site. Turning a platform off keeps whatever you'd entered, so switching it back on brings your details right back.
+- **They show up everywhere Zoom does** — on the public meeting list cards and on every meeting-page style, each with its own "Join" button and copy-to-clipboard meeting ID and passcode. On the admin meeting page the three sit as separate cards: Google Meet has a green edge, Microsoft Teams a purple one. (The Teams button just says "Join Teams" to keep it tidy.)
+- **Spot and block abusive access requests.** Access requests now record the requester's IP address, shown on Watchtower → Requests with a one-click **Block IP** button (and Unblock). It won't let you accidentally block an address one of your own signed-in users recently came from.
+- **Tidier admin meeting page.** The External Links card now sits directly under Libraries.
+
+## 2.15.13 — 2026-06-15 — Archive and delete right from the list
+
+- **Archive and delete buttons are now on every submission row.** File a submission away (or restore it on the Archived tab) or delete it without opening it or selecting it first — the buttons sit right next to View. Delete still asks you to confirm.
+
+## 2.15.12 — 2026-06-15 — View button always within reach
+
+- **The "View" button now sits on every submission row**, even when it's collapsed — so you can open the full record in one click without expanding the row first.
+
+## 2.15.11 — 2026-06-15 — Submissions open in a popup
+
+- **"View Submission" now opens a clean popup** instead of taking you to a separate page. It looks just like the full record — the submitter's name and a close button pinned at the top, the answers scrolling in the middle, and Archive and Delete buttons pinned at the bottom. Close it with the ✕, by clicking outside, or with the Escape key. Opening it also marks the submission as read, just like before.
+
+## 2.15.10 — 2026-06-15 — Link previews for forms + smoother expanding
+
+- **Forms get proper link previews.** When you share a custom form's link (Slack, iMessage, Facebook, Twitter/X, etc.), it now shows a real preview — the form's title and description, plus a preview image you can upload right in the form editor. No image? It falls back to your site's frontend preview image automatically.
+- **Smoother inbox.** Submission rows now glide open and closed with a smooth animation instead of snapping.
+
+## 2.15.9 — 2026-06-15 — Expand submissions right in the inbox
+
+- **Read a submission without leaving the list.** Click any row in a form's inbox to expand it and see the whole submission, laid out in the same clean style as the email and the full record — every answer labelled, multiple-choice shown with check marks, email/phone tappable, and files linked. Click again to collapse.
+- **View Submission button.** Each expanded row has a button that opens the full submission detail page.
+
+## 2.15.8 — 2026-06-15 — Quick frontend link + steadier sidebar
+
+- **Jump to the live form.** A form's submissions page now has a **View on frontend** button that opens the form's public page in a new tab.
+- **No more sidebar jump.** Collapsed sidebar sections used to briefly pop open and snap shut every time you changed pages — they now stay put.
+
+## 2.15.7 — 2026-06-15 — Smarter "new" counts and clearer access
+
+- **Submission counts now behave like an unread inbox.** Opening a submission marks it as seen, so it disappears from the form's "new" number chip (in the sidebar and on the dashboard Forms widget) and from the Notifications Center. A submission counts as "new" until you either open it or archive it.
+- **Click a notification to clear it.** Clicking an item in the Notifications panel now clears it and drops the sidebar count, then takes you where it points. (Cmd/Ctrl-click to open in a new tab still clears it without the jump.)
+- **Your Access now explains form access.** The Settings → Your Access screen shows the new per-form submission access — Editors, Intergroup Members, and Viewers see a "granted per-form" marker, with a note explaining that an admin can give their role a specific form's inbox.
+- **Fixed:** opening a form's entries no longer collapses the main sidebar. The form pages were being treated like the Web Frontend editor (which hides the sidebar); they now keep the normal sidebar — especially important for non-admins who manage a form but have no Web Frontend access.
+
+## 2.15.6 — 2026-06-15 — Every email now looks the part
+
+- **All of your site's emails are now beautifully branded.** The polished, mobile-friendly email design we built for form submissions now applies to *every* email Trusted Servants Pro sends — your contact form, story and event/announcement submissions, access requests, Recovery Contacts notifications and the "confirm your listing" verification email, the message visitors send to a listing, account welcome emails, and password-reset emails. Each shows your logo, the details in clean labelled sections, tappable email/phone links, and a clear action button where it helps. (Every email still includes a plain-text version for any client that needs it.)
+- **The "confirm your listing" email** now has two clear buttons — **Confirm** and **I didn't request this** — instead of plain links.
+- **Small touch:** the submission-count chips in the sidebar's Forms section are now blue, matching the rest of the badges.
+
+## 2.15.5 — 2026-06-15 — Per-form access, a redesigned submission view, and a smoother submit
+
+- **Let the right people see the right forms.** Each custom form can now be opened up to specific roles (Editors, Intergroup Members, Viewers) for *its submissions only*. Anyone you grant access to gets that form in a new **Forms** area of the sidebar — with its own inbox and archive — where they can read, archive, delete, and download entries as CSV. Editing the form itself stays admin-only. Admins see this same per-form list, and the Contact Form plus the Announcements/Events, Story, and Recovery Contacts forms now live there too.
+- **See new submissions at a glance.** Every form in the Forms list shows an orange number chip with its unread (un-archived) submission count, and new submissions now appear in the **Notifications Center** as well.
+- **A beautiful submission view.** Opening a submission now shows an elegant, email-style page: a header with the submitter's name and contact details, every answer in its own tidy section, multiple-choice answers shown as check pills, and tappable email / phone / file links.
+- **A reassuring submit experience.** When someone submits a form, they now see a clean "Submitting…" spinner so they know it's working and to keep the page open — and a double-tap can't fire off two submissions.
+- **A tidier thank-you page.** After a successful submission, the form's description is hidden so only the green confirmation shows, plus a new **Submit another response** button to send another entry.
+- **Give each form its own look.** Custom forms can now have their own animated/dynamic background, picked right from the form editor.
+- **Right address in the records.** Submissions now capture the visitor's IPv4 address where one exists (instead of an IPv6 form of it).
+- **A jump-straight-to-it link** in submission notification emails opens that submission in the app, and the notification sidebar chip is now orange.
+
+## 2.15.4 — 2026-06-15 — Beautiful submission emails + archive from the detail view
+
+- **Form-submission notification emails are now beautifully designed.** Instead of a plain-text list, each submission arrives as a clean, branded email — your site logo up top, the form title and submission time, every answer in its own tidy section, selected checkbox/radio options shown with check marks, attachments listed, and a "Powered by Trusted Servants Pro" footer. Email and phone fields become tappable links. Looks great on phones and the major email apps.
+- **Only the chosen options are shown.** For checkbox and multiple-choice questions, the email lists just what the person selected — not the options they left blank.
+- **Archive a submission while reading it.** The submission detail page now has an **Archive** button (and **Restore** when you're viewing an archived one), so you don't have to go back to the list to file it away.
+- **Behind the scenes:** uploading an SVG logo now automatically creates a matching PNG so it shows up correctly in emails (which can't display SVG).
+- Removed a leftover "Import to Stories" button from the submission detail page.
+
+## 2.15.3 — 2026-06-15 — Single Name field + checkbox layout fix
+
+- **The "Name" field is one box again.** Custom forms with a Name field now show a single full-name box instead of separate First and Last boxes (and you can give it a placeholder again).
+- **Checkboxes and radio buttons line up properly.** Each option's box now sits to the left of its label, one option per line, instead of stacking the box on top of the text.
+- **A little more space** between a form's description and its first field.
+- **Field help text now sits under the field's title** (above the field) instead of below it.
+
+## 2.15.2 — 2026-06-15 — Public form cleanup + "View on frontend" buttons
+
+- **"View on frontend" button.** The form editor and each row on the Forms list now have a quick button to open the form's live public page in a new tab — it appears whenever the form is switched on.
+- **The public form page looks right again.** A recent change had pushed the form's description off to the side and squeezed the fields; the layout is back to a clean, single-column form (description on top, full-width fields).
+- **Tidier public forms.** Dropdown/radio/checkbox fields that don't have any options set are now hidden on the public page (instead of showing an empty label), and the Submit button sits at the bottom-right.
+
+## 2.15.1 — 2026-06-15 — Submissions archive + CSV export, and form-list switches
+
+- **Archive and bulk-manage form submissions.** The Custom Form Submissions page now has **Active** and **Archived** tabs, a checkbox on every row, and a bar to **Archive**, **Restore**, or **Delete** the ones you've ticked. Archiving clears handled entries out of your inbox without deleting them.
+- **Download a form's entries as a spreadsheet.** Pick a form from the dropdown and click **Download CSV** to get all its submissions as a CSV — one column per field, with times shown in your timezone.
+- **On/off switch for each custom form.** The Forms list now has an enable/disable toggle next to every custom form, just like the built-in forms.
+- **Calmer form building.** Adding a field drops a labelled block into your form; its editor opens when you click the block (instead of popping open every time). The settings cards on the form editor no longer collapse when you click their titles — they stay open.
+- **Fixes:** bulk action buttons (Delete / Archive) now stay hidden until you select something, and the form-editor card titles no longer look clickable.
+
+## 2.15.0 — 2026-06-14 — Custom form builder overhaul
+
+- **A new "Name" field for your forms.** When building a custom form, pick **Name** from the field list and the public form shows two boxes — **First name** and **Last name**. Submissions show the full name as one tidy entry.
+- **The field editor is now a clean pop-up.** Click a field block to open a centered editor window (instead of the old drop-down panel). Press **Esc**, click the ✕, or click outside to close. Only one editor is open at a time.
+- **Adding a field is calmer.** **Add field** now drops a labelled block into your form (named after the field type, like "Email"), and the editor opens only when you click that block — so adding several fields in a row doesn't keep popping windows open.
+- **The web address fills itself in.** As you type a form's name, its URL slug updates to match — until you edit the slug yourself, after which it's yours to keep. Renaming an existing form never changes its live address behind your back.
+- **Saving a new form is easier.** The yellow save bar now appears right away on a brand-new form, so you can save it immediately. The separate blue "Save settings" button is gone — saving always happens on the yellow bar.
+- **Delete several forms at once.** The Forms page now has checkboxes and a **Select all / Delete selected** bar; the Delete button only shows once you've ticked at least one form.
+- **Convert featured images to WebP.** On the Announcements/Events edit page there's an **Auto convert to WebP** checkbox — tick it and your uploaded image is converted to the lighter WebP format on save.
+- **Submission times now show in your timezone.** Announcement/event submission times are shown in the site's configured timezone (e.g. EDT) instead of UTC.
+- **Tidier dashboard chips.** The number badges on the Web Frontend dashboard (and the Notifications badge) are now blue. Orange is reserved for **Watchtower** so a real "needs attention" alert stands out.
+- **Steadier sidebars.** The Web Frontend section's side menu no longer slides under the top bar as you scroll, and the main app sidebar stays pinned to the side instead of bouncing when the page over-scrolls.
+- **Behind-the-scenes fix:** a form's web-address field could fail to validate in the latest browsers — now corrected everywhere it's used.
+
+## 2.14.4 — 2026-06-14 — "Currently online" shows backend activity only
+
+- **The "Currently online" dashboard widget now shows only people working in the admin area.** Someone signed in but browsing the public website no longer appears in the list, and you still won't see yourself there.
+
+## 2.14.3 — 2026-06-14 — Fix: non-admins can turn their own two-factor off
 
 - **Turning two-factor off now works for every role.** Previously, only admins could turn their own two-factor on or off — for other roles the "Turn off two-factor" button silently did nothing, so the setup wizard kept reappearing at each login. Now any user can fully manage two-factor for their own account under **Settings → Your Access**.
 - Small spacing fix on the two-factor setup screen.

@@ -100,7 +100,7 @@
     <dt>Phone</dt><dd>{{ _p.submitter_phone }}</dd>
     {% endif %}
     {% if _p.submitted_at %}
-    <dt>Submitted</dt><dd>{{ _p.submitted_at.strftime('%b %d, %Y · %-I:%M %p') }} UTC</dd>
+    <dt>Submitted</dt><dd>{{ _p.submitted_at|fmt_site_local('%b %d, %Y · %-I:%M %p %Z') }}</dd>
     {% endif %}
     {% if _p.submitter_notes %}
     <dt>Notes</dt><dd style="white-space: pre-line">{{ _p.submitter_notes }}</dd>
@@ -165,7 +165,7 @@
         <input type="text" name="slug" class="slug-input-field"
                value="{{ (_p.slug if (_p and _p.slug) else '') or '' }}"
                placeholder="{{ _p.public_slug if _p else 'auto-derived from title' }}"
-               pattern="[a-z0-9-]*" maxlength="200">
+               pattern="[a-z0-9\-]*" maxlength="200">
       </div>
       <span class="muted small">
         Leave blank to derive from the title. Lowercase letters, numbers, and hyphens; if the slug is taken we append -2, -3, … on save. One slug serves the event, announcement, and archive URLs.
@@ -238,14 +238,19 @@
       <h2>Content</h2>
       <span class="muted smaller">The summary appears in lists and link previews; the body is the full post.</span>
     </div>
+    {# ``summary_raw`` / ``body_raw`` — the authored text with any
+       {event_date} tags intact. Reading ``.summary`` / ``.body`` here
+       would show the resolved dates and save them back as literals,
+       silently destroying the tag. #}
     <label>GSR Summary <span class="muted small">(one or two sentences)</span>
-      <textarea name="summary" rows="2"
-                placeholder="One or two sentences — what is this and why does it matter?">{{ (_p.summary if _p else '') or '' }}</textarea>
+      <textarea name="summary" rows="2" data-event-tag-target
+                placeholder="One or two sentences — what is this and why does it matter?">{{ (_p.summary_raw if _p else '') or '' }}</textarea>
     </label>
     <label>Body <span class="muted small">(Markdown supported)</span>
-      <textarea name="body" rows="10"
-                placeholder="The full body of the post. Markdown supported.">{{ (_p.body if _p else '') or '' }}</textarea>
+      <textarea name="body" rows="10" data-event-tag-target
+                placeholder="The full body of the post. Markdown supported.">{{ (_p.body_raw if _p else '') or '' }}</textarea>
     </label>
+    {% include "_event_tag_palette.html" %}
   </section>
 
   {# ── 3 · Event details (date, location, zoom, contact) ───────────
@@ -510,6 +515,10 @@
           <label>Upload new image <span class="muted small">(PNG, JPG, or WebP)</span>
             <input type="file" name="featured_image" accept="image/png,image/jpeg,image/webp" data-featured-upload>
           </label>
+          <label class="check og-image-webp">
+            <input type="checkbox" name="convert_featured_to_webp" value="1">
+            <span>Auto convert to WebP <span class="muted small">— transcodes the upload to WebP on save</span></span>
+          </label>
           <div class="og-image-actions">
             <button type="button" class="btn btn-sm" data-post-featured-picker>{{ icon('folder') }} Choose from File Browser</button>
           </div>
@@ -710,6 +719,89 @@
       }
     });
   });
+})();
+</script>
+
+{# Event date/time tag palette (`_event_tag_palette.html`).
+
+   Two jobs:
+     1. Insert a tag at the caret of whichever Content textarea the
+        admin last had focus in (defaults to the Body).
+     2. Keep each chip's example honest — whenever Starts / Ends
+        changes, re-ask the server for the resolved examples so the
+        formatting rules live only in app/event_tokens.py. #}
+<script>
+(function () {
+  const panel = document.querySelector('[data-event-tags]');
+  const form = document.getElementById('post-edit-form');
+  if (!panel || !form) return;
+
+  const targets = Array.from(form.querySelectorAll('[data-event-tag-target]'));
+  if (!targets.length) return;
+  // Body (the last target) is the default drop point until the admin
+  // clicks into one of the fields.
+  let active = targets[targets.length - 1];
+  targets.forEach(el => el.addEventListener('focus', () => { active = el; }));
+
+  // Insert at the caret, keeping surrounding text spaced sensibly and
+  // leaving the cursor just after the tag.
+  function insert(tag) {
+    const el = active;
+    const start = el.selectionStart === null ? el.value.length : el.selectionStart;
+    const end = el.selectionEnd === null ? start : el.selectionEnd;
+    const before = el.value.slice(0, start);
+    const after = el.value.slice(end);
+    const lead = (before && !/\s$/.test(before)) ? ' ' : '';
+    const trail = (after && !/^[\s.,;:!?)]/.test(after)) ? ' ' : '';
+    const text = lead + tag + trail;
+    el.value = before + text + after;
+    const caret = start + lead.length + tag.length;
+    el.focus();
+    el.setSelectionRange(caret, caret);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  panel.querySelectorAll('[data-event-tag]').forEach(btn => {
+    btn.addEventListener('click', () => insert(btn.dataset.eventTag));
+  });
+
+  // ── Live examples ────────────────────────────────────────────────
+  const startEl = form.querySelector('[data-event-start]');
+  const endEl = form.querySelector('[data-event-end]');
+  const basis = panel.querySelector('[data-event-tags-basis]');
+  const url = {{ url_for('main.post_event_tag_preview')|tojson }};
+  let timer = null;
+
+  function refresh() {
+    const qs = new URLSearchParams({
+      start: (startEl && startEl.value) || '',
+      end: (endEl && endEl.value) || ''
+    });
+    fetch(url + '?' + qs.toString(), { credentials: 'same-origin' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data || !data.examples) return;
+        panel.querySelectorAll('[data-event-tag]').forEach(btn => {
+          const ex = btn.querySelector('[data-tag-example]');
+          if (ex) ex.textContent = data.examples[btn.dataset.eventTag] || '—';
+        });
+        if (basis) {
+          basis.textContent = data.sample ? 'a sample date' : "this event's dates";
+        }
+      })
+      .catch(() => { /* keep the server-rendered examples */ });
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    timer = setTimeout(refresh, 250);
+  }
+  [startEl, endEl].forEach(el => {
+    if (!el) return;
+    el.addEventListener('change', schedule);
+    el.addEventListener('input', schedule);
+  });
+  if (startEl && startEl.value && basis) basis.textContent = "this event's dates";
 })();
 </script>
 
