@@ -330,10 +330,10 @@ html[data-theme="dark"] body[data-fe-theme="terminal"] .fe-th-menu-btn span { ba
 
 /* ===== Utility bar — dark mono strip =================================== */
 html[data-theme="light"] body[data-fe-theme="terminal"] .fe-utility-bar:not(.is-live) {
-  background: #e2e7e1 !important; color: var(--tm-ink) !important; border-bottom: 1px solid var(--tm-line-lt);
+  background: #e2e7e1 !important; color: var(--tm-ink) !important; box-shadow: inset 0 -1px 0 var(--tm-line-lt);
 }
 html[data-theme="dark"] body[data-fe-theme="terminal"] .fe-utility-bar:not(.is-live) {
-  background: #0c110e !important; color: var(--tm-muted) !important; border-bottom: 1px solid var(--tm-line);
+  background: #0c110e !important; color: var(--tm-muted) !important; box-shadow: inset 0 -1px 0 var(--tm-line);
 }
 body[data-fe-theme="terminal"] .fe-utility-bar:not(.is-live) a:hover { color: var(--tm-green-deep); }
 html[data-theme="dark"] body[data-fe-theme="terminal"] .fe-utility-bar:not(.is-live) a:hover { color: var(--tm-green); }
