@@ -2,6 +2,7 @@
 {% block heading %}Recovery Contacts{% endblock %}
 {% block heading_help %}Review entries people submit on the public <code>/contactlist</code> page. New submissions arrive under <b>Pending review</b> and stay hidden from the public until you approve them. Each approved entry has per-field toggles so you decide whether its phone, email, or both are displayed.{% endblock %}
 {% block top_actions %}
+<button type="button" class="btn" data-open-modal="rc-add-modal">{{ icon('user-plus') }} Add manually</button>
 <a class="btn" href="{{ url_for('main.frontend_form_recovery_contacts') }}">{{ icon('settings') }} Form settings</a>
 <a class="btn" href="{{ url_for('frontend.recovery_contacts') }}" target="_blank" rel="noopener">
   {{ icon('external-link') }} View public page ↗
@@ -11,37 +12,41 @@
 
 <div class="ts-page-wrap rc-page-wrap">
 
-  <div class="ts-page-toolbar">
-    <button type="button" class="btn" data-open-modal="rc-add-modal">{{ icon('user-plus') }} Add manually</button>
-  </div>
-
   {# ── Pending review ──────────────────────────────────────────── #}
   <section class="card data-card">
     <div class="data-card-head">
       {{ icon('clock') }}
       <span>Pending review</span>
       <div class="data-card-head-actions muted smaller">
-        {{ pending|length }} waiting
+        <span data-rc-count data-rc-count-noun="waiting">{{ pending|length }} waiting</span>
       </div>
     </div>
     <p class="muted small data-card-lead">
       Entries submitted on the public page. Approve to publish them on the directory, or remove to discard. The “requested display” shows what the submitter asked to share — you can change it after approving.
     </p>
     {% if pending %}
-    <table class="tbl rc-tbl">
+    {# Sorted newest-first by the server; the header cells re-sort client
+       side and the toolbar search filters both tables at once. #}
+    <table class="tbl rc-tbl" data-rc-table data-rc-sort-key="submitted" data-rc-sort-dir="-1">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Phone</th>
-          <th>Email</th>
-          <th>Requested display</th>
-          <th>Submitted</th>
+          <th class="rc-th-sort" data-sort-key="name" tabindex="0" role="button" aria-label="Sort by name">Name</th>
+          <th class="rc-th-sort" data-sort-key="phone" tabindex="0" role="button" aria-label="Sort by phone">Phone</th>
+          <th class="rc-th-sort" data-sort-key="email" tabindex="0" role="button" aria-label="Sort by email">Email</th>
+          <th class="rc-th-sort" data-sort-key="display" tabindex="0" role="button" aria-label="Sort by requested display">Requested display</th>
+          <th class="rc-th-sort" data-sort-key="submitted" tabindex="0" role="button" aria-label="Sort by submission date">Submitted</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {% for e in pending %}
-        <tr {% if e.wants_update or e.wants_removal %}class="rc-row-update"{% endif %}>
+        <tr {% if e.wants_update or e.wants_removal %}class="rc-row-update"{% endif %}
+            data-rc-row="{{ e.id }}"
+            data-name="{{ e.name }}"
+            data-phone="{{ e.phone or '' }}"
+            data-email="{{ e.email or '' }}"
+            data-display="{% if e.wants_removal %}removal{% elif e.wants_update %}update{% else %}new {{ 'phone' if e.show_phone else '' }} {{ 'email' if e.show_email else '' }} {{ 'sponsor' if e.available_to_sponsor else '' }}{% endif %}"
+            data-submitted="{{ e.created_at.isoformat() if e.created_at else '' }}">
           <td data-label="Name">
             {{ e.name }}
             {% if e.wants_removal %}
@@ -107,7 +112,7 @@
           </td>
         </tr>
         {% if e.wants_update or e.wants_removal %}
-        <tr class="rc-update-detail">
+        <tr class="rc-update-detail" data-rc-detail="{{ e.id }}">
           <td colspan="6">
             {% if e.wants_removal %}
               {% if e.matched_entry %}
@@ -169,27 +174,41 @@
       {{ icon('phone') }}
       <span>Published entries</span>
       <div class="data-card-head-actions muted smaller">
-        {{ approved|length }} live
+        {% if approved %}
+        <label class="rc-filter-wrap">
+          <span class="rc-filter-icon" aria-hidden="true">{{ icon('search') }}</span>
+          <input type="search" class="rc-filter" data-rc-filter autocomplete="off"
+                 placeholder="Search name, phone, or email…"
+                 aria-label="Filter published entries by name, phone, or email">
+        </label>
+        {% endif %}
+        <span data-rc-count data-rc-count-noun="live">{{ approved|length }} live</span>
       </div>
     </div>
     <p class="muted small data-card-lead">
       These show on the public Recovery Contacts page. Flip a toggle to show or hide that entry's phone or email instantly — the name always shows.
     </p>
     {% if approved %}
-    <table class="tbl rc-tbl">
+    {# Sorted by name from the server; headers re-sort client side. #}
+    <table class="tbl rc-tbl" data-rc-table data-rc-sort-key="name" data-rc-sort-dir="1">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Phone</th>
-          <th>Show phone</th>
-          <th>Email</th>
-          <th>Show email</th>
+          <th class="rc-th-sort" data-sort-key="name" tabindex="0" role="button" aria-label="Sort by name">Name</th>
+          <th class="rc-th-sort" data-sort-key="phone" tabindex="0" role="button" aria-label="Sort by phone">Phone</th>
+          <th class="rc-th-sort" data-sort-key="showphone" tabindex="0" role="button" aria-label="Sort by phone visibility">Show phone</th>
+          <th class="rc-th-sort" data-sort-key="email" tabindex="0" role="button" aria-label="Sort by email">Email</th>
+          <th class="rc-th-sort" data-sort-key="showemail" tabindex="0" role="button" aria-label="Sort by email visibility">Show email</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {% for e in approved %}
-        <tr>
+        <tr data-rc-row="{{ e.id }}"
+            data-name="{{ e.name }}"
+            data-phone="{{ e.phone or '' }}"
+            data-email="{{ e.email or '' }}"
+            data-showphone="{{ '1' if (e.phone and e.show_phone) else '0' }}"
+            data-showemail="{{ '1' if (e.email and e.show_email) else '0' }}">
           <td data-label="Name">{{ e.name }}{% if e.available_to_sponsor %} <span class="rc-badge rc-badge-sponsor">Sponsor</span>{% endif %}{% if e.contact_enabled %} <span class="rc-badge rc-badge-contact" title="Contacted {{ e.contact_count }} time{{ '' if e.contact_count == 1 else 's' }} via the site">{{ icon('mail') }} {{ e.contact_count }}</span>{% endif %}
             {%- set _ab = (abuse_by_entry or {}).get(e.id) -%}
             {%- if _ab %} <span class="rc-badge rc-badge-abuse" title="{{ _ab.count }} flagged update/removal request{{ '' if _ab.count == 1 else 's' }} — review in Watchtower">{{ icon('alert-triangle') }} Flagged</span>{% endif -%}
@@ -235,6 +254,9 @@
           </td>
         </tr>
         {% endfor %}
+        <tr class="rc-nomatch" data-rc-nomatch hidden>
+          <td colspan="6" class="muted">No published entries match your search.</td>
+        </tr>
       </tbody>
     </table>
     {% else %}
@@ -396,4 +418,160 @@
   </div>
 </div>
 {% endfor %}
+
+{# Column sorting + live search over the rows already in the DOM. Each
+   <tr data-rc-row> carries the sortable values as data-* attributes; the
+   pending table's expanded detail row (data-rc-detail) travels with its
+   parent when rows are reordered or hidden. Both tables sort; the search
+   box only filters the card it sits in (Published entries), so the
+   pending queue above it never changes out from under you. The query and
+   sort state are kept in sessionStorage so flipping a show/hide toggle —
+   which posts and reloads the page — doesn't drop what you were looking at. #}
+<script>
+(function () {
+  const filterInput = document.querySelector('[data-rc-filter]');
+  const filterScope = filterInput ? filterInput.closest('section') : null;
+  const tables = Array.from(document.querySelectorAll('[data-rc-table]'));
+  if (!tables.length) return;
+
+  const STORE_Q = 'tsp:rc:query';
+  const STORE_SORT = 'tsp:rc:sort';
+  function store(key, val) {
+    try { val === null ? sessionStorage.removeItem(key) : sessionStorage.setItem(key, val); }
+    catch (e) {}
+  }
+  function recall(key) {
+    try { return sessionStorage.getItem(key); } catch (e) { return null; }
+  }
+
+  const savedSort = (function () {
+    try { return JSON.parse(recall(STORE_SORT) || '{}') || {}; } catch (e) { return {}; }
+  })();
+
+  const views = tables.map(function (table, idx) {
+    const tbody = table.querySelector('tbody');
+    const section = table.closest('section');
+    const countEl = section ? section.querySelector('[data-rc-count]') : null;
+    const nomatch = tbody.querySelector('[data-rc-nomatch]');
+    const rows = Array.from(tbody.querySelectorAll('[data-rc-row]'));
+
+    rows.forEach(function (tr) {
+      tr._detail = tbody.querySelector('[data-rc-detail="' + tr.dataset.rcRow + '"]');
+      tr._haystack = [tr.dataset.name, tr.dataset.phone, tr.dataset.email]
+        .join(' ').toLowerCase();
+      tr._digits = (tr.dataset.phone || '').replace(/\D+/g, '');
+    });
+
+    const saved = savedSort[idx] || {};
+    return {
+      idx: idx, table: table, tbody: tbody, rows: rows,
+      countEl: countEl, nomatch: nomatch,
+      filterable: !!(filterScope && section === filterScope),
+      total: rows.length,
+      key: saved.key || table.dataset.rcSortKey || null,
+      dir: saved.dir === -1 ? -1 : (saved.dir === 1 ? 1
+           : (table.dataset.rcSortDir === '-1' ? -1 : 1)),
+      resorted: !!saved.key,
+    };
+  });
+
+  // ── Sort ──
+  function compare(a, b, key, dir) {
+    const av = (a.dataset[key] || '').toLowerCase();
+    const bv = (b.dataset[key] || '').toLowerCase();
+    if (av === bv) return 0;
+    if (!av) return 1;      // blanks sink to the bottom either direction
+    if (!bv) return -1;
+    return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' }) * dir;
+  }
+
+  function paint(view) {
+    view.table.querySelectorAll('.rc-th-sort').forEach(function (th) {
+      const on = th.dataset.sortKey === view.key;
+      th.classList.toggle('sort-asc', on && view.dir === 1);
+      th.classList.toggle('sort-desc', on && view.dir === -1);
+      th.setAttribute('aria-sort', on ? (view.dir === 1 ? 'ascending' : 'descending') : 'none');
+    });
+  }
+
+  function reorder(view) {
+    if (!view.key) return;
+    const sorted = view.rows.slice().sort(function (a, b) {
+      return compare(a, b, view.key, view.dir);
+    });
+    sorted.forEach(function (tr) {
+      view.tbody.appendChild(tr);
+      if (tr._detail) view.tbody.appendChild(tr._detail);
+    });
+    if (view.nomatch) view.tbody.appendChild(view.nomatch);
+  }
+
+  function sortBy(view, key) {
+    if (view.key === key && view.resorted) view.dir = -view.dir;
+    else { view.key = key; view.dir = 1; }
+    view.resorted = true;
+    reorder(view);
+    paint(view);
+    savedSort[view.idx] = { key: view.key, dir: view.dir };
+    store(STORE_SORT, JSON.stringify(savedSort));
+  }
+
+  views.forEach(function (view) {
+    // Apply the starting sort (or one chosen before a reload) up front so the
+    // header arrow always matches the order actually on screen — the server's
+    // SQL name ordering is case-sensitive, this isn't.
+    reorder(view);
+    paint(view);
+    view.table.querySelectorAll('.rc-th-sort').forEach(function (th) {
+      th.addEventListener('click', function () { sortBy(view, th.dataset.sortKey); });
+      th.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          sortBy(view, th.dataset.sortKey);
+        }
+      });
+    });
+  });
+
+  // ── Live filter ──
+  function applyFilter() {
+    const q = (filterInput ? filterInput.value : '').trim().toLowerCase();
+    const qDigits = q.replace(/\D+/g, '');
+    views.filter(function (v) { return v.filterable; }).forEach(function (view) {
+      let shown = 0;
+      view.rows.forEach(function (tr) {
+        const hit = !q
+          || tr._haystack.indexOf(q) !== -1
+          || (qDigits.length >= 3 && tr._digits && tr._digits.indexOf(qDigits) !== -1);
+        tr.hidden = !hit;
+        if (tr._detail) tr._detail.hidden = !hit;
+        if (hit) shown++;
+      });
+      if (view.nomatch) view.nomatch.hidden = !(q && shown === 0 && view.total);
+      if (view.countEl) {
+        const noun = view.countEl.dataset.rcCountNoun || '';
+        view.countEl.textContent = (q && shown !== view.total)
+          ? (shown + ' of ' + view.total + ' ' + noun)
+          : (view.total + ' ' + noun);
+      }
+    });
+    store(STORE_Q, q || null);
+  }
+
+  if (filterInput) {
+    const restored = recall(STORE_Q);
+    if (restored) filterInput.value = restored;
+    filterInput.addEventListener('input', applyFilter);
+    filterInput.addEventListener('search', applyFilter);   // native ✕ clear
+    filterInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && filterInput.value) {
+        e.stopPropagation();                               // don't close the page
+        filterInput.value = '';
+        applyFilter();
+      }
+    });
+  }
+  applyFilter();
+})();
+</script>
 {% endblock %}
