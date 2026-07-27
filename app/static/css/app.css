@@ -14744,6 +14744,48 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 
 /* ── Phone List admin ─────────────────────────────────────────── */
 .rc-tbl td { vertical-align: middle; }
+.rc-tbl tr[hidden] { display: none; }
+
+/* Search box in the Published entries card head — live-filters that
+   card's table. Wraps under the title on narrow screens rather than
+   squeezing the count out of the row. */
+.rc-page-wrap .data-card-head { flex-wrap: wrap; }
+.rc-page-wrap .data-card-head-actions [data-rc-count] { white-space: nowrap; }
+.rc-filter-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 1 300px;
+  min-width: 180px;
+  margin: 0;
+}
+.rc-filter-icon {
+  position: absolute;
+  left: 9px;
+  display: inline-flex;
+  color: var(--muted);
+  pointer-events: none;
+}
+.rc-filter-icon .icon { width: 15px; height: 15px; }
+.rc-filter {
+  width: 100%;
+  padding: 7px 11px 7px 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: .92rem;
+}
+.rc-filter:focus { border-color: var(--brand); outline: none; }
+
+/* Sortable column headers. */
+.rc-th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+.rc-th-sort:hover { color: var(--brand); }
+.rc-th-sort:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.rc-th-sort::after { content: "\2195"; opacity: .3; margin-left: .35rem; font-size: .85em; }
+.rc-th-sort.sort-asc::after  { content: "\2191"; opacity: .9; }
+.rc-th-sort.sort-desc::after { content: "\2193"; opacity: .9; }
+.rc-nomatch td { text-align: center; padding: 1.1rem 8px; }
 .rc-row-actions {
   text-align: right;
   white-space: nowrap;
