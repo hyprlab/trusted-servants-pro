@@ -6,6 +6,17 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.17.3] — 2026-07-28
+
+### Fixed
+
+- **Icon picker selections now commit on the page builder, popup editor, and Fonts & Icons pages.** The shared picker is deferred-commit (clicking a cell only highlights it; the footer Save button writes the selection back), but these three pages embedded a stale pre-2.9 copy of the modal footer with the Save/Remove buttons `hidden` — so a highlighted icon was silently discarded when the modal closed. Most visibly, this made hero-block CTA button icons impossible to set.
+
+### Added
+
+- **Per-button hover colours on hero CTA buttons.** Each button's Advanced section gains "Hover background" and "Hover text colour" pickers (primary style, alongside the existing background/text overrides). They ride new `--fe-btn-hover-bg` / `--fe-btn-hover-text` inline CSS vars; left blank, the existing darkened-mix hover fallback is unchanged. In dark mode the chosen hover colour seeds the same auto-darkening recipe the resting colour already uses.
+- **"Green (filled)" hero button style preset** — `#24d366` background with white text, hovering slightly darker (`#1fb357`). Dark mode follows the yellow preset's pattern: dimmed to `#1fb357` at rest, `#1a984a` on hover.
+
 ## [2.17.0] — 2026-07-21
 
 ### Added
