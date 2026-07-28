@@ -163,12 +163,14 @@
     <div class="fe-hero-cta">
       {%- for b in (d.get('buttons') or []) -%}
         {%- set _tgt = ' target="_blank" rel="noopener"' if b.open_in_new_tab else '' -%}
-        {%- set _bstyle = b.style if b.style in ('ghost', 'yellow') else 'primary' -%}
+        {%- set _bstyle = b.style if b.style in ('ghost', 'yellow', 'green') else 'primary' -%}
         {%- set _cls = 'fe-btn fe-btn-' ~ _bstyle -%}
         {%- set _vars = [] -%}
         {%- if _bstyle == 'primary' -%}
           {%- if b.custom_bg_color -%}{%- set _ = _vars.append('--fe-btn-bg: ' ~ b.custom_bg_color) -%}{%- endif -%}
           {%- if b.custom_text_color -%}{%- set _ = _vars.append('--fe-btn-text: ' ~ b.custom_text_color) -%}{%- endif -%}
+          {%- if b.custom_hover_bg_color -%}{%- set _ = _vars.append('--fe-btn-hover-bg: ' ~ b.custom_hover_bg_color) -%}{%- endif -%}
+          {%- if b.custom_hover_text_color -%}{%- set _ = _vars.append('--fe-btn-hover-text: ' ~ b.custom_hover_text_color) -%}{%- endif -%}
         {%- endif -%}
         <a href="{{ b.url or '#' }}"{{ _tgt|safe }} class="{{ _cls }}"
            {% if _vars %}style="{{ _vars | join('; ') }};"{% endif %}>
