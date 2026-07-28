@@ -1304,8 +1304,12 @@ window.tspBlogTags = [
     </div>
     <div class="modal-foot">
       <button type="button" class="btn" data-close>Close</button>
-      <button type="button" class="btn btn-danger" data-icon-picker-remove hidden>Remove icon</button>
-      <button type="button" class="btn btn-primary" data-icon-picker-save hidden>Save</button>
+      {# Save/Remove must be visible — the picker is deferred-commit
+         (clicking a cell only highlights it; Save writes the hidden
+         input). The old `hidden` copies predate that flow and made
+         selections silently un-committable. #}
+      <button type="button" class="btn btn-danger" data-icon-picker-remove>Remove icon</button>
+      <button type="button" class="btn btn-primary" data-icon-picker-save disabled>Save</button>
     </div>
   </div>
 </div>

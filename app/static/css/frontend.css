@@ -1219,6 +1219,42 @@ html[data-theme="dark"] .frontend-body .fe-btn-yellow:hover {
   color: #0c0a09;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
 }
+
+/* Green CTA — filled WhatsApp-green variant with white text. Hardcoded
+   like .fe-btn-yellow (no design-token override) so it stays distinct
+   from the brand-driven primary button. Hover is a slightly darker
+   green in both modes; dark mode dims the resting green a notch so it
+   doesn't glow against a dark page bg. */
+.fe-btn-green,
+.fe-page .fe-btn-green,
+.frontend-body .fe-btn-green {
+  background: #24d366;
+  color: #fff;
+  border-color: transparent;
+  box-shadow: var(--fe-btn-shadow, 0 8px 20px rgba(22, 163, 74, 0.30));
+}
+.fe-btn-green:hover,
+.fe-page .fe-btn-green:hover,
+.frontend-body .fe-btn-green:hover {
+  transform: var(--fe-btn-hover-transform, translateY(-1px));
+  background: #1fb357;
+  color: #fff;
+  box-shadow: var(--fe-btn-hover-glow, 0 10px 28px rgba(22, 163, 74, 0.42));
+}
+html[data-theme="dark"] .fe-btn-green,
+html[data-theme="dark"] .fe-page .fe-btn-green,
+html[data-theme="dark"] .frontend-body .fe-btn-green {
+  background: #1fb357;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+html[data-theme="dark"] .fe-btn-green:hover,
+html[data-theme="dark"] .fe-page .fe-btn-green:hover,
+html[data-theme="dark"] .frontend-body .fe-btn-green:hover {
+  background: #1a984a;
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
 .fe-btn-ghost:hover,
 .fe-page .fe-btn-ghost:hover,
 .frontend-body .fe-btn-ghost:hover {
@@ -2748,17 +2784,24 @@ html[data-theme="dark"] .frontend-body .fe-meeting-card-actions .fe-btn-primary:
   color: var(--fe-btn-text, var(--fe-color-btn-primary-text, #fff));
   border-color: var(--fe-btn-bg, transparent);
 }
-/* Light-mode hover: darken to the primary hover-bg token so the hero CTA
-   matches .fe-btn-primary's hover. Falls back to an 88%-black mix of the
+/* Light-mode hover: the admin's per-button hover pickers feed
+   `--fe-btn-hover-bg` / `--fe-btn-hover-text` inline vars (same channel
+   as `--fe-btn-bg` / `--fe-btn-text` above) and win when set. Otherwise
+   darken to the primary hover-bg token so the hero CTA matches
+   .fe-btn-primary's hover, falling back to an 88%-black mix of the
    button's own colour when the admin uses a custom hero-button colour.
    (Dark mode is handled by the html[data-theme="dark"] rules below.) */
 .fe-hero-cta .fe-btn-primary:hover,
 .fe-page .fe-hero-cta .fe-btn-primary:hover,
 .frontend-body .fe-hero-cta .fe-btn-primary:hover {
-  background: var(--fe-color-btn-primary-hover-bg,
-                  color-mix(in srgb, var(--fe-btn-bg, var(--fe-color-btn-primary-bg, var(--fe-ink))) 88%, black));
-  border-color: var(--fe-color-btn-primary-hover-bg,
-                    color-mix(in srgb, var(--fe-btn-bg, var(--fe-color-btn-primary-bg, var(--fe-ink))) 88%, black));
+  background: var(--fe-btn-hover-bg,
+                  var(--fe-color-btn-primary-hover-bg,
+                  color-mix(in srgb, var(--fe-btn-bg, var(--fe-color-btn-primary-bg, var(--fe-ink))) 88%, black)));
+  color: var(--fe-btn-hover-text,
+             var(--fe-btn-text, var(--fe-color-btn-primary-text, #fff)));
+  border-color: var(--fe-btn-hover-bg,
+                    var(--fe-color-btn-primary-hover-bg,
+                    color-mix(in srgb, var(--fe-btn-bg, var(--fe-color-btn-primary-bg, var(--fe-ink))) 88%, black)));
 }
 .fe-btn-icon { color: var(--fe-btn-icon-color, inherit); }
 /* Dark mode derives a darkened version of whatever colour the admin
@@ -2785,12 +2828,19 @@ html[data-theme="dark"] .frontend-body .fe-hero-cta .fe-btn-primary {
 html[data-theme="dark"] .fe-hero-cta .fe-btn-primary:hover,
 html[data-theme="dark"] .fe-page .fe-hero-cta .fe-btn-primary:hover,
 html[data-theme="dark"] .frontend-body .fe-hero-cta .fe-btn-primary:hover {
+  /* When the admin picked an explicit hover colour, seed the dark-mode
+     mix from it (same darkening recipe the rest state applies to
+     `--fe-btn-bg`) so hover still visibly tracks the admin's choice
+     without torching the dark surface. Text keeps the forced off-white
+     for readability, matching the rest-state rule above. */
   background: color-mix(in srgb,
-                        var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #2e6bff)) 60%,
+                        var(--fe-btn-hover-bg,
+                            var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #2e6bff))) 60%,
                         #000);
   color: #ffffff;
   border-color: color-mix(in srgb,
-                          var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #2e6bff)) 60%,
+                          var(--fe-btn-hover-bg,
+                              var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #2e6bff))) 60%,
                           #000);
 }
 /* Hero ghost buttons in dark mode — the global dark ghost is transparent
