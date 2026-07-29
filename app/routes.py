@@ -18036,9 +18036,21 @@ def post_edit(pid):
     _require_posts_enabled()
     from .event_tokens import catalog
     post = db.session.get(Post, pid) or abort(404)
+    # Visitor-submitted posts arrive with published_at NULL, so the
+    # "Posted on" input would fall back to display_posted → created_at,
+    # which is stamped UTC and reads hours in the future in site-local
+    # terms. Saving that value back schedules the post into the future
+    # and it silently stays hidden from the public site. Prefill the
+    # field with site-local "now" (the moment the admin opened the
+    # editor) instead, so approving + posting goes live immediately.
+    posted_prefill = None
+    if post.is_pending_review:
+        from .timezone import now_local_naive
+        posted_prefill = now_local_naive(_get_site_setting())
     # Palette examples resolve against this post's own event window
     # when it has one, so the admin previews their real dates.
     return render_template("post_edit.html", post=post,
+                           posted_prefill=posted_prefill,
                            event_tag_groups=catalog(post.event_starts_at,
                                                     post.event_ends_at))
 
@@ -18395,6 +18407,17 @@ def post_approve_pending(pid):
     target = (request.form.get("target") or "draft").strip().lower()
     if target == "publish":
         post.is_draft = False
+        # "Published" here means live NOW: stamp published_at with the
+        # current site-local time when it's unset (submissions never
+        # carry one) or sitting in the future (e.g. a stale UTC-derived
+        # value saved from the editor before the pending-prefill fix).
+        # Without the stamp, "Posted on" falls back to the UTC
+        # created_at and a future value keeps the post hidden from the
+        # public site despite the "approved and published" flash.
+        from .timezone import now_local_naive as _now_local
+        _nowl = _now_local(_get_site_setting())
+        if post.published_at is None or post.published_at > _nowl:
+            post.published_at = _nowl
         flash("Submission approved and published", "success")
     else:
         post.is_draft = True

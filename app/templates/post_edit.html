@@ -179,8 +179,14 @@
 
     <label>Posted on / schedule for
       <span class="dt-field">
+        {# ``posted_prefill`` (set for pending-review submissions) wins
+           over the stored value: submitted posts have no published_at,
+           and their display_posted fallback (UTC created_at) reads
+           hours ahead of site-local — saving it back would schedule
+           the post into the future. Prefilling "now at open" means
+           clicking Post makes it live immediately. #}
         <input type="datetime-local" name="published_at"
-               value="{% if _p and _p.display_posted %}{{ _p.display_posted.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+               value="{% if posted_prefill %}{{ posted_prefill.strftime('%Y-%m-%dT%H:%M') }}{% elif _p and _p.display_posted %}{{ _p.display_posted.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
         <button type="button" class="btn btn-sm dt-today" data-dt-today="published" title="Jump to today">Today</button>
       </span>
       {# Fall back to ``display_posted`` so legacy rows whose
