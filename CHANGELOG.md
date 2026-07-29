@@ -6,6 +6,13 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.17.5] — 2026-07-29
+
+### Added
+
+- **"Submit" pill on the public announcements list.** The /announcements omni bar gains a Submit pill to the right of the Archive pill (same capsule styling) that takes visitors to the submission form to add an announcement or event. A new **Templates → Announcements list → Submit button** setting overrides the URL; left blank it links to the built-in submission form (slug-aware) and the pill hides automatically while that form is disabled, so the default can never 404. New `SiteSetting.frontend_announcements_list_submit_url` column with matching `_migrate_sqlite` entry.
+- **Mobile swipe hints on the announcements omni bar.** Under 600px the bar scrolls horizontally with Archive + Submit parked off-screen; a pulsing right chevron now overlays the bar's edge to cue the swipe, flipping to a pulsing left chevron once the pills are in view (cueing the swipe back to the Cards / GSR Summary tabs). Scroll-position-driven, non-interactive (swipes pass through), hidden on desktop, and static under `prefers-reduced-motion`.
+
 ## [2.17.4] — 2026-07-29
 
 ### Fixed

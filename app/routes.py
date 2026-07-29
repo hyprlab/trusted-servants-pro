@@ -11619,6 +11619,9 @@ def frontend_announcements_list_template_save():
     if "frontend_announcements_list_subheading" in request.form:
         subheading = (request.form.get("frontend_announcements_list_subheading") or "").strip()
         s.frontend_announcements_list_subheading = subheading[:500] or None
+    if "frontend_announcements_list_submit_url" in request.form:
+        submit_url = (request.form.get("frontend_announcements_list_submit_url") or "").strip()
+        s.frontend_announcements_list_submit_url = submit_url[:500] or None
     if "frontend_announcements_list_bg_dynamic_key" in request.form:
         from . import dynbg as _dynbg
         s.frontend_announcements_list_bg_dynamic_key = _dynbg.normalize(

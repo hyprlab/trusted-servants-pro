@@ -1673,6 +1673,7 @@ def _migrate_sqlite(app):
                          ("frontend_announcements_list_padding_pct", "INTEGER NOT NULL DEFAULT 5"),
                          ("frontend_announcements_list_heading", "VARCHAR(200)"),
                          ("frontend_announcements_list_subheading", "VARCHAR(500)"),
+                         ("frontend_announcements_list_submit_url", "VARCHAR(500)"),
                          ("frontend_archive_template", "VARCHAR(64) NOT NULL DEFAULT 'year-sidebar'"),
                          ("frontend_archive_pagination_mode", "VARCHAR(16) NOT NULL DEFAULT 'infinite'"),
                          ("frontend_archive_page_size", "INTEGER NOT NULL DEFAULT 20"),
