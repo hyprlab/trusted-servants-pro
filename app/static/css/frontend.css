@@ -6975,6 +6975,10 @@ body.fe-frontend-force-dark .fe-library-section-desc { color: var(--fe-dm-text-m
   max-width: 100%;
 }
 .fe-events-omni-bar .fe-events-omni-archive { margin-left: auto; }
+/* Submit pill sits to the Archive pill's right — cancel the auto
+   margin so only the first (Archive) pill pushes the pair to the
+   bar's right edge; the flex gap spaces the two. */
+.fe-events-omni-bar .fe-events-omni-archive--submit { margin-left: 0; }
 /* Archive pill — outer capsule mirrors the .fe-events-omni-tabs
    container exactly (same 4px padding ring, same translucent fill)
    so the bar reads as one continuous control row. The hover paint
@@ -7030,6 +7034,53 @@ body.fe-frontend-force-dark a.fe-events-omni-archive:focus-visible .fe-events-om
   /* Match `.fe-events-omni-tab:hover` exactly so the inner pill paints
      the same shade as a tab hover in the pillbar next to it. */
   background: rgba(255, 255, 255, 0.08);
+}
+/* Swipe-hint chevrons — the announcements omni bar wraps in
+   .fe-events-omni-scrollwrap so pulsing chevrons can overlay the
+   scroller's edges on mobile. JS stamps `has-right` / `has-left` on
+   the wrapper from the live scroll position; each hint only paints
+   inside the <=600px media query below. currentColor-based paint
+   inherits the section's text colour so both themes work without
+   dedicated dark-mode rules. */
+.fe-events-omni-scrollwrap { position: relative; }
+.fe-omni-scroll-hint {
+  display: none;
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 26px; height: 26px;
+  align-items: center; justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  pointer-events: none;   /* pure indicator — swipes pass through */
+}
+.fe-omni-scroll-hint .icon { width: 16px; height: 16px; }
+.fe-omni-scroll-hint--right { right: 2px; }
+.fe-omni-scroll-hint--left { left: 2px; }
+@keyframes feOmniHintPulseRight {
+  0%, 100% { opacity: 0.45; transform: translate(0, -50%); }
+  50%      { opacity: 0.95; transform: translate(4px, -50%); }
+}
+@keyframes feOmniHintPulseLeft {
+  0%, 100% { opacity: 0.45; transform: translate(0, -50%); }
+  50%      { opacity: 0.95; transform: translate(-4px, -50%); }
+}
+@media (max-width: 600px) {
+  .fe-events-omni-scrollwrap.has-right .fe-omni-scroll-hint--right {
+    display: inline-flex;
+    animation: feOmniHintPulseRight 1.4s ease-in-out infinite;
+  }
+  .fe-events-omni-scrollwrap.has-left .fe-omni-scroll-hint--left {
+    display: inline-flex;
+    animation: feOmniHintPulseLeft 1.4s ease-in-out infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fe-omni-scroll-hint {
+    animation: none !important;
+    transform: translate(0, -50%);
+    opacity: 0.7;
+  }
 }
 @media (max-width: 600px) {
   /* Mobile: turn the bar into a horizontal scroller so the tab strip

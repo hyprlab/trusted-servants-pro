@@ -3440,6 +3440,13 @@ def announcements_list():
     pad_pct = max(0, min(20, pad_pct))
     list_heading = (site.frontend_announcements_list_heading if site else None) or ""
     list_subheading = (site.frontend_announcements_list_subheading if site else None) or ""
+    # "Submit" pill next to the Archive pill. Admin-set URL wins;
+    # otherwise link to the built-in submission form — but only while
+    # that form is enabled, so the default never points at a 404.
+    # Empty string hides the pill entirely.
+    list_submit_url = (site.frontend_announcements_list_submit_url or "").strip() if site else ""
+    if not list_submit_url and site and getattr(site, "submission_form_enabled", True):
+        list_submit_url = url_for("frontend.submission_form")
 
     return render_template("frontend/announcements_list.html",
                            list_partial=tpl["partial"],
@@ -3449,6 +3456,7 @@ def announcements_list():
                            list_padding_pct=pad_pct,
                            list_heading=list_heading,
                            list_subheading=list_subheading,
+                           list_submit_url=list_submit_url,
                            all_announcements=rows,
                            **ctx)
 
