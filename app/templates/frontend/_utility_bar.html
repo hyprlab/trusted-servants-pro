@@ -209,6 +209,14 @@
         {% endfor %}
       </div>
     </div>
+    {# Mobile swipe hints — same pulsing chevrons as the announcements
+       omni bar (.fe-omni-scroll-hint) at half the pulse speed, pinned
+       to the bar's outer edges outside the swipe strip's content. The
+       `has-left` / `has-right` classes are stamped on the bar by the
+       scroll listener below; content near an active edge fades out
+       under a CSS mask so long items never collide with a chevron. #}
+    <span class="fe-omni-scroll-hint fe-utility-scroll-hint fe-omni-scroll-hint--left" aria-hidden="true">{{ icon('chevron-left') }}</span>
+    <span class="fe-omni-scroll-hint fe-utility-scroll-hint fe-omni-scroll-hint--right" aria-hidden="true">{{ icon('chevron-right') }}</span>
   </div>
 
   <script>
@@ -250,6 +258,26 @@
     requestAnimationFrame(scrollToDefault);
     setTimeout(scrollToDefault, 80);
     window.addEventListener('resize', scrollToDefault);
+
+    // ── Mobile swipe hints ──
+    // Stamp `has-left` / `has-right` on the bar from the strip's live
+    // scroll position; CSS paints the pulsing chevrons + edge fades
+    // for whichever direction has more content (mobile only — the
+    // strip doesn't overflow on desktop, so `scrollable` stays false
+    // and both classes drop). The deferred re-check runs after
+    // scrollToDefault's 80ms snap so the initial state is accurate.
+    if (strip) {
+      var updateHints = function(){
+        var max = strip.scrollWidth - strip.clientWidth;
+        var scrollable = max > 8;
+        bar.classList.toggle('has-right', scrollable && strip.scrollLeft < max - 8);
+        bar.classList.toggle('has-left', scrollable && strip.scrollLeft > 8);
+      };
+      strip.addEventListener('scroll', updateHints, {passive: true});
+      window.addEventListener('resize', updateHints);
+      updateHints();
+      setTimeout(updateHints, 140);
+    }
 
     // ── Live-meeting auto-refresh ──
     // Poll a tiny JSON endpoint so the LIVE: <meeting> badge appears,
