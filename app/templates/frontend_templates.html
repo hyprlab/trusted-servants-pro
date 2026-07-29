@@ -563,6 +563,16 @@
                   placeholder="Fellowship news, service updates, and upcoming items.">{{ _awsub }}</textarea>
       </label>
     </fieldset>
+    {%- set _awsubmit = (site.frontend_announcements_list_submit_url if site else '') or '' -%}
+    <fieldset class="fieldset fe-mlist-copy-fieldset">
+      <legend>Submit button</legend>
+      <p class="muted small" style="margin: 0 0 8px;">The "Submit" pill next to the Archive pill lets visitors add an announcement or event. Leave the URL blank to link to the built-in submission form (the pill hides automatically while that form is disabled); set a custom URL to send visitors elsewhere.</p>
+      <label>Button URL
+        <input type="text" name="frontend_announcements_list_submit_url"
+               maxlength="500" value="{{ _awsubmit }}"
+               placeholder="{{ url_for('frontend.submission_form') }}">
+      </label>
+    </fieldset>
     <fieldset class="fieldset fe-mlist-width-fieldset">
       <legend>Container width</legend>
       <div class="fe-mlist-width-row">
