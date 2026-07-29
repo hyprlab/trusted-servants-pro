@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.17.4] — 2026-07-29
+
+### Fixed
+
+- **Approving a visitor-submitted announcement/event no longer schedules it hours into the future.** Submissions store a UTC creation timestamp while the posts system uses site-local naive datetimes, so the editor's "Posted on / schedule for" field fell back to a value 4–5 hours ahead — and clicking Post saved it back, leaving the post invisibly "scheduled" until that time elapsed. The editor now prefills the field with the current site-local time when opening a pending submission (type over it to deliberately schedule), and the quick "Approve & publish" action stamps `published_at` with site-local now when it's unset or in the future, so approved submissions go live immediately with a correct "Posted on" line.
+
 ## [2.17.3] — 2026-07-28
 
 ### Fixed
