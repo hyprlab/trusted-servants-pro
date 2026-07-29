@@ -7048,15 +7048,13 @@ body.fe-frontend-force-dark a.fe-events-omni-archive:focus-visible .fe-events-om
   position: absolute;
   top: 50%;
   z-index: 2;
-  width: 26px; height: 26px;
+  width: 20px; height: 20px;
   align-items: center; justify-content: center;
-  border-radius: 999px;
-  background: color-mix(in srgb, currentColor 10%, transparent);
   pointer-events: none;   /* pure indicator — swipes pass through */
 }
-.fe-omni-scroll-hint .icon { width: 16px; height: 16px; }
-.fe-omni-scroll-hint--right { right: 2px; }
-.fe-omni-scroll-hint--left { left: 2px; }
+.fe-omni-scroll-hint .icon { width: 20px; height: 20px; }
+.fe-omni-scroll-hint--right { right: 0; }
+.fe-omni-scroll-hint--left { left: 0; }
 @keyframes feOmniHintPulseRight {
   0%, 100% { opacity: 0.45; transform: translate(0, -50%); }
   50%      { opacity: 0.95; transform: translate(4px, -50%); }
@@ -7066,6 +7064,11 @@ body.fe-frontend-force-dark a.fe-events-omni-archive:focus-visible .fe-events-om
   50%      { opacity: 0.95; transform: translate(-4px, -50%); }
 }
 @media (max-width: 600px) {
+  /* Reserve bare gutters either side of the scroller so the chevrons
+     live in their own clear space instead of overlapping the pills'
+     text at either scroll extreme. Constant (not hint-driven) so the
+     bar never shifts as hints come and go. */
+  .fe-events-omni-scrollwrap { padding: 0 24px; }
   .fe-events-omni-scrollwrap.has-right .fe-omni-scroll-hint--right {
     display: inline-flex;
     animation: feOmniHintPulseRight 1.4s ease-in-out infinite;
@@ -7082,6 +7085,49 @@ body.fe-frontend-force-dark a.fe-events-omni-archive:focus-visible .fe-events-om
     opacity: 0.7;
   }
 }
+
+/* ── Utility-bar swipe hints ─────────────────────────────────────
+   Same chevron treatment as the announcements omni bar, adapted to
+   the slim top strip: smaller glyphs pinned to the bar's outer
+   edges (outside the swipe strip's content), pulsing at HALF the
+   omni speed. `has-left` / `has-right` land on .fe-utility-bar from
+   the strip's scroll listener in _utility_bar.html. When a wide
+   item would reach an active edge, a mask fades the strip's content
+   out under the chevron instead of letting the two collide —
+   applied per-edge so only directions with more content fade.
+   currentColor inherits the bar's admin-chosen (or live-yellow)
+   text colour in both themes. */
+.fe-utility-bar { position: relative; }
+.fe-utility-scroll-hint,
+.fe-utility-scroll-hint .icon { width: 16px; height: 16px; }
+.fe-utility-scroll-hint.fe-omni-scroll-hint--left { left: 4px; }
+.fe-utility-scroll-hint.fe-omni-scroll-hint--right { right: 4px; }
+@media (max-width: 720px) {
+  .fe-utility-bar.has-right .fe-utility-scroll-hint.fe-omni-scroll-hint--right {
+    display: inline-flex;
+    animation: feOmniHintPulseRight 2.8s ease-in-out infinite;
+  }
+  .fe-utility-bar.has-left .fe-utility-scroll-hint.fe-omni-scroll-hint--left {
+    display: inline-flex;
+    animation: feOmniHintPulseLeft 2.8s ease-in-out infinite;
+  }
+  .fe-utility-bar.has-right:not(.has-left) .fe-utility-bar-inner {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent 100%);
+            mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent 100%);
+  }
+  .fe-utility-bar.has-left:not(.has-right) .fe-utility-bar-inner {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent 100%);
+            mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent 100%);
+  }
+  .fe-utility-bar.has-left.has-right .fe-utility-bar-inner {
+    -webkit-mask-image: linear-gradient(to right,
+                          transparent 0, #000 36px,
+                          #000 calc(100% - 36px), transparent 100%);
+            mask-image: linear-gradient(to right,
+                          transparent 0, #000 36px,
+                          #000 calc(100% - 36px), transparent 100%);
+  }
+}
 @media (max-width: 600px) {
   /* Mobile: turn the bar into a horizontal scroller so the tab strip
      fills the viewport and the Archive pill sits off-screen to the
@@ -7096,6 +7142,14 @@ body.fe-frontend-force-dark a.fe-events-omni-archive:focus-visible .fe-events-om
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    /* A horizontal scroll container also clips vertically, slicing
+       off the pills' drop shadows (the active tab's reaches ~16px
+       below). Pad the clip box so shadows paint inside it, and pull
+       the margins in by the same amount (desktop: 8px top / 28px
+       bottom) so the visual spacing is unchanged. */
+    padding: 16px 0;
+    margin-top: -8px;
+    margin-bottom: 12px;
   }
   .fe-events-omni-bar::-webkit-scrollbar { display: none; }
   .fe-events-omni-bar .fe-events-omni-tabs {
@@ -7162,7 +7216,6 @@ html:not([data-theme="dark"]) .fe-events-list-omni a.fe-events-omni-archive {
 @media (max-width: 600px) {
   .fe-events-omni-tabs { width: 100%; justify-content: center; }
   .fe-events-omni-tab { flex: 1 1 auto; justify-content: center; padding: 8px 10px; }
-  .fe-events-omni-tab-icon { display: none; }
 }
 
 /* Dark-mode tweaks for the omni tab strip — pull from the universal

@@ -6,6 +6,21 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.17.6] — 2026-07-29
+
+### Added
+
+- **Mobile swipe hints on the utility bar.** The top strip gets the same pulsing chevrons as the announcements omni bar — at half the pulse speed (2.8s) and sized for the slim bar — pinned to the bar's outer edges, clear of every button and text item. Direction-aware: right/left/both depending on where more content sits, including live-meeting mode (where they flip dark against the yellow and frame the LIVE badge). Content approaching an active edge fades out under a per-edge CSS mask so wide items slide under the chevron elegantly instead of colliding.
+
+### Changed
+
+- **Omni-bar swipe hints restyled.** The chevrons lost their circular chip background (now bare, slightly larger glyphs) and moved into dedicated 24px side gutters outside the scroller, so the left chevron no longer collides with pill text at the far scroll position.
+- **Pill icons restored on mobile.** A legacy `display: none` under 600px was stripping the icons from the omni-bar pills (Cards, GSR Summary, Archive, Submit — and the events-page tabs); removed, so the icons render on mobile again.
+
+### Fixed
+
+- **Omni-bar pill shadows no longer clip on mobile.** The horizontal scroll container also clips vertically, slicing off the pills' drop shadows; the bar now pads its clip box (margins compensated) so shadows paint fully with unchanged spacing.
+
 ## [2.17.5] — 2026-07-29
 
 ### Added
