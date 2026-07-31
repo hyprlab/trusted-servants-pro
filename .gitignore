@@ -35,3 +35,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Internal security audit — kept locally, never tracked (see release 2.18.0)
+docs/SECURITY_AUDIT.md
