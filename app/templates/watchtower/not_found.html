@@ -112,7 +112,7 @@
       {% set _existing = existing_redirects.get(r.label) %}
       <li class="wt-rank-row wt-rank-row--ip-host {% if loop.index0 >= _INITIAL %}wt-rank-row--hidden{% endif %}">
         <div class="wt-rank-label mono small">
-          <a href="{{ r.label }}" target="_blank" rel="noopener nofollow" title="Open {{ r.label }} (will 404)">{{ r.label }}</a>
+          <a href="{{ r.label|safe_url }}" target="_blank" rel="noopener nofollow" title="Open {{ r.label }} (will 404)">{{ r.label }}</a>
           {% if r.last_seen %}<span class="muted smaller"> · last {{ r.last_seen.strftime('%b %d') }}</span>{% endif %}
         </div>
         <div class="wt-rank-bar"><span style="width: {{ (r.count / tp_max * 100)|round(0,'floor') }}%"></span></div>
@@ -202,7 +202,7 @@
         <tr>
           <td class="muted small" style="white-space:nowrap">{{ e.created_at.strftime('%b %d, %H:%M') }}</td>
           <td class="mono small">
-            <a href="{{ e.path }}" target="_blank" rel="noopener nofollow" title="Open {{ e.path }} (will 404)">{{ e.path|truncate(70) }}</a>
+            <a href="{{ e.path|safe_url }}" target="_blank" rel="noopener nofollow" title="Open {{ e.path }} (will 404)">{{ e.path|truncate(70) }}</a>
           </td>
           <td class="muted small">
             {% if e.referrer %}<span title="{{ e.referrer }}">{{ e.referrer|truncate(60) }}</span>{% else %}<span class="muted">— direct / typed</span>{% endif %}

@@ -88,6 +88,21 @@ _WEAK_PASSWORDS = {
 }
 
 
+_TIMING_EQ_HASH = None
+
+
+def _timing_equalizer_hash():
+    """A throwaway password hash to verify against when the submitted
+    username matches no account. Without it, unknown-username attempts
+    skip the scrypt check and return measurably faster than known-user
+    wrong-password attempts — a username-enumeration timing oracle.
+    Generated once per process, lazily (scrypt is deliberately slow)."""
+    global _TIMING_EQ_HASH
+    if _TIMING_EQ_HASH is None:
+        _TIMING_EQ_HASH = generate_password_hash("timing-equalizer-not-a-real-password")
+    return _TIMING_EQ_HASH
+
+
 def validate_password_policy(pw, *, username=None, email=None):
     """Return ``(ok, errors)``. ``errors`` is a list of human-readable
     failures — empty when ``ok`` is True. Used by both the admin reset
@@ -234,8 +249,11 @@ TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverif
 _LOGIN_WINDOW_SECONDS = 900   # 15 minutes
 _LOGIN_MAX_FAILURES_IP = 5
 _LOGIN_MAX_FAILURES_USER = 5
-# Back-compat alias used by user-facing helpers (user_is_locked, etc.).
-_LOGIN_MAX_FAILURES = _LOGIN_MAX_FAILURES_USER
+# Same per-username ceiling for every account, admins included (the old
+# behavior exempted admins entirely, leaving admin password-spraying with
+# no ceiling once the client IP could be rotated). Site policy: accept
+# the small lockout-DoS risk on admin usernames in exchange for uniform
+# brute-force protection.
 
 
 def _cutoff():
@@ -253,10 +271,14 @@ def _failures_in_window(kind, key):
 
 
 def _prune_stale():
-    """Delete old rows outside the window. Runs lazily on each failure write."""
+    """Delete old rows outside the window. Runs lazily on each failure write.
+    Scoped to the kinds that share the 15-minute login window — other
+    throttles piggy-backing on this table (e.g. the recovery-contacts
+    relay) use longer windows and prune their own kinds."""
     try:
         (LoginFailure.query
-         .filter(LoginFailure.failed_at < _cutoff())
+         .filter(LoginFailure.kind.in_(("ip", "user", "reset_ip", "reset_id")),
+                 LoginFailure.failed_at < _cutoff())
          .delete(synchronize_session=False))
     except Exception:
         db.session.rollback()
@@ -309,7 +331,8 @@ def user_is_locked(username):
     """True if a user's failure bucket is over threshold within the window."""
     if not username:
         return False
-    return len(_failures_in_window("user", username.lower())) >= _LOGIN_MAX_FAILURES
+    return (len(_failures_in_window("user", username.lower()))
+            >= _LOGIN_MAX_FAILURES_USER)
 
 
 def user_lockout_expires_in(username):
@@ -317,7 +340,7 @@ def user_lockout_expires_in(username):
     if not username:
         return 0
     times = _failures_in_window("user", username.lower())
-    if len(times) < _LOGIN_MAX_FAILURES:
+    if len(times) < _LOGIN_MAX_FAILURES_USER:
         return 0
     retry = int((times[0] + timedelta(seconds=_LOGIN_WINDOW_SECONDS)
                  - datetime.utcnow()).total_seconds())
@@ -339,7 +362,7 @@ def currently_locked_usernames():
             .filter(LoginFailure.kind == "user",
                     LoginFailure.failed_at >= _cutoff())
             .group_by(LoginFailure.key)
-            .having(func.count(LoginFailure.id) >= _LOGIN_MAX_FAILURES)
+            .having(func.count(LoginFailure.id) >= _LOGIN_MAX_FAILURES_USER)
             .all())
     return {r[0] for r in rows}
 
@@ -522,6 +545,12 @@ def mfa_setup():
         # regardless of whether enrolment has happened, so they're handled
         # before the setup-pending check below.
         if action in ("skip", "finish"):
+            # Admins can't decline — 2FA is mandatory for the admin role,
+            # so the wizard is a wall for them, not a suggestion.
+            if action == "skip" and user.is_admin():
+                flash("Two-factor authentication is required for admin "
+                      "accounts — finish setup to continue.", "danger")
+                return redirect(url_for("auth.mfa_setup"))
             session.pop("mfa_setup", None)
             session.pop("mfa_setup_wizard_secret", None)
             if action == "skip":
@@ -536,7 +565,7 @@ def mfa_setup():
             if not totp.verify(secret, code):
                 uri = totp.provisioning_uri(secret, user.username, _mfa_issuer())
                 return render_template("mfa_setup.html", qr=totp.qr_data_uri(uri),
-                                       secret=secret,
+                                       secret=secret, must_enroll=user.is_admin(),
                                        error="That code didn't match. Check the app and try again.")
             codes = user.enroll_mfa(secret)
             db.session.commit()
@@ -561,7 +590,8 @@ def mfa_setup():
         secret = totp.generate_secret()
         session["mfa_setup_wizard_secret"] = secret
     uri = totp.provisioning_uri(secret, user.username, _mfa_issuer())
-    return render_template("mfa_setup.html", qr=totp.qr_data_uri(uri), secret=secret)
+    return render_template("mfa_setup.html", qr=totp.qr_data_uri(uri), secret=secret,
+                           must_enroll=user.is_admin())
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -573,11 +603,12 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-        # Look up the user early so we can exempt admin accounts from the
-        # per-username lockout. IP-based lockout still applies to everyone.
+        # Look up the user early for the generic-error/activity-log paths
+        # below. IP-based and per-username lockout apply uniformly to every
+        # account, admins included (the old full exemption left admin
+        # password-spraying with no ceiling once IPs could be rotated).
         user = User.query.filter(func.lower(User.username) == username.lower()).first()
-        lockout_username = None if (user and user.is_admin()) else username
-        blocked, retry = _login_rate_limit_hit(ip, lockout_username)
+        blocked, retry = _login_rate_limit_hit(ip, username)
         if blocked:
             flash(f"Too many failed attempts. Try again in {max(retry, 1) // 60 + 1} minutes.",
                   "danger")
@@ -586,15 +617,19 @@ def login():
             token = request.form.get("cf-turnstile-response", "")
             ok, err = _verify_turnstile(site, token, request.remote_addr)
             if not ok:
-                _record_login_failure(ip, lockout_username)
+                _record_login_failure(ip, username)
                 flash(err, "danger")
                 return render_template("login.html")
-        if user and check_password_hash(user.password_hash, password):
+        # Verify against a dummy hash when the username is unknown so both
+        # paths pay the same scrypt cost (no timing-based enumeration).
+        password_ok = check_password_hash(
+            user.password_hash if user else _timing_equalizer_hash(), password)
+        if user and password_ok:
             if user.disabled:
                 # Don't enumerate: same generic invalid-credentials
                 # response an unknown username produces. The activity
                 # log captures the attempt for admin visibility.
-                _record_login_failure(ip, lockout_username)
+                _record_login_failure(ip, username)
                 from . import activity
                 activity.log("login.failed", user=user,
                              summary=(f"Disabled account sign-in blocked for "
@@ -632,7 +667,7 @@ def login():
                              summary=f"Password accepted; 2FA setup wizard shown to {user.username}")
                 return redirect(url_for("auth.mfa_setup"))
             return _finalize_login(user, ip, next_url)
-        _record_login_failure(ip, lockout_username)
+        _record_login_failure(ip, username)
         from . import activity
         # Log the failed attempt against the matched user when one
         # exists (so the User Log shows attempts even on accounts
@@ -675,7 +710,11 @@ def logout():
     # close any open-redirect smuggle. Default behaviour for admin
     # surfaces (no `next` provided) is unchanged — login screen.
     nxt = (request.args.get("next") or "").strip()
-    if nxt and nxt.startswith("/") and not nxt.startswith("//"):
+    if (nxt and nxt.startswith("/") and not nxt.startswith("//")
+            and "\\" not in nxt
+            and not any(ord(c) < 0x20 for c in nxt)):
+        # Backslash check matters: browsers fold "/\" into "//", turning
+        # "/\evil.com" into a protocol-relative offsite hop.
         return redirect(nxt)
     return redirect(url_for("auth.login"))
 
@@ -693,11 +732,39 @@ def logout():
 #      password, mark the token used, clear any active lockout, sign
 #      the user in, and bounce to the dashboard.
 RESET_TOKEN_TTL_HOURS = 1
-# Per-IP / per-account rate limit for the request endpoint. Defends
+# Per-IP / per-identifier rate limit for the request endpoint. Defends
 # against someone spamming the form with random emails to trigger a
-# wave of outbound mail. The window deliberately matches the login
-# limiter's window so the constants stay coherent.
+# wave of outbound mail (and against mail-bombing one account from
+# rotating IPs). The window deliberately matches the login limiter's
+# window so the constants stay coherent — and so ``_prune_stale`` can
+# clean both families of buckets on the same cutoff.
 _RESET_REQUEST_MAX_PER_WINDOW = 5
+
+
+def _reset_request_rate_limited(ip, identifier):
+    """True when either the requesting IP or the submitted identifier has
+    already hit the per-window ceiling. Applies uniformly whether or not
+    the identifier matches an account, so the limiter can't be used as
+    an enumeration oracle."""
+    for kind, key in (("reset_ip", ip or ""),
+                      ("reset_id", (identifier or "").lower()[:255])):
+        if key and len(_failures_in_window(kind, key)) >= _RESET_REQUEST_MAX_PER_WINDOW:
+            return True
+    return False
+
+
+def _record_reset_request(ip, identifier):
+    """Count a forgot-password submission against both buckets. Rows live
+    in ``login_failure`` alongside the login limiter's and age out on the
+    same window."""
+    now = datetime.utcnow()
+    if ip:
+        db.session.add(LoginFailure(kind="reset_ip", key=ip, failed_at=now))
+    if identifier:
+        db.session.add(LoginFailure(kind="reset_id",
+                                    key=identifier.lower()[:255], failed_at=now))
+    _prune_stale()
+    db.session.commit()
 
 
 def _hash_reset_token(token):
@@ -764,6 +831,17 @@ def forgot_password():
         if not identifier:
             flash("Enter the email or username on the account.", "danger")
             return render_template("forgot_password.html")
+
+        # Rate limit before doing any work. The check-then-record order
+        # means the ceiling applies to the NEXT request after the limit
+        # is reached; both buckets (IP + identifier) count every
+        # submission regardless of whether it matched an account.
+        ip = request.remote_addr or "unknown"
+        if _reset_request_rate_limited(ip, identifier):
+            flash("Too many password-reset requests. Please wait a few "
+                  "minutes and try again.", "danger")
+            return render_template("forgot_password.html"), 429
+        _record_reset_request(ip, identifier)
 
         # Look up by email OR username, case-insensitive on both. Always
         # show the same success copy regardless of match so the form
@@ -962,11 +1040,17 @@ def users_create():
     ).first():
         flash("Username or email already exists", "danger")
         return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
+    # Same policy the reset flows enforce — an admin typing a throwaway
+    # "abc123" here would otherwise mint the one weak account in the DB.
+    ok, errors = validate_password_policy(password, username=username, email=email)
+    if not ok:
+        flash("Password doesn't meet the policy: " + " ".join(errors), "danger")
+        return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
     u = User(username=username, email=email, name=name, phone=phone,
              password_hash=generate_password_hash(password), role=role)
-    # New admin accounts default to requiring 2FA (set up via the one-time
-    # wizard at first login, which they may skip). Other roles default off;
-    # an admin can flip the per-row switch in the Users tab for anyone.
+    # Admin accounts require 2FA — enrolment happens via the one-time
+    # wizard at first login, which admins cannot skip. Other roles default
+    # off; an admin can flip the per-row switch in the Users tab for them.
     u.mfa_required = (role == "admin")
     db.session.add(u)
     db.session.commit()
@@ -1015,6 +1099,11 @@ def users_update(uid):
         return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
     new_role = request.form.get("role")
     if new_role in ROLES:
+        # Promotion to admin brings the 2FA requirement with it — same
+        # policy as admin account creation. (Demotion doesn't clear it;
+        # an admin can turn it off for non-admin roles afterwards.)
+        if new_role == "admin" and u.role != "admin":
+            u.mfa_required = True
         u.role = new_role
     new_username = request.form.get("username", "").strip()
     if new_username and new_username != u.username:
@@ -1086,7 +1175,11 @@ def users_update(uid):
         if want_mfa and not u.mfa_required:
             u.mfa_required = True
         elif not want_mfa and (u.mfa_required or u.mfa_enabled):
-            u.clear_mfa()
+            if u.is_admin():
+                flash("Two-factor authentication can't be turned off for "
+                      "admin accounts.", "danger")
+            else:
+                u.clear_mfa()
     if "reset_allowed_present" in request.form:
         new_allowed = request.form.get("password_reset_allowed") == "1"
         if new_allowed != u.password_reset_allowed:
@@ -1252,6 +1345,11 @@ def users_set_mfa(uid):
     want = request.form.get("required") == "1"
     if want:
         u.mfa_required = True
+    elif u.is_admin():
+        # 2FA is mandatory for the admin role — demote the account first
+        # if it genuinely shouldn't have a second factor.
+        return jsonify({"error": "Two-factor authentication can't be turned "
+                                 "off for admin accounts."}), 400
     else:
         # Full off — clears any in-progress or completed enrolment too.
         u.clear_mfa()

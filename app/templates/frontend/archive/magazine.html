@@ -33,7 +33,7 @@
                    data-archive-search="{{ search_blobs.get(it.post.id, '') }}"
                    data-archive-year="{{ it.year }}"
                    data-archive-kind="{{ it.kind }}">
-            <a class="fe-archive-mag-tile-link" href="{{ _url }}">
+            <a class="fe-archive-mag-tile-link" href="{{ _url|safe_url }}">
               {% if _has_image %}
               <span class="fe-archive-mag-tile-cover" aria-hidden="true">
                 <img src="{{ url_for('public.post_featured_image', pid=_p.id) }}"

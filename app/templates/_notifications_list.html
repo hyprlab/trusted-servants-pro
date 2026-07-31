@@ -12,7 +12,7 @@
 <ul class="notif-list">
   {% for n in items %}
   <li class="notif-item" data-notif-key="{{ n.key }}">
-    <a class="notif-link" href="{{ n.url }}">
+    <a class="notif-link" href="{{ n.url|safe_url }}">
       <span class="notif-icon" aria-hidden="true">{{ icon(n.icon) }}</span>
       <span class="notif-text">
         <span class="notif-title">{{ n.title }}</span>

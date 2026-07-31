@@ -61,13 +61,13 @@
                 | replace('www.', '')
                 | trim -%}
           {%- if _site_label.endswith('/') %}{% set _site_label = _site_label[:-1] %}{% endif -%}
-          <a class="fe-footer-location-website" href="{{ loc.website_url }}"
+          <a class="fe-footer-location-website" href="{{ loc.website_url|safe_url }}"
              target="_blank" rel="noopener">
             {{ _site_label }} <span aria-hidden="true" class="fe-footer-location-website-arrow">→</span>
           </a>
           {% endif %}
           {% if loc.maps_url %}
-          <a class="fe-footer-location-directions" href="{{ loc.maps_url }}"
+          <a class="fe-footer-location-directions" href="{{ loc.maps_url|safe_url }}"
              target="_blank" rel="noopener">
             {{ icon('map-pin') }}<span>Get directions</span>
           </a>
@@ -137,13 +137,13 @@
                 | replace('www.', '')
                 | trim -%}
           {%- if _site_label.endswith('/') %}{% set _site_label = _site_label[:-1] %}{% endif -%}
-          <a class="fe-footer-location-website" href="{{ _it_website }}"
+          <a class="fe-footer-location-website" href="{{ _it_website|safe_url }}"
              target="_blank" rel="noopener">
             {{ _site_label }} <span aria-hidden="true" class="fe-footer-location-website-arrow">→</span>
           </a>
           {% endif %}
           {% if it.maps_url %}
-          <a class="fe-footer-location-directions" href="{{ it.maps_url }}"
+          <a class="fe-footer-location-directions" href="{{ it.maps_url|safe_url }}"
              target="_blank" rel="noopener">
             {{ icon('map-pin') }}<span>Get directions</span>
           </a>

@@ -78,12 +78,12 @@
               <div class="fe-meeting-card-actions">
                 {% if _show_zoom %}
                 <a class="fe-btn fe-btn-primary"
-                   href="{{ m.zoom_link }}" target="_blank" rel="noopener">Join Zoom Meeting</a>
+                   href="{{ m.zoom_link|safe_url }}" target="_blank" rel="noopener">Join Zoom Meeting</a>
                 {% endif %}
                 {% if _show_directions %}
                 {% set _maps = "https://www.google.com/maps/search/?api=1&query=" ~ (m.location|urlencode) %}
                 <a class="fe-btn fe-btn-ghost"
-                   href="{{ _maps }}" target="_blank" rel="noopener">Get Directions</a>
+                   href="{{ _maps|safe_url }}" target="_blank" rel="noopener">Get Directions</a>
                 {% endif %}
               </div>
               {% endif %}

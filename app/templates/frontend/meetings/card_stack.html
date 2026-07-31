@@ -49,7 +49,7 @@
         <h2>Online via {{ p.label }}</h2>
       </div>
       {% if p.link %}
-      <a class="fe-btn fe-btn-primary fe-meeting-stack-cta" href="{{ p.link }}" target="_blank" rel="noopener">
+      <a class="fe-btn fe-btn-primary fe-meeting-stack-cta" href="{{ p.link|safe_url }}" target="_blank" rel="noopener">
         {{ icon('video') }} <span>Join {{ p.short }}</span> <em>↗</em>
       </a>
       {% endif %}
@@ -102,7 +102,7 @@
       </div>
       {% set _maps_q = (meeting_location_record.address if meeting_location_record and meeting_location_record.address else meeting.location) %}
       {% set _maps = "https://www.google.com/maps/search/?api=1&query=" ~ (_maps_q|urlencode) %}
-      <a class="fe-btn fe-btn-ghost fe-meeting-stack-cta" href="{{ _maps }}" target="_blank" rel="noopener">
+      <a class="fe-btn fe-btn-ghost fe-meeting-stack-cta" href="{{ _maps|safe_url }}" target="_blank" rel="noopener">
         {{ icon('map-pin') }} <span>Open in Maps</span> <em>↗</em>
       </a>
     </div>

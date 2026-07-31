@@ -19,12 +19,17 @@ def init_fernet(app):
                 key = f.read().decode()
         else:
             key = Fernet.generate_key().decode()
-            with open(path, "wb") as f:
-                f.write(key.encode())
+            # O_EXCL + mode 0600 at creation: the key file is never
+            # world-readable, not even for the instant before a separate
+            # chmod would land. If another worker won the creation race,
+            # read the key it wrote instead.
             try:
-                os.chmod(path, 0o600)
-            except OSError:
-                pass
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, "wb") as f:
+                    f.write(key.encode())
+            except FileExistsError:
+                with open(path, "rb") as f:
+                    key = f.read().decode()
     app.config["FERNET"] = Fernet(key.encode() if isinstance(key, str) else key)
 
 

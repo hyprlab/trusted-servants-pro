@@ -63,12 +63,16 @@
           {% if error %}<p class="flash flash-danger" role="alert">{{ error }}</p>{% endif %}
           <button class="btn btn-primary login-submit" type="submit">Verify &amp; turn on</button>
         </form>
+        {% if must_enroll %}
+        <p class="muted smaller mfa-wizard-skip">Two-factor authentication is required for admin accounts.</p>
+        {% else %}
         <form method="post" action="{{ url_for('auth.mfa_setup') }}" class="mfa-wizard-skip">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="skip">
           <button type="submit" class="btn-link mfa-skip-btn">Skip for now</button>
           <span class="muted smaller">You can turn this off in Settings → Your Access.</span>
         </form>
+        {% endif %}
       {% endif %}
     </div>
   </section>

@@ -234,9 +234,14 @@ class SFTPBackend:
             raise BackendError(f"SFTP connect failed: {e}") from e
 
     def _load_private_key(self, key_text):
-        """Try common key formats since paramiko has separate classes per algo."""
+        """Try common key formats since paramiko has separate classes per
+        algo. DSSKey is looked up defensively — paramiko 4.0 removed DSA
+        support entirely, so the attribute may not exist."""
         import paramiko
-        for cls in (paramiko.Ed25519Key, paramiko.ECDSAKey, paramiko.RSAKey, paramiko.DSSKey):
+        classes = [paramiko.Ed25519Key, paramiko.ECDSAKey, paramiko.RSAKey]
+        if getattr(paramiko, "DSSKey", None) is not None:
+            classes.append(paramiko.DSSKey)
+        for cls in classes:
             try:
                 return cls.from_private_key(io.StringIO(key_text))
             except paramiko.SSHException:

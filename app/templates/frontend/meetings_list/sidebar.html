@@ -73,7 +73,7 @@
             {% for ln in list_sidebar_links %}
             <li>
               <a class="fe-mlist-rail-link fe-mlist-rail-link--{{ ln.link_type }}"
-                 href="{{ ln.url }}"
+                 href="{{ ln.url|safe_url }}"
                  {% if ln.open_in_new_tab %}target="_blank" rel="noopener"{% endif %}>
                 <span class="fe-mlist-rail-link-label">{{ ln.label }}</span>
                 <span class="fe-mlist-rail-link-icon" aria-hidden="true">

@@ -84,7 +84,7 @@
           {% endif %}
           {% set _maps_q = (meeting_location_record.address if meeting_location_record and meeting_location_record.address else meeting.location) %}
           {% set _maps = "https://www.google.com/maps/search/?api=1&query=" ~ (_maps_q|urlencode) %}
-          <a class="fe-meeting-mag-side-link" href="{{ _maps }}" target="_blank" rel="noopener">
+          <a class="fe-meeting-mag-side-link" href="{{ _maps|safe_url }}" target="_blank" rel="noopener">
             View map <span aria-hidden="true">→</span>
           </a>
         </section>
@@ -95,7 +95,7 @@
         <section class="fe-meeting-mag-side-card fe-meeting-mag-side-zoom fe-meeting-mag-side-{{ p.key }}">
           <span class="fe-meeting-mag-side-label">{{ icon('video') }} {{ p.label }}</span>
           {% if p.link %}
-          <a class="fe-btn fe-btn-primary fe-meeting-mag-side-cta" href="{{ p.link }}" target="_blank" rel="noopener">
+          <a class="fe-btn fe-btn-primary fe-meeting-mag-side-cta" href="{{ p.link|safe_url }}" target="_blank" rel="noopener">
             Join meeting <span aria-hidden="true">↗</span>
           </a>
           {% endif %}
