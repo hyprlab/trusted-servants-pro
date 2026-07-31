@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.18.1] — 2026-07-31
+
+### Fixed
+
+- **Real visitor IPs are captured again behind Cloudflare.** 2.18.0 flipped `TSP_TRUST_CF_HEADER` to opt-in (default off). On the common Cloudflare-in-front topology that silently regressed IP capture: with `CF-Connecting-IP` no longer honored, `ProxyFix` landed on the Cloudflare edge IP (`172.64.0.0/13`, e.g. `172.71.x.x`), so every visitor was recorded under the same shared address — breaking per-IP login lockout, Watchtower IP bans, and the password-reset / contact-relay rate limiters. The header is now trusted **by default** again (disable with `TSP_TRUST_CF_HEADER=0`). This does **not** reopen the H3 vulnerability: the 2.18.0 edge-IP verification is retained, so `CF-Connecting-IP` is only honored when the post-`ProxyFix` peer is a published Cloudflare edge IP — a forged header on a non-Cloudflare deploy is still ignored. Deployments that set `TSP_TRUST_CF_HEADER=1` as a workaround can keep it; it's now redundant.
+
 ## [2.18.0] — 2026-07-31
 
 Security-hardening release. A full audit (see `docs/SECURITY_AUDIT.md`) drove

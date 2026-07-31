@@ -289,6 +289,8 @@ Other environment variables (all with sensible defaults):
 | `TSP_UPLOAD_DIR` | `$TSP_DATA_DIR/uploads` | Location of uploaded files. |
 | `TSP_FERNET_KEY` | _auto-generated_ | If set, used directly; otherwise a key is generated and stored in `data/zoom.key`. |
 | `TSP_SESSION_DAYS` | `180` | Login session + remember-me cookie lifetime in days. Lower it (e.g. `7`) for a tighter idle-timeout posture. |
+| `TSP_TRUSTED_PROXIES` | `1` | Number of trusted reverse-proxy hops for `X-Forwarded-For`. Set to `0` for a direct-bind deploy with no proxy in front (so spoofable headers are never trusted). |
+| `TSP_TRUST_CF_HEADER` | `1` (on) | Honor Cloudflare's `CF-Connecting-IP` to recover the real visitor IP. Only accepted when the request peer is a verified Cloudflare edge IP, so it's safe to leave on even without Cloudflare. Set to `0` to disable. |
 | `TSP_IMPORTER_ALLOW_PRIVATE` | _unset_ | Set to `1` to let the WordPress importer fetch from private/LAN addresses (SSRF guard bypass for local dev imports). |
 
 Uploads are limited to **256 MB** per file.
