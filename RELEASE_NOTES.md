@@ -7,7 +7,11 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.18.0 — 2026-07-31 (latest) — Security hardening
+## 2.18.1 — 2026-07-31 (latest) — Visitor IPs captured correctly again
+
+- **Fixes a regression from 2.18.0 where visitor IP addresses showed up as an internal/Cloudflare address (like `172.71.x.x`) instead of the real visitor.** If your site sits behind Cloudflare, the 2.18.0 hardening stopped trusting Cloudflare's "real visitor IP" header by default, so Watchtower — and the per-visitor login lockout, IP blocking, and rate limits — all saw every visitor as the same address. This release trusts that header by default again, safely: it's still only accepted when the request genuinely comes through Cloudflare's network, so it can't be faked on sites that don't use Cloudflare. Just update and restart; no settings to change.
+
+## 2.18.0 — 2026-07-31 — Security hardening
 
 - **A top-to-bottom security review, with every finding fixed.** We ran a full audit of the portal and worked through it in five passes — from the highest-impact items down to the smallest hardening tweaks. Nothing about how you use the portal changes, and no data migration is needed; this release is about making the whole thing tougher.
 - **Two-factor authentication is now required for admins.** Admin accounts must set up an authenticator app at their next sign-in and can't skip it or turn it off while they're an admin. (Existing admin accounts aren't forced on retroactively — turn 2FA on for them from **Settings → Users** when you're ready.)
