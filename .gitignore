@@ -38,3 +38,7 @@ Thumbs.db
 
 # Internal security audit — kept locally, never tracked (see release 2.18.0)
 docs/SECURITY_AUDIT.md
+
+# Internal security audits — never tracked, in any location.
+SECURITY_AUDIT*.md
+**/SECURITY_AUDIT*.md
