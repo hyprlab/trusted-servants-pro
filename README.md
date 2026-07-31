@@ -90,7 +90,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 docker compose up -d --build
 ```
 
-Open http://localhost:8090 and sign in with the seeded admin (defaults: `admin` / `admin`). Change these in `.env` before first run, or rotate later from the Users tab.
+Open http://localhost:8090 and sign in with the admin account seeded on first boot. Set `TSP_ADMIN_PASSWORD` in `.env` before first run — without it the app refuses to boot on an empty database. For local development, set `TSP_DEBUG=1` in `.env` instead: that serves over plain HTTP (no Secure cookie flag) and falls back to seeding `admin` / `admin`. Never run production with `TSP_DEBUG=1`.
 
 ### docker-compose.yml
 
@@ -105,9 +105,10 @@ services:
       - ./data:/data
     environment:
       - TSP_SECRET_KEY=${TSP_SECRET_KEY:?TSP_SECRET_KEY must be set in .env}
-      - TSP_ADMIN_USERNAME=admin
-      - TSP_ADMIN_PASSWORD=admin
-      - TSP_ADMIN_EMAIL=admin@example.com
+      - TSP_ADMIN_USERNAME=${TSP_ADMIN_USERNAME:-admin}
+      - TSP_ADMIN_PASSWORD=${TSP_ADMIN_PASSWORD:-}
+      - TSP_ADMIN_EMAIL=${TSP_ADMIN_EMAIL:-admin@example.com}
+      - TSP_DEBUG=${TSP_DEBUG:-0}
     restart: unless-stopped
     # Cap container logs so an unattended box can't fill its disk over
     # time (the default json-file driver is unbounded).
@@ -287,6 +288,8 @@ Other environment variables (all with sensible defaults):
 | `TSP_DATA_DIR` | `/data` | Inside-container data directory. Mounted to `./data` on the host by default. |
 | `TSP_UPLOAD_DIR` | `$TSP_DATA_DIR/uploads` | Location of uploaded files. |
 | `TSP_FERNET_KEY` | _auto-generated_ | If set, used directly; otherwise a key is generated and stored in `data/zoom.key`. |
+| `TSP_SESSION_DAYS` | `180` | Login session + remember-me cookie lifetime in days. Lower it (e.g. `7`) for a tighter idle-timeout posture. |
+| `TSP_IMPORTER_ALLOW_PRIVATE` | _unset_ | Set to `1` to let the WordPress importer fetch from private/LAN addresses (SSRF guard bypass for local dev imports). |
 
 Uploads are limited to **256 MB** per file.
 

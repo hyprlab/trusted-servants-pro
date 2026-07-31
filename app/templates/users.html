@@ -191,10 +191,11 @@
           <span class="users-reset-allow-label">Self-reset</span>
         </label>
         <label class="mode-toggle users-reset-allow-toggle users-mfa-toggle"
-               title="Require two-factor authentication for {{ u.username }}. They set it up via a one-time wizard at next login (and may skip it). Turning it off clears any existing 2FA.">
+               title="{% if u.role == 'admin' %}Two-factor authentication is required for admin accounts and can't be turned off.{% else %}Require two-factor authentication for {{ u.username }}. They set it up via a one-time wizard at next login (and may skip it). Turning it off clears any existing 2FA.{% endif %}">
           <input type="checkbox"
                  class="js-mfa-toggle"
                  data-uid="{{ u.id }}"
+                 {% if u.role == 'admin' and u.mfa_required %}disabled{% endif %}
                  {% if u.mfa_required %}checked{% endif %}>
           <span class="mode-track"><span class="mode-thumb"></span></span>
           <span class="users-reset-allow-label">Two-factor{% if u.mfa_enabled %} <span class="users-mfa-enrolled" title="Enrolled">✓</span>{% elif u.mfa_required %} <span class="users-mfa-pending" title="Awaiting setup at next login">⏳</span>{% endif %}</span>

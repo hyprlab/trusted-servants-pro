@@ -145,6 +145,7 @@ def _get_otp_email():
 MEETING_TYPES = ("in_person", "online", "hybrid")
 from .crypto import encrypt, decrypt
 from . import imgcache
+from .safeurl import sanitize_url
 
 # Admin app blueprint: everything mounted under /tspro.
 bp = Blueprint("main", __name__, url_prefix="/tspro")
@@ -210,6 +211,21 @@ def _safe_referrer():
     if ref_parsed.netloc != host_parsed.netloc:
         return None
     return ref
+
+
+def _safe_return_url(raw, fallback_endpoint, **endpoint_kwargs):
+    """Resolve a client-supplied return-URL (hidden form field, query
+    param) into a safe same-site redirect target. Only plain relative
+    paths pass: must start with ``/``, must not start with ``//``
+    (protocol-relative), and must not contain a backslash or control
+    character (browsers fold ``/\\`` into ``//``, smuggling a host).
+    Anything else falls back to ``url_for(fallback_endpoint)``."""
+    val = (raw or "").strip()
+    if (val.startswith("/") and not val.startswith("//")
+            and "\\" not in val
+            and not any(ord(c) < 0x20 for c in val)):
+        return val
+    return url_for(fallback_endpoint, **endpoint_kwargs)
 
 
 def editor_required(f):
@@ -2117,15 +2133,15 @@ def _apply_meeting_form(m, form, schedules, files=None):
         m.zoom_meeting_id = form.get("zoom_meeting_id", "").strip()
         m.zoom_passcode = form.get("zoom_passcode", "").strip()
         m.zoom_opens_time = form.get("zoom_opens_time", "").strip()
-        m.zoom_link = form.get("zoom_link", "").strip()
+        m.zoom_link = sanitize_url(form.get("zoom_link")) or ""
         acct_raw = form.get("zoom_account_id", "")
         m.zoom_account_id = int(acct_raw) if acct_raw else None
         m.gmeet_enabled = form.get("gmeet_enabled") == "1"
-        m.gmeet_link = form.get("gmeet_link", "").strip()
+        m.gmeet_link = sanitize_url(form.get("gmeet_link")) or ""
         m.gmeet_meeting_id = form.get("gmeet_meeting_id", "").strip()
         m.gmeet_passcode = form.get("gmeet_passcode", "").strip()
         m.teams_enabled = form.get("teams_enabled") == "1"
-        m.teams_link = form.get("teams_link", "").strip()
+        m.teams_link = sanitize_url(form.get("teams_link")) or ""
         m.teams_meeting_id = form.get("teams_meeting_id", "").strip()
         m.teams_passcode = form.get("teams_passcode", "").strip()
     if files is not None:
@@ -2232,6 +2248,8 @@ def meeting_detail(slug):
     zoom_accounts = ZoomAccount.query.order_by(ZoomAccount.name).all()
     locations = Location.query.order_by(Location.name).all()
     location_record, location_maps_url = _resolve_meeting_location(m, locations)
+    # Site policy: every signed-in role may host — the host-account
+    # password and OTP surfaces render for viewers too.
     zoom_password = decrypt(m.zoom_account.password_enc) if m.zoom_account else ""
     otp_email = ZoomOtpEmail.query.first()
     return render_template("meeting_detail.html", meeting=m,
@@ -2351,10 +2369,11 @@ def meeting_schedule_change_delete(slug, cid):
 
 
 @bp.route("/meetings/<int:mid>.json")
-@login_required
+@editor_required
 def meeting_json(mid):
     """Asset endpoint — kept on the int:mid form because callers are
-    JS fetches that already have the meeting id in hand."""
+    JS fetches that already have the meeting id in hand. Editor-gated:
+    the payload carries the Zoom passcode and account assignments."""
     m = db.session.get(Meeting, mid) or abort(404)
     return jsonify({
         "id": m.id, "name": m.name, "description": m.description or "",
@@ -2603,8 +2622,9 @@ def location_new():
     if ltype not in ("in_person", "online"):
         ltype = "in_person"
     payload = _location_address_payload()
-    maps_url    = request.form.get("maps_url", "").strip() or None
-    website_url = request.form.get("website_url", "").strip() or None
+    from .safeurl import sanitize_url
+    maps_url    = sanitize_url(request.form.get("maps_url"))
+    website_url = sanitize_url(request.form.get("website_url"))
     notes       = request.form.get("notes", "").strip() or None
     if ltype == "online":
         payload = {"street": None, "city": None, "state": None, "zip_code": None, "address": None}
@@ -2635,8 +2655,9 @@ def location_edit(lid):
         ltype = "in_person"
     loc.location_type = ltype
     # Notes + website URL apply to both in-person and online locations.
+    from .safeurl import sanitize_url
     loc.notes       = request.form.get("notes", "").strip() or None
-    loc.website_url = request.form.get("website_url", "").strip() or None
+    loc.website_url = sanitize_url(request.form.get("website_url"))
     if ltype == "online":
         loc.street = loc.city = loc.state = loc.zip_code = None
         loc.address = None
@@ -2648,7 +2669,7 @@ def location_edit(lid):
         loc.state     = payload["state"]
         loc.zip_code  = payload["zip_code"]
         loc.address   = payload["address"]
-        loc.maps_url  = request.form.get("maps_url", "").strip() or None
+        loc.maps_url  = sanitize_url(request.form.get("maps_url"))
     db.session.commit()
     flash("Location updated", "success")
     return redirect(url_for("main.locations", **({"embed": "1"} if request.values.get("embed") == "1" else {})))
@@ -2889,7 +2910,8 @@ def otp_email_fetch_code():
     """Log into the OTP inbox over IMAP and return the freshest Zoom code.
 
     Backs the guided Zoom launcher's Step 2 "Retrieve code" button. Any
-    authenticated user who can view a meeting may pull a code — the same
+    authenticated user who can view a meeting may pull a code — site
+    policy is that viewer-role members host meetings too, and the same
     audience already sees the inbox credentials on the detail page. Codes
     older than 10 minutes are never returned (see otp_fetch)."""
     from .otp_fetch import fetch_latest_code
@@ -4335,13 +4357,14 @@ def _require_module_role(site_attr_role, site_attr_enabled=None):
         abort(404)
 
 
-@bp.route("/settings/export", methods=["GET", "POST"])
+@bp.route("/settings/export", methods=["POST"])
 @admin_required
 def data_export():
-    """Full-portal export.
+    """Full-portal export. POST-only: a GET-triggerable full-DB download
+    is too easy to fire cross-site or from a prefetching browser, and
+    CSRF protection only guards mutating verbs.
 
-    GET serves a plain ``.zip`` (legacy path / scripted callers). POST
-    accepts an optional ``passphrase`` field; when non-empty the bundle
+    Accepts an optional ``passphrase`` field; when non-empty the bundle
     is stream-encrypted with AES-256-GCM (key derived via PBKDF2-HMAC-
     SHA256 from the passphrase) and the download is ``.zip.enc``. The
     passphrase rides in the POST body, never the URL, so it can't leak
@@ -4352,7 +4375,7 @@ def data_export():
     from .backup import build_export_archive
     from .bundle_crypto import encrypt_file, EXT as _ENC_EXT
 
-    passphrase = (request.form.get("passphrase") or "").strip() if request.method == "POST" else ""
+    passphrase = (request.form.get("passphrase") or "").strip()
 
     zip_path, archive_name, _size = build_export_archive(current_app._get_current_object())
 
@@ -4909,7 +4932,16 @@ def _apply_remote_restore(target, archive_path, private_key):
                 return jsonify(ok=False, error=f"could not decrypt: {e}"), 400
             import_path = decrypted_path
         else:
-            import_path = archive_path
+            # E2EE-only: the bearer token alone must never be enough to
+            # replace the whole portal. Requiring the encrypted format
+            # means the pusher also has to hold the site's private key
+            # (verified against our stored public key above).
+            current_app.logger.warning(
+                "remote restore rejected: plain (non-E2EE) archive for target %s", target.id)
+            return jsonify(ok=False,
+                           error="unencrypted archives are not accepted over remote "
+                                 "restore — push an end-to-end-encrypted TS Pro "
+                                 "Backup archive"), 400
 
         current_app.logger.warning("remote restore: applying archive to target %s", target.id)
         # _perform_data_import swaps the DB + uploads + keys, runs migrations,
@@ -4963,6 +4995,11 @@ def remote_restore():
 def remote_restore_chunk():
     """One chunk of a large inbound restore. Staged per (target, upload_id)."""
     ip = request.remote_addr
+    # Same per-IP failure cap as the single-shot and finalize routes —
+    # without it this endpoint accepted unlimited token guesses under
+    # the limiter's radar.
+    if _restore_rate_limited(ip):
+        return jsonify(ok=False, error="too many restore attempts; try again later"), 429
     target = _restore_target_for_token((request.headers.get("X-Restore-Token") or "").strip())
     if target is None:
         _record_restore_failure(ip)
@@ -7830,6 +7867,17 @@ def public_page_og_image(page_id):
     return response
 
 
+# Active content types that must never be served inline on the public
+# origin: when opened directly, an inline text/html or image/svg+xml
+# response executes any embedded script with the portal's cookies/CSRF
+# token. Current uploads can't produce these (BLOCKED_UPLOAD_EXTENSIONS /
+# admin-only sanitized SVG), but rows uploaded before the guard — or via
+# any path that misses it (e.g. imports) — still exist in the DB.
+# Content-Disposition: attachment only affects top-level navigation;
+# <img src> embeds of SVG logos keep rendering.
+PUBLIC_INLINE_BLOCKED_EXTENSIONS = {".html", ".htm", ".xhtml", ".xml", ".svg"}
+
+
 @public_bp.route("/pub/<path:filename>")
 def public_file(filename):
     if ".." in filename or filename.startswith("/"):
@@ -7841,8 +7889,15 @@ def public_file(filename):
     path = os.path.join(current_app.config["UPLOAD_FOLDER"], m.stored_filename)
     if not os.path.isfile(path):
         abort(404)
-    return send_from_directory(current_app.config["UPLOAD_FOLDER"], m.stored_filename,
-                               download_name=m.original_filename)
+    ext = os.path.splitext(m.stored_filename)[1].lower()
+    resp = send_from_directory(current_app.config["UPLOAD_FOLDER"], m.stored_filename,
+                               download_name=m.original_filename,
+                               as_attachment=ext in PUBLIC_INLINE_BLOCKED_EXTENSIONS)
+    if ext in PUBLIC_INLINE_BLOCKED_EXTENSIONS:
+        # Belt-and-braces for clients that ignore Content-Disposition:
+        # no script execution whatever the content claims to be.
+        resp.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'"
+    return resp
 
 
 @bp.route("/settings/pic-save", methods=["POST"])
@@ -8586,7 +8641,19 @@ _SVG_SANITIZE_PATTERNS = (
 )
 
 
-def _sanitize_svg(text_bytes):
+# Element local names removed wholesale (with their subtrees) by the
+# parser-based sanitizer. foreignObject embeds arbitrary HTML (and thus
+# arbitrary script surface); the rest are non-SVG active content.
+_SVG_STRIP_ELEMENTS = {"script", "foreignobject", "iframe", "embed", "object"}
+# Dangerous scheme substrings looked for in *decoded* attribute values —
+# after the XML parser has resolved character references, so encodings
+# like "java&#115;cript:" can't slip past the way they did the regex.
+_SVG_BAD_SCHEMES = ("javascript:", "vbscript:", "data:text/html")
+
+
+def _svg_regex_scrub(text_bytes):
+    """Legacy regex pass — retained only as the fallback for files the
+    XML parser rejects (browsers render some malformed SVGs anyway)."""
     try:
         s = text_bytes.decode("utf-8")
     except UnicodeDecodeError:
@@ -8594,6 +8661,59 @@ def _sanitize_svg(text_bytes):
     for pat in _SVG_SANITIZE_PATTERNS:
         s = pat.sub("", s)
     return s.encode("utf-8")
+
+
+def _sanitize_svg(text_bytes):
+    """Parser-based SVG sanitizer.
+
+    Parses the document as XML and prunes on the decoded tree: script /
+    foreignObject subtrees, every ``on*`` event-handler attribute, and
+    any attribute whose decoded value smuggles a javascript:/vbscript:
+    scheme (covers href, xlink:href, and animation targets alike —
+    character-reference encodings are already resolved at this point).
+    Documents carrying DOCTYPE/ENTITY machinery are refused outright
+    (nothing legitimate needs a DTD; it's how XML bombs arrive) and
+    collapse to an empty SVG. Files the parser can't read at all fall
+    back to the old regex scrub rather than passing through untouched."""
+    import xml.etree.ElementTree as ET
+
+    lowered = text_bytes[:65536].lower()
+    if b"<!doctype" in lowered or b"<!entity" in lowered:
+        return b'<svg xmlns="http://www.w3.org/2000/svg"/>'
+
+    try:
+        root = ET.fromstring(text_bytes)
+    except ET.ParseError:
+        return _svg_regex_scrub(text_bytes)
+
+    def _local(name):
+        return name.rsplit("}", 1)[-1].lower()
+
+    def _prune(elem):
+        for child in list(elem):
+            if _local(child.tag) in _SVG_STRIP_ELEMENTS:
+                elem.remove(child)
+                continue
+            _prune(child)
+        for attr in list(elem.attrib):
+            aname = _local(attr)
+            if aname.startswith("on"):
+                del elem.attrib[attr]
+                continue
+            # Normalise the decoded value the way browsers do (strip
+            # whitespace + control chars) before the scheme check.
+            val = "".join(c for c in str(elem.attrib[attr])
+                          if not c.isspace() and ord(c) >= 0x20).lower()
+            if any(bad in val for bad in _SVG_BAD_SCHEMES):
+                del elem.attrib[attr]
+
+    if _local(root.tag) in _SVG_STRIP_ELEMENTS:
+        return b'<svg xmlns="http://www.w3.org/2000/svg"/>'
+    _prune(root)
+
+    ET.register_namespace("", "http://www.w3.org/2000/svg")
+    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+    return ET.tostring(root, encoding="utf-8")
 
 
 # Affinity Designer / Serif tools export with `width="100%" height="100%"`
@@ -9872,6 +9992,17 @@ def frontend_form_submissions_bulk_archive():
     return _submissions_redirect()
 
 
+def _csv_cell(value):
+    """Neutralise spreadsheet formula injection in CSV exports: a cell
+    beginning with =, +, -, @ (or a stray tab/CR) executes as a formula
+    when the file is opened in Excel/Sheets, so visitor-supplied text
+    gets a leading apostrophe (rendered as literal text, formula dead)."""
+    s = "" if value is None else str(value)
+    if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + s
+    return s
+
+
 @bp.route("/frontend/forms/submissions/export.csv")
 @login_required
 def frontend_form_submissions_csv():
@@ -9919,12 +10050,12 @@ def frontend_form_submissions_csv():
             name, ftype = f.get("name"), f.get("type")
             if ftype == "file":
                 info = files.get(name) or {}
-                row.append(info.get("original") or "")
+                row.append(_csv_cell(info.get("original") or ""))
             else:
                 v = fvals.get(name)
                 if isinstance(v, (list, tuple)):
                     v = "; ".join(str(x) for x in v)
-                row.append("" if v is None else str(v))
+                row.append(_csv_cell(v))
         w.writerow(row)
 
     resp = make_response(buf.getvalue())
@@ -15032,7 +15163,14 @@ def file_view(fid):
         return render_template("reading_view.html", title=f.title, body=f.body,
                                back_url=url_for("main.meeting_detail", slug=f.meeting.public_slug))
     if f.url:
-        return redirect(f.url)
+        # External-link rows redirect by design, but only to URL schemes
+        # a link may legitimately carry — a stored javascript:/data: URI
+        # must not become a live redirect.
+        from .safeurl import sanitize_url
+        dest = sanitize_url(f.url)
+        if not dest or dest.startswith("#"):
+            abort(404)
+        return redirect(dest)
     if f.stored_filename:
         return redirect(url_for("main.file_download", fid=fid))
     abort(404)
@@ -15468,7 +15606,12 @@ def reading_view(rid):
         return render_template("reading_view.html", reading=r,
                                back_url=url_for("main.library_detail", slug=r.library.public_slug))
     if r.url:
-        return redirect(r.url)
+        # Same scheme guard as file_view — see comment there.
+        from .safeurl import sanitize_url
+        dest = sanitize_url(r.url)
+        if not dest or dest.startswith("#"):
+            abort(404)
+        return redirect(dest)
     if r.stored_filename:
         return redirect(url_for("main.reading_download", rid=rid))
     return render_template("reading_view.html", reading=r,
@@ -15513,7 +15656,12 @@ def reading_pdf(rid):
     from werkzeug.wsgi import wrap_file
     body_html = str(render_template_string("{{ body|markdown }}", body=r.body))
     page_html = _pdf_page_html(r.title, body_html)
-    pdf_bytes = HTML(string=page_html).write_pdf()
+    # base_url lets relative /pub/... image srcs resolve; the fetcher
+    # then refuses everything that isn't a data: URI or one of our own
+    # uploaded files, so a stored <img src> can't make WeasyPrint reach
+    # out to internal or external hosts during rendering.
+    pdf_bytes = HTML(string=page_html, base_url=request.url_root,
+                     url_fetcher=_pdf_url_fetcher).write_pdf()
     safe_title = "".join(c if c.isalnum() or c in (" ", "-", "_") else "_"
                          for c in r.title).strip() or f"reading-{r.id}"
     resp = current_app.make_response(pdf_bytes)
@@ -15523,8 +15671,36 @@ def reading_pdf(rid):
     return resp
 
 
+def _pdf_url_fetcher(url):
+    """WeasyPrint resource fetcher locked to safe origins: ``data:`` URIs
+    and this portal's own ``/pub/<name>`` files (read straight from the
+    uploads folder — no HTTP round-trip). Any other resource reference,
+    remote or internal, raises and renders as a missing image."""
+    from weasyprint import default_url_fetcher
+    from urllib.parse import unquote, urlparse
+    if url.startswith("data:"):
+        return default_url_fetcher(url)
+    path = urlparse(url).path or ""
+    if "/pub/" in path:
+        name = unquote(path.split("/pub/", 1)[1])
+        if name and ".." not in name and not name.startswith("/"):
+            m = (MediaItem.query.filter_by(original_filename=name)
+                 .order_by(MediaItem.created_at.desc()).first())
+            if m:
+                full = os.path.join(current_app.config["UPLOAD_FOLDER"],
+                                    m.stored_filename)
+                if os.path.isfile(full):
+                    return {"file_obj": open(full, "rb"),
+                            "mime_type": m.mime_type or None}
+    raise ValueError(f"Blocked external resource in PDF render: {url[:200]}")
+
+
 def _pdf_page_html(title, body_html):
-    """Wrap rendered body HTML in a minimal letter-style PDF template."""
+    """Wrap rendered body HTML in a minimal letter-style PDF template.
+    ``body_html`` has been through the markdown/bleach filter; the title
+    is raw user text and gets escaped here."""
+    from markupsafe import escape
+    title = escape(title or "")
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title}</title>
 <style>
@@ -15889,7 +16065,12 @@ def _to_webp_upload(uploaded):
 
 
 def _save_upload(uploaded):
-    """Save a Werkzeug FileStorage to uploads; also create/reuse a MediaItem. Returns (stored, original)."""
+    """Save a Werkzeug FileStorage to uploads; also create/reuse a MediaItem. Returns (stored, original).
+
+    Streams to disk in 1 MiB chunks — uploads run to multiple GB (full
+    restore bundles ride the same MAX_CONTENT_LENGTH), so the payload
+    must never sit fully in RAM. SVGs are the exception: the sanitizer
+    and dimension normaliser need the whole (small) document in memory."""
     original = secure_filename(uploaded.filename) or "upload"
     ext = os.path.splitext(original)[1].lower()
     if ext in BLOCKED_UPLOAD_EXTENSIONS:
@@ -15902,7 +16083,7 @@ def _save_upload(uploaded):
     # caller's transaction). No-op for non-images and when autobump is off.
     if ext in imgcache.IMAGE_EXTENSIONS:
         imgcache.note_image_change()
-    data = uploaded.read()
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
     if ext == ".svg":
         # Strip <script>, on*= handlers, and javascript: hrefs BEFORE the
         # dimension normaliser touches the file. SVG uploads are
@@ -15912,25 +16093,54 @@ def _save_upload(uploaded):
         # navigate to the file directly — browsers execute inline
         # <script> in standalone SVGs. Same _sanitize_svg() that the
         # Custom Icons upload path uses.
-        data = _sanitize_svg(data)
+        data = _sanitize_svg(uploaded.read())
         data = _normalize_svg_dimensions(data)
-    h = hashlib.sha256(data).hexdigest()
-    existing = MediaItem.query.filter_by(content_hash=h).first()
-    if existing:
-        return existing.stored_filename, existing.original_filename
-    stored = f"{uuid.uuid4().hex}{ext}"
-    path = os.path.join(current_app.config["UPLOAD_FOLDER"], stored)
-    with open(path, "wb") as f:
-        f.write(data)
-    if ext == ".svg":
+        h = hashlib.sha256(data).hexdigest()
+        existing = MediaItem.query.filter_by(content_hash=h).first()
+        if existing:
+            return existing.stored_filename, existing.original_filename
+        stored = f"{uuid.uuid4().hex}{ext}"
+        path = os.path.join(upload_dir, stored)
+        with open(path, "wb") as f:
+            f.write(data)
+        size = len(data)
         # Auto-generate a same-stem PNG twin for raster contexts that
         # can't show SVG — notably the branded form-submission emails
         # (see public.site_footer_logo_png). Best-effort; a missing
         # rasterizer just leaves no PNG and callers fall back.
         from .svg_raster import svg_bytes_to_png
         svg_bytes_to_png(data, os.path.splitext(path)[0] + ".png", output_width=640)
+    else:
+        # Hash while streaming to a temp file in the destination dir, then
+        # rename into place (same filesystem, so the move is atomic).
+        # Dedupe costs a throwaway temp file instead of a full buffer.
+        hasher = hashlib.sha256()
+        size = 0
+        tmp_path = os.path.join(upload_dir, f".tmp-{uuid.uuid4().hex}")
+        try:
+            with open(tmp_path, "wb") as f:
+                while True:
+                    chunk = uploaded.stream.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    hasher.update(chunk)
+                    size += len(chunk)
+                    f.write(chunk)
+            h = hasher.hexdigest()
+            existing = MediaItem.query.filter_by(content_hash=h).first()
+            if existing:
+                os.unlink(tmp_path)
+                return existing.stored_filename, existing.original_filename
+            stored = f"{uuid.uuid4().hex}{ext}"
+            os.replace(tmp_path, os.path.join(upload_dir, stored))
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
     m = MediaItem(stored_filename=stored, original_filename=original,
-                  content_hash=h, size_bytes=len(data),
+                  content_hash=h, size_bytes=size,
                   mime_type=getattr(uploaded, "mimetype", None),
                   uploaded_by=getattr(current_user, "id", None))
     db.session.add(m)
@@ -16236,23 +16446,31 @@ def media_upload():
     uploaded = request.files.get("file")
     if not uploaded or not uploaded.filename:
         return jsonify({"error": "no file"}), 400
-    data = uploaded.read()
-    original = secure_filename(uploaded.filename) or "upload"
-    ext = os.path.splitext(original)[1]
-    if ext.lower() == ".svg":
-        data = _normalize_svg_dimensions(data)
-    h = hashlib.sha256(data).hexdigest()
+    # Single-source every upload guard: BLOCKED_UPLOAD_EXTENSIONS (no
+    # .html/.xml/etc.), SVG restricted to admins and sanitized BEFORE
+    # storage. Files saved here are retrievable by unauthenticated
+    # visitors via /pub/<original_filename>, so an editor uploading
+    # active content served inline would be a stored-XSS vector against
+    # staff. Previously this route read the bytes straight to disk with
+    # none of _save_upload's checks.
+    from io import BytesIO
+    from werkzeug.datastructures import FileStorage
+    from werkzeug.exceptions import HTTPException
+    raw = uploaded.read()
+    h = hashlib.sha256(raw).hexdigest()
     existing = MediaItem.query.filter_by(content_hash=h).first()
     if existing:
         return jsonify({"item": _media_json(existing), "deduped": True})
-    stored = f"{uuid.uuid4().hex}{ext}"
-    with open(os.path.join(current_app.config["UPLOAD_FOLDER"], stored), "wb") as f:
-        f.write(data)
-    m = MediaItem(stored_filename=stored, original_filename=original,
-                  content_hash=h, size_bytes=len(data),
-                  mime_type=uploaded.mimetype,
-                  uploaded_by=current_user.id)
-    db.session.add(m); db.session.commit()
+    fs = FileStorage(stream=BytesIO(raw), filename=uploaded.filename,
+                     content_type=uploaded.mimetype)
+    try:
+        stored, original = _save_upload(fs)
+    except HTTPException as e:
+        return jsonify({"error": e.description}), e.code
+    db.session.commit()
+    m = MediaItem.query.filter_by(stored_filename=stored).first()
+    if not m:
+        return jsonify({"error": "upload failed"}), 500
     return jsonify({"item": _media_json(m), "deduped": False})
 
 
@@ -16269,12 +16487,31 @@ def media_rename(mid):
                         "error": "You can only rename files uploaded by you or another editor-tier user."}), 403
     new_name = (request.form.get("name") or "").strip()
     if new_name:
-        m.original_filename = new_name[:500]
+        # The public /pub/<filename> route serves by original_filename
+        # INLINE with a guessed mimetype — a rename to ".html"/".xml"
+        # (or to ".svg" by a non-admin, bypassing ADMIN_ONLY_UPLOAD_EXTENSIONS)
+        # would turn any benign upload into same-origin stored XSS. Apply
+        # the same filename/extension policy _save_upload enforces.
+        safe_name = secure_filename(new_name)
+        if not safe_name:
+            return jsonify({"ok": False, "error": "Invalid filename."}), 400
+        ext = os.path.splitext(safe_name)[1].lower()
+        if ext in BLOCKED_UPLOAD_EXTENSIONS:
+            return jsonify({"ok": False,
+                            "error": f"File type '{ext}' is not allowed."}), 400
+        if ext in ADMIN_ONLY_UPLOAD_EXTENSIONS and not current_user.is_admin():
+            return jsonify({"ok": False,
+                            "error": f"File type '{ext}' is only allowed for admins."}), 400
+        m.original_filename = safe_name[:500]
         db.session.commit()
     return jsonify({"ok": True, "original_filename": m.original_filename})
 
 
-@bp.route("/files/<int:mid>/delete", methods=["POST"])
+# NOTE: distinct path segment ("media") — this rule previously collided
+# with file_delete's identical "/files/<int>/delete", which registered
+# first and shadowed this endpoint entirely. A File Browser delete would
+# 404 (or hit the MeetingFile with the same numeric id).
+@bp.route("/files/media/<int:mid>/delete", methods=["POST"])
 @admin_required
 def media_delete(mid):
     m = db.session.get(MediaItem, mid) or abort(404)
@@ -16481,6 +16718,9 @@ def mfa_disable():
     factor — and so it works even if the authenticator device is lost."""
     from werkzeug.security import check_password_hash
     user = db.session.get(User, current_user.id)
+    if user.is_admin():
+        return jsonify(ok=False, error="Two-factor authentication is required "
+                                       "for admin accounts and can't be turned off."), 400
     if not (user.mfa_required or user.mfa_enabled):
         return jsonify(ok=False, error="Two-factor authentication isn't enabled."), 400
     password = request.form.get("password") or ""
@@ -16956,7 +17196,9 @@ def watchtower_visitors_csv():
         w.writerow([section_label])
         w.writerow([label_col, "views", "unique_visitors"])
         for label, counts in rows:
-            w.writerow([label, counts["views"], counts["uniques"]])
+            # Labels here are visitor-controlled (request paths, Referer
+            # headers, UA strings) — formula-neutralise them.
+            w.writerow([_csv_cell(label), counts["views"], counts["uniques"]])
         w.writerow([])
 
     _write_breakdown("## Top paths",     "path",     paths)
@@ -17355,8 +17597,8 @@ def watchtower_ban_ip():
             if wants_json:
                 return jsonify(ok=False, error=msg, protected=True), 409
             flash(msg, "warning")
-            return redirect(request.form.get("return_url")
-                            or url_for("main.watchtower_not_found"))
+            return redirect(_safe_return_url(request.form.get("return_url"),
+                                             "main.watchtower_not_found"))
     row = wt.ban_ip(ip, reason, current_user.id,
                     ttl_hours=ttl_hours if ttl_hours > 0 else None)
     if row:
@@ -17370,7 +17612,7 @@ def watchtower_ban_ip():
         if wants_json:
             return jsonify(ok=False, error="Couldn't block — invalid input."), 400
         flash("Couldn't block — invalid input.", "danger")
-    return redirect(request.form.get("return_url") or url_for("main.watchtower_access"))
+    return redirect(_safe_return_url(request.form.get("return_url"), "main.watchtower_access"))
 
 
 @bp.route("/watchtower/rc-abuse/<int:aid>/resolve", methods=["POST"])
@@ -17387,7 +17629,7 @@ def watchtower_rc_abuse_resolve(aid):
         flash("Marked the flagged request as handled.", "success")
     else:
         flash("That flag was already cleared.", "info")
-    return redirect(request.form.get("return_url") or url_for("main.watchtower"))
+    return redirect(_safe_return_url(request.form.get("return_url"), "main.watchtower"))
 
 
 @bp.route("/watchtower/unban-ip/<int:bid>", methods=["POST"])
@@ -17404,7 +17646,7 @@ def watchtower_unban_ip(bid):
         flash(f"Unblocked {ip}.", "success")
     else:
         flash("Block not found.", "danger")
-    return redirect(request.form.get("return_url") or url_for("main.watchtower_access"))
+    return redirect(_safe_return_url(request.form.get("return_url"), "main.watchtower_access"))
 
 
 @bp.route("/watchtower/end-session/<int:sid>", methods=["POST"])
@@ -17422,7 +17664,7 @@ def watchtower_end_session(sid):
         flash(f"Ended session for {label}.", "success")
     else:
         flash("Session not open or not found.", "danger")
-    return redirect(request.form.get("return_url") or url_for("main.watchtower_access"))
+    return redirect(_safe_return_url(request.form.get("return_url"), "main.watchtower_access"))
 
 
 @bp.route("/watchtower/clear-failures", methods=["POST"])
@@ -17437,7 +17679,7 @@ def watchtower_clear_failures():
         flash(f"Cleared {n} failed-login record(s) for {ip}.", "success")
     else:
         flash("No matching records.", "info")
-    return redirect(request.form.get("return_url") or url_for("main.watchtower_access"))
+    return redirect(_safe_return_url(request.form.get("return_url"), "main.watchtower_access"))
 
 
 @bp.route("/api/user-log-events")
@@ -18188,7 +18430,8 @@ def post_save():
     post.is_online = request.form.get("is_online") == "1"
     post.location_name = (request.form.get("location_name") or "").strip()[:255] or None
     post.location_address = (request.form.get("location_address") or "").strip() or None
-    post.google_maps_url = (request.form.get("google_maps_url") or "").strip()[:500] or None
+    from .safeurl import sanitize_url
+    post.google_maps_url = sanitize_url(request.form.get("google_maps_url"))
 
     # Multi-row Links section. Each row submits as parallel
     # ``link_url[]``, ``link_label[]``, plus an indexed
@@ -18203,7 +18446,9 @@ def post_save():
     _styles = request.form.getlist("link_style")
     _links = []
     for i, raw_url in enumerate(_urls):
-        url = (raw_url or "").strip()[:500]
+        # Links render as raw href on the public event page — drop unsafe
+        # schemes (javascript:/data:) rather than storing them.
+        url = sanitize_url(raw_url)
         if not url:
             continue
         label = (_labels[i] if i < len(_labels) else "").strip()[:120] or None
@@ -18230,7 +18475,7 @@ def post_save():
 
     post.zoom_meeting_id = (request.form.get("zoom_meeting_id") or "").strip()[:64] or None
     post.zoom_passcode = (request.form.get("zoom_passcode") or "").strip()[:128] or None
-    post.zoom_url = (request.form.get("zoom_url") or "").strip()[:500] or None
+    post.zoom_url = sanitize_url(request.form.get("zoom_url"))
 
     post.contact_name = (request.form.get("contact_name") or "").strip()[:120] or None
     post.contact_phone = (request.form.get("contact_phone") or "").strip()[:64] or None
@@ -18659,12 +18904,25 @@ def posts_legacy_redirect(rest):
     return redirect(target, code=301)
 
 
+def _public_image_visible(obj):
+    """Anonymous visitors may only fetch images belonging to content
+    that is actually live on the public site — draft, pending-review,
+    and archived items would otherwise be enumerable by walking the
+    integer ids of these image routes. Signed-in portal users bypass
+    (admins/editors preview pending items in the review UIs)."""
+    if getattr(current_user, "is_authenticated", False):
+        return True
+    return not (getattr(obj, "is_draft", False)
+                or getattr(obj, "is_archived", False)
+                or getattr(obj, "is_pending_review", False))
+
+
 @public_bp.route("/post-image/<int:pid>")
 def post_featured_image(pid):
     """Serve a post's featured image. Public so the public web frontend
     can render link previews even before a visitor signs in."""
     p = db.session.get(Post, pid)
-    if not p or not p.featured_image_filename:
+    if not p or not p.featured_image_filename or not _public_image_visible(p):
         abort(404)
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], p.featured_image_filename)
 
@@ -18682,7 +18940,7 @@ def post_gallery_image(pid, idx):
     deletions inside the array shift indices, but the public URL
     shape stays simple."""
     p = db.session.get(Post, pid)
-    if not p:
+    if not p or not _public_image_visible(p):
         abort(404)
     filenames = p.gallery_filenames
     if idx < 0 or idx >= len(filenames):
@@ -19122,7 +19380,7 @@ def story_featured_image(sid):
     next to the source. Lets the admin list + public list templates
     avoid loading multi-MB hero images for postage-stamp tiles."""
     st = db.session.get(Story, sid)
-    if not st or not st.featured_image_filename:
+    if not st or not st.featured_image_filename or not _public_image_visible(st):
         abort(404)
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     thumb_arg = (request.args.get("thumb") or "").strip()
@@ -19976,7 +20234,10 @@ def blog_category_save():
     cat.slug = _unique_blog_taxonomy_slug(BlogCategory, base,
                                            exclude_id=cat.id if not creating else None)
     cat.description = (request.form.get("description") or "").strip() or None
-    cat.color = (request.form.get("color") or "").strip()[:16] or None
+    # The color lands in inline style attributes — accept only #rgb/#rrggbb
+    # so a crafted value can't smuggle CSS into public pages.
+    _color = (request.form.get("color") or "").strip()
+    cat.color = _color if re.fullmatch(r"#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?", _color) else None
     pos_raw = (request.form.get("position") or "").strip()
     if pos_raw.lstrip("-").isdigit():
         cat.position = int(pos_raw)
@@ -20121,7 +20382,7 @@ def blog_post_featured_image(bid):
     render the image without auth. Same ``?thumb=<size>`` semantics as
     ``story_featured_image`` for postage-stamp tiles in lists."""
     post = db.session.get(BlogPost, bid)
-    if not post or not post.featured_image_filename:
+    if not post or not post.featured_image_filename or not _public_image_visible(post):
         abort(404)
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     thumb_arg = (request.args.get("thumb") or "").strip()

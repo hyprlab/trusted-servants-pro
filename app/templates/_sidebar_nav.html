@@ -27,7 +27,7 @@
   {% endif %}
   {% if _sec_key == 'external' %}<span id="sidebar-custom-nav">{% endif %}
   {% for it in _items %}
-    <a href="{{ it.href }}"
+    <a href="{{ it.href|safe_url }}"
        {% if it.target %}target="{{ it.target }}" rel="noopener"{% endif %}
        {% if it.is_external %}data-nav-custom{% endif %}
        class="{% if it.active %}active{% endif %}{% if it.is_action %} sidebar-action{% endif %}">

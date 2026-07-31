@@ -111,7 +111,7 @@
                 {% endif %}
                 {% if f.url %}
                 <p class="fe-fellowships-card-cta">
-                  <a href="{{ f.url }}" target="_blank" rel="noopener nofollow">
+                  <a href="{{ f.url|safe_url }}" target="_blank" rel="noopener nofollow">
                     Visit website {{ icon('external-link') }}
                   </a>
                 </p>

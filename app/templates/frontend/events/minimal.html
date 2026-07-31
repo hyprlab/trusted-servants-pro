@@ -53,14 +53,14 @@
         {% if event.location_name and event.location_address %}<br>{% endif %}
         {% if event.location_address %}<span class="muted">{{ event.location_address }}</span>{% endif %}
         {% set _maps = event.google_maps_url or ("https://www.google.com/maps/search/?api=1&query=" ~ ((event.location_address or event.location_name)|urlencode)) %}
-        <a class="fe-event-min-link" href="{{ _maps }}" target="_blank" rel="noopener">map →</a>
+        <a class="fe-event-min-link" href="{{ _maps|safe_url }}" target="_blank" rel="noopener">map →</a>
       </dd>
       {% endif %}
 
       {% if event.is_online and event.zoom_url %}
       <dt>Zoom</dt>
       <dd>
-        <a class="fe-event-min-link fe-event-min-link-strong" href="{{ event.zoom_url }}" target="_blank" rel="noopener">Join the meeting →</a>
+        <a class="fe-event-min-link fe-event-min-link-strong" href="{{ event.zoom_url|safe_url }}" target="_blank" rel="noopener">Join the meeting →</a>
         {% if event.zoom_meeting_id %}
         <div class="fe-event-min-cred">
           <span class="muted">ID</span>
@@ -87,7 +87,7 @@
       <dt>Links</dt>
       <dd>
         {% for link in _links %}
-        <a class="fe-event-min-link" href="{{ link.url }}"
+        <a class="fe-event-min-link" href="{{ link.url|safe_url }}"
            {% if link.new_tab %}target="_blank" rel="noopener"{% endif %}>{{ link.label or link.url }} →</a>{% if not loop.last %}<br>{% endif %}
         {% endfor %}
       </dd>

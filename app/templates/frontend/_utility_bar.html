@@ -14,14 +14,17 @@
      `aria-label` so screen readers get the richer hover text;
      other kinds keep their visible label as the accessible name. #}
   {%- set _tip = (it.tooltip or '') | trim -%}
-  {%- set _tip_attr = ' title="' ~ _tip ~ '"' if _tip else '' -%}
+  {# The attr string bypasses autoescape via the `|safe` at each usage
+     site, so the tooltip text MUST be entity-escaped here — otherwise a
+     `"` in it breaks out of the title attribute on every public page. #}
+  {%- set _tip_attr = ' title="' ~ (_tip | e) ~ '"' if _tip else '' -%}
   {%- if it.kind == 'link' -%}
-    <a class="fe-utility-link" href="{{ it.url }}"{{ _tgt|safe }}{{ _tip_attr|safe }}>
+    <a class="fe-utility-link" href="{{ it.url|safe_url }}"{{ _tgt|safe }}{{ _tip_attr|safe }}>
       {% if it.icon %}<span class="fe-utility-icon" aria-hidden="true">{{ icon(it.icon) }}</span>{% endif %}
       <span>{{ it.label }}</span>
     </a>
   {%- elif it.kind == 'button' -%}
-    <a class="fe-utility-btn" href="{{ it.url }}"{{ _tgt|safe }}{{ _tip_attr|safe }}>
+    <a class="fe-utility-btn" href="{{ it.url|safe_url }}"{{ _tgt|safe }}{{ _tip_attr|safe }}>
       {% if it.icon %}<span class="fe-utility-icon" aria-hidden="true">{{ icon(it.icon) }}</span>{% endif %}
       <span>{{ it.label }}</span>
     </a>
@@ -33,7 +36,7 @@
   {%- elif it.kind == 'icon' -%}
     {%- set _aria = _tip or it.label or it.icon -%}
     {% if it.url -%}
-      <a class="fe-utility-icon-only" href="{{ it.url }}"{{ _tgt|safe }}
+      <a class="fe-utility-icon-only" href="{{ it.url|safe_url }}"{{ _tgt|safe }}
          aria-label="{{ _aria }}"{{ _tip_attr|safe }}>{{ icon(it.icon) }}</a>
     {%- else -%}
       <span class="fe-utility-icon-only" aria-label="{{ _aria }}"{{ _tip_attr|safe }}>{{ icon(it.icon) }}</span>
@@ -108,7 +111,7 @@
       {%- set _tgt = ' target="_blank" rel="noopener"' if _target.new_tab else '' -%}
       {% if _target.url %}
         <a class="fe-utility-container fe-utility-container--collapsed"
-           href="{{ _target.url }}"{{ _tgt|safe }}
+           href="{{ _target.url|safe_url }}"{{ _tgt|safe }}
            aria-label="{{ _aria }}" title="{{ _aria }}">{{ icon(it.collapsed_icon) }}</a>
       {% else %}
         <span class="fe-utility-container fe-utility-container--collapsed"
@@ -195,7 +198,7 @@
             <span class="fe-utility-live-label">LIVE:</span>
             <span class="fe-utility-live-name">{{ live_meeting.meeting.name }}</span>
             {% if live_meeting.join_url %}
-              <a class="fe-utility-live-cta" href="{{ live_meeting.join_url }}"
+              <a class="fe-utility-live-cta" href="{{ live_meeting.join_url|safe_url }}"
                  target="_blank" rel="noopener">Join Zoom Meeting</a>
             {% endif %}
           </div>

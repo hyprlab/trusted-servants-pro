@@ -778,11 +778,13 @@
             <div class="mfa-required-note" {% if not _mfa_pending %}hidden{% endif %}>
               {{ icon('shield') }}
               <span>Two-factor authentication has been turned on for your account.
-              Set it up below, or turn it off if you'd rather not use it.</span>
+              {% if current_user.is_admin() %}It's required for admin accounts — set it up below.{% else %}Set it up below, or turn it off if you'd rather not use it.{% endif %}</span>
             </div>
             <div class="mfa-off-actions">
               <button type="button" class="btn btn-primary mfa-begin-btn">Set up two-factor authentication</button>
+              {% if not current_user.is_admin() %}
               <button type="button" class="btn btn-danger mfa-disable-btn mfa-off-disable" {% if not _mfa_pending %}hidden{% endif %}>Turn off two-factor</button>
+              {% endif %}
             </div>
 
             {# Enrolment panel, revealed after /mfa/begin returns the QR #}
@@ -818,7 +820,9 @@
             </p>
             <div class="mfa-manage-actions">
               <button type="button" class="btn mfa-regen-btn">Regenerate recovery codes</button>
+              {% if not current_user.is_admin() %}
               <button type="button" class="btn btn-danger mfa-disable-btn">Disable two-factor</button>
+              {% endif %}
             </div>
           </div>
 
@@ -2293,7 +2297,7 @@
               <div class="about-stack-label">Built With</div>
               <div class="tech-stack">
                 {% for name, slug, url in _tech_icons %}
-                <a class="tech-tile" href="{{ url }}" target="_blank" rel="noopener" title="{{ name }}">
+                <a class="tech-tile" href="{{ url|safe_url }}" target="_blank" rel="noopener" title="{{ name }}">
                   <span class="tech-icon" style="-webkit-mask-image: url('{{ url_for('static', filename='img/tech/' ~ slug ~ '.svg') }}'); mask-image: url('{{ url_for('static', filename='img/tech/' ~ slug ~ '.svg') }}');"></span>
                   <span class="tech-tile-name">{{ name }}</span>
                 </a>
