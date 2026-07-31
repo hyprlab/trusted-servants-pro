@@ -25,7 +25,7 @@
       <ul class="fe-site-index-list">
         {% for it in g['items'] %}
         <li class="fe-site-index-row fe-site-index-row-{{ it.kind }}">
-          <a class="fe-site-index-row-link" href="{{ it.url }}">
+          <a class="fe-site-index-row-link" href="{{ it.url|safe_url }}">
             <span class="fe-site-index-row-text">
               <span class="fe-site-index-row-title">{{ it.title }}</span>
               {% if it.subtitle %}<span class="fe-site-index-row-sub muted smaller">{{ it.subtitle }}</span>{% endif %}

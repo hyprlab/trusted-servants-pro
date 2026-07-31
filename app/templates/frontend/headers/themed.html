@@ -35,16 +35,16 @@
           {% set _tgt = ' target="_blank" rel="noopener"' if ni.open_in_new_tab else '' %}
           {%- set _ft = ' data-fe-form-trigger="' ~ ni.form_trigger ~ '"' if ni.form_trigger else '' -%}
           {% if ni.style == 'button' or ni.style == 'button-rounded' %}
-            <a href="{{ _href }}"{{ _tgt|safe }}{{ _ft|safe }} class="fe-th-nav-link fe-th-nav-cta{% if _has_mm %} fe-megaparent{% endif %}"
+            <a href="{{ _href|safe_url }}"{{ _tgt|safe }}{{ _ft|safe }} class="fe-th-nav-link fe-th-nav-cta{% if _has_mm %} fe-megaparent{% endif %}"
                {% if _has_mm %}data-megamenu="{{ ni.id }}"{% endif %}>{{ ni.label or '' }}{% if _has_mm %}<span class="fe-nav-caret">{{ icon('chevron-down') }}</span>{% endif %}</a>
           {% elif ni.style == 'two-line' %}
-            <a href="{{ _href }}"{{ _tgt|safe }}{{ _ft|safe }} class="fe-th-nav-link fe-th-nav-twoline{% if _has_mm %} fe-megaparent{% endif %}"
+            <a href="{{ _href|safe_url }}"{{ _tgt|safe }}{{ _ft|safe }} class="fe-th-nav-link fe-th-nav-twoline{% if _has_mm %} fe-megaparent{% endif %}"
                {% if _has_mm %}data-megamenu="{{ ni.id }}"{% endif %}>
               <span class="fe-th-nav-twoline-lead">{{ ni.line1 or '' }}</span>
               <span class="fe-th-nav-twoline-cta">{{ ni.line2 or '' }}{% if _has_mm %}<span class="fe-nav-caret">{{ icon('chevron-down') }}</span>{% endif %}</span>
             </a>
           {% else %}
-            <a href="{{ _href }}"{{ _tgt|safe }}{{ _ft|safe }} class="fe-th-nav-link{% if _has_mm %} fe-megaparent{% endif %}"
+            <a href="{{ _href|safe_url }}"{{ _tgt|safe }}{{ _ft|safe }} class="fe-th-nav-link{% if _has_mm %} fe-megaparent{% endif %}"
                {% if _has_mm %}data-megamenu="{{ ni.id }}"{% endif %}>{{ ni.label or '' }}{% if _has_mm %}<span class="fe-nav-caret">{{ icon('chevron-down') }}</span>{% endif %}</a>
           {% endif %}
         {% endfor %}

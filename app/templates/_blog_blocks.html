@@ -76,7 +76,7 @@
     {% set _align = d.align or 'left' %}
     <p class="bb-button bb-button--{{ _align }}">
       <a class="bb-btn bb-btn--{{ _style }}"
-         href="{{ d.url or '#' }}"
+         href="{{ d.url|safe_url }}"
          {% if d.new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}>
         {{ d.label or 'Click here' }}
       </a>

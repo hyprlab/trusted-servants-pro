@@ -172,7 +172,7 @@
           {%- if b.custom_hover_bg_color -%}{%- set _ = _vars.append('--fe-btn-hover-bg: ' ~ b.custom_hover_bg_color) -%}{%- endif -%}
           {%- if b.custom_hover_text_color -%}{%- set _ = _vars.append('--fe-btn-hover-text: ' ~ b.custom_hover_text_color) -%}{%- endif -%}
         {%- endif -%}
-        <a href="{{ b.url or '#' }}"{{ _tgt|safe }} class="{{ _cls }}"
+        <a href="{{ b.url|safe_url }}"{{ _tgt|safe }} class="{{ _cls }}"
            {% if _vars %}style="{{ _vars | join('; ') }};"{% endif %}>
           {%- if b.icon_before -%}
             {%- set _ivars = [] -%}

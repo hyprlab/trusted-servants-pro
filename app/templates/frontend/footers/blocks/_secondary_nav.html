@@ -6,7 +6,7 @@
 {% if _nav %}
 <ul class="fe-footer-secondary-nav fe-footer-block fe-footer-block-secnav">
   {% for l in _nav %}
-  <li><a href="{{ l.url or '#' }}">{{ l.label or '' }}</a></li>
+  <li><a href="{{ l.url|safe_url }}">{{ l.label or '' }}</a></li>
   {% endfor %}
 </ul>
 {% endif %}

@@ -24,7 +24,7 @@
         <td data-label="Address">
           {% if l.location_type == 'in_person' %}
             {% for line in l.address_lines() %}<div>{{ line }}</div>{% endfor %}
-            {% if l.maps_url %}<a href="{{ l.maps_url }}" target="_blank" rel="noopener" class="smaller">Open in Maps</a>{% endif %}
+            {% if l.maps_url %}<a href="{{ l.maps_url|safe_url }}" target="_blank" rel="noopener" class="smaller">Open in Maps</a>{% endif %}
           {% else %}
             <span class="muted smaller">—</span>
           {% endif %}
