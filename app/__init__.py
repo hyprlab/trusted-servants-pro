@@ -32,12 +32,17 @@ class _CloudflareRemoteAddr:
     Wired up *inside* ProxyFix so it runs after XFF processing and wins
     when the header is present, while still falling back to ProxyFix's
     XFF result (and to the bare socket ``REMOTE_ADDR``) when it isn't.
-    Only installed when a proxy is trusted AND explicitly opted in via
-    ``TSP_TRUST_CF_HEADER=1``. The header is only honored when the
-    post-ProxyFix REMOTE_ADDR is a published Cloudflare edge IP —
-    otherwise any client could forge the header to rotate their apparent
-    IP per request, defeating the IP-based login lockout, Watchtower IP
-    bans, and rate limiters, and poisoning audit logs with fake IPs.
+    Installed by default whenever a proxy is trusted (disable with
+    ``TSP_TRUST_CF_HEADER=0``). The header is only honored when the
+    post-ProxyFix REMOTE_ADDR is a published Cloudflare edge IP — THIS
+    edge check is the security control, not the on/off flag: on a
+    non-Cloudflare deploy a forged CF-Connecting-IP is ignored because
+    the peer isn't a CF edge, so trusting the header by default can't be
+    used to rotate an apparent IP and defeat login lockout / IP bans /
+    rate limiters. (The historical H3 vuln was the *unverified* trust the
+    edge check now closes; keeping the header on by default is what makes
+    real-IP capture work out-of-the-box behind Cloudflare — the common
+    install topology — without every deployment needing an env var.)
     Extend the bundled range list via ``TSP_CF_EXTRA_RANGES`` (comma-
     separated CIDRs) if Cloudflare adds edges.
     """
@@ -107,13 +112,15 @@ def create_app():
     # spoofable headers when no proxy sits in front.
     #
     # Cloudflare adds a second hop, so XFF hop-counting alone lands on the
-    # CF edge IP — _CloudflareRemoteAddr (installed inside ProxyFix) reads
-    # CF-Connecting-IP to recover the true client. It is OPT-IN
-    # (TSP_TRUST_CF_HEADER=1): on the stock Caddy-only deploy (no
-    # Cloudflare) the header comes straight from the client and would
-    # otherwise let anyone spoof their apparent IP to defeat login
-    # lockout, IP bans, and rate limiters. Even when enabled, the header
-    # is only honored from verified Cloudflare edge IPs.
+    # CF edge IP (172.64.0.0/13, e.g. 172.71.x.x) — _CloudflareRemoteAddr
+    # (installed inside ProxyFix) reads CF-Connecting-IP to recover the
+    # true client. ON BY DEFAULT (disable with TSP_TRUST_CF_HEADER=0)
+    # because Cloudflare-in-front is the common install topology and the
+    # header is ONLY honored when the post-ProxyFix peer is a verified
+    # Cloudflare edge IP — a forged header on a non-CF deploy is ignored,
+    # so default-on can't be abused to spoof an IP. (Defaulting this OFF
+    # in 2.18.0 silently regressed real-IP capture to the CF edge IP on
+    # every Cloudflare deployment; restored here.)
     try:
         _proxy_hops = int(os.environ.get("TSP_TRUSTED_PROXIES", "1"))
     except ValueError:
@@ -123,7 +130,7 @@ def create_app():
         # sets REMOTE_ADDR from XFF, then this overrides it with the
         # Cloudflare header when present (and is a no-op when it isn't or
         # the XFF peer isn't a Cloudflare edge).
-        if os.environ.get("TSP_TRUST_CF_HEADER", "0") == "1":
+        if os.environ.get("TSP_TRUST_CF_HEADER", "1") != "0":
             app.wsgi_app = _CloudflareRemoteAddr(app.wsgi_app)
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
