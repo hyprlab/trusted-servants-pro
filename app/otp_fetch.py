@@ -211,10 +211,20 @@ def fetch_latest_code(otp, max_age_minutes=10):
             conn = imaplib.IMAP4_SSL(host, port, timeout=20)
         else:
             conn = imaplib.IMAP4(host, port, timeout=20)
+            # Fail closed: without a successful STARTTLS the login below
+            # would ship the mailbox password in cleartext. Servers that
+            # genuinely can't do TLS should use the SSL port instead.
             try:
                 conn.starttls()
             except Exception:
-                pass  # server may not advertise STARTTLS on the plain port
+                try:
+                    conn.logout()
+                except Exception:
+                    pass
+                return {"ok": False,
+                        "error": "The IMAP server refused STARTTLS — refusing to "
+                                 "send credentials over an unencrypted connection. "
+                                 "Enable SSL (port 993) or fix TLS on the server."}
         conn.login(username, password)
         # EXAMINE = read-only SELECT; never touches \Seen flags.
         typ, _ = conn.select(mailbox, readonly=True)

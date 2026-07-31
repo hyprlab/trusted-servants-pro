@@ -7077,6 +7077,27 @@ body.fe-frontend-force-dark a.fe-events-omni-archive:focus-visible .fe-events-om
     display: inline-flex;
     animation: feOmniHintPulseLeft 1.4s ease-in-out infinite;
   }
+  /* Per-edge fade — a pill overflowing toward an active chevron edge
+     dissolves over the scroller's last 28px instead of hard-clipping
+     at the box edge, blending it into the chevron gutter. Applied
+     only on side(s) with more content (same recipe as the utility
+     bar's edge fade) so nothing fades when there's nowhere to swipe. */
+  .fe-events-omni-scrollwrap.has-right:not(.has-left) .fe-events-omni-bar {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+            mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  }
+  .fe-events-omni-scrollwrap.has-left:not(.has-right) .fe-events-omni-bar {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent 100%);
+            mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent 100%);
+  }
+  .fe-events-omni-scrollwrap.has-left.has-right .fe-events-omni-bar {
+    -webkit-mask-image: linear-gradient(to right,
+                          transparent 0, #000 28px,
+                          #000 calc(100% - 28px), transparent 100%);
+            mask-image: linear-gradient(to right,
+                          transparent 0, #000 28px,
+                          #000 calc(100% - 28px), transparent 100%);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .fe-omni-scroll-hint {

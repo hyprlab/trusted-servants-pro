@@ -274,7 +274,7 @@
         ends at <time datetime="{{ _ls.end_time }}">{{ _ls.end_time | fmt12h }}</time>.
       </p>
       {% if live_meeting.join_url %}
-        <p><a href="{{ live_meeting.join_url }}" rel="noopener noreferrer">Join this meeting now (opens Zoom)</a></p>
+        <p><a href="{{ live_meeting.join_url|safe_url }}" rel="noopener noreferrer">Join this meeting now (opens Zoom)</a></p>
       {% endif %}
       <p><a href="{{ url_for('frontend.meeting_detail', slug=_lm.public_slug) }}">Full details for {{ _lm.name }}</a></p>
     </aside>
@@ -388,10 +388,10 @@
                   <ul class="meeting-actions">
                     <li><a href="{{ url_for('frontend.meeting_detail', slug=m.public_slug) }}">Full details<span class="sr-only"> for {{ m.name }}</span></a></li>
                     {% if _maps_url %}
-                      <li><a href="{{ _maps_url }}" rel="noopener noreferrer">Open in Google Maps<span class="sr-only"> for {{ m.name }} (opens external site)</span></a></li>
+                      <li><a href="{{ _maps_url|safe_url }}" rel="noopener noreferrer">Open in Google Maps<span class="sr-only"> for {{ m.name }} (opens external site)</span></a></li>
                     {% endif %}
                     {% if m.zoom_link and m.meeting_type in ('online', 'hybrid') %}
-                      <li><a class="zoom" href="{{ m.zoom_link }}" rel="noopener noreferrer">Join Zoom<span class="sr-only"> for {{ m.name }} (opens external site)</span></a></li>
+                      <li><a class="zoom" href="{{ m.zoom_link|safe_url }}" rel="noopener noreferrer">Join Zoom<span class="sr-only"> for {{ m.name }} (opens external site)</span></a></li>
                     {% endif %}
                   </ul>
                 </article>

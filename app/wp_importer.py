@@ -33,13 +33,15 @@ site without a separate HTML→Markdown pass.
 import csv
 import hashlib
 import io
+import ipaddress
 import json
 import os
 import re
+import socket
 import time
 import uuid
 from datetime import datetime
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
 import requests
 from flask import current_app
@@ -65,6 +67,95 @@ TARGET_LABELS = {
     "blog":          "Blog",
     "skip":          "Skip",
 }
+
+# ---------------------------------------------------------------------------
+# SSRF-hardened fetching. Every outbound request the importer makes —
+# the WP REST API calls and each image download — goes through
+# ``safe_get``: http(s) only, hosts must resolve to public addresses,
+# and redirects are re-validated hop by hop (with Basic auth dropped on
+# any cross-host hop). Downloads are size-capped by the callers.
+# Set TSP_IMPORTER_ALLOW_PRIVATE=1 to import from a WP site on a
+# private/LAN address (e.g. a local dev WordPress).
+# ---------------------------------------------------------------------------
+
+_FETCH_MAX_REDIRECTS = 5
+# Per-image ceiling. WP media originals are rarely over a few MB; the cap
+# exists so a hostile/broken source can't balloon server memory or disk.
+IMAGE_MAX_BYTES = 25 * 1024 * 1024
+# Extensions an imported image may land on disk with. Anything else is
+# derived from Content-Type or refused — never trusted from the URL.
+# (No .svg: SVGs are served inline from /pub and carry script risk.)
+_IMAGE_EXT_ALLOWLIST = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif"}
+_IMAGE_CTYPE_TO_EXT = {
+    "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
+    "image/gif": ".gif", "image/avif": ".avif",
+}
+
+
+class UnsafeFetchError(requests.RequestException):
+    """Raised when a URL fails the SSRF guard (scheme, private address,
+    redirect loop) or a download violates the size/type policy. Subclasses
+    RequestException so existing error handling treats it like any other
+    fetch failure."""
+
+
+def _allow_private_fetch():
+    return os.environ.get("TSP_IMPORTER_ALLOW_PRIVATE", "").lower() in ("1", "true", "yes")
+
+
+def _host_resolves_private(host):
+    """True when ``host`` fails to resolve or ANY of its addresses is
+    non-public (loopback, RFC1918, link-local, CGNAT, reserved…)."""
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except (socket.gaierror, UnicodeError):
+        return True
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return True
+        if not ip.is_global:
+            return True
+    return False
+
+
+def safe_get(url, *, auth=None, params=None, stream=False):
+    """``requests.get`` with the importer's SSRF policy applied. Raises
+    ``UnsafeFetchError`` on a policy violation; otherwise returns the
+    final (non-redirect) response.
+
+    Note the residual: the address check races the request's own DNS
+    lookup, so a rebinding-capable attacker isn't fully excluded — the
+    guard targets the practical case of URLs/redirects pointing at
+    loopback or LAN services."""
+    original_host = (urlparse(url).hostname or "").lower()
+    for _ in range(_FETCH_MAX_REDIRECTS + 1):
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            raise UnsafeFetchError(f"Refusing non-http(s) URL: {url[:200]}")
+        host = parsed.hostname or ""
+        if not host:
+            raise UnsafeFetchError(f"URL has no host: {url[:200]}")
+        if not _allow_private_fetch() and _host_resolves_private(host):
+            raise UnsafeFetchError(
+                f"Refusing to fetch from non-public address '{host}' "
+                "(set TSP_IMPORTER_ALLOW_PRIVATE=1 to import from a LAN site)")
+        # Credentials only ever go to the host the admin configured.
+        hop_auth = auth if host.lower() == original_host else None
+        r = requests.get(url, auth=hop_auth, params=params,
+                         timeout=DEFAULT_TIMEOUT, stream=stream,
+                         allow_redirects=False,
+                         headers={"User-Agent": USER_AGENT})
+        if r.status_code in (301, 302, 303, 307, 308):
+            loc = r.headers.get("Location")
+            if not loc:
+                return r
+            url = urljoin(url, loc)
+            params = None  # query already baked into the redirect target
+            continue
+        return r
+    raise UnsafeFetchError(f"Too many redirects fetching {url[:200]}")
 
 
 # ---------------------------------------------------------------------------
@@ -921,9 +1012,8 @@ def fetch_wp(site_url, user, app_password, *, max_posts=MAX_FETCH_POSTS):
     page = 1
     while True:
         try:
-            r = requests.get(f"{base}/categories", auth=auth, timeout=DEFAULT_TIMEOUT,
-                             params={"per_page": 100, "page": page},
-                             headers={"User-Agent": USER_AGENT})
+            r = safe_get(f"{base}/categories", auth=auth,
+                         params={"per_page": 100, "page": page})
         except requests.RequestException as e:
             return None, None, None, f"Could not reach {base}/categories: {e}"
         if r.status_code == 404:
@@ -955,9 +1045,8 @@ def fetch_wp(site_url, user, app_password, *, max_posts=MAX_FETCH_POSTS):
     page = 1
     while True:
         try:
-            r = requests.get(f"{base}/tags", auth=auth, timeout=DEFAULT_TIMEOUT,
-                             params={"per_page": 100, "page": page},
-                             headers={"User-Agent": USER_AGENT})
+            r = safe_get(f"{base}/tags", auth=auth,
+                         params={"per_page": 100, "page": page})
         except requests.RequestException:
             break
         if r.status_code == 400 and page > 1:
@@ -992,11 +1081,10 @@ def fetch_wp(site_url, user, app_password, *, max_posts=MAX_FETCH_POSTS):
     trash_dropped = False
     while len(posts) < max_posts:
         try:
-            r = requests.get(f"{base}/posts", auth=auth, timeout=DEFAULT_TIMEOUT,
-                             params={"per_page": 50, "page": page,
-                                     "_embed": "1", "status": statuses,
-                                     "orderby": "date", "order": "desc"},
-                             headers={"User-Agent": USER_AGENT})
+            r = safe_get(f"{base}/posts", auth=auth,
+                         params={"per_page": 50, "page": page,
+                                 "_embed": "1", "status": statuses,
+                                 "orderby": "date", "order": "desc"})
         except requests.RequestException as e:
             return None, None, None, f"Could not fetch posts: {e}"
         # WP returns 400 ("rest_invalid_param") when a status name isn't
@@ -1066,9 +1154,7 @@ def _acf_fallback_fetch(site_url, auth, posts, *, max_lookups=200):
         if not pid:
             continue
         try:
-            r = requests.get(f"{base}/{pid}", auth=auth,
-                             timeout=DEFAULT_TIMEOUT,
-                             headers={"User-Agent": USER_AGENT})
+            r = safe_get(f"{base}/{pid}", auth=auth)
         except requests.RequestException:
             return out
         if r.status_code == 404 and i == 0:
@@ -1827,23 +1913,34 @@ def _download_image_full(url, *, uploaded_by=None):
     ``/pub/<filename>`` (used to rewrite inline ``<img src=…>``
     references in post bodies)."""
     from .models import db, MediaItem
-    resp = requests.get(url, timeout=DEFAULT_TIMEOUT, stream=True,
-                        headers={"User-Agent": USER_AGENT})
+    resp = safe_get(url, stream=True)
     resp.raise_for_status()
-    data = resp.content
+    # Size cap — trust Content-Length when present, but enforce while
+    # streaming regardless (a hostile server can lie or omit it).
+    clen = resp.headers.get("Content-Length") or ""
+    if clen.isdigit() and int(clen) > IMAGE_MAX_BYTES:
+        raise UnsafeFetchError(f"Image exceeds {IMAGE_MAX_BYTES // (1024*1024)}MB cap: {url[:200]}")
+    chunks, total = [], 0
+    for chunk in resp.iter_content(chunk_size=65536):
+        total += len(chunk)
+        if total > IMAGE_MAX_BYTES:
+            raise UnsafeFetchError(f"Image exceeds {IMAGE_MAX_BYTES // (1024*1024)}MB cap: {url[:200]}")
+        chunks.append(chunk)
+    data = b"".join(chunks)
     h = hashlib.sha256(data).hexdigest()
     media = MediaItem.query.filter_by(content_hash=h).first()
     if media:
         return media.stored_filename, media.original_filename
     parsed = urlparse(url)
+    # The on-disk extension comes from a fixed image allowlist, falling
+    # back to Content-Type — never verbatim from the URL, so a source
+    # can't plant .html/.svg (or anything else /pub serves inline).
     ext = (os.path.splitext(parsed.path)[1] or "").lower()
-    if not ext or len(ext) > 6:
-        # Pick from Content-Type when the URL didn't carry a usable ext.
+    if ext not in _IMAGE_EXT_ALLOWLIST:
         ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
-        ext = {
-            "image/jpeg": ".jpg", "image/png": ".png",
-            "image/webp": ".webp", "image/gif": ".gif",
-        }.get(ctype, ".bin")
+        ext = _IMAGE_CTYPE_TO_EXT.get(ctype)
+        if not ext:
+            raise UnsafeFetchError(f"Not a recognised image type: {url[:200]}")
     stored = f"{uuid.uuid4().hex}{ext}"
     upload_dir = current_app.config["UPLOAD_FOLDER"]
     with open(os.path.join(upload_dir, stored), "wb") as f:

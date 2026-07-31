@@ -26,7 +26,7 @@
     </ul>
     {% if site.ig_webmail_url %}
     <div class="ig-webmail">
-      <a class="btn btn-primary" href="{{ site.ig_webmail_url }}" target="_blank" rel="noopener">Web Mail Login</a>
+      <a class="btn btn-primary" href="{{ site.ig_webmail_url|safe_url }}" target="_blank" rel="noopener">Web Mail Login</a>
     </div>
     {% endif %}
   </section>
@@ -35,7 +35,7 @@
     <div class="card-head"><h2>Email Client Setup</h2></div>
     <p class="muted small">Quick-access instructions for setting up Apple/iPhone Mail, Android, Outlook, or any other mail client across different devices.</p>
     {% if site.ig_learn_more_url %}
-    <p><a href="{{ site.ig_learn_more_url }}" class="ig-learn" target="_blank" rel="noopener">Learn more</a></p>
+    <p><a href="{{ site.ig_learn_more_url|safe_url }}" class="ig-learn" target="_blank" rel="noopener">Learn more</a></p>
     {% endif %}
 
     <div class="ig-setting">

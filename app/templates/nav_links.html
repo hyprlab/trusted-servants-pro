@@ -22,7 +22,7 @@
       <span class="drag-handle" aria-hidden="true">{{ icon('grip-vertical') }}</span>
       <div class="file-main">
         {{ n.title }}
-        <div class="muted smaller trunc"><a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.url }}</a></div>
+        <div class="muted smaller trunc"><a href="{{ n.url|safe_url }}" target="_blank" rel="noopener">{{ n.url }}</a></div>
       </div>
       <div class="row-actions">
         <button type="button" class="btn btn-sm" data-open-modal="navlink-edit-{{ n.id }}">Edit</button>

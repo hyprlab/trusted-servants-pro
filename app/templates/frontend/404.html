@@ -31,7 +31,7 @@
     <h1 class="fe-404-heading">{{ _heading }}</h1>
     {% if _sub %}<p class="fe-404-sub">{{ _sub }}</p>{% endif %}
     <div class="fe-404-actions">
-      <a class="fe-btn fe-btn-primary" href="{{ _cta_url }}">{{ _cta_label }}</a>
+      <a class="fe-btn fe-btn-primary" href="{{ _cta_url|safe_url }}">{{ _cta_label }}</a>
       {% if _cta_url != url_for('frontend.index') %}
         <a class="fe-btn fe-btn-ghost" href="{{ url_for('frontend.index') }}">Home</a>
       {% endif %}

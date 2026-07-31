@@ -7,7 +7,17 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.17.0 — 2026-07-21 (latest) — Event dates that write themselves
+## 2.18.0 — 2026-07-31 (latest) — Security hardening
+
+- **A top-to-bottom security review, with every finding fixed.** We ran a full audit of the portal and worked through it in five passes — from the highest-impact items down to the smallest hardening tweaks. Nothing about how you use the portal changes, and no data migration is needed; this release is about making the whole thing tougher.
+- **Two-factor authentication is now required for admins.** Admin accounts must set up an authenticator app at their next sign-in and can't skip it or turn it off while they're an admin. (Existing admin accounts aren't forced on retroactively — turn 2FA on for them from **Settings → Users** when you're ready.)
+- **Viewers can still host Zoom meetings.** The host password and one-time-passcode retrieval stay available to every signed-in role, as before — those surfaces just aren't reachable without signing in.
+- **Safer links everywhere.** Web addresses that people type into forms and that editors add to pages, footers, and menus are now checked, so a malicious link can't be planted where a visitor might click it. Uploaded logos and icons are scrubbed and served in a way that can't run code.
+- **Abuse protection.** Password-reset emails and the Recovery Contacts "contact this person" form are now rate-limited so they can't be used to spam people, and the sign-in lockout can no longer be sidestepped.
+- **Sturdier under the hood.** Every third-party component was updated to its latest secure version, large uploads no longer strain the server's memory, and off-site imports and PDF generation are locked down against being pointed at things they shouldn't reach.
+- **New setting:** `TSP_SESSION_DAYS` lets you shorten how long a sign-in lasts (it stays 180 days unless you change it).
+
+## 2.17.0 — 2026-07-21 — Event dates that write themselves
 
 - **You can now drop the event's date and time straight into a post's GSR Summary and Body, and it updates itself.** Type a tag like `{event_date}` and it renders as the real date everywhere the post appears — the announcements and events lists, the event page, the GSR summary sheet, link previews, and notification emails. Move the event and every mention follows; there's nothing to go back and re-type.
 - **Use the whole date or just the piece you want.** `{event_datetime}` gives "July 18, 2026 at 11:00 AM", `{event_date}` just the date, `{event_time_short}` an "11am", and there are individual tags for the weekday, month, day (including "18th"), and year — plus `{event_end_…}` versions for the end time and `{event_range}` for the full span.

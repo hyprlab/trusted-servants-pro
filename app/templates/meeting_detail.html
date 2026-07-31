@@ -105,7 +105,7 @@
       <div class="loc-notes muted small">{{ meeting.location_notes }}</div>
       {% endif %}
       {% if location_maps_url %}
-      <a class="btn btn-sm zg-maps-link" href="{{ location_maps_url }}" target="_blank" rel="noopener">{{ icon('map-pin') }}<span>Open in Maps</span></a>
+      <a class="btn btn-sm zg-maps-link" href="{{ location_maps_url|safe_url }}" target="_blank" rel="noopener">{{ icon('map-pin') }}<span>Open in Maps</span></a>
       {% endif %}
       </div>
       {% endif %}
@@ -136,7 +136,7 @@
         {% endif %}
         {% if meeting.zoom_link %}
         <dt></dt>
-        <dd><a class="btn btn-primary" href="{{ meeting.zoom_link }}" target="_blank" rel="noopener">Start Zoom Meeting</a></dd>
+        <dd><a class="btn btn-primary" href="{{ meeting.zoom_link|safe_url }}" target="_blank" rel="noopener">Start Zoom Meeting</a></dd>
         {% endif %}
         {% if meeting.zoom_account %}
         <dt class="zoom-section-head" style="grid-column: 1 / -1;">Zoom Host Account</dt>
@@ -185,7 +185,7 @@
         {% endif %}
         {% if otp_email.login_url %}
         <dt></dt>
-        <dd><a class="btn btn-primary otp-login-btn" href="{{ otp_email.login_url }}" target="_blank" rel="noopener">Login for OTP Codes</a></dd>
+        <dd><a class="btn btn-primary otp-login-btn" href="{{ otp_email.login_url|safe_url }}" target="_blank" rel="noopener">Login for OTP Codes</a></dd>
         {% endif %}
       </dl>
       {% endif %}
@@ -210,7 +210,7 @@
           {% endif %}
           {% if meeting.gmeet_link %}
           <dt></dt>
-          <dd><a class="btn btn-primary" href="{{ meeting.gmeet_link }}" target="_blank" rel="noopener">Start Google Meet</a></dd>
+          <dd><a class="btn btn-primary" href="{{ meeting.gmeet_link|safe_url }}" target="_blank" rel="noopener">Start Google Meet</a></dd>
           {% endif %}
         </dl>
       </section>
@@ -230,7 +230,7 @@
           {% endif %}
           {% if meeting.teams_link %}
           <dt></dt>
-          <dd><a class="btn btn-primary" href="{{ meeting.teams_link }}" target="_blank" rel="noopener">Start Teams Meeting</a></dd>
+          <dd><a class="btn btn-primary" href="{{ meeting.teams_link|safe_url }}" target="_blank" rel="noopener">Start Teams Meeting</a></dd>
           {% endif %}
         </dl>
       </section>
@@ -349,7 +349,7 @@
             <div class="zg-webmail-panel" id="zg-webmail-panel" data-zg-webmail-panel>
               <div class="zg-webmail-inner">
                 {% if otp_email.login_url %}
-                <a class="btn btn-primary zg-webmail-login" href="{{ otp_email.login_url }}" target="_blank" rel="noopener">
+                <a class="btn btn-primary zg-webmail-login" href="{{ otp_email.login_url|safe_url }}" target="_blank" rel="noopener">
                   {{ icon('log-in') }}<span>Log into webmail</span>
                 </a>
                 {% endif %}
@@ -401,7 +401,7 @@
         </div>
 
         {% if meeting.zoom_link %}
-        <a class="btn btn-primary zg-launch-btn" href="{{ meeting.zoom_link }}" target="_blank" rel="noopener">
+        <a class="btn btn-primary zg-launch-btn" href="{{ meeting.zoom_link|safe_url }}" target="_blank" rel="noopener">
           {{ icon('video') }}<span>Launch Zoom Meeting</span>
         </a>
         {% endif %}
