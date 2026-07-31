@@ -77,7 +77,7 @@
             <span class="sidebar-order-handle" aria-hidden="true">⋮⋮</span>
             <div class="sidebar-extlink-meta">
               <div class="sidebar-extlink-title">{{ n.title }}</div>
-              <a class="muted smaller sidebar-extlink-url" href="{{ n.url }}" target="_blank" rel="noopener">{{ n.url }}</a>
+              <a class="muted smaller sidebar-extlink-url" href="{{ n.url|safe_url }}" target="_blank" rel="noopener">{{ n.url }}</a>
             </div>
             <button type="button" class="btn btn-sm" data-open-modal="navlink-edit-{{ n.id }}">Edit</button>
             <form method="post" action="{{ url_for('main.nav_link_delete', nid=n.id) }}"

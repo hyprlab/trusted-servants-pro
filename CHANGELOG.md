@@ -6,6 +6,81 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.18.0] — 2026-07-31
+
+Security-hardening release. A full audit (see `docs/SECURITY_AUDIT.md`) drove
+five phases of fixes across the whole codebase; the highlights below are grouped
+by theme. No database migration is required. One small non-security change rides
+along: a per-edge fade on the events omni-bar scroller (continuation of the
+2.17.6 swipe-hint polish).
+
+### Security
+
+- **Stored-XSS surfaces closed.** Media uploads are extension-blocklisted and served with `Content-Disposition`/CSP so an uploaded `.html`/`.svg` can't run as script; anonymous event/contact URL fields (`zoom_url`, `google_maps_url`, `website_url`) and every editor-authored URL column (blocks, nav, footers, CTAs, headers, megamenus, meetings, events, archives) now render through a `safe_url` filter that rejects `javascript:`/`data:` schemes.
+- **Parser-based SVG sanitizer.** `_sanitize_svg` now parses the XML and prunes on the decoded tree — `script`/`foreignObject`/`iframe`/`embed`/`object` subtrees, every `on*` handler, and any attribute whose decoded value carries a `javascript:`/`vbscript:`/`data:text/html` scheme (defeating the char-reference-encoded bypass). DOCTYPE/ENTITY documents are refused (XML-bomb guard). A response-level CSP (`default-src 'none'`) backs every inline-served SVG.
+- **Proxy-header trust is opt-in.** `CF-Connecting-IP` / `X-Forwarded-For` are no longer trusted by default, so a client can't rotate a spoofed source IP to defeat login lockout, MFA limits, or Watchtower bans. Admin accounts are now subject to the same per-username lockout budget as everyone else.
+- **Credential-endpoint gating.** The `/zoom-accounts` management page, per-account reveal, and `meetings/<id>.json` are gated appropriately; the meeting-detail host-password and OTP-code surfaces remain available to every signed-in role (site policy: viewers host meetings) but are no longer exposed to anonymous requests.
+- **Enforced admin 2FA.** Admin accounts require TOTP — the setup wizard can't be skipped by an admin, the requirement can't be toggled off while the account is an admin (Users tab, edit modal, and self-service disable all refuse), and promotion to admin sets it. Non-debug first-boot seeds get `mfa_required`.
+- **Rate limiting.** Password-reset requests (per-IP + per-identifier) and the Recovery-Contacts contact relay (per-IP hourly + per-listing daily) are now throttled via the shared `login_failure` table; `remote_restore_chunk` now honours the restore limiter.
+- **SSRF hardening.** The WordPress importer routes every fetch through `safe_get` (http(s) only, public-address-only, per-hop redirect re-validation with auth dropped cross-host, 25 MB image cap, allowlisted on-disk extensions); `TSP_IMPORTER_ALLOW_PRIVATE=1` re-enables LAN imports. WeasyPrint PDF generation uses a locked URL fetcher (only `data:` and our own `/pub` files) and escapes the interpolated title.
+- **IMAP fail-closed.** OTP retrieval aborts instead of sending credentials in cleartext when STARTTLS fails on a plaintext connection.
+- **Streaming uploads.** `_save_upload` streams to disk in 1 MiB chunks (atomic rename) instead of buffering multi-GB payloads in RAM; anonymous story attachments now take a document/image/audio allowlist and a 200 MB per-file cap.
+- **Open redirects closed.** Central `_safe_return_url` helper for Watchtower `return_url` targets; logout `next` rejects backslash smuggling; `file_view`/`reading_view` external hops pass through the URL scheme guard.
+- **Data-exposure fixes.** CSV exports (form submissions, visitor metrics) neutralise spreadsheet formula injection; pending/draft/archived post, story, and blog images 404 for anonymous visitors; Recovery-Contacts confirmation tokens are stored hashed; an unmatched Recovery-Contacts update now enters the moderation queue instead of self-publishing.
+- **Remote restore / export.** Remote restore accepts only end-to-end-encrypted archives (bearer token alone can no longer replace the portal); `/settings/export` is POST-only.
+- **Hygiene.** `users_create` enforces the password policy; login verifies against a dummy hash on unknown usernames to remove the timing oracle; `zoom.key` is created `O_EXCL` mode 0600; blog category colours are hex-validated; the utility-bar tooltip is entity-escaped before attribute interpolation.
+
+### Changed
+
+- **Dependencies bumped to current releases** — Flask 3.1.3, Werkzeug 3.1.8, cryptography 49, Pillow 12.3, WeasyPrint 69, paramiko 5.0, requests 2.34.2, and the rest. `pip-audit --strict` now reports no known vulnerabilities (was 45 CVEs across 10 packages). paramiko 4.0 dropped DSA, so the SFTP backend looks up `DSSKey` defensively.
+- **HTML sanitizer migrated bleach → nh3.** bleach reached end-of-life; all five sanitizing filters now use `nh3.clean` with the same allowlists (and, as a bonus, strip `<script>`/`<style>` contents and stamp `rel="noopener noreferrer"` on links).
+- **CSP tightened** with `worker-src 'none'` and `manifest-src 'self'`. (`script-src-attr 'none'` and script nonces remain deferred pending removal of inline event handlers.)
+- **Shipped `docker-compose.yml` is safe by default** — the `admin/admin` seed and `TSP_DEBUG=1` are no longer hardcoded; both come from `.env` (see the new `.env.example`), so a naive production bring-up hits the first-boot password guard instead of shipping a known default.
+- **Session lifetime is configurable** via `TSP_SESSION_DAYS` (default unchanged at 180).
+
+### Added
+
+- `.github/workflows/pip-audit.yml` — runs `pip-audit --strict` on requirements changes, weekly, and on demand.
+
+## [2.17.6] — 2026-07-29
+
+### Added
+
+- **Mobile swipe hints on the utility bar.** The top strip gets the same pulsing chevrons as the announcements omni bar — at half the pulse speed (2.8s) and sized for the slim bar — pinned to the bar's outer edges, clear of every button and text item. Direction-aware: right/left/both depending on where more content sits, including live-meeting mode (where they flip dark against the yellow and frame the LIVE badge). Content approaching an active edge fades out under a per-edge CSS mask so wide items slide under the chevron elegantly instead of colliding.
+
+### Changed
+
+- **Omni-bar swipe hints restyled.** The chevrons lost their circular chip background (now bare, slightly larger glyphs) and moved into dedicated 24px side gutters outside the scroller, so the left chevron no longer collides with pill text at the far scroll position.
+- **Pill icons restored on mobile.** A legacy `display: none` under 600px was stripping the icons from the omni-bar pills (Cards, GSR Summary, Archive, Submit — and the events-page tabs); removed, so the icons render on mobile again.
+
+### Fixed
+
+- **Omni-bar pill shadows no longer clip on mobile.** The horizontal scroll container also clips vertically, slicing off the pills' drop shadows; the bar now pads its clip box (margins compensated) so shadows paint fully with unchanged spacing.
+
+## [2.17.5] — 2026-07-29
+
+### Added
+
+- **"Submit" pill on the public announcements list.** The /announcements omni bar gains a Submit pill to the right of the Archive pill (same capsule styling) that takes visitors to the submission form to add an announcement or event. A new **Templates → Announcements list → Submit button** setting overrides the URL; left blank it links to the built-in submission form (slug-aware) and the pill hides automatically while that form is disabled, so the default can never 404. New `SiteSetting.frontend_announcements_list_submit_url` column with matching `_migrate_sqlite` entry.
+- **Mobile swipe hints on the announcements omni bar.** Under 600px the bar scrolls horizontally with Archive + Submit parked off-screen; a pulsing right chevron now overlays the bar's edge to cue the swipe, flipping to a pulsing left chevron once the pills are in view (cueing the swipe back to the Cards / GSR Summary tabs). Scroll-position-driven, non-interactive (swipes pass through), hidden on desktop, and static under `prefers-reduced-motion`.
+
+## [2.17.4] — 2026-07-29
+
+### Fixed
+
+- **Approving a visitor-submitted announcement/event no longer schedules it hours into the future.** Submissions store a UTC creation timestamp while the posts system uses site-local naive datetimes, so the editor's "Posted on / schedule for" field fell back to a value 4–5 hours ahead — and clicking Post saved it back, leaving the post invisibly "scheduled" until that time elapsed. The editor now prefills the field with the current site-local time when opening a pending submission (type over it to deliberately schedule), and the quick "Approve & publish" action stamps `published_at` with site-local now when it's unset or in the future, so approved submissions go live immediately with a correct "Posted on" line.
+
+## [2.17.3] — 2026-07-28
+
+### Fixed
+
+- **Icon picker selections now commit on the page builder, popup editor, and Fonts & Icons pages.** The shared picker is deferred-commit (clicking a cell only highlights it; the footer Save button writes the selection back), but these three pages embedded a stale pre-2.9 copy of the modal footer with the Save/Remove buttons `hidden` — so a highlighted icon was silently discarded when the modal closed. Most visibly, this made hero-block CTA button icons impossible to set.
+
+### Added
+
+- **Per-button hover colours on hero CTA buttons.** Each button's Advanced section gains "Hover background" and "Hover text colour" pickers (primary style, alongside the existing background/text overrides). They ride new `--fe-btn-hover-bg` / `--fe-btn-hover-text` inline CSS vars; left blank, the existing darkened-mix hover fallback is unchanged. In dark mode the chosen hover colour seeds the same auto-darkening recipe the resting colour already uses.
+- **"Green (filled)" hero button style preset** — `#24d366` background with white text, hovering slightly darker (`#1fb357`). Dark mode follows the yellow preset's pattern: dimmed to `#1fb357` at rest, `#1a984a` on hover.
+
 ## [2.17.0] — 2026-07-21
 
 ### Added

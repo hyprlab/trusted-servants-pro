@@ -55,7 +55,7 @@
             </div>
           {% elif _k == 'button' %}
             {%- set _ft = ' data-fe-form-trigger="' ~ link.form_trigger ~ '"' if link.form_trigger else '' -%}
-            <a href="{{ link.url or '#' }}"{{ _tgt|safe }}{{ _ft|safe }}
+            <a href="{{ link.url|safe_url }}"{{ _tgt|safe }}{{ _ft|safe }}
                class="fe-megamenu-block-btn fe-megamenu-block-btn-{{ link.button_style or 'pill' }}">
               {% if link.icon_before %}<span class="fe-megamenu-icon"{{ _icon_style(link.icon_before_color, link.icon_before_size)|safe }}>{{ icon(link.icon_before) }}</span>{% endif %}
               <span>{{ link.label }}</span>
@@ -93,7 +93,7 @@
             {%- set _href = link.url or '#' -%}
             {%- set _ft = ' data-fe-form-trigger="' ~ link.form_trigger ~ '"' if link.form_trigger else '' -%}
             {%- set _is_external = _href and (_href.startswith('http://') or _href.startswith('https://') or _href.startswith('mailto:') or _href.startswith('tel:')) -%}
-            <a href="{{ _href }}"{{ _tgt|safe }}{{ _ft|safe }} class="{{ _link_cls }}"{% if _link_style %} style="{{ _link_style }}"{% endif %}>
+            <a href="{{ _href|safe_url }}"{{ _tgt|safe }}{{ _ft|safe }} class="{{ _link_cls }}"{% if _link_style %} style="{{ _link_style }}"{% endif %}>
               {% if link.icon_before %}<span class="fe-megamenu-icon fe-megamenu-icon-before"{{ _icon_style(link.icon_before_color, link.icon_before_size)|safe }}>{{ icon(link.icon_before) }}</span>{% endif %}
               <span class="fe-megamenu-label">{{ link.label }}</span>
               {% if link.icon_after %}<span class="fe-megamenu-icon fe-megamenu-icon-after"{{ _icon_style(link.icon_after_color, link.icon_after_size)|safe }}>{{ icon(link.icon_after) }}</span>{% endif %}

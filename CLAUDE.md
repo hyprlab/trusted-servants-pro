@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Run (local):** `pip install -r requirements.txt && python run.py` — serves on port 8000 with `debug=True`.
 
-**Seeded admin:** on first boot (empty DB), `TSP_ADMIN_USERNAME` / `TSP_ADMIN_PASSWORD` (defaults `admin`/`admin`) is created.
+**Seeded admin:** on first boot (empty DB), `TSP_ADMIN_USERNAME` / `TSP_ADMIN_PASSWORD` is created. Without a password the app refuses to boot unless `TSP_DEBUG=1`, which falls back to `admin`/`admin` for local dev (set `TSP_DEBUG=1` in your local `.env`). Non-debug seeds get `mfa_required` (admin MFA is enforced).
 
 **Data import scripts** (one-off utilities, not part of the app): `scripts/import_wp_*.py`, `scripts/import_zoom_tech.py`, `scripts/parse_zoom_tech_to_blocks.py`, `scripts/fetch_wp_files.py`. Run against a populated `./data/tsp.db`.
 

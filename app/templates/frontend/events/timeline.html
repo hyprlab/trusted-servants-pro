@@ -81,7 +81,7 @@
               {% if event.location_name and event.location_address %} · {% endif %}
               {% if event.location_address %}{{ event.location_address }}{% endif %}
               {% set _maps = event.google_maps_url or ("https://www.google.com/maps/search/?api=1&query=" ~ ((event.location_address or event.location_name)|urlencode)) %}
-              <a class="fe-event-time-link" href="{{ _maps }}" target="_blank" rel="noopener">map ↗</a>
+              <a class="fe-event-time-link" href="{{ _maps|safe_url }}" target="_blank" rel="noopener">map ↗</a>
             </span>
           </li>
           {% endif %}
@@ -90,7 +90,7 @@
           <li>
             <span class="fe-event-time-meta-icon">{{ icon('video') }}</span>
             <span>
-              <a class="fe-event-time-link fe-event-time-link-strong" href="{{ event.zoom_url }}" target="_blank" rel="noopener">Join Zoom Meeting ↗</a>
+              <a class="fe-event-time-link fe-event-time-link-strong" href="{{ event.zoom_url|safe_url }}" target="_blank" rel="noopener">Join Zoom Meeting ↗</a>
             </span>
           </li>
           {% endif %}
@@ -99,7 +99,7 @@
           <li>
             <span class="fe-event-time-meta-icon">{{ icon('external-link') }}</span>
             <span>
-              <a class="fe-event-time-link" href="{{ link.url }}"
+              <a class="fe-event-time-link" href="{{ link.url|safe_url }}"
                  {% if link.new_tab %}target="_blank" rel="noopener"{% endif %}>
                 {{ link.label or link.url }}{% if link.new_tab %} ↗{% endif %}
               </a>

@@ -9,7 +9,7 @@
     {% endif %}
     {% if reading.url or reading.stored_filename %}
     <div class="meta-row">
-      {% if reading.url %}<a class="btn" href="{{ reading.url }}" target="_blank">Open Link</a>{% endif %}
+      {% if reading.url %}<a class="btn" href="{{ reading.url|safe_url }}" target="_blank">Open Link</a>{% endif %}
       {% if reading.stored_filename %}<a class="btn" href="{{ url_for('main.reading_download', rid=reading.id) }}" target="_blank">Open File ({{ reading.original_filename }})</a>{% endif %}
     </div>
     {% endif %}

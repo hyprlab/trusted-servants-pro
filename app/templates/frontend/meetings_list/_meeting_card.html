@@ -176,11 +176,11 @@
     <div class="fe-mlist-card-action-stack">
       {% for p in _platforms %}{% if p.link %}
       <a class="fe-btn fe-btn-primary"
-         href="{{ p.link }}" target="_blank" rel="noopener">Join {{ p.short }}</a>
+         href="{{ p.link|safe_url }}" target="_blank" rel="noopener">Join {{ p.short }}</a>
       {% endif %}{% endfor %}
       {% if _has_loc %}
       <a class="fe-btn fe-btn-ghost"
-         href="{{ _maps_url }}" target="_blank" rel="noopener">Get Directions</a>
+         href="{{ _maps_url|safe_url }}" target="_blank" rel="noopener">Get Directions</a>
       {% endif %}
       {% if m.schedules %}
       <a class="fe-btn fe-btn-ghost fe-mlist-card-ics"
@@ -256,10 +256,10 @@
 
   <div class="fe-mlist-card-actions">
     {% for p in _platforms %}{% if p.link %}
-    <a class="fe-btn fe-btn-primary" href="{{ p.link }}" target="_blank" rel="noopener">Join {{ p.short }}</a>
+    <a class="fe-btn fe-btn-primary" href="{{ p.link|safe_url }}" target="_blank" rel="noopener">Join {{ p.short }}</a>
     {% endif %}{% endfor %}
     {% if _has_loc %}
-    <a class="fe-btn fe-btn-ghost" href="{{ _maps_url }}" target="_blank" rel="noopener">Get Directions</a>
+    <a class="fe-btn fe-btn-ghost" href="{{ _maps_url|safe_url }}" target="_blank" rel="noopener">Get Directions</a>
     {% endif %}
     {% if m.schedules %}
     <a class="fe-btn fe-btn-ghost fe-mlist-card-ics"

@@ -28,7 +28,7 @@
               data-archive-search="{{ search_blobs.get(it.post.id, '') }}"
               data-archive-year="{{ it.year }}"
               data-archive-kind="{{ it.kind }}">
-            <a class="fe-archive-cl-link" href="{{ _url }}">
+            <a class="fe-archive-cl-link" href="{{ _url|safe_url }}">
               {% if _date %}
               <span class="fe-archive-cl-date">
                 <span class="fe-archive-cl-date-month">{{ _date.strftime('%b') }}</span>

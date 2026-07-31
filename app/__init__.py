@@ -2,7 +2,7 @@
 import hashlib
 import os
 from datetime import datetime, timedelta
-import bleach
+import nh3
 import markdown as md_lib
 from markupsafe import Markup
 from flask import Flask, request, redirect
@@ -32,18 +32,57 @@ class _CloudflareRemoteAddr:
     Wired up *inside* ProxyFix so it runs after XFF processing and wins
     when the header is present, while still falling back to ProxyFix's
     XFF result (and to the bare socket ``REMOTE_ADDR``) when it isn't.
-    Only installed when a proxy is trusted, so direct-bind deploys never
-    honor a header a client could forge; disable explicitly with
-    ``TSP_TRUST_CF_HEADER=0`` if a non-Cloudflare proxy sits in front.
+    Only installed when a proxy is trusted AND explicitly opted in via
+    ``TSP_TRUST_CF_HEADER=1``. The header is only honored when the
+    post-ProxyFix REMOTE_ADDR is a published Cloudflare edge IP —
+    otherwise any client could forge the header to rotate their apparent
+    IP per request, defeating the IP-based login lockout, Watchtower IP
+    bans, and rate limiters, and poisoning audit logs with fake IPs.
+    Extend the bundled range list via ``TSP_CF_EXTRA_RANGES`` (comma-
+    separated CIDRs) if Cloudflare adds edges.
     """
+
+    # Published Cloudflare edge ranges (https://www.cloudflare.com/ips/).
+    # Stable for years; override/extend via env if they ever drift.
+    _CF_IPV4 = (
+        "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22",
+        "103.31.4.0/22", "141.101.64.0/18", "108.162.192.0/18",
+        "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22",
+        "198.41.128.0/17", "162.158.0.0/15", "104.16.0.0/13",
+        "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
+    )
+    _CF_IPV6 = (
+        "2400:cb00::/32", "2606:4700::/32", "2803:f800::/32",
+        "2405:b500::/32", "2405:8100::/32", "2a06:98c0::/29",
+        "2c0f:f248::/32",
+    )
 
     def __init__(self, app):
         self.app = app
+        import ipaddress
+        ranges = [ipaddress.ip_network(r) for r in self._CF_IPV4 + self._CF_IPV6]
+        extra = os.environ.get("TSP_CF_EXTRA_RANGES", "")
+        for chunk in extra.split(","):
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            try:
+                ranges.append(ipaddress.ip_network(chunk))
+            except ValueError:
+                pass
+        self._cf_ranges = ranges
+        self._ipaddress = ipaddress
 
     def __call__(self, environ, start_response):
         cf_ip = environ.get("HTTP_CF_CONNECTING_IP")
         if cf_ip:
-            environ["REMOTE_ADDR"] = cf_ip.strip()
+            peer = environ.get("REMOTE_ADDR", "")
+            try:
+                peer_ip = self._ipaddress.ip_address(peer.strip())
+            except ValueError:
+                peer_ip = None
+            if peer_ip is not None and any(peer_ip in n for n in self._cf_ranges):
+                environ["REMOTE_ADDR"] = cf_ip.strip()
         return self.app(environ, start_response)
 
 
@@ -69,7 +108,12 @@ def create_app():
     #
     # Cloudflare adds a second hop, so XFF hop-counting alone lands on the
     # CF edge IP — _CloudflareRemoteAddr (installed inside ProxyFix) reads
-    # CF-Connecting-IP to recover the true client. See that class's docstring.
+    # CF-Connecting-IP to recover the true client. It is OPT-IN
+    # (TSP_TRUST_CF_HEADER=1): on the stock Caddy-only deploy (no
+    # Cloudflare) the header comes straight from the client and would
+    # otherwise let anyone spoof their apparent IP to defeat login
+    # lockout, IP bans, and rate limiters. Even when enabled, the header
+    # is only honored from verified Cloudflare edge IPs.
     try:
         _proxy_hops = int(os.environ.get("TSP_TRUSTED_PROXIES", "1"))
     except ValueError:
@@ -77,8 +121,9 @@ def create_app():
     if _proxy_hops > 0:
         # Added first so it sits *inside* ProxyFix: ProxyFix runs first and
         # sets REMOTE_ADDR from XFF, then this overrides it with the
-        # Cloudflare header when present (and is a no-op when it isn't).
-        if os.environ.get("TSP_TRUST_CF_HEADER", "1") != "0":
+        # Cloudflare header when present (and is a no-op when it isn't or
+        # the XFF peer isn't a Cloudflare edge).
+        if os.environ.get("TSP_TRUST_CF_HEADER", "0") == "1":
             app.wsgi_app = _CloudflareRemoteAddr(app.wsgi_app)
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
@@ -141,6 +186,16 @@ def create_app():
         _max_upload_mb = int(os.environ.get("TSP_MAX_UPLOAD_MB", "4096"))
     except ValueError:
         _max_upload_mb = 4096
+    # Session / remember-me lifetime. The 180-day default matches the
+    # long-standing "don't re-prompt volunteers for months" UX; deployers
+    # with a tighter security posture can shorten it (e.g.
+    # TSP_SESSION_DAYS=7) without a code change. CSRF tokens are tied to
+    # the session (WTF_CSRF_TIME_LIMIT=None), so this is also the
+    # effective CSRF-token lifetime.
+    try:
+        _session_days = max(1, int(os.environ.get("TSP_SESSION_DAYS", "180")))
+    except ValueError:
+        _session_days = 180
     app.config.update(
         SECRET_KEY=secret_key,
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_path}",
@@ -149,8 +204,8 @@ def create_app():
         DB_PATH=db_path,
         UPLOAD_FOLDER=upload_dir,
         MAX_CONTENT_LENGTH=_max_upload_mb * 1024 * 1024,
-        PERMANENT_SESSION_LIFETIME=timedelta(days=180),
-        REMEMBER_COOKIE_DURATION=timedelta(days=180),
+        PERMANENT_SESSION_LIFETIME=timedelta(days=_session_days),
+        REMEMBER_COOKIE_DURATION=timedelta(days=_session_days),
         REMEMBER_COOKIE_NAME=remember_cookie_name,
         REMEMBER_COOKIE_SAMESITE="Lax",
         REMEMBER_COOKIE_HTTPONLY=True,
@@ -210,10 +265,18 @@ def create_app():
         if not ext and getattr(src, "url", None): return "link"
         return "file"
 
+    # HTML sanitisation runs through nh3 (Rust bindings for ammonia) —
+    # bleach reached end-of-life and no longer receives security fixes.
+    # nh3 semantics vs the old bleach calls: disallowed tags are stripped
+    # but their text kept (same as strip=True), EXCEPT <script>/<style>
+    # whose contents are removed entirely (an improvement), and <a> tags
+    # get rel="noopener noreferrer" stamped on (also an improvement).
     SAFE_TAGS = {"a", "b", "strong", "i", "em", "u", "s", "br", "span", "code",
                  "sup", "sub", "mark", "small", "abbr"}
-    SAFE_ATTRS = {"a": ["href", "title", "target", "rel"], "abbr": ["title"], "span": ["class"]}
-    SAFE_PROTOCOLS = ["http", "https", "mailto", "tel"]
+    # "rel" is managed by nh3 itself (link_rel stamps noopener noreferrer
+    # on every <a>) — listing it alongside would be a ValueError.
+    SAFE_ATTRS = {"a": {"href", "title", "target"}, "abbr": {"title"}, "span": {"class"}}
+    SAFE_PROTOCOLS = {"http", "https", "mailto", "tel"}
 
     # Broader allowlist for admin-authored rich HTML (markdown output, legacy
     # zoom-tech content). Blocks <script>, event handlers, javascript: URIs, etc.
@@ -224,40 +287,38 @@ def create_app():
         "table", "thead", "tbody", "tr", "th", "td",
     }
     SAFE_RICH_ATTRS = {
-        "*": ["class", "id"],
-        "a": ["href", "title", "target", "rel"],
-        "abbr": ["title"],
-        "img": ["src", "alt", "title", "width", "height"],
-        "span": ["class"],
-        "td": ["colspan", "rowspan"],
-        "th": ["colspan", "rowspan", "scope"],
+        "*": {"class", "id"},
+        "a": {"href", "title", "target"},
+        "abbr": {"title"},
+        "img": {"src", "alt", "title", "width", "height"},
+        "span": {"class"},
+        "td": {"colspan", "rowspan"},
+        "th": {"colspan", "rowspan", "scope"},
     }
+
+    def _clean_html(value, tags, attributes):
+        return nh3.clean(str(value), tags=tags, attributes=attributes,
+                         url_schemes=SAFE_PROTOCOLS)
 
     @app.template_filter("safe_html")
     def safe_html(value):
         if not value:
             return ""
-        cleaned = bleach.clean(str(value), tags=SAFE_TAGS, attributes=SAFE_ATTRS,
-                               protocols=SAFE_PROTOCOLS, strip=True)
-        return Markup(cleaned)
+        return Markup(_clean_html(value, SAFE_TAGS, SAFE_ATTRS))
 
     @app.template_filter("safe_rich_html")
     def safe_rich_html(value):
         """For admin-authored rich HTML (zoom_tech_content, markdown output)."""
         if not value:
             return ""
-        cleaned = bleach.clean(str(value), tags=SAFE_RICH_TAGS, attributes=SAFE_RICH_ATTRS,
-                               protocols=SAFE_PROTOCOLS, strip=True)
-        return Markup(cleaned)
+        return Markup(_clean_html(value, SAFE_RICH_TAGS, SAFE_RICH_ATTRS))
 
     @app.template_filter("markdown")
     def markdown_filter(value):
         if not value:
             return ""
         html = md_lib.markdown(str(value), extensions=["extra", "nl2br", "sane_lists"])
-        cleaned = bleach.clean(html, tags=SAFE_RICH_TAGS, attributes=SAFE_RICH_ATTRS,
-                               protocols=SAFE_PROTOCOLS, strip=True)
-        return Markup(cleaned)
+        return Markup(_clean_html(html, SAFE_RICH_TAGS, SAFE_RICH_ATTRS))
 
     @app.template_filter("markdown_inline")
     def markdown_inline_filter(value):
@@ -273,8 +334,7 @@ def create_app():
         if not value:
             return ""
         html = md_lib.markdown(str(value), extensions=["extra", "nl2br", "sane_lists"])
-        cleaned = bleach.clean(html, tags=SAFE_RICH_TAGS, attributes=SAFE_RICH_ATTRS,
-                               protocols=SAFE_PROTOCOLS, strip=True).strip()
+        cleaned = _clean_html(html, SAFE_RICH_TAGS, SAFE_RICH_ATTRS).strip()
         # Drop the outer <p>...</p> only when the entire fragment is
         # a SINGLE paragraph — if the inner content has its own <p>
         # tags, leave them all alone (multi-paragraph input).
@@ -337,9 +397,7 @@ def create_app():
             return ""
         prepped = _markdown_block_breaks(str(value))
         html = md_lib.markdown(prepped, extensions=["extra", "nl2br", "sane_lists"])
-        cleaned = bleach.clean(html, tags=SAFE_RICH_TAGS, attributes=SAFE_RICH_ATTRS,
-                               protocols=SAFE_PROTOCOLS, strip=True)
-        return Markup(cleaned)
+        return Markup(_clean_html(html, SAFE_RICH_TAGS, SAFE_RICH_ATTRS))
 
     @app.template_filter("from_json")
     def from_json_filter(value):
@@ -354,6 +412,16 @@ def create_app():
         """Short fingerprint of a TS Pro Backup site public key."""
         from .pubkey import fingerprint
         return fingerprint(public_key or "")
+
+    @app.template_filter("safe_url")
+    def safe_url_filter(value):
+        """Render-side URL scheme guard for hrefs fed from model columns.
+
+        Autoescape blocks markup injection but not ``javascript:`` URIs —
+        apply to any ``href="{{ ... }}"`` whose value isn't url_for-built.
+        Returns "#" for absent/unsafe values."""
+        from .safeurl import safe_href
+        return safe_href(value)
 
     @app.template_filter("regex_search")
     def regex_search_filter(value, pattern):
@@ -633,6 +701,18 @@ def create_app():
                 response.headers.setdefault("Pragma", "no-cache")
                 response.headers.setdefault("Expires", "0")
 
+        # SVGs are XML documents: navigated to directly, a same-origin SVG
+        # executes inline <script> with full DOM access. The upload-time
+        # sanitizer strips the obvious vectors, but it's a regex blacklist
+        # — this response-level CSP is the backstop that makes a sanitizer
+        # bypass inert, on every route that serves SVG (pub files, custom
+        # icons, branding logos…). Overwrites (not setdefault) so the
+        # app-wide CSP below can't win with its 'unsafe-inline' script-src.
+        ctype = (response.headers.get("Content-Type") or "").lower()
+        if ctype.startswith("image/svg"):
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'none'; style-src 'unsafe-inline'; img-src data:")
+
         # Common security headers, applied to every response.
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
@@ -655,6 +735,15 @@ def create_app():
                                         "max-age=31536000; includeSubDomains")
         # Loose CSP: allow inline scripts/styles (app relies on them) and the Turnstile
         # origin; block framing from other origins and block object/embed/base hijacks.
+        #
+        # NOT YET TIGHTENED — `script-src-attr 'none'` and nonce-based
+        # script-src are the real prize (they'd make an XSS with our
+        # 'unsafe-inline' policy far harder to exploit), but both require
+        # first removing the ~90 inline `onclick/onchange/onsubmit`
+        # handlers still in the templates. Tracked as follow-up; adopting
+        # either now would silently break confirm dialogs and inline
+        # form-submit selects. What IS locked down here: workers (unused),
+        # web-app manifests, and everything object/base/frame-related.
         response.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'self'; "
@@ -663,6 +752,8 @@ def create_app():
             "font-src 'self' https://fonts.gstatic.com data:; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; "
+            "worker-src 'none'; "
+            "manifest-src 'self'; "
             "frame-src 'self' https://challenges.cloudflare.com; "
             "connect-src 'self'; "
             "object-src 'none'; "
@@ -1714,6 +1805,7 @@ def _migrate_sqlite(app):
                          ("frontend_announcements_list_padding_pct", "INTEGER NOT NULL DEFAULT 5"),
                          ("frontend_announcements_list_heading", "VARCHAR(200)"),
                          ("frontend_announcements_list_subheading", "VARCHAR(500)"),
+                         ("frontend_announcements_list_submit_url", "VARCHAR(500)"),
                          ("frontend_archive_template", "VARCHAR(64) NOT NULL DEFAULT 'year-sidebar'"),
                          ("frontend_archive_pagination_mode", "VARCHAR(16) NOT NULL DEFAULT 'infinite'"),
                          ("frontend_archive_page_size", "INTEGER NOT NULL DEFAULT 20"),
@@ -2289,6 +2381,10 @@ def _seed_admin(app):
                 )
         u = User(username=username, email=email,
                  password_hash=generate_password_hash(password), role="admin")
+        # Admin accounts require 2FA — the first login walks through the
+        # enrolment wizard. Debug/dev seeds skip the requirement so local
+        # bring-up (and the demo container) stays frictionless.
+        u.mfa_required = not is_debug
         db.session.add(u)
         db.session.commit()
         app.logger.info(f"Seeded admin user: {username}")

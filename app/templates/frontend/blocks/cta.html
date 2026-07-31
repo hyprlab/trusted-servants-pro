@@ -6,10 +6,10 @@
     {% if _cta.body %}<p>{{ _cta.body }}</p>{% endif %}
     <div class="fe-cta-actions">
       {% if _cta.primary_label %}
-      <a class="fe-btn fe-btn-primary" href="{{ _cta.primary_url or '#' }}">{{ _cta.primary_label }}</a>
+      <a class="fe-btn fe-btn-primary" href="{{ _cta.primary_url|safe_url }}">{{ _cta.primary_label }}</a>
       {% endif %}
       {% if _cta.secondary_label %}
-      <a class="fe-btn fe-btn-ghost" href="{{ _cta.secondary_url or '#' }}">{{ _cta.secondary_label }}</a>
+      <a class="fe-btn fe-btn-ghost" href="{{ _cta.secondary_url|safe_url }}">{{ _cta.secondary_label }}</a>
       {% endif %}
     </div>
   </div>

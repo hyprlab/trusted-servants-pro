@@ -43,13 +43,13 @@
                 </span>
               </div>
               {% if _p.featured_image_filename %}
-              <a class="fe-archive-tl-card-cover" href="{{ _url }}" tabindex="-1" aria-hidden="true">
+              <a class="fe-archive-tl-card-cover" href="{{ _url|safe_url }}" tabindex="-1" aria-hidden="true">
                 <img src="{{ url_for('public.post_featured_image', pid=_p.id) }}"
                      alt="" loading="lazy">
               </a>
               {% endif %}
               <h3 class="fe-archive-tl-card-title">
-                <a href="{{ _url }}">{{ _p.title }}</a>
+                <a href="{{ _url|safe_url }}">{{ _p.title }}</a>
               </h3>
               {% if _p.summary %}
               <p class="fe-archive-tl-card-summary muted">{{ _p.summary|truncate(180, True, '…') }}</p>

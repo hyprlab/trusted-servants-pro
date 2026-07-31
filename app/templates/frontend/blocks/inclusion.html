@@ -34,7 +34,7 @@
       </ul>
       {% endif %}
       {% if _lbl and _url %}
-      <a class="fe-btn fe-btn-primary fe-inclusion-cta" href="{{ _url }}">{{ _lbl }}</a>
+      <a class="fe-btn fe-btn-primary fe-inclusion-cta" href="{{ _url|safe_url }}">{{ _lbl }}</a>
       {% endif %}
     </div>
   </div>

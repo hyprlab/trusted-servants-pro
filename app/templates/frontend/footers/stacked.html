@@ -37,7 +37,7 @@
     {% if _f.social %}
     <ul class="fe-footer-social fe-footer-social--center">
       {% for s in _f.social %}
-      <li><a href="{{ s.url or '#' }}" aria-label="{{ s.label or s.icon or 'Social link' }}"
+      <li><a href="{{ s.url|safe_url }}" aria-label="{{ s.label or s.icon or 'Social link' }}"
              target="_blank" rel="noopener">{{ icon(s.icon or 'link') }}</a></li>
       {% endfor %}
     </ul>
@@ -48,7 +48,7 @@
       {% if _f.secondary_nav %}
       <ul class="fe-footer-secondary-nav">
         {% for l in _f.secondary_nav %}
-        <li><a href="{{ l.url or '#' }}">{{ l.label or '' }}</a></li>
+        <li><a href="{{ l.url|safe_url }}">{{ l.label or '' }}</a></li>
         {% endfor %}
       </ul>
       {% endif %}

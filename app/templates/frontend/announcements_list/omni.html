@@ -15,7 +15,15 @@
     </header>
 
     {# Tab switcher row — two view tabs on the left, separated by an
-       auto-margin from the standalone Archive link on the right. #}
+       auto-margin from the standalone Archive link on the right.
+       On mobile the bar becomes a horizontal scroller (Archive +
+       Submit swipe in from the right), so it's wrapped in a
+       positioning shell that overlays pulsing chevron hints: a right
+       chevron while the pills are off-screen right, a left chevron
+       once the visitor has swiped over to them. The `has-left` /
+       `has-right` classes are driven by the scroll listener below;
+       the hints only paint inside the <=600px media query. #}
+    <div class="fe-events-omni-scrollwrap" data-omni-scrollwrap>
     <div class="fe-events-omni-bar">
       <nav class="fe-events-omni-tabs" data-fe-announcements-tabs role="tablist"
            aria-label="Announcements view">
@@ -37,6 +45,24 @@
           <span>Archive</span>
         </span>
       </a>
+      {# Submit pill — links to the submission form (or the admin's
+         custom URL from Templates → Announcements list). The route
+         passes an empty list_submit_url when the built-in form is
+         disabled and no custom URL is set, hiding the pill. The
+         --submit modifier cancels the Archive pill's margin-left:auto
+         so this one sits snug to its right. #}
+      {% if list_submit_url %}
+      <a class="fe-events-omni-archive fe-events-omni-archive--submit"
+         href="{{ list_submit_url }}">
+        <span class="fe-events-omni-archive-inner">
+          <span class="fe-events-omni-tab-icon" aria-hidden="true">{{ icon('plus') }}</span>
+          <span>Submit</span>
+        </span>
+      </a>
+      {% endif %}
+    </div>
+    <span class="fe-omni-scroll-hint fe-omni-scroll-hint--left" aria-hidden="true">{{ icon('chevron-left') }}</span>
+    <span class="fe-omni-scroll-hint fe-omni-scroll-hint--right" aria-hidden="true">{{ icon('chevron-right') }}</span>
     </div>
 
     <div class="fe-events-omni-panels">
@@ -140,5 +166,27 @@
     var h = (window.location.hash || '').replace(/^#/, '');
     if (h && VALID[h]) show(h);
   });
+
+  // ── Mobile swipe hints ─────────────────────────────────────────
+  // The bar scrolls horizontally under 600px with the Archive/Submit
+  // pills parked off-screen right. Toggle `has-right` / `has-left`
+  // on the wrapper from the live scroll position; CSS paints a
+  // pulsing chevron for whichever direction has more content. The
+  // 8px slack absorbs sub-pixel rounding so the hints reliably drop
+  // at either end of the scroll range. No-ops on desktop because the
+  // bar doesn't overflow there (scrollable stays false).
+  var hintWrap = document.querySelector('[data-omni-scrollwrap]');
+  var hintBar = hintWrap && hintWrap.querySelector('.fe-events-omni-bar');
+  if (hintWrap && hintBar) {
+    var updateHints = function () {
+      var max = hintBar.scrollWidth - hintBar.clientWidth;
+      var scrollable = max > 8;
+      hintWrap.classList.toggle('has-right', scrollable && hintBar.scrollLeft < max - 8);
+      hintWrap.classList.toggle('has-left', scrollable && hintBar.scrollLeft > 8);
+    };
+    hintBar.addEventListener('scroll', updateHints, { passive: true });
+    window.addEventListener('resize', updateHints);
+    updateHints();
+  }
 })();
 </script>

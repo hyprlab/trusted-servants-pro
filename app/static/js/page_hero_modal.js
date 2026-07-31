@@ -638,7 +638,8 @@
       const activeBlock = findActiveBlock();
       const buttons = (activeBlock && activeBlock.data && activeBlock.data.buttons) || [];
       buttons.forEach(btn => {
-        const bstyle = (btn.style === 'ghost' || btn.style === 'yellow')
+        const bstyle = (btn.style === 'ghost' || btn.style === 'yellow'
+                        || btn.style === 'green')
           ? btn.style : 'primary';
         const a = document.createElement('a');
         a.className = 'fe-btn fe-btn-' + bstyle;
@@ -646,6 +647,8 @@
         if (bstyle === 'primary') {
           if (btn.custom_bg_color) vars.push('--fe-btn-bg: ' + btn.custom_bg_color);
           if (btn.custom_text_color) vars.push('--fe-btn-text: ' + btn.custom_text_color);
+          if (btn.custom_hover_bg_color) vars.push('--fe-btn-hover-bg: ' + btn.custom_hover_bg_color);
+          if (btn.custom_hover_text_color) vars.push('--fe-btn-hover-text: ' + btn.custom_hover_text_color);
         }
         if (vars.length) a.setAttribute('style', vars.join('; ') + ';');
         if (btn.icon_before) {
@@ -963,6 +966,7 @@
         ['primary', 'Primary (filled)'],
         ['ghost',   'Ghost (outline)'],
         ['yellow',  'Yellow (high-contrast)'],
+        ['green',   'Green (filled)'],
       ]));
       opts.appendChild(toggleField('open_in_new_tab', 'Open in new tab'));
       row.appendChild(opts);
@@ -984,6 +988,8 @@
       advGrid.appendChild(textField('icon_after_size', 'After-icon size (px)', '20', 'number'));
       advGrid.appendChild(colorField('custom_bg_color', 'Background (primary only)', '#1d4ed8'));
       advGrid.appendChild(colorField('custom_text_color', 'Text colour (primary only)', '#ffffff'));
+      advGrid.appendChild(colorField('custom_hover_bg_color', 'Hover background (primary only)', '#163e9e'));
+      advGrid.appendChild(colorField('custom_hover_text_color', 'Hover text colour (primary only)', '#ffffff'));
       adv.appendChild(advGrid);
       row.appendChild(adv);
 

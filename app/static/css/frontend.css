@@ -181,7 +181,11 @@ html[data-theme="dark"] .fe-megamenu-link:hover:not(.fe-megamenu-link-colored) {
    Live Meeting state is unmistakable regardless of the admin's idle
    palette. */
 .fe-utility-bar { width: 100%; font-size: 0.875rem; font-weight: 500;
-  border-bottom: 1px solid rgba(0,0,0,0.08);
+  /* Bottom separator is an inset shadow, NOT a border: a border-bottom
+     grows the painted band below the content box, so items centred by
+     the grid sit 1px high inside the visible bar. Themes overriding the
+     separator must use the same inset-shadow form for the same reason. */
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08);
   transition: background-color 220ms ease, color 220ms ease; }
 .fe-utility-bar-inner { display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -1213,6 +1217,42 @@ html[data-theme="dark"] .fe-page .fe-btn-yellow:hover,
 html[data-theme="dark"] .frontend-body .fe-btn-yellow:hover {
   background: #facc15;
   color: #0c0a09;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+/* Green CTA — filled WhatsApp-green variant with white text. Hardcoded
+   like .fe-btn-yellow (no design-token override) so it stays distinct
+   from the brand-driven primary button. Hover is a slightly darker
+   green in both modes; dark mode dims the resting green a notch so it
+   doesn't glow against a dark page bg. */
+.fe-btn-green,
+.fe-page .fe-btn-green,
+.frontend-body .fe-btn-green {
+  background: #24d366;
+  color: #fff;
+  border-color: transparent;
+  box-shadow: var(--fe-btn-shadow, 0 8px 20px rgba(22, 163, 74, 0.30));
+}
+.fe-btn-green:hover,
+.fe-page .fe-btn-green:hover,
+.frontend-body .fe-btn-green:hover {
+  transform: var(--fe-btn-hover-transform, translateY(-1px));
+  background: #1fb357;
+  color: #fff;
+  box-shadow: var(--fe-btn-hover-glow, 0 10px 28px rgba(22, 163, 74, 0.42));
+}
+html[data-theme="dark"] .fe-btn-green,
+html[data-theme="dark"] .fe-page .fe-btn-green,
+html[data-theme="dark"] .frontend-body .fe-btn-green {
+  background: #1fb357;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+html[data-theme="dark"] .fe-btn-green:hover,
+html[data-theme="dark"] .fe-page .fe-btn-green:hover,
+html[data-theme="dark"] .frontend-body .fe-btn-green:hover {
+  background: #1a984a;
+  color: #fff;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
 }
 .fe-btn-ghost:hover,
@@ -2744,17 +2784,24 @@ html[data-theme="dark"] .frontend-body .fe-meeting-card-actions .fe-btn-primary:
   color: var(--fe-btn-text, var(--fe-color-btn-primary-text, #fff));
   border-color: var(--fe-btn-bg, transparent);
 }
-/* Light-mode hover: darken to the primary hover-bg token so the hero CTA
-   matches .fe-btn-primary's hover. Falls back to an 88%-black mix of the
+/* Light-mode hover: the admin's per-button hover pickers feed
+   `--fe-btn-hover-bg` / `--fe-btn-hover-text` inline vars (same channel
+   as `--fe-btn-bg` / `--fe-btn-text` above) and win when set. Otherwise
+   darken to the primary hover-bg token so the hero CTA matches
+   .fe-btn-primary's hover, falling back to an 88%-black mix of the
    button's own colour when the admin uses a custom hero-button colour.
    (Dark mode is handled by the html[data-theme="dark"] rules below.) */
 .fe-hero-cta .fe-btn-primary:hover,
 .fe-page .fe-hero-cta .fe-btn-primary:hover,
 .frontend-body .fe-hero-cta .fe-btn-primary:hover {
-  background: var(--fe-color-btn-primary-hover-bg,
-                  color-mix(in srgb, var(--fe-btn-bg, var(--fe-color-btn-primary-bg, var(--fe-ink))) 88%, black));
-  border-color: var(--fe-color-btn-primary-hover-bg,
-                    color-mix(in srgb, var(--fe-btn-bg, var(--fe-color-btn-primary-bg, var(--fe-ink))) 88%, black));
+  background: var(--fe-btn-hover-bg,
+                  var(--fe-color-btn-primary-hover-bg,
+                  color-mix(in srgb, var(--fe-btn-bg, var(--fe-color-btn-primary-bg, var(--fe-ink))) 88%, black)));
+  color: var(--fe-btn-hover-text,
+             var(--fe-btn-text, var(--fe-color-btn-primary-text, #fff)));
+  border-color: var(--fe-btn-hover-bg,
+                    var(--fe-color-btn-primary-hover-bg,
+                    color-mix(in srgb, var(--fe-btn-bg, var(--fe-color-btn-primary-bg, var(--fe-ink))) 88%, black)));
 }
 .fe-btn-icon { color: var(--fe-btn-icon-color, inherit); }
 /* Dark mode derives a darkened version of whatever colour the admin
@@ -2781,12 +2828,19 @@ html[data-theme="dark"] .frontend-body .fe-hero-cta .fe-btn-primary {
 html[data-theme="dark"] .fe-hero-cta .fe-btn-primary:hover,
 html[data-theme="dark"] .fe-page .fe-hero-cta .fe-btn-primary:hover,
 html[data-theme="dark"] .frontend-body .fe-hero-cta .fe-btn-primary:hover {
+  /* When the admin picked an explicit hover colour, seed the dark-mode
+     mix from it (same darkening recipe the rest state applies to
+     `--fe-btn-bg`) so hover still visibly tracks the admin's choice
+     without torching the dark surface. Text keeps the forced off-white
+     for readability, matching the rest-state rule above. */
   background: color-mix(in srgb,
-                        var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #2e6bff)) 60%,
+                        var(--fe-btn-hover-bg,
+                            var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #2e6bff))) 60%,
                         #000);
   color: #ffffff;
   border-color: color-mix(in srgb,
-                          var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #2e6bff)) 60%,
+                          var(--fe-btn-hover-bg,
+                              var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #2e6bff))) 60%,
                           #000);
 }
 /* Hero ghost buttons in dark mode — the global dark ghost is transparent
@@ -6921,6 +6975,10 @@ body.fe-frontend-force-dark .fe-library-section-desc { color: var(--fe-dm-text-m
   max-width: 100%;
 }
 .fe-events-omni-bar .fe-events-omni-archive { margin-left: auto; }
+/* Submit pill sits to the Archive pill's right — cancel the auto
+   margin so only the first (Archive) pill pushes the pair to the
+   bar's right edge; the flex gap spaces the two. */
+.fe-events-omni-bar .fe-events-omni-archive--submit { margin-left: 0; }
 /* Archive pill — outer capsule mirrors the .fe-events-omni-tabs
    container exactly (same 4px padding ring, same translucent fill)
    so the bar reads as one continuous control row. The hover paint
@@ -6977,6 +7035,120 @@ body.fe-frontend-force-dark a.fe-events-omni-archive:focus-visible .fe-events-om
      the same shade as a tab hover in the pillbar next to it. */
   background: rgba(255, 255, 255, 0.08);
 }
+/* Swipe-hint chevrons — the announcements omni bar wraps in
+   .fe-events-omni-scrollwrap so pulsing chevrons can overlay the
+   scroller's edges on mobile. JS stamps `has-right` / `has-left` on
+   the wrapper from the live scroll position; each hint only paints
+   inside the <=600px media query below. currentColor-based paint
+   inherits the section's text colour so both themes work without
+   dedicated dark-mode rules. */
+.fe-events-omni-scrollwrap { position: relative; }
+.fe-omni-scroll-hint {
+  display: none;
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 20px; height: 20px;
+  align-items: center; justify-content: center;
+  pointer-events: none;   /* pure indicator — swipes pass through */
+}
+.fe-omni-scroll-hint .icon { width: 20px; height: 20px; }
+.fe-omni-scroll-hint--right { right: 0; }
+.fe-omni-scroll-hint--left { left: 0; }
+@keyframes feOmniHintPulseRight {
+  0%, 100% { opacity: 0.45; transform: translate(0, -50%); }
+  50%      { opacity: 0.95; transform: translate(4px, -50%); }
+}
+@keyframes feOmniHintPulseLeft {
+  0%, 100% { opacity: 0.45; transform: translate(0, -50%); }
+  50%      { opacity: 0.95; transform: translate(-4px, -50%); }
+}
+@media (max-width: 600px) {
+  /* Reserve bare gutters either side of the scroller so the chevrons
+     live in their own clear space instead of overlapping the pills'
+     text at either scroll extreme. Constant (not hint-driven) so the
+     bar never shifts as hints come and go. */
+  .fe-events-omni-scrollwrap { padding: 0 24px; }
+  .fe-events-omni-scrollwrap.has-right .fe-omni-scroll-hint--right {
+    display: inline-flex;
+    animation: feOmniHintPulseRight 1.4s ease-in-out infinite;
+  }
+  .fe-events-omni-scrollwrap.has-left .fe-omni-scroll-hint--left {
+    display: inline-flex;
+    animation: feOmniHintPulseLeft 1.4s ease-in-out infinite;
+  }
+  /* Per-edge fade — a pill overflowing toward an active chevron edge
+     dissolves over the scroller's last 28px instead of hard-clipping
+     at the box edge, blending it into the chevron gutter. Applied
+     only on side(s) with more content (same recipe as the utility
+     bar's edge fade) so nothing fades when there's nowhere to swipe. */
+  .fe-events-omni-scrollwrap.has-right:not(.has-left) .fe-events-omni-bar {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+            mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  }
+  .fe-events-omni-scrollwrap.has-left:not(.has-right) .fe-events-omni-bar {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent 100%);
+            mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent 100%);
+  }
+  .fe-events-omni-scrollwrap.has-left.has-right .fe-events-omni-bar {
+    -webkit-mask-image: linear-gradient(to right,
+                          transparent 0, #000 28px,
+                          #000 calc(100% - 28px), transparent 100%);
+            mask-image: linear-gradient(to right,
+                          transparent 0, #000 28px,
+                          #000 calc(100% - 28px), transparent 100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fe-omni-scroll-hint {
+    animation: none !important;
+    transform: translate(0, -50%);
+    opacity: 0.7;
+  }
+}
+
+/* ── Utility-bar swipe hints ─────────────────────────────────────
+   Same chevron treatment as the announcements omni bar, adapted to
+   the slim top strip: smaller glyphs pinned to the bar's outer
+   edges (outside the swipe strip's content), pulsing at HALF the
+   omni speed. `has-left` / `has-right` land on .fe-utility-bar from
+   the strip's scroll listener in _utility_bar.html. When a wide
+   item would reach an active edge, a mask fades the strip's content
+   out under the chevron instead of letting the two collide —
+   applied per-edge so only directions with more content fade.
+   currentColor inherits the bar's admin-chosen (or live-yellow)
+   text colour in both themes. */
+.fe-utility-bar { position: relative; }
+.fe-utility-scroll-hint,
+.fe-utility-scroll-hint .icon { width: 16px; height: 16px; }
+.fe-utility-scroll-hint.fe-omni-scroll-hint--left { left: 4px; }
+.fe-utility-scroll-hint.fe-omni-scroll-hint--right { right: 4px; }
+@media (max-width: 720px) {
+  .fe-utility-bar.has-right .fe-utility-scroll-hint.fe-omni-scroll-hint--right {
+    display: inline-flex;
+    animation: feOmniHintPulseRight 2.8s ease-in-out infinite;
+  }
+  .fe-utility-bar.has-left .fe-utility-scroll-hint.fe-omni-scroll-hint--left {
+    display: inline-flex;
+    animation: feOmniHintPulseLeft 2.8s ease-in-out infinite;
+  }
+  .fe-utility-bar.has-right:not(.has-left) .fe-utility-bar-inner {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent 100%);
+            mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent 100%);
+  }
+  .fe-utility-bar.has-left:not(.has-right) .fe-utility-bar-inner {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent 100%);
+            mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent 100%);
+  }
+  .fe-utility-bar.has-left.has-right .fe-utility-bar-inner {
+    -webkit-mask-image: linear-gradient(to right,
+                          transparent 0, #000 36px,
+                          #000 calc(100% - 36px), transparent 100%);
+            mask-image: linear-gradient(to right,
+                          transparent 0, #000 36px,
+                          #000 calc(100% - 36px), transparent 100%);
+  }
+}
 @media (max-width: 600px) {
   /* Mobile: turn the bar into a horizontal scroller so the tab strip
      fills the viewport and the Archive pill sits off-screen to the
@@ -6991,6 +7163,14 @@ body.fe-frontend-force-dark a.fe-events-omni-archive:focus-visible .fe-events-om
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    /* A horizontal scroll container also clips vertically, slicing
+       off the pills' drop shadows (the active tab's reaches ~16px
+       below). Pad the clip box so shadows paint inside it, and pull
+       the margins in by the same amount (desktop: 8px top / 28px
+       bottom) so the visual spacing is unchanged. */
+    padding: 16px 0;
+    margin-top: -8px;
+    margin-bottom: 12px;
   }
   .fe-events-omni-bar::-webkit-scrollbar { display: none; }
   .fe-events-omni-bar .fe-events-omni-tabs {
@@ -7057,7 +7237,6 @@ html:not([data-theme="dark"]) .fe-events-list-omni a.fe-events-omni-archive {
 @media (max-width: 600px) {
   .fe-events-omni-tabs { width: 100%; justify-content: center; }
   .fe-events-omni-tab { flex: 1 1 auto; justify-content: center; padding: 8px 10px; }
-  .fe-events-omni-tab-icon { display: none; }
 }
 
 /* Dark-mode tweaks for the omni tab strip — pull from the universal
