@@ -47,7 +47,7 @@
           {% if _href %}
           <div class="fe-feature-card-actions">
             <a class="fe-btn fe-btn-{{ 'ghost' if _bstyle == 'ghost' else 'primary' }} fe-feature-card-cta"
-               href="{{ _href }}"{% if _newtab %} target="_blank" rel="noopener"{% endif %}>
+               href="{{ _href|safe_url }}"{% if _newtab %} target="_blank" rel="noopener"{% endif %}>
               {{ _blabel or 'Learn more' }}
             </a>
           </div>
@@ -58,7 +58,7 @@
     {% if _cta_url and _cta_label %}
     <div class="fe-features-foot">
       <a class="fe-btn fe-btn-{{ 'ghost' if _cta_style == 'ghost' else 'primary' }}"
-         href="{{ _cta_url }}"{% if _cta_new_tab %} target="_blank" rel="noopener"{% endif %}>
+         href="{{ _cta_url|safe_url }}"{% if _cta_new_tab %} target="_blank" rel="noopener"{% endif %}>
         {{ _cta_label }}
       </a>
     </div>

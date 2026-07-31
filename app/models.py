@@ -1110,6 +1110,10 @@ class SiteSetting(db.Model):
     frontend_announcements_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_announcements_list_heading = db.Column(db.String(200))
     frontend_announcements_list_subheading = db.Column(db.String(500))
+    # Custom URL for the "Submit" pill next to the Archive pill on the
+    # public /announcements page. NULL = link to the built-in
+    # submission form (the pill hides when that form is disabled).
+    frontend_announcements_list_submit_url = db.Column(db.String(500))
     # Archive (/archive) — layout picker + pagination strategy + initial
     # page size for the unified past-events + archived-announcements list.
     # `frontend_archive_template` chooses one of ARCHIVE_TEMPLATES

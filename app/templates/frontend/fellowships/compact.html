@@ -104,7 +104,7 @@
                 {% if f.is_virtual %}Virtual{% else %}Regional{% endif %}
               </span>
               {% if f.url %}
-              <a class="fe-fellowships-compact-row-link" href="{{ f.url }}" target="_blank" rel="noopener nofollow">
+              <a class="fe-fellowships-compact-row-link" href="{{ f.url|safe_url }}" target="_blank" rel="noopener nofollow">
                 Visit {{ icon('external-link') }}
               </a>
               {% endif %}

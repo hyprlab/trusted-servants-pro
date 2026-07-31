@@ -374,7 +374,7 @@
     {%- if d.get('color_dark') %}{%- set _ = _icon_styles.append('--tsp-color-dm: ' ~ (d.get('color_dark')|css_color)) -%}{%- endif -%}
     {%- set _icon_align = d.get('align') or 'center' -%}
     <div class="block block-icon block-icon--{{ _icon_align }}"{% if _icon_styles %} style="{{ _icon_styles | join('; ') }}"{% endif %}>
-      {%- if d.get('url') %}<a href="{{ d.get('url') }}"{% if d.get('new_tab') %} target="_blank" rel="noopener"{% endif %}>{%- endif %}
+      {%- if d.get('url') %}<a href="{{ d.get('url')|safe_url }}"{% if d.get('new_tab') %} target="_blank" rel="noopener"{% endif %}>{%- endif %}
       {%- if d.get('name') %}{{ icon(d.get('name')) }}{%- endif %}
       {%- if d.get('url') %}</a>{%- endif %}
     </div>

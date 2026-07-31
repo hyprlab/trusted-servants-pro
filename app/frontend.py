@@ -2136,6 +2136,43 @@ def story_submission_form():
     )
 
 
+# Anonymous story-attachment policy: the types a story submission can
+# plausibly arrive as (text/document, image, audio), and a per-file cap
+# well below the portal-wide MAX_CONTENT_LENGTH. No archives, no HTML,
+# no executables — this surface needs no login.
+_STORY_ATTACHMENT_EXTS = {
+    ".txt", ".rtf", ".md", ".pdf", ".doc", ".docx", ".odt", ".pages",
+    ".jpg", ".jpeg", ".png", ".webp", ".heic", ".gif",
+    ".mp3", ".m4a", ".aac", ".wav", ".ogg", ".opus", ".flac",
+}
+_STORY_ATTACHMENT_MAX_BYTES = 200 * 1024 * 1024
+
+
+class _StoryAttachmentTooLarge(Exception):
+    """Internal sentinel for the streaming size check below."""
+
+
+def _rc_token_hash(token):
+    """SHA-256 of a recovery-contacts confirmation token. Only the hash
+    is persisted (``RecoveryContact.removal_token``) — a DB leak then
+    can't be replayed into live confirm/disavow links. Hex digest is 64
+    chars, exactly the column width."""
+    import hashlib
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+
+
+def _rc_lookup_token(token):
+    """Resolve a confirmation-link token to its RecoveryContact row.
+    Matches on the stored hash; falls back to legacy cleartext rows
+    (written before hashing shipped) so outstanding emailed links keep
+    working across the upgrade."""
+    from .models import RecoveryContact
+    if not token:
+        return None
+    return (RecoveryContact.query.filter_by(removal_token=_rc_token_hash(token)).first()
+            or RecoveryContact.query.filter_by(removal_token=token).first())
+
+
 @bp.route("/storyform/submit", methods=["POST"])
 def story_submission_submit():
     """Process a public story submission. Validates required fields,
@@ -2221,20 +2258,48 @@ def story_submission_submit():
     # admin downloads it from the pending-review row before editing
     # the draft. Same UPLOAD_FOLDER + UUID-prefix convention used
     # everywhere else; rejected silently when the request didn't ship
-    # one. Size is bounded by ``TSP_MAX_UPLOAD_MB`` (Flask config).
+    # one. This is an ANONYMOUS upload surface, so unlike the admin
+    # upload paths it takes a document/audio/image allowlist and its
+    # own size cap (the global TSP_MAX_UPLOAD_MB ceiling is sized for
+    # multi-GB restore bundles, far too generous here).
     upload = request.files.get("attachment")
     if upload and upload.filename:
         from werkzeug.utils import secure_filename
         import os, uuid as _uuid
         original = secure_filename(upload.filename) or "attachment"
         ext = os.path.splitext(original)[1].lower()
+        if ext not in _STORY_ATTACHMENT_EXTS:
+            flash("That attachment type isn't accepted — please send a "
+                  "document, image, or audio recording.", "danger")
+            return redirect(url_for("frontend.story_submission_form"))
         stored = f"{_uuid.uuid4().hex}{ext}"
         target = os.path.join(current_app.config["UPLOAD_FOLDER"], stored)
         try:
-            upload.save(target)
+            written = 0
+            with open(target, "wb") as fh:
+                while True:
+                    chunk = upload.stream.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    written += len(chunk)
+                    if written > _STORY_ATTACHMENT_MAX_BYTES:
+                        raise _StoryAttachmentTooLarge()
+                    fh.write(chunk)
             s.submission_attachment_filename = stored
             s.submission_attachment_original = original[:500]
+        except _StoryAttachmentTooLarge:
+            try:
+                os.unlink(target)
+            except OSError:
+                pass
+            flash("That attachment is too large — please keep it under "
+                  f"{_STORY_ATTACHMENT_MAX_BYTES // (1024 * 1024)} MB.", "danger")
+            return redirect(url_for("frontend.story_submission_form"))
         except (OSError, IOError):
+            try:
+                os.unlink(target)
+            except OSError:
+                pass
             s.submission_attachment_filename = None
             s.submission_attachment_original = None
 
@@ -2468,12 +2533,18 @@ def submission_submit():
     p.is_online = f.get("is_online") == "1"
     p.location_name = (f.get("location_name") or "").strip()[:255] or None
     p.location_address = (f.get("location_address") or "").strip() or None
-    p.google_maps_url = (f.get("google_maps_url") or "").strip()[:500] or None
-    p.website_url = (f.get("website_url") or "").strip()[:500] or None
+    from .safeurl import sanitize_url
+    # URL columns render into raw href attributes on public event pages
+    # and Jinja autoescape does NOT block javascript: URIs — values from
+    # anonymous submitters must be scheme-validated before storage. An
+    # unsafe value is dropped (None); admin reviewers see the field
+    # blank rather than a live javascript: link.
+    p.google_maps_url = sanitize_url(f.get("google_maps_url"))
+    p.website_url = sanitize_url(f.get("website_url"))
     p.website_label = (f.get("website_label") or "").strip()[:120] or None
     p.zoom_meeting_id = (f.get("zoom_meeting_id") or "").strip()[:64] or None
     p.zoom_passcode = (f.get("zoom_passcode") or "").strip()[:128] or None
-    p.zoom_url = (f.get("zoom_url") or "").strip()[:500] or None
+    p.zoom_url = sanitize_url(f.get("zoom_url"))
     p.contact_name = (f.get("contact_name") or "").strip()[:120] or None
     p.contact_phone = (f.get("contact_phone") or "").strip()[:64] or None
     p.contact_email = (f.get("contact_email") or "").strip()[:255] or None
@@ -3440,6 +3511,13 @@ def announcements_list():
     pad_pct = max(0, min(20, pad_pct))
     list_heading = (site.frontend_announcements_list_heading if site else None) or ""
     list_subheading = (site.frontend_announcements_list_subheading if site else None) or ""
+    # "Submit" pill next to the Archive pill. Admin-set URL wins;
+    # otherwise link to the built-in submission form — but only while
+    # that form is enabled, so the default never points at a 404.
+    # Empty string hides the pill entirely.
+    list_submit_url = (site.frontend_announcements_list_submit_url or "").strip() if site else ""
+    if not list_submit_url and site and getattr(site, "submission_form_enabled", True):
+        list_submit_url = url_for("frontend.submission_form")
 
     return render_template("frontend/announcements_list.html",
                            list_partial=tpl["partial"],
@@ -3449,6 +3527,7 @@ def announcements_list():
                            list_padding_pct=pad_pct,
                            list_heading=list_heading,
                            list_subheading=list_subheading,
+                           list_submit_url=list_submit_url,
                            all_announcements=rows,
                            **ctx)
 
@@ -4535,7 +4614,7 @@ def recovery_contacts_submit():
         available_to_sponsor=available_to_sponsor,
         contact_enabled=contact_enabled,
         wants_update=wants_update, wants_removal=wants_removal,
-        removal_token=confirm_token,
+        removal_token=_rc_token_hash(confirm_token) if confirm_token else None,
         matched_entry_id=matched_id,
         approved=False, ip_address=(request.remote_addr or "")[:64],
     )
@@ -4684,7 +4763,7 @@ def recovery_contacts_confirm(token):
     site = _site()
     if not site:
         abort(404)
-    entry = RecoveryContact.query.filter_by(removal_token=token).first() if token else None
+    entry = _rc_lookup_token(token)
     if entry is None or not (entry.wants_update or entry.wants_removal):
         return _render_rc_confirm(site, status="invalid", kind=None, name=None)
 
@@ -4743,15 +4822,20 @@ def recovery_contacts_confirm(token):
                                  "Listing update confirmed via email link — applied automatically",
                                  entry_name=name, actor="Visitor")
         else:
-            # Nothing matched — confirming publishes it as a new listing.
+            # Nothing matched — this is effectively a brand-new listing
+            # wearing an "update" hat. The email link only proves the
+            # submitter controls that address, NOT that they belong on
+            # the list, so it goes through the same admin moderation
+            # queue as any new submission instead of publishing itself.
             entry.wants_update = False
             entry.removal_token = None
-            entry.approved = True
-            entry.approved_at = _dt.utcnow()
+            entry.approved = False
             _db.session.commit()
             log_recovery_contact("update_confirmed",
-                                 "Update confirmed via email link — no match, published as a new listing",
+                                 "Update confirmed via email link — no matching listing; "
+                                 "queued for admin approval as a new submission",
                                  entry_name=name, actor="Visitor")
+            return _render_rc_confirm(site, status="pending", kind=kind, name=name)
 
     return _render_rc_confirm(site, status="confirmed", kind=kind, name=name)
 
@@ -4777,7 +4861,7 @@ def recovery_contacts_disavow(token):
     site = _site()
     if not site:
         abort(404)
-    entry = RecoveryContact.query.filter_by(removal_token=token).first() if token else None
+    entry = _rc_lookup_token(token)
     if entry is None or not (entry.wants_update or entry.wants_removal):
         return _render_rc_confirm(site, status="invalid", kind=None, name=None)
 
@@ -4843,6 +4927,62 @@ def recovery_contacts_disavow(token):
     return _render_rc_confirm(site, status="disavowed", kind=kind, name=name)
 
 
+# ── Contact-relay throttle ──────────────────────────────────────────────
+# /contactlist/contact sends outbound mail with Reply-To set to whatever
+# the visitor typed, from the site's own (SPF-aligned) domain — an open
+# relay in miniature if left unmetered. Two ceilings, tracked in the
+# shared ``login_failure`` table so they survive restarts and are shared
+# across workers: per requesting IP per hour, and per target listing per
+# day (so a rotating-IP attacker still can't flood one person's inbox).
+# Kinds are pruned here on their own windows — auth._prune_stale leaves
+# them alone.
+_RC_CONTACT_IP_WINDOW_SECONDS = 3600
+_RC_CONTACT_IP_MAX = 5
+_RC_CONTACT_ENTRY_WINDOW_SECONDS = 86400
+_RC_CONTACT_ENTRY_MAX = 20
+
+
+def _rc_contact_throttled(ip, entry_id):
+    """True when this IP or the target listing is over its ceiling."""
+    from datetime import datetime as _dt, timedelta as _td
+    from .models import db as _db, LoginFailure
+    now = _dt.utcnow()
+    checks = (
+        ("rc_ip", ip or "", _RC_CONTACT_IP_WINDOW_SECONDS, _RC_CONTACT_IP_MAX),
+        ("rc_entry", str(entry_id), _RC_CONTACT_ENTRY_WINDOW_SECONDS, _RC_CONTACT_ENTRY_MAX),
+    )
+    for kind, key, window, ceiling in checks:
+        if not key:
+            continue
+        n = (LoginFailure.query
+             .filter(LoginFailure.kind == kind, LoginFailure.key == key,
+                     LoginFailure.failed_at >= now - _td(seconds=window))
+             .count())
+        if n >= ceiling:
+            return True
+    return False
+
+
+def _rc_record_contact(ip, entry_id):
+    """Count a sent relay message against both buckets and prune rows
+    older than the longest window."""
+    from datetime import datetime as _dt, timedelta as _td
+    from .models import db as _db, LoginFailure
+    now = _dt.utcnow()
+    if ip:
+        _db.session.add(LoginFailure(kind="rc_ip", key=ip, failed_at=now))
+    _db.session.add(LoginFailure(kind="rc_entry", key=str(entry_id), failed_at=now))
+    try:
+        (LoginFailure.query
+         .filter(LoginFailure.kind.in_(("rc_ip", "rc_entry")),
+                 LoginFailure.failed_at
+                 < now - _td(seconds=_RC_CONTACT_ENTRY_WINDOW_SECONDS))
+         .delete(synchronize_session=False))
+    except Exception:  # noqa: BLE001
+        _db.session.rollback()
+    _db.session.commit()
+
+
 @bp.route("/contactlist/contact", methods=["POST"])
 def recovery_contacts_contact():
     """Relay a visitor's message to a listed person who opted into
@@ -4893,6 +5033,12 @@ def recovery_contacts_contact():
             flash(err or "Security check failed — please try again.", "danger")
             return back
 
+    req_ip = (request.remote_addr or "")[:64]
+    if _rc_contact_throttled(req_ip, entry.id):
+        flash("You've sent quite a few messages recently — please wait a "
+              "while before sending another.", "danger")
+        return back
+
     if not site.mail_ready():
         flash("Contact isn't available right now — please try again later.", "danger")
         return back
@@ -4925,6 +5071,9 @@ def recovery_contacts_contact():
         flash("Sorry — we couldn't send your message. Please try again later.", "danger")
         return back
 
+    # Only messages that actually left the building count against the
+    # relay throttle — a failed SMTP attempt shouldn't eat the budget.
+    _rc_record_contact(req_ip, entry.id)
     entry.contact_count = (entry.contact_count or 0) + 1
     _db.session.commit()
     log_recovery_contact("contacted", f"Contacted via the site by {vname} <{vemail}>",

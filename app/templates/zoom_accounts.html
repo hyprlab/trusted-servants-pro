@@ -96,7 +96,7 @@
           {% endif %}
           {% if otp.login_url %}
           <dt></dt>
-          <dd><a class="btn btn-primary otp-login-btn" href="{{ otp.login_url }}" target="_blank" rel="noopener">Login for OTP Codes</a></dd>
+          <dd><a class="btn btn-primary otp-login-btn" href="{{ otp.login_url|safe_url }}" target="_blank" rel="noopener">Login for OTP Codes</a></dd>
           {% endif %}
         </dl>
       </div>

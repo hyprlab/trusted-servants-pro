@@ -36,7 +36,7 @@
       {% set _is_link_only = cat in ('external_links', 'videos') %}
       {% set _href = f.url if (_is_link_only and f.url) else url_for('frontend.meeting_resource', slug=_meeting_slug, resource=f.url_slug) %}
       <li>
-        <a href="{{ _href }}" target="_blank" rel="noopener">
+        <a href="{{ _href|safe_url }}" target="_blank" rel="noopener">
           {{ f.title }}
           <span aria-hidden="true">↗</span>
         </a>
@@ -58,7 +58,7 @@
       {% set _is_link_only = r.url and not r.body and not r.stored_filename %}
       {% set _href = r.url if _is_link_only else url_for('frontend.meeting_resource', slug=_meeting_slug, resource=r.url_slug) %}
       <li>
-        <a href="{{ _href }}" target="_blank" rel="noopener">
+        <a href="{{ _href|safe_url }}" target="_blank" rel="noopener">
           {{ r.title }}
           <span aria-hidden="true">↗</span>
         </a>

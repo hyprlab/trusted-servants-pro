@@ -142,11 +142,11 @@ html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-
 /* ===== Utility bar — warm sand strip (override the admin's blue) ======== */
 html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) {
   background: var(--sa-sand) !important; color: var(--sa-ink) !important;
-  border-bottom: 1px solid var(--sa-line);
+  box-shadow: inset 0 -1px 0 var(--sa-line);
 }
 html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) {
   background: #2a2319 !important; color: var(--fe-dm-text-muted) !important;
-  border-bottom: 1px solid #3a3022;
+  box-shadow: inset 0 -1px 0 #3a3022;
 }
 body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) a:hover { color: var(--sa-sage); }
 /* Singleton utility buttons (search, theme toggle, GSR, pill buttons) ship

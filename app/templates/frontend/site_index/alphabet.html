@@ -32,7 +32,7 @@
     <ul class="fe-site-index-list fe-site-index-list-flat">
       {% for it in _sorted %}
       <li class="fe-site-index-row fe-site-index-row-{{ it.kind }}">
-        <a class="fe-site-index-row-link" href="{{ it.url }}">
+        <a class="fe-site-index-row-link" href="{{ it.url|safe_url }}">
           <span class="fe-site-index-row-chip">{{ it.kind_label }}</span>
           <span class="fe-site-index-row-text">
             <span class="fe-site-index-row-title">{{ it.title }}</span>

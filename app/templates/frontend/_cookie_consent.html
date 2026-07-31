@@ -23,7 +23,7 @@
     </div>
     <div class="tsp-cc-actions">
       {% if cc.policy_url %}
-      <a class="tsp-cc-link" href="{{ cc.policy_url }}" rel="noopener">{{ cc.more_label }}</a>
+      <a class="tsp-cc-link" href="{{ cc.policy_url|safe_url }}" rel="noopener">{{ cc.more_label }}</a>
       {% endif %}
       {% if cc.reject_label and cc.mode != 'notice' %}
       <button type="button" class="tsp-cc-btn tsp-cc-btn--reject" data-cc-action="reject">{{ cc.reject_label }}</button>

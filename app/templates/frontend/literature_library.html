@@ -140,7 +140,7 @@
                          top-right external-link marker each sit
                          above this overlay via their own z-index so
                          they keep their distinct affordances. #}
-                      <a class="fe-library-item-link" href="{{ _href }}" {% if _ext_target %}target="{{ _ext_target }}" rel="noopener"{% endif %}>{{ it.title }}</a>
+                      <a class="fe-library-item-link" href="{{ _href|safe_url }}" {% if _ext_target %}target="{{ _ext_target }}" rel="noopener"{% endif %}>{{ it.title }}</a>
                     {% else %}
                       {{ it.title }}
                     {% endif %}

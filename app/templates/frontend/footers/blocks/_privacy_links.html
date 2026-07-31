@@ -18,7 +18,7 @@
 {% if _has_policy or _has_cookie_module %}
 <div class="fe-footer-block fe-footer-block-privacy-links">
   {% if _has_policy %}
-  <a class="fe-footer-privacy-link" href="{{ _cc.policy_url }}">
+  <a class="fe-footer-privacy-link" href="{{ _cc.policy_url|safe_url }}">
     {{ icon('shield') }}<span>{{ _cc.get('more_label') or 'Privacy policy' }}</span>
   </a>
   {% endif %}

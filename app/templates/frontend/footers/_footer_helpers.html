@@ -32,5 +32,5 @@
 {%- endmacro -%}
 
 {%- macro footer_link(l) -%}
-  <a href="{{ (l.url or '#') }}"{% if l.open_in_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ l.label or '' }}</a>
+  <a href="{{ (l.url|safe_url) }}"{% if l.open_in_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ l.label or '' }}</a>
 {%- endmacro -%}

@@ -473,7 +473,7 @@ html[data-theme="dark"] body[data-fe-theme="cyberpunk"] .fe-th-menu-btn span { b
    in both light and dark so it always reads as a cyberpunk status bar. */
 body[data-fe-theme="cyberpunk"] .fe-utility-bar:not(.is-live) {
   background: rgba(5,6,15,0.95) !important; color: var(--cy-muted) !important;
-  border-bottom: 1px solid var(--cy-line-mag);
+  box-shadow: inset 0 -1px 0 var(--cy-line-mag);
 }
 body[data-fe-theme="cyberpunk"] .fe-utility-bar:not(.is-live) a { color: var(--cy-muted); }
 body[data-fe-theme="cyberpunk"] .fe-utility-bar:not(.is-live) a:hover { color: var(--cy-cyan); }
