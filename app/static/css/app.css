@@ -5793,6 +5793,11 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
   box-shadow: 0 1px 2px rgba(0,0,0,.2); }
 .mode-toggle input:checked ~ .mode-track { background: var(--access); }
 .mode-toggle input:checked ~ .mode-track .mode-thumb { transform: translateX(16px); }
+/* Fellowships Index virtual toggle sits inside a .form, whose
+   `.form label { flex-direction: column }` would stack (and, via the
+   toggle's own align-items: center, horizontally centre) the track.
+   Higher specificity restores the row layout, keeping it left-aligned. */
+.form label.fellowship-virtual-toggle { flex-direction: row; justify-content: flex-start; }
 .mode-label-all { color: var(--text); }
 .mode-label-granular { color: var(--muted); }
 .library-row.is-granular .mode-label-all { color: var(--muted); }
@@ -6566,6 +6571,18 @@ html[data-theme="dark"] .perm-info-badge {
 @media (max-width: 720px) {
   .special-page-subrows { padding-left: 1.25rem; }
   .special-page-subrow::before { left: -0.65rem; width: 0.65rem; }
+  /* Modules tab: info / Access picker / toggle sit side-by-side on
+     desktop, but the 200px select crushes the info column at phone
+     widths — stack each row's pieces full-width instead. */
+  .settings-pane[data-pane="modules"] .special-page-row,
+  .settings-pane[data-pane="modules"] .special-page-subrow {
+    flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px;
+  }
+  /* In the stacked (column) direction the desktop `flex: 0 0 100%`
+     basis reads as height and wraps the subrows into a phantom second
+     column off-screen — let them size naturally instead. */
+  .settings-pane[data-pane="modules"] .special-page-subrows { flex: 0 0 auto; }
+  .settings-pane[data-pane="modules"] .module-role-form { width: 100%; }
 }
 /* Block rendering (public view) */
 .block-section { margin: 28px 0; }
@@ -7118,8 +7135,23 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .branding-preview-wrap { width: 100%; }
   .settings-pane[data-pane="appearance"] .appearance-grid { padding: 16px 14px 20px; gap: 18px; }
 
-  #settings-modal .modal-panel { width: calc(100vw - 2rem); max-width: calc(100vw - 2rem);
-    margin: 1rem auto; height: calc(100vh - 2rem); max-height: calc(100vh - 2rem); }
+  /* Full-bleed admin modals: every modal in the admin shell (body without
+     .frontend-body) fills the viewport edge-to-edge. The ID selectors are
+     needed because those modals have ID-specific desktop sizing rules that
+     would out-rank the body:not() selector. */
+  body:not(.frontend-body) .modal-panel,
+  #settings-modal .modal-panel,
+  #wp-import-modal .modal-panel,
+  #backup-wizard-modal .modal-panel,
+  #backups-modal .modal-panel,
+  #ts-import-wizard-modal .modal-panel,
+  #page-hero-edit-modal.fe-page-edit-modal--wide .modal-panel,
+  #page-hero-edit-modal .modal-panel {
+    width: 100vw; max-width: 100vw; margin: 0;
+    height: 100dvh; max-height: 100dvh;
+    border-radius: 0; border: none;
+  }
+  body:not(.frontend-body) .modal-panel > form { max-height: none; flex: 1 1 auto; min-height: 0; }
   #settings-modal .settings-body { flex: 1 1 auto; height: auto; min-height: 0; }
   .zoom-info dd:has(> .btn-primary) { grid-column: 1 / -1; }
   .zoom-info dt:has(+ dd > .btn-primary) { display: none; }
@@ -7164,6 +7196,40 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .locations-tbl td.locations-actions .row-actions { justify-content: flex-start; }
   .locations-tbl td.locations-actions .row-actions .btn { flex: 1 1 auto; }
   .loc-csz-row { grid-template-columns: 1fr 1fr 1fr; }
+
+  .fellowships-tbl { overflow-x: visible; }
+  .fellowships-tbl thead { display: none; }
+  .fellowships-tbl tbody, .fellowships-tbl tr { display: block; }
+  .fellowships-tbl tr { padding: 12px 0; border-bottom: 2px solid var(--border); }
+  .fellowships-tbl td { display: block; border: none; padding: 4px 0; white-space: normal; }
+  /* display:block above would defeat the [hidden] attribute — keep the
+     clone-template row and the Virtual rows' country/region cells gone. */
+  .fellowships-tbl tr[hidden], .fellowships-tbl td[hidden] { display: none; }
+  .fellowships-tbl td[data-label]::before { content: attr(data-label); display: block;
+    font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.04em; margin-bottom: 2px; }
+  .fellowships-tbl input[type="text"], .fellowships-tbl input[type="url"] { width: 100%; }
+  .fellowships-tbl td:last-child { padding-top: 8px; }
+
+  /* .tbl.wt-* (not bare .wt-*-table): the shared watchtower td rule
+     further down the sheet sets padding + border-top at equal
+     specificity and would out-cascade a single class here. */
+  .tbl.wt-ip-table, .tbl.wt-block-table, .tbl.wt-session-table { overflow-x: visible; }
+  .tbl.wt-ip-table thead, .tbl.wt-block-table thead, .tbl.wt-session-table thead { display: none; }
+  .tbl.wt-ip-table tbody, .tbl.wt-ip-table tr,
+  .tbl.wt-block-table tbody, .tbl.wt-block-table tr,
+  .tbl.wt-session-table tbody, .tbl.wt-session-table tr { display: block; }
+  .tbl.wt-ip-table tr, .tbl.wt-block-table tr, .tbl.wt-session-table tr {
+    padding: 12px 0; border-bottom: 2px solid var(--border); }
+  .tbl.wt-ip-table td, .tbl.wt-block-table td, .tbl.wt-session-table td {
+    display: block; border: none; padding: 4px 0; white-space: normal; }
+  .tbl.wt-ip-table td[data-label]::before,
+  .tbl.wt-block-table td[data-label]::before,
+  .tbl.wt-session-table td[data-label]::before { content: attr(data-label); display: block;
+    font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.04em; margin-bottom: 2px; }
+  .tbl.wt-session-table .wt-ua { overflow-wrap: anywhere; }
+  .tbl.wt-ip-table td.wt-ip-actions { display: flex; padding-top: 8px; }
 }
 
 /* City / state / ZIP grid inside the Location create / edit modals.
@@ -7232,6 +7298,19 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
     scrollbar-width: none; -ms-overflow-style: none;
   }
   .top-actions::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* Edge fade = "more to swipe" affordance. The two vars are driven by
+     JS (topActionsSwipeFade in app.js) from the live scroll position,
+     so only the side that actually hides content fades out; at 0px the
+     gradient stop collapses and the mask is fully opaque. */
+  .top-actions {
+    --swipe-fade-l: 0px; --swipe-fade-r: 0px;
+    -webkit-mask-image: linear-gradient(to right,
+      transparent 0, #000 var(--swipe-fade-l),
+      #000 calc(100% - var(--swipe-fade-r)), transparent 100%);
+    mask-image: linear-gradient(to right,
+      transparent 0, #000 var(--swipe-fade-l),
+      #000 calc(100% - var(--swipe-fade-r)), transparent 100%);
+  }
   /* every action (button or inline <form>) keeps its intrinsic width
      and never shrinks, so the row stays a swipe strip */
   .top-actions > * { flex: 0 0 auto; }
