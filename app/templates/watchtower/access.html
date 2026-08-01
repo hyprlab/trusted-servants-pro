@@ -28,10 +28,10 @@
     <tbody>
       {% for r in top_ips %}
       <tr>
-        <td class="mono">{{ r.ip }}</td>
-        <td>{{ r.attempts }}</td>
-        <td class="muted small">{{ r.last_attempt.strftime('%b %d, %H:%M') if r.last_attempt else '—' }}</td>
-        <td>{% if r.blocked %}<span class="badge badge-danger">blocked</span>{% else %}<span class="badge badge-muted">tracking</span>{% endif %}</td>
+        <td class="mono" data-label="IP">{{ r.ip }}</td>
+        <td data-label="Attempts">{{ r.attempts }}</td>
+        <td class="muted small" data-label="Last seen">{{ r.last_attempt.strftime('%b %d, %H:%M') if r.last_attempt else '—' }}</td>
+        <td data-label="Status">{% if r.blocked %}<span class="badge badge-danger">blocked</span>{% else %}<span class="badge badge-muted">tracking</span>{% endif %}</td>
         <td class="wt-ip-actions">
           {% if r.blocked %}
           <form method="post" action="{{ url_for('main.watchtower_unban_ip', bid=r.block_id) }}" style="display:inline">
@@ -96,12 +96,12 @@
     <tbody>
       {% for b in blocked %}
       <tr>
-        <td class="mono">{{ b.ip }}</td>
-        <td class="muted small">{{ b.reason or '—' }}</td>
-        <td class="muted small">{{ b.blocked_by_user.username if b.blocked_by_user else '—' }}</td>
-        <td class="muted small">{{ b.blocked_at.strftime('%b %d, %H:%M') }}</td>
-        <td class="muted small">{% if b.expires_at %}{{ b.expires_at.strftime('%b %d, %H:%M') }}{% else %}Permanent{% endif %}</td>
-        <td>{{ b.hit_count or 0 }}</td>
+        <td class="mono" data-label="IP">{{ b.ip }}</td>
+        <td class="muted small" data-label="Reason">{{ b.reason or '—' }}</td>
+        <td class="muted small" data-label="Blocked by">{{ b.blocked_by_user.username if b.blocked_by_user else '—' }}</td>
+        <td class="muted small" data-label="Blocked at">{{ b.blocked_at.strftime('%b %d, %H:%M') }}</td>
+        <td class="muted small" data-label="Expires">{% if b.expires_at %}{{ b.expires_at.strftime('%b %d, %H:%M') }}{% else %}Permanent{% endif %}</td>
+        <td data-label="Hits">{{ b.hit_count or 0 }}</td>
         <td>
           <form method="post" action="{{ url_for('main.watchtower_unban_ip', bid=b.id) }}" style="display:inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -160,13 +160,13 @@
     <tbody>
       {% for s in sessions %}
       <tr class="{% if s.is_active %}wt-session-active{% endif %}">
-        <td>{% if s.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-muted">{{ s.end_reason or 'ended' }}</span>{% endif %}</td>
-        {% if show_all %}<td><a href="{{ url_for('main.watchtower_access') }}?user_id={{ s.user_id }}">{{ s.user.username if s.user else '—' }}</a></td>{% endif %}
-        <td class="muted small">{{ s.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td class="muted small">{{ s.last_activity_at.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td class="muted small">{% if s.ended_at %}{{ s.ended_at.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}</td>
-        <td class="mono small">{{ s.ip or '—' }}</td>
-        <td class="muted small wt-ua" title="{{ s.user_agent or '' }}">{{ (s.user_agent or '—')[:60] }}{% if s.user_agent and s.user_agent|length > 60 %}…{% endif %}</td>
+        <td data-label="Status">{% if s.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-muted">{{ s.end_reason or 'ended' }}</span>{% endif %}</td>
+        {% if show_all %}<td data-label="User"><a href="{{ url_for('main.watchtower_access') }}?user_id={{ s.user_id }}">{{ s.user.username if s.user else '—' }}</a></td>{% endif %}
+        <td class="muted small" data-label="Started">{{ s.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td class="muted small" data-label="Last activity">{{ s.last_activity_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td class="muted small" data-label="Ended">{% if s.ended_at %}{{ s.ended_at.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}</td>
+        <td class="mono small" data-label="IP">{{ s.ip or '—' }}</td>
+        <td class="muted small wt-ua" data-label="Browser" title="{{ s.user_agent or '' }}">{{ (s.user_agent or '—')[:60] }}{% if s.user_agent and s.user_agent|length > 60 %}…{% endif %}</td>
         <td>
           {% if s.is_active %}
           <form method="post" action="{{ url_for('main.watchtower_end_session', sid=s.id) }}" style="display:inline"

@@ -6459,3 +6459,30 @@
     init();
   }
 })();
+
+/* Mobile top-bar action strip — the buttons overflow into a horizontal
+   swipe strip below 720px (scrollbar hidden), so without a cue there's
+   no hint that more actions exist off-screen. Drive the CSS mask vars
+   (--swipe-fade-l / -r on .top-actions) from the live scroll position:
+   an edge only fades while content is actually hidden past it. */
+(function topActionsSwipeFade() {
+  const FADE = "28px";
+  function init() {
+    document.querySelectorAll(".top-actions").forEach(strip => {
+      const update = () => {
+        const max = strip.scrollWidth - strip.clientWidth;
+        strip.style.setProperty("--swipe-fade-l", max > 2 && strip.scrollLeft > 2 ? FADE : "0px");
+        strip.style.setProperty("--swipe-fade-r", max > 2 && strip.scrollLeft < max - 2 ? FADE : "0px");
+      };
+      strip.addEventListener("scroll", update, { passive: true });
+      window.addEventListener("resize", update);
+      if (typeof ResizeObserver !== "undefined") new ResizeObserver(update).observe(strip);
+      update();
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
