@@ -1606,6 +1606,53 @@ html[data-theme="dark"] .post-chip-private      { background: rgba(168, 85, 247,
   margin: .35rem 0 0;
   line-height: 1.4;
 }
+/* Cross-type note for posts tagged Announcement *and* Event — sits
+   between the toggle row and the datetime field, divided from the
+   toggle so it reads as a caveat on the setting above rather than
+   more description of it. */
+.post-announcement-expiry-event-note {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  line-height: 1.45;
+}
+/* Google Maps link + its "Use address" generator button. The button
+   sits inline after the field rather than inside a bordered shell (the
+   .slug-input-row pattern) because the input is a plain URL field the
+   admin also types into directly — a shell would imply the two are one
+   control. Wraps on narrow admin screens so the button drops below. */
+.maps-url-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.maps-url-row > .maps-url-field {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.maps-url-row > .maps-url-btn { flex: 0 0 auto; white-space: nowrap; }
+/* Brief confirmation flash after the button writes a value, so the
+   change is visible when the field was already populated. */
+.maps-url-field.is-filled {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent);
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+[data-maps-url-help].is-warn { color: var(--danger, #b42318); }
+[data-maps-url-help].is-ok { color: var(--brand); }
+
+/* Mirror of the above on the Event details card — sits under the
+   Starts/Ends row it describes. Panel-tinted rather than divided so it
+   reads as an annotation on those two fields, not as another setting. */
+.post-event-archive-note {
+  margin: 0 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+  line-height: 1.45;
+}
 
 /* Uniform vertical rhythm inside every card on the announcement /
    event edit page — 1rem between each grouping (card-head, pills,
@@ -7033,6 +7080,42 @@ h5.block-heading { font-size: 0.875rem; font-weight: 600; margin: 12px 0 4px; }
 
 
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+/* Abbreviated IPv6 in the Watchtower tables — a button so it is
+   keyboard-reachable, styled as text so the column still reads as
+   data. The dotted underline is the only affordance; full button
+   chrome here would compete with the Block / Unblock control sitting
+   directly beneath it in the same cell. */
+.ip-abbr {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  /* Inherit the type the surrounding cell set (the 404s panel bolds its
+     address column, several tables shrink it) — but NOT font-family,
+     which .mono supplies and a `font: inherit` shorthand would clobber
+     since this block sits after it. */
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-bottom: 1px dotted var(--muted, #6b7280);
+}
+.ip-abbr:hover, .ip-abbr:focus-visible { color: var(--brand); border-bottom-color: var(--brand); }
+/* Revealed: the parent cell is `nowrap`, so the expanded address has to
+   opt back into wrapping or it re-creates the overflow it was added to
+   prevent. break-all because an IPv6 has no spaces to break on. */
+.ip-abbr.is-open {
+  white-space: normal;
+  word-break: break-all;
+  border-bottom-style: solid;
+}
+/* Watchtower tables that are inherently wider than the content area
+   beside the sidebar — same containment as .users-tbl-scroll, so the
+   overflow scrolls inside the card instead of moving the page. */
+.wt-tbl-scroll { max-width: 100%; overflow-x: auto; }
 .pw-reveal { margin-left: 6px; }
 
 .zoom-otp-card { width: 50%; margin-right: auto; }

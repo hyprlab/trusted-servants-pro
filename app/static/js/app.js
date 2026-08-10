@@ -6486,3 +6486,27 @@
     init();
   }
 })();
+
+/* ── Click-to-reveal for abbreviated IPv6 in the Watchtower tables ──
+   Markup comes from the ip_cell() macro (templates/watchtower/
+   _ip_cell.html): the button carries the elided label and the full
+   stored address, and this swaps between them.
+
+   Delegated off the document so it covers every Watchtower view plus
+   rows injected later (the 404 tab's fetch-rendered IP lists, the
+   requests table's live row removal) without each page wiring its own
+   listener. Toggles both ways so an expanded address can be collapsed
+   again rather than leaving the column wide for the rest of the
+   session. */
+(function () {
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target.closest && ev.target.closest("[data-ip-reveal]");
+    if (!btn) return;
+    const open = btn.getAttribute("aria-expanded") === "true";
+    btn.textContent = open ? btn.dataset.ipShort : btn.dataset.ipFull;
+    btn.setAttribute("aria-expanded", open ? "false" : "true");
+    btn.classList.toggle("is-open", !open);
+    btn.title = open ? btn.dataset.ipFull + " — click to show in full"
+                     : "Click to shorten";
+  });
+})();
