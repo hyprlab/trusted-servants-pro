@@ -27,6 +27,7 @@
 {% endif %}
 {% endblock %}
 {% block content %}
+{% from "watchtower/_ip_cell.html" import ip_cell %}
 {% include "watchtower/_tabs.html" %}
 
 <section class="wt-kpi-grid wt-kpi-grid--four">
@@ -208,8 +209,8 @@
             {% if e.referrer %}<span title="{{ e.referrer }}">{{ e.referrer|truncate(60) }}</span>{% else %}<span class="muted">— direct / typed</span>{% endif %}
           </td>
           <td class="muted small">{{ (e.device or 'other')|title }}{% if e.browser %} · {{ e.browser }}{% endif %}</td>
-          <td class="mono small" style="white-space:nowrap">
-            {% if e.ip %}{{ e.ip }}{% else %}<span class="muted">—</span>{% endif %}
+          <td class="small" style="white-space:nowrap">
+            {% if e.ip %}{{ ip_cell(e.ip) }}{% else %}<span class="muted">—</span>{% endif %}
           </td>
           <td class="row-actions" style="white-space:nowrap">
             {% if _existing %}

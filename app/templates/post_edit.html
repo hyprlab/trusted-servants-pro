@@ -210,7 +210,10 @@
       <div class="post-toggle-row">
         <div class="post-toggle-info">
           <div class="post-toggle-title">Auto-archive this announcement</div>
-          <p class="muted small">After the chosen date &amp; time the announcement is hidden from the public site and moved to the archive — same place an admin-archived post lands.</p>
+          <p class="muted small">
+            <strong>Off:</strong> the announcement stays on the public site indefinitely until someone archives it by hand.
+            <strong>On:</strong> after the chosen date &amp; time it is hidden from the public site and moved to the archive — same place an admin-archived post lands.
+          </p>
         </div>
         <label class="mode-toggle">
           <input type="checkbox"
@@ -221,6 +224,19 @@
           <span class="mode-track"><span class="mode-thumb"></span></span>
         </label>
       </div>
+      {# Cross-type note — this post is *also* tagged Event, so the
+         auto-archive sweep has two independent triggers and either can
+         fire (see ``_auto_archive_events`` in app/routes.py). Revealed
+         by the Event checkbox, not the toggle above: the event rule
+         applies whether or not the announcement deadline is set. #}
+      <p class="muted small post-announcement-expiry-event-note"
+         data-announcement-expiry-event-note hidden>
+        <strong>Also tagged Event.</strong> Events archive on their own — the sweep
+        uses the event end date (or the start date if there is no end) and archives the
+        post at midnight site-local on the following day, so an event stays visible for
+        the remainder of the day it ends. That happens with or without the toggle above;
+        whichever trigger comes first is the one that archives this post.
+      </p>
       <div class="post-announcement-expiry-field"
            data-announcement-expiry-field
            {% if not _aa %}hidden{% endif %}>
@@ -232,7 +248,9 @@
                  data-announcement-expiry-input>
         </label>
         <p class="muted smaller post-announcement-expiry-help">
-          Times are in the site timezone{% if site and site.timezone %} ({{ site.timezone }}){% endif %}.
+          Times are in the site timezone{% if site and site.timezone %} ({{ site.timezone }}){% endif %} —
+          the announcement drops off the moment that wall-clock time arrives, not at the end of the day.
+          Drafts are skipped: a draft never auto-archives, no matter how long its deadline has been past.
         </p>
       </div>
     </div>
@@ -290,6 +308,24 @@
       </label>
     </div>
 
+    {# Auto-archive explainer for the event side of the sweep — the
+       announcement panel in the Publishing card carries the mirror of
+       this note, but that panel is hidden on event-only posts, so
+       without this an event-only editor gets no indication the post
+       disappears on its own. Behaviour tracked in
+       ``_auto_archive_events`` (app/routes.py). The trailing clause
+       reveals only when the post is *also* tagged Announcement. #}
+    <p class="muted small post-event-archive-note">
+      <strong>Events auto-archive.</strong> This post is hidden from the public site and
+      moved to the archive at midnight site-local on the day after it ends — so it stays
+      visible for the remainder of the day it ends. <strong>Ends</strong> drives the
+      cutoff; leave it blank and <strong>Starts</strong> is used instead. Leave both blank
+      and the post never auto-archives. Drafts are skipped, however far past the date they are.<span
+        data-event-archive-ann-note hidden> Because this post is also tagged Announcement,
+        the auto-archive deadline in the Publishing card can archive it sooner — whichever
+        trigger comes first is the one that fires.</span>
+    </p>
+
     <div class="post-toggle-row post-toggle-row--panel">
       <div class="post-toggle-info">
         <div class="post-toggle-title">Online event</div>
@@ -308,13 +344,33 @@
              placeholder="Community Center · Hall B">
     </label>
     <label>Address
-      <textarea name="location_address" rows="2"
+      <textarea name="location_address" rows="2" data-maps-address
                 placeholder="123 Main St, Springfield, IL 62701">{{ (_p.location_address if _p else '') or '' }}</textarea>
     </label>
     <label>Google Maps link <span class="muted small">(optional — rendered as "Get directions")</span>
-      <input type="url" name="google_maps_url" maxlength="500"
-             value="{{ (_p.google_maps_url if _p else '') or '' }}"
-             placeholder="https://maps.google.com/?q=...">
+      {# "Use address" builds the same maps.google.com/search URL the
+         public event templates already synthesise when this column is
+         empty (see frontend/events/*.html), so a generated link and the
+         automatic fallback point at exactly the same place. Filling it
+         in is for when you want to override that — a specific pin, a
+         short link, a custom map. Pure string building, no geocoding
+         API: the URL is a Maps *search* for the text, so a typo'd
+         address yields a link that lands on a bad search, not an
+         error here. #}
+      <span class="maps-url-row">
+        <input type="url" name="google_maps_url" maxlength="500"
+               class="maps-url-field" data-maps-url
+               value="{{ (_p.google_maps_url if _p else '') or '' }}"
+               placeholder="https://maps.google.com/?q=...">
+        <button type="button" class="btn btn-sm maps-url-btn" data-maps-url-fill>
+          {{ icon('map-pin') }} Use address
+        </button>
+      </span>
+      <span class="muted small" data-maps-url-help>
+        Builds a Google Maps link from the <b>Address</b> above — or the <b>Venue / location name</b>
+        when the address is blank. Leave this field empty and the public event page generates the
+        same link on the fly, so fill it in only to override where the button points.
+      </span>
     </label>
 
     <div class="post-zoom-block">
@@ -578,10 +634,12 @@
    · Event details card shows only while the Event type is checked.
    · The announcement auto-archive block (in the Publishing card)
      shows only while the Announcement type is checked; its datetime
-     field reveals when the inner toggle is on. #}
+     field reveals when the inner toggle is on, and its cross-type
+     note reveals when the Event type is also checked. #}
 <script>
 (function () {
   var annCheck = document.querySelector('input[type="checkbox"][name="is_announcement"]');
+  var evtCheck = document.querySelector('input[type="checkbox"][name="is_event"]');
   var expiryWrap = document.querySelector('[data-announcement-expiry]');
   if (annCheck && expiryWrap) {
     var expiryToggle = expiryWrap.querySelector('[data-announcement-expiry-toggle]');
@@ -602,10 +660,18 @@
                             pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
       }
     };
+    // Cross-type note — only meaningful while both types are on, so
+    // it tracks the Event checkbox independently of the toggle.
+    var evtNote = expiryWrap.querySelector('[data-announcement-expiry-event-note]');
+    var syncEvtNote = function () {
+      if (evtNote) evtNote.hidden = !(evtCheck && evtCheck.checked);
+    };
     annCheck.addEventListener('change', syncWrap);
+    if (evtCheck) evtCheck.addEventListener('change', syncEvtNote);
     if (expiryToggle) expiryToggle.addEventListener('change', syncField);
     syncWrap();
     syncField();
+    syncEvtNote();
   }
 
   // Event details card — hidden unless the Event checkbox is on.
@@ -613,13 +679,87 @@
   // event-contact fields, so the whole card collapses out of the
   // form (and skips submission of empty event_starts_at /
   // event_ends_at) when Event is unchecked.
-  var eventCheck = document.querySelector('input[type="checkbox"][name="is_event"]');
   var eventCard = document.querySelector('[data-event-details-card]');
-  if (eventCheck && eventCard) {
-    var syncEventCard = function () { eventCard.hidden = !eventCheck.checked; };
-    eventCheck.addEventListener('change', syncEventCard);
+  if (evtCheck && eventCard) {
+    var syncEventCard = function () { eventCard.hidden = !evtCheck.checked; };
+    evtCheck.addEventListener('change', syncEventCard);
     syncEventCard();
+    // Mirror of the cross-type note in the Publishing card: the
+    // "an announcement deadline can archive this sooner" clause is
+    // only true while the Announcement type is on.
+    var evtAnnNote = eventCard.querySelector('[data-event-archive-ann-note]');
+    if (evtAnnNote && annCheck) {
+      var syncEvtAnnNote = function () { evtAnnNote.hidden = !annCheck.checked; };
+      annCheck.addEventListener('change', syncEvtAnnNote);
+      syncEvtAnnNote();
+    }
   }
+})();
+</script>
+
+{# "Use address" → Google Maps link.
+
+   Builds `https://www.google.com/maps/search/?api=1&query=<address>`,
+   byte-for-byte the URL the public event templates synthesise when
+   `google_maps_url` is empty — so generating and leaving-it-blank agree.
+   Deliberately no geocoding call: that would need a billed API key and
+   per-deploy config, and Maps resolves a plain address string in the
+   search URL on its own. The trade is that we can't tell a good address
+   from a bad one, so the button never claims the address is valid — it
+   surfaces the query it used and offers a preview link to check. #}
+<script>
+(function () {
+  var btn = document.querySelector('[data-maps-url-fill]');
+  var urlInput = document.querySelector('[data-maps-url]');
+  if (!btn || !urlInput) return;
+  var addr = document.querySelector('[data-maps-address]');
+  var venue = document.querySelector('input[name="location_name"]');
+  var help = document.querySelector('[data-maps-url-help]');
+  var helpHTML = help ? help.innerHTML : '';
+  var helpTimer = null;
+
+  // Address is a textarea: collapse newlines to comma-separated parts so
+  // a multi-line address becomes one clean query, then squash the double
+  // commas that leaves behind when a line already ended in one.
+  function queryText() {
+    var src = (addr && addr.value.trim()) || (venue && venue.value.trim()) || '';
+    return src.replace(/\s*[\r\n]+\s*/g, ', ')
+              .replace(/\s+/g, ' ')
+              .replace(/\s*,(\s*,)+/g, ',')
+              .replace(/^[\s,]+|[\s,]+$/g, '')
+              .trim();
+  }
+
+  function say(msg, tone) {
+    if (!help) return;
+    if (helpTimer) { clearTimeout(helpTimer); helpTimer = null; }
+    if (msg === null) { help.innerHTML = helpHTML; help.classList.remove('is-warn', 'is-ok'); return; }
+    help.textContent = msg;
+    help.classList.toggle('is-warn', tone === 'warn');
+    help.classList.toggle('is-ok', tone === 'ok');
+    helpTimer = setTimeout(function () { say(null); }, 9000);
+  }
+
+  btn.addEventListener('click', function () {
+    var q = queryText();
+    if (!q) {
+      say('Enter an Address (or a Venue / location name) first — there is nothing to build a link from.', 'warn');
+      if (addr) addr.focus();
+      return;
+    }
+    var url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+    var current = urlInput.value.trim();
+    // Only interrupt when we'd destroy a *different* hand-picked URL;
+    // re-clicking after an address edit should just refresh in place.
+    if (current && current !== url &&
+        !window.confirm('Replace the existing Google Maps link?\n\n' + current)) {
+      return;
+    }
+    urlInput.value = url;
+    urlInput.classList.add('is-filled');
+    setTimeout(function () { urlInput.classList.remove('is-filled'); }, 1200);
+    say('Link built from: ' + q + ' — open it to confirm it lands where you expect. Save the post to keep it.', 'ok');
+  });
 })();
 </script>
 

@@ -1,0 +1,31 @@
+{# Shared IP renderer for the Watchtower tables.
+
+   A full IPv6 is up to 45 characters, three times the widest IPv4, and
+   every one of these cells is either `nowrap` or a fixed-width flex
+   row — so rendering one verbatim blows the column out. `ip_display()`
+   (app/ipfmt.py) compresses to RFC 5952 form and elides the middle
+   hextets past a length threshold; the button swaps in the untouched
+   stored value on click, handled by the delegated listener in app.js.
+
+   IPv4, short IPv6 (fe80::1), and anything unparseable come back
+   abbreviated=False and render exactly as they did before.
+
+   Usage:  {% from "watchtower/_ip_cell.html" import ip_cell %}
+           {{ ip_cell(r.ip) }}
+           {{ ip_cell(r.ip, extra='small') }}
+
+   `extra` appends classes so each caller keeps the type scale it had.
+   The caller supplies the surrounding <td>/<span> and any dash
+   fallback — this macro renders nothing for an empty value. #}
+{% macro ip_cell(value, extra='') -%}
+{%- set _ip = ip_display(value) -%}
+{%- if not _ip.full -%}
+{%- elif _ip.abbreviated -%}
+<button type="button" class="mono ip-abbr {{ extra }}" data-ip-reveal
+        data-ip-short="{{ _ip.short }}" data-ip-full="{{ _ip.full }}"
+        aria-expanded="false"
+        title="{{ _ip.full }} — click to show in full">{{ _ip.short }}</button>
+{%- else -%}
+<span class="mono {{ extra }}" title="{{ _ip.full }}">{{ _ip.short }}</span>
+{%- endif -%}
+{%- endmacro %}
