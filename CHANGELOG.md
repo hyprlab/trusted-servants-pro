@@ -51,6 +51,36 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
   Wrapped in `.wt-tbl-scroll`, matching the existing `.users-tbl-scroll`
   treatment, so the overflow scrolls inside the card.
 
+## [2.18.2] — 2026-08-01
+
+Mobile admin UI pass. All changes are scoped to `@media (max-width: 720px)`
+except the topbar scroll mask, which is inert on wider viewports because the
+strip does not overflow there. No schema, config, or behavioural change.
+
+### Changed
+
+- **Admin modals go full-bleed below 720px.** `100vw` × `100dvh`, zero margin,
+  square corners, reclaiming the ~2rem gutter the desktop `calc(100vw - 2rem)`
+  panel width reserved. The inner form grows to fill the now full-height panel
+  (`flex: 1 1 auto; min-height: 0`), so a short modal's footer button row lands
+  at the bottom edge rather than floating mid-screen.
+- **Fellowships Index (Settings → Global) stacks as labelled cards** instead of
+  scrolling horizontally. The Virtual toggle is left-aligned with the rest of the
+  row, and the remove control is relabelled "Delete".
+- **Settings → Modules rows stack vertically** — info, Access picker, and toggle
+  — fixing a column layout that crushed descriptions to one word per line and
+  wrapped the subrow card off-screen.
+- **Watchtower → Access tables stack as labelled cards**: login sessions,
+  suspicious IPs, and the IP blocklist. Driven by the `data-label` attributes on
+  each `<td>`, surfaced through `::before` in the stacked layout.
+
+### Added
+
+- **Scroll-driven edge fade on the topbar action strip** as a "more to swipe"
+  affordance. A `ResizeObserver` plus scroll listener sets `--swipe-fade-l` /
+  `--swipe-fade-r`, so each edge fades only while content is actually hidden past
+  it and clears once that end is reached.
+
 ## [2.18.1] — 2026-07-31
 
 ### Fixed
