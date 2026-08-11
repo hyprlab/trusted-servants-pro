@@ -7,7 +7,14 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.18.3 — 2026-08-10 (latest) — Clearer event editing, tidier Watchtower
+## 2.18.4 — 2026-08-11 (latest) — Scheduled posts stay hidden until their date
+
+- **A post scheduled for a future date no longer shows up early.** If you scheduled an announcement that was also tagged as an event, it appeared in the homepage **Upcoming Events** straight away instead of waiting for its publish date — the events list was going by the event's own date and ignoring the schedule. Scheduled posts now stay hidden everywhere until the moment they publish, exactly as the **Posted on / schedule for** field promises. Posts with no schedule set are unaffected.
+- **The same fix applies to site search.** Scheduled posts were also turning up in the search box before their publish date, and search results include a post's summary and body text — so this closed a way for unpublished wording to be read early. Worth a look if you use scheduling for anything sensitive.
+- **Visitor-submitted posts awaiting review no longer appear in search.** A submission sent in through your public form could surface in site search before an admin had approved it. It now stays out of search until you accept it.
+- **Security update.** The encryption library the portal uses was updated to close a newly-published vulnerability. Nothing changes in how the portal works, and your saved Zoom credentials and backup files are unaffected — just update and restart.
+
+## 2.18.3 — 2026-08-10 — Clearer event editing, tidier Watchtower
 
 - **The post editor now spells out when a post disappears on its own.** Events archive themselves at midnight the day after they end — so an event stays up for the rest of the day it ends — and the Event details card now says so, including which date drives it (**Ends**, falling back to **Starts**) and that a post with no dates never auto-archives. The announcement auto-archive panel explains both states too: switched off, an announcement stays up until you archive it by hand. When a post is tagged as both, each card notes that whichever trigger comes first is the one that fires.
 - **Build a Google Maps link from the address you already typed.** A **Use address** button next to the **Google Maps link** field fills it in from the event's Address (or the Venue name if there's no address). It doesn't check that the address is real — it builds the same link the public event page would generate on its own — so the editor shows you the exact text it used before you save.
