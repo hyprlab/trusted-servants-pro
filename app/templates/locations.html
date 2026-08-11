@@ -173,11 +173,11 @@
       <tbody data-fellowships-rows>
         {% for f in fellowships %}
         <tr class="fellowship-row{% if f.is_virtual %} is-virtual{% endif %}" data-fellowship-row>
-          <td>
+          <td data-label="Name">
             <input type="hidden" name="fellowship_id" value="{{ f.id }}">
             <input type="text" name="fellowship_name" value="{{ f.name or '' }}" placeholder="e.g. Crystal Meth Anonymous" required>
           </td>
-          <td class="fellowship-cell-virtual">
+          <td class="fellowship-cell-virtual" data-label="Virtual">
             {# Hidden input is the one that actually submits the row's
                virtual flag — exactly one value per row, so the server-
                side zip(ids, names, virtuals) stays aligned regardless
@@ -192,24 +192,24 @@
               <span class="mode-track"><span class="mode-thumb"></span></span>
             </label>
           </td>
-          <td class="fellowship-cell-region-field"{% if f.is_virtual %} hidden{% endif %}>
+          <td class="fellowship-cell-region-field" data-label="Country"{% if f.is_virtual %} hidden{% endif %}>
             <input type="text" name="fellowship_country" value="{{ f.country or '' }}" placeholder="e.g. United States">
           </td>
-          <td class="fellowship-cell-region-field"{% if f.is_virtual %} hidden{% endif %}>
+          <td class="fellowship-cell-region-field" data-label="State / Province / Region"{% if f.is_virtual %} hidden{% endif %}>
             <input type="text" name="fellowship_state_region" value="{{ f.state_region or '' }}" placeholder="e.g. California">
           </td>
-          <td>
+          <td data-label="Website">
             <input type="url" name="fellowship_url" value="{{ f.url or '' }}" placeholder="https://example.org">
           </td>
-          <td><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship">{{ icon('x') }}</button></td>
+          <td><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship">Delete</button></td>
         </tr>
         {% endfor %}
         <tr class="fellowship-row fellowship-row-template" hidden data-fellowships-template data-fellowship-row>
-          <td>
+          <td data-label="Name">
             <input type="hidden" name="fellowship_id" value="">
             <input type="text" name="fellowship_name" placeholder="e.g. Crystal Meth Anonymous">
           </td>
-          <td class="fellowship-cell-virtual">
+          <td class="fellowship-cell-virtual" data-label="Virtual">
             <input type="hidden" name="fellowship_is_virtual" value="0"
                    data-fellowship-virtual-state>
             <label class="mode-toggle fellowship-virtual-toggle">
@@ -217,16 +217,16 @@
               <span class="mode-track"><span class="mode-thumb"></span></span>
             </label>
           </td>
-          <td class="fellowship-cell-region-field">
+          <td class="fellowship-cell-region-field" data-label="Country">
             <input type="text" name="fellowship_country" placeholder="e.g. United States">
           </td>
-          <td class="fellowship-cell-region-field">
+          <td class="fellowship-cell-region-field" data-label="State / Province / Region">
             <input type="text" name="fellowship_state_region" placeholder="e.g. California">
           </td>
-          <td>
+          <td data-label="Website">
             <input type="url" name="fellowship_url" placeholder="https://example.org">
           </td>
-          <td><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship">{{ icon('x') }}</button></td>
+          <td><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship">Delete</button></td>
         </tr>
       </tbody>
     </table>

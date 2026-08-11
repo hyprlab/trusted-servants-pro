@@ -3,6 +3,7 @@
 {% block heading %}Watchtower{% endblock %}
 {% block heading_help %}Security + observability dashboard. Visitors, sessions, admin actions, suspicious IPs, and system health — all in one place.{% endblock %}
 {% block content %}
+{% from "watchtower/_ip_cell.html" import ip_cell %}
 {% include "watchtower/_tabs.html" %}
 
 {# ───────── Attention widget ─────────
@@ -117,7 +118,7 @@
           <span class="badge badge-warning">Rate-limited</span>
           {% endif %}
         </td>
-        <td class="mono">{{ r.ip or '—' }}{% if r.blocked %} <span class="badge badge-danger">blocked</span>{% endif %}</td>
+        <td>{% if r.ip %}{{ ip_cell(r.ip) }}{% else %}<span class="mono">—</span>{% endif %}{% if r.blocked %} <span class="badge badge-danger">blocked</span>{% endif %}</td>
         <td>{{ r.attempts }}</td>
         <td class="muted small">{{ r.last_attempt.strftime('%b %d, %H:%M') if r.last_attempt else '—' }}</td>
         <td class="muted small">
@@ -319,7 +320,7 @@
       <tbody>
         {% for r in top_ips %}
         <tr>
-          <td class="mono">{{ r.ip }}{% if r.blocked %} <span class="badge badge-danger">blocked</span>{% endif %}</td>
+          <td>{{ ip_cell(r.ip) }}{% if r.blocked %} <span class="badge badge-danger">blocked</span>{% endif %}</td>
           <td>{{ r.attempts }}</td>
           <td class="muted small">{{ r.last_attempt.strftime('%b %d, %H:%M') if r.last_attempt else '—' }}</td>
           <td class="wt-ip-actions">
@@ -366,7 +367,7 @@
             <span class="muted">· {{ ev.action.replace('.', ' › ') }}</span>
           </div>
           {% if ev.summary %}<div class="muted small wt-activity-sum">{{ ev.summary }}</div>{% endif %}
-          <div class="muted smaller">{{ ev.created_at.strftime('%b %d %H:%M') }}{% if ev.ip %} · <span class="mono">{{ ev.ip }}</span>{% endif %}</div>
+          <div class="muted smaller">{{ ev.created_at.strftime('%b %d %H:%M') }}{% if ev.ip %} · {{ ip_cell(ev.ip) }}{% endif %}</div>
         </div>
       </li>
       {% endfor %}
@@ -391,7 +392,7 @@
         {% for s in active_sess %}
         <tr>
           <td>{{ s.user.username if s.user else '—' }}</td>
-          <td class="mono small">{{ s.ip or '—' }}</td>
+          <td class="small">{% if s.ip %}{{ ip_cell(s.ip) }}{% else %}<span class="mono">—</span>{% endif %}</td>
           <td class="muted small">{{ s.last_activity_at.strftime('%H:%M') }}</td>
           <td>
             <form method="post" action="{{ url_for('main.watchtower_end_session', sid=s.id) }}" style="display:inline"
@@ -421,7 +422,7 @@
       <tbody>
         {% for b in blocked %}
         <tr>
-          <td class="mono">{{ b.ip }}</td>
+          <td>{{ ip_cell(b.ip) }}</td>
           <td class="muted small">{{ b.reason or '—' }}</td>
           <td>{{ b.hit_count or 0 }}</td>
           <td class="muted small">{% if b.expires_at %}{{ b.expires_at.strftime('%b %d %H:%M') }}{% else %}—{% endif %}</td>

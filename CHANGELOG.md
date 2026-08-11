@@ -6,6 +6,81 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.18.3] — 2026-08-10
+
+### Added
+
+- **Click-to-reveal shortening for IPv6 in Watchtower.** New `app/ipfmt.py`
+  exposes `ip_display()` as a Jinja global: it compresses an address to RFC 5952
+  form and, past a 24-character threshold, elides the middle hextets keeping two
+  on each side (`2001:db8…370:7334`). A full IPv6 is up to 45 characters, so
+  rendering one verbatim in the `nowrap` IP cells widened the tables until the
+  page scrolled sideways. The shared `watchtower/_ip_cell.html` macro emits a
+  `<button>` carrying both forms, toggled by a delegated listener in `app.js`;
+  `_ulog_event.html` imports the macro itself because `routes.py` renders that
+  partial standalone for the activity-log pagination API. Applied to all ten IP
+  renders across Requests, Access, 404s, the per-path IP panel, Overview, and the
+  activity feed. IPv4, short IPv6, and unparseable values (proxy chains,
+  `unknown`) render unchanged; IPv4-mapped addresses keep their dotted tail
+  rather than Python's canonical hextet form. Blocklist lookups, ban forms, and
+  confirm dialogs continue to use the raw stored string.
+- **"Use address" generator for the event Google Maps field.** Builds
+  `https://www.google.com/maps/search/?api=1&query=<address>` — byte-for-byte the
+  URL `frontend/events/*.html` already synthesises when `google_maps_url` is
+  empty. No geocoding API (no key, no per-deploy config), so the button cannot
+  validate the address; it echoes the query it used. Newlines in the address
+  textarea collapse to comma-separated parts, and `encodeURIComponent` keeps the
+  result free of the whitespace `sanitize_url` rejects.
+
+### Changed
+
+- **Auto-archive behaviour documented in the post editor.** The Event details
+  card gained a note covering the midnight-next-day cutoff, the
+  `event_ends_at` → `event_starts_at` fallback, the never-archives case when both
+  are blank, and the drafts exemption. The announcement auto-archive panel now
+  describes its off state, and both cards reveal a cross-reference clause when a
+  post is tagged Announcement *and* Event, since `_auto_archive_events()`
+  evaluates both arms and whichever fires first wins.
+- Event-tag picker relabelled to "Insert dynamic date & time tags".
+
+### Fixed
+
+- **Watchtower → Requests no longer scrolls the page sideways.** Beyond the IPv6
+  contribution, the eight-column table plus its three-button action cell exceeded
+  the content area beside the sidebar even with all-IPv4 rows (1085px into 971px).
+  Wrapped in `.wt-tbl-scroll`, matching the existing `.users-tbl-scroll`
+  treatment, so the overflow scrolls inside the card.
+
+## [2.18.2] — 2026-08-01
+
+Mobile admin UI pass. All changes are scoped to `@media (max-width: 720px)`
+except the topbar scroll mask, which is inert on wider viewports because the
+strip does not overflow there. No schema, config, or behavioural change.
+
+### Changed
+
+- **Admin modals go full-bleed below 720px.** `100vw` × `100dvh`, zero margin,
+  square corners, reclaiming the ~2rem gutter the desktop `calc(100vw - 2rem)`
+  panel width reserved. The inner form grows to fill the now full-height panel
+  (`flex: 1 1 auto; min-height: 0`), so a short modal's footer button row lands
+  at the bottom edge rather than floating mid-screen.
+- **Fellowships Index (Settings → Global) stacks as labelled cards** instead of
+  scrolling horizontally. The Virtual toggle is left-aligned with the rest of the
+  row, and the remove control is relabelled "Delete".
+- **Settings → Modules rows stack vertically** — info, Access picker, and toggle
+  — fixing a column layout that crushed descriptions to one word per line and
+  wrapped the subrow card off-screen.
+- **Watchtower → Access tables stack as labelled cards**: login sessions,
+  suspicious IPs, and the IP blocklist. Driven by the `data-label` attributes on
+  each `<td>`, surfaced through `::before` in the stacked layout.
+
+### Added
+
+- **Scroll-driven edge fade on the topbar action strip** as a "more to swipe"
+  affordance. A `ResizeObserver` plus scroll listener sets `--swipe-fade-l` /
+  `--swipe-fade-r`, so each edge fades only while content is actually hidden past
+  it and clears once that end is reached.
+
 ## [2.18.1] — 2026-07-31
 
 ### Fixed

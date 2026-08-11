@@ -6459,3 +6459,54 @@
     init();
   }
 })();
+
+/* Mobile top-bar action strip — the buttons overflow into a horizontal
+   swipe strip below 720px (scrollbar hidden), so without a cue there's
+   no hint that more actions exist off-screen. Drive the CSS mask vars
+   (--swipe-fade-l / -r on .top-actions) from the live scroll position:
+   an edge only fades while content is actually hidden past it. */
+(function topActionsSwipeFade() {
+  const FADE = "28px";
+  function init() {
+    document.querySelectorAll(".top-actions").forEach(strip => {
+      const update = () => {
+        const max = strip.scrollWidth - strip.clientWidth;
+        strip.style.setProperty("--swipe-fade-l", max > 2 && strip.scrollLeft > 2 ? FADE : "0px");
+        strip.style.setProperty("--swipe-fade-r", max > 2 && strip.scrollLeft < max - 2 ? FADE : "0px");
+      };
+      strip.addEventListener("scroll", update, { passive: true });
+      window.addEventListener("resize", update);
+      if (typeof ResizeObserver !== "undefined") new ResizeObserver(update).observe(strip);
+      update();
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+
+/* ── Click-to-reveal for abbreviated IPv6 in the Watchtower tables ──
+   Markup comes from the ip_cell() macro (templates/watchtower/
+   _ip_cell.html): the button carries the elided label and the full
+   stored address, and this swaps between them.
+
+   Delegated off the document so it covers every Watchtower view plus
+   rows injected later (the 404 tab's fetch-rendered IP lists, the
+   requests table's live row removal) without each page wiring its own
+   listener. Toggles both ways so an expanded address can be collapsed
+   again rather than leaving the column wide for the rest of the
+   session. */
+(function () {
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target.closest && ev.target.closest("[data-ip-reveal]");
+    if (!btn) return;
+    const open = btn.getAttribute("aria-expanded") === "true";
+    btn.textContent = open ? btn.dataset.ipShort : btn.dataset.ipFull;
+    btn.setAttribute("aria-expanded", open ? "false" : "true");
+    btn.classList.toggle("is-open", !open);
+    btn.title = open ? btn.dataset.ipFull + " — click to show in full"
+                     : "Click to shorten";
+  });
+})();

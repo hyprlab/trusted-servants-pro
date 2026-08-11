@@ -1,6 +1,12 @@
 {# One row of the activity feed. Shared by the initial server-side
    render in watchtower/access.html and the JSON pagination API
-   (/api/user-log-events) so the markup stays in one place. #}
+   (/api/user-log-events) so the markup stays in one place.
+
+   The macro is imported here rather than inherited from the including
+   template because routes.py renders this partial standalone for the
+   pagination API — an import in access.html alone would leave the
+   fetched pages with an undefined name. #}
+{% from "watchtower/_ip_cell.html" import ip_cell %}
 <li class="ulog-event ulog-event-{{ ev.action.split('.')[0] }}">
   <span class="ulog-event-icon">{{ icon(ev.icon) }}</span>
   <div class="ulog-event-body">
@@ -11,7 +17,7 @@
     {% if ev.summary %}<div class="ulog-event-summary muted small">{{ ev.summary }}</div>{% endif %}
     <div class="ulog-event-meta muted smaller">
       {{ ev.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
-      {% if ev.ip %}· <span class="mono">{{ ev.ip }}</span>{% endif %}
+      {% if ev.ip %}· {{ ip_cell(ev.ip) }}{% endif %}
       {% if ev.entity_type and ev.entity_id %}· {{ ev.entity_type }} #{{ ev.entity_id }}{% endif %}
     </div>
   </div>
