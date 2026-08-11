@@ -6,6 +6,57 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.18.5] — 2026-08-11
+
+### Added
+
+- **Per-post public visibility, as its own axis.** New `Post.public_visibility`
+  column (`auto` / `public` / `private`; added to `_migrate_sqlite`, existing
+  rows take `auto` and behave exactly as before). `auto` follows the lifecycle,
+  `public` keeps a post on the public site even as a draft or scheduled ahead,
+  `private` takes it off entirely — no lists, no detail page, no images, no
+  search index. Pending-review submissions are never public under any of the
+  three. Enforcement is centralized rather than per-surface:
+  `frontend._post_live_clause()` grew from "scheduled-post gate" into the
+  complete public gate (pending + private + forced-public + draft + schedule),
+  and since it was already chained onto every public `Post.query`, the fourteen
+  now-redundant `is_draft` / `is_pending_review` filters across `frontend.py`,
+  `search.py`, and `blocks.py` came out — which is also what makes the
+  forced-public state hold on every surface instead of one. `is_archived` is
+  deliberately *not* in the clause: archiving decides where a post is filed, not
+  whether the public may see it, so lists that want only live posts keep
+  filtering it themselves. `Post.is_publicly_visible` is the Python-side twin,
+  used where a row is already in hand. Admin surface: a **Public visibility**
+  picker in the post editor, an **Always public** / **Hidden** chip in the editor
+  header and the Announcements & Events list, `View on Frontend` now offered on a
+  forced-public draft, and `post_duplicate` resets the copy to `auto` so a
+  duplicate can't inherit its way onto the public site.
+- **Portrait featured images render whole on the announcement / event / archive
+  detail page.** `thumbnails.image_dimensions()` reads an upload's pixel size
+  from the image header only (no pixel decode), honors EXIF orientation, and
+  caches on `(filename, mtime, size)`; the `image_shape` Jinja global wraps it.
+  `frontend/events/classic.html` stamps the image's own ratio as an inline
+  `aspect-ratio` and an `is-portrait` class when it's taller than wide, so a
+  movie-poster-shaped flyer keeps its top and bottom instead of losing them to
+  the fixed 4:3 frame. Landscape and near-square art (0.95 tolerance) are
+  untouched. CSS adds a 720px height guard, `object-fit: contain` as the backstop
+  for extreme ratios, and a 340px width cap on the single-column mobile hero. The
+  `timeline` layout already sized covers naturally; `poster` is a background-image
+  hero by design and `minimal` has no cover.
+
+### Fixed
+
+- **Archived posts' featured images 404'd for every logged-out visitor.**
+  `routes._public_image_visible()` treated `is_archived` as "not public" for all
+  content types, but an archived *post* keeps a public page at `/archive/<slug>`
+  — so every archived announcement and event rendered a broken featured image to
+  anyone not signed in. Rows publishing their own `is_publicly_visible` rule
+  (Post) are now asked directly, so the image routes always agree with what the
+  public site renders. Stories and blog posts have no public archive and keep the
+  previous rule. Side effect of routing through the same rule: a *scheduled*
+  post's image is now gated too, where before it was fetchable ahead of its
+  publish date.
+
 ## [2.18.4] — 2026-08-11
 
 ### Fixed

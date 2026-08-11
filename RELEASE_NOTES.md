@@ -7,7 +7,18 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.18.4 — 2026-08-11 (latest) — Scheduled posts stay hidden until their date
+## 2.18.5 — 2026-08-11 (latest) — Poster images shown in full, and a visibility switch of your own
+
+- **Tall, poster-shaped featured images are no longer cropped.** On an announcement, event, or archive page, a featured image that's taller than it is wide — a movie poster, a flyer — now shows in full at its own shape instead of having its top and bottom trimmed to fit the standard landscape frame. Wide images look exactly as they did.
+- **Archived posts show their featured image again.** An archived announcement or event is still readable by the public under **Archive**, but its featured image was coming up broken for anyone who wasn't signed in — so the pages looked fine to you and broken to your visitors. Fixed.
+- **New: Public visibility, on every post.** The post editor has a **Public visibility** setting that's separate from Draft and Archived:
+  - **Follow the post's status** — how everything has always worked, and what all your existing posts are set to. Nothing changes unless you change it.
+  - **Always public** — keeps a post on the public site even while it's a draft or scheduled for a future date.
+  - **Hidden from the public site** — takes a post off the public site completely: no listings, no page, no images, no search results. Use it to pull something down without deleting it or reshuffling its status.
+  Posts sent in through your public form and still awaiting review stay private under all three, as before. Duplicating a post always resets the copy to **Follow the post's status**, so a copy can't go live on its own.
+- Worth knowing: archiving a post *files* it under **Archive**, where the public can still read it — it doesn't take it off the site. If that's what you want, set Public visibility to **Hidden**. The auto-archive help text in the editor now says this plainly.
+
+## 2.18.4 — 2026-08-11 — Scheduled posts stay hidden until their date
 
 - **A post scheduled for a future date no longer shows up early.** If you scheduled an announcement that was also tagged as an event, it appeared in the homepage **Upcoming Events** straight away instead of waiting for its publish date — the events list was going by the event's own date and ignoring the schedule. Scheduled posts now stay hidden everywhere until the moment they publish, exactly as the **Posted on / schedule for** field promises. Posts with no schedule set are unaffected.
 - **The same fix applies to site search.** Scheduled posts were also turning up in the search box before their publish date, and search results include a post's summary and body text — so this closed a way for unpublished wording to be read early. Worth a look if you use scheduling for anything sensitive.
