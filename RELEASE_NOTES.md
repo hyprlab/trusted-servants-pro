@@ -16,6 +16,7 @@ release notes expanded by default and the changelog collapsed.
   - **Always public** — keeps a post on the public site even while it's a draft or scheduled for a future date.
   - **Hidden from the public site** — takes a post off the public site completely: no listings, no page, no images, no search results. Use it to pull something down without deleting it or reshuffling its status.
   Posts sent in through your public form and still awaiting review stay private under all three, as before. Duplicating a post always resets the copy to **Follow the post's status**, so a copy can't go live on its own.
+- **A brand-new install starts up reliably.** On the very first boot of an empty portal, the two server processes could race each other while building the database and one of them could fall over or carry on against a half-built schema. First boot is now orderly. Only affects fresh installs — existing portals were never at risk.
 - Worth knowing: archiving a post *files* it under **Archive**, where the public can still read it — it doesn't take it off the site. If that's what you want, set Public visibility to **Hidden**. The auto-archive help text in the editor now says this plainly.
 
 ## 2.18.4 — 2026-08-11 — Scheduled posts stay hidden until their date

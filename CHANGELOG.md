@@ -56,6 +56,19 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
   previous rule. Side effect of routing through the same rule: a *scheduled*
   post's image is now gated too, where before it was fetchable ahead of its
   publish date.
+- **Fresh-install boot race between the two gunicorn workers.** On an empty DB
+  both workers run `create_app` concurrently. `db.create_all()` reflects the DB
+  then issues `CREATE TABLE` per missing table, so the loser could have its
+  reflection go stale mid-run and abort on "table already exists" with only part
+  of the schema built — and that error was swallowed, letting the worker carry on
+  into `_migrate_sqlite` and the seeders against a half-built DB. `create_all()`
+  now retries (three attempts); re-reflecting creates whatever is still missing
+  and a repeat loss is a no-op. `_migrate_sqlite` is hardened for the same
+  window: `PRAGMA table_info` on a not-yet-created table returns no rows, which
+  used to read as "column absent" and drive an `ALTER TABLE` into "no such
+  table", killing the worker. An empty PRAGMA now means "not my table to
+  migrate", and "no such table" joins "duplicate column" as a tolerated race
+  error.
 
 ## [2.18.4] — 2026-08-11
 
