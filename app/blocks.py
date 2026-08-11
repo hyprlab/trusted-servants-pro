@@ -348,7 +348,15 @@ def filtered_events(events_settings, site=None):
     # events disappear / linger by the UTC offset.
     now = now_local_naive(site)
 
+    # _post_live_clause hides posts scheduled for a future publish date.
+    # Without it a post scheduled a month out still surfaced here the
+    # moment it was saved, because "upcoming" was decided purely by
+    # event_starts_at — the schedule gates the *announcement*, and an
+    # event dated sooner than its own publish date sailed straight past.
+    from .frontend import _post_live_clause
+
     rows = (Post.query
+            .filter(_post_live_clause(site))
             .filter(Post.is_event.is_(True),
                     Post.is_archived.is_(False),
                     Post.is_draft.is_(False),

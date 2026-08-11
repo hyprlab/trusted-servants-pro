@@ -252,10 +252,19 @@ def _events_source(site):
     # event_ends_at is naive site-local; comparing in UTC would
     # hide / show events by the host's UTC offset.
     now = now_local_naive(site)
+    # The index feeds a *public*, unauthenticated JSON endpoint and each
+    # row carries the post's title, summary, and body text — so a missing
+    # filter here leaks content, not just a link. Two were missing:
+    # _post_live_clause (scheduled posts) and is_pending_review
+    # (visitor submissions still awaiting an admin decision).
+    from .frontend import _post_live_clause
+
     events = (Post.query
+              .filter(_post_live_clause(site))
               .filter(Post.is_event.is_(True),
                       Post.is_archived.is_(False),
-                      Post.is_draft.is_(False))
+                      Post.is_draft.is_(False),
+                      Post.is_pending_review.is_(False))
               .order_by(Post.event_starts_at.asc().nulls_last())
               .all())
     for e in events:
@@ -283,7 +292,10 @@ def _announcements_source(site):
     from .frontend import _post_url
 
     items = []
+    from .frontend import _post_live_clause
+
     rows = (Post.query
+            .filter(_post_live_clause(site))
             .filter(Post.is_announcement.is_(True),
                     Post.is_event.is_(False),
                     Post.is_archived.is_(False),
@@ -326,7 +338,10 @@ def _archive_source(site):
 
     # Past events: ended OR explicitly archived. Skip rows with no date
     # so we don't false-positive a brand-new event as archived.
+    from .frontend import _post_live_clause
+
     events = (Post.query
+              .filter(_post_live_clause(site))
               .filter(Post.is_event.is_(True),
                       Post.is_draft.is_(False),
                       Post.is_pending_review.is_(False))
@@ -359,6 +374,7 @@ def _archive_source(site):
     # Archived announcements (excludes anything also tagged is_event so
     # mixed posts only appear once, with the event row above).
     announcements = (Post.query
+                     .filter(_post_live_clause(site))
                      .filter(Post.is_announcement.is_(True),
                              Post.is_event.is_(False),
                              Post.is_archived.is_(True),

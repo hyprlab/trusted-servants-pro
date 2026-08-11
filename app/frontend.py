@@ -1433,18 +1433,24 @@ def _frontend_gate(site):
     return None
 
 
-def _post_live_clause():
+def _post_live_clause(site=None):
     """Public-visibility gate for scheduled posts. A post whose
     ``published_at`` is in the future is hidden from every public surface
     (lists, detail pages, sitemap, calendar feeds) until that moment, when
     it appears automatically. A NULL ``published_at`` (legacy / WP imports)
     is always visible. Compared in site-local-naive to match how
     ``published_at`` is stored and parsed from the editor's datetime input.
-    Chain it onto any public ``Post.query``."""
+    Chain it onto **every** public ``Post.query`` — a query that omits it
+    leaks scheduled posts, and because the omission is invisible until
+    someone actually schedules one, it tends to go unnoticed.
+
+    ``site`` is optional so callers that already hold the SiteSetting row
+    (blocks.py, search.py) can pass it instead of paying for another
+    lookup; omitting it falls back to ``_site()`` as before."""
     from .timezone import now_local_naive
     from sqlalchemy import or_
     return or_(Post.published_at.is_(None),
-               Post.published_at <= now_local_naive(_site()))
+               Post.published_at <= now_local_naive(site if site is not None else _site()))
 
 
 def _post_in_archive(post):
