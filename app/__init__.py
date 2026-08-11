@@ -940,6 +940,23 @@ def create_app():
     from .frontend import _post_url as _post_url_helper
     app.jinja_env.globals["post_url"] = _post_url_helper
 
+    # Natural pixel dimensions of an uploaded image, as
+    # ``{'w', 'h', 'ratio', 'portrait'}`` — or None when the file is
+    # missing / not a decodable raster. Detail templates use this to
+    # tell a poster-shaped (taller-than-wide) featured image from a
+    # landscape one so the former can be shown whole instead of being
+    # cropped into the landscape frame. `portrait` carries a small
+    # tolerance so a near-square image still takes the fixed frame.
+    def _image_shape(filename, portrait_ratio=0.95):
+        from .thumbnails import image_dimensions
+        dims = image_dimensions(filename)
+        if not dims:
+            return None
+        w, h = dims
+        return {"w": w, "h": h, "ratio": w / h,
+                "portrait": (w / h) < portrait_ratio}
+    app.jinja_env.globals["image_shape"] = _image_shape
+
     # IANA timezone names + a "now in tz" helper for the Settings → Timezone
     # tab. Cached at module level — the zone list never changes at runtime.
     from .timezone import available_timezone_names as _tz_names, now_in_name as _now_in_name
@@ -2016,7 +2033,13 @@ def _migrate_sqlite(app):
                          ("published_at", "DATETIME"),
                          ("announcement_auto_archive_at", "DATETIME"),
                          ("links_json", "TEXT"),
-                         ("gallery_json", "TEXT")):
+                         ("gallery_json", "TEXT"),
+                         # Per-post public-visibility override, independent
+                         # of the draft / archived flags. Existing rows take
+                         # the DEFAULT ('auto'), i.e. the behaviour they had
+                         # before the column existed.
+                         ("public_visibility",
+                          "VARCHAR(16) NOT NULL DEFAULT 'auto'")):
             add("post", col, ddl)
         for col, ddl in (("published_at", "DATETIME"),
                          ("is_pending_review", "BOOLEAN NOT NULL DEFAULT 0"),

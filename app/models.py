@@ -2182,7 +2182,10 @@ class Post(db.Model):
     "draft"). Event posts pick up a starts/ends datetime, location
     fields, contact, optional Zoom credentials, and event-website URL.
     Posts are archived manually OR automatically the day after the
-    event ends; the public site (when wired in) hides archived posts."""
+    event ends; archived posts move out of the live lists and into the
+    public /archive index rather than going dark. Whether the public
+    may see a post at all is a separate axis — see
+    ``public_visibility`` below."""
     __tablename__ = "post"
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
@@ -2383,9 +2386,23 @@ class Post(db.Model):
     #              awaiting admin/editor review; NEVER public)
     #   draft    → is_draft=True  (edited in private; not on the public site)
     #   active   → all flags False (live)
-    #   archived → is_archived=True (hidden, kept for reference)
+    #   archived → is_archived=True (filed under the public /archive)
     is_draft = db.Column(db.Boolean, nullable=False, default=False)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
+    # Public visibility — an axis of its own, deliberately independent
+    # of the lifecycle flags above (archived decides *where* a post is
+    # filed, not *whether* the public may see it):
+    #   auto     → follow the lifecycle (public unless draft, pending,
+    #              or scheduled for a future ``published_at``)
+    #   public   → stay on the public site regardless of draft state or
+    #              publish schedule (pending-review submissions are the
+    #              one thing this can't override — those are never public
+    #              until an admin approves them)
+    #   private  → never public: no lists, no detail page, no images, no
+    #              search index, whatever the lifecycle says
+    # NULL is read as "auto" so rows written before this column existed
+    # (and any import path that skips it) behave exactly as they did.
+    public_visibility = db.Column(db.String(16), nullable=False, default="auto")
     # Submission holding tank. When True, the post was created via the
     # public /submissionform endpoint and hasn't been reviewed yet.
     # The public site filters these out alongside drafts; the admin
@@ -2423,6 +2440,51 @@ class Post(db.Model):
         ``created_at`` so legacy rows imported before the column
         existed still surface a date."""
         return self.published_at or self.created_at
+
+    # Values the ``public_visibility`` column accepts, with the label
+    # the admin picker shows for each. Anything else stored on the row
+    # (legacy NULL, a hand-edited DB) reads as "auto".
+    VISIBILITY_CHOICES = (
+        ("auto", "Follow the post's status"),
+        ("public", "Always public"),
+        ("private", "Hidden from the public site"),
+    )
+
+    @property
+    def visibility(self):
+        """Normalised ``public_visibility`` — always one of
+        auto / public / private."""
+        v = (self.public_visibility or "auto").strip().lower()
+        return v if v in ("auto", "public", "private") else "auto"
+
+    @property
+    def is_publicly_visible(self):
+        """Python-side twin of ``frontend._post_live_clause`` — True when
+        an anonymous visitor is allowed to see this post right now.
+
+        Kept in lock-step with that SQL clause: pending review is never
+        public, ``private`` always wins, ``public`` overrides both the
+        draft flag and the publish schedule, and ``auto`` falls back to
+        "not a draft, and its publish time has arrived". Archived posts
+        stay visible either way — archiving files a post under /archive,
+        it doesn't unpublish it.
+
+        Used where a row is already in hand and re-querying would be
+        silly (the public image routes, template chips)."""
+        if self.is_pending_review:
+            return False
+        vis = self.visibility
+        if vis == "private":
+            return False
+        if vis == "public":
+            return True
+        if self.is_draft:
+            return False
+        if self.published_at:
+            from .timezone import now_local_naive
+            if self.published_at > now_local_naive(SiteSetting.query.first()):
+                return False
+        return True
 
 
 class Story(db.Model):

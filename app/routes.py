@@ -18426,6 +18426,14 @@ def post_save():
     if "published_at" in request.form:
         parsed_pub = _parse_post_dt(request.form.get("published_at"))
         post.published_at = parsed_pub
+    # Public-visibility override — its own axis, independent of the
+    # draft / archived lifecycle (see Post.public_visibility). Only
+    # written when the form actually carried the field, so the flows
+    # that POST a partial form (public submissions) leave it alone.
+    if "public_visibility" in request.form:
+        _vis = (request.form.get("public_visibility") or "").strip().lower()
+        valid = {key for key, _label in Post.VISIBILITY_CHOICES}
+        post.public_visibility = _vis if _vis in valid else "auto"
 
     post.is_online = request.form.get("is_online") == "1"
     post.location_name = (request.form.get("location_name") or "").strip()[:255] or None
@@ -18885,6 +18893,10 @@ def post_duplicate(pid):
         contact_email=src.contact_email,
         is_draft=True,
         is_archived=False,
+        # Deliberately NOT copied: a source post forced public would
+        # otherwise drag its copy onto the public site the moment it's
+        # created, defeating the "duplicate lands in Drafts" contract.
+        public_visibility="auto",
         created_by=getattr(current_user, "id", None),
     )
     db.session.add(copy)
@@ -18909,9 +18921,21 @@ def _public_image_visible(obj):
     that is actually live on the public site — draft, pending-review,
     and archived items would otherwise be enumerable by walking the
     integer ids of these image routes. Signed-in portal users bypass
-    (admins/editors preview pending items in the review UIs)."""
+    (admins/editors preview pending items in the review UIs).
+
+    Rows that publish their own ``is_publicly_visible`` rule (Post) are
+    asked directly, so the answer always matches what the public site
+    actually renders. That matters for posts specifically: archiving a
+    post moves it to the public /archive rather than hiding it, so the
+    blanket is_archived test below used to 404 the featured image of
+    every archived post — a broken image on a page the public can read.
+    Stories / blog posts have no public archive, so they keep the
+    is_archived rule."""
     if getattr(current_user, "is_authenticated", False):
         return True
+    own_rule = getattr(obj, "is_publicly_visible", None)
+    if own_rule is not None:
+        return bool(own_rule)
     return not (getattr(obj, "is_draft", False)
                 or getattr(obj, "is_archived", False)
                 or getattr(obj, "is_pending_review", False))

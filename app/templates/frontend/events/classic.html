@@ -37,10 +37,19 @@
        trigger that opens a full-screen lightbox of the same image. #}
     {% set _has_cover = event.featured_image_filename %}
     {% set _cover_url = url_for('public.post_featured_image', pid=event.id) if _has_cover else '' %}
+    {# Portrait covers (movie-poster / flyer shaped art) would lose their
+       top and bottom to the 4:3 frame, so the frame takes the image's own
+       ratio instead and the whole poster shows. Landscape and near-square
+       covers keep the fixed 4:3 crop. `image_shape` returns None when the
+       file is missing or isn't a decodable raster — the fixed frame is
+       the fallback. #}
+    {% set _cover_shape = image_shape(event.featured_image_filename) if _has_cover else None %}
+    {% set _cover_portrait = _cover_shape and _cover_shape.portrait %}
     <div class="fe-event-detail-hero{% if _has_cover %} has-cover{% endif %}">
       {% if _has_cover %}
       <div class="fe-event-detail-cover-col">
-        <button type="button" class="fe-event-detail-cover"
+        <button type="button" class="fe-event-detail-cover{% if _cover_portrait %} is-portrait{% endif %}"
+                {% if _cover_portrait %}style="aspect-ratio: {{ _cover_shape.w }} / {{ _cover_shape.h }};"{% endif %}
                 data-img-lightbox-src="{{ _cover_url }}"
                 data-img-lightbox-alt="{{ event.title }}"
                 aria-label="Open featured image full screen">

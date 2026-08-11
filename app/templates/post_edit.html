@@ -11,6 +11,14 @@
   {% if _p and _p.is_draft %}
   <span class="post-chip post-chip-draft post-chip-header">Draft</span>
   {% endif %}
+  {# Visibility overrides earn their own chip — an admin looking at a
+     draft that's deliberately public (or a live post that's hidden)
+     shouldn't have to scroll to the picker to find that out. #}
+  {% if _p and _p.visibility == 'private' %}
+  <span class="post-chip post-chip-private post-chip-header" title="Hidden from the public site regardless of status">Hidden</span>
+  {% elif _p and _p.visibility == 'public' %}
+  <span class="post-chip post-chip-public post-chip-header" title="Always public, regardless of draft state or schedule">Always public</span>
+  {% endif %}
   {% if _p and not _p.is_archived %}
   <form method="post" action="{{ url_for('main.post_archive', pid=_p.id) }}" style="display:inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -61,10 +69,11 @@
      (the module-on switch) — public visibility being off doesn't
      matter because signed-in editors / admins can preview either way.
      Hidden on pending-review submissions (no public URL exists yet),
-     on drafts (same — drafts 404 publicly), and on brand-new unsaved
-     posts. #}
+     on drafts (same — drafts 404 publicly, unless visibility is forced
+     to Always public), and on brand-new unsaved posts. #}
   {% if _p and site and site.frontend_module_enabled
-        and not _p.is_pending_review and not _p.is_draft %}
+        and not _p.is_pending_review
+        and (not _p.is_draft or _p.visibility == 'public') %}
   <a class="btn" href="{{ post_url(_p) }}" target="_blank" rel="noopener">View on Frontend ↗</a>
   {% endif %}
   {# Duplicate the current post into a fresh Draft so the admin can
@@ -200,6 +209,29 @@
       </span>
     </label>
 
+    {# Public visibility — its own axis, deliberately independent of the
+       draft / archived lifecycle. "Follow the post's status" is the
+       behaviour everything had before this control existed; the other
+       two are explicit overrides the admin can set at any time, on a
+       live post or an archived one. Mirrors
+       ``Post.VISIBILITY_CHOICES`` / ``frontend._post_live_clause``. #}
+    {%- set _vis = _p.visibility if _p else 'auto' -%}
+    <label>Public visibility
+      <select name="public_visibility" data-post-visibility>
+        <option value="auto" {% if _vis == 'auto' %}selected{% endif %}>Follow the post's status</option>
+        <option value="public" {% if _vis == 'public' %}selected{% endif %}>Always public</option>
+        <option value="private" {% if _vis == 'private' %}selected{% endif %}>Hidden from the public site</option>
+      </select>
+      <span class="muted small">
+        Separate from Draft / Archived — archiving files a post under
+        <code>/archive</code>, where the public can still read it.
+        <strong>Follow the post's status:</strong> public once it's published and its posted-on time has arrived.
+        <strong>Always public:</strong> stays on the public site even as a draft or scheduled ahead.
+        <strong>Hidden:</strong> off the public site entirely — no listings, no page, no images, no search — until you set it back.
+        Submissions awaiting review stay private either way.
+      </span>
+    </label>
+
     {# Announcement-only auto-archive deadline — hidden whenever the
        Announcement type is off (events already auto-archive via
        ``event_ends_at``). Panel row styled like the Online-event
@@ -212,7 +244,7 @@
           <div class="post-toggle-title">Auto-archive this announcement</div>
           <p class="muted small">
             <strong>Off:</strong> the announcement stays on the public site indefinitely until someone archives it by hand.
-            <strong>On:</strong> after the chosen date &amp; time it is hidden from the public site and moved to the archive — same place an admin-archived post lands.
+            <strong>On:</strong> after the chosen date &amp; time it drops out of the announcement lists and moves to the public <code>/archive</code> — same place an admin-archived post lands. To take it off the public site altogether, set Public visibility to Hidden.
           </p>
         </div>
         <label class="mode-toggle">

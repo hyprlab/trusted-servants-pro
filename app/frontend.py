@@ -1434,23 +1434,52 @@ def _frontend_gate(site):
 
 
 def _post_live_clause(site=None):
-    """Public-visibility gate for scheduled posts. A post whose
-    ``published_at`` is in the future is hidden from every public surface
-    (lists, detail pages, sitemap, calendar feeds) until that moment, when
-    it appears automatically. A NULL ``published_at`` (legacy / WP imports)
-    is always visible. Compared in site-local-naive to match how
-    ``published_at`` is stored and parsed from the editor's datetime input.
-    Chain it onto **every** public ``Post.query`` — a query that omits it
-    leaks scheduled posts, and because the omission is invisible until
-    someone actually schedules one, it tends to go unnoticed.
+    """The complete public-visibility gate for posts. Chain it onto
+    **every** public ``Post.query`` — a query that omits it leaks
+    scheduled, draft, unreviewed, or admin-hidden posts, and because the
+    omission is invisible until someone actually uses one of those
+    states, it tends to go unnoticed. Callers add their own *topical*
+    filters on top (is_event / is_announcement / is_archived); this
+    clause owns "may the public see it at all".
+
+    Four rules, in precedence order:
+
+    1. ``is_pending_review`` — a visitor submission awaiting an admin
+       decision is never public, and nothing overrides that.
+    2. ``public_visibility == 'private'`` — the admin's explicit hide.
+       Wins over every lifecycle flag.
+    3. ``public_visibility == 'public'`` — the admin's explicit publish.
+       Overrides both the draft flag and the publish schedule.
+    4. otherwise ('auto', including the NULL legacy rows) — public once
+       it isn't a draft and its ``published_at`` has arrived. A NULL
+       ``published_at`` (legacy / WP imports) counts as arrived.
+
+    Note what is *absent*: ``is_archived``. Archiving files a post under
+    the public /archive — it doesn't unpublish it. Lists that want only
+    live posts filter ``is_archived`` themselves.
+
+    ``published_at`` is compared in site-local-naive to match how it's
+    stored and parsed from the editor's datetime input.
 
     ``site`` is optional so callers that already hold the SiteSetting row
     (blocks.py, search.py) can pass it instead of paying for another
     lookup; omitting it falls back to ``_site()`` as before."""
     from .timezone import now_local_naive
-    from sqlalchemy import or_
-    return or_(Post.published_at.is_(None),
-               Post.published_at <= now_local_naive(site if site is not None else _site()))
+    from sqlalchemy import and_, or_
+    scheduled_ok = or_(Post.published_at.is_(None),
+                       Post.published_at <= now_local_naive(
+                           site if site is not None else _site()))
+    # NULL-safe comparisons: `col != 'private'` is NULL (→ excluded) on a
+    # NULL row, so legacy rows are spelled out rather than relying on the
+    # column default having backfilled them.
+    not_private = or_(Post.public_visibility.is_(None),
+                      Post.public_visibility != "private")
+    forced_public = Post.public_visibility == "public"
+    return and_(
+        Post.is_pending_review.is_(False),
+        not_private,
+        or_(forced_public, and_(Post.is_draft.is_(False), scheduled_ok)),
+    )
 
 
 def _post_in_archive(post):
@@ -3139,9 +3168,7 @@ def events_list():
     _rows = (Post.query
              .filter(_post_live_clause())
              .filter(Post.is_event.is_(True),
-                     Post.is_archived.is_(False),
-                     Post.is_draft.is_(False),
-                     Post.is_pending_review.is_(False))
+                     Post.is_archived.is_(False))
              .order_by(_sql_func.coalesce(Post.published_at,
                                           Post.created_at).desc())
              .all())
@@ -3208,9 +3235,7 @@ def archive():
     # Past events: ended OR is_archived. Skip the ones with no date.
     event_rows = (Post.query
                   .filter(_post_live_clause())
-                  .filter(Post.is_event.is_(True),
-                          Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
+                  .filter(Post.is_event.is_(True))
                   .order_by(Post.event_starts_at.desc().nulls_last())
                   .all())
     past_events = []
@@ -3227,9 +3252,7 @@ def archive():
                 .filter(_post_live_clause())
                 .filter(Post.is_announcement.is_(True),
                         Post.is_event.is_(False),
-                        Post.is_archived.is_(True),
-                        Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
+                        Post.is_archived.is_(True))
                 .order_by(Post.created_at.desc())
                 .all())
 
@@ -3385,8 +3408,6 @@ def archive_detail(slug):
         abort(404)
     candidates = (Post.query
                   .filter(_post_live_clause())
-                  .filter(Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
                   .order_by(Post.id)
                   .all())
     candidates = [p for p in candidates if p.is_event or p.is_announcement]
@@ -3455,9 +3476,7 @@ def _active_announcements():
     return (Post.query
             .filter(_post_live_clause())
             .filter(Post.is_announcement.is_(True),
-                    Post.is_archived.is_(False),
-                    Post.is_draft.is_(False),
-                    Post.is_pending_review.is_(False))
+                    Post.is_archived.is_(False))
             .order_by(_sql_func.coalesce(Post.published_at,
                                          Post.created_at).desc())
             .all())
@@ -4063,9 +4082,7 @@ def event_detail(slug):
         abort(404)
     candidates = (Post.query
                   .filter(_post_live_clause())
-                  .filter(Post.is_event.is_(True),
-                          Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
+                  .filter(Post.is_event.is_(True))
                   .order_by(Post.id)
                   .all())
     ev = next((p for p in candidates if p.public_slug == slug), None)
@@ -4133,9 +4150,7 @@ def event_calendar_ics(slug):
         abort(404)
     candidates = (Post.query
                   .filter(_post_live_clause())
-                  .filter(Post.is_event.is_(True),
-                          Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
+                  .filter(Post.is_event.is_(True))
                   .order_by(Post.id)
                   .all())
     ev = next((p for p in candidates if p.public_slug == slug), None)
@@ -4178,9 +4193,7 @@ def announcement_detail(slug):
         abort(404)
     candidates = (Post.query
                   .filter(_post_live_clause())
-                  .filter(Post.is_announcement.is_(True),
-                          Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
+                  .filter(Post.is_announcement.is_(True))
                   .order_by(Post.id)
                   .all())
     ann = next((p for p in candidates if p.public_slug == slug), None)
@@ -5781,7 +5794,7 @@ def _site_index_groups(site):
     # Events — published, non-archived event posts.
     if getattr(site, "frontend_site_index_show_events", True):
         items = []
-        q = (Post.query.filter_by(is_event=True, is_draft=False, is_pending_review=False)
+        q = (Post.query.filter_by(is_event=True)
              .filter(_post_live_clause())
              .filter(Post.is_archived.is_(False))
              .order_by(Post.title.asc()))
@@ -5802,7 +5815,7 @@ def _site_index_groups(site):
     # Announcements — published, non-archived announcement posts.
     if getattr(site, "frontend_site_index_show_announcements", True):
         items = []
-        q = (Post.query.filter_by(is_announcement=True, is_draft=False, is_pending_review=False)
+        q = (Post.query.filter_by(is_announcement=True)
              .filter(_post_live_clause())
              .filter(Post.is_archived.is_(False))
              .order_by(Post.title.asc()))

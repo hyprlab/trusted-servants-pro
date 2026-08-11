@@ -262,9 +262,7 @@ def _events_source(site):
     events = (Post.query
               .filter(_post_live_clause(site))
               .filter(Post.is_event.is_(True),
-                      Post.is_archived.is_(False),
-                      Post.is_draft.is_(False),
-                      Post.is_pending_review.is_(False))
+                      Post.is_archived.is_(False))
               .order_by(Post.event_starts_at.asc().nulls_last())
               .all())
     for e in events:
@@ -298,9 +296,7 @@ def _announcements_source(site):
             .filter(_post_live_clause(site))
             .filter(Post.is_announcement.is_(True),
                     Post.is_event.is_(False),
-                    Post.is_archived.is_(False),
-                    Post.is_draft.is_(False),
-                    Post.is_pending_review.is_(False))
+                    Post.is_archived.is_(False))
             .order_by(Post.created_at.desc())
             .all())
     for a in rows:
@@ -342,9 +338,7 @@ def _archive_source(site):
 
     events = (Post.query
               .filter(_post_live_clause(site))
-              .filter(Post.is_event.is_(True),
-                      Post.is_draft.is_(False),
-                      Post.is_pending_review.is_(False))
+              .filter(Post.is_event.is_(True))
               .all())
     for e in events:
         ref_end = e.event_ends_at or e.event_starts_at
@@ -377,9 +371,7 @@ def _archive_source(site):
                      .filter(_post_live_clause(site))
                      .filter(Post.is_announcement.is_(True),
                              Post.is_event.is_(False),
-                             Post.is_archived.is_(True),
-                             Post.is_draft.is_(False),
-                             Post.is_pending_review.is_(False))
+                             Post.is_archived.is_(True))
                      .all())
     for a in announcements:
         d = a.published_at or a.created_at
