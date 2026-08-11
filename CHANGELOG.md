@@ -6,6 +6,41 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.18.4] — 2026-08-11
+
+### Fixed
+
+- **Scheduled posts leaked past `published_at` on four public surfaces.** Every
+  public `Post.query` is supposed to chain `_post_live_clause()`; three files
+  never did. `blocks.py::filtered_events` — which feeds the homepage Upcoming
+  Events block and the per-page events blocks — decided "upcoming" purely from
+  `event_starts_at`, so a post scheduled a month out but dated sooner appeared
+  immediately. A post tagged both announcement *and* event exposed this: the
+  announcement side was gated, the event side was not.
+- **Same gap in the public search index, with a content leak.**
+  `search.py::_events_source`, `_announcements_source`, and `_archive_source`
+  omitted the clause. `build_search_index()` feeds `/api/search-index`, an
+  unauthenticated JSON endpoint whose rows carry each post's title, summary, and
+  body text — so a scheduled post disclosed its content, not merely its
+  existence, ahead of publication.
+- **Pending visitor submissions were in the public search index.**
+  `_events_source` also omitted `is_pending_review`, so a post submitted through
+  the public form appeared in site search before any admin decision.
+- `_post_live_clause()` now accepts an optional `site` so callers already holding
+  the `SiteSetting` row skip a redundant lookup; the no-arg form is unchanged and
+  the eight existing call sites in `frontend.py` were already correct. Its
+  docstring now states that *every* public `Post` query needs it — the omission
+  is invisible until someone actually schedules a post, which is why it survived.
+
+### Security
+
+- **cryptography 49.0.0 → 50.0.0** (PYSEC-2026-3552), flagged by the weekly
+  `pip-audit --strict` workflow. No API changes: Fernet (`app/crypto.py`,
+  `app/backup.py`) and PBKDF2HMAC + AES-GCM (`app/bundle_crypto.py`) were
+  exercised on 50.0.0, `pip check` is clean with `paramiko==5.0.0`, and the key
+  derivation is untouched so existing encrypted credentials and backup bundles
+  still decrypt.
+
 ## [2.18.3] — 2026-08-10
 
 ### Added
