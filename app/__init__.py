@@ -772,11 +772,22 @@ def create_app():
                     _c.execute(_text("ALTER TABLE phone_list_entry RENAME TO recovery_contact"))
         except OperationalError:
             pass
-        try:
-            db.create_all()
-        except OperationalError as e:
-            if "already exists" not in str(e).lower():
-                raise
+        # On a fresh install two gunicorn workers run this concurrently.
+        # create_all() reflects the DB, then issues CREATE TABLE per missing
+        # table — so the loser can have its reflection go stale mid-run and
+        # abort on "table already exists" with only *part* of the schema
+        # built. Swallowing that (as this did) left the worker to continue
+        # into _migrate_sqlite and the seeders against a half-built DB.
+        # Retrying re-reflects and creates whatever is still missing; if the
+        # winner races us again the second attempt is a no-op, and by the
+        # third the winner has committed everything.
+        for _attempt in range(3):
+            try:
+                db.create_all()
+                break
+            except OperationalError as e:
+                if "already exists" not in str(e).lower():
+                    raise
         _migrate_sqlite(app)
         _seed_admin(app)
         _seed_custom_layouts(app)
@@ -1474,9 +1485,19 @@ def _backfill_media(app):
 def _migrate_sqlite(app):
     """Add new columns to existing tables if missing (SQLite).
 
-    Worker-safe: two gunicorn workers starting in parallel can both see the
-    column missing via PRAGMA and race on ALTER TABLE. The loser catches the
-    duplicate-column error instead of crashing the boot.
+    Worker-safe in both directions on a *fresh* install, where two gunicorn
+    workers race through create_app together:
+
+    • Column already added — both workers see it missing via PRAGMA and race
+      on ALTER TABLE; the loser catches the duplicate-column error.
+    • Table not created yet — the loser's ``db.create_all()`` aborted early
+      with "table already exists" (swallowed in create_app), so it arrives
+      here with a partial schema while the winner is still creating the rest.
+      PRAGMA on a missing table returns *no rows*, which used to read as
+      "column absent" and drive an ALTER TABLE straight into
+      "no such table", killing the worker. An empty PRAGMA now means "not
+      my table to migrate" and is skipped: whoever does create it builds it
+      from the current models, so it already has the column.
     """
     from sqlalchemy import text
     from sqlalchemy.exc import OperationalError
@@ -1484,13 +1505,20 @@ def _migrate_sqlite(app):
     with db.engine.begin() as conn:
         def add(table, col, ddl):
             cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))}
+            # No rows at all = the table doesn't exist yet (every real table
+            # has at least one column). Nothing to patch — see the docstring.
+            if not cols:
+                return
             if col in cols:
                 return
             try:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
                 newly_added.add((table, col))
             except OperationalError as e:
-                if "duplicate column" not in str(e).lower():
+                msg = str(e).lower()
+                # "no such table" covers the narrow window where the winning
+                # worker drops in between our PRAGMA and our ALTER.
+                if "duplicate column" not in msg and "no such table" not in msg:
                     raise
 
         # ── Recovery Contacts rename (dev-era) ───────────────────────
