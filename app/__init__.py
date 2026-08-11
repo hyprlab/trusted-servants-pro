@@ -883,6 +883,12 @@ def create_app():
     from .icons import icon as _icon
     app.jinja_env.globals["icon"] = _icon
 
+    # Click-to-reveal shortening for long IPv6 values in the Watchtower
+    # tables — see app/ipfmt.py. A global rather than a filter because
+    # it returns a dict the template destructures, not a rendered value.
+    from .ipfmt import ip_display as _ip_display
+    app.jinja_env.globals["ip_display"] = _ip_display
+
     # Release-notes + changelog single source of truth. The About modal
     # in templates/base.html iterates these at render time so editing
     # RELEASE_NOTES.md / CHANGELOG.md at the repo root is the only step

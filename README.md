@@ -345,6 +345,16 @@ run.py
 README.md
 ```
 
+## AI notice
+
+Trusted Servants Pro is built by a human maintainer working with generative AI as a development tool:
+
+- **Code** — the large majority of the Python, JavaScript, and CSS in this repository was written with Anthropic's Claude (via Claude Code), working from the maintainer's direction. The maintainer decides what gets built, reviews the results, tests every release, and signs off on everything that ships.
+- **Text** — documentation, release notes, and in-app copy are largely AI-drafted and human-edited.
+- **The app itself contains no AI.** Trusted Servants Pro has no AI features and makes no requests to AI services — your fellowship's documents and member data never leave your server for one. AI was used to *build* the app, not to run it.
+
+Bug reports and pull requests are welcome from humans and their AI tools alike; everything merged gets the same human review.
+
 ## License
 
 Trusted Servants Pro is released under the [GNU Affero General Public License v3.0](LICENSE) (AGPLv3).

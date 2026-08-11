@@ -5,6 +5,7 @@
    layout. The Block buttons POST to the standard
    `/watchtower/ban-ip` endpoint with a `return_url` back so the
    admin lands on the 404s tab after blocking. #}
+{% from "watchtower/_ip_cell.html" import ip_cell %}
 <div class="wt-nf-ips" role="region" aria-label="IPs hitting {{ path }}">
   {% if not ips %}
   <p class="muted small wt-nf-ips-empty">No IPs recorded for this path. (Existing 404 events from before 2.8.1 weren't captured with their source IP — new hits will be.)</p>
@@ -15,7 +16,7 @@
   <ul class="wt-nf-ips-list">
     {% for r in ips %}
     <li class="wt-nf-ips-row">
-      <span class="wt-nf-ips-addr mono small" title="{{ r.ip }}">{{ r.ip }}</span>
+      <span class="wt-nf-ips-addr">{{ ip_cell(r.ip, extra='small') }}</span>
       <span class="wt-nf-ips-count" title="{{ r.count }} hit{{ '' if r.count == 1 else 's' }}">{{ '{:,}'.format(r.count) }}× </span>
       {% if r.last_seen %}<span class="wt-nf-ips-last muted smaller">last {{ r.last_seen.strftime('%b %d, %H:%M') }}</span>{% endif %}
       <span class="wt-nf-ips-action">

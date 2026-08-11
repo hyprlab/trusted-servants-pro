@@ -3,6 +3,7 @@
 {% block heading %}Watchtower{% endblock %}
 {% block heading_help %}Access requests and password-reset activity. Process new requests, archive handled ones, and audit reset history.{% endblock %}
 {% block content %}
+{% from "watchtower/_ip_cell.html" import ip_cell %}
 {% include "watchtower/_tabs.html" %}
 
 {% if pending_resets %}
@@ -85,6 +86,12 @@
     {% if view == 'archived' %}No archived requests yet. Click <i>Archive</i> on a handled request to move it here.{% else %}No access requests yet.{% endif %}
   </p>
   {% else %}
+  {# Even with IPv6 abbreviated, eight columns plus the three-button
+     action cell run wider than the content area beside the sidebar at
+     ~1280px. Same treatment as the Users table (.users-tbl-scroll):
+     confine the overflow to the table instead of letting it push the
+     whole page sideways. #}
+  <div class="wt-tbl-scroll">
   <table class="tbl" data-requests-table>
     <thead>
       <tr>
@@ -104,7 +111,7 @@
         <td class="muted small nowrap">
           {% if r.ip_address %}
             {% set blk = blocked_ips.get(r.ip_address) %}
-            <div class="mono">{{ r.ip_address }}</div>
+            <div>{{ ip_cell(r.ip_address) }}</div>
             {% if blk %}
             <div class="ar-ip-action">
               <span class="badge badge-danger">blocked</span>
@@ -174,6 +181,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% endif %}
 </section>
 

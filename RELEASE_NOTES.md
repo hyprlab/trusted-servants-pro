@@ -7,7 +7,21 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.18.1 — 2026-07-31 (latest) — Visitor IPs captured correctly again
+## 2.18.3 — 2026-08-10 (latest) — Clearer event editing, tidier Watchtower
+
+- **The post editor now spells out when a post disappears on its own.** Events archive themselves at midnight the day after they end — so an event stays up for the rest of the day it ends — and the Event details card now says so, including which date drives it (**Ends**, falling back to **Starts**) and that a post with no dates never auto-archives. The announcement auto-archive panel explains both states too: switched off, an announcement stays up until you archive it by hand. When a post is tagged as both, each card notes that whichever trigger comes first is the one that fires.
+- **Build a Google Maps link from the address you already typed.** A **Use address** button next to the **Google Maps link** field fills it in from the event's Address (or the Venue name if there's no address). It doesn't check that the address is real — it builds the same link the public event page would generate on its own — so the editor shows you the exact text it used before you save.
+- **Long IPv6 addresses no longer stretch the Watchtower tables off-screen.** Wherever Watchtower shows a visitor's IP, a long IPv6 address is shortened to its first and last parts (`2001:db8…370:7334`). Click it to see the whole address, click again to shorten it. IPv4 addresses look exactly as they did. Blocking still acts on the full address — only the display changes.
+- The editor's date-tag picker is now labelled **Insert dynamic date & time tags**.
+
+## 2.18.2 — 2026-08-01 — Admin on a phone
+
+- **The admin area is far easier to use on a phone.** On screens narrower than about 720px, editing panels now open edge-to-edge — no wasted margin — and shorter ones keep their Save/Cancel buttons pinned to the bottom of the screen so you're never hunting for them.
+- **Wide tables stack instead of sliding sideways.** **Settings → Global → Fellowships Index** and the Watchtower **Access** tables (login sessions, suspicious IPs, and the IP blocklist) now show each row as a labelled card on a phone, so you can read every value without dragging the table left and right. The Fellowships Index "remove" button now reads **Delete**, and its Virtual toggle is left-aligned with the rest of the row.
+- **Settings → Modules is readable again on a narrow screen.** Each module's description, access picker, and on/off switch stack vertically instead of being squeezed into columns that broke the text to one word per line and pushed part of the row off-screen.
+- **The row of buttons at the top of a page tells you when there's more to swipe.** Its edges fade out while content is hidden past them, and the fade disappears once you've scrolled to that end.
+
+## 2.18.1 — 2026-07-31 — Visitor IPs captured correctly again
 
 - **Fixes a regression from 2.18.0 where visitor IP addresses showed up as an internal/Cloudflare address (like `172.71.x.x`) instead of the real visitor.** If your site sits behind Cloudflare, the 2.18.0 hardening stopped trusting Cloudflare's "real visitor IP" header by default, so Watchtower — and the per-visitor login lockout, IP blocking, and rate limits — all saw every visitor as the same address. This release trusts that header by default again, safely: it's still only accepted when the request genuinely comes through Cloudflare's network, so it can't be faked on sites that don't use Cloudflare. Just update and restart; no settings to change.
 
