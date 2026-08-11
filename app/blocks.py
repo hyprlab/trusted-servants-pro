@@ -358,9 +358,7 @@ def filtered_events(events_settings, site=None):
     rows = (Post.query
             .filter(_post_live_clause(site))
             .filter(Post.is_event.is_(True),
-                    Post.is_archived.is_(False),
-                    Post.is_draft.is_(False),
-                    Post.is_pending_review.is_(False))
+                    Post.is_archived.is_(False))
             .order_by(Post.event_starts_at.asc().nulls_last())
             .all())
     out = []

@@ -119,6 +119,60 @@ def ensure_thumb(filename, size, *, upload_dir=None):
             return None
 
 
+# Pixel dimensions keyed by (filename, mtime, byte-size) so a replaced
+# upload reusing the same name never serves stale numbers. Bounded — a
+# portal with thousands of images would otherwise grow this map without
+# limit; when the cap is hit the map is simply dropped and refilled.
+_DIM_CACHE = {}
+_DIM_CACHE_MAX = 512
+
+
+def image_dimensions(filename, *, upload_dir=None):
+    """Return ``(width, height)`` in pixels for an uploaded image, or
+    ``None`` when the file is missing / not a Pillow-decodable raster
+    (SVG, corrupt file, Pillow absent).
+
+    Cheap enough to call during a render: Pillow reads only the image
+    header here — the pixel data is never decoded. EXIF orientation is
+    honored (a phone photo tagged 90°-rotated reports the dimensions
+    the browser will actually paint), matching what
+    ``ensure_thumb``'s ``exif_transpose`` produces.
+    """
+    if not filename:
+        return None
+    upload_dir = upload_dir or current_app.config["UPLOAD_FOLDER"]
+    path = os.path.join(upload_dir, filename)
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    key = (filename, st.st_mtime_ns, st.st_size)
+    if key in _DIM_CACHE:
+        return _DIM_CACHE[key]
+    dims = None
+    if os.path.splitext(filename)[1].lower() != ".svg":
+        try:
+            from PIL import Image
+            with Image.open(path) as im:
+                w, h = im.size
+                # 5–8 are the transposed orientations: the stored
+                # raster is rotated relative to how it's displayed, so
+                # the on-screen box is the swapped pair.
+                try:
+                    orientation = im.getexif().get(0x0112)
+                except Exception:  # noqa: BLE001 — broken EXIF is not fatal
+                    orientation = None
+                if orientation in (5, 6, 7, 8):
+                    w, h = h, w
+                dims = (w, h) if w and h else None
+        except Exception:  # noqa: BLE001 — dimensions are best-effort
+            dims = None
+    if len(_DIM_CACHE) >= _DIM_CACHE_MAX:
+        _DIM_CACHE.clear()
+    _DIM_CACHE[key] = dims
+    return dims
+
+
 def cleanup_for(filename, *, upload_dir=None):
     """Delete every cached thumb for a given source filename. Called
     from the upload-cleanup helpers when the source image is replaced

@@ -3661,6 +3661,21 @@ html[data-theme="dark"] .fe-meeting-detail-alert {
      pinned to 320px regardless of how wide the page actually is. */
   .fe-event-detail-cover { aspect-ratio: 4 / 3; }
 }
+
+/* Portrait covers (movie-poster / flyer art) opt out of the 4:3 crop:
+   the template stamps the image's own ratio as an inline
+   `aspect-ratio`, which beats both rules above, so the frame takes the
+   poster's shape and the whole image is visible. `contain` is the
+   backstop for the extreme case where `max-height` below clamps the
+   frame — a 1:4 sliver letterboxes inside the frame instead of losing
+   its ends to a crop. */
+.fe-event-detail-cover.is-portrait { max-height: 720px; }
+.fe-event-detail-cover.is-portrait img { object-fit: contain; }
+@media (max-width: 859px) {
+  /* Single-column hero — a full-bleed poster would tower over the copy
+     it's supposed to introduce, so cap the width and center it. */
+  .fe-event-detail-cover.is-portrait { max-width: 340px; margin-inline: auto; }
+}
 .fe-event-detail-cover:hover {
   transform: translateY(-3px);
   border-color: var(--fe-accent, var(--fe-border));

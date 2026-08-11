@@ -921,6 +921,10 @@ html[data-theme="dark"] .perm-badge-viewer { background: rgba(100, 116, 139, 0.2
 html[data-theme="dark"] .post-chip-scheduled { background: rgba(20, 184, 166, 0.22); color: #5eead4; border-color: rgba(20, 184, 166, 0.5); }
 .post-chip-warning      { background: rgba(245, 158, 11, 0.18);  color: #b45309; border-color: rgba(245, 158, 11, 0.5); }
 .post-chip-private      { background: rgba(168, 85, 247, 0.14); color: #6b21a8; border-color: rgba(168, 85, 247, 0.36); }
+/* "Always public" — the visibility override that keeps a post on the
+   public site whatever its lifecycle says. Green so it reads as the
+   opposite of the purple Hidden chip at a glance. */
+.post-chip-public       { background: rgba(22, 163, 74, 0.14); color: #15803d; border-color: rgba(22, 163, 74, 0.36); }
 .post-chip-pending-draft { background: rgba(245, 158, 11, 0.14); color: #92400e; border-color: rgba(245, 158, 11, 0.4); display: inline-flex; align-items: center; gap: 4px; }
 .post-chip-pending-draft .icon { width: 12px; height: 12px; }
 /* Pages-list status cell — multiple chips (visibility + optional
@@ -937,6 +941,7 @@ html[data-theme="dark"] .post-chip-online       { background: rgba(20, 184, 166,
 html[data-theme="dark"] .post-chip-draft        { background: rgba(100, 116, 139, 0.22); color: #cbd5e1; border-color: rgba(100, 116, 139, 0.45); }
 html[data-theme="dark"] .post-chip-warning      { background: rgba(245, 158, 11, 0.25); color: #fbbf24; border-color: rgba(245, 158, 11, 0.55); }
 html[data-theme="dark"] .post-chip-private      { background: rgba(168, 85, 247, 0.22); color: #d8b4fe; border-color: rgba(168, 85, 247, 0.5); }
+html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 0.24); color: #86efac; border-color: rgba(22, 163, 74, 0.5); }
 /* Pending-submission banner on the post edit screen — sits above the
    normal edit form so admins see who submitted before they touch
    any field. */
