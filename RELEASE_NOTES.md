@@ -7,7 +7,12 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.18.6 — 2026-09-01 (latest) — An easy way in for the people submitting
+## 2.18.7 — 2026-09-01 (latest) — Card styles editor fits its panel again
+
+- **Fixes the Secondary card settings running off the right-hand side of the page.** In **Web Frontend → Design → Card styles**, the two columns of settings wouldn't shrink to fit the panel, so on a lot of screen sizes the Secondary column spilled off the edge and you had to scroll sideways to reach it. Both columns now fit whatever width you have. If your window is on the narrower side the two columns stack one above the other instead of squeezing, so each setting stays readable.
+- A field title no longer slides under the small **Synced** badge in its corner when the column is narrow.
+
+## 2.18.6 — 2026-09-01 — An easy way in for the people submitting
 
 - **Visitors can find your submission form from the events list and from any announcement or event page.** Until now the **+ Submit** button only appeared on the **Announcements** list, so someone reading an event page had no obvious way to send in one of their own. It's now in two more places:
     - the **Events** list — on every layout, sitting beside the **Archive** button just as it does on Announcements;

@@ -1112,6 +1112,10 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   border-style: dashed;
   position: relative;
 }
+/* The badge is absolutely positioned over the tile's top-right corner,
+   so reserve a gutter for it on the title line — otherwise a title that
+   wraps in a narrow column runs underneath it. */
+.fe-design-field--mirror .fe-design-field-label b { padding-right: 62px; }
 .fe-design-field--mirror::after {
   content: "Synced";
   position: absolute; top: 8px; right: 10px;
@@ -1135,14 +1139,16 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 /* Two-column layout for the Card styles tab — Primary on the left,
    Secondary on the right. Each column wraps its own preview card +
    settings stack so the visual + the controls that drive it stay
-   grouped. Drops to a single column under 900px so the field tiles
-   keep enough width to read comfortably on narrower admin views. */
+   grouped. Drops to a single column under 1100px so the field tiles
+   keep enough width to read comfortably on narrower admin views —
+   below that the sidebar leaves the card too little room to split it
+   two ways (a pair of ~250px tracks at the old 900px threshold). */
 .fe-card-style-cols {
   display: grid; gap: 18px;
   grid-template-columns: 1fr 1fr;
   margin-top: 6px;
 }
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .fe-card-style-cols { grid-template-columns: 1fr; }
 }
 .fe-card-style-col {
@@ -1150,6 +1156,16 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   padding: 18px;
   background: linear-gradient(135deg, var(--panel-2), var(--panel));
   border: 1px solid var(--border); border-radius: 14px;
+  /* A grid item's automatic minimum size is its content's min-content
+     width, and a <select>'s min-content is its widest <option> — the
+     transition presets ("normal · 200ms cubic-bezier(0.2, 0.8, 0.2, 1)")
+     are ~364px wide. Without this the 1fr tracks refused to shrink past
+     ~436px each, so between the 900px single-column breakpoint and
+     ~1280px the pair stayed 890px wide inside a narrower card and the
+     Secondary column spilled out past its right edge. min-width: 0
+     lets the track shrink; the controls inside already carry
+     `flex: 1 1 auto; min-width: 0` and shrink with it. */
+  min-width: 0;
 }
 .fe-card-style-col .fe-card-style-preview-card {
   /* Inside a column the preview reads as the column's "header" — give
@@ -1184,6 +1200,8 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   padding: 18px;
   background: linear-gradient(135deg, var(--panel-2), var(--panel));
   border: 1px solid var(--border); border-radius: 14px;
+  /* Same grid-blowout guard as .fe-card-style-col above. */
+  min-width: 0;
 }
 .fe-btn-style-col-head { margin-top: 4px; }
 .fe-btn-style-col-fields { grid-template-columns: 1fr; }
@@ -1297,6 +1315,7 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   background: var(--panel-2); border: 1px solid var(--border);
   border-radius: 10px;
   transition: border-color 140ms ease, background 140ms ease;
+  min-width: 0;
 }
 .fe-design-field--overridden {
   border-color: var(--brand);
@@ -1317,7 +1336,9 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 .fe-design-field-control select,
 .fe-design-field-control input[type="text"],
 .fe-design-field-control input[type="number"] {
-  flex: 1 1 auto; min-width: 0;
+  /* max-width caps the intrinsic width a long <option> would otherwise
+     impose on the tile; min-width: 0 is what lets it actually shrink. */
+  flex: 1 1 auto; min-width: 0; max-width: 100%;
   padding: 7px 10px; border-radius: 8px;
   border: 1px solid var(--border); background: var(--panel); color: var(--text);
   font: inherit;
