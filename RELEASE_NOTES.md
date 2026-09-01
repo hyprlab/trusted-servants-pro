@@ -7,7 +7,15 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.18.5 — 2026-08-11 (latest) — Poster images shown in full, and a visibility switch of your own
+## 2.18.6 — 2026-09-01 (latest) — An easy way in for the people submitting
+
+- **Visitors can find your submission form from the events list and from any announcement or event page.** Until now the **+ Submit** button only appeared on the **Announcements** list, so someone reading an event page had no obvious way to send in one of their own. It's now in two more places:
+    - the **Events** list — on every layout, sitting beside the **Archive** button just as it does on Announcements;
+    - the bottom of every **announcement**, **event**, and **archive** page — a "Have an announcement or event to share?" panel, set apart below the event's own details so it never reads as part of the post.
+- **It's still the one setting.** **Web Frontend → Templates → Announcements list → Submit button** controls all of them. Leave the URL blank and they all point at your built-in submission form; put a custom address in and they all follow it; turn the submission form off with no custom address and every one of them disappears together. Nothing new to configure.
+- **The "live" dot in the sidebar moved to the View button.** The little green pulsing dot that tells you the public site is switched on now sits on **View** — the button that actually opens the public site — instead of on **Web**. Hover it for the same wording as before.
+
+## 2.18.5 — 2026-08-11 — Poster images shown in full, and a visibility switch of your own
 
 - **Tall, poster-shaped featured images are no longer cropped.** On an announcement, event, or archive page, a featured image that's taller than it is wide — a movie poster, a flyer — now shows in full at its own shape instead of having its top and bottom trimmed to fit the standard landscape frame. Wide images look exactly as they did.
 - **Archived posts show their featured image again.** An archived announcement or event is still readable by the public under **Archive**, but its featured image was coming up broken for anyone who wasn't signed in — so the pages looked fine to you and broken to your visitors. Fixed.

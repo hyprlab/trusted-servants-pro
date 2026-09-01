@@ -126,16 +126,21 @@
 
        The Web Frontend pair (admin panel + public-site preview)
        renders only when the module is on AND the user can edit; the
-       live dot reflects `site.frontend_enabled` (the public-access
-       toggle) so admins see at a glance whether the site is live.
+       live dot rides on the View button and reflects
+       `site.frontend_enabled` (the public-access toggle) so admins see
+       at a glance whether the site is live.
        The Watchtower button below renders for every admin, with two
        attention chips (pending access requests + locked accounts)
        so they don't have to open the page just to check counts. #}
     {% set _can_fe = current_user.can_edit_frontend() %}
     {% set _fe_on = site and site.frontend_module_enabled %}
     {% set _fe_live = site and site.frontend_enabled %}
-    {# The Web button + live dot render whenever the module is on, so
-       non-admins can see at a glance whether the public site is live.
+    {# The Web button renders whenever the module is on. The live dot
+       hangs off the View button beside it — that's the one that opens
+       the public site, so the state it reports and the thing it opens
+       are the same. When there's no View button (a non-privileged user
+       with the site off) the dot falls back onto the Web indicator so
+       the live state is never simply missing.
        Only admins (can_edit_frontend) get a working link into the admin
        panel; everyone else sees a non-clickable indicator. The View
        button opens the public site: admins always (it serves a preview
@@ -153,9 +158,6 @@
            title="Open the Web Frontend admin panel">
           <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
           <span class="sidebar-quicknav-label">Web</span>
-          <span class="sidebar-quicknav-status{% if _fe_live %} is-live{% endif %}"
-                title="{{ 'Public site is LIVE — visible to everyone' if _fe_live else 'Public site is OFF — visible only to signed-in admins and frontend editors' }}"
-                aria-label="{{ 'Live' if _fe_live else 'Off' }}"></span>
         </a>
         {% else %}
         {# Non-privileged: a non-clickable Web indicator (rendered as a
@@ -167,17 +169,22 @@
               title="{{ 'Web Frontend is LIVE — managed by admins' if _fe_live else 'Web Frontend — managed by admins' }}">
           <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
           <span class="sidebar-quicknav-label">Web</span>
+          {# Fallback dot — only when no View button is rendered to carry it. #}
+          {% if not _show_view %}
           <span class="sidebar-quicknav-status{% if _fe_live %} is-live{% endif %}"
                 aria-label="{{ 'Live' if _fe_live else 'Off' }}"></span>
+          {% endif %}
         </span>
         {% endif %}
         {% if _show_view %}
         <a class="sidebar-quicknav-btn"
            href="{{ url_for('frontend.index') }}"
            target="_blank" rel="noopener"
-           title="Open the public frontend in a new tab">
+           title="{{ 'Open the public frontend in a new tab — the site is LIVE, visible to everyone' if _fe_live else 'Open the public frontend in a new tab — the site is OFF, visible only to signed-in admins and frontend editors' }}">
           <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('external-link') }}</span>
           <span class="sidebar-quicknav-label">View</span>
+          <span class="sidebar-quicknav-status{% if _fe_live %} is-live{% endif %}"
+                aria-label="{{ 'Live' if _fe_live else 'Off' }}"></span>
         </a>
         {% endif %}
       {% endif %}

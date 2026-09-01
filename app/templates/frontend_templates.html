@@ -566,7 +566,7 @@
     {%- set _awsubmit = (site.frontend_announcements_list_submit_url if site else '') or '' -%}
     <fieldset class="fieldset fe-mlist-copy-fieldset">
       <legend>Submit button</legend>
-      <p class="muted small" style="margin: 0 0 8px;">The "Submit" pill next to the Archive pill lets visitors add an announcement or event. Leave the URL blank to link to the built-in submission form (the pill hides automatically while that form is disabled); set a custom URL to send visitors elsewhere.</p>
+      <p class="muted small" style="margin: 0 0 8px;">The "Submit" pill next to the Archive pill lets visitors add an announcement or event. This one URL also drives the Submit pill on the events list and the "Have an announcement or event to share?" band under the cards on every announcement / event / archive detail page. Leave the URL blank to link to the built-in submission form (all of them hide automatically while that form is disabled); set a custom URL to send visitors elsewhere.</p>
       <label>Button URL
         <input type="text" name="frontend_announcements_list_submit_url"
                maxlength="500" value="{{ _awsubmit }}"

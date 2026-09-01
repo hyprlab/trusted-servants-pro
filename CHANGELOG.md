@@ -6,6 +6,51 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.18.6] — 2026-09-01
+
+### Added
+
+- **"Submit an announcement or event" now reachable from the events list and
+  every post detail page, not just the announcements list.** The Submit pill
+  introduced on the announcements omni bar was the only entry point to the
+  submission form outside the nav, so a visitor reading an event page had no
+  way to find it. One resolver now feeds every surface:
+  `frontend._submission_link(site)` returns the admin's custom URL
+  (`SiteSetting.frontend_announcements_list_submit_url`), else the built-in
+  submission form while `submission_form_enabled` is on, else `""` — which is
+  each surface's signal to render nothing. The announcements list's own inline
+  copy of that logic was replaced by the call. No new columns, no migration.
+  - **Events list, all five layouts.** `events_list/omni.html` grows a Submit
+    pill beside the Archive pill, plus the `fe-events-omni-scrollwrap` shell and
+    scroll-hint JS the announcements bar already had, so both pills swipe in
+    from the right under 600px. The four layouts with no omni bar
+    (`cards` / `calendar` / `timeline` / `magazine`) include a new
+    `events_list/_submit_pill.html` under their heading; it reuses the omni
+    Archive/Submit pill classes so the button reads identically everywhere.
+    `events_list()` passes `list_submit_url`.
+  - **Announcement / event / archive detail pages.** New
+    `events/_submit_cta.html`, included by all four `EVENT_TEMPLATES` partials
+    (`classic` / `poster` / `minimal` / `timeline`) *below* the detail card grid
+    so it reads as a footer band rather than another panel of the post's own
+    content. Because those partials are shared, the one include covers
+    `event_detail`, `announcement_detail`, and `archive_detail`, which each pass
+    `submit_url`. Styled as a dashed outline over the page background — no fill,
+    no elevation, no hover lift — with the secondary (`fe-btn-ghost`) button, so
+    it stays visibly subordinate to the post's filled `.fe-event-detail-card`s.
+  - The admin help text under **Templates → Announcements list → Submit button**
+    now states that the one URL drives all three surfaces and that they hide
+    together when it resolves empty.
+
+### Changed
+
+- **The public-site live dot moved from the sidebar's Web button to the View
+  button.** The green pulsing dot reports `site.frontend_enabled`, and View is
+  the button that opens the public site — so the state and the thing it opens
+  are now the same control. The state text moved with it into View's tooltip.
+  One fallback kept: a non-privileged user with the public site off gets no View
+  button at all, so in that single case the dot stays on the Web indicator
+  rather than vanishing. Dot styling is unchanged.
+
 ## [2.18.5] — 2026-08-11
 
 ### Added

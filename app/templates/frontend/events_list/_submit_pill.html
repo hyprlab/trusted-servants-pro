@@ -1,0 +1,25 @@
+{# Events-list "Submit" pill for the layouts that have no omni bar to
+   host it (cards / calendar / timeline / magazine). Included right
+   under each layout's heading block so visitors meet it before the
+   event list itself, matching where the omni layout parks its pill.
+
+   Renders nothing when ``list_submit_url`` is empty — the resolver in
+   ``frontend.py::_submission_link`` returns "" when the built-in
+   submission form is disabled and no custom URL is set, so the pill
+   hides without each layout needing its own guard.
+
+   Reuses the omni Archive/Submit pill classes so the button reads the
+   same on every layout; the auto-margin that pushes the pair right
+   only applies inside .fe-events-omni-bar, so here the pill just
+   centers inside the row wrapper. #}
+{% if list_submit_url %}
+<div class="fe-list-submit-row">
+  <a class="fe-events-omni-archive fe-events-omni-archive--submit"
+     href="{{ list_submit_url }}">
+    <span class="fe-events-omni-archive-inner">
+      <span class="fe-events-omni-tab-icon" aria-hidden="true">{{ icon('plus') }}</span>
+      <span>Submit</span>
+    </span>
+  </a>
+</div>
+{% endif %}
