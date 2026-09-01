@@ -6,6 +6,36 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.18.7] — 2026-09-01
+
+### Fixed
+
+- **Card styles columns overflowed the card in the Web Frontend design
+  editor.** A grid item's automatic minimum size is its content's min-content
+  width, and a `<select>`'s min-content is its widest `<option>` — the
+  transition presets (`normal · 200ms cubic-bezier(0.2, 0.8, 0.2, 1)`) measure
+  ~364px, which put a 436px floor under each `.fe-card-style-col`. The
+  `1fr 1fr` tracks therefore refused to shrink: the pair stayed 890px wide
+  inside a card only ~700px across, and the Secondary column spilled past its
+  right edge (the Primary column overflowed identically, hidden behind its
+  neighbour). Reproduced from 1280px down to 920px, and again below ~470px in
+  single-column mode. `.fe-design-field-control select` already carried
+  `min-width: 0`, but that only governs flex shrinking *inside* the tile —
+  nothing let the grid track itself shrink. Fixes, all in `app.css`:
+  - `min-width: 0` on `.fe-card-style-col`, plus the same guard on
+    `.fe-btn-style-col` — structurally identical and one long preset away from
+    the same failure, though not currently triggered.
+  - `min-width: 0` on `.fe-design-field` and `max-width: 100%` on its
+    select / text / number controls, so nothing inside a tile can re-impose an
+    intrinsic width.
+  - `padding-right: 62px` on a mirror tile's title. The absolutely-positioned
+    "Synced" badge sits over the top-right corner; once the columns could
+    actually get narrow, wrapped titles ran underneath it.
+  - Two-column → one-column breakpoint raised 900px → 1100px. The old value was
+    written to keep field tiles readable but was never exercised — below 1100px
+    the tracks were overflowing rather than shrinking, so the ~250px columns it
+    would have produced never appeared.
+
 ## [2.18.6] — 2026-09-01
 
 ### Added
