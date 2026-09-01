@@ -3758,6 +3758,64 @@ html[data-theme="dark"] .fe-meeting-detail-alert {
   gap: 10px;
 }
 
+/* ── "Submit an announcement or event" affordances ──────────────────
+   Two surfaces share the URL resolved by `frontend.py::_submission_link`
+   (admin override, else the built-in submission form while it's
+   enabled); both render nothing when that resolves empty.
+
+   1. `.fe-list-submit-row` — the pill on the events-list layouts that
+      have no omni bar to host it. Only the row wrapper is styled here;
+      the pill itself reuses the omni Archive/Submit pill classes so it
+      matches the omni layout exactly, dark mode included. */
+.fe-list-submit-row {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 22px;
+}
+/* 2. `.fe-detail-submit-cta` — the footer band under the detail cards
+      on the announcement / event / archive detail pages. Deliberately
+      NOT a `.fe-event-detail-card`: it's site chrome, not part of the
+      post, so it's just a dashed outline over whatever the page
+      background is — no fill, no elevation, no hover lift — which
+      keeps it clearly subordinate to the post's own filled cards. */
+.fe-detail-submit-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 28px;
+  padding: 20px 24px;
+  border-radius: 14px;
+  border: 1px dashed var(--fe-color-border, #dbe2ea);
+  background: transparent;
+}
+.fe-detail-submit-cta-copy { min-width: 0; }
+.fe-detail-submit-cta h3 {
+  font-family: var(--fe-font-heading); font-weight: 700;
+  font-size: 1rem; margin: 0; color: var(--fe-ink);
+}
+.fe-detail-submit-cta p {
+  margin: 4px 0 0; font-size: 0.92rem;
+  color: var(--fe-muted, #64748b);
+}
+.fe-detail-submit-cta-btn { flex: 0 0 auto; }
+.fe-detail-submit-cta-btn .icon { width: 16px; height: 16px; }
+@media (max-width: 560px) {
+  /* Stack the copy over a full-width button so the action stays an
+     easy tap target instead of squeezing beside the text. */
+  .fe-detail-submit-cta { flex-direction: column; align-items: stretch; }
+  .fe-detail-submit-cta-btn { justify-content: center; }
+}
+html[data-theme="dark"] .fe-detail-submit-cta,
+body.fe-frontend-force-dark .fe-detail-submit-cta {
+  border-color: var(--fe-dm-border);
+}
+html[data-theme="dark"] .fe-detail-submit-cta h3,
+body.fe-frontend-force-dark .fe-detail-submit-cta h3 { color: var(--fe-dm-text-strong); }
+html[data-theme="dark"] .fe-detail-submit-cta p,
+body.fe-frontend-force-dark .fe-detail-submit-cta p { color: var(--fe-dm-text-muted); }
+
 /* Public gallery — rendered in the same column / wrapper as the
    featured image on each detail template so its width matches the
    featured image visually. Grid is a fixed 3 columns of square

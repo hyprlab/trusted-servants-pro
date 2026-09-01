@@ -3137,6 +3137,26 @@ def fellowships_list():
                            **ctx)
 
 
+def _submission_link(site):
+    """Resolve the public "Submit an announcement or event" URL used by
+    the Submit pill / CTA on the announcements list, the events list,
+    and the announcement / event / archive detail pages.
+
+    The admin-set URL (Templates -> Announcements list -> Submit button)
+    wins; otherwise it points at the built-in submission form, but only
+    while that form is enabled so the default never links to a 404.
+    Returns "" when there is nothing to link to, which is every
+    surface's signal to hide the affordance entirely."""
+    if not site:
+        return ""
+    url = (site.frontend_announcements_list_submit_url or "").strip()
+    if url:
+        return url
+    if getattr(site, "submission_form_enabled", True):
+        return url_for("frontend.submission_form")
+    return ""
+
+
 @bp.route("/events")
 @public_section("Events", gate=lambda s: bool(getattr(s, "posts_enabled", True)))
 def events_list():
@@ -3198,6 +3218,7 @@ def events_list():
     list_heading = (site.frontend_events_list_heading if site else None) or ""
     list_subheading = (site.frontend_events_list_subheading if site else None) or ""
     return render_template("frontend/events_list.html",
+                           list_submit_url=_submission_link(site),
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
                            list_width_mode=width_mode,
@@ -3458,6 +3479,7 @@ def archive_detail(slug):
                   image_url=(url_for("public.post_featured_image", pid=post.id, _external=True)
                              if post.featured_image_filename else None))
     return render_template(tpl["partial"], event=post, tpl_style=tpl_style, tpl_dynbg_key=tpl_dynbg_key, tpl_dynbg_overlay=tpl_dynbg_overlay, tpl_dynbg_colors=tpl_dynbg_colors, tpl_dynbg_config=tpl_dynbg_config,
+                           submit_url=_submission_link(site),
                            is_in_archive=True, **og, **ctx)
 
 
@@ -3536,13 +3558,9 @@ def announcements_list():
     pad_pct = max(0, min(20, pad_pct))
     list_heading = (site.frontend_announcements_list_heading if site else None) or ""
     list_subheading = (site.frontend_announcements_list_subheading if site else None) or ""
-    # "Submit" pill next to the Archive pill. Admin-set URL wins;
-    # otherwise link to the built-in submission form — but only while
-    # that form is enabled, so the default never points at a 404.
-    # Empty string hides the pill entirely.
-    list_submit_url = (site.frontend_announcements_list_submit_url or "").strip() if site else ""
-    if not list_submit_url and site and getattr(site, "submission_form_enabled", True):
-        list_submit_url = url_for("frontend.submission_form")
+    # "Submit" pill next to the Archive pill — shared resolver, so the
+    # events list and the detail pages link to the same place.
+    list_submit_url = _submission_link(site)
 
     return render_template("frontend/announcements_list.html",
                            list_partial=tpl["partial"],
@@ -4133,6 +4151,7 @@ def event_detail(slug):
                   image_url=(url_for("public.post_featured_image", pid=ev.id, _external=True)
                              if ev.featured_image_filename else None))
     return render_template(tpl["partial"], event=ev, tpl_style=tpl_style, tpl_dynbg_key=tpl_dynbg_key, tpl_dynbg_overlay=tpl_dynbg_overlay, tpl_dynbg_colors=tpl_dynbg_colors, tpl_dynbg_config=tpl_dynbg_config,
+                           submit_url=_submission_link(site),
                            is_in_archive=False, **og, **ctx)
 
 
@@ -4246,6 +4265,7 @@ def announcement_detail(slug):
                   image_url=(url_for("public.post_featured_image", pid=ann.id, _external=True)
                              if ann.featured_image_filename else None))
     return render_template(tpl["partial"], event=ann, tpl_style=tpl_style, tpl_dynbg_key=tpl_dynbg_key, tpl_dynbg_overlay=tpl_dynbg_overlay, tpl_dynbg_colors=tpl_dynbg_colors, tpl_dynbg_config=tpl_dynbg_config,
+                           submit_url=_submission_link(site),
                            is_in_archive=False, **og, **ctx)
 
 

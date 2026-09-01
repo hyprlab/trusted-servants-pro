@@ -4358,10 +4358,11 @@ button.chip { font-family: inherit; }
   flex: 1 1 auto; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* Live-status dot on the admin button. Green when the frontend is
-   publicly enabled, neutral grey when it's in editor-only preview
-   mode. Pulsing ring on the live state subtly draws the eye without
-   becoming distracting. */
+/* Live-status dot on the View button (and, when no View button is
+   rendered, on the Web indicator that stands in for it). Green when
+   the frontend is publicly enabled, neutral grey when it's in
+   editor-only preview mode. Pulsing ring on the live state subtly
+   draws the eye without becoming distracting. */
 .sidebar-quicknav-status {
   flex: 0 0 auto;
   width: 9px; height: 9px;

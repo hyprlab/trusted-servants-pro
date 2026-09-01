@@ -8,6 +8,7 @@
       <h1>{{ list_heading or 'Events timeline' }}</h1>
       <p class="muted">{{ list_subheading or 'Every upcoming event placed along a vertical timeline. Read top-to-bottom.' }}</p>
     </header>
+    {% include "frontend/events_list/_submit_pill.html" %}
     {% include "frontend/events_list/_timeline_body.html" %}
   </div>
 </section>

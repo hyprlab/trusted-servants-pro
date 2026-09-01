@@ -8,6 +8,7 @@
       <h1>{{ list_heading or 'Upcoming events' }}</h1>
       <p class="muted">{{ list_subheading or 'The next event up top — everything else in chronological order below.' }}</p>
     </header>
+    {% include "frontend/events_list/_submit_pill.html" %}
     {% include "frontend/events_list/_magazine_body.html" %}
   </div>
 </section>

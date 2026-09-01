@@ -1,0 +1,20 @@
+{# "Submit your own" call-to-action for the announcement / event /
+   archive detail pages. Included by every EVENT_TEMPLATES partial
+   below its detail cards (When / Location / Zoom / Links / Contact)
+   so it reads as a separate footer band rather than as one more
+   panel of the post's own content.
+
+   Renders nothing when ``submit_url`` is empty — the resolver in
+   ``frontend.py::_submission_link`` returns "" when the built-in
+   submission form is disabled and no custom URL is set. #}
+{% if submit_url %}
+<section class="fe-detail-submit-cta">
+  <div class="fe-detail-submit-cta-copy">
+    <h3>Have an announcement or event to share?</h3>
+    <p>Send it in and an admin will review it for posting.</p>
+  </div>
+  <a class="fe-btn fe-btn-ghost fe-detail-submit-cta-btn" href="{{ submit_url }}">
+    {{ icon('plus') }} <span>Submit</span>
+  </a>
+</section>
+{% endif %}
