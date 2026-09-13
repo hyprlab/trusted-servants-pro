@@ -1964,19 +1964,43 @@
           cardPanel.hidden = (d.display_style || '') !== 'cards';
           notifyChange();
         });
+        // Item rows are drag-reorderable via the grip handle. Because a
+        // drag rearranges the DOM without re-rendering, the per-row
+        // handlers resolve their index from the row's live position
+        // (`rowIndex`) rather than closing over the loop counter —
+        // otherwise every input/remove would keep writing to the slot
+        // the row occupied before the drag.
         const items = el('div', { class: 'be-list-items' });
-        (d.items || []).forEach((it, ii) => {
-          const row = el('div', { class: 'be-row' }, [
-            el('input', {
-              type: 'text', value: it,
-              oninput: e => { d.items[ii] = e.target.value; notifyChange(); },
-              placeholder: 'List item (supports markdown — e.g. [link](https://example.com))'
-            }),
-            el('button', { type: 'button', class: 'icon-btn', title: 'Remove',
-              onclick: () => { d.items.splice(ii,1); render(); notifyChange(); } }, [iconEl('x')]),
-          ]);
+        const rowIndex = (row) => Array.prototype.indexOf.call(items.children, row);
+        (d.items || []).forEach((it) => {
+          const row = el('div', { class: 'be-row be-list-item' });
+          row.appendChild(el('span', {
+            class: 'be-list-drag', title: 'Drag to reorder',
+          }, [iconEl('grip-vertical')]));
+          row.appendChild(el('input', {
+            type: 'text', value: it,
+            oninput: e => { d.items[rowIndex(row)] = e.target.value; notifyChange(); },
+            placeholder: 'List item (supports markdown — e.g. [link](https://example.com))'
+          }));
+          row.appendChild(el('button', {
+            type: 'button', class: 'icon-btn', title: 'Remove',
+            onclick: () => { d.items.splice(rowIndex(row), 1); render(); notifyChange(); },
+          }, [iconEl('x')]));
           items.appendChild(row);
         });
+        if (typeof Sortable !== 'undefined') {
+          Sortable.create(items, {
+            handle: '.be-list-drag',
+            draggable: '.be-list-item',
+            animation: 150,
+            onEnd: (e) => {
+              if (e.oldIndex === e.newIndex) return;
+              const [moved] = d.items.splice(e.oldIndex, 1);
+              d.items.splice(e.newIndex, 0, moved);
+              notifyChange();
+            },
+          });
+        }
         body.appendChild(items);
         body.appendChild(el('button', {
           type: 'button', class: 'btn btn-sm',
