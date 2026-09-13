@@ -7045,8 +7045,14 @@ h5.block-heading { font-size: 0.875rem; font-weight: 600; margin: 12px 0 4px; }
 .be-section { border: 1px solid var(--border); border-radius: 10px; padding: 12px;
   background: var(--panel-2); color: var(--text); }
 .be-section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.be-section-drag, .be-block-drag { cursor: grab; color: var(--muted); user-select: none;
-  padding: 4px 6px; }
+.be-section-drag, .be-block-drag, .be-list-drag { cursor: grab; color: var(--muted);
+  user-select: none; padding: 4px 6px; }
+.be-section-drag:active, .be-block-drag:active, .be-list-drag:active { cursor: grabbing; }
+/* List-block item rows — the grip keeps its intrinsic width so the
+   text input still absorbs the remaining space in the flex row. */
+.be-list-drag { flex: 0 0 auto; display: inline-flex; align-items: center;
+  padding: 4px 2px; touch-action: none; }
+.be-list-item.sortable-ghost { opacity: .4; }
 .be-section-title { flex: 1; font-size: 1rem; font-weight: 600;
   background: var(--panel); color: var(--text);
   border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }

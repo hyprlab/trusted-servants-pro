@@ -6,6 +6,23 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added
+
+- **List block items are drag-reorderable in the Web Frontend page editor.**
+  A List block's rows previously offered only add and remove — changing the
+  order meant retyping every item. Each row in the BlockEditor modal now
+  carries a `grip-vertical` handle wired to SortableJS (the same library and
+  handle idiom the section / block / footer-column sorters already use), and a
+  drop splices the moved entry into its new slot in `data.items`, marking the
+  page dirty. Applies anywhere the BlockEditor mounts: Pages, Popups, and the
+  Zoom-tech content editor.
+  - The per-row `oninput` / remove handlers no longer close over the loop
+    counter. A drag rearranges the DOM without a re-render, so those closures
+    went stale the moment a row moved — typing in a dragged row would have
+    written to the slot it occupied *before* the drag, and × would have
+    deleted the wrong item. Both now resolve the index from the row's live
+    position in the container.
+
 ## [2.18.7] — 2026-09-01
 
 ### Fixed
