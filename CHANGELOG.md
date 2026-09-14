@@ -6,6 +6,28 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added
+
+- **Libraries can be archived.** New `Library.archived_at` (NULL = active),
+  mirroring `Meeting.archived_at`, with `library_archive` / `library_unarchive`
+  routes gated to admins like library delete already is. Archiving hides the
+  library without touching its items or its meeting associations, so restoring
+  puts it back exactly where it was.
+  - The Libraries list gains **Active / Archived** tabs in the toolbar, with a
+    count on the Archived tab. The tab pair only appears once something has
+    been archived, so the toolbar doesn't carry a permanently empty tab, and
+    `show` is deliberately not persisted in a cookie — Archived is somewhere
+    you visit on purpose, and a sticky one would strand you on an empty list
+    after restoring the last archived library.
+  - Archive / Restore sit in the row's Actions menu and on the library's own
+    detail page, which also shows an "Archived" chip beside its title.
+  - **Archived libraries drop off the public side**, the same way archived
+    meetings do: the Literature Library page, the Site Index, and public
+    search. Without that last one a search result would link to a section
+    that no longer renders.
+  - `_migrate_sqlite` gains the matching `archived_at` column so existing
+    installs pick it up on boot (this project has no Alembic).
+
 ### Fixed
 
 - **The sidebar no longer jumps back to the top on every page load.**

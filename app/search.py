@@ -478,6 +478,10 @@ def _library_source(site):
     items = []
     libs = (Library.query
             .filter_by(public_visible=True)
+            # Archived libraries are off the public /library page, so they
+            # must be out of search too — otherwise a result links to a
+            # section that isn't rendered any more.
+            .filter(Library.archived_at.is_(None))
             .order_by(Library.name.asc())
             .all())
     base_url = url_for("frontend.literature_library")

@@ -15296,7 +15296,19 @@ def libraries():
     # Direct deep-link access (/libraries/<id>) still works for editors.
     # Hide Intergroup-flagged libraries — they're surfaced in the
     # dedicated Intergroup sidebar subsection instead.
-    items = Library.query.filter(Library.is_intergroup == False).all()  # noqa: E712
+    # Active / Archived split, mirroring the Meetings list. `show` is not
+    # persisted in a cookie on purpose: Archived is somewhere you visit
+    # deliberately, and a sticky one would strand an admin on an empty
+    # list after they restore the last archived library.
+    show = (request.args.get("show") or "active").lower()
+    if show not in ("active", "archived"):
+        show = "active"
+    base = Library.query.filter(Library.is_intergroup == False)  # noqa: E712
+    archived_count = base.filter(Library.archived_at.isnot(None)).count()
+    if show == "archived":
+        items = base.filter(Library.archived_at.isnot(None)).all()
+    else:
+        items = base.filter(Library.archived_at.is_(None)).all()
     if sort == "files":
         items.sort(key=lambda l: (l.items.count(), l.name.lower()))
     else:
@@ -15305,7 +15317,8 @@ def libraries():
         items.reverse()
     resp = current_app.make_response(
         render_template("libraries.html", libraries=items, view=view,
-                        sort=sort, direction=direction))
+                        sort=sort, direction=direction,
+                        show=show, archived_count=archived_count))
     resp.set_cookie("view-libraries", view, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-libraries-sort", sort, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-libraries-dir", direction, max_age=60*60*24*365, samesite="Lax")
@@ -15512,6 +15525,36 @@ def _apply_library_categories(lib, form):
     for cat_id, cat in existing.items():
         if cat_id not in submitted_ids:
             db.session.delete(cat)
+
+
+@bp.route("/libraries/<slug>/archive", methods=["POST"])
+@admin_required
+def library_archive(slug):
+    """Archive a library — hides it from the main list and the public
+    Literature Library page without touching its items or its meeting
+    associations. Mirrors ``meeting_archive``."""
+    from datetime import datetime as _dt
+    lib = _resolve_library_by_slug(slug) or abort(404)
+    lib.archived_at = _dt.utcnow()
+    from . import activity
+    activity.log("library.archive", entity_type="library", entity_id=lib.id,
+                 summary=f"Archived library \u201c{lib.name}\u201d")
+    db.session.commit()
+    flash(f"Archived \u201c{lib.name}\u201d", "success")
+    return redirect(_safe_referrer() or url_for("main.libraries"))
+
+
+@bp.route("/libraries/<slug>/unarchive", methods=["POST"])
+@admin_required
+def library_unarchive(slug):
+    lib = _resolve_library_by_slug(slug) or abort(404)
+    lib.archived_at = None
+    from . import activity
+    activity.log("library.unarchive", entity_type="library", entity_id=lib.id,
+                 summary=f"Restored library \u201c{lib.name}\u201d")
+    db.session.commit()
+    flash(f"Restored \u201c{lib.name}\u201d", "success")
+    return redirect(_safe_referrer() or url_for("main.libraries"))
 
 
 @bp.route("/libraries/<slug>/delete", methods=["POST"])

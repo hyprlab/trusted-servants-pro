@@ -6,7 +6,9 @@
    pattern (button + popover, not a native title attribute). #}
 {% set _is_protected_ig = library.is_intergroup %}
 {% set _show_perm_help = _is_protected_ig and not current_user.can_edit_library(library) %}
-{% block heading %}{{ library.name }}{% endblock %}
+{% block heading %}{{ library.name }}
+  {% if library.archived_at %}<span class="chip chip-archived">Archived</span>{% endif %}
+{% endblock %}
 {% if _show_perm_help %}
 {% block heading_help %}This library is gated to admins and the Intergroup Member role. You can view its contents but cannot add, edit, reorder, or delete readings here — ask an admin to update your role or to apply the changes for you.{% endblock %}
 {% endif %}
@@ -19,6 +21,19 @@
   <button type="button" class="btn btn-primary" data-open-modal="library-edit-modal">Edit</button>
   {% endif %}
   {% if current_user.is_admin() %}
+    {% if library.archived_at %}
+    <form method="post" action="{{ url_for('main.library_unarchive', slug=library.public_slug) }}" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn">Restore</button>
+    </form>
+    {% else %}
+    <form method="post" action="{{ url_for('main.library_archive', slug=library.public_slug) }}"
+          onsubmit="return confirm('Archive this library? It will be hidden from the main list and the public Literature Library page, but can be restored later.');"
+          style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn">Archive</button>
+    </form>
+    {% endif %}
   <form method="post" action="{{ url_for('main.library_delete', slug=library.public_slug) }}" onsubmit="return confirm('Delete this library?');" style="display:inline">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-danger">Delete</button>
