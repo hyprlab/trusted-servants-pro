@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.18.10] — 2026-09-14
+
 ### Added
 
 - **Libraries can be archived.** New `Library.archived_at` (NULL = active),
