@@ -11,7 +11,9 @@
          href="{{ url_for('main.stories', show='drafts', sort=sort) }}">Drafts</a>
       <a class="btn btn-sm {% if show == 'archived' %}active{% endif %}"
          href="{{ url_for('main.stories', show='archived', sort=sort) }}">Archived</a>
-      <a class="btn btn-sm {% if show == 'pending' %}active{% endif %}"
+      {# Amber outline when something is waiting, so the tab is
+         findable without the sidebar link hijacking every visit. #}
+      <a class="btn btn-sm {% if show == 'pending' %}active{% endif %}{% if pending_count and show != 'pending' %} has-pending{% endif %}"
          href="{{ url_for('main.stories', show='pending', sort=sort) }}">
         Pending review{% if pending_count %} <span class="nav-badge">{{ pending_count }}</span>{% endif %}
       </a>
@@ -146,6 +148,11 @@
           {% if s.is_pending_review %}<span class="post-chip post-chip-warning">Pending</span>{% endif %}
           {% if s.is_draft %}<span class="post-chip post-chip-draft">Draft</span>{% endif %}
           {% if s.is_archived %}<span class="post-chip">Archived</span>{% endif %}
+          {# A live story matched none of the states above, so the column
+             came up blank — the one case that most needs saying. #}
+          {% if not s.is_pending_review and not s.is_draft and not s.is_archived %}
+          <span class="post-chip post-chip-online">Published</span>
+          {% endif %}
           {% if s.is_featured and not s.is_draft and not s.is_archived %}<span class="post-chip post-chip-announcement">Featured</span>{% endif %}
         </td>
         <td class="posts-td-actions">

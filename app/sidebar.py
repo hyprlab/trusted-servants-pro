@@ -385,13 +385,21 @@ def _build_forms_items(site, user, current_endpoint, url_for):
     # pending_recovery_contacts) so the poller updates both copies in step.
     _module_counts = _module_pending_counts(site)
     _module_forms = (
+        # No `show` kwarg: these land on the page's default (Active) tab
+        # like every other sidebar link. They used to force
+        # `show=pending`, which dropped the admin into an empty Pending
+        # review list whenever nothing was awaiting review — and did it
+        # inconsistently, since the same pages reached from the Admin
+        # sub-group opened on Active. The pending count still surfaces
+        # here as the badge, and the Pending review tab itself turns
+        # amber when it has something in it.
         ("Announcements/Events Form", "main.posts",
          getattr(site, "posts_enabled", False),
-         getattr(site, "posts_required_role", "admin"), {"show": "pending"},
+         getattr(site, "posts_required_role", "admin"), {},
          "pending_posts", "Submissions awaiting review"),
         ("Story Submission Form", "main.stories",
          getattr(site, "stories_enabled", False),
-         getattr(site, "stories_required_role", "admin"), {"show": "pending"},
+         getattr(site, "stories_required_role", "admin"), {},
          "pending_stories", "Story submissions awaiting review"),
         ("Recovery Contacts", "main.recovery_contacts",
          getattr(site, "recovery_contacts_enabled", False),

@@ -5932,6 +5932,31 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
    two or three short rows and the table fits its container instead. */
 .row-actions { display: flex; flex-wrap: wrap; align-items: center;
   justify-content: flex-end; gap: 6px; row-gap: 4px; }
+/* ...but never when the `.row-actions` element IS the <td>. A table cell
+   made into a flex container drops out of the table's row-height
+   contract: it sizes to its own content instead of the row, so its
+   bottom border lands above its siblings' and the rule under the row
+   reads as broken and stepped (visible in the File Browser, where the
+   actions cell rendered 52px against its siblings' 61px). Keep the cell
+   a real table-cell and let its children lay out inline instead — the
+   `.row-menu` trigger is already inline-flex. */
+.tbl td.row-actions, td.row-actions { display: table-cell;
+  text-align: right; vertical-align: middle; white-space: nowrap; }
+/* A view-toggle tab that has items waiting on it. Amber rather than the
+   solid `.active` fill, so it reads as "there's something here" without
+   competing with the tab you're actually on. */
+.view-toggle .btn.has-pending {
+  border-color: rgba(245, 158, 11, 0.75);
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.12);
+  font-weight: 600;
+}
+.view-toggle .btn.has-pending:hover { background: rgba(245, 158, 11, 0.2); }
+html[data-theme="dark"] .view-toggle .btn.has-pending {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.6);
+}
 .row-actions form { margin: 0; display: inline-flex; align-items: center; }
 .tbl .row-actions .btn { vertical-align: middle; }
 

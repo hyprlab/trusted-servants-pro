@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Meetings{% endblock %}
 {% block heading_help %}Browse and manage meetings — schedules, service positions, locations, and Zoom account assignments.{% endblock %}
 {% block top_actions %}
@@ -34,7 +35,7 @@
   <section class="card">
     <table class="tbl">
       <thead>
-        <tr><th>Name</th><th>Type</th><th>Schedule</th><th class="hide-sm">Libraries</th></tr>
+        <tr><th>Name</th><th>Type</th><th>Schedule</th><th class="hide-sm">Libraries</th><th></th></tr>
       </thead>
       <tbody>
         {% for m in meetings %}
@@ -47,6 +48,41 @@
             {% else %}<span class="muted smaller">—</span>{% endfor %}
           </td>
           <td class="hide-sm">{{ m.libraries|length }}</td>
+          {# Editing a meeting happens in the modal on its detail page
+             (`meeting_edit` is POST-only), so Edit links there rather
+             than pretending to open a form from the list. Gates mirror
+             the detail page's own top-actions. #}
+          <td class="row-actions">
+            {% call row_menu() %}
+              <a class="row-menu-item" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">
+                {{ icon('pencil') }}<span>Open &amp; edit</span></a>
+              {% if current_user.is_admin() %}
+                {% if m.archived_at %}
+                <form method="post" action="{{ url_for('main.meeting_unarchive', slug=m.public_slug) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="row-menu-item" title="Restore from archive">
+                    {{ icon('rotate-ccw') }}<span>Restore</span></button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('main.meeting_archive', slug=m.public_slug) }}"
+                      onsubmit="return confirm('Archive this meeting? It will be hidden from the main list but can be restored later.');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="row-menu-item" title="Archive this meeting">
+                    {{ icon('box') }}<span>Archive</span></button>
+                </form>
+                {% endif %}
+              {% endif %}
+              {% if current_user.can_create_meetings() %}
+              <div class="row-menu-sep" role="separator"></div>
+              <form method="post" action="{{ url_for('main.meeting_delete', slug=m.public_slug) }}"
+                    onsubmit="return confirm('Delete this meeting permanently?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="row-menu-item row-menu-item-danger" title="Delete meeting">
+                  {{ icon('trash') }}<span>Delete</span></button>
+              </form>
+              {% endif %}
+            {% endcall %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

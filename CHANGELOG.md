@@ -6,7 +6,44 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+
+- **The sidebar no longer jumps back to the top on every page load.**
+  `#sidebar-nav` is its own scroll container and every admin navigation is a
+  full page load, so anyone working in a section near the bottom had to
+  re-scroll after each click. The offset is kept per tab in `sessionStorage`
+  and restored before paint, clamped to the new page's nav height. The
+  live-badge poller re-renders the nav in place (`innerHTML = html`), which
+  resets `scrollTop` just as hard, so that path preserves it across the swap.
+- **The Forms sidebar links stopped dumping you in an empty Pending review
+  tab.** "Announcements/Events Form" and "Story Submission Form" forced
+  `?show=pending`, so they opened an empty list whenever nothing was awaiting
+  review — and did it inconsistently, since the same two pages reached from
+  the Admin sub-group opened on Active. They now land on the default tab like
+  every other link. The pending count still shows as the sidebar badge, and
+  the Pending review tab itself turns amber while it has items, so it's
+  findable without hijacking every visit.
+- **The File Browser's row rule no longer breaks under the actions column.**
+  `.row-actions` sets `display: flex`, and when that lands on the `<td>`
+  itself the cell drops out of the table's row-height contract: it sized to
+  its own content (52px against its siblings' 61px), so its bottom border sat
+  above theirs and the line under each row read as stepped. Table cells stay
+  `table-cell` now and lay their contents out inline. Same trap the
+  `users-actions` CSS has a comment warning about.
+- **Stories with a live post showed a blank Status column.** The cell only
+  had chips for pending / draft / archived / featured, so the most common
+  state — published — rendered nothing at all. It gets a "Published" chip.
+
 ### Changed
+
+- **Actions menus extended to the remaining lists.** Custom Forms, Libraries
+  (table view) and Meetings (table view). Libraries and Meetings had no row
+  actions at all before — reaching Edit, Archive or Delete meant opening the
+  record first. Both menus mirror the permission gates their detail pages
+  already apply, so the menu can't offer something the target route would
+  refuse. Meetings' Edit links to the detail page, where the edit modal lives
+  (`meeting_edit` is POST-only). The Custom Forms enable/disable switch stays
+  inline — it's live state the admin scans down the column, not an action.
 
 - **Every admin table's row buttons now sit behind the shared Actions
   menu.** The dropdown built for the Web Frontend Pages list is now the
