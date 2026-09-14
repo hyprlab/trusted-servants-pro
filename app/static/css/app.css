@@ -2147,14 +2147,33 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 }
 
 .utility-bar-row-fields { display: grid;
-  grid-template-columns: 140px minmax(0, 1fr) minmax(0, 1fr) 160px auto;
-  gap: 10px; align-items: end;
+  /* Two columns, always: Type | Label, URL | Tooltip, Icon | Open in
+     new tab. The old five-across strip only fit on very wide cards and
+     everywhere else wrapped its last two fields into a ragged second
+     row — a cramped Icon column and a boxed, orphaned checkbox. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 14px; align-items: start;
   min-width: 0; }
-.utility-bar-row-fields label { display: flex; flex-direction: column;
-  gap: 4px; font-size: 0.8125rem;
+/* Qualified with .utility-bar-row so these beat `.form label` (which
+   would otherwise win on source order and re-size the labels). The
+   icon chooser is a <div> standing in for a <label>; give it the same
+   type so "Icon" doesn't read smaller than its neighbours. */
+.utility-bar-row .utility-bar-row-fields label,
+.utility-bar-row .utility-bar-row-fields .utility-bar-icon-field {
+  display: flex; flex-direction: column;
+  gap: 4px; font-size: 0.875rem; font-weight: 600;
   min-width: 0; }
-.utility-bar-row-fields label.check { flex-direction: row;
-  align-items: center; gap: 6px; padding-bottom: 6px; }
+/* "Open in new tab" — a plain inline checkbox, not the bordered .check
+   pill, and the box itself sized to its glyph rather than stretched to
+   100% like the text inputs. Sits at the bottom of its cell so it lines
+   up with the icon chooser's control beside it. */
+.utility-bar-row .utility-bar-row-fields label.check {
+  flex-direction: row; align-items: center; gap: 8px;
+  align-self: end; padding: 9px 0; margin: 0;
+  border: 0; border-radius: 0; background: transparent;
+  cursor: pointer; }
+.utility-bar-row .utility-bar-row-fields label.check input[type="checkbox"] {
+  width: auto; flex: 0 0 auto; margin: 0; accent-color: var(--brand); }
 /* Inputs/selects inherit `min-width: auto` from the grid, which means
    they refuse to shrink below their intrinsic content width — long
    placeholder text or a wide URL value pushes the whole row past the
@@ -2170,6 +2189,14 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
    them on specificity. */
 .utility-bar-row-fields label[hidden] { display: none; }
 .utility-bar-add-row { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+/* Mobile-default radio list. Rendered by JS as `.check` pills inside the
+   page's .form, whose `label { flex-direction: column }` outranks
+   .check's own row layout and stacked each radio above its caption. */
+.utility-bar-mobile-default-list { display: flex; flex-direction: column; gap: 6px; }
+.utility-bar-mobile-default-list .check {
+  flex-direction: row; align-items: center; gap: 10px; font-weight: 500; }
+.utility-bar-mobile-default-list .check input {
+  width: auto; flex: 0 0 auto; margin: 0; }
 .utility-bar-remove { align-self: start; }
 
 /* Icon-chooser field — replaces the long flat <select> with the
@@ -2178,11 +2205,6 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
    wrapper sits in the row grid as if it were a <label>, and its
    has-icon / [hidden] toggles flip the preview, the empty caption,
    and the clear button on or off. */
-.utility-bar-row-fields .utility-bar-icon-field {
-  display: flex; flex-direction: column;
-  gap: 4px; font-size: 0.8125rem;
-  min-width: 0;
-}
 .utility-bar-icon-field[hidden] { display: none; }
 .utility-bar-icon-field-lbl { color: inherit; }
 .utility-bar-icon-field .icon-picker-trigger {
@@ -2330,12 +2352,10 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
    padding) — totals ~700 of card width before the 5-col grid stops
    fitting. Below that, drop to a flexible 2-col layout. */
 @container utility-bar-card (max-width: 700px) {
-  .utility-bar-row { grid-template-columns: auto minmax(0, 1fr); }
+  /* The leaf row keeps its handle | fields | remove columns at every
+     width — the two-column fields grid leaves room for the 28px × —
+     so only the container's own stacking needs reflowing here. */
   .utility-bar-container { grid-template-columns: 1fr; }
-  .utility-bar-row-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .utility-bar-row-fields > label.utility-bar-newtab { grid-column: 1 / -1; }
-  .utility-bar-remove { grid-column: 2; justify-self: end; }
-  .utility-bar-container .utility-bar-remove { justify-self: end; }
 }
 /* On phones the two-up field grid still overflows (Type select + a long
    URL placeholder don't fit side by side). Stack to a single column so
@@ -2343,8 +2363,6 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
    column and the remove button parks at the end of the fields block. */
 @container utility-bar-card (max-width: 380px) {
   .utility-bar-row-fields { grid-template-columns: minmax(0, 1fr); }
-  .utility-bar-row-fields > label.utility-bar-newtab { grid-column: 1; }
-  .utility-bar-remove { grid-column: 1; }
   /* Narrow head wraps the collapsed-icon picker and remove button
      onto their own rows so the label input keeps full width. */
   .utility-bar-container-head {
@@ -2547,6 +2565,31 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
   box-shadow: 0 8px 22px rgba(202, 138, 4, 0.28);
   animation: fe-save-appear 220ms ease-out both;
 }
+/* The Web Frontend admin's own bars (#fe-save-bar from the subnav
+   partial, #footer-save-bar on the Footer page) sit in the frontend
+   subnav column, which is only --fe-subnav-w wide — the generic 248px
+   above is the *main* sidebar's width and spills 50px into the content.
+   That width can't fit "Unsaved changes" beside a Save button on one
+   line, so these bars stack: message on top, button(s) sharing the row
+   beneath. `left` is the column's x: after the main sidebar when it's
+   shown, or straight after the content padding under the per-user
+   auto-hide shell, where that sidebar reserves no column at all. */
+#fe-save-bar, #footer-save-bar {
+  left: calc(var(--sidebar-w, 248px) + var(--content-px, 28px));
+  width: var(--fe-subnav-w, 198px);
+  flex-wrap: wrap; gap: 8px; padding: 10px 12px;
+}
+body.fe-admin-autohide #fe-save-bar,
+body.fe-admin-autohide #footer-save-bar { left: var(--content-px, 28px); }
+#fe-save-bar .fe-save-bar-msg, #footer-save-bar .fe-save-bar-msg {
+  flex: 1 1 100%; text-align: center;
+}
+#fe-save-bar .fe-save-bar-btn.btn, #footer-save-bar .fe-save-bar-btn.btn {
+  flex: 1 1 0; min-width: 0; padding: 6px 8px;
+  /* Two buttons (Save Draft / Publish) share ~174px here — a step down
+     in size keeps them from reading as crammed. */
+  font-size: 0.8125rem;
+}
 /* Non-frontend admin pages (library detail, etc.) shift the bar 2rem
    further right of where the frontend admin save bar sits, so it visually
    aligns with the start of the page's content column instead of sitting
@@ -2559,7 +2602,9 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
      sidebar usually doesn't reserve a column either; show the bar full-
      width at the screen bottom — applies to both variants. */
   .fe-save-bar,
-  .fe-save-bar-content {
+  .fe-save-bar-content,
+  #fe-save-bar, #footer-save-bar,
+  body.fe-admin-autohide #fe-save-bar, body.fe-admin-autohide #footer-save-bar {
     left: 12px; right: 12px; bottom: 12px; width: auto;
   }
 }
