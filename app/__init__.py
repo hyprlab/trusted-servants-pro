@@ -1580,7 +1580,8 @@ def _migrate_sqlite(app):
         for col, ddl in (("alert_message", "TEXT"),
                          ("is_intergroup", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("categories_required", "BOOLEAN NOT NULL DEFAULT 1"),
-                         ("public_visible", "BOOLEAN NOT NULL DEFAULT 0")):
+                         ("public_visible", "BOOLEAN NOT NULL DEFAULT 0"),
+                         ("archived_at", "DATETIME")):
             add("library", col, ddl)
         # On the boot that first added is_intergroup, flag the two
         # pre-existing default Intergroup libraries so the permission

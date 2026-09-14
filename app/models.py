@@ -1651,6 +1651,12 @@ class Library(db.Model):
     # consulted on Intergroup libraries today, but the column is kept
     # general so non-Intergroup libraries can opt in later.
     categories_required = db.Column(db.Boolean, nullable=False, default=True)
+    # Archived libraries drop out of the main /libraries list (they move
+    # to its Archived tab) and out of the public Literature Library page,
+    # exactly as ``Meeting.archived_at`` behaves. Nothing is deleted and
+    # existing meeting associations are untouched, so restoring puts the
+    # library back where it was. NULL = active.
+    archived_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     items = db.relationship("LibraryItem", backref="library", cascade="all, delete-orphan",

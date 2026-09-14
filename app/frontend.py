@@ -2903,6 +2903,9 @@ def literature_library():
     from .models import Library, LibraryItem
     libs = (Library.query
             .filter(Library.public_visible.is_(True))
+            # Archived libraries drop off the public page, the same way
+            # archived meetings do everywhere else in this module.
+            .filter(Library.archived_at.is_(None))
             .order_by(Library.name)
             .all())
     library_buckets = []
@@ -5875,6 +5878,7 @@ def _site_index_groups(site):
     if getattr(site, "frontend_site_index_show_library", True):
         items = []
         for lib in (Library.query.filter_by(public_visible=True)
+                    .filter(Library.archived_at.is_(None))
                     .order_by(Library.name.asc()).all()):
             items.append({
                 "title": lib.name,

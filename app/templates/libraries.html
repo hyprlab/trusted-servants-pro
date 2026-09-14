@@ -5,18 +5,31 @@
 {% block top_actions %}
   <div class="view-controls">
     <div class="view-toggle">
-      <a class="btn btn-sm {% if view != 'table' %}active{% endif %}" href="{{ url_for('main.libraries', view='cards', sort=sort, dir=direction) }}">Cards</a>
-      <a class="btn btn-sm {% if view == 'table' %}active{% endif %}" href="{{ url_for('main.libraries', view='table', sort=sort, dir=direction) }}">Table</a>
+      <a class="btn btn-sm {% if view != 'table' %}active{% endif %}" href="{{ url_for('main.libraries', view='cards', sort=sort, dir=direction, show=show) }}">Cards</a>
+      <a class="btn btn-sm {% if view == 'table' %}active{% endif %}" href="{{ url_for('main.libraries', view='table', sort=sort, dir=direction, show=show) }}">Table</a>
     </div>
+    {# Active / Archived, same shape as the Meetings list. The Archived
+       tab is hidden entirely until something has been archived, so the
+       toolbar doesn't grow a permanently-empty tab. #}
+    {% if show == 'archived' or archived_count %}
+    <div class="view-toggle">
+      <a class="btn btn-sm {% if show != 'archived' %}active{% endif %}"
+         href="{{ url_for('main.libraries', view=view, sort=sort, dir=direction, show='active') }}">Active</a>
+      <a class="btn btn-sm {% if show == 'archived' %}active{% endif %}"
+         href="{{ url_for('main.libraries', view=view, sort=sort, dir=direction, show='archived') }}">
+        Archived{% if archived_count %} <span class="nav-badge">{{ archived_count }}</span>{% endif %}
+      </a>
+    </div>
+    {% endif %}
     <label class="sort-select">
       <span class="muted smaller">Sort</span>
       <select onchange="window.location=this.value">
-        <option value="{{ url_for('main.libraries', view=view, sort='name', dir=direction) }}" {% if sort=='name' %}selected{% endif %}>Name</option>
-        <option value="{{ url_for('main.libraries', view=view, sort='files', dir=direction) }}" {% if sort=='files' %}selected{% endif %}>Files</option>
+        <option value="{{ url_for('main.libraries', view=view, sort='name', dir=direction, show=show) }}" {% if sort=='name' %}selected{% endif %}>Name</option>
+        <option value="{{ url_for('main.libraries', view=view, sort='files', dir=direction, show=show) }}" {% if sort=='files' %}selected{% endif %}>Files</option>
       </select>
     </label>
     <a class="btn btn-sm sort-dir" title="Toggle sort direction"
-       href="{{ url_for('main.libraries', view=view, sort=sort, dir=('desc' if direction=='asc' else 'asc')) }}">
+       href="{{ url_for('main.libraries', view=view, sort=sort, dir=('desc' if direction=='asc' else 'asc'), show=show) }}">
       {{ '↓' if direction == 'desc' else '↑' }}
     </a>
   </div>
@@ -35,7 +48,10 @@
       <tbody>
         {% for l in libraries %}
         <tr>
-          <td><a href="{{ url_for('main.library_detail', slug=l.public_slug) }}">{{ l.name }}</a></td>
+          <td>
+            <a href="{{ url_for('main.library_detail', slug=l.public_slug) }}">{{ l.name }}</a>
+            {% if l.archived_at %}<span class="chip chip-archived">Archived</span>{% endif %}
+          </td>
           <td class="muted hide-sm">{{ l.description or '—' }}</td>
           <td>{{ l.items.count() }}</td>
           {# Same permission gates the library detail page applies to its
@@ -50,6 +66,20 @@
                 {{ icon('pencil') }}<span>Edit details</span></a>
               {% endif %}
               {% if current_user.is_admin() %}
+                {% if l.archived_at %}
+                <form method="post" action="{{ url_for('main.library_unarchive', slug=l.public_slug) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="row-menu-item" title="Restore from archive">
+                    {{ icon('rotate-ccw') }}<span>Restore</span></button>
+                </form>
+                {% else %}
+                <form method="post" action="{{ url_for('main.library_archive', slug=l.public_slug) }}"
+                      onsubmit="return confirm('Archive this library? It will be hidden from the main list and the public Literature Library page, but can be restored later.');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="row-menu-item" title="Archive this library">
+                    {{ icon('box') }}<span>Archive</span></button>
+                </form>
+                {% endif %}
               <div class="row-menu-sep" role="separator"></div>
               <form method="post" action="{{ url_for('main.library_delete', slug=l.public_slug) }}"
                     onsubmit="return confirm('Delete this library?');">
@@ -69,7 +99,9 @@
   <div class="cards">
     {% for l in libraries %}
     <a class="card card-hover" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">
-      <h3>{{ l.name }}</h3>
+      <h3>{{ l.name }}
+        {% if l.archived_at %}<span class="chip chip-archived">Archived</span>{% endif %}
+      </h3>
       {% if l.description %}<p class="clip">{{ l.description }}</p>{% endif %}
       <div class="tags"><span class="tag">{{ l.items.count() }} files</span></div>
     </a>
@@ -77,7 +109,11 @@
   </div>
   {% endif %}
 {% else %}
+{% if show == 'archived' %}
+<div class="empty"><h3>Nothing archived</h3><p class="muted">Archived libraries are kept out of the main list and off the public Literature Library page. Restore one any time.</p></div>
+{% else %}
 <div class="empty"><h3>No libraries yet</h3><p class="muted">Create one to start collecting files.</p></div>
+{% endif %}
 {% endif %}
 
 {% if current_user.can_manage_libraries() %}
