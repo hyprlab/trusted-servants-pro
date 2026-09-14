@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Blog{% endblock %}
 {% block heading_help %}Long-form editorial posts. Tag with categories or tags so a frontend page block can scope to a single topic — host one blog per committee or group from this single table.{% endblock %}
 {% block top_actions %}
@@ -211,38 +212,48 @@
         </td>
         <td class="posts-td-actions">
           <div class="row-actions">
-            <a class="btn btn-sm" href="{{ url_for('main.blog_edit', bid=p.id) }}">Edit</a>
-            {% if p.is_draft %}
-            <form method="post" action="{{ url_for('main.blog_publish', bid=p.id) }}" style="display:inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm btn-primary" title="Publish this draft">Publish</button>
-            </form>
-            {% elif not p.is_archived %}
-            <form method="post" action="{{ url_for('main.blog_unpublish', bid=p.id) }}" style="display:inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm" title="Move to Drafts">Move to Drafts</button>
-            </form>
-            {% endif %}
-            <form method="post" action="{{ url_for('main.blog_duplicate', bid=p.id) }}" style="display:inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm" title="Make a copy">Duplicate</button>
-            </form>
-            {% if p.is_archived %}
-              <form method="post" action="{{ url_for('main.blog_unarchive', bid=p.id) }}" style="display:inline">
+            {% call row_menu() %}
+              <a class="row-menu-item" href="{{ url_for('main.blog_edit', bid=p.id) }}">
+                {{ icon('pencil') }}<span>Edit</span></a>
+              {% if p.is_draft %}
+              <form method="post" action="{{ url_for('main.blog_publish', bid=p.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm" title="Restore">Restore</button>
+                <button type="submit" class="row-menu-item" title="Publish this draft">
+                  {{ icon('send') }}<span>Publish</span></button>
               </form>
-            {% else %}
-              <form method="post" action="{{ url_for('main.blog_archive', bid=p.id) }}" style="display:inline">
+              {% elif not p.is_archived %}
+              <form method="post" action="{{ url_for('main.blog_unpublish', bid=p.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm" title="Archive">Archive</button>
+                <button type="submit" class="row-menu-item" title="Move to Drafts">
+                  {{ icon('file-text') }}<span>Move to Drafts</span></button>
               </form>
-            {% endif %}
-            <form method="post" action="{{ url_for('main.blog_delete', bid=p.id) }}" style="display:inline"
-                  onsubmit="return confirm('Delete this post permanently? Featured image will be cleaned up.');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm btn-danger" title="Delete post">{{ icon('trash') }}</button>
-            </form>
+              {% endif %}
+              <form method="post" action="{{ url_for('main.blog_duplicate', bid=p.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="row-menu-item" title="Make a copy">
+                  {{ icon('copy') }}<span>Duplicate</span></button>
+              </form>
+              {% if p.is_archived %}
+                <form method="post" action="{{ url_for('main.blog_unarchive', bid=p.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="row-menu-item" title="Restore">
+                    {{ icon('rotate-ccw') }}<span>Restore</span></button>
+                </form>
+              {% else %}
+                <form method="post" action="{{ url_for('main.blog_archive', bid=p.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="row-menu-item" title="Archive">
+                    {{ icon('box') }}<span>Archive</span></button>
+                </form>
+              {% endif %}
+              <div class="row-menu-sep" role="separator"></div>
+              <form method="post" action="{{ url_for('main.blog_delete', bid=p.id) }}"
+                    onsubmit="return confirm('Delete this post permanently? Featured image will be cleaned up.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="row-menu-item row-menu-item-danger" title="Delete post">
+                  {{ icon('trash') }}<span>Delete</span></button>
+              </form>
+            {% endcall %}
           </div>
         </td>
       </tr>

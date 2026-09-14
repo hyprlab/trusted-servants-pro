@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Trusted Servants Email List{% endblock %}
 {% block heading_help %}Roster of trusted servants who have opted into the contact list (plus any external contacts an admin has added manually), and a send-update surface for emailing the whole list at once.{% endblock %}
 {% block content %}
@@ -47,12 +48,17 @@
           </td>
           <td data-label="Joined" class="muted smaller">{{ s.created_at.strftime('%b %-d, %Y') if s.created_at else '—' }}</td>
           <td class="ts-row-actions">
-            <button type="button" class="btn btn-sm" data-open-modal="ts-edit-{{ s.id }}" title="Edit entry">{{ icon('pencil') }}</button>
-            <form method="post" action="{{ url_for('main.trusted_servants_delete', sid=s.id) }}"
-                  onsubmit="return confirm('Remove {{ s.name }} from the list?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-danger" title="Remove from list">{{ icon('trash') }}</button>
-            </form>
+            {% call row_menu() %}
+              <button type="button" class="row-menu-item" data-open-modal="ts-edit-{{ s.id }}" title="Edit entry">
+                {{ icon('pencil') }}<span>Edit</span></button>
+              <div class="row-menu-sep" role="separator"></div>
+              <form method="post" action="{{ url_for('main.trusted_servants_delete', sid=s.id) }}"
+                    onsubmit="return confirm('Remove {{ s.name }} from the list?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="row-menu-item row-menu-item-danger" title="Remove from list">
+                  {{ icon('trash') }}<span>Remove</span></button>
+              </form>
+            {% endcall %}
           </td>
         </tr>
         {% endfor %}

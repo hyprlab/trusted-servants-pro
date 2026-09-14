@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% from "_dynbg_picker.html" import dynbg_trigger with context %}
 {% set _active_mm = (site.frontend_megamenu_template if site else 'recovery-blue') or 'recovery-blue' %}
@@ -47,15 +48,21 @@
             <td class="muted small trunc" style="max-width: 260px;">{{ ni.url or '—' }}</td>
             <td>{% if ni.has_megamenu %}<span class="chip">{{ ni.columns|length }} col · {{ ni.columns|map(attribute='links')|map('length')|sum }} links</span>{% else %}—{% endif %}</td>
             <td class="row-actions">
-              {% if ni.has_megamenu %}
-              <a class="btn btn-sm" href="{{ url_for('main.frontend_nav_megamenu', nid=ni.id) }}">Mega menu</a>
-              {% endif %}
-              <button type="button" class="btn btn-sm" data-open-modal="nav-item-edit-{{ ni.id }}">Edit</button>
-              <form method="post" action="{{ url_for('main.frontend_nav_item_delete', nid=ni.id) }}"
-                    onsubmit="return confirm('Delete this nav item?');" style="display:inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-sm btn-danger" title="Delete nav item">{{ icon('trash') }}</button>
-              </form>
+              {% call row_menu() %}
+                {% if ni.has_megamenu %}
+                <a class="row-menu-item" href="{{ url_for('main.frontend_nav_megamenu', nid=ni.id) }}">
+                  {{ icon('layout-grid') }}<span>Mega menu</span></a>
+                {% endif %}
+                <button type="button" class="row-menu-item" data-open-modal="nav-item-edit-{{ ni.id }}">
+                  {{ icon('pencil') }}<span>Edit</span></button>
+                <div class="row-menu-sep" role="separator"></div>
+                <form method="post" action="{{ url_for('main.frontend_nav_item_delete', nid=ni.id) }}"
+                      onsubmit="return confirm('Delete this nav item?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="row-menu-item row-menu-item-danger" title="Delete nav item">
+                    {{ icon('trash') }}<span>Delete</span></button>
+                </form>
+              {% endcall %}
             </td>
           </tr>
           {% endfor %}

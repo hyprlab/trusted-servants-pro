@@ -8,6 +8,27 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ### Changed
 
+- **Every admin table's row buttons now sit behind the shared Actions
+  menu.** The dropdown built for the Web Frontend Pages list is now the
+  pattern everywhere: 13 more tables converted, so a row reads as data with
+  one trigger at its end instead of a strip of three-to-five buttons.
+  Announcements & Events, Blog, Stories, Popups, Redirects, Navigation, File
+  Browser, Locations, Zoom Accounts, Recovery Contacts, Email List, Users.
+  Each item keeps its original wiring — `form=` references, nested
+  single-purpose forms, confirm dialogs, modal triggers and JS hooks are
+  unchanged; only the wrapper and classes moved.
+  - The picker view of the File Browser keeps its inline Preview / Select
+    buttons — those are the primary choice in a file-picker modal, not row
+    admin.
+  - Fixed a latent bug the move exposed: the `[data-copy-url]` handler set
+    `btn.textContent` for its "Copied!" flash, which inside a menu item would
+    have deleted the icon and label permanently (the restore only put text
+    back). It now swaps an inner `<span>` when there is one and falls back to
+    the button otherwise, so plain text copy buttons behave exactly as before.
+  - Stories' "Download attachment" asked for a `paperclip` icon that isn't in
+    the catalogue, so it had been silently rendering no icon at all; it uses
+    `download` now.
+
 - **Every row-level delete control in the admin now uses the same red trash
   button.** Row deletes were split three ways — a text "Delete", an `x` icon,
   or a trash icon — sometimes within one screen. All of them now match the
