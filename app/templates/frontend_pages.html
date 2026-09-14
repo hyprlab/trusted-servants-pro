@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_frontend_template_picker.html" import template_picker %}
+{% from "_row_menu.html" import row_menu %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% block heading %}Pages{% endblock %}
 {% block heading_help %}Additional content pages beyond the homepage.{% endblock %}
@@ -76,6 +77,55 @@
   </div>
 </div>
 
+{# ── Rename modal ──────────────────────────────────────────────────
+   One shared modal for every row — the Rename buttons carry the page's
+   id / title / slug as data attributes and the script at the bottom of
+   this file copies them in on click, then POSTs to
+   `frontend_page_rename`. Changing the slug moves the page's public
+   URL, so the redirect offer appears as soon as the slug field
+   diverges from what the row started with. #}
+<div class="modal" id="rename-page-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <form class="form" method="post" data-fe-skip-save-bar id="rename-page-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-head">
+        <h2>Rename page</h2>
+        <button type="button" class="icon-btn" data-close>{{ icon('x') }}</button>
+      </div>
+      <div class="modal-body">
+        <label>Page title
+          <input type="text" name="title" required maxlength="200"
+                 autocomplete="off" data-fe-rename-title-input>
+        </label>
+        <label>URL slug
+          <input type="text" name="slug" maxlength="120"
+                 autocomplete="off" placeholder="auto from title"
+                 data-fe-rename-slug-input>
+          <small class="muted">Served at <code>/<span data-fe-rename-slug-preview>slug</span></code>.
+            Letters, numbers, hyphens. Leave blank to re-derive it from the title.</small>
+        </label>
+        <p class="muted small" data-fe-rename-homepage-note hidden>
+          This is the homepage — it's served at <code>/</code>, so changing
+          its slug doesn't move its public URL.
+        </p>
+        <label class="fe-rename-redirect" data-fe-rename-redirect hidden>
+          <input type="checkbox" name="create_redirect" value="1" checked
+                 data-fe-rename-redirect-box>
+          <span>Redirect the old URL
+            (<code data-fe-rename-old-path>/old</code>) to the new one
+            <span class="muted smaller">— keeps existing links working. Manage these under Structure → Redirects.</span>
+          </span>
+        </label>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="fe-admin-layout">
   {% include "_frontend_subnav.html" %}
   <div class="fe-admin-main">
@@ -128,14 +178,14 @@
               data-sort-layout="{{ _layout_label|lower }}"
               data-sort-status="{{ _status }}"
               data-sort-updated="{{ _updated.timestamp()|int if _updated else 0 }}"
-              {% if _is_hp %}class="is-homepage"{% endif %}>
+              >
             <td class="fe-pages-check-col">
               <label class="fe-pages-check">
                 <input type="checkbox" form="fe-pages-bulk-form" name="page_ids"
                        value="{{ p.id }}" data-fe-pages-check>
               </label>
             </td>
-            <td>
+            <td class="fe-pages-title-cell">
               <a href="{{ url_for('main.frontend_page_edit', page_id=p.id) }}">{{ p.title }}</a>
               {%- if _is_hp %}
                 <span class="chip chip-homepage" title="This page renders at the public `/` root">
@@ -143,12 +193,17 @@
                 </span>
               {%- endif %}
             </td>
-            <td class="nowrap">
+            {# Not `.nowrap`: a long slug is the one cell here that can be
+               arbitrarily wide, and holding it on one line put a ~240px
+               floor under this column (and so under the whole table).
+               `.tbl td`'s `overflow-wrap: anywhere` keeps it intact when
+               there's room and breaks it only when squeezed. #}
+            <td data-label="URL">
               {%- if _is_hp %}<code>/</code>
               {%- else %}<code>/{{ p.slug }}</code>{%- endif %}
             </td>
-            <td><span class="chip">{{ _layout_label }}</span></td>
-            <td>
+            <td data-label="Layout"><span class="chip">{{ _layout_label }}</span></td>
+            <td data-label="Status">
               <div class="fe-page-status-pills">
                 {% if _status == 'draft' %}
                   <span class="post-chip post-chip-draft">Draft</span>
@@ -167,28 +222,48 @@
                 {% endif %}
               </div>
             </td>
-            <td class="nowrap muted">{{ _updated.strftime('%Y-%m-%d') if _updated else '' }}</td>
+            <td class="nowrap muted" data-label="Updated">{{ _updated.strftime('%Y-%m-%d') if _updated else '' }}</td>
+            {# Every row action lives behind one dropdown trigger. Six
+               inline buttons made this cell the widest thing in the
+               table and forced a document-level horizontal scrollbar —
+               see the note in _row_menu.html. #}
             <td class="row-actions">
-              {%- if _is_hp %}
-                <a class="btn btn-sm" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">View</a>
-              {%- else %}
-                <a class="btn btn-sm" href="{{ url_for('frontend.page_detail', slug=p.slug) }}" target="_blank" rel="noopener">View</a>
-              {%- endif %}
-              <a class="btn btn-sm" href="{{ url_for('frontend.page_preview', page_id=p.id) }}" target="_blank" rel="noopener"
-                 title="Preview this page (works for drafts) — not visible to the public">Preview</a>
-              <a class="btn btn-sm" href="{{ url_for('main.frontend_page_edit', page_id=p.id) }}">Edit</a>
-              {%- if not _is_hp %}
-                <form method="post" action="{{ url_for('main.frontend_page_set_homepage', page_id=p.id) }}"
-                      onsubmit="return confirm('Make “{{ p.title|e }}” the homepage? It will render at the public `/` root and the previous homepage becomes a regular page.');">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-sm" title="Designate as homepage">Make homepage</button>
-                </form>
-                <form method="post" action="{{ url_for('main.frontend_page_delete', page_id=p.id) }}"
-                      onsubmit="return confirm('Delete this page? This cannot be undone.');">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                </form>
-              {%- endif %}
+              {% call row_menu() %}
+                {%- if _is_hp %}
+                  <a class="row-menu-item" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">
+                    {{ icon('external-link') }}<span>View</span></a>
+                {%- else %}
+                  <a class="row-menu-item" href="{{ url_for('frontend.page_detail', slug=p.slug) }}" target="_blank" rel="noopener">
+                    {{ icon('external-link') }}<span>View</span></a>
+                {%- endif %}
+                <a class="row-menu-item" href="{{ url_for('frontend.page_preview', page_id=p.id) }}" target="_blank" rel="noopener"
+                   title="Preview this page (works for drafts) — not visible to the public">
+                  {{ icon('eye') }}<span>Preview</span></a>
+                <a class="row-menu-item" href="{{ url_for('main.frontend_page_edit', page_id=p.id) }}">
+                  {{ icon('pencil') }}<span>Edit</span></a>
+                <button type="button" class="row-menu-item" data-open-modal="rename-page-modal"
+                        data-fe-rename-id="{{ p.id }}"
+                        data-fe-rename-title="{{ p.title|e }}"
+                        data-fe-rename-slug="{{ p.slug|e }}"
+                        data-fe-rename-homepage="{{ '1' if _is_hp else '0' }}"
+                        title="Change this page's title and URL">
+                  {{ icon('type') }}<span>Rename</span></button>
+                {%- if not _is_hp %}
+                  <form method="post" action="{{ url_for('main.frontend_page_set_homepage', page_id=p.id) }}"
+                        onsubmit="return confirm('Make “{{ p.title|e }}” the homepage? It will render at the public `/` root and the previous homepage becomes a regular page.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="row-menu-item" title="Designate as homepage">
+                      {{ icon('home') }}<span>Make homepage</span></button>
+                  </form>
+                  <div class="row-menu-sep" role="separator"></div>
+                  <form method="post" action="{{ url_for('main.frontend_page_delete', page_id=p.id) }}"
+                        onsubmit="return confirm('Delete this page? This cannot be undone.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="row-menu-item row-menu-item-danger">
+                      {{ icon('trash') }}<span>Delete</span></button>
+                  </form>
+                {%- endif %}
+              {% endcall %}
             </td>
           </tr>
           {% endfor %}
@@ -278,6 +353,64 @@
     if (defaultTh) defaultTh.classList.add('sort-asc');
 
     updateBulkBar();
+  })();
+
+  // Rename modal — one modal shared by every row. Each Rename button
+  // carries the row's id / title / slug, which we copy into the form on
+  // click (app.js's [data-open-modal] handler does the opening). The
+  // redirect offer only appears once the slug actually diverges from
+  // where the page started, because that's the only case where its
+  // public URL moves.
+  (function () {
+    const form = document.getElementById('rename-page-form');
+    if (!form) return;
+    const titleInput = form.querySelector('[data-fe-rename-title-input]');
+    const slugInput  = form.querySelector('[data-fe-rename-slug-input]');
+    const preview    = form.querySelector('[data-fe-rename-slug-preview]');
+    const redirectRow = form.querySelector('[data-fe-rename-redirect]');
+    const redirectBox = form.querySelector('[data-fe-rename-redirect-box]');
+    const oldPathEl  = form.querySelector('[data-fe-rename-old-path]');
+    const hpNote     = form.querySelector('[data-fe-rename-homepage-note]');
+    let originalSlug = '';
+    let isHomepage = false;
+
+    // Mirrors _slugify_page() server-side so the preview and the saved
+    // slug agree. The server re-slugifies regardless — this is display.
+    const slugify = v => (v || '').trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+    function sync() {
+      const effective = slugify(slugInput.value) || slugify(titleInput.value) || 'page';
+      if (preview) preview.textContent = effective;
+      const moved = effective !== originalSlug;
+      if (redirectRow) redirectRow.hidden = !moved || isHomepage;
+      if (hpNote) hpNote.hidden = !(moved && isHomepage);
+      if (oldPathEl) oldPathEl.textContent = '/' + originalSlug;
+      // Re-arm the checkbox each time the slug moves afresh, so an
+      // admin who edits, reverts, then re-edits doesn't silently lose
+      // the redirect they'd expect by default.
+      if (moved && redirectBox && redirectRow && redirectRow.dataset.armed !== effective) {
+        redirectBox.checked = true;
+        redirectRow.dataset.armed = effective;
+      }
+    }
+
+    document.querySelectorAll('[data-fe-rename-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        form.action = '{{ url_for("main.frontend_pages") }}/' + btn.dataset.feRenameId + '/rename';
+        originalSlug = btn.dataset.feRenameSlug || '';
+        isHomepage = btn.dataset.feRenameHomepage === '1';
+        titleInput.value = btn.dataset.feRenameTitle || '';
+        slugInput.value = originalSlug;
+        if (redirectRow) delete redirectRow.dataset.armed;
+        sync();
+        // Defer so the modal is visible before we steal focus.
+        setTimeout(() => { titleInput.focus(); titleInput.select(); }, 50);
+      });
+    });
+
+    titleInput.addEventListener('input', sync);
+    slugInput.addEventListener('input', sync);
   })();
 </script>
 {% endblock %}

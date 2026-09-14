@@ -576,7 +576,7 @@
       <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
     </div>
     <div class="modal-body">
-      <p class="muted small">Every Save Draft and Publish is recorded. Restore loads the chosen revision back into a draft for review — your live page stays unchanged until you click <b>Publish</b>. History keeps up to {{ 50 }} entries per page.</p>
+      <p class="muted small">Every Save Draft, Publish, and rename is recorded. Restore loads the chosen revision back into a draft for review — your live page stays unchanged until you click <b>Publish</b>. History keeps up to {{ 50 }} entries per page.</p>
       <div id="page-history-list" data-fe-skip-save-bar>
         <p class="muted small fe-page-history-loading">Loading history…</p>
       </div>
@@ -1475,6 +1475,9 @@ window.tspBlogTags = [
   function actionChip(action) {
     if (action === 'publish') {
       return '<span class="fe-page-history-chip fe-page-history-chip-publish">Published</span>';
+    }
+    if (action === 'rename') {
+      return '<span class="fe-page-history-chip fe-page-history-chip-rename">Renamed</span>';
     }
     return '<span class="fe-page-history-chip fe-page-history-chip-draft">Draft</span>';
   }
