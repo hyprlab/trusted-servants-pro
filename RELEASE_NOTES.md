@@ -7,7 +7,11 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.18.8 — 2026-09-14 (latest) — Rename a page in two clicks, and admin lists that fit your screen
+## 2.18.9 — 2026-09-14 (latest) — Housekeeping: PDF engine updated
+
+- **The component that builds your PDFs was updated to its latest version.** It's what produces the printable meeting list, the contact sheet, and reading PDFs. Nothing about them changes — we checked the before and after page by page and the content comes out the same — but it keeps the portal current with upstream fixes.
+
+## 2.18.8 — 2026-09-14 — Rename a page in two clicks, and admin lists that fit your screen
 
 - **You can rename a page straight from the Pages list.** Every row has a **Rename** button that opens a small box with the page's title and its web address — no need to open the editor and hunt down the setting. (It was always possible, just buried well below the layout and block cards.)
     - **Change the address and we'll offer to forward the old one.** Tick the box and anyone following an old link — a bookmark, a post, a printed flyer — lands on the new address instead of an error page. You'll find the forward listed afterwards under **Web Frontend → Redirects**, same as any other.

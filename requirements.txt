@@ -8,7 +8,7 @@ gunicorn==26.0.0
 cryptography==50.0.0
 nh3==0.3.6
 markdown==3.10.3
-weasyprint==69.0
+weasyprint==70.0
 pydyf==0.12.1
 beautifulsoup4==4.15.0
 requests==2.34.2
