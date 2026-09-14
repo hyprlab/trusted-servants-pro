@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}File Browser{% endblock %}
 {% block heading_help %}Upload, browse, and manage images, documents, and other files used throughout the portal.{% endblock %}
 {% block top_actions %}
@@ -204,31 +205,40 @@
                   data-filename="{{ m.original_filename }}">Preview</button>
           <button type="button" class="btn btn-sm btn-primary media-select">Select</button>
           {% else %}
-          <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ _pub }}">Copy Link</button>
-          <a class="btn btn-sm" href="{{ url_for('main.media_download', mid=m.id) }}">Download</a>
-          {# Rename + Delete render for every editor-tier role (so
-             Editors / Intergroup Members can see the buttons and the
-             roles they unlock for them); each greys out individually
-             when the per-row gate denies the action. Viewers (who
-             fail ``can_edit``) keep seeing nothing. #}
-          {% if current_user.can_edit() %}
-            {% if current_user.can_rename_media(m) %}
-            <button type="button" class="btn btn-sm media-rename">Rename</button>
-            {% else %}
-            <button type="button" class="btn btn-sm btn-perm-disabled" disabled
-                    title="You don't have permission to rename this file. Editors can only rename files uploaded by another Editor — this one was uploaded by an admin / Intergroup Member, or its uploader is unknown (legacy upload).">Rename</button>
+          {% call row_menu() %}
+            <button type="button" class="row-menu-item btn-copy" data-copy-url="{{ _pub }}">
+              {{ icon('link') }}<span>Copy Link</span></button>
+            <a class="row-menu-item" href="{{ url_for('main.media_download', mid=m.id) }}">
+              {{ icon('download') }}<span>Download</span></a>
+            {# Rename + Delete render for every editor-tier role (so
+               Editors / Intergroup Members can see the items and the
+               roles they unlock for them); each greys out individually
+               when the per-row gate denies the action. Viewers (who
+               fail ``can_edit``) keep seeing nothing. #}
+            {% if current_user.can_edit() %}
+              {% if current_user.can_rename_media(m) %}
+              <button type="button" class="row-menu-item media-rename">
+                {{ icon('pencil') }}<span>Rename</span></button>
+              {% else %}
+              <button type="button" class="row-menu-item btn-perm-disabled" disabled
+                      title="You don't have permission to rename this file. Editors can only rename files uploaded by another Editor — this one was uploaded by an admin / Intergroup Member, or its uploader is unknown (legacy upload).">
+                {{ icon('pencil') }}<span>Rename</span></button>
+              {% endif %}
+              <div class="row-menu-sep" role="separator"></div>
+              {% if current_user.is_admin() %}
+              <form method="post" action="{{ url_for('main.media_delete', mid=m.id) }}"
+                    onsubmit="return confirm('Delete this file from the library?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="row-menu-item row-menu-item-danger" title="Delete file">
+                  {{ icon('trash') }}<span>Delete</span></button>
+              </form>
+              {% else %}
+              <button type="button" class="row-menu-item row-menu-item-danger btn-perm-disabled" disabled
+                      title="You don't have permission to delete files from the file browser. Only admins can permanently remove files here.">
+                {{ icon('trash') }}<span>Delete</span></button>
+              {% endif %}
             {% endif %}
-            {% if current_user.is_admin() %}
-            <form method="post" action="{{ url_for('main.media_delete', mid=m.id) }}"
-                  onsubmit="return confirm('Delete this file from the library?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-danger" title="Delete file">{{ icon('trash') }}</button>
-            </form>
-            {% else %}
-            <button type="button" class="btn btn-sm btn-danger btn-perm-disabled" disabled
-                    title="You don't have permission to delete files from the file browser. Only admins can permanently remove files here.">{{ icon('trash') }}</button>
-            {% endif %}
-          {% endif %}
+          {% endcall %}
           {% endif %}
         </td>
       </tr>

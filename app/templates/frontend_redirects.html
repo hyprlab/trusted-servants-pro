@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Redirects{% endblock %}
 {% block heading_help %}Centrally manage URL redirects on the public site. Every visit hits a single indexed lookup against this table — when a request's path matches a row's source, the visitor is sent to the target with a 301. Use it for legacy WordPress URLs, renamed pages on outside platforms, vanity short-links, or any other path-to-URL mapping you need. Wildcard prefixes are supported: a source ending in <code>/*</code> (e.g. <code>/swag/*</code>) catches every URL under that prefix and lands them all on the target. Exact-match rules always win over wildcards.{% endblock %}
 {% block content %}
@@ -80,13 +81,17 @@
             {% if r.created_at %}{{ r.created_at.strftime('%b %-d, %Y') }}{% endif %}
           </td>
           <td class="row-actions">
-            <button type="button" class="btn btn-sm" data-redirect-edit>Edit</button>
-            <form method="post" action="{{ url_for('main.frontend_redirects_delete', rid=r.id) }}"
-                  style="display:inline"
-                  onsubmit="return confirm('Delete this redirect? Visitors hitting the source path will get a 404 (or hit a real route if one exists).');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-danger" title="Delete redirect">{{ icon('trash') }}</button>
-            </form>
+            {% call row_menu() %}
+              <button type="button" class="row-menu-item" data-redirect-edit>
+                {{ icon('pencil') }}<span>Edit</span></button>
+              <div class="row-menu-sep" role="separator"></div>
+              <form method="post" action="{{ url_for('main.frontend_redirects_delete', rid=r.id) }}"
+                    onsubmit="return confirm('Delete this redirect? Visitors hitting the source path will get a 404 (or hit a real route if one exists).');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="row-menu-item row-menu-item-danger" title="Delete redirect">
+                  {{ icon('trash') }}<span>Delete</span></button>
+              </form>
+            {% endcall %}
           </td>
         </tr>
         {% endfor %}

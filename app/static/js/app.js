@@ -2254,9 +2254,16 @@
     e.stopPropagation();
     const url = new URL(btn.dataset.copyUrl, window.location.origin).href;
     copyText(url).then(ok => {
-      const orig = btn.textContent;
-      btn.textContent = ok ? "Copied!" : "Failed";
-      setTimeout(() => { btn.textContent = orig; }, 1500);
+      // Swap only the label, never the button's whole textContent: a
+      // copy control inside a row-actions menu is `<svg> + <span>`, and
+      // setting textContent on the button would delete the icon and the
+      // span for good (the restore below only puts text back). Plain
+      // text-only copy buttons have no inner span, so they fall through
+      // to the button itself and behave exactly as before.
+      const label = btn.querySelector("span") || btn;
+      const orig = label.textContent;
+      label.textContent = ok ? "Copied!" : "Failed";
+      setTimeout(() => { label.textContent = orig; }, 1500);
     });
   });
 

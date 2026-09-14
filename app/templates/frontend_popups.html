@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Popups{% endblock %}
 {% block heading_help %}Modal popups shown on the public site, triggered from <code>#name</code> links.{% endblock %}
 {% block top_actions %}
@@ -77,25 +78,33 @@
             </td>
             <td class="nowrap muted">{{ p.updated_at.strftime('%Y-%m-%d') if p.updated_at else '' }}</td>
             <td class="row-actions">
-              <a class="btn btn-sm" href="{{ url_for('frontend.popup_preview', popup_id=p.id) }}"
-                 target="_blank" rel="noopener"
-                 title="Preview this popup (works while disabled) — not visible to the public">Preview</a>
-              <a class="btn btn-sm" href="{{ url_for('main.frontend_popup_edit', popup_id=p.id) }}">Edit</a>
-              <form method="post" action="{{ url_for('main.frontend_popup_status', popup_id=p.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                {% if p.is_enabled %}
-                  <input type="hidden" name="status" value="disabled">
-                  <button type="submit" class="btn btn-sm" title="Stop showing this popup">Disable</button>
-                {% else %}
-                  <input type="hidden" name="status" value="enabled">
-                  <button type="submit" class="btn btn-sm btn-primary" title="Show this popup on the site">Enable</button>
-                {% endif %}
-              </form>
-              <form method="post" action="{{ url_for('main.frontend_popup_delete', popup_id=p.id) }}"
-                    onsubmit="return confirm('Delete this popup? This cannot be undone.');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm btn-danger" title="Delete popup">{{ icon('trash') }}</button>
-              </form>
+              {% call row_menu() %}
+                <a class="row-menu-item" href="{{ url_for('frontend.popup_preview', popup_id=p.id) }}"
+                   target="_blank" rel="noopener"
+                   title="Preview this popup (works while disabled) — not visible to the public">
+                  {{ icon('eye') }}<span>Preview</span></a>
+                <a class="row-menu-item" href="{{ url_for('main.frontend_popup_edit', popup_id=p.id) }}">
+                  {{ icon('pencil') }}<span>Edit</span></a>
+                <form method="post" action="{{ url_for('main.frontend_popup_status', popup_id=p.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  {% if p.is_enabled %}
+                    <input type="hidden" name="status" value="disabled">
+                    <button type="submit" class="row-menu-item" title="Stop showing this popup">
+                      {{ icon('eye-off') }}<span>Disable</span></button>
+                  {% else %}
+                    <input type="hidden" name="status" value="enabled">
+                    <button type="submit" class="row-menu-item" title="Show this popup on the site">
+                      {{ icon('check') }}<span>Enable</span></button>
+                  {% endif %}
+                </form>
+                <div class="row-menu-sep" role="separator"></div>
+                <form method="post" action="{{ url_for('main.frontend_popup_delete', popup_id=p.id) }}"
+                      onsubmit="return confirm('Delete this popup? This cannot be undone.');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="row-menu-item row-menu-item-danger" title="Delete popup">
+                    {{ icon('trash') }}<span>Delete</span></button>
+                </form>
+              {% endcall %}
             </td>
           </tr>
           {% endfor %}

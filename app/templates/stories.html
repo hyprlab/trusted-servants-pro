@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Stories{% endblock %}
 {% block heading_help %}Recovery stories — long-form first-person posts. Each story has an author, a featured image, optional sobriety / story dates, and a body. Click a column header to sort. Tick the checkboxes to bulk delete, move to drafts, or archive.{% endblock %}
 {% block top_actions %}
@@ -149,47 +150,55 @@
         </td>
         <td class="posts-td-actions">
           <div class="row-actions">
-            {% if s.is_pending_review %}
-            {# Pending-review submissions get a dedicated action set:
-               an Approve button that flips the row to a regular draft
-               (and lands the admin on the edit page), a download link
-               for the submitter's attached file when present, and
-               Delete to reject. The pending submitter contact line
-               below the title shows who sent it in. #}
-            <button type="submit" form="single-story-approve-{{ s.id }}-form"
-                    class="btn btn-sm btn-primary" title="Approve into drafts for editing">
-              Approve to drafts
-            </button>
-            {% if s.submission_attachment_filename %}
-            <a class="btn btn-sm"
-               href="{{ url_for('main.story_submission_attachment', sid=s.id) }}"
-               title="Download the submitter's attached file">
-              {{ icon('paperclip') }} Download attachment
-            </a>
-            {% endif %}
-            <button type="submit" form="single-story-delete-{{ s.id }}-form" class="btn btn-sm btn-danger"
-                    onclick="return confirm('Reject and delete this submission permanently? The submitter is not notified automatically.');">
-              Reject
-            </button>
-            {% else %}
-            <button type="button" class="btn btn-sm"
-                    data-open-modal="story-edit-modal"
-                    data-modal-src="{{ url_for('main.story_edit', sid=s.id, embed=1) }}"
-                    data-modal-title="Edit story">Edit</button>
-            {% if s.is_draft %}
-            <button type="submit" form="single-story-publish-{{ s.id }}-form" class="btn btn-sm btn-primary" title="Publish this draft">Publish</button>
-            {% elif not s.is_archived %}
-            <button type="submit" form="single-story-unpublish-{{ s.id }}-form" class="btn btn-sm" title="Move to Drafts">Move to Drafts</button>
-            {% endif %}
-            {% if s.is_archived %}
-              <button type="submit" form="single-story-unarchive-{{ s.id }}-form" class="btn btn-sm" title="Restore">Restore</button>
-            {% else %}
-              <button type="submit" form="single-story-archive-{{ s.id }}-form" class="btn btn-sm" title="Archive">Archive</button>
-            {% endif %}
-            <button type="submit" form="single-story-delete-{{ s.id }}-form" class="btn btn-sm btn-danger"
-                    title="Delete story"
-                    onclick="return confirm('Delete this story permanently? Featured image will be cleaned up.');">{{ icon('trash') }}</button>
-            {% endif %}
+            {% call row_menu() %}
+              {% if s.is_pending_review %}
+              {# Pending-review submissions get a dedicated action set:
+                 an Approve item that flips the row to a regular draft
+                 (and lands the admin on the edit page), a download link
+                 for the submitter's attached file when present, and
+                 Reject to discard. The pending submitter contact line
+                 below the title shows who sent it in. #}
+              <button type="submit" form="single-story-approve-{{ s.id }}-form"
+                      class="row-menu-item" title="Approve into drafts for editing">
+                {{ icon('check') }}<span>Approve to drafts</span></button>
+              {% if s.submission_attachment_filename %}
+              <a class="row-menu-item"
+                 href="{{ url_for('main.story_submission_attachment', sid=s.id) }}"
+                 title="Download the submitter's attached file">
+                {{ icon('download') }}<span>Download attachment</span></a>
+              {% endif %}
+              <div class="row-menu-sep" role="separator"></div>
+              <button type="submit" form="single-story-delete-{{ s.id }}-form" class="row-menu-item row-menu-item-danger"
+                      title="Reject and delete this submission"
+                      onclick="return confirm('Reject and delete this submission permanently? The submitter is not notified automatically.');">
+                {{ icon('x') }}<span>Reject</span></button>
+              {% else %}
+              <button type="button" class="row-menu-item"
+                      data-open-modal="story-edit-modal"
+                      data-modal-src="{{ url_for('main.story_edit', sid=s.id, embed=1) }}"
+                      data-modal-title="Edit story">
+                {{ icon('pencil') }}<span>Edit</span></button>
+              {% if s.is_draft %}
+              <button type="submit" form="single-story-publish-{{ s.id }}-form" class="row-menu-item" title="Publish this draft">
+                {{ icon('send') }}<span>Publish</span></button>
+              {% elif not s.is_archived %}
+              <button type="submit" form="single-story-unpublish-{{ s.id }}-form" class="row-menu-item" title="Move to Drafts">
+                {{ icon('file-text') }}<span>Move to Drafts</span></button>
+              {% endif %}
+              {% if s.is_archived %}
+                <button type="submit" form="single-story-unarchive-{{ s.id }}-form" class="row-menu-item" title="Restore">
+                  {{ icon('rotate-ccw') }}<span>Restore</span></button>
+              {% else %}
+                <button type="submit" form="single-story-archive-{{ s.id }}-form" class="row-menu-item" title="Archive">
+                  {{ icon('box') }}<span>Archive</span></button>
+              {% endif %}
+              <div class="row-menu-sep" role="separator"></div>
+              <button type="submit" form="single-story-delete-{{ s.id }}-form" class="row-menu-item row-menu-item-danger"
+                      title="Delete story"
+                      onclick="return confirm('Delete this story permanently? Featured image will be cleaned up.');">
+                {{ icon('trash') }}<span>Delete</span></button>
+              {% endif %}
+            {% endcall %}
           </div>
         </td>
       </tr>

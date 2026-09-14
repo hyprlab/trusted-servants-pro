@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Recovery Contacts{% endblock %}
 {% block heading_help %}Review entries people submit on the public <code>/contactlist</code> page. New submissions arrive under <b>Pending review</b> and stay hidden from the public until you approve them. Each approved entry has per-field toggles so you decide whether its phone, email, or both are displayed.{% endblock %}
 {% block top_actions %}
@@ -241,16 +242,22 @@
             {% else %}<span class="muted smaller">no email</span>{% endif %}
           </td>
           <td class="rc-row-actions">
-            <button type="button" class="btn btn-sm" data-open-modal="rc-edit-{{ e.id }}" title="Edit entry">{{ icon('pencil') }}</button>
-            <form method="post" action="{{ url_for('main.recovery_contacts_unapprove', eid=e.id) }}" title="Move back to pending">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm" title="Unpublish (back to pending)">{{ icon('eye-off') }}</button>
-            </form>
-            <form method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}"
-                  onsubmit="return confirm('Remove {{ e.name }} from the list?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-danger" title="Remove from list">{{ icon('trash') }}</button>
-            </form>
+            {% call row_menu() %}
+              <button type="button" class="row-menu-item" data-open-modal="rc-edit-{{ e.id }}" title="Edit entry">
+                {{ icon('pencil') }}<span>Edit</span></button>
+              <form method="post" action="{{ url_for('main.recovery_contacts_unapprove', eid=e.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="row-menu-item" title="Unpublish (back to pending)">
+                  {{ icon('eye-off') }}<span>Unpublish</span></button>
+              </form>
+              <div class="row-menu-sep" role="separator"></div>
+              <form method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}"
+                    onsubmit="return confirm('Remove {{ e.name }} from the list?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="row-menu-item row-menu-item-danger" title="Remove from list">
+                  {{ icon('trash') }}<span>Remove</span></button>
+              </form>
+            {% endcall %}
           </td>
         </tr>
         {% endfor %}

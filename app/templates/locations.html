@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Locations{% endblock %}
 {% block content %}
 
@@ -31,13 +32,18 @@
         </td>
         <td class="locations-actions">
           <div class="row-actions">
-            <button type="button" class="btn btn-sm" data-open-modal="location-edit-{{ l.id }}">Edit</button>
-            <form method="post" action="{{ url_for('main.location_delete', lid=l.id) }}"
-                  onsubmit="return confirm('Delete this location?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-              <button class="btn btn-sm btn-danger" title="Delete location">{{ icon('trash') }}</button>
-            </form>
+            {% call row_menu() %}
+              <button type="button" class="row-menu-item" data-open-modal="location-edit-{{ l.id }}">
+                {{ icon('pencil') }}<span>Edit</span></button>
+              <div class="row-menu-sep" role="separator"></div>
+              <form method="post" action="{{ url_for('main.location_delete', lid=l.id) }}"
+                    onsubmit="return confirm('Delete this location?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+                <button class="row-menu-item row-menu-item-danger" title="Delete location">
+                  {{ icon('trash') }}<span>Delete</span></button>
+              </form>
+            {% endcall %}
           </div>
         </td>
       </tr>

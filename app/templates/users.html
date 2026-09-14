@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Users{% endblock %}
 {% block content %}
 
@@ -203,23 +204,29 @@
       </td>
       <td class="users-actions">
         <div class="users-actions-row">
-          <button type="button" class="btn btn-sm js-user-edit-open"
-                  data-uid="{{ u.id }}"
-                  title="Edit {{ u.username }}'s account">Edit</button>
-          {% if _lock_seconds %}
-          <form method="post" action="{{ url_for('auth.users_unlock', uid=u.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-            <button class="btn btn-sm" title="Clear login lockout for {{ u.username }}">Unlock</button>
-          </form>
-          {% endif %}
-          {% if u.id != current_user.id %}
-          <form method="post" action="{{ url_for('auth.users_delete', uid=u.id) }}" onsubmit="return confirm('Delete user {{ u.username }}?');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-            <button class="btn btn-sm btn-danger" title="Delete user">{{ icon('trash') }}</button>
-          </form>
-          {% endif %}
+          {% call row_menu() %}
+            <button type="button" class="row-menu-item js-user-edit-open"
+                    data-uid="{{ u.id }}"
+                    title="Edit {{ u.username }}'s account">
+              {{ icon('pencil') }}<span>Edit</span></button>
+            {% if _lock_seconds %}
+            <form method="post" action="{{ url_for('auth.users_unlock', uid=u.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+              <button class="row-menu-item" title="Clear login lockout for {{ u.username }}">
+                {{ icon('unlock') }}<span>Unlock</span></button>
+            </form>
+            {% endif %}
+            {% if u.id != current_user.id %}
+            <div class="row-menu-sep" role="separator"></div>
+            <form method="post" action="{{ url_for('auth.users_delete', uid=u.id) }}" onsubmit="return confirm('Delete user {{ u.username }}?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+              <button class="row-menu-item row-menu-item-danger" title="Delete user">
+                {{ icon('trash') }}<span>Delete</span></button>
+            </form>
+            {% endif %}
+          {% endcall %}
         </div>
       </td>
     </tr>

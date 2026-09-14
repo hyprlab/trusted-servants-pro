@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Announcements &amp; Events{% endblock %}
 {% block heading_help %}Tag a post as announcement, event, or both. Events auto-archive the day after they end; manual archive is also supported. Tick the checkboxes to bulk archive, restore, draft, publish, or delete.{% endblock %}
 {% block top_actions %}
@@ -180,29 +181,44 @@
             <span class="muted smaller">—</span>
           {% endif %}
         </td>
+        {# Row actions live behind the shared Actions dropdown (see
+           _row_menu.html), same as the Web Frontend Pages list. Each
+           item keeps its `form="single-…-form"` reference — those forms
+           are rendered after the table and matched by id, so nesting
+           the button inside the menu panel changes nothing. #}
         <td class="posts-td-actions">
           <div class="row-actions">
-            <a class="btn btn-sm" href="{{ url_for('main.post_edit', pid=p.id) }}">Edit</a>
-            {# Duplicate clones the post into a Draft (title gets a
-               "(copy)" suffix) and lands the admin on the drafts tab.
-               Hidden on pending-review rows since those follow the
-               Approve / Reject flow instead. #}
-            {% if not p.is_pending_review %}
-            <button type="submit" form="single-duplicate-{{ p.id }}-form" class="btn btn-sm" title="Duplicate as a new draft">Duplicate</button>
-            {% endif %}
-            {% if p.is_draft %}
-            <button type="submit" form="single-publish-{{ p.id }}-form" class="btn btn-sm btn-primary" title="Publish this draft">Publish</button>
-            {% elif not p.is_archived %}
-            <button type="submit" form="single-unpublish-{{ p.id }}-form" class="btn btn-sm" title="Move to Drafts">Drafts</button>
-            {% endif %}
-            {% if p.is_archived %}
-              <button type="submit" form="single-unarchive-{{ p.id }}-form" class="btn btn-sm" title="Restore">Restore</button>
-            {% else %}
-              <button type="submit" form="single-archive-{{ p.id }}-form" class="btn btn-sm" title="Archive">Archive</button>
-            {% endif %}
-            <button type="submit" form="single-delete-{{ p.id }}-form" class="btn btn-sm btn-danger"
-                    title="Delete post"
-                    onclick="return confirm('Delete this post permanently? Featured image will be cleaned up.');">{{ icon('trash') }}</button>
+            {% call row_menu() %}
+              <a class="row-menu-item" href="{{ url_for('main.post_edit', pid=p.id) }}">
+                {{ icon('pencil') }}<span>Edit</span></a>
+              {# Duplicate clones the post into a Draft (title gets a
+                 "(copy)" suffix) and lands the admin on the drafts tab.
+                 Hidden on pending-review rows since those follow the
+                 Approve / Reject flow instead. #}
+              {% if not p.is_pending_review %}
+              <button type="submit" form="single-duplicate-{{ p.id }}-form" class="row-menu-item" title="Duplicate as a new draft">
+                {{ icon('copy') }}<span>Duplicate</span></button>
+              {% endif %}
+              {% if p.is_draft %}
+              <button type="submit" form="single-publish-{{ p.id }}-form" class="row-menu-item" title="Publish this draft">
+                {{ icon('send') }}<span>Publish</span></button>
+              {% elif not p.is_archived %}
+              <button type="submit" form="single-unpublish-{{ p.id }}-form" class="row-menu-item" title="Move to Drafts">
+                {{ icon('file-text') }}<span>Move to Drafts</span></button>
+              {% endif %}
+              {% if p.is_archived %}
+                <button type="submit" form="single-unarchive-{{ p.id }}-form" class="row-menu-item" title="Restore">
+                  {{ icon('rotate-ccw') }}<span>Restore</span></button>
+              {% else %}
+                <button type="submit" form="single-archive-{{ p.id }}-form" class="row-menu-item" title="Archive">
+                  {{ icon('box') }}<span>Archive</span></button>
+              {% endif %}
+              <div class="row-menu-sep" role="separator"></div>
+              <button type="submit" form="single-delete-{{ p.id }}-form" class="row-menu-item row-menu-item-danger"
+                      title="Delete post"
+                      onclick="return confirm('Delete this post permanently? Featured image will be cleaned up.');">
+                {{ icon('trash') }}<span>Delete</span></button>
+            {% endcall %}
           </div>
         </td>
       </tr>
