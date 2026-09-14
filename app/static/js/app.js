@@ -884,8 +884,16 @@
         }).then(r => r.ok ? r.text() : Promise.reject(r))
           .then(html => {
             const nav = document.getElementById("sidebar-nav");
+            // Replacing innerHTML resets scrollTop — keep the admin's
+            // place across the live-badge refresh (see
+            // initSidebarScrollMemory).
+            const keepScroll = nav ? nav.scrollTop : 0;
             if (nav) nav.innerHTML = html;
             applySidebarSectionState();
+            if (nav) {
+              const max = nav.scrollHeight - nav.clientHeight;
+              if (max > 0) nav.scrollTop = Math.min(keepScroll, max);
+            }
           }),
         refreshManual ? fetch("/tspro/_sidebar/order-manual", {
           credentials: "same-origin",
@@ -6603,4 +6611,61 @@
   // scrolls on inner containers, which don't bubble.
   window.addEventListener("scroll", function () { if (open) place(); }, true);
   window.addEventListener("resize", function () { if (open) close(false); });
+})();
+
+/* ── Sidebar scroll memory ──────────────────────────────────────────
+   #sidebar-nav is its own scroll container and every admin navigation
+   is a full page load, so the nav snapped back to the top on each one
+   — anyone working in a section near the bottom had to re-scroll after
+   every click. Persist the offset per tab (sessionStorage, so a new tab
+   starts fresh) and put it back before paint.
+
+   The nav is also re-rendered in place by the live-badge poller
+   (`nav.innerHTML = html`), which resets scrollTop just as hard; that
+   path calls save()/restore() around the swap via the hook below. */
+(function initSidebarScrollMemory() {
+  var KEY = "tsp-sidebar-scroll";
+  function nav() { return document.getElementById("sidebar-nav"); }
+
+  function save() {
+    var n = nav();
+    if (!n) return;
+    try { sessionStorage.setItem(KEY, String(n.scrollTop)); } catch (e) {}
+  }
+  function restore() {
+    var n = nav();
+    if (!n) return;
+    var raw;
+    try { raw = sessionStorage.getItem(KEY); } catch (e) { return; }
+    if (raw == null) return;
+    var want = parseFloat(raw) || 0;
+    if (!want) return;
+    // The nav's height varies between pages (collapsed sections, badges
+    // appearing), so clamp rather than trusting the stored offset.
+    var max = n.scrollHeight - n.clientHeight;
+    if (max > 0) n.scrollTop = Math.min(want, max);
+  }
+
+  var pending = false;
+  document.addEventListener("scroll", function (e) {
+    if (!e.target || e.target.id !== "sidebar-nav") return;
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function () { pending = false; save(); });
+  }, true);
+
+  // Belt and braces: a click that navigates away may beat the rAF.
+  window.addEventListener("pagehide", save);
+  window.addEventListener("beforeunload", save);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", restore);
+  } else {
+    restore();
+  }
+  // Section collapse state is applied after DOMContentLoaded and changes
+  // the nav's height, so re-apply once everything has settled.
+  window.addEventListener("load", restore);
+
+  window.tspSidebarScroll = { save: save, restore: restore };
 })();

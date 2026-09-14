@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Libraries{% endblock %}
 {% block heading_help %}Curated collections of readings and reference materials organized by topic for trusted servants and members.{% endblock %}
 {% block top_actions %}
@@ -29,7 +30,7 @@
   <section class="card">
     <table class="tbl">
       <thead>
-        <tr><th>Name</th><th class="hide-sm">Description</th><th>Files</th></tr>
+        <tr><th>Name</th><th class="hide-sm">Description</th><th>Files</th><th></th></tr>
       </thead>
       <tbody>
         {% for l in libraries %}
@@ -37,6 +38,28 @@
           <td><a href="{{ url_for('main.library_detail', slug=l.public_slug) }}">{{ l.name }}</a></td>
           <td class="muted hide-sm">{{ l.description or '—' }}</td>
           <td>{{ l.items.count() }}</td>
+          {# Same permission gates the library detail page applies to its
+             own top-actions, so the menu can never offer something the
+             target route would then refuse. #}
+          <td class="row-actions">
+            {% call row_menu() %}
+              <a class="row-menu-item" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">
+                {{ icon('folder') }}<span>Open</span></a>
+              {% if current_user.can_manage_libraries() and current_user.can_edit_library(l) %}
+              <a class="row-menu-item" href="{{ url_for('main.library_edit', slug=l.public_slug) }}">
+                {{ icon('pencil') }}<span>Edit details</span></a>
+              {% endif %}
+              {% if current_user.is_admin() %}
+              <div class="row-menu-sep" role="separator"></div>
+              <form method="post" action="{{ url_for('main.library_delete', slug=l.public_slug) }}"
+                    onsubmit="return confirm('Delete this library?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="row-menu-item row-menu-item-danger" title="Delete library">
+                  {{ icon('trash') }}<span>Delete</span></button>
+              </form>
+              {% endif %}
+            {% endcall %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

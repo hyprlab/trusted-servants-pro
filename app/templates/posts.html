@@ -17,7 +17,9 @@
          href="{{ url_for('main.posts', show='active', kind=kind, sort=sort) }}">Active</a>
       <a class="btn btn-sm {% if show == 'drafts' %}active{% endif %}"
          href="{{ url_for('main.posts', show='drafts', kind=kind, sort=sort) }}">Drafts</a>
-      <a class="btn btn-sm {% if show == 'pending' %}active{% endif %}"
+      {# Amber outline when something is waiting, so the tab is
+         findable without the sidebar link hijacking every visit. #}
+      <a class="btn btn-sm {% if show == 'pending' %}active{% endif %}{% if pending_count and show != 'pending' %} has-pending{% endif %}"
          href="{{ url_for('main.posts', show='pending', kind=kind, sort=sort) }}">
         Pending review{% if pending_count %} <span class="badge badge-warning">{{ pending_count }}</span>{% endif %}
       </a>

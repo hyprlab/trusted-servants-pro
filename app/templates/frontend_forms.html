@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Forms{% endblock %}
 {% block heading_help %}Public-facing forms that visitors can fill out. Each form has its own settings page; admins can also point any nav link or button at a form so it opens as a modal anywhere on the public site.{% endblock %}
 {% block top_actions %}
@@ -91,6 +92,8 @@
             </p>
           </div>
           <div class="fe-forms-row-actions">
+            {# The on/off switch stays out of the menu: it's a live state
+               control the admin scans down the column, not an action. #}
             <label class="mode-toggle fe-forms-row-toggle"
                    title="Enable or disable this form site-wide">
               <input type="checkbox"
@@ -100,16 +103,22 @@
               <span class="mode-track"><span class="mode-thumb"></span></span>
               <span class="mode-toggle-label muted smaller" data-form-toggle-label>{{ 'On' if cf.enabled else 'Off' }}</span>
             </label>
-            <a class="btn btn-sm" data-form-view target="_blank" rel="noopener"
-               title="View on frontend"
-               href="{{ url_for('frontend.page_detail', slug=cf.slug) }}"
-               {% if not cf.enabled %}hidden{% endif %}>View ↗</a>
-            <a class="btn btn-sm" href="{{ url_for('main.frontend_custom_form_edit', form_id=cf.id) }}">Edit</a>
-            <form method="post" action="{{ url_for('main.frontend_custom_form_delete', form_id=cf.id) }}"
-                  style="display:inline" onsubmit="return confirm('Delete this form? Existing submissions will also be removed.');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm btn-danger" title="Delete form">{{ icon('trash') }}</button>
-            </form>
+            {% call row_menu() %}
+              <a class="row-menu-item" data-form-view target="_blank" rel="noopener"
+                 title="View on frontend"
+                 href="{{ url_for('frontend.page_detail', slug=cf.slug) }}"
+                 {% if not cf.enabled %}hidden{% endif %}>
+                {{ icon('external-link') }}<span>View on frontend</span></a>
+              <a class="row-menu-item" href="{{ url_for('main.frontend_custom_form_edit', form_id=cf.id) }}">
+                {{ icon('pencil') }}<span>Edit</span></a>
+              <div class="row-menu-sep" role="separator"></div>
+              <form method="post" action="{{ url_for('main.frontend_custom_form_delete', form_id=cf.id) }}"
+                    onsubmit="return confirm('Delete this form? Existing submissions will also be removed.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="row-menu-item row-menu-item-danger" title="Delete form">
+                  {{ icon('trash') }}<span>Delete</span></button>
+              </form>
+            {% endcall %}
           </div>
         </li>
         {% endfor %}
