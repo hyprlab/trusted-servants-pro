@@ -7,7 +7,19 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.18.9 — 2026-09-14 (latest) — Housekeeping: PDF engine updated
+## 2.18.10 — 2026-09-14 (latest) — Tidier lists, and a sidebar that stays put
+
+- **Your row buttons are now one Actions menu.** Every admin list — Announcements & Events, Blog, Stories, Pages, Popups, Redirects, Navigation, Forms, File Browser, Libraries, Meetings, Locations, Zoom Accounts, Recovery Contacts, Email List, Users — used to end in a row of three to five buttons. They're all behind a single **Actions** button now, so a list reads as information instead of a wall of controls. Everything that was there is still there, one click in. The menu appears when your mouse is over a row, and on a phone or tablet it's always showing.
+- **The sidebar stays where you left it.** It used to jump back to the top on every single page load, so if you worked in a section near the bottom you re-scrolled after every click. It now keeps its position.
+- **Libraries can be archived.** Finished with a library but don't want to delete it? Archive it. It moves to a new **Archived** tab on the Libraries page and comes off your public Literature Library page, your site index, and site search — but nothing is deleted, its files and meeting links are untouched, and **Restore** puts it back exactly as it was. The Archived tab only shows up once you've archived something.
+- **Libraries and Meetings can be managed from the list.** Both table views had no row actions at all — editing, archiving or deleting meant opening the record first. Both now have the Actions menu.
+- **The Forms links in the sidebar stop dumping you in an empty list.** Clicking **Announcements/Events Form** or **Story Submission Form** always opened the *Pending review* tab, even when nothing was waiting — and confusingly, reaching the same pages from the Admin group opened them normally. They now open on the normal tab like everything else. If something *is* waiting for review, the Pending review tab turns amber so you can still spot it, and the count still shows next to the sidebar link.
+- **Every delete button looks the same.** Delete controls in lists were a mix of a word, an ✕, and a bin icon, sometimes on the same screen. They're all the red bin now. Hover any of them for a tooltip saying exactly what it removes.
+- **Stories with a published post no longer show an empty Status.** They now show a **Published** tag, the same as everywhere else.
+- **The File Browser's row lines are straight again.** The line under each row was broken and stepped where the buttons sat.
+- Tapping a field in **Intergroup Officers** or the **Fellowships Index** on a phone no longer zooms the page in.
+
+## 2.18.9 — 2026-09-14 — Housekeeping: PDF engine updated
 
 - **The component that builds your PDFs was updated to its latest version.** It's what produces the printable meeting list, the contact sheet, and reading PDFs. Nothing about them changes — we checked the before and after page by page and the content comes out the same — but it keeps the portal current with upstream fixes.
 
