@@ -147,7 +147,29 @@
       const wrap = btn.closest(".heading-help");
       const wasOpen = wrap.classList.contains("open");
       openEls.forEach(el => el.classList.remove("open"));
-      if (!wasOpen) wrap.classList.add("open");
+      if (!wasOpen) {
+        wrap.classList.add("open");
+        // Inline field chips sit wherever their label does, including
+        // the right-hand column of a two-up row and, on a phone, a spot
+        // where a 360px panel can't fit on either side of the anchor.
+        // So nudge rather than flip: measure once opened, then slide the
+        // panel back inside the viewport. Right edge first, left second,
+        // so a tooltip wider than the gap lands flush left rather than
+        // half off-screen.
+        const tip = wrap.querySelector(".help-tooltip");
+        if (tip) {
+          tip.style.transform = "";
+          const r = tip.getBoundingClientRect();
+          const pad = 8;
+          let shift = 0;
+          if (r.right > window.innerWidth - pad) shift = window.innerWidth - pad - r.right;
+          if (r.left + shift < pad) shift = pad - r.left;
+          if (shift) tip.style.transform = "translateX(" + Math.round(shift) + "px)";
+        }
+      }
+      // Chips live inside <label> and <summary> elements; without this
+      // the click would also focus the field or collapse the section.
+      e.preventDefault();
       e.stopPropagation();
     } else if (!e.target.closest(".help-tooltip")) {
       openEls.forEach(el => el.classList.remove("open"));
@@ -1493,6 +1515,10 @@
       }
       refresh();
     };
+    // The post editor's save bar rebuilds the tile list from the
+    // server's response after an AJAX save; it needs the tally re-run
+    // so the "(n / 6)" chip matches the tiles that are actually there.
+    section.__galleryRefresh = refresh;
     refresh();
   })();
   // Featured image — instant local preview when a file is chosen via

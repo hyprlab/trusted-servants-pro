@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% from "_frontend_layout_picker.html" import layout_picker %}
 {% from "_frontend_structure_card.html" import structure_card, structure_rows, structure_flat %}
@@ -90,8 +91,7 @@
      separate layout-builder modal. #}
   <section class="card fe-page-structure">
     <div class="card-head">
-      <h2>Footer structure</h2>
-      <span class="muted smaller">Drag blocks to arrange them into rows and columns. Click any block to edit its content. Add blocks and rows below.</span>
+      <h2>Footer structure {% call chip('Footer structure') %}Drag blocks to arrange them into rows and columns. Click any block to edit its content. Add blocks and rows below.{% endcall %}</h2>
     </div>
     <div class="fe-page-structure-rows" data-footer-rows>
       <div class="fe-page-structure-root-empty muted small" data-footer-empty hidden>
@@ -149,8 +149,7 @@
      viewports. #}
   <section class="card">
     <div class="card-head">
-      <h2>Footer settings</h2>
-      <span class="muted smaller">Container width, min-height, base font scale, and the page-theme bg mode. Boxed caps to the max width below; full-width uses the side-padding percentage instead.</span>
+      <h2>Footer settings {% call chip('Footer settings') %}Container width, min-height, base font scale, and the page-theme bg mode. Boxed caps to the max width below; full-width uses the side-padding percentage instead.{% endcall %}</h2>
     </div>
     <div class="fe-footer-width-grid">
       <label class="fe-footer-width-opt{% if _w_mode == 'boxed' %} is-active{% endif %}">
@@ -167,20 +166,20 @@
       </label>
     </div>
     <div class="fe-footer-width-numbers">
-      <label>Max width <span class="muted smaller">(boxed mode, px)</span>
+      <label><span class="field-label-row">Max width <span class="muted smaller">(boxed mode, px)</span></span>
         <input type="number" name="frontend_footer_max_width" value="{{ _max }}" min="640" max="2400" step="20">
       </label>
-      <label>Side padding <span class="muted smaller">(full mode, %)</span>
+      <label><span class="field-label-row">Side padding <span class="muted smaller">(full mode, %)</span></span>
         <input type="number" name="frontend_footer_padding_pct" value="{{ _pad }}" min="0" max="20" step="1">
       </label>
-      <label>Min height <span class="muted smaller">(vh, 0 = auto)</span>
+      <label><span class="field-label-row">Min height <span class="muted smaller">(vh, 0 = auto)</span></span>
         <span class="fe-footer-minh-row">
           <input type="range" name="frontend_footer_min_height_vh" min="0" max="100" step="5"
                  value="{{ _min_h }}" data-footer-minh-slider>
           <output data-footer-minh-out>{{ _min_h }}</output><span class="muted smaller">vh</span>
         </span>
       </label>
-      <label>Font scale <span class="muted smaller">(%, desktop — auto-scales down on mobile)</span>
+      <label>{% call hrow('Font scale') %}%, desktop — auto-scales down on mobile{% endcall %}
         <span class="fe-footer-minh-row">
           <input type="range" name="frontend_footer_font_scale" min="50" max="200" step="5"
                  value="{{ _font_scale }}" data-footer-fontscale-slider>
@@ -216,8 +215,7 @@
   {% from "frontend/footers/_footer_bg.html" import footer_bg_class, footer_bg_style, footer_bg_data_attrs %}
   <section class="card fe-footer-bg-section" data-footer-bg-editor>
     <div class="card-head">
-      <h2>Background</h2>
-      <span class="muted smaller">Pick a style and tweak it. Layer particles on top of any style if you like.</span>
+      <h2>Background {% call chip('Background') %}Pick a style and tweak it. Layer particles on top of any style if you like.{% endcall %}</h2>
     </div>
     <input type="hidden" name="footer_bg_section_present" value="1">
 
@@ -300,8 +298,7 @@
         </div>
         <li class="special-page-row" style="list-style:none; margin-top: 12px;">
           <div class="special-page-info">
-            <div class="u-name">Randomise hues + blob positions on every page load</div>
-            <p class="muted small">Picks fresh hues each time the public page renders so it never looks the same twice.</p>
+            <div class="u-name">Randomise hues + blob positions on every page load {% call chip() %}Picks fresh hues each time the public page renders so it never looks the same twice.{% endcall %}</div>
           </div>
           <label class="mode-toggle">
             <input type="checkbox" name="footer_bg_randomize" value="1" {% if _bg.randomize %}checked{% endif %}>
@@ -386,8 +383,7 @@
 
         <li class="special-page-row" style="list-style:none; margin-top: 12px;">
           <div class="special-page-info">
-            <div class="u-name">Randomise palette on every page load</div>
-            <p class="muted small">When on, every public page render picks a fresh palette. The colours above act as the saved fallback for when this is off.</p>
+            <div class="u-name">Randomise palette on every page load {% call chip() %}When on, every public page render picks a fresh palette. The colours above act as the saved fallback for when this is off.{% endcall %}</div>
           </div>
           <label class="mode-toggle">
             <input type="checkbox" name="footer_bg_sinewave_randomize_colors" value="1"
@@ -398,8 +394,7 @@
         </li>
         <li class="special-page-row" style="list-style:none; margin-top: 8px;">
           <div class="special-page-info">
-            <div class="u-name">Randomise wave pattern on every page load</div>
-            <p class="muted small">When on, every public page render picks a fresh wave shape — so the gradient never flows the same way twice. The saved wave above is the fallback for when this is off.</p>
+            <div class="u-name">Randomise wave pattern on every page load {% call chip() %}When on, every public page render picks a fresh wave shape — so the gradient never flows the same way twice. The saved wave above is the fallback for when this is off.{% endcall %}</div>
           </div>
           <label class="mode-toggle">
             <input type="checkbox" name="footer_bg_sinewave_randomize_wave" value="1"
@@ -418,8 +413,7 @@
     <div class="fe-footer-bg-particles">
       <li class="special-page-row" style="list-style:none;">
         <div class="special-page-info">
-          <div class="u-name">Enable particle overlay</div>
-          <p class="muted small">Layer animated particles (stars, snow, bubbles, etc.) on top of the bg style above.</p>
+          <div class="u-name">Enable particle overlay {% call chip() %}Layer animated particles (stars, snow, bubbles, etc.) on top of the bg style above.{% endcall %}</div>
         </div>
         <label class="mode-toggle">
           <input type="checkbox" name="footer_bg_particle_enabled" value="1"
@@ -436,11 +430,11 @@
             {% endfor %}
           </select>
         </label>
-        <label>Speed <span class="muted smaller">(%)</span>
+        <label><span class="field-label-row">Speed <span class="muted smaller">(%)</span></span>
           <input type="number" name="footer_bg_particle_speed" min="10" max="400" step="10"
                  value="{{ _bg.particle_speed }}" data-bg-live="particle_speed">
         </label>
-        <label>Size <span class="muted smaller">(%)</span>
+        <label><span class="field-label-row">Size <span class="muted smaller">(%)</span></span>
           <input type="number" name="footer_bg_particle_size" min="10" max="400" step="10"
                  value="{{ _bg.particle_size }}" data-bg-live="particle_size">
         </label>
@@ -524,7 +518,7 @@
           </span>
         </label>
 
-        <label>Tagline <span class="muted smaller">(blank → use the site-wide tagline)</span>
+        <label>{% call hrow('Tagline') %}Blank → use the site-wide tagline{% endcall %}
           <input type="text" name="footer_brand_tagline" value="{{ _b.tagline or '' }}"
                  placeholder="{{ frontend_tagline if frontend_tagline is defined else 'A recovery fellowship portal.' }}">
         </label>
@@ -852,10 +846,10 @@
         <label>Google Maps Link
           <input type="url" name="footer_loc_{{ _li }}_maps_url" value="{{ it.maps_url or '' }}">
         </label>
-        <label>Website URL <span class="muted smaller">(optional)</span>
+        <label><span class="field-label-row">Website URL <span class="muted smaller">(optional)</span></span>
           <input type="url" name="footer_loc_{{ _li }}_website_url" value="{{ it.website_url or '' }}">
         </label>
-        <label>Notes <span class="muted smaller">(shown italicized under the address on the public footer)</span>
+        <label>{% call hrow('Notes') %}Shown italicized under the address on the public footer{% endcall %}
           <textarea name="footer_loc_{{ _li }}_note" rows="2">{{ it.note or '' }}</textarea>
         </label>
       </div>
@@ -902,10 +896,10 @@
         <label>Google Maps Link
           <input type="url" name="footer_loc___LOCIDX___maps_url" value="">
         </label>
-        <label>Website URL <span class="muted smaller">(optional)</span>
+        <label><span class="field-label-row">Website URL <span class="muted smaller">(optional)</span></span>
           <input type="url" name="footer_loc___LOCIDX___website_url" value="">
         </label>
-        <label>Notes <span class="muted smaller">(shown italicized under the address on the public footer)</span>
+        <label>{% call hrow('Notes') %}Shown italicized under the address on the public footer{% endcall %}
           <textarea name="footer_loc___LOCIDX___note" rows="2"></textarea>
         </label>
       </div>

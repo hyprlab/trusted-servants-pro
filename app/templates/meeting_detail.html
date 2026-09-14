@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}{{ meeting.name }}
   <span class="mtype-chip mtype-{{ meeting.meeting_type }}">{{ {'in_person':'In-Person','online':'Online','hybrid':'Hybrid'}[meeting.meeting_type] }}</span>
   {% if meeting.archived_at %}<span class="chip chip-archived">Archived</span>{% endif %}
@@ -151,8 +152,7 @@
       </dl>
       {% if meeting.meeting_type != 'in_person' and meeting.show_otp and otp_email and (otp_email.email or otp_email.login_url or otp_email.imap_host) %}
       <div class="zg-card otp-card">
-      <div class="detail-label">Zoom One-Time-Passcodes (OTP)</div>
-      <p class="muted small" style="margin: 4px 0 6px;">Retrieve one-time-passcodes for the assigned Zoom account. After Zoom prompts for the code, click this retrieve button and the system will fetch it — <strong>it may take up to a minute to retrieve</strong>.</p>
+      <div class="detail-label">Zoom One-Time-Passcodes (OTP) {% call chip('Zoom OTP') %}Retrieve one-time-passcodes for the assigned Zoom account. After Zoom prompts for the code, click this retrieve button and the system will fetch it — <strong>it may take up to a minute to retrieve</strong>.{% endcall %}</div>
       {% if otp_email.imap_host %}
       {# Inline auto-retrieval — same fetcher the guided wizard uses, so
          seasoned hosts can pull the latest code without opening the

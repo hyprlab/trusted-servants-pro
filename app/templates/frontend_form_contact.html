@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}Contact Form{% endblock %}
 {% block heading_help %}Configures the public contact-us form at <code>/contact</code>. Visitor messages email the public information chair (with reply-to set to the visitor) and persist in the Contact Form admin section so nothing is lost when the email lands in spam.{% endblock %}
 {% block top_actions %}
@@ -22,13 +23,11 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Visibility</h2>
-          <span class="muted smaller">Off-switch for the contact page site-wide. When off, <code>/contact</code> returns 404 and any nav link pointed at the form falls back to its URL. Settings below are preserved when off.</span>
+          <h2>Visibility {% call chip('Visibility') %}Off-switch for the contact page site-wide. When off, <code>/contact</code> returns 404 and any nav link pointed at the form falls back to its URL. Settings below are preserved when off.{% endcall %}</h2>
         </div>
         <li class="special-page-row" style="list-style:none; padding: 1rem;">
           <div class="special-page-info">
-            <div class="u-name">Contact form enabled</div>
-            <p class="muted small">Hard off-switch. Settings below are preserved when off.</p>
+            <div class="u-name">Contact form enabled {% call chip() %}Hard off-switch. Settings below are preserved when off.{% endcall %}</div>
           </div>
           <label class="mode-toggle">
             <input type="checkbox" name="contact_form_enabled" value="1"
@@ -40,29 +39,25 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Public URL</h2>
-          <span class="muted smaller">The form's built-in URL is <code>/contact</code>. Set a custom slug below to serve the form at <code>/&lt;your-slug&gt;</code> as well.</span>
+          <h2>Public URL {% call chip('Public URL') %}The form's built-in URL is <code>/contact</code>. Set a custom slug below to serve the form at <code>/&lt;your-slug&gt;</code> as well.{% endcall %}</h2>
         </div>
-        <label>Public URL slug
+        <label>{% call hrow('Public URL slug') %}Lowercase letters, numbers, and hyphens only. The built-in URL (<code>/contact</code>) always works as a fallback; saving the default value here means no custom alias is added.{% endcall %}
           <input type="text" name="contact_form_slug" maxlength="120"
                  pattern="[a-z0-9\-]*"
                  value="{{ site.contact_form_slug or 'contact' }}"
                  placeholder="contact">
-          <span class="muted small">Lowercase letters, numbers, and hyphens only. The built-in URL (<code>/contact</code>) always works as a fallback; saving the default value here means no custom alias is added.</span>
         </label>
       </section>
 
       <section class="card">
         <div class="card-head">
-          <h2>Recipient</h2>
-          <span class="muted smaller">Where messages are emailed. Comma-separated for multiple recipients. Replies in your inbox go straight to the visitor — the message is sent with <code>Reply-To</code> set to the email they typed in the form.</span>
+          <h2>Recipient {% call chip('Recipient') %}Where messages are emailed. Comma-separated for multiple recipients. Replies in your inbox go straight to the visitor — the message is sent with <code>Reply-To</code> set to the email they typed in the form.{% endcall %}</h2>
         </div>
-        <label>Public information chair email
+        <label>{% call hrow('Public information chair email') %}Configured fallbacks: <code>{{ site.pic_email or '(PIC email not set)' }}</code> → <code>{{ site.access_request_to or '(access-request recipients not set)' }}</code>. The recipient most-specifically configured wins.{% endcall %}
           <input type="text" name="contact_form_to" maxlength="500"
                  value="{{ site.contact_form_to or '' }}"
                  placeholder="{{ site.pic_email or 'pic@example.com' }}">
         </label>
-        <p class="muted small">Configured fallbacks: <code>{{ site.pic_email or '(PIC email not set)' }}</code> → <code>{{ site.access_request_to or '(access-request recipients not set)' }}</code>. The recipient most-specifically configured wins.</p>
       </section>
 
       <p class="muted small" style="margin: 0 0 0.5rem;">
@@ -71,8 +66,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Form behaviour</h2>
-          <span class="muted smaller">Submit-button label. Per-field visibility / required state now lives in the field builder below.</span>
+          <h2>Form behaviour {% call chip('Form behaviour') %}Submit-button label. Per-field visibility / required state now lives in the field builder below.{% endcall %}</h2>
         </div>
         <label>Submit button label
           <input type="text" name="contact_form_submit_label" maxlength="100"
@@ -83,8 +77,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Confirmation</h2>
-          <span class="muted smaller">Shown to the visitor after a successful submission.</span>
+          <h2>Confirmation {% call chip('Confirmation') %}Shown to the visitor after a successful submission.{% endcall %}</h2>
         </div>
         <label>Success message
           <textarea name="contact_form_success_message" rows="2" maxlength="500"
@@ -94,8 +87,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Bot protection</h2>
-          <span class="muted smaller">A hidden honeypot field traps simple form-fillers automatically. Cloudflare Turnstile rides on the existing site-wide setting — when it's on for the login page, it's on for this form too.</span>
+          <h2>Bot protection {% call chip('Bot protection') %}A hidden honeypot field traps simple form-fillers automatically. Cloudflare Turnstile rides on the existing site-wide setting — when it's on for the login page, it's on for this form too.{% endcall %}</h2>
         </div>
         <p class="muted small" style="margin: 0;">
           Turnstile is currently

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {# Show a "?" help-tooltip next to the title on Intergroup-flagged
    libraries when the current user is outside the editing scope (i.e.
    not admin, not intergroup_member). Reuses base.html's `heading_help`
@@ -245,7 +246,7 @@
             </div>
             <div class="modal-body">
               <label>Title<input name="title" required value="{{ r.title }}"></label>
-              <label>Summary <span class="muted small">(optional · up to 500 characters)</span>
+              <label>{% call hrow('Summary') %}Optional · up to 500 characters{% endcall %}
                 <textarea name="summary" rows="3" maxlength="500" data-summary-input
                           placeholder="Short blurb shown next to the title in lists and previews.">{{ r.summary or '' }}</textarea>
                 <div class="summary-counter" data-summary-counter>
@@ -277,7 +278,7 @@
                 </div>
               </fieldset>
               <div data-content-panel="paste"{% if _default_mode != 'paste' %} hidden{% endif %}>
-                <label>Body <span class="muted small">(Markdown supported, opens as a document)</span></label>
+                <label>{% call hrow('Body') %}Markdown supported, opens as a document{% endcall %}</label>
                 <div class="md-editor" data-md-editor>
                   <div class="md-editor-tabs" role="tablist">
                     <button type="button" class="md-editor-tab active" data-md-tab="write" role="tab">Write</button>
@@ -359,7 +360,7 @@
       </div>
       <div class="modal-body">
         <label>Title<input name="title" required></label>
-        <label>Summary <span class="muted small">(optional · up to 500 characters)</span>
+        <label>{% call hrow('Summary') %}Optional · up to 500 characters{% endcall %}
           <textarea name="summary" rows="3" maxlength="500" data-summary-input
                     placeholder="Short blurb shown next to the title in lists and previews."></textarea>
           <div class="summary-counter" data-summary-counter>
@@ -391,7 +392,7 @@
           </div>
         </fieldset>
         <div data-content-panel="paste" hidden>
-          <label>Body <span class="muted small">(Markdown supported, opens as a document)</span></label>
+          <label>{% call hrow('Body') %}Markdown supported, opens as a document{% endcall %}</label>
           <div class="md-editor" data-md-editor>
             <div class="md-editor-tabs" role="tablist">
               <button type="button" class="md-editor-tab active" data-md-tab="write" role="tab">Write</button>
@@ -411,7 +412,7 @@
           <label>URL
             <input name="url" type="url" placeholder="https://..."></label>
         </fieldset>
-        <label>Thumbnail <span class="muted small">(optional)</span>
+        <label><span class="field-label-row">Thumbnail <span class="muted small">(optional)</span></span>
           <input type="file" name="thumbnail" accept="image/*"></label>
         {% if library.categories or is_ig %}
         <fieldset class="fieldset">
@@ -595,7 +596,7 @@
       <div class="modal-body">
         <label>Name<input name="name" required value="{{ library.name }}"></label>
         <label>Description<textarea name="description" rows="4">{{ library.description or '' }}</textarea></label>
-        <label>Alert Message <span class="muted smaller">(leave blank to hide)</span>
+        <label><span class="field-label-row">Alert Message <span class="muted smaller">(leave blank to hide)</span></span>
           <textarea name="alert_message" rows="2" placeholder="Displayed prominently at the top of the library page.">{{ library.alert_message or '' }}</textarea>
         </label>
         {% if current_user.is_admin() %}

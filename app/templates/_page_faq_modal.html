@@ -18,6 +18,7 @@
      vals — dict with `items` (proxy always returns `items: []`; JS
             populates from the active block).
 #}
+{% from "_help_chip.html" import chip, hrow %}
 {% macro _faq_item_row(idx, item) %}
 {# One editable FAQ item. `idx` scopes the hidden field IDs the icon
    picker writes into via selector. JS reuses the same indexing when
@@ -84,8 +85,7 @@
          data-faq-editor
          data-faq-max="20">
   <div class="card-head">
-    <h2>FAQ</h2>
-    <span class="muted smaller">Up to twenty accordion items. Drag to reorder. <b>Markdown</b> in answers (live preview on the right); inline HTML in questions.</span>
+    <h2>FAQ {% call chip('FAQ') %}Up to twenty accordion items. Drag to reorder. <b>Markdown</b> in answers (live preview on the right); inline HTML in questions.{% endcall %}</h2>
   </div>
 
   {# Heading + subheading rendered above the cards list, matching the

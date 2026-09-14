@@ -16,11 +16,11 @@
    ``field_order`` inputs the CustomForm save handler reads, so each
    module's POST handler can call ``_parse_form_fields`` straight off
    ``request.form``. #}
+{% from "_help_chip.html" import chip, hrow %}
 {%- set _builder_help = builder_help or 'Drag fields by their handle to reorder. Click <b>Edit</b> on a card to change its label, options, and required state. <b>Add field</b> drops a new card at the bottom — pick the type from the dropdown.' -%}
 <section class="card">
   <div class="card-head">
-    <h2>Fields</h2>
-    <span class="muted smaller">{{ _builder_help|safe }}</span>
+    <h2>Fields {% call chip('Fields') %}{{ _builder_help|safe }}{% endcall %}</h2>
   </div>
 
   {# Hidden input the JS keeps in sync with the visual order. The
@@ -45,7 +45,7 @@
           <label>Label
             <input type="text" name="field_{{ idx }}_label" value="{{ f.label }}" maxlength="200" required>
           </label>
-          <label>Name <span class="muted smaller">(form key, optional)</span>
+          <label><span class="field-label-row">Name <span class="muted smaller">(form key, optional)</span></span>
             <input type="text" name="field_{{ idx }}_name" value="{{ f.name }}" maxlength="80"
                    pattern="[a-z0-9_]*" placeholder="auto-from-label">
           </label>
@@ -54,17 +54,17 @@
           <input type="text" name="field_{{ idx }}_placeholder" value="{{ f.get('placeholder', '') }}" maxlength="200">
         </label>
         {% if f.type == 'checkboxes' %}
-        <label data-field-help-wrap>Help text <span class="muted smaller">— Markdown supported. Shown below the checkboxes.</span>
+        <label data-field-help-wrap>{% call hrow('Help text') %}Markdown supported. Shown below the checkboxes.{% endcall %}
           <textarea name="field_{{ idx }}_help" rows="4" maxlength="2000"
                     placeholder="Add longer instructions here — **bold**, *italic*, [links](https://example.com), - lists, etc.">{{ f.get('help', '') }}</textarea>
         </label>
         {% else %}
-        <label data-field-help-wrap>Help text <span class="muted smaller">(shown below the input)</span>
+        <label data-field-help-wrap><span class="field-label-row">Help text <span class="muted smaller">(shown below the input)</span></span>
           <input type="text" name="field_{{ idx }}_help" value="{{ f.get('help', '') }}" maxlength="500">
         </label>
         {% endif %}
         {% if f.type in ('select', 'radio', 'checkboxes') %}
-        <label>Options <span class="muted smaller">(one per line)</span>
+        <label><span class="field-label-row">Options <span class="muted smaller">(one per line)</span></span>
           <textarea name="field_{{ idx }}_options" rows="4" placeholder="Option 1&#10;Option 2">{{ (f.get('options') or [])|join('\n') }}</textarea>
         </label>
         {% endif %}
@@ -102,7 +102,7 @@
           <label>Label
             <input type="text" name="field___IDX___label" value="" maxlength="200" required>
           </label>
-          <label>Name <span class="muted smaller">(form key, optional)</span>
+          <label><span class="field-label-row">Name <span class="muted smaller">(form key, optional)</span></span>
             <input type="text" name="field___IDX___name" value="" maxlength="80"
                    pattern="[a-z0-9_]*" placeholder="auto-from-label">
           </label>
@@ -110,10 +110,10 @@
         <label>Placeholder
           <input type="text" name="field___IDX___placeholder" value="" maxlength="200">
         </label>
-        <label data-field-help-wrap>Help text <span class="muted smaller">(shown below the input)</span>
+        <label data-field-help-wrap><span class="field-label-row">Help text <span class="muted smaller">(shown below the input)</span></span>
           <input type="text" name="field___IDX___help" value="" maxlength="500">
         </label>
-        <label data-field-options-wrap hidden>Options <span class="muted smaller">(one per line)</span>
+        <label data-field-options-wrap hidden><span class="field-label-row">Options <span class="muted smaller">(one per line)</span></span>
           <textarea name="field___IDX___options" rows="4" placeholder="Option 1&#10;Option 2"></textarea>
         </label>
         <label data-field-accept-wrap hidden>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% set _is_new = post is none %}
 {% set _p = post %}
 {% block heading %}{{ 'New blog post' if _is_new else 'Edit blog post' }}{% endblock %}
@@ -69,8 +70,7 @@
   {# ── Title + body ─────────────────────────────────────────── #}
   <section class="card">
     <div class="card-head">
-      <h2>Post</h2>
-      <span class="muted smaller">Title sits at the top of the public detail page; body is the long-form content. Markdown supported.</span>
+      <h2>Post {% call chip('Post') %}Title sits at the top of the public detail page; body is the long-form content. Markdown supported.{% endcall %}</h2>
     </div>
 
     <label>Title
@@ -96,7 +96,7 @@
     {% include "_slug_history.html" ignore missing %}
     {% endif %}
     {% endif %}
-    <label>Summary <span class="muted small">(short blurb shown in lists, link previews, and the top of the post)</span>
+    <label>{% call hrow('Summary') %}Short blurb shown in lists, link previews, and the top of the post{% endcall %}
       <textarea name="summary" rows="2"
                 placeholder="One or two sentences — what's this post about?">{{ (_p.summary if _p else '') or '' }}</textarea>
     </label>
@@ -115,9 +115,8 @@
      content until the writer re-saves with blocks. #}
   <section class="card pbe-card">
     <div class="card-head">
-      <h2>Body</h2>
-      <span class="muted smaller">Drag blocks from the floating
-        <span class="pbe-pill-inline">{{ icon('plus') }} Add block</span> pill in the corner — or click a block to drop it at the end. Reorder by dragging the <span class="pbe-handle-inline" aria-hidden="true">{{ icon('grip-vertical') }}</span> handle on the left.</span>
+      <h2>Body {% call chip('Body') %}Drag blocks from the floating
+        <span class="pbe-pill-inline">{{ icon('plus') }} Add block</span> pill in the corner — or click a block to drop it at the end. Reorder by dragging the <span class="pbe-handle-inline" aria-hidden="true">{{ icon('grip-vertical') }}</span> handle on the left.{% endcall %}</h2>
     </div>
     <input type="hidden" name="body_blocks_json" id="pbe-blocks-json"
            value='{{ (_p.body_blocks_json if (_p and _p.body_blocks_json) else "") }}'>
@@ -234,7 +233,7 @@
         <input type="datetime-local" name="published_at"
                value="{% if _p and _p.published_at %}{{ _p.published_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
       </label>
-      <label>Reading time <span class="muted small">(minutes; blank = auto)</span>
+      <label><span class="field-label-row">Reading time <span class="muted small">(minutes; blank = auto)</span></span>
         <input type="number" name="reading_minutes" min="1" max="999"
                value="{{ (_p.reading_minutes if _p else '') or '' }}">
       </label>
@@ -264,7 +263,7 @@
     {% set _author_names = author_choices | map(attribute='name') | list %}
     <div class="blog-side-section">
       <h3 class="blog-side-h3">Author</h3>
-      <label>Byline <span class="muted small">(pick from the intergroup roster)</span>
+      <label>{% call hrow('Byline') %}Pick from the intergroup roster{% endcall %}
         <select name="author_name" class="blog-author-select">
           <option value="" {% if not _selected_author %}selected{% endif %}>— No byline —</option>
           {% if _selected_author and _selected_author not in _author_names %}
@@ -322,8 +321,7 @@
          appends it pre-checked. #}
       <div class="blog-tag-section">
         <div class="blog-tag-section-head">
-          <span class="blog-side-sublabel">Tags</span>
-          <span class="muted small">Topic labels — multi-select.</span>
+          <span class="blog-side-sublabel">Tags {% call chip('Tags') %}Topic labels — multi-select.{% endcall %}</span>
         </div>
         <div class="blog-tag-list" id="blog-tag-list"
              data-quick-add-url="{{ url_for('main.blog_tag_quick_add') }}"
@@ -355,8 +353,7 @@
 
     {# ── Featured image ────────────────────────────────────── #}
     <div class="blog-side-section">
-      <h3 class="blog-side-h3">Featured image</h3>
-      <p class="muted smaller blog-side-help">Displayed at the top of the post and in link-preview cards. PNG, JPG, or WebP.</p>
+      <h3 class="blog-side-h3">Featured image {% call chip('Featured image') %}Displayed at the top of the post and in link-preview cards. PNG, JPG, or WebP.{% endcall %}</h3>
       <div class="blog-fi" id="blog-fi"
            data-current-src="{% if _p and _p.featured_image_filename %}{{ url_for('public.blog_post_featured_image', bid=_p.id) }}{% endif %}">
         <div class="blog-fi-preview" data-blog-fi-preview>

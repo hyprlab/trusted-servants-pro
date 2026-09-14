@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}{{ "Edit Item" if reading else "Add to Library" }}{% endblock %}
 {% block content %}
 {# Default content mode mirrors the modal in library_detail.html:
@@ -17,7 +18,7 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="muted small">Library: {{ library.name }}</div>
   <label>Title<input name="title" required value="{{ reading.title if reading else '' }}"></label>
-  <label>Summary <span class="muted small">(optional · up to 500 characters)</span>
+  <label>{% call hrow('Summary') %}Optional · up to 500 characters{% endcall %}
     <textarea name="summary" rows="3" maxlength="500" data-summary-input
               placeholder="Short blurb shown next to the title in lists and previews.">{{ reading.summary if reading and reading.summary else '' }}</textarea>
     <div class="summary-counter" data-summary-counter>
@@ -49,7 +50,7 @@
   </fieldset>
 
   <div data-content-panel="paste"{% if _default_mode != 'paste' %} hidden{% endif %}>
-    <label>Body <span class="muted small">(Markdown supported, opens as a document)</span>
+    <label>{% call hrow('Body') %}Markdown supported, opens as a document{% endcall %}
       <textarea name="body" rows="10">{{ reading.body if reading else '' }}</textarea>
     </label>
   </div>

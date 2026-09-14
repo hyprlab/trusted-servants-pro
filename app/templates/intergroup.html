@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}{{ site.ig_page_title or 'Intergroup' }}{% endblock %}
 {% block heading_help %}Shared intergroup email accounts and mail-client setup instructions.{% endblock %}
 {% block top_actions %}
@@ -32,8 +33,7 @@
   </section>
 
   <section class="card ig-setup">
-    <div class="card-head"><h2>Email Client Setup</h2></div>
-    <p class="muted small">Quick-access instructions for setting up Apple/iPhone Mail, Android, Outlook, or any other mail client across different devices.</p>
+    <div class="card-head"><h2>Email Client Setup {% call chip('Email Client Setup') %}Quick-access instructions for setting up Apple/iPhone Mail, Android, Outlook, or any other mail client across different devices.{% endcall %}</h2></div>
     {% if site.ig_learn_more_url %}
     <p><a href="{{ site.ig_learn_more_url|safe_url }}" class="ig-learn" target="_blank" rel="noopener">Learn more</a></p>
     {% endif %}

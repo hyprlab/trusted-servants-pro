@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}{{ selected_form.title }}{% endblock %}
 {% block heading_help %}Submissions to <b>{{ selected_form.title }}</b> — switch to the Archived tab to view filed entries, archive what you've handled, and download entries as a CSV. Most recent 200 shown.{% endblock %}
 {% block top_actions %}
@@ -18,10 +19,7 @@
 {% block content %}
 <section class="card">
   <div class="card-head">
-    <h2>{% if show_archived %}Archived{% else %}Inbox{% endif %}</h2>
-    <span class="muted smaller">
-      {{ submissions|length }} row{{ '' if submissions|length == 1 else 's' }} shown
-    </span>
+    <h2>{% if show_archived %}Archived{% else %}Inbox{% endif %} {% call chip() %}{{ submissions|length }} row{{ '' if submissions|length == 1 else 's' }} shown{% endcall %}</h2>
   </div>
 
   {# Active / Archived tabs — scoped to this form. #}

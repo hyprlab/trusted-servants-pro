@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}Caching{% endblock %}
 {% block heading_help %}Long-lived browser &amp; CDN caching for images and static assets so returning visitors don't re-download them every visit. A version token on every image URL means your edits still appear immediately — no waiting for the cache to expire.{% endblock %}
 {% block top_actions %}
@@ -36,14 +37,12 @@
 
     <section class="card">
       <div class="card-head">
-        <h2>Image caching</h2>
-        <span class="muted smaller">Covers every frontend image — featured images, logos, favicons, page backgrounds, custom icons, gallery &amp; story art. When on, browsers and Cloudflare keep them cached so revisits are instant.</span>
+        <h2>Image caching {% call chip('Image caching') %}Covers every frontend image — featured images, logos, favicons, page backgrounds, custom icons, gallery &amp; story art. When on, browsers and Cloudflare keep them cached so revisits are instant.{% endcall %}</h2>
       </div>
 
       <div class="fe-cache-row">
         <div class="fe-cache-row-text">
-          <div class="fe-cache-row-label">Enable image caching</div>
-          <div class="muted small">Off = images are re-downloaded on every page view (the current behaviour for most images).</div>
+          <div class="fe-cache-row-label">Enable image caching {% call chip('Enable image caching') %}Off = images are re-downloaded on every page view (the current behaviour for most images).{% endcall %}</div>
         </div>
         <label class="mode-toggle">
           <input type="checkbox" name="media_cache_enabled" value="1" {% if site.media_cache_enabled %}checked{% endif %}>
@@ -54,20 +53,18 @@
       {% set _cur = site.media_cache_max_age or 604800 %}
       {% set ns = namespace(matched=false) %}
       {% for label, secs in ttl_presets %}{% if secs == _cur %}{% set ns.matched = true %}{% endif %}{% endfor %}
-      <label class="fe-cache-field">Cache lifetime
+      <label class="fe-cache-field">{% call hrow('Cache lifetime') %}How long a visitor's browser may reuse an image before checking back. Changes you make still appear immediately — the lifetime only applies when nothing changed.{% endcall %}
         <select name="media_cache_max_age">
           {% if not ns.matched %}<option value="{{ _cur }}" selected>Custom ({{ _cur }}s)</option>{% endif %}
           {% for label, secs in ttl_presets %}
           <option value="{{ secs }}" {% if secs == _cur %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
-        <span class="muted small">How long a visitor's browser may reuse an image before checking back. Changes you make still appear immediately — the lifetime only applies when nothing changed.</span>
       </label>
 
       <div class="fe-cache-row">
         <div class="fe-cache-row-text">
-          <div class="fe-cache-row-label">Auto-refresh on image changes</div>
-          <div class="muted small">Recommended. When you upload or replace an image, advance the version token so every visitor sees the new image right away.</div>
+          <div class="fe-cache-row-label">Auto-refresh on image changes {% call chip('Auto-refresh on image changes') %}Recommended. When you upload or replace an image, advance the version token so every visitor sees the new image right away.{% endcall %}</div>
         </div>
         <label class="mode-toggle">
           <input type="checkbox" name="media_cache_autobump" value="1" {% if site.media_cache_autobump %}checked{% endif %}>
@@ -77,8 +74,7 @@
 
       <div class="fe-cache-row">
         <div class="fe-cache-row-text">
-          <div class="fe-cache-row-label">Skip revalidation <span class="muted small">(immutable)</span></div>
-          <div class="muted small">Tell browsers not to re-check images at all within the lifetime — fastest. Safe because every cached image URL carries a version token. Turn off if you front the site with a proxy that mishandles <code>immutable</code>.</div>
+          <div class="fe-cache-row-label">Skip revalidation <span class="muted small">(immutable)</span> {% call chip() %}Tell browsers not to re-check images at all within the lifetime — fastest. Safe because every cached image URL carries a version token. Turn off if you front the site with a proxy that mishandles <code>immutable</code>.{% endcall %}</div>
         </div>
         <label class="mode-toggle">
           <input type="checkbox" name="media_cache_immutable" value="1" {% if site.media_cache_immutable %}checked{% endif %}>
@@ -89,14 +85,12 @@
 
     <section class="card">
       <div class="card-head">
-        <h2>Static assets</h2>
-        <span class="muted smaller">The site's CSS, JavaScript, and bundled font files under <code>/static</code>. These are versioned by the app build, so a new release busts them automatically — no manual clearing needed.</span>
+        <h2>Static assets {% call chip('Static assets') %}The site's CSS, JavaScript, and bundled font files under <code>/static</code>. These are versioned by the app build, so a new release busts them automatically — no manual clearing needed.{% endcall %}</h2>
       </div>
 
       <div class="fe-cache-row">
         <div class="fe-cache-row-text">
-          <div class="fe-cache-row-label">Cache static assets</div>
-          <div class="muted small">Build id: <code>{{ static_token }}</code> — appended to every <code>/static</code> URL and changes on each deploy.</div>
+          <div class="fe-cache-row-label">Cache static assets {% call chip('Cache static assets') %}Build id: <code>{{ static_token }}</code> — appended to every <code>/static</code> URL and changes on each deploy.{% endcall %}</div>
         </div>
         <label class="mode-toggle">
           <input type="checkbox" name="media_cache_static_assets" value="1" {% if site.media_cache_static_assets %}checked{% endif %}>
@@ -125,8 +119,7 @@
   {# ── Maintenance (separate POST forms, kept out of the settings form) ── #}
   <section class="card">
     <div class="card-head">
-      <h2>Maintenance</h2>
-      <span class="muted smaller">Current state and one-click cache actions.</span>
+      <h2>Maintenance {% call chip('Maintenance') %}Current state and one-click cache actions.{% endcall %}</h2>
     </div>
 
     <div class="fe-cache-stats">

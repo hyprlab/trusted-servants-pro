@@ -7,7 +7,8 @@ import time
 import uuid
 from functools import wraps
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, send_from_directory, abort, current_app, jsonify, session)
+                   flash, send_from_directory, abort, current_app, jsonify, session,
+                   get_flashed_messages)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
@@ -18233,6 +18234,49 @@ def _fmt_post_dt(dt):
     return dt.strftime("%Y-%m-%dT%H:%M")
 
 
+def _post_save_wants_json():
+    """The post editor's yellow save bar submits through fetch so the
+    admin keeps their scroll position and their place in a long form.
+    Anything else — a no-JS form post, the top-of-page Publish / Move to
+    Drafts buttons — falls back to the flash + redirect path."""
+    return request.headers.get("X-Requested-With") == "fetch"
+
+
+def _post_save_payload(post):
+    """What the save bar needs to reconcile the page with the row we just
+    wrote, without reloading it. Everything here is something the server
+    can change during a save: the slug gets normalised (and may gain a
+    -2 suffix), the featured image may be replaced or cleared, and the
+    gallery may gain uploads or lose removed tiles.
+
+    Image URLs carry a ``v`` cache-buster because their paths are keyed
+    on the post id alone — without it the browser would keep showing the
+    image that was there before the save."""
+    stamp = int(time.time())
+    featured = None
+    if post.featured_image_filename:
+        featured = url_for("public.post_featured_image", pid=post.id, v=stamp)
+    gallery = [
+        {"name": fname,
+         "url": url_for("public.post_gallery_image", pid=post.id, idx=i,
+                        thumb=240, v=stamp)}
+        for i, fname in enumerate(post.gallery_filenames or [])
+    ]
+    return {
+        "ok": True,
+        "post_id": post.id,
+        # ``slug`` is the effective public URL segment; ``slug_field`` is
+        # what belongs back in the input (blank when it's title-derived,
+        # which is how the form signals "keep deriving").
+        "slug": post.public_slug,
+        "slug_field": post.slug or "",
+        "featured_image": featured,
+        "gallery": gallery,
+        "flashes": [{"category": c, "message": m}
+                    for c, m in get_flashed_messages(with_categories=True)],
+    }
+
+
 def _auto_archive_events():
     """Archive any active event whose end (or start, if no end) is
     before today AND any active announcement whose admin-set
@@ -18495,6 +18539,12 @@ def post_save():
     title = (request.form.get("title") or "").strip()[:255]
     if not title:
         flash("Title is required", "danger")
+        if _post_save_wants_json():
+            return jsonify({
+                "ok": False,
+                "flashes": [{"category": c, "message": m}
+                            for c, m in get_flashed_messages(with_categories=True)],
+            }), 400
         return redirect(_safe_referrer() or url_for("main.post_new"))
     post.title = title
 
@@ -18780,8 +18830,18 @@ def post_save():
                           else f"Updated post “{post.title}”"))
     if creating:
         flash(("Draft saved: " + post.title) if post.is_draft else ("Published: " + post.title), "success")
-        return redirect(url_for("main.posts", show=("drafts" if post.is_draft else "active")))
+        target = url_for("main.posts", show=("drafts" if post.is_draft else "active"))
+        if _post_save_wants_json():
+            # The save bar only renders on existing posts, so this path is
+            # defensive — hand the caller the redirect rather than leaving
+            # a brand-new post stranded on a stale "new post" form.
+            payload = _post_save_payload(post)
+            payload["redirect"] = target
+            return jsonify(payload)
+        return redirect(target)
     flash("Post saved", "success")
+    if _post_save_wants_json():
+        return jsonify(_post_save_payload(post))
     return redirect(url_for("main.post_edit", pid=post.id))
 
 

@@ -47,7 +47,8 @@
    used inside the macro to render it. #}
 {% macro dash_widget(key, title, head_icon=None,
                      view_all_url=None, view_all_label='View all',
-                     badge_count=0, badge_title='', badge_key=None, wide=False) %}
+                     badge_count=0, badge_title='', badge_key=None, wide=False,
+                     help='') %}
 <div class="dash-widget{% if wide %} dash-widget-wide{% endif %}"
      data-widget-key="{{ key }}"
      draggable="true">
@@ -57,6 +58,12 @@
       {% if head_icon %}<span class="data-card-head-icon" aria-hidden="true">{{ icon(head_icon) }}</span>{% endif %}
       <span class="dash-widget-title">
         {{ title }}
+        {#- Optional "what is this widget" help, collapsed into the same
+            info chip the rest of the admin uses. Written out inline
+            rather than via the _help_chip macro because a macro can't
+            take a {% call %} body from a caller that is itself inside a
+            {% call %} block. -#}
+        {%- if help %} <span class="heading-help field-help"><button type="button" class="help-btn" tabindex="-1" aria-label="About {{ title }}">{{ icon('info') }}</button><span class="help-tooltip" role="tooltip">{{ help }}</span></span>{% endif %}
         {#- When a badge_key is given the chip always renders (hidden at 0)
             and carries data-live-chip so the /_live/counts poller can keep
             it in sync without a reload. Widgets with no badge_key (meetings,

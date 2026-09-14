@@ -12,6 +12,7 @@
    so the nested container shape round-trips cleanly. The legacy
    parallel-arrays parser remains as a fallback in routes.py for
    programmatic POSTs without JS. #}
+{% from "_help_chip.html" import chip, hrow %}
 {% set _ub = utility_bar_admin(site) %}
 {% set _ub_left = _ub.left %}
 {% set _ub_right = _ub.right %}
@@ -41,8 +42,7 @@
           title="Drag to reorder">{{ icon('grip-vertical') }}</button>
   <div class="utility-bar-row-fields utility-bar-theme-toggle-fields">
     <span class="utility-bar-theme-toggle-glyph" aria-hidden="true">{{ icon('sun') }}</span>
-    <span class="utility-bar-theme-toggle-label">Dark / light mode toggle</span>
-    <span class="utility-bar-theme-toggle-help muted small">Drag to move; this control can't be removed (the active header theme requires it).</span>
+    <span class="utility-bar-theme-toggle-label">Dark / light mode toggle {% call chip('Dark / light mode toggle') %}Drag to move; this control can't be removed (the active header theme requires it).{% endcall %}</span>
   </div>
 </div>
 {% endmacro %}
@@ -61,8 +61,7 @@
           title="Drag to reorder">{{ icon('grip-vertical') }}</button>
   <div class="utility-bar-row-fields utility-bar-theme-toggle-fields">
     <span class="utility-bar-theme-toggle-glyph" aria-hidden="true">{{ icon('search') }}</span>
-    <span class="utility-bar-theme-toggle-label">Site search</span>
-    <span class="utility-bar-theme-toggle-help muted small">Drag to move; this control can't be removed. Opens the search modal (also reachable via Ctrl/Cmd+K).</span>
+    <span class="utility-bar-theme-toggle-label">Site search {% call chip('Site search') %}Drag to move; this control can't be removed. Opens the search modal (also reachable via Ctrl/Cmd+K).{% endcall %}</span>
   </div>
 </div>
 {% endmacro %}
@@ -82,8 +81,7 @@
           title="Drag to reorder">{{ icon('grip-vertical') }}</button>
   <div class="utility-bar-row-fields utility-bar-theme-toggle-fields">
     <span class="utility-bar-theme-toggle-glyph utility-bar-gsr-glyph" aria-hidden="true">GSR</span>
-    <span class="utility-bar-theme-toggle-label">GSR Summary</span>
-    <span class="utility-bar-theme-toggle-help muted small">Drag to move; this control can't be removed. Opens the announcements page on the GSR Summary tab.</span>
+    <span class="utility-bar-theme-toggle-label">GSR Summary {% call chip('GSR Summary') %}Drag to move; this control can't be removed. Opens the announcements page on the GSR Summary tab.{% endcall %}</span>
   </div>
 </div>
 {% endmacro %}
@@ -143,8 +141,7 @@
 {% endmacro %}
 
 <div class="fe-header-grid-item fe-header-grid-item-wide">
-  <h3 class="fe-header-grid-title">Utility bar</h3>
-  <p class="muted small fe-header-grid-blurb">A slim row built into every page's header for status text, secondary links, social icons, or call-to-action buttons. Anything you add to the left or right shows up at the matching edge. Group related items into a <i>container</i> so they render as one unit on the public site and become a single mobile swipe target.</p>
+  <h3 class="fe-header-grid-title">Utility bar {% call chip('Utility bar') %}A slim row built into every page's header for status text, secondary links, social icons, or call-to-action buttons. Anything you add to the left or right shows up at the matching edge. Group related items into a <i>container</i> so they render as one unit on the public site and become a single mobile swipe target.{% endcall %}</h3>
 
   <form class="form" method="post" action="{{ url_for('main.frontend_utility_bar_save') }}" data-utility-bar-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -155,8 +152,7 @@
 
     <li class="special-page-row" style="list-style:none; padding: 1rem;">
       <div class="special-page-info">
-        <div class="u-name">Show utility bar</div>
-        <p class="muted small">Hard off-switch. When off, the bar is hidden site-wide regardless of any items or the live-meeting toggle below — your saved content is preserved, just not displayed.</p>
+        <div class="u-name">Show utility bar {% call chip() %}Hard off-switch. When off, the bar is hidden site-wide regardless of any items or the live-meeting toggle below — your saved content is preserved, just not displayed.{% endcall %}</div>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" name="utility_bar_enabled" value="1" {% if _ub.enabled %}checked{% endif %}>
@@ -193,16 +189,14 @@
     {% endfor %}
 
     <fieldset class="fieldset utility-bar-mobile-default">
-      <legend>Mobile collapsed default</legend>
-      <p class="muted small fe-header-grid-blurb">On narrow viewports the bar collapses to a horizontal swipe strip — visitors swipe left or right to reveal items that don't fit. Pick which item, container, or whole side shows by default. The Live Meetings Bar always pins above the strip when it's active.</p>
+      <legend>Mobile collapsed default {% call chip('Mobile collapsed default') %}On narrow viewports the bar collapses to a horizontal swipe strip — visitors swipe left or right to reveal items that don't fit. Pick which item, container, or whole side shows by default. The Live Meetings Bar always pins above the strip when it's active.{% endcall %}</legend>
       <div class="utility-bar-mobile-default-list" data-utility-mobile-default-list></div>
     </fieldset>
 
     <hr class="settings-sep">
     <li class="special-page-row" style="list-style:none; padding: 1rem;">
       <div class="special-page-info">
-        <div class="u-name">Live Meetings Bar</div>
-        <p class="muted small">When on, the utility bar turns yellow as soon as an online or hybrid meeting's open time is reached, and shows the meeting name plus a Join Zoom Meeting button until the meeting ends (or the next live meeting starts).</p>
+        <div class="u-name">Live Meetings Bar {% call chip() %}When on, the utility bar turns yellow as soon as an online or hybrid meeting's open time is reached, and shows the meeting name plus a Join Zoom Meeting button until the meeting ends (or the next live meeting starts).{% endcall %}</div>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" name="utility_bar_live_meetings" value="1" {% if _ub.show_live %}checked{% endif %}>

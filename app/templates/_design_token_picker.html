@@ -22,6 +22,7 @@
    This partial is safe to include multiple times per page — the JS
    guards against re-mounting via a window-level flag.
 #}
+{% from "_help_chip.html" import chip, hrow %}
 {%- set _design_resolved = resolve_design(site) if site else {} -%}
 {%- set _color_tokens_global = [] -%}
 {%- for f in design_fields if f.kind == 'color' -%}
@@ -33,11 +34,10 @@
 <div class="fe-page-bg-token-popover dt-shared-token-popover" id="dt-shared-token-popover" hidden
      role="dialog" aria-label="Design token picker">
   <div class="fe-page-bg-token-popover-head">
-    <h4>Design tokens</h4>
+    <h4>Design tokens {% call chip('Design tokens') %}Pick a colour token. Updating the palette under <b>Settings → Design</b> propagates to every page that references it. (Inputs without text-companion fields capture the resolved hex at pick time — they don't track future palette edits.){% endcall %}</h4>
     <button type="button" class="icon-btn" data-dt-popover-close
             aria-label="Close">×</button>
   </div>
-  <p class="muted smaller">Pick a colour token. Updating the palette under <b>Settings → Design</b> propagates to every page that references it. (Inputs without text-companion fields capture the resolved hex at pick time — they don't track future palette edits.)</p>
   <div class="fe-page-bg-token-grid">
     {% for tok in _color_tokens_global %}
     <button type="button" class="fe-page-bg-token-tile"

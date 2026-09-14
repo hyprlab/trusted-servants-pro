@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Watchtower · Requests{% endblock %}
 {% block heading %}Watchtower{% endblock %}
 {% block heading_help %}Access requests and password-reset activity. Process new requests, archive handled ones, and audit reset history.{% endblock %}
@@ -9,8 +10,7 @@
 {% if pending_resets %}
 <section class="card pending-resets-card">
   <div class="card-head">
-    <h2>Pending password resets</h2>
-    <span class="muted smaller">Accounts with a live reset link in their inbox. Resetting here invalidates the pending email link.</span>
+    <h2>Pending password resets {% call chip('Pending password resets') %}Accounts with a live reset link in their inbox. Resetting here invalidates the pending email link.{% endcall %}</h2>
   </div>
   <table class="tbl">
     <thead><tr><th>User</th><th>Email</th><th>Requested</th><th>Link expires</th><th></th></tr></thead>
@@ -36,8 +36,7 @@
 {% if recent_resets %}
 <section class="card recent-resets-card">
   <div class="card-head">
-    <h2>Recent password resets</h2>
-    <span class="muted smaller">Last 30 days · {{ recent_resets|length }} event{{ '' if recent_resets|length == 1 else 's' }}{% if recent_resets|length == 100 %} · capped{% endif %}</span>
+    <h2>Recent password resets {% call chip('Recent password resets') %}Last 30 days · {{ recent_resets|length }} event{{ '' if recent_resets|length == 1 else 's' }}{% if recent_resets|length == 100 %} · capped{% endif %}{% endcall %}</h2>
   </div>
   <table class="tbl ar-recent-resets-tbl">
     <thead><tr><th>User</th><th>Email</th><th>Type</th><th>Status</th><th>When</th><th>Actor</th></tr></thead>

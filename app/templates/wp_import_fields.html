@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Map fields · WordPress Importer{% endblock %}
 {% block heading %}Map custom fields{% endblock %}
 {% block heading_help %}
@@ -68,8 +69,7 @@ Found {{ discovered|length }} custom field{{ '' if discovered|length == 1 else '
   {# Reference list so admins can see what's actually on the source. #}
   <section class="card wpf-discovered">
     <div class="card-head">
-      <h2>{{ icon('database') }} Custom fields on the source</h2>
-      <span class="muted smaller">{{ discovered|length }} field{{ '' if discovered|length == 1 else 's' }} discovered</span>
+      <h2>{{ icon('database') }} Custom fields on the source {% call chip() %}{{ discovered|length }} field{{ '' if discovered|length == 1 else 's' }} discovered{% endcall %}</h2>
     </div>
     <ul class="wpf-discovered-list">
       {% for d in discovered %}

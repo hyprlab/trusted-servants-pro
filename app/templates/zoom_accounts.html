@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_row_menu.html" import row_menu %}
 {% block heading %}Zoom Accounts{% endblock %}
 {% block top_actions %}
@@ -69,8 +70,7 @@
     {% if otp and (otp.email or otp.login_url or otp.password_enc or otp.imap_host) %}
     <aside class="zoom-accounts-side">
       <div class="zoom-otp-widget">
-        <h3 class="zoom-otp-title">Zoom One-Time-Passcodes (OTP)</h3>
-        <p class="muted small">Retrieve one-time-passcodes for the assigned Zoom account. After Zoom prompts for the code, click this retrieve button and the system will fetch it — <strong>it may take up to a minute to retrieve</strong>.</p>
+        <h3 class="zoom-otp-title">Zoom One-Time-Passcodes (OTP) {% call chip('Zoom One-Time-Passcodes (OTP)') %}Retrieve one-time-passcodes for the assigned Zoom account. After Zoom prompts for the code, click this retrieve button and the system will fetch it — <strong>it may take up to a minute to retrieve</strong>.{% endcall %}</h3>
         {% if otp.imap_host %}
         {# Inline auto-retrieval — shares the wizard's fetcher (initOtpFetch). #}
         <div class="otp-inline" data-otp-widget data-fetch-url="{{ url_for('main.otp_email_fetch_code') }}">
@@ -186,7 +186,7 @@
       <div class="modal-body">
         <label>Name<input name="name" required value="{{ a.name }}"></label>
         <label>Username / Email<input name="username" required value="{{ a.username }}"></label>
-        <label>Password <span class="muted smaller">(leave blank to keep)</span>
+        <label><span class="field-label-row">Password <span class="muted smaller">(leave blank to keep)</span></span>
           <input name="password" type="password" placeholder="••••••••">
         </label>
         <label>Notes<textarea name="notes" rows="2">{{ a.notes or '' }}</textarea></label>

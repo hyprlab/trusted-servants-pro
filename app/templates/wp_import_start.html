@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}WordPress Importer · Trusted Servants Pro{% endblock %}
 {% block heading %}WordPress Importer{% endblock %}
 {% block heading_help %}Pull recovery stories, announcements, or events out of an existing WordPress site. Connect over the REST API or upload a WP All Export CSV — both paths land you on the same review and dry-run preview before anything is created.{% endblock %}
@@ -22,8 +23,7 @@
 <div class="wp-source-grid">
   <section class="card wp-source-card">
     <div class="card-head">
-      <h2>{{ icon('globe') }} Connect to WordPress</h2>
-      <span class="muted smaller">Fetch posts directly via the WP REST API.</span>
+      <h2>{{ icon('globe') }} Connect to WordPress {% call chip() %}Fetch posts directly via the WP REST API.{% endcall %}</h2>
     </div>
     <p class="muted small">
       Recommended path. Uses your WordPress <b>Application Password</b> (Users
@@ -71,8 +71,7 @@
 
   <section class="card wp-source-card">
     <div class="card-head">
-      <h2>{{ icon('cloud-upload') }} Upload a CSV</h2>
-      <span class="muted smaller">Use a WP All Export "Posts" file or a generic posts CSV.</span>
+      <h2>{{ icon('cloud-upload') }} Upload a CSV {% call chip() %}Use a WP All Export "Posts" file or a generic posts CSV.{% endcall %}</h2>
     </div>
     <p class="muted small">
       Best when the WP REST API is locked down or the site is offline. Accepts

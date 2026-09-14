@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}Announcements/Events Form{% endblock %}
 {% block heading_help %}Configures the public announcements/events submission form at <code>/submissionform</code> and its sibling site-wide modal. Visitor submissions land in the holding tank on the Announcements &amp; Events admin page; the recipients below also get an email notification.{% endblock %}
 {% block top_actions %}
@@ -22,13 +23,11 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Visibility</h2>
-          <span class="muted smaller">Off-switch for the form site-wide. When off, the standalone page redirects and any modal trigger is a no-op (the link still navigates to its fallback URL).</span>
+          <h2>Visibility {% call chip('Visibility') %}Off-switch for the form site-wide. When off, the standalone page redirects and any modal trigger is a no-op (the link still navigates to its fallback URL).{% endcall %}</h2>
         </div>
         <li class="special-page-row" style="list-style:none; padding: 1rem;">
           <div class="special-page-info">
-            <div class="u-name">Announcements/Events form enabled</div>
-            <p class="muted small">Hard off-switch. Settings below are preserved when off.</p>
+            <div class="u-name">Announcements/Events form enabled {% call chip() %}Hard off-switch. Settings below are preserved when off.{% endcall %}</div>
           </div>
           <label class="mode-toggle">
             <input type="checkbox" name="submission_form_enabled" value="1"
@@ -40,35 +39,30 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Public URL</h2>
-          <span class="muted smaller">The form's built-in URL is <code>/submissionform</code>. Set a custom slug below to serve the form at <code>/&lt;your-slug&gt;</code> as well (the built-in URL keeps working).</span>
+          <h2>Public URL {% call chip('Public URL') %}The form's built-in URL is <code>/submissionform</code>. Set a custom slug below to serve the form at <code>/&lt;your-slug&gt;</code> as well (the built-in URL keeps working).{% endcall %}</h2>
         </div>
-        <label>Public URL slug
+        <label>{% call hrow('Public URL slug') %}Lowercase letters, numbers, and hyphens only. The built-in URL (<code>/submissionform</code>) always works as a fallback; saving the default value here means no custom alias is added.{% endcall %}
           <input type="text" name="submission_form_slug" maxlength="120"
                  pattern="[a-z0-9\-]*"
                  value="{{ site.submission_form_slug or 'submissionform' }}"
                  placeholder="submissionform">
-          <span class="muted small">Lowercase letters, numbers, and hyphens only. The built-in URL (<code>/submissionform</code>) always works as a fallback; saving the default value here means no custom alias is added.</span>
         </label>
       </section>
 
       <section class="card">
         <div class="card-head">
-          <h2>Recipients</h2>
-          <span class="muted smaller">Comma-separated list of admin email addresses. Falls back to the Access Request recipients when blank, so installs that already configured admin notifications get submissions for free.</span>
+          <h2>Recipients {% call chip('Recipients') %}Comma-separated list of admin email addresses. Falls back to the Access Request recipients when blank, so installs that already configured admin notifications get submissions for free.{% endcall %}</h2>
         </div>
-        <label>Email addresses
+        <label>{% call hrow('Email addresses') %}Configured fallback: <code>{{ site.access_request_to or '(none)' }}</code>{% endcall %}
           <input type="text" name="submission_to" maxlength="500"
                  value="{{ site.submission_to or '' }}"
                  placeholder="admin@example.com, second@example.com">
         </label>
-        <p class="muted small">Configured fallback: <code>{{ site.access_request_to or '(none)' }}</code></p>
       </section>
 
       <section class="card">
         <div class="card-head">
-          <h2>Page content</h2>
-          <span class="muted smaller">Copy shown on the standalone <code>/submissionform</code> page. Each field has a baked default — leave a field blank to use it.</span>
+          <h2>Page content {% call chip('Page content') %}Copy shown on the standalone <code>/submissionform</code> page. Each field has a baked default — leave a field blank to use it.{% endcall %}</h2>
         </div>
         <label>Page heading
           <input type="text" name="submission_form_heading" maxlength="200"
@@ -79,7 +73,7 @@
           <textarea name="submission_form_subheading" rows="2" maxlength="500"
                     placeholder="Fill out the form below and an admin will review your submission before publishing it. Required fields are marked *.">{{ site.submission_form_subheading or '' }}</textarea>
         </label>
-        <label>Optional intro <span class="muted smaller">(Markdown supported, shown above the form fields)</span>
+        <label>{% call hrow('Optional intro') %}Markdown supported, shown above the form fields{% endcall %}
           <textarea name="submission_form_intro" rows="4"
                     placeholder="**Tip:** include the meeting name, location, and a contact email so the admin can follow up quickly.">{{ site.submission_form_intro or '' }}</textarea>
         </label>
@@ -87,8 +81,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Modal content</h2>
-          <span class="muted smaller">Heading shown when the form opens as a popup from a nav link or button. Defaults to the page heading when blank.</span>
+          <h2>Modal content {% call chip('Modal content') %}Heading shown when the form opens as a popup from a nav link or button. Defaults to the page heading when blank.{% endcall %}</h2>
         </div>
         <label>Modal heading
           <input type="text" name="submission_form_modal_heading" maxlength="200"
@@ -99,8 +92,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Form behaviour</h2>
-          <span class="muted smaller">What the visitor sees and can pick from.</span>
+          <h2>Form behaviour {% call chip('Form behaviour') %}What the visitor sees and can pick from.{% endcall %}</h2>
         </div>
         <fieldset class="fieldset">
           <legend>What can be submitted</legend>
@@ -129,8 +121,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Confirmation</h2>
-          <span class="muted smaller">Shown to the visitor after a successful submission.</span>
+          <h2>Confirmation {% call chip('Confirmation') %}Shown to the visitor after a successful submission.{% endcall %}</h2>
         </div>
         <label>Success message
           <textarea name="submission_form_success_message" rows="2" maxlength="500"

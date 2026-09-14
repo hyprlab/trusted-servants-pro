@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_row_menu.html" import row_menu %}
 {% block heading %}Recovery Contacts{% endblock %}
 {% block heading_help %}Review entries people submit on the public <code>/contactlist</code> page. New submissions arrive under <b>Pending review</b> and stay hidden from the public until you approve them. Each approved entry has per-field toggles so you decide whether its phone, email, or both are displayed.{% endblock %}
@@ -13,19 +14,22 @@
 
 <div class="ts-page-wrap rc-page-wrap">
 
-  {# ── Pending review ──────────────────────────────────────────── #}
+  {# ── Pending review ──────────────────────────────────────────────
+     Only rendered when something is actually waiting. An empty inbox is
+     the normal steady state here, so a permanent card explaining that
+     nothing is waiting is pure chrome — the page leads with Published
+     entries instead, and the card reappears the moment a submission
+     lands. The filter/sort JS iterates `[data-rc-table]`, so it copes
+     with the table being absent. #}
+  {% if pending %}
   <section class="card data-card">
     <div class="data-card-head">
       {{ icon('clock') }}
-      <span>Pending review</span>
+      <span>Pending review {% call chip('Pending review') %}Entries submitted on the public page. Approve to publish them on the directory, or remove to discard. The “requested display” shows what the submitter asked to share — you can change it after approving.{% endcall %}</span>
       <div class="data-card-head-actions muted smaller">
         <span data-rc-count data-rc-count-noun="waiting">{{ pending|length }} waiting</span>
       </div>
     </div>
-    <p class="muted small data-card-lead">
-      Entries submitted on the public page. Approve to publish them on the directory, or remove to discard. The “requested display” shows what the submitter asked to share — you can change it after approving.
-    </p>
-    {% if pending %}
     {# Sorted newest-first by the server; the header cells re-sort client
        side and the toolbar search filters both tables at once. #}
     <table class="tbl rc-tbl" data-rc-table data-rc-sort-key="submitted" data-rc-sort-dir="-1">
@@ -164,16 +168,15 @@
         {% endfor %}
       </tbody>
     </table>
-    {% else %}
-    <p class="muted">Nothing waiting — new submissions from the public page will appear here.</p>
-    {% endif %}
   </section>
+  {% endif %}
 
   {# ── Approved (live on the public directory) ─────────────────── #}
   <section class="card data-card">
     <div class="data-card-head">
       {{ icon('phone') }}
-      <span>Published entries</span>
+      <span>Published entries {% call chip('Published entries') %}These show on the public Recovery Contacts page. Flip a toggle to show or hide that entry's phone or email instantly — the name always shows.
+        Page copy, the notification recipient, and layout for the public page live on the <a href="{{ url_for('main.frontend_form_recovery_contacts') }}">Recovery Contacts form settings</a> (Web Frontend → Forms).{% endcall %}</span>
       <div class="data-card-head-actions muted smaller">
         {% if approved %}
         <label class="rc-filter-wrap">
@@ -186,9 +189,6 @@
         <span data-rc-count data-rc-count-noun="live">{{ approved|length }} live</span>
       </div>
     </div>
-    <p class="muted small data-card-lead">
-      These show on the public Recovery Contacts page. Flip a toggle to show or hide that entry's phone or email instantly — the name always shows.
-    </p>
     {% if approved %}
     {# Sorted by name from the server; headers re-sort client side. #}
     <table class="tbl rc-tbl" data-rc-table data-rc-sort-key="name" data-rc-sort-dir="1">
@@ -269,21 +269,15 @@
     {% else %}
     <p class="muted">No published entries yet — approve a submission above to add the first one.</p>
     {% endif %}
-    <p class="muted small data-card-lead" style="margin-top: 1rem;">
-      Page copy, the notification recipient, and layout for the public page live on the <a href="{{ url_for('main.frontend_form_recovery_contacts') }}">Recovery Contacts form settings</a> (Web Frontend → Forms).
-    </p>
   </section>
 
   {# ── Activity log ───────────────────────────────────────────── #}
   <section class="card data-card">
     <div class="data-card-head">
       {{ icon('history') }}
-      <span>Activity log</span>
+      <span>Activity log {% call chip('Activity log') %}Submissions, email confirmations, relayed “Contact me” messages, and admin actions — newest first.{% endcall %}</span>
       <div class="data-card-head-actions muted smaller">{{ logs|length }} recent</div>
     </div>
-    <p class="muted small data-card-lead">
-      Submissions, email confirmations, relayed “Contact me” messages, and admin actions — newest first.
-    </p>
     {% if logs %}
     {%- set _log_cat = {
       'submitted':'new', 'manual_add':'new',
@@ -333,13 +327,13 @@
         <p class="muted small" style="margin: 0 0 1rem;">
           Add someone to the directory yourself. Manually-added entries are published immediately — no approval step. You can edit or remove them anytime.
         </p>
-        <label>Full name <span class="muted smaller">(required)</span>
+        <label><span class="field-label-row">Full name <span class="muted smaller">(required)</span></span>
           <input type="text" name="name" required maxlength="200" placeholder="e.g. Jane D.">
         </label>
-        <label>Phone <span class="muted smaller">(optional)</span>
+        <label><span class="field-label-row">Phone <span class="muted smaller">(optional)</span></span>
           <input type="tel" name="phone" maxlength="64">
         </label>
-        <label>Email <span class="muted smaller">(optional)</span>
+        <label><span class="field-label-row">Email <span class="muted smaller">(optional)</span></span>
           <input type="email" name="email" maxlength="255">
         </label>
         <p class="muted smaller" style="margin: 0 0 0.5rem;">Add a phone number, an email, or both.</p>
@@ -361,7 +355,7 @@
             Allow email contact through the site
           </label>
         </div>
-        <label>Admin note <span class="muted smaller">(never shown publicly)</span>
+        <label><span class="field-label-row">Admin note <span class="muted smaller">(never shown publicly)</span></span>
           <textarea name="note" rows="2"></textarea>
         </label>
       </div>
@@ -389,10 +383,10 @@
         <label>Full name
           <input type="text" name="name" required maxlength="200" value="{{ e.name }}">
         </label>
-        <label>Phone <span class="muted smaller">(optional)</span>
+        <label><span class="field-label-row">Phone <span class="muted smaller">(optional)</span></span>
           <input type="tel" name="phone" maxlength="64" value="{{ e.phone or '' }}">
         </label>
-        <label>Email <span class="muted smaller">(optional)</span>
+        <label><span class="field-label-row">Email <span class="muted smaller">(optional)</span></span>
           <input type="email" name="email" maxlength="255" value="{{ e.email or '' }}">
         </label>
         <div class="rc-modal-toggles">
@@ -413,7 +407,7 @@
             Allow email contact through the site{% if e.contact_count %} <span class="muted smaller">· contacted {{ e.contact_count }}×</span>{% endif %}
           </label>
         </div>
-        <label>Admin note <span class="muted smaller">(never shown publicly)</span>
+        <label><span class="field-label-row">Admin note <span class="muted smaller">(never shown publicly)</span></span>
           <textarea name="note" rows="2">{{ e.note or '' }}</textarea>
         </label>
       </div>

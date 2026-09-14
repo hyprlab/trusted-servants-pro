@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}Send an update from the Trusted Servants list{% endblock %}
 {% block heading_help %}Pick who receives the update, then write the message. One SMTP send per recipient with duplicate emails de-duped across groups; Markdown is rendered to HTML and the raw markdown source is sent as the plain-text fallback.{% endblock %}
 {% block content %}
@@ -21,11 +22,8 @@
     <section class="card data-card">
       <div class="data-card-head">
         {{ icon('users') }}
-        <span>Audience</span>
+        <span>Audience {% call chip('Audience') %}Pick who receives this update. <b>Full list</b> sends to every subscriber + every intergroup member + every regular app user. <b>Granular</b> lets you tick exactly which groups (and which specific subscribers) to include.{% endcall %}</span>
       </div>
-      <p class="muted small data-card-lead">
-        Pick who receives this update. <b>Full list</b> sends to every subscriber + every intergroup member + every regular app user. <b>Granular</b> lets you tick exactly which groups (and which specific subscribers) to include.
-      </p>
 
       {%- set _all_total = subscriber_count + intergroup_count + app_user_count -%}
       <div class="ts-aud-modes" role="radiogroup" aria-label="Audience mode">
@@ -135,19 +133,15 @@
     <section class="card data-card">
       <div class="data-card-head">
         {{ icon('send') }}
-        <span>Compose update</span>
+        <span>Compose update {% call chip('Compose update') %}Use <code>{name}</code> anywhere in the subject or body to drop in each recipient's name. Leave it out for a generic message.{% endcall %}</span>
       </div>
-      <p class="muted small data-card-lead">
-        Use <code>{name}</code> anywhere in the subject or body to drop in each recipient's name. Leave it out for a generic message.
-      </p>
       <label>Subject
         <input type="text" name="subject" maxlength="500" required
                placeholder="Quick update from the chair">
       </label>
-      <label>Message body (Markdown)
+      <label>{% call hrow('Message body (Markdown)') %}Supports headings (<code>#</code>), <b>bold</b>, <i>italic</i>, links <code>[text](url)</code>, and bullet lists.{% endcall %}
         <textarea name="body" rows="14" required
                   placeholder="Hi {name},&#10;&#10;Heads up that this Thursday's business meeting moves to 7:30pm…"></textarea>
-        <span class="muted smaller">Supports headings (<code>#</code>), <b>bold</b>, <i>italic</i>, links <code>[text](url)</code>, and bullet lists.</span>
       </label>
       <div class="ts-blast-actions">
         <button type="submit" class="btn btn-primary" data-ts-blast-submit>

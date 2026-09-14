@@ -17,6 +17,7 @@
      bg_image_url — string URL for the bg image preview (or '')
      bg_video_url — string URL for the bg video preview (or '')
 #}
+{% from "_help_chip.html" import chip, hrow %}
 <div class="modal fe-page-edit-modal fe-page-edit-modal--wide" id="page-hero-edit-modal" aria-hidden="true" data-page-hero-modal>
   <div class="modal-backdrop" data-close></div>
   <div class="modal-panel fe-page-edit-modal-panel" role="dialog" aria-modal="true">
@@ -24,8 +25,7 @@
             aria-label="Close">{{ icon('x') }}</button>
 <section class="card hero-unified">
   <div class="card-head">
-    <h2>Hero</h2>
-    <span class="muted smaller">Heading, background, and call-to-action buttons for this page's hero.</span>
+    <h2>Hero {% call chip('Hero') %}Heading, background, and call-to-action buttons for this page's hero.{% endcall %}</h2>
   </div>
 
   {% set _pv_font = vals.frontend_hero_heading_font or 'fraunces' %}
@@ -118,13 +118,12 @@
     <label>Subheading
       <textarea data-hero-field="subheading" rows="8" style="min-height: 240px;" placeholder="Find meetings, connect with your community…">{{ vals.frontend_hero_subheading or '' }}</textarea>
     </label>
-    <label>Tagline <span class="muted small">(rendered as a small pill above the heading)</span>
+    <label>{% call hrow('Tagline') %}Rendered as a small pill above the heading{% endcall %}
       <input type="text" data-hero-field="frontend_tagline" value="{{ vals.frontend_tagline or '' }}" placeholder="A recovery fellowship portal.">
     </label>
     <li class="special-page-row" style="list-style:none; margin: 1rem 0;">
       <div class="special-page-info">
-        <div class="u-name">Show tagline in hero</div>
-        <p class="muted small">Toggle the eyebrow pill above the heading on or off.</p>
+        <div class="u-name">Show tagline in hero {% call chip() %}Toggle the eyebrow pill above the heading on or off.{% endcall %}</div>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" data-hero-field="frontend_tagline_enabled" value="1"
@@ -226,8 +225,7 @@
 
     <li class="special-page-row" style="list-style:none; margin: 1rem 0;">
       <div class="special-page-info">
-        <div class="u-name">Dynamic text colors</div>
-        <p class="muted small">Auto-pick contrasting heading + subheading colors based on the background's lightness. Overrides the heading gradient and subheading colour above when on.</p>
+        <div class="u-name">Dynamic text colors {% call chip() %}Auto-pick contrasting heading + subheading colors based on the background's lightness. Overrides the heading gradient and subheading colour above when on.{% endcall %}</div>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" data-hero-field="frontend_hero_text_dynamic" value="1"
@@ -258,8 +256,7 @@
     </div>{# /hero-text-col #}
 
     <div class="hero-bg-col">
-    <h3 class="hero-sub-heading">Background</h3>
-    <p class="muted smaller hero-sub-help">Pick a style, tweak it, or upload an image.</p>
+    <h3 class="hero-sub-heading">Background {% call chip('Background') %}Pick a style, tweak it, or upload an image.{% endcall %}</h3>
     {% set _bs = vals.frontend_hero_bg_style or 'frosty' %}
     <div class="nav-megalink-field">
       <span class="nav-megalink-field-lbl">Style</span>
@@ -301,8 +298,7 @@
         </div>
         <li class="special-page-row" style="list-style:none; margin-top: 12px;">
           <div class="special-page-info">
-            <div class="u-name">Randomize on every page load</div>
-            <p class="muted small">Picks fresh hues each time the page renders so it never looks the same twice.</p>
+            <div class="u-name">Randomize on every page load {% call chip() %}Picks fresh hues each time the page renders so it never looks the same twice.{% endcall %}</div>
           </div>
           <label class="mode-toggle">
             <input type="checkbox" data-hero-field="frontend_hero_bg_randomize" value="1"
@@ -351,7 +347,7 @@
           <img src="{{ bg_image_url or '' }}" alt="Current hero background" id="hero-image-preview-img">
           <button type="button" class="btn btn-sm" id="hero-image-clear">Remove</button>
         </div>
-        <label>Upload image <span class="muted small">(PNG, JPG, or SVG)</span>
+        <label><span class="field-label-row">Upload image <span class="muted small">(PNG, JPG, or SVG)</span></span>
           <input type="file" id="hero-image-upload" accept="image/*">
         </label>
         <div class="hero-bg-grid">
@@ -405,7 +401,7 @@
                  style="max-width: 220px; max-height: 120px; border-radius: 6px;" id="hero-video-preview-video"></video>
           <button type="button" class="btn btn-sm" id="hero-video-clear">Remove</button>
         </div>
-        <label>Upload video <span class="muted small">(MP4 or WebM)</span>
+        <label><span class="field-label-row">Upload video <span class="muted small">(MP4 or WebM)</span></span>
           <input type="file" id="hero-video-upload" accept="video/mp4,video/webm,video/quicktime">
         </label>
         <div class="hero-bg-grid">
@@ -441,8 +437,7 @@
     <h3 class="hero-sub-heading" style="margin-top: 1.5rem;">Particle overlay</h3>
     <li class="special-page-row" style="list-style:none; margin: 1rem 0;">
       <div class="special-page-info">
-        <div class="u-name">Show particles</div>
-        <p class="muted small">Animated particle layer above the background.</p>
+        <div class="u-name">Show particles {% call chip() %}Animated particle layer above the background.{% endcall %}</div>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" data-hero-field="frontend_hero_particle_enabled" value="1"

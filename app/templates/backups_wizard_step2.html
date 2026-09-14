@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Connect · Trusted Servants Pro{% endblock %}
 {% block heading %}{{ t.name }} — Connection{% endblock %}
 {% block heading_help %}{% if t.kind == 'dropbox' %}Authorize the app on your Dropbox account, then paste the resulting code below.{% else %}Enter the credentials for your {{ t.kind|upper }} server. Passwords are stored encrypted on disk.{% endif %}{% endblock %}
@@ -33,9 +34,8 @@
         <input type="password" name="password" autocomplete="new-password" placeholder="{% if t.password_enc %}(leave blank to keep current){% endif %}">
       </label>
     </div>
-    <label>Remote path
+    <label>{% call hrow('Remote path') %}Folder on the remote server. Created automatically if missing.{% endcall %}
       <input type="text" name="remote_path" value="{{ t.remote_path or '/' }}" placeholder="/backups/tsp">
-      <span class="muted smaller">Folder on the remote server. Created automatically if missing.</span>
     </label>
     {% if t.kind == 'ftp' %}
     <label class="check">
@@ -49,13 +49,10 @@
       <label>Upload private key file
         <input type="file" name="private_key" accept=".pem,.key,text/plain">
       </label>
-      <label>… or paste the key text here
+      <label>{% call hrow('… or paste the key text here') %}Accepted formats: Ed25519, ECDSA, RSA, DSA. Stored encrypted on disk.
+        {% if t.private_key_enc %}A key is already stored — leave both fields blank to keep it.{% endif %}{% endcall %}
         <textarea name="private_key_text" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;..."></textarea>
       </label>
-      <p class="muted smaller">
-        Accepted formats: Ed25519, ECDSA, RSA, DSA. Stored encrypted on disk.
-        {% if t.private_key_enc %}A key is already stored — leave both fields blank to keep it.{% endif %}
-      </p>
     </details>
     {% endif %}
     {% elif t.kind == 'tspro_backup' %}
@@ -64,13 +61,11 @@
        connection" pings the server, pins its public key on this target,
        and shows the key's fingerprint so the admin can confirm it
        matches the one shown in the backup server's console. #}
-    <label>Backup server API endpoint
+    <label>{% call hrow('Backup server API endpoint') %}The TS&nbsp;Pro Backup server's API base, ending in <code>/api/v1</code>.{% endcall %}
       <input type="url" name="api_base_url" value="{{ t.api_base_url or '' }}" required placeholder="https://backup.example.org/api/v1">
-      <span class="muted smaller">The TS&nbsp;Pro Backup server's API base, ending in <code>/api/v1</code>.</span>
     </label>
-    <label>Site API key
+    <label>{% call hrow('Site API key') %}Shown once when the site was created in the backup server's console. Stored encrypted on disk.{% endcall %}
       <input type="password" name="api_key" autocomplete="new-password" placeholder="{% if t.api_key_enc %}(leave blank to keep current){% else %}tspb_…{% endif %}">
-      <span class="muted smaller">Shown once when the site was created in the backup server's console. Stored encrypted on disk.</span>
     </label>
     <p class="muted smaller">
       {% if t.e2ee_public_key %}

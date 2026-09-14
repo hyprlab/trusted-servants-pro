@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% set _active = (site.frontend_header_template if site else 'classic') or 'classic' %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
@@ -33,8 +34,7 @@
 
 {% macro alert_bar_form(s, prefix, title, blurb, action_url) %}
 <div class="fe-header-grid-item">
-  <h3 class="fe-header-grid-title">{{ title }}</h3>
-  <p class="muted small fe-header-grid-blurb">{{ blurb }}</p>
+  <h3 class="fe-header-grid-title">{{ title }} <span class="heading-help field-help"><button type="button" class="help-btn" tabindex="-1" aria-label="About {{ title }}">{{ icon('info') }}</button><span class="help-tooltip" role="tooltip">{{ blurb }}</span></span></h3>
   {% set _bg   = (s|attr(prefix ~ '_alert_bg_color')) if s else None %}
   {% set _fg   = (s|attr(prefix ~ '_alert_text_color')) if s else None %}
   {% set _icon = (s|attr(prefix ~ '_alert_icon')) if s else None %}
@@ -43,16 +43,21 @@
   {% set _msg  = (s|attr(prefix ~ '_alert_message')) if s else None %}
   <form class="form" method="post" action="{{ action_url }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <li class="special-page-row" style="list-style:none; padding: 4px 0 12px;">
+    {# A <div>, not a bare <li>: this is a standalone toggle row inside a
+       <form>, not a list item, and the stray <li> was invalid markup.
+       No inline padding either — `.special-page-row` already draws itself
+       as a bordered panel with 14px/16px inside; the old override zeroed
+       the horizontal padding and left the label and switch sitting on the
+       border. Outer spacing comes from the form's own 1rem gap. #}
+    <div class="special-page-row">
       <div class="special-page-info">
-        <div class="u-name">Show this alert bar</div>
-        <p class="muted small">Appears on every frontend page when on.</p>
+        <div class="u-name">Show this alert bar {% call chip() %}Appears on every frontend page when on.{% endcall %}</div>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" name="{{ prefix }}_alert_enabled" value="1" {% if _on %}checked{% endif %}>
         <span class="mode-track"><span class="mode-thumb"></span></span>
       </label>
-    </li>
+    </div>
     <label>Message
       <input type="text" name="{{ prefix }}_alert_message" value="{{ _msg or '' }}" placeholder="Your message here…" maxlength="300">
     </label>
@@ -86,8 +91,7 @@
 
 <section class="card">
   <div class="card-head">
-    <h2>Header settings</h2>
-    <span class="muted smaller">Layout, logo, and alert bars — all managed here. Saves go through the global save bar.</span>
+    <h2>Header settings {% call chip('Header settings') %}Layout, logo, and alert bars — all managed here. Saves go through the global save bar.{% endcall %}</h2>
   </div>
   <div class="fe-header-grid">
 
@@ -109,7 +113,7 @@
 
         <fieldset class="fieldset" data-header-panel="boxed"{% if _is_full %} hidden{% endif %}>
           <legend>Boxed</legend>
-          <label>Maximum width <span class="muted small">(600–2400 px)</span>
+          <label><span class="field-label-row">Maximum width <span class="muted small">(600–2400 px)</span></span>
             <input type="number" name="frontend_header_max_width" min="600" max="2400" step="20"
                    value="{{ site.frontend_header_max_width if site else 1160 }}">
           </label>
@@ -117,7 +121,7 @@
 
         <fieldset class="fieldset" data-header-panel="full"{% if not _is_full %} hidden{% endif %}>
           <legend>Full-width</legend>
-          <label>Side padding <span class="muted small">(% of viewport, 0–20)</span>
+          <label><span class="field-label-row">Side padding <span class="muted small">(% of viewport, 0–20)</span></span>
             <input type="number" name="frontend_header_padding_pct" min="0" max="20" step="1"
                    value="{{ site.frontend_header_padding_pct if site else 5 }}">
           </label>
@@ -126,7 +130,7 @@
         <fieldset class="fieldset">
           <legend>Height</legend>
           {% set _h = (site.frontend_header_height if site else 72) or 72 %}
-          <label>Header height <span class="muted small">(48–100 px)</span>
+          <label><span class="field-label-row">Header height <span class="muted small">(48–100 px)</span></span>
             <div class="login-fx-speed-row">
               <input type="range" name="frontend_header_height" id="fe-header-height-slider"
                      min="48" max="100" step="1" value="{{ _h }}">

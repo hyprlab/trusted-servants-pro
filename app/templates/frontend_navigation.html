@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_row_menu.html" import row_menu %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% from "_dynbg_picker.html" import dynbg_trigger with context %}
@@ -20,15 +21,14 @@
 
     <section class="card">
       <div class="card-head">
-        <h2>Nav items</h2>
+        <h2>Nav items {% call chip('Nav items') %}Top-level links shown on the right of the header. Each item can be a simple text link, a pill-button CTA, or a two-line stacked style (like "New to CMA? / Start here"). Items with a mega menu reveal a full-width dropdown on hover.
+          Drag the handle in the first column to reorder, then click <b>Save order</b>.{% endcall %}</h2>
         <div class="card-head-actions">
           <button type="button" class="btn btn-sm btn-primary" data-save-reorder-for="#nav-items-sortable">Save order</button>
           <button type="button" class="btn btn-sm btn-primary" data-open-modal="nav-item-new-modal">+ Add nav item</button>
         </div>
       </div>
-      <p class="muted small">Top-level links shown on the right of the header. Each item can be a simple text link, a pill-button CTA, or a two-line stacked style (like "New to CMA? / Start here"). Items with a mega menu reveal a full-width dropdown on hover.</p>
       {% if nav_items %}
-      <p class="muted smaller">Drag the handle in the first column to reorder, then click <b>Save order</b>.</p>
       <div class="fe-tbl-scroll">
       <table class="tbl">
         <thead><tr><th style="width:28px;"></th><th style="width:32px;"></th><th>Label</th><th>Style</th><th>URL</th><th>Mega menu</th><th></th></tr></thead>
@@ -79,18 +79,18 @@
       <form class="form" method="post" action="{{ url_for('main.frontend_nav_appearance_save') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="alert-bar-color-row">
-          <label>Background color <span class="muted smaller">· light mode</span>
+          <label><span class="field-label-row">Background color <span class="muted smaller">· light mode</span></span>
             <input type="color" name="frontend_mega_bg_color" value="{{ site.frontend_mega_bg_color or '#0B5CFF' }}">
           </label>
-          <label>Text color <span class="muted smaller">· light mode</span>
+          <label><span class="field-label-row">Text color <span class="muted smaller">· light mode</span></span>
             <input type="color" name="frontend_mega_text_color" value="{{ site.frontend_mega_text_color or '#ffffff' }}">
           </label>
         </div>
         <div class="alert-bar-color-row">
-          <label>Background color <span class="muted smaller">· dark mode</span>
+          <label><span class="field-label-row">Background color <span class="muted smaller">· dark mode</span></span>
             <input type="color" name="frontend_mega_bg_color_dark" value="{{ site.frontend_mega_bg_color_dark or '#131a33' }}">
           </label>
-          <label>Text color <span class="muted smaller">· dark mode</span>
+          <label><span class="field-label-row">Text color <span class="muted smaller">· dark mode</span></span>
             <input type="color" name="frontend_mega_text_color_dark" value="{{ site.frontend_mega_text_color_dark or ((site.frontend_mega_text_color or '#ffffff') | dark_variant) }}">
           </label>
         </div>
@@ -106,8 +106,7 @@
         </div>
         <li class="special-page-row" style="list-style:none; margin-top: 12px;">
           <div class="special-page-info">
-            <div class="u-name">Render dark in light mode</div>
-            <p class="muted small">Forces the dynamic background's dark variant even when the site is in light mode, so a dark panel sits behind light mega-menu text. Only applies when a dynamic background is set above.</p>
+            <div class="u-name">Render dark in light mode {% call chip() %}Forces the dynamic background's dark variant even when the site is in light mode, so a dark panel sits behind light mega-menu text. Only applies when a dynamic background is set above.{% endcall %}</div>
           </div>
           <label class="mode-toggle" title="Toggle dark dynamic background in light mode">
             <input type="checkbox" name="frontend_mega_bg_dynbg_dark" value="1"
@@ -129,11 +128,11 @@
           </label>
         </div>
         <div class="alert-bar-icon-row">
-          <label>Bottom-left radius <span class="muted small">(0–60 px)</span>
+          <label><span class="field-label-row">Bottom-left radius <span class="muted small">(0–60 px)</span></span>
             <input type="number" name="frontend_mega_radius_bl" min="0" max="60" step="1"
                    value="{{ site.frontend_mega_radius_bl if site else 18 }}">
           </label>
-          <label>Bottom-right radius <span class="muted small">(0–60 px)</span>
+          <label><span class="field-label-row">Bottom-right radius <span class="muted small">(0–60 px)</span></span>
             <input type="number" name="frontend_mega_radius_br" min="0" max="60" step="1"
                    value="{{ site.frontend_mega_radius_br if site else 18 }}">
           </label>
@@ -172,8 +171,7 @@
         </div>
         <li class="special-page-row" style="list-style:none; margin-top: 12px;">
           <div class="special-page-info">
-            <div class="u-name">Show on hover fade</div>
-            <p class="muted small">Fade the whole menu panel in (and slide it down a touch) when it opens on hover. Turn off for an instant appearance.</p>
+            <div class="u-name">Show on hover fade {% call chip() %}Fade the whole menu panel in (and slide it down a touch) when it opens on hover. Turn off for an instant appearance.{% endcall %}</div>
           </div>
           <label class="mode-toggle" title="Toggle mega menu panel fade-in">
             <input type="checkbox" name="frontend_megamenu_panel_fade" value="1"
@@ -199,8 +197,7 @@
 
         <li class="special-page-row" style="list-style:none; margin-top: 12px;">
           <div class="special-page-info">
-            <div class="u-name">Staggered link entrance</div>
-            <p class="muted small">After the panel appears, items fade in one after another with a slight slide + rotate. <b>Requires "Show on hover fade" above to be on</b> — when the panel snaps in, the links snap in with it. Turn this sub-option off for a panel that fades in but reveals all its links at once.</p>
+            <div class="u-name">Staggered link entrance {% call chip() %}After the panel appears, items fade in one after another with a slight slide + rotate. <b>Requires "Show on hover fade" above to be on</b> — when the panel snaps in, the links snap in with it. Turn this sub-option off for a panel that fades in but reveals all its links at once.{% endcall %}</div>
           </div>
           <label class="mode-toggle" title="Toggle mega menu staggered link entrance">
             <input type="checkbox" name="frontend_megamenu_animate" value="1"
@@ -237,15 +234,13 @@
         <li class="special-page-row mega-anim-mobile-head"
             style="list-style:none; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border, #e5e7eb);">
           <div class="special-page-info">
-            <div class="u-name">Mobile (≤ 720 px)</div>
-            <p class="muted small">Overrides apply only on small viewports. Desktop tuning above is untouched.</p>
+            <div class="u-name">Mobile (≤ 720 px) {% call chip() %}Overrides apply only on small viewports. Desktop tuning above is untouched.{% endcall %}</div>
           </div>
         </li>
 
         <li class="special-page-row" style="list-style:none; margin-top: 8px;">
           <div class="special-page-info">
-            <div class="u-name">Staggered link entrance · mobile</div>
-            <p class="muted small">Toggle the staggered link reveal on small screens. Useful when the choreography reads as flicker on a phone.</p>
+            <div class="u-name">Staggered link entrance · mobile {% call chip() %}Toggle the staggered link reveal on small screens. Useful when the choreography reads as flicker on a phone.{% endcall %}</div>
           </div>
           <label class="mode-toggle" title="Toggle mega menu staggered link entrance on mobile">
             <input type="checkbox" name="frontend_megamenu_animate_mobile" value="1"
