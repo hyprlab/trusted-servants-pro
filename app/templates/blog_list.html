@@ -241,7 +241,7 @@
             <form method="post" action="{{ url_for('main.blog_delete', bid=p.id) }}" style="display:inline"
                   onsubmit="return confirm('Delete this post permanently? Featured image will be cleaned up.');">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+              <button type="submit" class="btn btn-sm btn-danger" title="Delete post">{{ icon('trash') }}</button>
             </form>
           </div>
         </td>

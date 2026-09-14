@@ -6,6 +6,27 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- **Every row-level delete control in the admin now uses the same red trash
+  button.** Row deletes were split three ways — a text "Delete", an `x` icon,
+  or a trash icon — sometimes within one screen. All of them now match the
+  Recovery Contacts pattern: `btn btn-sm btn-danger`, icon-only
+  `icon('trash')`, with a `title` naming what's being removed (the tooltip
+  also supplies the accessible name, since the button has no text). 24 controls
+  across 19 templates: blog posts / categories, contact messages, nav items and
+  links, mega-menu columns and blocks, popups, redirects (both tables), library
+  files, locations, officers, fellowships, media (grid and list), meeting-modal
+  files, posts, stories, users, Zoom accounts, backup targets, sidebar order.
+  - Both "you don't have permission" disabled twins (library detail, media)
+    were switched too, so they still mirror their enabled siblings.
+  - Deliberately left alone: bulk-action toolbar buttons ("Delete selected"),
+    which need a text label; full-size deletes on a record's own editor page;
+    the icon-picker "Remove icon" controls; repeater-row and gallery-item
+    removes inside editor forms, which discard an unsaved input row rather
+    than a stored record; and the Stories list's **Reject** button, which is a
+    distinct action from Delete and sits beside it.
+
 ## [2.18.9] — 2026-09-14
 
 ### Changed

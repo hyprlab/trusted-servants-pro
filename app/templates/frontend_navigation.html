@@ -54,7 +54,7 @@
               <form method="post" action="{{ url_for('main.frontend_nav_item_delete', nid=ni.id) }}"
                     onsubmit="return confirm('Delete this nav item?');" style="display:inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-sm btn-danger">{{ icon('x') }}</button>
+                <button class="btn btn-sm btn-danger" title="Delete nav item">{{ icon('trash') }}</button>
               </form>
             </td>
           </tr>

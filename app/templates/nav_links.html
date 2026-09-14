@@ -30,7 +30,7 @@
               onsubmit="return confirm('Delete this link?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-          <button class="btn btn-sm btn-danger">{{ icon('x') }}</button>
+          <button class="btn btn-sm btn-danger" title="Delete link">{{ icon('trash') }}</button>
         </form>
       </div>
     </li>

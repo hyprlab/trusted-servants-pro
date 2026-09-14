@@ -50,7 +50,7 @@
           <form method="post" action="{{ url_for('main.blog_category_delete', cid=c.id) }}" style="display:inline"
                 onsubmit="return confirm('Delete this category? Posts assigned to it will keep their other categories. ({{ counts.get(c.id, 0) }} post{{ '' if counts.get(c.id, 0) == 1 else 's' }} affected.)');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            <button type="submit" class="btn btn-sm btn-danger" title="Delete category">{{ icon('trash') }}</button>
           </form>
         </td>
       </tr>

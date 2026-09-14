@@ -194,11 +194,11 @@
           {% if current_user.can_delete_library_item(r) %}
           <form method="post" action="{{ url_for('main.reading_delete', rid=r.id) }}" onsubmit="return confirm('Delete this file?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-sm btn-danger">{{ icon('x') }}</button>
+            <button class="btn btn-sm btn-danger" title="Delete file">{{ icon('trash') }}</button>
           </form>
           {% else %}
           <button type="button" class="btn btn-sm btn-danger btn-perm-disabled" disabled
-                  title="You don't have permission to delete this file. Editors can only delete files uploaded by another Editor — only an admin or Intergroup Member can remove this one.">{{ icon('x') }}</button>
+                  title="You don't have permission to delete this file. Editors can only delete files uploaded by another Editor — only an admin or Intergroup Member can remove this one.">{{ icon('trash') }}</button>
           {% endif %}
         {% endif %}
       </div>

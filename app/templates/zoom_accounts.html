@@ -46,7 +46,7 @@
                       onsubmit="return confirm('Delete this Zoom account? Assignments will be cleared.');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-                  <button class="btn btn-sm btn-danger">{{ icon('x') }}</button>
+                  <button class="btn btn-sm btn-danger" title="Delete Zoom account">{{ icon('trash') }}</button>
                 </form>
               </div>
             </td>

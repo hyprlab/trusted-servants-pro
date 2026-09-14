@@ -83,7 +83,7 @@
             <form method="post" action="{{ url_for('main.nav_link_delete', nid=n.id) }}"
                   onsubmit="return confirm('Delete this link?');" style="display:inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm btn-danger">{{ icon('x') }}</button>
+              <button type="submit" class="btn btn-sm btn-danger" title="Delete link">{{ icon('trash') }}</button>
             </form>
           </li>
           {% endfor %}

@@ -590,7 +590,7 @@
                 <button type="button" class="btn btn-sm" data-file-add-toggle="{{ f_edit_id }}">Edit</button>
                 <form method="post" action="{{ url_for('main.file_delete', fid=f.id) }}" onsubmit="return confirm('Delete this file?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-sm btn-danger">{{ icon('x') }}</button>
+                  <button class="btn btn-sm btn-danger" title="Delete file">{{ icon('trash') }}</button>
                 </form>
               </div>
               <form id="{{ f_edit_id }}" method="post" class="file-add-form collapsed" enctype="multipart/form-data"

@@ -88,7 +88,7 @@
                 onsubmit="return confirm('Delete this message permanently?');" style="display:inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="view" value="{{ view }}">
-            <button class="btn btn-sm btn-danger">Delete</button>
+            <button class="btn btn-sm btn-danger" title="Delete message">{{ icon('trash') }}</button>
           </form>
         </div>
       </header>

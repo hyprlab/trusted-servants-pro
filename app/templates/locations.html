@@ -36,7 +36,7 @@
                   onsubmit="return confirm('Delete this location?');">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-              <button class="btn btn-sm btn-danger">{{ icon('x') }}</button>
+              <button class="btn btn-sm btn-danger" title="Delete location">{{ icon('trash') }}</button>
             </form>
           </div>
         </td>
@@ -85,7 +85,7 @@
           <td data-label="Name"><input type="text" name="officer_name" value="{{ o.name or '' }}" placeholder="e.g. Chris C."></td>
           <td data-label="Phone"><input type="tel" name="officer_phone" value="{{ o.phone or '' }}" placeholder="e.g. 202-555-0118"></td>
           <td data-label="Email"><input type="email" name="officer_email" value="{{ o.email or '' }}" placeholder="e.g. chair@dccma.com"></td>
-          <td class="officer-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-officer-remove aria-label="Remove this officer">{{ icon('x') }}</button></td>
+          <td class="officer-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-officer-remove aria-label="Remove this officer" title="Remove this officer">{{ icon('trash') }}</button></td>
         </tr>
         {% endfor %}
         {# Hidden template row — cloned by the +Add button. The server
@@ -97,7 +97,7 @@
           <td data-label="Name"><input type="text" name="officer_name" placeholder="e.g. Chris C."></td>
           <td data-label="Phone"><input type="tel" name="officer_phone" placeholder="e.g. 202-555-0118"></td>
           <td data-label="Email"><input type="email" name="officer_email" placeholder="e.g. chair@dccma.com"></td>
-          <td class="officer-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-officer-remove aria-label="Remove this officer">{{ icon('x') }}</button></td>
+          <td class="officer-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-officer-remove aria-label="Remove this officer" title="Remove this officer">{{ icon('trash') }}</button></td>
         </tr>
       </tbody>
     </table>
@@ -201,7 +201,7 @@
           <td data-label="Website">
             <input type="url" name="fellowship_url" value="{{ f.url or '' }}" placeholder="https://example.org">
           </td>
-          <td class="fellowship-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship">{{ icon('x') }}</button></td>
+          <td class="fellowship-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship" title="Remove this fellowship">{{ icon('trash') }}</button></td>
         </tr>
         {% endfor %}
         <tr class="fellowship-row fellowship-row-template" hidden data-fellowships-template data-fellowship-row>
@@ -226,7 +226,7 @@
           <td data-label="Website">
             <input type="url" name="fellowship_url" placeholder="https://example.org">
           </td>
-          <td class="fellowship-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship">{{ icon('x') }}</button></td>
+          <td class="fellowship-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship" title="Remove this fellowship">{{ icon('trash') }}</button></td>
         </tr>
       </tbody>
     </table>

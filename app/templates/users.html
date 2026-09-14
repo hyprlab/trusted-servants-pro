@@ -217,7 +217,7 @@
           <form method="post" action="{{ url_for('auth.users_delete', uid=u.id) }}" onsubmit="return confirm('Delete user {{ u.username }}?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-            <button class="btn btn-sm btn-danger">Delete</button>
+            <button class="btn btn-sm btn-danger" title="Delete user">{{ icon('trash') }}</button>
           </form>
           {% endif %}
         </div>
