@@ -85,7 +85,7 @@
                   style="display:inline"
                   onsubmit="return confirm('Delete this redirect? Visitors hitting the source path will get a 404 (or hit a real route if one exists).');">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-danger">Delete</button>
+              <button class="btn btn-sm btn-danger" title="Delete redirect">{{ icon('trash') }}</button>
             </form>
           </td>
         </tr>
@@ -162,7 +162,7 @@
                   style="display:inline"
                   onsubmit="return confirm('Delete this slug redirect? Visitors hitting the old URL will get a 404.');">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-danger">Delete</button>
+              <button class="btn btn-sm btn-danger" title="Delete redirect">{{ icon('trash') }}</button>
             </form>
           </td>
         </tr>

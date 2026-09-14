@@ -107,7 +107,7 @@
                 onsubmit="return confirm('Remove this backup target? Existing remote files are left alone.');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-            <button type="submit" class="btn btn-sm btn-danger">{{ icon('trash') }} Remove</button>
+            <button type="submit" class="btn btn-sm btn-danger" title="Remove backup target">{{ icon('trash') }}</button>
           </form>
         </div>
       </li>

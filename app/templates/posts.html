@@ -201,7 +201,8 @@
               <button type="submit" form="single-archive-{{ p.id }}-form" class="btn btn-sm" title="Archive">Archive</button>
             {% endif %}
             <button type="submit" form="single-delete-{{ p.id }}-form" class="btn btn-sm btn-danger"
-                    onclick="return confirm('Delete this post permanently? Featured image will be cleaned up.');">Delete</button>
+                    title="Delete post"
+                    onclick="return confirm('Delete this post permanently? Featured image will be cleaned up.');">{{ icon('trash') }}</button>
           </div>
         </td>
       </tr>

@@ -94,7 +94,7 @@
               <form method="post" action="{{ url_for('main.frontend_popup_delete', popup_id=p.id) }}"
                     onsubmit="return confirm('Delete this popup? This cannot be undone.');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                <button type="submit" class="btn btn-sm btn-danger" title="Delete popup">{{ icon('trash') }}</button>
               </form>
             </td>
           </tr>

@@ -6,7 +6,7 @@
           onsubmit="return confirm('Delete this column and all its links?');"
           class="nav-megacol-del-form" data-delete-column-form data-target-item="#nav-megacol-{{ col.id }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-sm btn-danger" title="Delete column">{{ icon('x') }}</button>
+      <button class="btn btn-sm btn-danger" title="Delete column">{{ icon('trash') }}</button>
     </form>
   </div>
 
