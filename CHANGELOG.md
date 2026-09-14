@@ -6,7 +6,69 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- **Admin list tables stopped overflowing on narrow viewports.** The Pages
+  list forced the document to ~1476px wide and dragged a horizontal scrollbar
+  onto every viewport below that, down to the 720px breakpoint. Root cause: a
+  nowrap flex row's min-content width is the SUM of its buttons, and a table
+  cell can never render narrower than its min-content — six row actions put a
+  ~1135px floor under the table.
+  - **Row actions collapse into an Actions dropdown** (`templates/_row_menu.html`,
+    a reusable `{% call row_menu() %}` macro + `initRowMenus` in `app.js`). The
+    panel is `position: fixed` and placed on open, so the card's overflow can't
+    clip it; it flips above the trigger near the viewport bottom, closes on
+    Escape with focus restored, and follows scroll.
+  - **The trigger is revealed on row hover**, with three fallbacks so it isn't
+    stranded for non-mouse users: `:focus-within`, `.is-open`, and
+    `@media (hover: none)` for touch. It fades with `opacity`, not `display`,
+    so the column never changes width and rows don't jump under the pointer.
+  - **Phone layout** turns each Pages row into a three-line card — title, slug,
+    then status chip and date on one line — with Actions on the right. The
+    generic `.card .tbl { overflow-x: auto }` rule otherwise made the table its
+    own scroll container and pushed Actions off the right edge.
+  - **Web Frontend subnav now collapses at 1000px, not 900px.** Between those
+    it claimed 280px the viewport didn't have. Benefits every Web Frontend page.
+  - **Layout column is hidden below 1200px** on the Pages list — it renders
+    "Standard" for every row since the wiki template was retired.
+  - Shared fixes: `.row-actions` and `.top-actions` wrap, `.view-controls`
+    wraps (it was one ~490px unbreakable child overflowing the Posts and
+    Announcements headers), long tokens in `<code>`/mailto cells break instead
+    of setting a floor, and chips are `nowrap` so they never split mid-word.
+  - **Locations**: the Officers and Fellowships tables are grids of text
+    inputs, and a bare `<input>` carries a ~211px intrinsic min-content width —
+    four of them put a ~1060px floor under the table. They're fluid now, and
+    both tables stack into labelled cards on phones with the remove button
+    bottom-aligned to the first field via a row grid (not absolute
+    positioning, which had it floating level with the field's label). One
+    shared `--stack-field-h` makes inputs and button the same height, which is
+    also what stops iOS zooming in on focus.
+  - The Fellowships remove control is now the same `x` icon button the
+    Officers table and the rest of the admin use, instead of a text "Delete".
+  - The current-homepage row no longer gets a background tint; the Homepage
+    chip already says it.
+
 ### Added
+
+- **Rename a page from the Pages list.** Changing a page's name previously
+  meant opening the editor and scrolling past the layout, structure and
+  Unplaced-blocks cards to reach Page settings → Title. Each row in Web
+  Frontend → Pages now carries a **Rename** action opening a small modal with
+  Title + URL slug, posting to a new `frontend_page_rename` route. Renames are
+  recorded in the page's revision history under a violet "Renamed" chip.
+  - **Moving the slug offers a 301.** When the slug actually changes, the
+    modal surfaces a pre-ticked "Redirect the old URL to the new one", which
+    mints a `UrlRedirect` row — the same table Structure → Redirects manages
+    and the `before_request` hook matches, so old inbound links keep working.
+    The offer is suppressed for the homepage, which is served at `/` and whose
+    slug therefore isn't a public URL.
+  - **Renaming back reclaims the slug.** A redirect whose source is the page's
+    *new* path would shadow the page outright (the redirect hook runs before
+    routing), so any such row is dropped on rename. Without this, renaming
+    A→B→A would leave the page unreachable at `/A`.
+  - **A pending draft follows the rename.** `draft_json` carries its own
+    `title`/`slug`; left alone, publishing a stashed draft would silently
+    revert the rename. The snapshot is patched to match.
 
 - **List block items are drag-reorderable in the Web Frontend page editor.**
   A List block's rows previously offered only add and remove — changing the

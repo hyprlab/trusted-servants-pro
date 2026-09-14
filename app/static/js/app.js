@@ -6510,3 +6510,90 @@
                      : "Click to shorten";
   });
 })();
+
+/* ── Row actions dropdown (templates/_row_menu.html) ───────────────
+   Collapses an admin table row's action buttons behind one trigger.
+   The panel is `position: fixed` and placed here on open rather than
+   absolutely positioned in the row: the card clips overflow, and below
+   720px `.card .tbl { overflow-x: auto }` makes the table its own
+   scroll container — either would cut an in-flow panel off.
+
+   Delegated off the document so it covers rows the client-side column
+   sort has re-ordered (the Pages list moves <tr> nodes around) and any
+   table that adopts the macro later, without per-page wiring. */
+(function initRowMenus() {
+  var GAP = 6;          // px between trigger and panel
+  var VIEWPORT_PAD = 8; // keep the panel this far from the viewport edge
+  var open = null;      // { menu, btn, panel }
+
+  function place() {
+    if (!open) return;
+    var r = open.btn.getBoundingClientRect();
+    var p = open.panel;
+    // Measure with the panel laid out but before committing a position.
+    var pw = p.offsetWidth, ph = p.offsetHeight;
+    // Right-align to the trigger (actions live at the row's right edge),
+    // then clamp so a narrow viewport can't push it off-screen.
+    var left = r.right - pw;
+    left = Math.max(VIEWPORT_PAD,
+                    Math.min(left, document.documentElement.clientWidth - pw - VIEWPORT_PAD));
+    // Below the trigger, flipping above when there isn't room.
+    var top = r.bottom + GAP;
+    if (top + ph > window.innerHeight - VIEWPORT_PAD && r.top - GAP - ph > VIEWPORT_PAD) {
+      top = r.top - GAP - ph;
+    }
+    top = Math.max(VIEWPORT_PAD, Math.min(top, window.innerHeight - ph - VIEWPORT_PAD));
+    p.style.left = Math.round(left) + "px";
+    p.style.top = Math.round(top) + "px";
+  }
+
+  function close(restoreFocus) {
+    if (!open) return;
+    var o = open;
+    open = null;
+    o.panel.hidden = true;
+    o.menu.classList.remove("is-open");
+    o.btn.setAttribute("aria-expanded", "false");
+    if (restoreFocus) o.btn.focus();
+  }
+
+  function openFor(menu) {
+    close(false);
+    var btn = menu.querySelector("[data-row-menu-btn]");
+    var panel = menu.querySelector("[data-row-menu-panel]");
+    if (!btn || !panel) return;
+    panel.hidden = false;
+    menu.classList.add("is-open");
+    btn.setAttribute("aria-expanded", "true");
+    open = { menu: menu, btn: btn, panel: panel };
+    place();
+  }
+
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target.closest && ev.target.closest("[data-row-menu-btn]");
+    if (btn) {
+      ev.preventDefault();
+      var menu = btn.closest("[data-row-menu]");
+      if (open && open.menu === menu) close(false);
+      else openFor(menu);
+      return;
+    }
+    // A click inside the open panel is an action (a link, a form submit,
+    // or the Rename button's `data-open-modal` handler). Never
+    // preventDefault it — just dismiss the menu so it isn't left hanging
+    // open behind a modal or a confirm. Those handlers are bound to the
+    // element itself, so they've already run by the time this
+    // document-level listener sees the event.
+    close(false);
+  });
+
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape" && open) close(true);
+  });
+
+  // Any scroll (page or a scrollable ancestor) moves the trigger out
+  // from under a fixed panel, so follow it. Capture phase catches
+  // scrolls on inner containers, which don't bubble.
+  window.addEventListener("scroll", function () { if (open) place(); }, true);
+  window.addEventListener("resize", function () { if (open) close(false); });
+})();

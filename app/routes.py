@@ -13328,22 +13328,10 @@ def frontend_page_create():
                     })
             blocks_payload = _json.dumps(shell_sections or [])
 
-    # Slug uniqueness — same RESERVED set + suffix-bump loop the
-    # save route uses, so the modal can't create a row that would
-    # later conflict with a public frontend route.
-    slug = _slugify_page(title)
-    RESERVED = {"meetings", "meeting", "hyperlist", "submissionform",
-                "printlist", "library", "events", "archive", "announcements",
-                "announcement", "event", "api", "tspro", "static", "uploads",
-                "pub", "site-branding", "request-access", "contact", "siteindex"}
-    base_slug = slug
-    n = 2
-    while True:
-        existing = Page.query.filter(Page.slug == slug).first()
-        if not existing and slug not in RESERVED:
-            break
-        slug = f"{base_slug}-{n}"
-        n += 1
+    # Slug uniqueness — shared with the save + rename routes, so the
+    # modal can't create a row that would later conflict with a public
+    # frontend route.
+    slug = _unique_page_slug(_slugify_page(title))
 
     # Initial publish state: the modal posts a `status` of draft / published
     # / private. Default to draft so the admin lands on the editor with the
@@ -13859,6 +13847,40 @@ def _slugify_page(value):
     return value or "page"
 
 
+# Slugs that would collide with existing public frontend routes. The
+# catch-all `/<slug>` page route must never shadow these, so every path
+# that mints or changes a Page.slug resolves through
+# `_unique_page_slug` below.
+_RESERVED_PAGE_SLUGS = {
+    "meetings", "meeting", "hyperlist", "submissionform",
+    "printlist", "library", "events", "archive", "announcements",
+    "announcement", "event", "api", "tspro", "static", "uploads",
+    "pub", "site-branding", "request-access", "contact", "siteindex",
+}
+
+
+def _unique_page_slug(slug, exclude_id=None):
+    """Resolve ``slug`` to one that's free across pages and not reserved,
+    suffix-bumping (``-2``, ``-3``…) until it lands. ``exclude_id`` skips
+    a page's own row so re-saving an unchanged slug doesn't bump it.
+
+    Autoflush is disabled for the probe: callers may hold a Page in the
+    session whose NOT NULL columns aren't populated yet, and a premature
+    flush would crash on them.
+    """
+    from .models import Page
+    base = slug
+    n = 2
+    with db.session.no_autoflush:
+        while True:
+            clash = Page.query.filter(Page.slug == slug,
+                                      Page.id != (exclude_id or -1)).first()
+            if not clash and slug not in _RESERVED_PAGE_SLUGS:
+                return slug
+            slug = f"{base}-{n}"
+            n += 1
+
+
 PAGE_BG_EXTS = {"png", "jpg", "jpeg", "webp", "gif", "svg"}
 
 
@@ -14206,30 +14228,10 @@ def frontend_page_save():
         # isn't NULL when the row is inserted.
         page.blocks_json = "[]"
 
-    # Reserve slugs that collide with existing public frontend routes so
-    # the catch-all /<slug> page route never shadows them. We need a
-    # fully-resolved slug BEFORE adding the new row to the session
-    # because the uniqueness query below triggers an autoflush, and
-    # the row needs `slug` non-NULL by then.
-    RESERVED = {"meetings", "meeting", "hyperlist", "submissionform",
-                "printlist", "library", "events", "archive", "announcements",
-                "announcement", "event", "api", "tspro", "static", "uploads",
-                "pub", "site-branding", "request-access", "contact", "siteindex"}
-    base_slug = slug
-    n = 2
-    # Disable autoflush during the uniqueness probe — the new Page
-    # row hasn't been fully populated yet and a premature flush would
-    # crash on NOT NULL fields. Using `no_autoflush` is safer than
-    # relying on order alone since future fields could re-introduce
-    # the same race.
-    with db.session.no_autoflush:
-        while True:
-            existing = Page.query.filter(Page.slug == slug,
-                                         Page.id != (page.id or -1)).first()
-            if not existing and slug not in RESERVED:
-                break
-            slug = f"{base_slug}-{n}"
-            n += 1
+    # Resolve the slug BEFORE adding the new row to the session: the
+    # uniqueness probe inside the helper would otherwise autoflush a
+    # half-populated Page and crash on its NOT NULL columns.
+    slug = _unique_page_slug(slug, exclude_id=page.id)
     page.slug = slug
 
     if not page_id:
@@ -14428,6 +14430,96 @@ def frontend_page_discard_draft(page_id):
     return redirect(url_for("main.frontend_page_edit", page_id=page.id))
 
 
+@bp.route("/frontend/pages/<int:page_id>/rename", methods=["POST"])
+@admin_required
+def frontend_page_rename(page_id):
+    """Rename a page from the Pages list without opening the editor.
+
+    Accepts `title` plus an optional `slug` (blank re-derives it from
+    the title). When the slug actually moves and `create_redirect` is
+    ticked, a `UrlRedirect` row is minted from the old public path to
+    the new one so inbound links don't start 404ing — the same table
+    the Redirects admin manages, matched by the `before_request` hook
+    in `create_app`.
+
+    Two ordering details matter:
+
+    * A redirect whose source is the page's NEW path would shadow the
+      page entirely (the redirect hook runs before routing), so any
+      such row is dropped. This is what makes renaming A→B→A work:
+      the second rename reclaims `/A` from the redirect the first one
+      left behind.
+    * A pending draft carries its own `title`/`slug` in `draft_json`.
+      Left alone, publishing that draft would silently revert the
+      rename, so the stashed snapshot is patched to match.
+    """
+    import json as _json
+    from .models import Page
+    page = Page.query.get_or_404(page_id)
+    title = (request.form.get("title") or "").strip()[:200]
+    if not title:
+        flash("Page title required", "danger")
+        return redirect(_safe_referrer() or url_for("main.frontend_pages"))
+
+    old_slug = page.slug
+    raw_slug = (request.form.get("slug") or "").strip()
+    new_slug = _unique_page_slug(_slugify_page(raw_slug or title),
+                                 exclude_id=page.id)
+    slug_changed = (new_slug != old_slug)
+
+    page.title = title
+    page.slug = new_slug
+
+    # Keep a stashed draft in step with the live row so publishing it
+    # later doesn't roll the rename back.
+    if page.draft_json:
+        try:
+            draft = _json.loads(page.draft_json)
+        except (ValueError, TypeError):
+            draft = None
+        if isinstance(draft, dict):
+            draft["title"] = title
+            draft["slug"] = new_slug
+            page.draft_json = _json.dumps(draft)
+
+    notes = []
+    if slug_changed:
+        # The homepage is served at `/`, so its slug isn't a public URL
+        # and there's nothing to redirect from.
+        s = _get_site_setting()
+        is_homepage = bool(s and s.homepage_page_id == page.id)
+        new_path = f"/{new_slug}"
+
+        # Reclaim the new path from any redirect pointing away from it —
+        # otherwise the renamed page is unreachable.
+        shadow = UrlRedirect.query.filter(
+            UrlRedirect.source_path.in_([new_path, new_path + "/"])).all()
+        for row in shadow:
+            db.session.delete(row)
+        if shadow:
+            notes.append(f"removed a redirect that would have shadowed {new_path}")
+
+        if request.form.get("create_redirect") == "1" and not is_homepage:
+            old_path = f"/{old_slug}"
+            existing = UrlRedirect.query.filter(
+                UrlRedirect.source_path == old_path).first()
+            if existing:
+                existing.target_path = new_path
+                notes.append(f"updated the existing redirect from {old_path}")
+            else:
+                db.session.add(UrlRedirect(source_path=old_path,
+                                           target_path=new_path))
+                notes.append(f"added a 301 from {old_path}")
+
+    _record_page_revision(page, "rename", _page_snapshot_from_row(page))
+    db.session.commit()
+    msg = f"Renamed to “{title}”"
+    if slug_changed:
+        msg += f" — now served at /{new_slug}"
+    if notes:
+        msg += " (" + "; ".join(notes) + ")"
+    flash(msg, "success")
+    return redirect(_safe_referrer() or url_for("main.frontend_pages"))
 @bp.route("/frontend/pages/<int:page_id>/delete", methods=["POST"])
 @admin_required
 def frontend_page_delete(page_id):

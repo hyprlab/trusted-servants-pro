@@ -1,0 +1,42 @@
+{# ── Row actions menu ──────────────────────────────────────────────
+   Collapses a table row's action buttons into a single dropdown
+   trigger. Used by the admin list tables (Pages, and any other list
+   whose `.row-actions` cluster is wide enough to force the table past
+   its container).
+
+   Why this exists: a row of six buttons has a min-content width equal
+   to the SUM of those buttons, and a table cell can never render
+   narrower than its min-content. That put a ~1135px floor under the
+   Pages table and produced a document-level horizontal scrollbar on
+   every viewport below ~1476px. One trigger button is ~100px, so the
+   column stops driving the table's width entirely.
+
+   Usage — the caller supplies the menu items verbatim, so each table
+   keeps its own links / POST forms / confirm handlers:
+
+     {% from "_row_menu.html" import row_menu %}
+     ...
+     <td class="row-actions">
+       {% call row_menu() %}
+         <a class="row-menu-item" href="...">View</a>
+         <form method="post" action="..." onsubmit="return confirm('…');">
+           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+           <button type="submit" class="row-menu-item row-menu-item-danger">Delete</button>
+         </form>
+       {% endcall %}
+     </td>
+
+   The panel is `position: fixed` and placed by app.js on open (see the
+   `initRowMenus` IIFE) so it can't be clipped by the table's or card's
+   overflow — the same approach the design-token popover uses. #}
+{% macro row_menu(label='Actions') -%}
+<div class="row-menu" data-row-menu>
+  <button type="button" class="btn btn-sm row-menu-btn" data-row-menu-btn
+          aria-haspopup="menu" aria-expanded="false" title="{{ label }}">
+    <span>{{ label }}</span>{{ icon('chevron-down', 'row-menu-caret') }}
+  </button>
+  <div class="row-menu-panel" data-row-menu-panel role="menu" hidden>
+    {{ caller() }}
+  </div>
+</div>
+{%- endmacro %}

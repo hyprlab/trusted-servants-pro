@@ -2642,7 +2642,13 @@ body.has-fe-save-bar .fe-admin-main .form-actions { display: none; }
    tap on a phone vs. scanning a wrap-flex of 14 pills, and the group
    labels stay meaningful (Setup / Structure / Content). */
 .fe-subnav-select-wrap { display: none; }
-@media (max-width: 900px) {
+/* Web Frontend admin shell. Collapses the 248px subnav column (plus its
+   32px gap) into the stacked "Jump to:" select. Raised from 900px to
+   1000px: between those two the sidebar was still claiming 280px of a
+   viewport that didn't have it to spare, which squeezed the content
+   column hard enough that the list tables spilled past their cards.
+   Every Web Frontend page gains that width in the band, not just Pages. */
+@media (max-width: 1000px) {
   .fe-admin-layout { grid-template-columns: 1fr; gap: 18px; }
   .fe-subnav { position: static; }
   .fe-subnav-head { padding-bottom: 10px; margin-bottom: 8px; }
@@ -2832,7 +2838,13 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
   box-shadow: 0 4px 16px rgba(0,0,0,.18);
 }
 .heading-help.open .help-tooltip { display: block; }
-.top-actions { display: flex; gap: 8px; }
+/* Header action row. Wraps for the same reason `.row-actions` does — a
+   nowrap flex row can't render narrower than the sum of its buttons, so
+   a page with a filter cluster plus two or three CTAs (Posts,
+   Announcements & Events) pushed the document wider than the viewport.
+   Below 720px the media query further down swaps this for a horizontal
+   swipe strip with an edge mask, which stays as-is. */
+.top-actions { display: flex; flex-wrap: wrap; gap: 8px; row-gap: 6px; }
 .menu-btn {
   display: none; background: transparent; border: 0; padding: 0;
   color: var(--text); width: 38px; height: 38px; border-radius: 8px; cursor: pointer;
@@ -3243,11 +3255,21 @@ button.chip { font-family: inherit; }
    default <form> block-level layout so the button sits inline with
    the rest of the meta row's chips. */
 .fe-page-edit-make-homepage { display: inline; margin: 0; padding: 0; }
-/* Highlight the current-homepage row in the Pages admin list so it's
-   easy to spot at a glance. Subtle tint, no border change. */
-.tbl tr.is-homepage td {
-  background: color-mix(in srgb, var(--brand) 5%, var(--panel));
-}
+/* Officers / Fellowships editors are tables of text inputs. A bare
+   <input> carries a browser-default intrinsic width (~20 characters,
+   which is ~211px at this table's type size) and that becomes the
+   column's min-content — four of them side by side put a ~1060px floor
+   under the table, so it spilled past its card on anything narrower
+   than a large desktop. Letting each input fill its column instead
+   makes the columns shrinkable; the cell `min-width: 0` stops the
+   input's own intrinsic size from re-imposing the floor. */
+.officers-tbl input[type="text"],
+.officers-tbl input[type="tel"],
+.officers-tbl input[type="email"],
+.fellowships-tbl input[type="text"],
+.fellowships-tbl input[type="url"] { width: 100%; min-width: 0; }
+.officers-tbl td, .fellowships-tbl td { min-width: 0; }
+
 /* Intergroup library detail toolbar: search + sort + category filter
    pills sit above the file list. Wraps on narrow screens. */
 .ig-lib-toolbar {
@@ -3700,6 +3722,20 @@ button.chip { font-family: inherit; }
 
 .tbl { width: 100%; border-collapse: collapse; }
 .tbl th, .tbl td { text-align: left; padding: 12px 8px; border-bottom: 1px solid var(--border); font-size: 1rem; vertical-align: middle; }
+/* Let unbreakable strings break rather than put a floor under the whole
+   table. `anywhere` — not `break-word` — because only `anywhere` shrinks
+   the cell's min-content width, which is what actually lets the table fit
+   its container. Scoped to the elements that actually carry long opaque
+   tokens (slugs, paths, filenames in <code>; mailto/href text) rather than
+   every cell: a blanket rule also chops short labels, which is how
+   "Standard" and "PUBLISHED" ended up hyphen-less-wrapped mid-word. */
+.tbl td code,
+.tbl td a[href^="mailto:"],
+.tbl td .u-breakable { overflow-wrap: anywhere; }
+/* Pills and status chips are atomic labels — never break them. Their
+   natural width is small, so holding them on one line costs the table
+   almost nothing. */
+.tbl td .chip, .tbl td .post-chip { white-space: nowrap; }
 .tbl th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: .5px; }
 .tbl input, .tbl select { padding: 6px 8px; font-size: 0.7812rem; }
 .nowrap { white-space: nowrap; }
@@ -5493,7 +5529,13 @@ body.embed .card.data-card:last-child {
   border-left: 4px solid var(--brand);
 }
 .embed-actions { display: flex; justify-content: flex-end; margin-bottom: 12px; }
-.view-controls { display: inline-flex; align-items: center; gap: 12px; margin-right: 8px; }
+/* Wraps for the same reason `.top-actions` does: as a single nowrap
+   child it was one ~490px block the header couldn't break, so the
+   Posts / Announcements headers overflowed the document between the
+   480px swipe-strip breakpoint and full width. (Below 480px the strip
+   rules take over and set `flex-wrap: nowrap` again deliberately.) */
+.view-controls { display: inline-flex; flex-wrap: wrap; align-items: center;
+  gap: 12px; row-gap: 8px; margin-right: 8px; min-width: 0; }
 .view-toggle { display: inline-flex; gap: 0; }
 .view-toggle .btn { border-radius: 0; border-right-width: 0; }
 .view-toggle .btn:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
@@ -5877,9 +5919,150 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
 .library-row.is-granular .mode-label-all { color: var(--muted); }
 .library-row.is-granular .mode-label-granular { color: var(--text); font-weight: 600; }
 .library-row:not(.is-granular) .mode-label-all { font-weight: 600; }
-.row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+/* Row-action button clusters in admin tables (Pages, Popups, Redirects,
+   Forms, Media, Posts, …). `flex-wrap: wrap` is load-bearing, not
+   cosmetic: a nowrap flex row's min-content width is the SUM of its
+   buttons, and a table cell can never render narrower than its
+   min-content. Six actions (View / Preview / Edit / Rename / Make
+   homepage / Delete) therefore put a ~1135px floor under the table,
+   which — with the admin sidebar — pushed the whole document to
+   ~1476px and produced a horizontal scrollbar on every viewport below
+   that, all the way down to the 720px breakpoint. Wrapping drops the
+   min-content to the widest SINGLE button, so the cluster reflows into
+   two or three short rows and the table fits its container instead. */
+.row-actions { display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: flex-end; gap: 6px; row-gap: 4px; }
 .row-actions form { margin: 0; display: inline-flex; align-items: center; }
 .tbl .row-actions .btn { vertical-align: middle; }
+
+/* ── Row actions dropdown (templates/_row_menu.html) ──────────────
+   One trigger in place of the whole button cluster. The panel is
+   `position: fixed` and positioned by app.js's initRowMenus on open —
+   an absolutely-positioned panel would be clipped by the card's
+   overflow and by `.card .tbl { overflow-x: auto }` below 720px. */
+.row-menu { position: relative; display: inline-flex; }
+.row-menu-btn { display: inline-flex; align-items: center; gap: 5px;
+  white-space: nowrap; flex: 0 0 auto; }
+.row-menu-caret { width: 14px; height: 14px; transition: transform .15s ease; }
+.row-menu.is-open .row-menu-caret { transform: rotate(180deg); }
+.row-menu.is-open .row-menu-btn { background: var(--panel-2); border-color: var(--brand); }
+.row-menu-panel {
+  position: fixed; z-index: 1100; min-width: 184px; padding: 6px;
+  display: flex; flex-direction: column; gap: 1px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18),
+              0 4px 12px rgba(15, 23, 42, 0.10);
+}
+.row-menu-panel[hidden] { display: none !important; }
+.row-menu-panel form { margin: 0; display: block; }
+/* Items are a mix of <a> and <button type=submit> (POST actions keep
+   their own form + confirm), so the shared look is defined on the
+   class rather than on either element. */
+.row-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text);
+  font: inherit; font-size: 0.875rem; text-align: left;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.row-menu-item:hover, .row-menu-item:focus-visible {
+  background: var(--panel-2); color: var(--text); text-decoration: none;
+}
+.row-menu-item .icon { width: 15px; height: 15px; flex: 0 0 auto;
+  color: var(--muted); }
+.row-menu-item-danger { color: var(--danger, #dc2626); }
+.row-menu-item-danger:hover, .row-menu-item-danger:focus-visible {
+  background: color-mix(in srgb, var(--danger, #dc2626) 12%, var(--panel));
+  color: var(--danger, #dc2626);
+}
+.row-menu-item-danger .icon { color: inherit; }
+/* Hairline above the destructive group. */
+.row-menu-sep { height: 1px; margin: 5px 4px; background: var(--border); }
+
+/* Reveal the trigger on row hover so the list reads as data, not
+   chrome. Faded with `opacity` rather than `display`/`visibility`: the
+   button keeps its box either way, so the actions column never changes
+   width and rows don't jump as the pointer moves down the table.
+
+   Three cases keep it visible, because hover alone would strand the
+   control for anyone not using a mouse:
+     • `:focus-within` — tabbing into the row (or onto the trigger).
+     • `.is-open` — the menu is open, so the pointer has left the row.
+     • coarse pointers — no hover state exists on touch at all. */
+.tbl tbody tr .row-menu-btn { opacity: 0; transition: opacity .12s ease; }
+.tbl tbody tr:hover .row-menu-btn,
+.tbl tbody tr:focus-within .row-menu-btn,
+.tbl tbody tr .row-menu.is-open .row-menu-btn { opacity: 1; }
+@media (hover: none) {
+  .tbl tbody tr .row-menu-btn { opacity: 1; }
+}
+
+/* Pages list column sizing. The slug is the only arbitrarily-long cell,
+   and `overflow-wrap: anywhere` makes its min-content ~1 character — so
+   the auto table layout happily starves it to a 6-line sliver. A floor
+   keeps it to about two lines. Below 1200px the Layout column is
+   dropped: it is the lowest-information column on the table (the wiki
+   template was retired, so `_layout_label` now renders "Standard" for
+   every row) and reclaiming its ~93px is what lets the remaining
+   columns fit without spilling past the card. */
+#fe-pages-tbl td:nth-child(3) { min-width: 14ch; }
+@media (max-width: 1200px) {
+  #fe-pages-tbl th:nth-child(4), #fe-pages-tbl td:nth-child(4) { display: none; }
+  #fe-pages-tbl th, #fe-pages-tbl td { padding: 10px 6px; }
+}
+
+/* Phone layout — each row becomes a three-line card:
+
+     [x] Page title                        [ Actions v ]
+         /slug
+         PUBLISHED  2026-06-09
+
+   A grid on the <tr> rather than the `display:block` + `data-label`
+   stack the other narrow tables use: this list only has four things
+   worth showing, and pairing status with the date on one line keeps a
+   row about half as tall as a labelled stack.
+
+   It also has to override the generic
+   `.card .tbl { display: block; overflow-x: auto }` rule, which turns
+   the table into its own horizontal scroll container and pushes the
+   Actions column off the right edge where a touch user can't reach it.
+   `#id` outranks `.card .tbl`. */
+@media (max-width: 720px) {
+  #fe-pages-tbl { display: block; overflow-x: visible; width: 100%; }
+  #fe-pages-tbl thead { display: none; }
+  #fe-pages-tbl tbody { display: block; }
+  #fe-pages-tbl tr {
+    display: grid;
+    /* checkbox | status | date (takes the slack) | actions */
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    column-gap: 8px; row-gap: 3px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  #fe-pages-tbl td { display: block; border: none; padding: 0;
+    white-space: normal; min-width: 0; }
+  /* The uppercase field labels the other stacked tables print are
+     redundant here — a slug and a date are self-describing. */
+  #fe-pages-tbl td[data-label]::before { content: none; }
+  #fe-pages-tbl td.fe-pages-check-col { grid-column: 1; grid-row: 1;
+    align-self: center; width: auto; }
+  #fe-pages-tbl td.fe-pages-title-cell { grid-column: 2 / 4; grid-row: 1;
+    align-self: center; font-weight: 600; font-size: 1rem; }
+  #fe-pages-tbl td[data-label="URL"] { grid-column: 2 / 4; grid-row: 2; }
+  #fe-pages-tbl td[data-label="URL"] code { font-size: 0.875rem; color: var(--muted); }
+  #fe-pages-tbl td[data-label="Status"] { grid-column: 2; grid-row: 3;
+    align-self: center; }
+  #fe-pages-tbl td[data-label="Updated"] { grid-column: 3; grid-row: 3;
+    align-self: center; justify-self: start; font-size: 0.8125rem; }
+  /* Actions sits at the right, vertically centred against all three
+     lines, and never fades — there's no hover on a phone. */
+  #fe-pages-tbl td.row-actions { grid-column: 4; grid-row: 1 / span 3;
+    align-self: center; width: auto; }
+  #fe-pages-tbl tbody tr .row-menu-btn { opacity: 1; }
+  #fe-pages-tbl td:nth-child(3) { min-width: 0; }
+}
+
+
 
 .intergroup-toggle-row { display: flex; flex-direction: row; align-items: center;
   justify-content: space-between; gap: 12px; margin-top: 8px; }
@@ -7315,8 +7498,13 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
 
   .fellowships-tbl { overflow-x: visible; }
   .fellowships-tbl thead { display: none; }
-  .fellowships-tbl tbody, .fellowships-tbl tr { display: block; }
-  .fellowships-tbl tr { padding: 12px 0; border-bottom: 2px solid var(--border); }
+  .fellowships-tbl tbody { display: block; }
+  /* Same grid treatment as the Officers table below — remove button
+     bottom-aligned to the Name input, not to its label. */
+  .fellowships-tbl tr { display: grid;
+    grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px;
+    padding: 12px 0; border-bottom: 2px solid var(--border); }
+  .fellowships-tbl td { grid-column: 1; }
   .fellowships-tbl td { display: block; border: none; padding: 4px 0; white-space: normal; }
   /* display:block above would defeat the [hidden] attribute — keep the
      clone-template row and the Virtual rows' country/region cells gone. */
@@ -7324,8 +7512,54 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .fellowships-tbl td[data-label]::before { content: attr(data-label); display: block;
     font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase;
     letter-spacing: 0.04em; margin-bottom: 2px; }
-  .fellowships-tbl input[type="text"], .fellowships-tbl input[type="url"] { width: 100%; }
-  .fellowships-tbl td:last-child { padding-top: 8px; }
+  /* One declared field height across both stacked tables, shared by the
+     remove button, so bottom-aligning them lines their centres up
+     exactly instead of "near enough". 1rem also stops iOS zooming the
+     page in when a field takes focus (it does that under 16px). */
+  .fellowships-tbl, .officers-tbl { --stack-field-h: 40px; }
+  .fellowships-tbl input[type="text"], .fellowships-tbl input[type="url"],
+  .officers-tbl input[type="text"], .officers-tbl input[type="tel"],
+  .officers-tbl input[type="email"] {
+    width: 100%; font-size: 1rem; height: var(--stack-field-h); }
+  .fellowships-tbl .fellowship-remove-cell .btn,
+  .officers-tbl .officer-remove-cell .btn {
+    height: var(--stack-field-h); }
+  /* Remove button pins to the card's top-right, matching the Officers
+     table above, instead of sitting full-width at the bottom of the
+     stack. Name is the row's identity, so it's the cell that pads
+     clear of the button. */
+  .fellowships-tbl td.fellowship-remove-cell { grid-column: 2; grid-row: 1;
+    align-self: end; width: auto; padding: 0 0 4px; }
+
+  /* Intergroup Officers (Settings → Global) — same stacked-card
+     treatment as the Fellowships table directly above. As a grid of
+     four text inputs it is unreadable squeezed into a phone's width:
+     each field becomes a full-width labelled row and the remove button
+     pins to the card's top-right. `tr[hidden]` must keep winning over
+     `display: block` or the JS clone-template row would render. */
+  .officers-tbl { display: block; overflow-x: visible; }
+  .officers-tbl thead { display: none; }
+  .officers-tbl tbody { display: block; }
+  /* Grid, not absolute positioning: the remove button shares grid row 1
+     with the first field and is bottom-aligned to it, so it lines up
+     with the INPUT rather than floating level with the field's little
+     uppercase label. Grid derives that position from the cell itself,
+     so it stays correct if the label's size or the row padding ever
+     changes. */
+  .officers-tbl tr { display: grid;
+    grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px;
+    padding: 12px 0 14px; border-bottom: 2px solid var(--border); }
+  .officers-tbl td { grid-column: 1; }
+  .officers-tbl tr[hidden], .officers-tbl td[hidden] { display: none; }
+  .officers-tbl td { display: block; border: none; padding: 4px 0;
+    white-space: normal; }
+  .officers-tbl td[data-label]::before {
+    content: attr(data-label); display: block;
+    font-size: 0.75rem; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+
+  .officers-tbl td.officer-remove-cell { grid-column: 2; grid-row: 1;
+    align-self: end; width: auto; padding: 0 0 4px; }
 
   /* .tbl.wt-* (not bare .wt-*-table): the shared watchtower td rule
      further down the sheet sets padding + border-top at equal
@@ -7405,6 +7639,13 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .topbar h1 { flex: 1 1 auto; min-width: 0; font-size: 1.125rem; }
   .top-actions {
     flex: 0 0 100%; order: 2;
+    /* A flex item's automatic minimum size is its min-content width —
+       for a nowrap strip that's the SUM of its buttons, which let the
+       bar push the document wider than the viewport instead of
+       scrolling inside itself. `min-width: 0` lets the `overflow-x`
+       below actually engage, so the swipe strip stays a swipe strip
+       and stops dragging a page-level scrollbar along with it. */
+    min-width: 0; max-width: 100%;
     flex-wrap: nowrap;
     overflow-x: auto; overflow-y: hidden;
     gap: 8px; justify-content: flex-start;
@@ -9858,6 +10099,26 @@ html[data-theme="dark"] .fe-page-history-chip-draft {
   background: rgba(245, 158, 11, 0.22); color: #fcd34d;
   border-color: rgba(245, 158, 11, 0.5);
 }
+/* Rename revisions — a live write like Publish, but a metadata-only
+   one, so it reads as violet rather than the teal "content went out". */
+.fe-page-history-chip-rename {
+  background: rgba(139, 92, 246, 0.16); color: #6d28d9;
+  border: 1px solid rgba(139, 92, 246, 0.42);
+}
+html[data-theme="dark"] .fe-page-history-chip-rename {
+  background: rgba(139, 92, 246, 0.24); color: #c4b5fd;
+  border-color: rgba(139, 92, 246, 0.5);
+}
+/* Rename modal's redirect offer. Qualified with `.form label` so the
+   selector outweighs `.form label { flex-direction: column }`, which
+   would otherwise stack the checkbox above its own caption — same
+   trick as `.form label.fellowship-virtual-toggle` above. */
+.form label.fe-rename-redirect { flex-direction: row; align-items: flex-start;
+  gap: 8px; font-weight: 400; }
+.form label.fe-rename-redirect input[type=checkbox] { flex: 0 0 auto;
+  margin-top: 3px; }
+.form label.fe-rename-redirect > span { font-size: .9rem; }
+.form label.fe-rename-redirect code { font-weight: 600; }
 .fe-page-history-restore { margin: 0; flex: 0 0 auto; }
 .fe-page-history-loading { padding: 24px 0; text-align: center; }
 
