@@ -6,6 +6,22 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.18.9] — 2026-09-14
+
+### Changed
+
+- **WeasyPrint 69.0 → 70.0.** The PDF engine behind the printable meeting
+  list, the recovery-contacts contact sheet, and reading PDFs. Every
+  transitive pin already satisfied 70.0's floors (`pydyf>=0.11`,
+  `tinyhtml5>=2.0.0b1`, `tinycss2>=1.5`, `cssselect2>=0.8`, `fonttools>=4.59.2`,
+  `Pillow>=9.1`), so `weasyprint` is the only line that moved.
+  - Verified against 69.0 output: `/printlist.pdf` and `/contactlist.pdf`
+    render the same page counts with byte-identical extracted text;
+    `/contactlist.pdf` is pixel-identical. `/printlist.pdf` differs in 0.19%
+    of pixels, all of it sub-pixel glyph shaping inside the day-header pills
+    — same strings, same positions. Its ~6% smaller file is compression, not
+    dropped content.
+
 ## [2.18.8] — 2026-09-14
 
 ### Changed
