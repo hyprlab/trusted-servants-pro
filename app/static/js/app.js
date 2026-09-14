@@ -4228,6 +4228,84 @@
 })();
 
 
+// ── SAVE BAR ⇄ OPEN MODAL DOCKING ──────────────────────────────────────────
+// The frontend admin's yellow bar is fixed to the subnav column, which is
+// exactly where you're NOT looking while a block-editor modal is open —
+// and it sits behind the backdrop blur besides. While a modal is open
+// and the bar is showing, pin it to the modal panel's lower-left corner
+// instead. Coordinates are written inline from the panel's rect (rather
+// than reparenting the bar into the modal) so the feSaveBar handler,
+// the is-leaving animation, and the `hidden` toggling all keep working
+// on the same element. Re-placed on: modal open/close, bar show/hide,
+// window resize, and the panel changing size as its content loads.
+(function feSaveBarModalDock(){
+  const bar = document.getElementById('fe-save-bar') || document.getElementById('footer-save-bar');
+  if (!bar) return;
+  const PAD = 16;
+  let ro = null, watched = null;
+
+  function openPanel(){
+    const open = document.querySelectorAll('.modal.open');
+    // Last opened wins — pickers (icon / media) open on top of block modals.
+    const m = open[open.length - 1];
+    return m ? m.querySelector('.modal-panel') : null;
+  }
+  function watch(panel){
+    if (watched === panel) return;
+    if (ro) { ro.disconnect(); ro = null; }
+    if (watched) watched.removeEventListener('transitionend', place);
+    watched = panel;
+    if (!panel) return;
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver(place);
+      ro.observe(panel);
+    }
+    // The panel slides in on a transform transition when the modal
+    // opens; a rect read mid-slide lands the bar a few px low. Neither
+    // observer sees a transform settle, so re-place on transitionend
+    // (with a timer fallback for reduced-motion / no-transition cases).
+    panel.addEventListener('transitionend', place);
+    setTimeout(place, 260);
+  }
+  function undock(){
+    watch(null);
+    if (!bar.classList.contains('is-in-modal')) return;
+    bar.classList.remove('is-in-modal');
+    bar.style.left = '';
+    bar.style.bottom = '';
+  }
+  function place(){
+    const panel = openPanel();
+    if (!panel || bar.hidden) { undock(); return; }
+    const r = panel.getBoundingClientRect();
+    if (!r.width) { undock(); return; }
+    watch(panel);
+    // Only write when something actually changes. classList.add() of a
+    // token that's already present still rewrites the attribute — and
+    // that fires a mutation record — so an unconditional add here would
+    // re-trigger the observer below in a microtask loop and hang the
+    // page.
+    if (!bar.classList.contains('is-in-modal')) bar.classList.add('is-in-modal');
+    const left = Math.round(r.left + PAD) + 'px';
+    const bottom = Math.round(window.innerHeight - r.bottom + PAD) + 'px';
+    if (bar.style.left !== left) bar.style.left = left;
+    if (bar.style.bottom !== bottom) bar.style.bottom = bottom;
+  }
+
+  // Modal open/close is a class flip on the .modal; bar show/hide is the
+  // `hidden` attribute (plus is-leaving). One observer covers both.
+  const mo = new MutationObserver(records => {
+    for (const rec of records) {
+      const t = rec.target;
+      if (t === bar || (t.classList && t.classList.contains('modal'))) { place(); return; }
+    }
+  });
+  mo.observe(document.body, { attributes: true, subtree: true,
+                              attributeFilter: ['class', 'hidden'] });
+  window.addEventListener('resize', place);
+  place();
+})();
+
 // ── ICON PICKER MODAL ───────────────────────────────────────────────────────
 // Triggered by any button with [data-open-icon-picker]. The trigger stores
 // selector strings pointing at the hidden icon-name, color, and size inputs

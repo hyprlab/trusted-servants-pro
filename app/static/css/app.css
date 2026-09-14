@@ -2608,6 +2608,23 @@ body.fe-admin-autohide #footer-save-bar { left: var(--content-px, 28px); }
     left: 12px; right: 12px; bottom: 12px; width: auto;
   }
 }
+/* Docked-to-modal state. While a block-editor modal is open, app.js
+   pins the bar to that modal panel's lower-left corner by writing
+   `left` / `bottom` inline from the panel's rect — the yellow bar then
+   reads as part of the dialog being edited, not something floating
+   off in the sidebar column behind the backdrop. Inside a modal there's
+   room for the single-row layout again, so the stacked column form
+   used in the narrow subnav column is undone here. `body` prefix so
+   this outranks the mobile rule above, which would otherwise re-pin
+   `right` and stretch the bar across the viewport. */
+body #fe-save-bar.is-in-modal, body #footer-save-bar.is-in-modal {
+  right: auto; width: auto; max-width: min(380px, calc(100vw - 32px));
+  flex-wrap: nowrap; gap: 12px; padding: 10px 14px;
+}
+body #fe-save-bar.is-in-modal .fe-save-bar-msg,
+body #footer-save-bar.is-in-modal .fe-save-bar-msg { flex: 0 1 auto; text-align: left; }
+body #fe-save-bar.is-in-modal .fe-save-bar-btn.btn,
+body #footer-save-bar.is-in-modal .fe-save-bar-btn.btn { flex: 0 0 auto; padding: 6px 14px; }
 @keyframes fe-save-appear {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -2959,6 +2976,19 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
    Below 720px the media query further down swaps this for a horizontal
    swipe strip with an edge mask, which stays as-is. */
 .top-actions { display: flex; flex-wrap: wrap; gap: 8px; row-gap: 6px; }
+/* Topbar actions run at the same 13px as the save bar's buttons. At the
+   base 1rem they stood 38px tall beside the 27px `.btn-sm` filter pills
+   in the same strip — two visibly different button sizes on one line —
+   and the extra width pushed the row to wrap two or three deep well
+   before mobile. `.btn-sm` is left alone (already smaller) and anything
+   inside a modal rendered from a `top_actions` block (the theme picker's
+   dialog) keeps full-size buttons. Icons are `1em`, so they scale with
+   the text automatically. */
+.topbar .top-actions .btn:not(.btn-sm),
+.topbar .top-actions select { font-size: 0.8125rem; }
+.topbar .top-actions .btn:not(.btn-sm) { padding: 7px 12px; }
+.topbar .top-actions .modal .btn { font-size: 1rem; padding: 8px 14px; }
+.topbar .top-actions .modal .btn.btn-sm { font-size: 0.75rem; padding: 5px 10px; }
 .menu-btn {
   display: none; background: transparent; border: 0; padding: 0;
   color: var(--text); width: 38px; height: 38px; border-radius: 8px; cursor: pointer;
@@ -10311,7 +10341,9 @@ html[data-theme="dark"] .fe-page-history-chip-rename {
      eats the card's `padding-bottom` so sticky pins to the panel's
      true bottom edge (no empty strip below). */
   margin: 24px -2rem -2rem;
-  padding: 14px 2rem;
+  /* 22px vertical (was 14) — the docked yellow save bar sits in this
+     strip's left half, and at 14px it pressed against the panel edge. */
+  padding: 22px 2rem;
   background: color-mix(in srgb, var(--panel) 94%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -10335,6 +10367,13 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
 .fe-page-edit-modal-panel {
   padding: 0;
   overflow-y: auto;
+  /* A scroll container's own scrollbar ignores border-radius and
+     squares off the two corners on its side. clip-path clips the
+     element's entire rendering — scrollbar included — so the 14px
+     radius holds on the right edge too. (Making the nested card the
+     scroller instead would fix the corners but insets the sticky head
+     / footer by the card's 2rem padding.) */
+  clip-path: inset(0 round 14px);
   position: relative;
   /* Flex column lets the close button align-self to the right edge as
      a sticky child without wrapping it in extra markup. */
@@ -12198,6 +12237,12 @@ input.be-container-color-text.is-invalid {
   pointer-events: none;
 }
 .fe-page-palette-floating > * { pointer-events: auto; }
+/* While any modal is up, the palette has to sit *under* its backdrop
+   (modals are z-index 100) so it's blurred and faded with the rest of
+   the page rather than floating crisp and clickable over the dialog.
+   Clicks in that area then land on the backdrop like anywhere else. */
+body:has(.modal.open) .fe-page-palette-floating { z-index: 90; }
+body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 
 /* ── FAB (collapsed state) ─────────────────────────────────────
    A pill-shaped button that reads "+ Add block" — visible whenever
