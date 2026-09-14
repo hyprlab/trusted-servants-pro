@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_dynbg_picker.html" import dynbg_trigger with context %}
 {% block heading %}{{ form.title }}{% endblock %}
 {% block heading_help %}Configure this custom form. Phase 2 adds a drag-and-drop field builder below the settings card — for now you can set title, URL, recipients, and what happens after submit.{% endblock %}
@@ -38,13 +39,11 @@
          renders until the toggle flips on. #}
       <section class="card">
         <div class="card-head">
-          <h2>Visibility</h2>
-          <span class="muted smaller">Off-switch for this form site-wide. When off, the public URL <code>/{{ form.slug }}</code> 404s and any CTA pointing at it hides itself.</span>
+          <h2>Visibility {% call chip('Visibility') %}Off-switch for this form site-wide. When off, the public URL <code>/{{ form.slug }}</code> 404s and any CTA pointing at it hides itself.{% endcall %}</h2>
         </div>
         <li class="special-page-row" style="list-style:none; padding: 1rem;">
           <div class="special-page-info">
-            <div class="u-name">Form enabled</div>
-            <p class="muted small">Hard off-switch. Settings, fields, and recipient list below are preserved when off.</p>
+            <div class="u-name">Form enabled {% call chip() %}Hard off-switch. Settings, fields, and recipient list below are preserved when off.{% endcall %}</div>
           </div>
           <label class="mode-toggle">
             <input type="checkbox" name="enabled" value="1" {% if form.enabled %}checked{% endif %}>
@@ -55,8 +54,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Submission access</h2>
-          <span class="muted smaller">Admins always manage this form's submissions. Grant extra roles below — each granted role gets this form in their sidebar's <b>Forms</b> section, with its own inbox + archive, and can view, archive, delete, and export its entries (they can't edit the form itself).</span>
+          <h2>Submission access {% call chip('Submission access') %}Admins always manage this form's submissions. Grant extra roles below — each granted role gets this form in their sidebar's <b>Forms</b> section, with its own inbox + archive, and can view, archive, delete, and export its entries (they can't edit the form itself).{% endcall %}</h2>
         </div>
         {% set _roles = form.submission_role_set() %}
         <div class="fe-form-access-roles">
@@ -68,8 +66,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Background</h2>
-          <span class="muted smaller">Optional animated/dynamic backdrop for this form's public page. Leave unset to inherit the site-wide Forms background from the Templates page.</span>
+          <h2>Background {% call chip('Background') %}Optional animated/dynamic backdrop for this form's public page. Leave unset to inherit the site-wide Forms background from the Templates page.{% endcall %}</h2>
         </div>
         <div class="fe-form-bg-picker" style="padding: 1rem;">
           {{ dynbg_trigger(field_name='bg_dynamic_key',
@@ -82,8 +79,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Link preview (Open Graph)</h2>
-          <span class="muted smaller">The image shown when this form's link is shared on Slack, iMessage, Facebook, Twitter/X, etc. The title and description come from this form's title and description above. When no image is set, the site-wide frontend OG image is used.</span>
+          <h2>Link preview (Open Graph) {% call chip('Link preview (Open Graph)') %}The image shown when this form's link is shared on Slack, iMessage, Facebook, Twitter/X, etc. The title and description come from this form's title and description above. When no image is set, the site-wide frontend OG image is used.{% endcall %}</h2>
         </div>
         <div class="form-grid" style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; padding:1rem;">
           <div>
@@ -127,9 +123,8 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Settings</h2>
-          <span class="muted smaller">Public URL is built from the slug — visitors reach this form at
-            <code>/{{ form.slug }}</code>.</span>
+          <h2>Settings {% call chip('Settings') %}Public URL is built from the slug — visitors reach this form at
+            <code>/{{ form.slug }}</code>.{% endcall %}</h2>
         </div>
 
         {# Freshly-created stubs land here with a placeholder title +
@@ -145,10 +140,9 @@
             <input type="text" name="title" value="{{ form.title }}" required maxlength="200"
                    {% if _is_placeholder %}autofocus data-select-on-focus{% endif %}>
           </label>
-          <label>URL slug
+          <label>{% call hrow('URL slug') %}Lowercase letters, numbers, and hyphens only.{% endcall %}
             <input type="text" name="slug" value="{{ form.slug }}"
                    pattern="[a-z0-9\-]*" maxlength="120" required>
-            <span class="muted smaller">Lowercase letters, numbers, and hyphens only.</span>
           </label>
         </div>
         {% if _is_placeholder %}
@@ -162,24 +156,20 @@
         </script>
         {% endif %}
 
-        <label>Description <span class="muted smaller">— Markdown supported. Shown above the form fields.</span>
+        <label>{% call hrow('Description') %}Markdown supported. Shown above the form fields.{% endcall %}
           <textarea name="description" rows="4"
                     placeholder="Optional intro text — **bold**, *italic*, [links](https://example.com), - lists, etc.">{{ form.description or '' }}</textarea>
         </label>
 
-        <label>Recipient emails
+        <label>{% call hrow('Recipient emails') %}Comma-separated. Each address receives one email per submission.{% endcall %}
           <input type="text" name="recipients_csv" value="{{ form.recipients_csv or '' }}"
                  placeholder="alice@example.com, bob@example.com">
-          <span class="muted smaller">Comma-separated. Each address receives one email per submission.</span>
         </label>
 
         <fieldset class="fieldset">
-          <legend>On successful submit</legend>
-          <p class="muted small">
-            If <b>Redirect URL</b> is set, visitors are redirected there after submitting.
-            Otherwise we show <b>Thank-you message</b> inline on the same page.
-          </p>
-          <label>Redirect URL <span class="muted smaller">(optional)</span>
+          <legend>On successful submit {% call chip('On successful submit') %}If <b>Redirect URL</b> is set, visitors are redirected there after submitting.
+            Otherwise we show <b>Thank-you message</b> inline on the same page.{% endcall %}</legend>
+          <label><span class="field-label-row">Redirect URL <span class="muted smaller">(optional)</span></span>
             <input type="url" name="redirect_url" value="{{ form.redirect_url or '' }}"
                    placeholder="https://example.com/thanks">
           </label>
@@ -192,8 +182,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Fields</h2>
-          <span class="muted smaller">Drag fields by their handle to reorder. Click <b>Edit</b> on a card to change its label, options, and required state. <b>Add field</b> drops a new card at the bottom — pick the type from the dropdown.</span>
+          <h2>Fields {% call chip('Fields') %}Drag fields by their handle to reorder. Click <b>Edit</b> on a card to change its label, options, and required state. <b>Add field</b> drops a new card at the bottom — pick the type from the dropdown.{% endcall %}</h2>
         </div>
 
         {# Hidden input the JS keeps in sync with the visual order. The
@@ -218,7 +207,7 @@
                 <label>Label
                   <input type="text" name="field_{{ idx }}_label" value="{{ f.label }}" maxlength="200" required>
                 </label>
-                <label>Name <span class="muted smaller">(form key, optional)</span>
+                <label><span class="field-label-row">Name <span class="muted smaller">(form key, optional)</span></span>
                   <input type="text" name="field_{{ idx }}_name" value="{{ f.name }}" maxlength="80"
                          pattern="[a-z0-9_]*" placeholder="auto-from-label">
                 </label>
@@ -227,17 +216,17 @@
                 <input type="text" name="field_{{ idx }}_placeholder" value="{{ f.get('placeholder', '') }}" maxlength="200">
               </label>
               {% if f.type == 'checkboxes' %}
-              <label data-field-help-wrap>Help text <span class="muted smaller">— Markdown supported. Shown under the field title.</span>
+              <label data-field-help-wrap>{% call hrow('Help text') %}Markdown supported. Shown under the field title.{% endcall %}
                 <textarea name="field_{{ idx }}_help" rows="4" maxlength="2000"
                           placeholder="Add longer instructions here — **bold**, *italic*, [links](https://example.com), - lists, etc.">{{ f.get('help', '') }}</textarea>
               </label>
               {% else %}
-              <label data-field-help-wrap>Help text <span class="muted smaller">(shown under the field title)</span>
+              <label data-field-help-wrap>{% call hrow('Help text') %}Shown under the field title{% endcall %}
                 <input type="text" name="field_{{ idx }}_help" value="{{ f.get('help', '') }}" maxlength="500">
               </label>
               {% endif %}
               {% if f.type in ('select', 'radio', 'checkboxes') %}
-              <label>Options <span class="muted smaller">(one per line)</span>
+              <label><span class="field-label-row">Options <span class="muted smaller">(one per line)</span></span>
                 <textarea name="field_{{ idx }}_options" rows="4" placeholder="Option 1&#10;Option 2">{{ (f.get('options') or [])|join('\n') }}</textarea>
               </label>
               {% endif %}
@@ -269,7 +258,7 @@
                 <label>Label
                   <input type="text" name="field___IDX___label" value="" maxlength="200" required>
                 </label>
-                <label>Name <span class="muted smaller">(form key, optional)</span>
+                <label><span class="field-label-row">Name <span class="muted smaller">(form key, optional)</span></span>
                   <input type="text" name="field___IDX___name" value="" maxlength="80"
                          pattern="[a-z0-9_]*" placeholder="auto-from-label">
                 </label>
@@ -277,10 +266,10 @@
               <label data-field-placeholder-wrap>Placeholder
                 <input type="text" name="field___IDX___placeholder" value="" maxlength="200">
               </label>
-              <label data-field-help-wrap>Help text <span class="muted smaller">(shown under the field title)</span>
+              <label data-field-help-wrap>{% call hrow('Help text') %}Shown under the field title{% endcall %}
                 <input type="text" name="field___IDX___help" value="" maxlength="500">
               </label>
-              <label data-field-options-wrap hidden>Options <span class="muted smaller">(one per line)</span>
+              <label data-field-options-wrap hidden><span class="field-label-row">Options <span class="muted smaller">(one per line)</span></span>
                 <textarea name="field___IDX___options" rows="4" placeholder="Option 1&#10;Option 2"></textarea>
               </label>
               <label class="check">

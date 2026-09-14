@@ -31,7 +31,7 @@
     {# Optional hover tooltip — surfaced as the rendered element's
        `title` (and `aria-label` on icon-only kinds) on the public bar.
        Leave blank to fall back to the existing label / icon name. #}
-    <label data-utility-show-for="link,button,text,icon">Tooltip <span class="muted smaller">(optional)</span>
+    <label data-utility-show-for="link,button,text,icon"><span class="field-label-row">Tooltip <span class="muted smaller">(optional)</span></span>
       <input type="text" data-utility-field="tooltip"
              value="{{ it.tooltip or '' }}" maxlength="200"
              placeholder="Shown on hover (and to screen readers)">

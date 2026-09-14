@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Watchtower · Access{% endblock %}
 {% block heading %}Watchtower{% endblock %}
 {% block heading_help %}Admin activity, login sessions, failed-login analytics, and the IP blocklist — everything signed-in users do plus the security signals around it.{% endblock %}
@@ -18,8 +19,7 @@
 {# ───── Suspicious IPs table (the security pivot) ───── #}
 <section class="card">
   <div class="card-head">
-    <h2>Top failed-login IPs · last 7 days</h2>
-    <span class="muted smaller">Click <b>Block</b> to drop the IP at the request gate; <b>Clear</b> wipes its failure record.</span>
+    <h2>Top failed-login IPs · last 7 days {% call chip() %}Click <b>Block</b> to drop the IP at the request gate; <b>Clear</b> wipes its failure record.{% endcall %}</h2>
   </div>
   {% if not top_ips %}
   <p class="muted">No failed-login traffic in the last 7 days.</p>
@@ -67,8 +67,7 @@
 {# ───── IP blocklist + manual ban form ───── #}
 <section class="card">
   <div class="card-head">
-    <h2>IP blocklist</h2>
-    <span class="muted smaller">{{ blocked|length }} active</span>
+    <h2>IP blocklist {% call chip('IP blocklist') %}{{ blocked|length }} active{% endcall %}</h2>
   </div>
   <form method="post" action="{{ url_for('main.watchtower_ban_ip') }}" class="wt-ban-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -196,12 +195,9 @@
 {% set _has_more_api = total_events > events|length %}
 <section class="card">
   <div class="card-head">
-    <h2>Activity feed</h2>
-    <span class="muted smaller">
-      Showing {{ events|length if not _has_more_loaded else _truncate_at }}
+    <h2>Activity feed {% call chip('Activity feed') %}Showing {{ events|length if not _has_more_loaded else _truncate_at }}
       {% if _has_more_loaded or _has_more_api %}of {{ '{:,}'.format(total_events) }}{% endif %}
-      event{{ '' if total_events == 1 else 's' }}
-    </span>
+      event{{ '' if total_events == 1 else 's' }}{% endcall %}</h2>
     <form method="get" action="{{ url_for('main.watchtower_access') }}" class="wt-card-form">
       <input type="hidden" name="user_id" value="{{ scope_value }}">
       <input type="hidden" name="sdays" value="{{ sdays }}">

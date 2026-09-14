@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Edit {{ t.name }} · Trusted Servants Pro{% endblock %}
 {% block heading %}Edit {{ t.name }}{% endblock %}
 {% block heading_help %}Change credentials, schedule, or encryption for this off-site backup target without re-running the setup wizard. The backend kind ({{ t.kind|upper }}) is fixed once a target is created — make a new target if you need to switch backends.{% endblock %}
@@ -81,9 +82,8 @@
                  placeholder="{% if t.password_enc %}(leave blank to keep current){% endif %}">
         </label>
       </div>
-      <label>Remote path
+      <label>{% call hrow('Remote path') %}Folder on the remote server. Created automatically if missing.{% endcall %}
         <input type="text" name="remote_path" value="{{ t.remote_path or '/' }}" placeholder="/backups/tsp">
-        <span class="muted smaller">Folder on the remote server. Created automatically if missing.</span>
       </label>
       {% if t.kind == 'ftp' %}
       <label class="check">
@@ -97,13 +97,10 @@
         <label>Upload private key file
           <input type="file" name="private_key" accept=".pem,.key,text/plain">
         </label>
-        <label>… or paste the key text here
+        <label>{% call hrow('… or paste the key text here') %}Accepted formats: Ed25519, ECDSA, RSA, DSA. Stored encrypted on disk.
+          {% if t.private_key_enc %}A key is already stored — leave both fields blank to keep it.{% endif %}{% endcall %}
           <textarea name="private_key_text" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;..."></textarea>
         </label>
-        <p class="muted smaller">
-          Accepted formats: Ed25519, ECDSA, RSA, DSA. Stored encrypted on disk.
-          {% if t.private_key_enc %}A key is already stored — leave both fields blank to keep it.{% endif %}
-        </p>
       </details>
       {% endif %}
       {% elif t.kind == 'tspro_backup' %}
@@ -128,12 +125,11 @@
           server's console if this portal's data is corrupted or you're locked out. The push is
           authenticated by a shared token <em>and</em> requires the site's private key, which must
           decrypt the archive. Leave off unless you want this recovery path.</p>
-        <label>This portal's public URL
+        <label>{% call hrow('This portal\'s public URL') %}Where the backup server reaches this portal (no <code>/api/v1</code> suffix).
+          Required to enable remote restore. Published to the backup server on the next save / test.{% endcall %}
           <input type="url" name="public_url" value="{{ t.public_url or '' }}"
                  placeholder="https://portal.example.org">
         </label>
-        <p class="muted smaller">Where the backup server reaches this portal (no <code>/api/v1</code> suffix).
-          Required to enable remote restore. Published to the backup server on the next save / test.</p>
         {% if t.allow_remote_restore and t.public_url %}
         <p class="muted smaller">{{ icon('check-circle') }} Enabled. After saving / testing, the backup
           server's console will show this site as paired and offer “Remote restore” on its full backups.</p>
@@ -179,11 +175,10 @@
         </label>
       </div>
 
-      <label>Retention — keep the last
+      <label>{% call hrow('Retention — keep the last') %}Older archives are deleted from the remote after a successful upload.{% endcall %}
         <input type="number" name="retain_count" value="{{ t.retain_count or 14 }}" min="1" max="365" style="width:6rem">
         archives on the remote
       </label>
-      <p class="muted smaller">Older archives are deleted from the remote after a successful upload.</p>
     </section>
 
     {# ── Encryption — same fields as wizard step 4 ────────────────── #}

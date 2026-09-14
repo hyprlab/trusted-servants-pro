@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% block heading %}Fonts &amp; Icons{% endblock %}
@@ -22,11 +23,10 @@
 
   <section class="card">
     <div class="card-head">
-      <h2>Fonts</h2>
-      <span class="muted smaller">Each theme ships sensible defaults. Use the dropdowns below to override specific roles. Hero font is set on the Homepage page and is unaffected by these.</span>
+      {% set _active_theme_name = ((frontend_themes | selectattr('key', 'equalto', _active_theme) | list)[0].name if (frontend_themes | selectattr('key', 'equalto', _active_theme) | list) else _active_theme|capitalize) %}
+      <h2>Fonts {% call chip('Fonts') %}Each theme ships sensible defaults. Use the dropdowns below to override specific roles. Hero font is set on the Homepage page and is unaffected by these.
+        Available fonts are vendored under <code>app/static/fonts/</code> plus any custom fonts you've added below — nothing else is loaded from a CDN. Active theme defaults: <b>{{ _active_theme_name }}</b> &middot; heading = <code>{% if _active_theme == 'recovery-blue' %}Inter{% else %}Fraunces{% endif %}</code>, body = <code>Inter</code>.{% endcall %}</h2>
     </div>
-    {% set _active_theme_name = ((frontend_themes | selectattr('key', 'equalto', _active_theme) | list)[0].name if (frontend_themes | selectattr('key', 'equalto', _active_theme) | list) else _active_theme|capitalize) %}
-    <p class="muted small">Available fonts are vendored under <code>app/static/fonts/</code> plus any custom fonts you've added below — nothing else is loaded from a CDN. Active theme defaults: <b>{{ _active_theme_name }}</b> &middot; heading = <code>{% if _active_theme == 'recovery-blue' %}Inter{% else %}Fraunces{% endif %}</code>, body = <code>Inter</code>.</p>
 
     {% for role, label, blurb in [
        ('heading', 'Heading font',  'Section h2/h3, marketing block titles, brand text, stat numbers, and testimonial italics.'),
@@ -34,8 +34,7 @@
     ] %}
     <div class="fe-font-row">
       <div class="fe-font-row-info">
-        <div class="u-name">{{ label }}</div>
-        <p class="muted small">{{ blurb }}</p>
+        <div class="u-name">{{ label }} {% call chip() %}{{ blurb }}{% endcall %}</div>
       </div>
       <select name="font_{{ role }}">
         <option value="">— Use theme default —</option>
@@ -58,8 +57,7 @@
 
 <section class="card">
   <div class="card-head">
-    <h2>Custom font library</h2>
-    <span class="muted smaller">Upload a font file (TTF, OTF, WOFF, WOFF2 — up to 4&nbsp;MB) or paste a Google Fonts CSS URL. New fonts appear in the dropdowns above.</span>
+    <h2>Custom font library {% call chip('Custom font library') %}Upload a font file (TTF, OTF, WOFF, WOFF2 — up to 4&nbsp;MB) or paste a Google Fonts CSS URL. New fonts appear in the dropdowns above.{% endcall %}</h2>
   </div>
 
   <div class="fe-font-add-grid">
@@ -87,14 +85,11 @@
           action="{{ url_for('main.frontend_custom_font_google') }}"
           data-fe-skip-save-bar>
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="fe-font-add-head">{{ icon('download') }}<span>Install a font from Google Fonts</span></div>
-      <p class="muted smaller fe-font-add-blurb">
-        <b>This will download the font and serve it from your own server.</b>
+      <div class="fe-font-add-head">{{ icon('download') }}<span>Install a font from Google Fonts</span> {% call chip() %}<b>This will download the font and serve it from your own server.</b>
         We fetch the CSS from Google once at add time, download every referenced
         <code>woff2</code> file, and rewrite the URLs to point at this server.
         Your visitors never connect to <code>fonts.google.com</code> or
-        <code>fonts.gstatic.com</code>.
-      </p>
+        <code>fonts.gstatic.com</code>.{% endcall %}</div>
       <label class="fe-font-add-field">
         <span class="muted smaller">Display name <span class="muted">(optional — defaults to family from URL)</span></span>
         <input type="text" name="name" placeholder="e.g. Roboto Slab">
@@ -147,13 +142,12 @@
 
 <section class="card">
   <div class="card-head">
-    <h2>Custom icon library</h2>
+    <h2>Custom icon library {% call chip('Custom icon library') %}Uploaded SVGs and PNGs available wherever an icon picker shows up (mega-menu links, hero buttons). Click <b>Add icon</b> to upload a new one.{% endcall %}</h2>
     <div class="card-head-actions">
       <button type="button" class="btn btn-primary btn-sm" data-open-icon-picker
               data-icon-picker-mode="manage">{{ icon('upload') }} Add icon</button>
     </div>
   </div>
-  <p class="muted small">Uploaded SVGs and PNGs available wherever an icon picker shows up (mega-menu links, hero buttons). Click <b>Add icon</b> to upload a new one.</p>
 
   {% if custom_icons %}
   <div class="fe-icon-library" id="fe-icon-library">

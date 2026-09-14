@@ -15,6 +15,7 @@
    render as buttons; everything else renders as a static label-only
    pill (e.g. divider/spacer have no content to edit). #}
 
+{% from "_help_chip.html" import chip, hrow %}
 {% macro block_pill(t, modal_prefix, labels, editable_types) -%}
   {%- set _meta = labels.get(t, (t, 'square')) -%}
   {%- if t in editable_types -%}
@@ -147,8 +148,7 @@
                          is_customized=False) %}
 <section class="card fe-page-structure">
   <div class="card-head">
-    <h2>{{ title }}{% if active_layout %} — <span class="muted">{{ active_layout.name }}</span>{% if is_customized %} <span class="fe-page-customized-tag" title="The page's structure has been edited away from this layout's defaults — added/removed/rearranged blocks, or items in the Unplaced bin.">(Customized)</span>{% endif %}{% endif %}</h2>
-    <span class="muted smaller">{{ help_text or 'Click any block to edit its content.' }}{% if not active_layout %} Reorder + restructure isn't available — this layout's shape is fixed. Switch to a custom layout via the Layout picker to drag blocks around.{% endif %}</span>
+    <h2>{{ title }}{% if active_layout %} — <span class="muted">{{ active_layout.name }}</span>{% if is_customized %} <span class="fe-page-customized-tag" title="The page's structure has been edited away from this layout's defaults — added/removed/rearranged blocks, or items in the Unplaced bin.">(Customized)</span>{% endif %}{% endif %} {% call chip() %}{{ help_text or 'Click any block to edit its content.' }}{% if not active_layout %} Reorder + restructure isn't available — this layout's shape is fixed. Switch to a custom layout via the Layout picker to drag blocks around.{% endif %}{% endcall %}</h2>
     {% if active_layout and picker_modal_id %}
     <button type="button" class="btn btn-sm fe-page-structure-edit-btn"
             data-open-modal="{{ picker_modal_id }}">

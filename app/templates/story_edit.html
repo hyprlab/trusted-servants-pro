@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% set _is_new = story is none %}
 {% set _s = story %}
 {% block heading %}{{ 'New story' if _is_new else 'Edit story' }}{% endblock %}
@@ -77,8 +78,7 @@
   {# ── Title + body ─────────────────────────────────────────── #}
   <section class="card">
     <div class="card-head">
-      <h2>Story</h2>
-      <span class="muted smaller">Title sits at the top of the public detail page; body is the long-form content. Markdown supported.</span>
+      <h2>Story {% call chip('Story') %}Title sits at the top of the public detail page; body is the long-form content. Markdown supported.{% endcall %}</h2>
     </div>
 
     <label>Title
@@ -101,12 +101,12 @@
     </label>
     {% endif %}
 
-    <label>Summary <span class="muted small">(short blurb shown in the stories list and in link previews)</span>
+    <label>{% call hrow('Summary') %}Short blurb shown in the stories list and in link previews{% endcall %}
       <textarea name="summary" rows="2"
                 placeholder="One or two sentences — the hook for this story.">{{ (_s.summary if _s else '') or '' }}</textarea>
     </label>
 
-    <label>Body <span class="muted small">(the full story, Markdown supported)</span>
+    <label>{% call hrow('Body') %}The full story, Markdown supported{% endcall %}
       <textarea name="body" rows="18" class="story-body-field"
                 placeholder="The full body of the story. Use Markdown for headings, emphasis, lists, and links.">{{ (_s.body if _s else '') or '' }}</textarea>
     </label>
@@ -115,15 +115,14 @@
   {# ── Author ─────────────────────────────────────────────── #}
   <section class="card">
     <div class="card-head">
-      <h2>Author</h2>
-      <span class="muted smaller">The byline shown on the public page. First name + last initial is common for recovery stories — e.g. "Joe S."</span>
+      <h2>Author {% call chip('Author') %}The byline shown on the public page. First name + last initial is common for recovery stories — e.g. "Joe S."{% endcall %}</h2>
     </div>
     <label>Author byline
       <input type="text" name="author_name" maxlength="120"
              value="{{ (_s.author_name if _s else '') or '' }}"
              placeholder="Joe S.">
     </label>
-    <label>Author bio <span class="muted small">(optional — a short paragraph rendered after the story)</span>
+    <label>{% call hrow('Author bio') %}Optional — a short paragraph rendered after the story{% endcall %}
       <textarea name="author_bio" rows="3"
                 placeholder="Optional: anything else the author wants readers to know.">{{ (_s.author_bio if _s else '') or '' }}</textarea>
     </label>
@@ -132,11 +131,10 @@
   {# ── Dates ──────────────────────────────────────────────── #}
   <section class="card">
     <div class="card-head">
-      <h2>Dates</h2>
-      <span class="muted smaller">Optional — both shown on the public page when set. Leave a date blank to hide it.</span>
+      <h2>Dates {% call chip('Dates') %}Optional — both shown on the public page when set. Leave a date blank to hide it.{% endcall %}</h2>
     </div>
     <div class="form-row">
-      <label>Story date <span class="muted small">(the publish / "as of" date the public page shows under the title)</span>
+      <label>{% call hrow('Story date') %}The publish / "as of" date the public page shows under the title{% endcall %}
         <input type="date" name="story_date"
                value="{% if _s and _s.story_date %}{{ _s.story_date.strftime('%Y-%m-%d') }}{% endif %}">
       </label>
@@ -145,7 +143,7 @@
                value="{% if _s and _s.sobriety_date %}{{ _s.sobriety_date.strftime('%Y-%m-%d') }}{% endif %}">
       </label>
     </div>
-    <label>Posted on <span class="muted small">(timestamp the admin Stories list sorts by; defaults to now on a new story and is preserved as-is on WordPress imports)</span>
+    <label>{% call hrow('Posted on') %}Timestamp the admin Stories list sorts by; defaults to now on a new story and is preserved as-is on WordPress imports{% endcall %}
       <input type="datetime-local" name="published_at"
              value="{% if _s and _s.published_at %}{{ _s.published_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
     </label>
@@ -159,8 +157,7 @@
   {# ── Featured image ─────────────────────────────────────── #}
   <section class="card">
     <div class="card-head">
-      <h2>Featured image</h2>
-      <span class="muted smaller">Hero image at the top of the story. PNG, JPG, or WebP. Optional — paper / minimal templates often look better without one.</span>
+      <h2>Featured image {% call chip('Featured image') %}Hero image at the top of the story. PNG, JPG, or WebP. Optional — paper / minimal templates often look better without one.{% endcall %}</h2>
     </div>
     <div class="og-image-row">
       <div class="og-image-preview">

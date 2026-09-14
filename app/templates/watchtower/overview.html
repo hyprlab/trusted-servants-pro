@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Watchtower · Trusted Servants Pro{% endblock %}
 {% block heading %}Watchtower{% endblock %}
 {% block heading_help %}Security + observability dashboard. Visitors, sessions, admin actions, suspicious IPs, and system health — all in one place.{% endblock %}
@@ -89,8 +90,7 @@
 {% if rc_abuse %}
 <section class="card wt-rc-abuse-card" id="wt-rc-abuse">
   <div class="card-head">
-    <h2>Recovery Contacts · flagged requests</h2>
-    <span class="muted smaller">{{ rc_abuse|length }} need{{ '' if rc_abuse|length == 1 else 's' }} review</span>
+    <h2>Recovery Contacts · flagged requests {% call chip() %}{{ rc_abuse|length }} need{{ '' if rc_abuse|length == 1 else 's' }} review{% endcall %}</h2>
   </div>
   <p class="muted small wt-rc-abuse-lead">
     Likely-malicious self-service requests: a second update within 24&nbsp;hours
@@ -194,8 +194,7 @@
 {# ───────── System metrics row ───────── #}
 <section class="card wt-system-card">
   <div class="card-head">
-    <h2>System</h2>
-    <span class="muted smaller">{{ system.os or 'Linux' }} · {{ system.hostname or 'host' }}{% if system.host_mode %} · host-mode{% endif %}</span>
+    <h2>System {% call chip('System') %}{{ system.os or 'Linux' }} · {{ system.hostname or 'host' }}{% if system.host_mode %} · host-mode{% endif %}{% endcall %}</h2>
   </div>
   <div class="wt-sys-grid">
     <div class="wt-sys-tile">
@@ -239,8 +238,7 @@
 {% set chart_max = ([max_views, max_uniq]|max) or 1 %}
 <section class="card wt-chart-card">
   <div class="card-head">
-    <h2>Visitor traffic · last 30 days</h2>
-    <span class="muted smaller"><a href="{{ url_for('main.watchtower_visitors') }}">Open Visitors →</a></span>
+    <h2>Visitor traffic · last 30 days {% call chip() %}<a href="{{ url_for('main.watchtower_visitors') }}">Open Visitors →</a>{% endcall %}</h2>
   </div>
   <div class="wt-chart-wrap">
     <svg class="wt-chart" viewBox="0 0 600 180" preserveAspectRatio="none" role="img" aria-label="Daily visits over the last 30 days">
@@ -283,8 +281,7 @@
 {% set total_fail_24h = hourly_fail|sum(attribute='count') %}
 <section class="card wt-chart-card">
   <div class="card-head">
-    <h2>Failed logins · last 24 hours</h2>
-    <span class="muted smaller">{{ total_fail_24h }} total · {{ tz_label }}</span>
+    <h2>Failed logins · last 24 hours {% call chip() %}{{ total_fail_24h }} total · {{ tz_label }}{% endcall %}</h2>
   </div>
   <div class="wt-chart-wrap">
     <svg class="wt-chart wt-chart--bars" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Failed login attempts per hour">
@@ -308,8 +305,7 @@
 <div class="wt-two-col">
   <section class="card">
     <div class="card-head">
-      <h2>Suspicious IPs · last 7 days</h2>
-      <span class="muted smaller">{{ top_ips|length }} address{{ '' if top_ips|length == 1 else 'es' }}</span>
+      <h2>Suspicious IPs · last 7 days {% call chip() %}{{ top_ips|length }} address{{ '' if top_ips|length == 1 else 'es' }}{% endcall %}</h2>
     </div>
     {% if not top_ips %}
     <p class="muted">No failed-login traffic in the last 7 days — that's a good sign.</p>
@@ -351,8 +347,7 @@
 
   <section class="card">
     <div class="card-head">
-      <h2>Recent admin activity</h2>
-      <span class="muted smaller"><a href="{{ url_for('main.watchtower_access') }}">Full log →</a></span>
+      <h2>Recent admin activity {% call chip('Recent admin activity') %}<a href="{{ url_for('main.watchtower_access') }}">Full log →</a>{% endcall %}</h2>
     </div>
     {% if not recent %}
     <p class="muted">No write activity has been logged yet.</p>
@@ -380,8 +375,7 @@
 <div class="wt-two-col">
   <section class="card">
     <div class="card-head">
-      <h2>Active sessions</h2>
-      <span class="muted smaller">{{ active_sess|length }} open</span>
+      <h2>Active sessions {% call chip('Active sessions') %}{{ active_sess|length }} open{% endcall %}</h2>
     </div>
     {% if not active_sess %}
     <p class="muted">Nobody signed in right now.</p>
@@ -411,8 +405,7 @@
 
   <section class="card">
     <div class="card-head">
-      <h2>IP blocklist</h2>
-      <span class="muted smaller">{{ blocked|length }} active</span>
+      <h2>IP blocklist {% call chip('IP blocklist') %}{{ blocked|length }} active{% endcall %}</h2>
     </div>
     {% if not blocked %}
     <p class="muted">No IPs are currently blocked.</p>

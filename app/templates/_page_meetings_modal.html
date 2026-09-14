@@ -17,6 +17,7 @@
    Caller passes:
      vals — dict with keys mirroring MEETINGS_DEFAULTS
 #}
+{% from "_help_chip.html" import chip, hrow %}
 <div class="modal fe-page-edit-modal fe-page-edit-modal--wide" id="page-meetings-edit-modal" aria-hidden="true" data-page-meetings-modal>
   <div class="modal-backdrop" data-close></div>
   <div class="modal-panel fe-page-edit-modal-panel" role="dialog" aria-modal="true">
@@ -24,8 +25,7 @@
             aria-label="Close">{{ icon('x') }}</button>
 <section class="card">
   <div class="card-head">
-    <h2>Meetings list</h2>
-    <span class="muted smaller">Pulls live from the admin DB. Filter + presentation are configured below.</span>
+    <h2>Meetings list {% call chip('Meetings list') %}Pulls live from the admin DB. Filter + presentation are configured below.{% endcall %}</h2>
   </div>
   <label>Section heading
     <input type="text" data-meetings-field="heading" value="{{ vals.heading or '' }}" placeholder="Upcoming Meetings">
@@ -75,8 +75,7 @@
   </div>
   <li class="special-page-row" style="list-style:none; margin: 1rem 0 0;">
     <div class="special-page-info">
-      <div class="u-name">Group by day</div>
-      <p class="muted small">When the filter spans multiple days, group cards under a day heading.</p>
+      <div class="u-name">Group by day {% call chip() %}When the filter spans multiple days, group cards under a day heading.{% endcall %}</div>
     </div>
     <label class="mode-toggle">
       <input type="checkbox" data-meetings-field="group_by_day" value="1" {% if vals.group_by_day %}checked{% endif %}>
@@ -85,8 +84,7 @@
   </li>
   <li class="special-page-row" style="list-style:none; margin: 0;">
     <div class="special-page-info">
-      <div class="u-name">Show meeting type chip</div>
-      <p class="muted small">Small badge for In Person / Online / Hybrid.</p>
+      <div class="u-name">Show meeting type chip {% call chip() %}Small badge for In Person / Online / Hybrid.{% endcall %}</div>
     </div>
     <label class="mode-toggle">
       <input type="checkbox" data-meetings-field="show_type_chip" value="1" {% if vals.show_type_chip %}checked{% endif %}>
@@ -95,8 +93,7 @@
   </li>
   <li class="special-page-row" style="list-style:none; margin: 0 0 1rem;">
     <div class="special-page-info">
-      <div class="u-name">Show schedule lines</div>
-      <p class="muted small">Day-and-time bullets under each meeting name.</p>
+      <div class="u-name">Show schedule lines {% call chip() %}Day-and-time bullets under each meeting name.{% endcall %}</div>
     </div>
     <label class="mode-toggle">
       <input type="checkbox" data-meetings-field="show_schedule" value="1" {% if vals.show_schedule %}checked{% endif %}>

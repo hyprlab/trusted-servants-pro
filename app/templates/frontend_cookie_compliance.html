@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}Cookie Compliance{% endblock %}
 {% block heading_help %}Run a privacy + cookie compliance banner on the public site. Pick a regional preset, customise the copy, and (if you don't have one yet) generate a starter privacy policy with one click. The banner remembers each visitor's choice in their browser for {{ site.cookie_compliance_remember_days or 365 }} day{{ '' if (site.cookie_compliance_remember_days or 365) == 1 else 's' }} so they're not nagged on every visit.{% endblock %}
 {% block top_actions %}
@@ -70,8 +71,7 @@
      where the admin set them. #}
   <section class="card">
     <div class="card-head">
-      <h2>Quick-start by region</h2>
-      <span class="muted smaller">Apply best-practice defaults for a regulatory regime in one click. You can then tweak the copy below and Save. (Not legal advice — review the result before deploying.)</span>
+      <h2>Quick-start by region {% call chip('Quick-start by region') %}Apply best-practice defaults for a regulatory regime in one click. You can then tweak the copy below and Save. (Not legal advice — review the result before deploying.){% endcall %}</h2>
     </div>
     <div class="cc-preset-grid" data-cc-group="region-preset">
       {% for key, p in presets.items() %}
@@ -96,14 +96,12 @@
 
     <section class="card">
       <div class="card-head">
-        <h2>Compliance module</h2>
-        <span class="muted smaller">Toggle the banner on or off site-wide. When off, no banner is shown and no consent cookie is set.</span>
+        <h2>Compliance module {% call chip('Compliance module') %}Toggle the banner on or off site-wide. When off, no banner is shown and no consent cookie is set.{% endcall %}</h2>
       </div>
 
       <div class="cc-row">
         <div class="cc-row-text">
-          <div class="cc-row-label">Enable cookie compliance banner</div>
-          <div class="muted small">Renders a privacy banner on the public site until each visitor has made a choice. Their choice is remembered in their browser for {{ site.cookie_compliance_remember_days or 365 }} day{{ '' if (site.cookie_compliance_remember_days or 365) == 1 else 's' }}.</div>
+          <div class="cc-row-label">Enable cookie compliance banner {% call chip('Enable cookie compliance banner') %}Renders a privacy banner on the public site until each visitor has made a choice. Their choice is remembered in their browser for {{ site.cookie_compliance_remember_days or 365 }} day{{ '' if (site.cookie_compliance_remember_days or 365) == 1 else 's' }}.{% endcall %}</div>
         </div>
         <label class="mode-toggle">
           <input type="checkbox" name="cookie_compliance_enabled" value="1" {% if site.cookie_compliance_enabled %}checked{% endif %}>
@@ -113,8 +111,7 @@
 
       <div class="cc-row">
         <div class="cc-row-text">
-          <div class="cc-row-label">Auto-adapt to visitor region</div>
-          <div class="muted small">When on, EU/UK visitors get the stricter GDPR opt-in flow and California visitors get a CCPA "do not sell or share" choice, regardless of the mode you pick below. Visitors outside those regions see your configured mode. Your chosen mode is the <em>floor</em> — auto can only escalate, never relax.</div>
+          <div class="cc-row-label">Auto-adapt to visitor region {% call chip('Auto-adapt to visitor region') %}When on, EU/UK visitors get the stricter GDPR opt-in flow and California visitors get a CCPA "do not sell or share" choice, regardless of the mode you pick below. Visitors outside those regions see your configured mode. Your chosen mode is the <em>floor</em> — auto can only escalate, never relax.{% endcall %}</div>
         </div>
         <label class="mode-toggle">
           <input type="checkbox" name="cookie_compliance_auto_region" value="1" {% if site.cookie_compliance_auto_region %}checked{% endif %}>
@@ -125,8 +122,7 @@
 
     <section class="card">
       <div class="card-head">
-        <h2>Prompt mode</h2>
-        <span class="muted smaller">How forcefully the banner asks for consent. <strong>Strict</strong> is required to meet GDPR.</span>
+        <h2>Prompt mode {% call chip('Prompt mode') %}How forcefully the banner asks for consent. <strong>Strict</strong> is required to meet GDPR.{% endcall %}</h2>
       </div>
       <div class="cc-mode-grid">
         <label class="cc-mode-card">
@@ -152,8 +148,7 @@
 
     <section class="card">
       <div class="card-head">
-        <h2>Banner copy &amp; position</h2>
-        <span class="muted smaller">What the visitor reads when the banner appears. Leave a field blank to use the system default.</span>
+        <h2>Banner copy &amp; position {% call chip('Banner copy and position') %}What the visitor reads when the banner appears. Leave a field blank to use the system default.{% endcall %}</h2>
       </div>
 
       <label class="cc-field">
@@ -212,12 +207,11 @@
     {# ── Privacy policy linkage ───────────────────────────── #}
     <section class="card">
       <div class="card-head">
-        <h2>Privacy policy</h2>
-        <span class="muted smaller">Link the banner's "More info" button to your privacy policy. Pick an existing Page, paste an external URL, or generate a starter policy below.</span>
+        <h2>Privacy policy {% call chip('Privacy policy') %}Link the banner's "More info" button to your privacy policy. Pick an existing Page, paste an external URL, or generate a starter policy below.{% endcall %}</h2>
       </div>
       <div class="cc-policy-options">
         <label class="cc-field">
-          <span class="cc-field-label">Internal Page</span>
+          <span class="cc-field-label">Internal Page {% call chip('Internal Page') %}Preferred — links resolve through Pages so the URL survives slug renames.{% endcall %}</span>
           <select name="cookie_compliance_policy_page_id">
             <option value="">— None —</option>
             {% for p in pages %}
@@ -226,14 +220,12 @@
             </option>
             {% endfor %}
           </select>
-          <span class="muted smaller">Preferred — links resolve through Pages so the URL survives slug renames.</span>
         </label>
         <label class="cc-field">
-          <span class="cc-field-label">External URL (alternative)</span>
+          <span class="cc-field-label">External URL (alternative) {% call chip('External URL') %}An alternative to picking a Page. If both fields are set, the internal Page wins.{% endcall %}</span>
           <input type="url" name="cookie_compliance_policy_external_url" maxlength="500"
                  value="{{ site.cookie_compliance_policy_external_url or '' }}"
                  placeholder="https://example.org/privacy">
-          <span class="muted smaller">If both fields are set, the internal Page wins.</span>
         </label>
       </div>
     </section>
@@ -256,8 +248,7 @@
      accidentally also save the in-progress settings form above) ── #}
   <section class="card">
     <div class="card-head">
-      <h2>Generate a starter privacy policy</h2>
-      <span class="muted smaller">Don't have a privacy policy yet? Pick a starter, and we'll create a new Page seeded with sensible boilerplate — then link it as your policy. You'll need to edit a few placeholders (organisation name, contact email, retention periods) before publishing.</span>
+      <h2>Generate a starter privacy policy {% call chip('Generate a starter privacy policy') %}Don't have a privacy policy yet? Pick a starter, and we'll create a new Page seeded with sensible boilerplate — then link it as your policy. You'll need to edit a few placeholders (organisation name, contact email, retention periods) before publishing.{% endcall %}</h2>
     </div>
     <div class="cc-preset-grid" data-cc-group="policy-template">
       {% for t in policy_templates %}

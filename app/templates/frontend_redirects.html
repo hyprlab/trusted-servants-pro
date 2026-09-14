@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_row_menu.html" import row_menu %}
 {% block heading %}Redirects{% endblock %}
 {% block heading_help %}Centrally manage URL redirects on the public site. Every visit hits a single indexed lookup against this table — when a request's path matches a row's source, the visitor is sent to the target with a 301. Use it for legacy WordPress URLs, renamed pages on outside platforms, vanity short-links, or any other path-to-URL mapping you need. Wildcard prefixes are supported: a source ending in <code>/*</code> (e.g. <code>/swag/*</code>) catches every URL under that prefix and lands them all on the target. Exact-match rules always win over wildcards.{% endblock %}
@@ -15,26 +16,24 @@
      update. #}
   <section class="card">
     <div class="card-head">
-      <h2 data-redirect-form-heading>Add a redirect</h2>
-      <span class="muted smaller">Source path is matched against the visitor's request URL. Target can be a path on this site (<code>/about</code>) or any external URL (<code>https://example.org/elsewhere</code>).</span>
+      <h2 data-redirect-form-heading>Add a redirect {% call chip('Add a redirect') %}Source path is matched against the visitor's request URL. Target can be a path on this site (<code>/about</code>) or any external URL (<code>https://example.org/elsewhere</code>).{% endcall %}</h2>
     </div>
     <form class="form" method="post" action="{{ url_for('main.frontend_redirects_save') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="redirect_id" value="" data-redirect-id>
       <div class="redirect-form-grid">
-        <label>Source path
+        <label>{% call hrow('Source path') %}Must start with /. Matched case-sensitively. End in /* to match every URL under a prefix.{% endcall %}
           <input type="text" name="source_path" required
                  placeholder="/wp-content/old-post or /swag/*"
                  maxlength="2000"
                  data-redirect-source>
           <span class="muted smaller">Must start with <code>/</code>. Matched case-sensitively. End in <code>/*</code> to match every URL under a prefix (e.g. <code>/swag/*</code>).</span>
         </label>
-        <label>Target URL
+        <label>{% call hrow('Target URL') %}Either a path on this site or a full external URL. Visitors get a permanent (301) redirect.{% endcall %}
           <input type="text" name="target_path" required
                  placeholder="/new-page or https://example.org"
                  maxlength="2000"
                  data-redirect-target>
-          <span class="muted smaller">Either a path on this site or a full external URL. Visitors get a permanent (301) redirect.</span>
         </label>
       </div>
       {# Class is `redirect-form-actions` rather than the standard
@@ -54,8 +53,7 @@
   {# ── Existing redirects table ─────────────────────────────────── #}
   <section class="card">
     <div class="card-head">
-      <h2>Active redirects</h2>
-      <span class="muted smaller">{{ redirects|length }} total — sorted alphabetically by source.</span>
+      <h2>Active redirects {% call chip('Active redirects') %}{{ redirects|length }} total — sorted alphabetically by source.{% endcall %}</h2>
     </div>
     {% if redirects %}
     <table class="tbl">
@@ -108,8 +106,7 @@
      row outright (e.g. abandoning an obsolete legacy URL). #}
   <section class="card">
     <div class="card-head">
-      <h2>Auto-logged slug renames</h2>
-      <span class="muted smaller">{{ slug_history|length }} entr{% if slug_history|length == 1 %}y{% else %}ies{% endif %} — appended whenever a published page, announcement / event, story, blog post, or meeting slug changes. Editing here lets you tune the legacy URL aliases without opening each entity's edit page.</span>
+      <h2>Auto-logged slug renames {% call chip('Auto-logged slug renames') %}{{ slug_history|length }} entr{% if slug_history|length == 1 %}y{% else %}ies{% endif %} — appended whenever a published page, announcement / event, story, blog post, or meeting slug changes. Editing here lets you tune the legacy URL aliases without opening each entity's edit page.{% endcall %}</h2>
     </div>
     {% if slug_history %}
     {% set _kind_paths = {

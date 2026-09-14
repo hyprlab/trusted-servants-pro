@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Watchtower · 404s{% endblock %}
 {% block heading %}Watchtower{% endblock %}
 {% block heading_help %}Public-site URLs visitors hit that resolved to nothing — broken inbound links, mistyped addresses, and pages that moved without a redirect. Signed-in staff and admin (/tspro) paths are excluded.{% endblock %}
@@ -61,8 +62,7 @@
 {% set chart_max = ((daily|map(attribute='count')|max) if daily else 1) or 1 %}
 <section class="card wt-chart-card">
   <div class="card-head">
-    <h2>404s · last {{ window }} days</h2>
-    <span class="muted smaller">{{ '{:,}'.format(summary.total_window) }} in window</span>
+    <h2>404s · last {{ window }} days {% call chip() %}{{ '{:,}'.format(summary.total_window) }} in window{% endcall %}</h2>
   </div>
   {% if daily and summary.total_window %}
   <div class="wt-chart-wrap">
@@ -185,8 +185,7 @@
 
 <section class="card">
   <div class="card-head">
-    <h2>Recent 404s</h2>
-    <span class="muted smaller">latest {{ recent|length }} hit{{ '' if recent|length == 1 else 's' }}</span>
+    <h2>Recent 404s {% call chip('Recent 404s') %}latest {{ recent|length }} hit{{ '' if recent|length == 1 else 's' }}{% endcall %}</h2>
   </div>
   {% if not recent %}
   <p class="muted">Nothing logged yet. When a visitor hits a URL that doesn't exist on the public site, it'll show up here.</p>

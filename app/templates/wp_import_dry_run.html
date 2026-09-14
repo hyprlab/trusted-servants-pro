@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Dry run · WordPress Importer{% endblock %}
 {% block heading %}Dry run preview{% endblock %}
 {% block heading_help %}This is exactly what would be created. Nothing has been saved yet — the totals + table below describe the plan, not actuals. Type <code>IMPORT</code> at the bottom to commit.{% endblock %}
@@ -149,8 +150,7 @@
 
 <section class="card wp-preview-card">
   <div class="card-head">
-    <h2>{{ icon('list') }} What would be created</h2>
-    <span class="muted smaller">{{ preview.rows|length }} row{% if preview.rows|length != 1 %}s{% endif %} planned</span>
+    <h2>{{ icon('list') }} What would be created {% call chip() %}{{ preview.rows|length }} row{% if preview.rows|length != 1 %}s{% endif %} planned{% endcall %}</h2>
     {% if _create_rows %}
     <div class="wp-archive-bulk">
       <span class="muted smaller">Archive on import:</span>

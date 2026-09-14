@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}Recovery Contacts{% endblock %}
 {% block heading_help %}Configures the public Recovery Contacts directory at <code>/contactlist</code>. Visitors submit their name, phone, and email (and whether they're available to sponsor); entries stay hidden until an admin approves them. This page is for the page's configuration — the entries themselves are reviewed and approved on the <a href="{{ url_for('main.recovery_contacts') }}">Recovery Contacts</a> admin section.{% endblock %}
 {% block top_actions %}
@@ -16,13 +17,11 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Visibility</h2>
-          <span class="muted smaller">Off-switch for Recovery Contacts site-wide. When off, <code>/contactlist</code> returns 404, the sidebar section disappears, and any nav link pointed at the form falls back to its URL. Existing entries and the settings below are preserved when off.</span>
+          <h2>Visibility {% call chip('Visibility') %}Off-switch for Recovery Contacts site-wide. When off, <code>/contactlist</code> returns 404, the sidebar section disappears, and any nav link pointed at the form falls back to its URL. Existing entries and the settings below are preserved when off.{% endcall %}</h2>
         </div>
         <li class="special-page-row" style="list-style:none; padding: 1rem;">
           <div class="special-page-info">
-            <div class="u-name">Recovery Contacts enabled</div>
-            <p class="muted small">Hard off-switch. Entries and settings are preserved when off.</p>
+            <div class="u-name">Recovery Contacts enabled {% call chip() %}Hard off-switch. Entries and settings are preserved when off.{% endcall %}</div>
           </div>
           <label class="mode-toggle">
             <input type="checkbox" name="recovery_contacts_enabled" value="1"
@@ -37,13 +36,11 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Admin email alerts</h2>
-          <span class="muted smaller">New submissions always appear as a chip in the <a href="{{ url_for('main.recovery_contacts') }}">Recovery Contacts</a> admin panel. These toggles decide whether you also get an email — both off by default.</span>
+          <h2>Admin email alerts {% call chip('Admin email alerts') %}New submissions always appear as a chip in the <a href="{{ url_for('main.recovery_contacts') }}">Recovery Contacts</a> admin panel. These toggles decide whether you also get an email — both off by default.{% endcall %}</h2>
         </div>
         <li class="special-page-row" style="list-style:none; padding: 0.75rem 1rem;">
           <div class="special-page-info">
-            <div class="u-name">Email me about new submissions</div>
-            <p class="muted small">Covers new entries and update requests. The admin-panel chip always shows regardless of this setting.</p>
+            <div class="u-name">Email me about new submissions {% call chip() %}Covers new entries and update requests. The admin-panel chip always shows regardless of this setting.{% endcall %}</div>
           </div>
           <label class="mode-toggle" title="Email on new submissions">
             <input type="checkbox" name="recovery_contacts_email_alerts" value="1"
@@ -53,8 +50,7 @@
         </li>
         <li class="special-page-row" style="list-style:none; padding: 0.75rem 1rem; margin-top: 1rem;">
           <div class="special-page-info">
-            <div class="u-name">Email me about removal requests</div>
-            <p class="muted small">Sent only after the person clicks the confirmation link we email them — so you're never asked to remove someone who hasn't confirmed they want off the list. The pending request still appears in the admin panel right away.</p>
+            <div class="u-name">Email me about removal requests {% call chip() %}Sent only after the person clicks the confirmation link we email them — so you're never asked to remove someone who hasn't confirmed they want off the list. The pending request still appears in the admin panel right away.{% endcall %}</div>
           </div>
           <label class="mode-toggle" title="Email on confirmed removal requests">
             <input type="checkbox" name="recovery_contacts_removal_alerts" value="1"
@@ -62,18 +58,16 @@
             <span class="mode-track"><span class="mode-thumb"></span></span>
           </label>
         </li>
-        <label style="margin-top: 0.5rem;">Alert recipient(s)
+        <label style="margin-top: 0.5rem;">{% call hrow('Alert recipient(s)') %}Comma-separated for multiple recipients. Falls back to your access-request recipients (<code>{{ site.access_request_to or '(not set)' }}</code>) when blank.{% endcall %}
           <input type="text" name="recovery_contacts_to" maxlength="500"
                  value="{{ site.recovery_contacts_to or '' }}"
                  placeholder="{{ site.access_request_to or 'admin@example.com' }}">
         </label>
-        <p class="muted small">Comma-separated for multiple recipients. Falls back to your access-request recipients (<code>{{ site.access_request_to or '(not set)' }}</code>) when blank.</p>
       </section>
 
       <section class="card">
         <div class="card-head">
-          <h2>Form behaviour</h2>
-          <span class="muted smaller">The submit button's label. Page copy (heading, subheading, intro) and container width now live on <a href="{{ url_for('main.frontend_templates') }}#fe-tplgrid-recovery-contacts">Web Frontend → Templates</a> alongside every other page's appearance settings.</span>
+          <h2>Form behaviour {% call chip('Form behaviour') %}The submit button's label. Page copy (heading, subheading, intro) and container width now live on <a href="{{ url_for('main.frontend_templates') }}#fe-tplgrid-recovery-contacts">Web Frontend → Templates</a> alongside every other page's appearance settings.{% endcall %}</h2>
         </div>
         <label>Submit button label
           <input type="text" name="recovery_contacts_submit_label" maxlength="100"
@@ -83,8 +77,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Confirmation</h2>
-          <span class="muted smaller">Shown to the visitor after a successful submission.</span>
+          <h2>Confirmation {% call chip('Confirmation') %}Shown to the visitor after a successful submission.{% endcall %}</h2>
         </div>
         <label>Success message
           <textarea name="recovery_contacts_success_message" rows="2" maxlength="500"
@@ -94,8 +87,7 @@
 
       <section class="card">
         <div class="card-head">
-          <h2>Bot protection</h2>
-          <span class="muted smaller">A hidden honeypot field traps simple form-fillers automatically. Cloudflare Turnstile rides on the existing site-wide setting — when it's on, it's on for this form too.</span>
+          <h2>Bot protection {% call chip('Bot protection') %}A hidden honeypot field traps simple form-fillers automatically. Cloudflare Turnstile rides on the existing site-wide setting — when it's on, it's on for this form too.{% endcall %}</h2>
         </div>
         <p class="muted small" style="margin: 0;">
           Turnstile is currently

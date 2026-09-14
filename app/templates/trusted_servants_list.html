@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_row_menu.html" import row_menu %}
 {% block heading %}Trusted Servants Email List{% endblock %}
 {% block heading_help %}Roster of trusted servants who have opted into the contact list (plus any external contacts an admin has added manually), and a send-update surface for emailing the whole list at once.{% endblock %}
@@ -16,14 +17,11 @@
   <section class="card data-card">
     <div class="data-card-head">
       {{ icon('users') }}
-      <span>Subscribers</span>
+      <span>Subscribers {% call chip('Subscribers') %}Every signed-in user can add themselves via the dashboard widget. Admins can also add external contacts (people without portal accounts) and edit or remove any row here.{% endcall %}</span>
       <div class="data-card-head-actions muted smaller">
         {{ subscribers|length }} member{% if subscribers|length != 1 %}s{% endif %}
       </div>
     </div>
-    <p class="muted small data-card-lead">
-      Every signed-in user can add themselves via the dashboard widget. Admins can also add external contacts (people without portal accounts) and edit or remove any row here.
-    </p>
     {% if subscribers %}
     <table class="tbl ts-tbl">
       <thead>
@@ -72,11 +70,8 @@
   <section class="card data-card">
     <div class="data-card-head">
       {{ icon('clock') }}
-      <span>Send history</span>
+      <span>Send history {% call chip('Send history') %}The last 25 update emails sent to the list. Each row shows who sent it, when, the subject line, and how many recipients received it.{% endcall %}</span>
     </div>
-    <p class="muted small data-card-lead">
-      The last 25 update emails sent to the list. Each row shows who sent it, when, the subject line, and how many recipients received it.
-    </p>
     {% if blasts %}
     <ul class="ts-blast-list">
       {% for b in blasts %}
@@ -133,16 +128,16 @@
         <p class="muted small" style="margin: 0 0 1rem;">
           Use this for external contacts who don't have a portal account. Signed-in users can also self-subscribe from their dashboard.
         </p>
-        <label>Full name <span class="muted smaller">(required)</span>
+        <label><span class="field-label-row">Full name <span class="muted smaller">(required)</span></span>
           <input type="text" name="name" required maxlength="120" placeholder="e.g. Jane D.">
         </label>
-        <label>Email <span class="muted smaller">(required)</span>
+        <label><span class="field-label-row">Email <span class="muted smaller">(required)</span></span>
           <input type="email" name="email" required maxlength="255" placeholder="jane@example.com">
         </label>
-        <label>Phone <span class="muted smaller">(optional)</span>
+        <label><span class="field-label-row">Phone <span class="muted smaller">(optional)</span></span>
           <input type="tel" name="phone" maxlength="64">
         </label>
-        <label>Notes <span class="muted smaller">(optional, admin-only)</span>
+        <label><span class="field-label-row">Notes <span class="muted smaller">(optional, admin-only)</span></span>
           <textarea name="notes" rows="2" placeholder="Anything you want to remember about this contact."></textarea>
         </label>
       </div>
@@ -187,7 +182,7 @@
         <label>Phone
           <input type="tel" name="phone" maxlength="64" value="{{ s.phone or '' }}">
         </label>
-        <label>Notes <span class="muted smaller">(admin-only)</span>
+        <label><span class="field-label-row">Notes <span class="muted smaller">(admin-only)</span></span>
           <textarea name="notes" rows="2">{{ s.notes or '' }}</textarea>
         </label>
       </div>

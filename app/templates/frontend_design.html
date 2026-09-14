@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% set _resolved = resolve_design(site) %}
@@ -144,8 +145,7 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <section class="card">
     <div class="card-head">
-      <h2>Default appearance</h2>
-      <span class="muted smaller">First-time visitors see this. Returning visitors keep the choice they made via the theme toggle (stored in their browser).</span>
+      <h2>Default appearance {% call chip('Default appearance') %}First-time visitors see this. Returning visitors keep the choice they made via the theme toggle (stored in their browser).{% endcall %}</h2>
     </div>
     <div class="fe-default-theme-grid">
       {% for opt in [
@@ -190,23 +190,21 @@
 
   <section class="card">
     <div class="card-head">
-      <h2>How this works</h2>
-      <span class="muted smaller">Theme defaults + per-site overrides → CSS custom properties.</span>
+      {% set _active_theme_name = ((frontend_themes | selectattr('key', 'equalto', _active_theme) | list)[0].name if (frontend_themes | selectattr('key', 'equalto', _active_theme) | list) else _active_theme|capitalize) %}
+      <h2>How this works {% call chip('How this works') %}Theme defaults + per-site overrides → CSS custom properties.
+        Every section on the public site reads from these tokens. The active theme — <b>{{ _active_theme_name }}</b> — provides a complete set of defaults. Override any value to apply it site-wide; clear an override to fall back to the theme. Per-section settings (like a split's spacing dropdown) resolve through the same scales, so picking <code>tight</code> anywhere always means the same value.{% endcall %}</h2>
     </div>
-    {% set _active_theme_name = ((frontend_themes | selectattr('key', 'equalto', _active_theme) | list)[0].name if (frontend_themes | selectattr('key', 'equalto', _active_theme) | list) else _active_theme|capitalize) %}
-    <p class="muted small">Every section on the public site reads from these tokens. The active theme — <b>{{ _active_theme_name }}</b> — provides a complete set of defaults. Override any value to apply it site-wide; clear an override to fall back to the theme. Per-section settings (like a split's spacing dropdown) resolve through the same scales, so picking <code>tight</code> anywhere always means the same value.</p>
   </section>
 
   {% for grp in design_groups %}
   <section class="card">
     <div class="card-head">
-      <h2>{{ grp }}</h2>
-      <span class="muted smaller">{% if grp == 'Colors' %}Brand palette + neutral surfaces, links, and text colors.
+      <h2>{{ grp }} {% call chip() %}{% if grp == 'Colors' %}Brand palette + neutral surfaces, links, and text colors.
       {% elif grp == 'Layout' %}Container width, default section rhythm, card radius + shadow.
       {% elif grp == 'Card styles' %}Every card surface — meeting cards, feature cards, FAQ items, containers tagged as primary / secondary cards — reads from these tokens. Edit a colour either here or on the Colors tab; the two stay in sync.
       {% elif grp == 'Buttons' %}Primary + secondary button colors, radius, padding, font weight, and text transform.
       {% elif grp == 'Links' %}How links read in body copy (decoration on/off, hover behavior).
-      {% elif grp == 'Text' %}Base text size and line height for body copy.{% endif %}</span>
+      {% elif grp == 'Text' %}Base text size and line height for body copy.{% endif %}{% endcall %}</h2>
     </div>
     {% if grp == 'Card styles' %}
       {# Two side-by-side columns — Primary on the left, Secondary on
@@ -303,10 +301,7 @@
         </div>
         {% endfor %}
       </div>
-      <h3 class="fe-design-subhead">Shared button settings</h3>
-      <p class="muted small" style="margin: -2px 0 8px;">
-        These apply to every public-site button regardless of style.
-      </p>
+      <h3 class="fe-design-subhead">Shared button settings {% call chip('Shared button settings') %}These apply to every public-site button regardless of style.{% endcall %}</h3>
       <div class="fe-design-grid">
         {% for k in _btn_shared %}
           {{ render_field(design_fields_by_key[k]) }}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% from "_frontend_layout_picker.html" import layout_picker %}
 {% from "_frontend_structure_card.html" import structure_card, structure_page_tree, structure_orphans_card, structure_block_palette %}
@@ -493,12 +494,12 @@
           <input type="hidden" name="og_present" value="1">
           <div class="form-grid page-og-grid" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;">
             <div class="page-og-fields">
-              <label>Title <span class="muted small">(falls back to the page title)</span>
+              <label>{% call hrow('Title') %}Falls back to the page title{% endcall %}
                 <input type="text" name="og_title" maxlength="200"
                        value="{{ (page.og_title if page else '') or '' }}"
                        placeholder="{{ (page.title if page else '') or 'Page title' }}">
               </label>
-              <label>Description <span class="muted small">(120–200 chars works best)</span>
+              <label>{% call hrow('Description') %}120–200 chars works best{% endcall %}
                 <textarea name="og_description" rows="3" maxlength="500"
                           placeholder="One or two sentences describing the page.">{{ (page.og_description if page else '') or '' }}</textarea>
               </label>

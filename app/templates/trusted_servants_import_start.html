@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Import contacts · Email List{% endblock %}
 {% block heading %}Import contacts from CSV{% endblock %}
 {% block heading_help %}Upload a CSV from any spreadsheet tool. The next step shows the auto-detected column mapping so you can review and adjust before committing.{% endblock %}
@@ -8,11 +9,8 @@
 <section class="card data-card ts-wizard-card">
   <div class="data-card-head">
     {{ icon('cloud-upload') }}
-    <span>Upload a CSV file</span>
+    <span>Upload a CSV file {% call chip('Upload a CSV file') %}Bring a CSV exported from Excel, Google Sheets, Numbers, or any other tool. The importer auto-detects which columns to map and ignores everything else — extra columns like status or role won't get in the way.{% endcall %}</span>
   </div>
-  <p class="muted small data-card-lead">
-    Bring a CSV exported from Excel, Google Sheets, Numbers, or any other tool. The importer auto-detects which columns to map and ignores everything else — extra columns like status or role won't get in the way.
-  </p>
   <form class="form" method="post" action="{{ url_for('main.trusted_servants_import') }}" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}

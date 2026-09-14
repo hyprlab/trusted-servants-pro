@@ -1,3 +1,4 @@
+{% from "_help_chip.html" import chip, hrow %}
 <!doctype html>
 <html lang="en" data-theme="light">
 <head>
@@ -273,7 +274,7 @@
       <h1>{% block heading %}{% endblock %}
         {%- set _help = self.heading_help()|trim -%}
         {% if _help %}<span class="heading-help">
-          <button type="button" class="help-btn" aria-label="About this section">?</button>
+          <button type="button" class="help-btn" aria-label="About this section">{{ icon('info') }}</button>
           <span class="help-tooltip" role="tooltip">{{ _help }}</span>
         </span>{% endif %}
       </h1>
@@ -359,11 +360,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('sun') }}
-            <span>Theme</span>
+            <span>Theme {% call chip('Theme') %}Choose how the admin portal looks for your account. The setting is per-user, not global.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Choose how the admin portal looks for your account. The setting is per-user, not global.
-          </p>
           <div class="theme-picker" role="radiogroup" aria-label="Theme">
             {% for t in [
               ('light', 'Light', '#f6f7fb', '#ffffff', '#5b6ef4'),
@@ -390,11 +388,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('image') }}
-            <span>Sidebar Footer Logo</span>
+            <span>Sidebar Footer Logo {% call chip('Sidebar Footer Logo') %}Replaces the logo shown at the bottom of the sidebar and the link it opens.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Replaces the logo shown at the bottom of the sidebar and the link it opens.
-          </p>
           <form class="form appearance-branding-form" method="post" action="{{ url_for('main.site_branding_save') }}" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% set _has_logo = site and site.footer_logo_filename %}
@@ -433,11 +428,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('sparkles') }}
-            <span>Login Screen</span>
+            <span>Login Screen {% call chip('Login Screen') %}Choose the animated background effect, speed, and accent color shown on the login page.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Choose the animated background effect, speed, and accent color shown on the login page.
-          </p>
           <form class="form login-appearance-form" method="post" action="{{ url_for('main.login_appearance_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -514,8 +506,7 @@
 
             <li class="special-page-row login-fx-toggle-row">
               <div class="special-page-info">
-                <div class="u-name">Login transition</div>
-                <p class="muted small">Play a 3D door-opening animation with rainbow warp after a successful login.</p>
+                <div class="u-name">Login transition {% call chip() %}Play a 3D door-opening animation with rainbow warp after a successful login.{% endcall %}</div>
               </div>
               <label class="mode-toggle" title="Enable login transition animation">
                 <input type="checkbox" name="login_transition_enabled" value="1" {% if site.login_transition_enabled %}checked{% endif %}>
@@ -533,17 +524,13 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('external-link') }}
-            <span>Open Graph / Link Previews</span>
+            <span>Open Graph / Link Previews {% call chip('Open Graph / Link Previews') %}Controls the title, description, and image other sites show when someone pastes a link to this portal into Slack, iMessage, Facebook, Twitter/X, or similar. Image is served publicly so crawlers can fetch it.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Controls the title, description, and image other sites show when someone pastes a link to this portal into Slack, iMessage, Facebook, Twitter/X, or similar. Image is served publicly so crawlers can fetch it.
-          </p>
           <form class="form appearance-og-form" method="post" action="{{ url_for('main.og_save') }}" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="special-page-row og-toggle-row">
               <div class="special-page-info">
-                <div class="u-name">Enable link previews</div>
-                <p class="muted small">When off, no Open Graph or Twitter Card tags are emitted.</p>
+                <div class="u-name">Enable link previews {% call chip() %}When off, no Open Graph or Twitter Card tags are emitted.{% endcall %}</div>
               </div>
               <label class="mode-toggle" title="Enable Open Graph link previews">
                 <input type="checkbox" name="og_enabled" value="1" {% if site and site.og_enabled %}checked{% endif %}>
@@ -580,11 +567,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('smartphone') }}
-            <span>Home Screen Icon (iOS / iPadOS)</span>
+            <span>Home Screen Icon (iOS / iPadOS) {% call chip('Home Screen Icon (iOS / iPadOS)') %}Icon and label used when this admin portal (<code>/tspro</code>) is pinned to an iPhone or iPad home screen via Safari's "Add to Home Screen." Independent from the public site's home-screen icon.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Icon and label used when this admin portal (<code>/tspro</code>) is pinned to an iPhone or iPad home screen via Safari's "Add to Home Screen." Independent from the public site's home-screen icon.
-          </p>
           <form class="form appearance-apple-touch-form" method="post" action="{{ url_for('main.apple_touch_icon_save') }}" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="branding-row">
@@ -769,16 +753,13 @@
                  data-regen-url="{{ url_for('main.mfa_regenerate_recovery') }}">
           <div class="data-card-head">
             {{ icon('shield') }}
-            <span>Two-Factor Authentication</span>
+            <span>Two-Factor Authentication {% call chip('Two-Factor Authentication') %}Add a one-time code from an authenticator app (2FAS, Google
+            Authenticator, Aegis, 1Password…) on top of your password for this
+            account.{% endcall %}</span>
             <span class="mfa-status-pill {{ 'on' if current_user.mfa_enabled else ('warn' if _mfa_pending else 'off') }}">
               {{ 'Enabled' if current_user.mfa_enabled else ('Setup required' if _mfa_pending else 'Off') }}
             </span>
           </div>
-          <p class="muted small data-card-lead">
-            Add a one-time code from an authenticator app (2FAS, Google
-            Authenticator, Aegis, 1Password…) on top of your password for this
-            account.
-          </p>
 
           {# State: OFF / setup-pending — the enrol entry point #}
           <div class="mfa-off" {% if current_user.mfa_enabled %}hidden{% endif %}>
@@ -848,11 +829,8 @@
 
           {# Recovery codes — shown once after enable / regenerate #}
           <div class="mfa-recovery" hidden>
-            <div class="mfa-recovery-head">{{ icon('key') }} <strong>Save your recovery codes</strong></div>
-            <p class="muted small">
-              Each code works once if you lose access to your authenticator.
-              Store them somewhere safe — they won't be shown again.
-            </p>
+            <div class="mfa-recovery-head">{{ icon('key') }} <strong>Save your recovery codes</strong> {% call chip() %}Each code works once if you lose access to your authenticator.
+              Store them somewhere safe — they won't be shown again.{% endcall %}</div>
             <ul class="mfa-recovery-list"></ul>
             <div class="mfa-recovery-actions">
               <button type="button" class="btn mfa-recovery-copy">Copy codes</button>
@@ -916,8 +894,7 @@
           'viewer': 'perm-badge-viewer',
         } %}
 
-        <div class="u-name">Permission matrix</div>
-        <p class="muted small">Each role's capabilities at a glance. Your row is highlighted.</p>
+        <div class="u-name">Permission matrix {% call chip() %}Each role's capabilities at a glance. Your row is highlighted.{% endcall %}</div>
         <div class="access-matrix-wrap">
           <table class="access-matrix">
             <thead>
@@ -966,11 +943,8 @@
         </p>
 
         <hr class="settings-sep">
-        <div class="u-name">Need a different role?</div>
-        <p class="muted small">
-          Role assignments are managed by an admin. If your access needs to change, contact an admin via the
-          <a href="#" data-open-modal="pic-help-modal">Need Help?</a> popup.
-        </p>
+        <div class="u-name">Need a different role? {% call chip() %}Role assignments are managed by an admin. If your access needs to change, contact an admin via the
+          <a href="#" data-open-modal="pic-help-modal">Need Help?</a> popup.{% endcall %}</div>
       </div>
       {% if current_user.is_admin() %}
       <div class="settings-pane" data-pane="users">
@@ -1094,8 +1068,7 @@
           {% set _ig_perm_tooltip = "Visibility and editing for Email Accounts are hard-gated to admins and the Intergroup Member role — the per-module role setting can't loosen this. Editing the account list itself stays admin-only. Intergroup-flagged libraries are editable by admins + Intergroup Members; regular Editors can't edit them." %}
           <li class="special-page-row special-page-row-with-children">
             <div class="special-page-info">
-              <div class="u-name">Intergroup module</div>
-              <p class="muted small">Show or hide the <b>Intergroup</b> sidebar subsection. When on, the section surfaces the {{ site.ig_page_title or 'Intergroup' }} Email page (toggled separately below) plus shortcuts to the <i>Intergroup Minutes</i> and <i>Intergroup Documents</i> libraries (when those libraries exist). Editing Documents &amp; Minutes is gated to admins and the new <b>Intergroup Member</b> role; Email Accounts stays admin-only.</p>
+              <div class="u-name">Intergroup module {% call chip() %}Show or hide the <b>Intergroup</b> sidebar subsection. When on, the section surfaces the {{ site.ig_page_title or 'Intergroup' }} Email page (toggled separately below) plus shortcuts to the <i>Intergroup Minutes</i> and <i>Intergroup Documents</i> libraries (when those libraries exist). Editing Documents &amp; Minutes is gated to admins and the new <b>Intergroup Member</b> role; Email Accounts stays admin-only.{% endcall %}</div>
             </div>
             {{ module_role_picker('intergroup_module', site.intergroup_module_required_role if site else 'viewer') }}
             <form method="post" action="{{ url_for('main.intergroup_module_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1116,8 +1089,8 @@
                     <span class="perm-info-badge" tabindex="0"
                           title="{{ _ig_perm_tooltip }}"
                           aria-label="{{ _ig_perm_tooltip }}">Admin &amp; Intergroup Member only</span>
+                    {% call chip('Intergroup Email Accounts') %}Show or hide the Email Accounts entry inside the Intergroup subsection. Turn this off to keep Minutes &amp; Documents visible while hiding the Email page. <b>The Email Accounts page itself is hard-gated to admins and Intergroup Members</b> regardless of the role setting below; editing the account list stays admin-only.{% endcall %}
                   </div>
-                  <p class="muted small">Show or hide the Email Accounts entry inside the Intergroup subsection. Turn this off to keep Minutes &amp; Documents visible while hiding the Email page. <b>The Email Accounts page itself is hard-gated to admins and Intergroup Members</b> regardless of the role setting below; editing the account list stays admin-only.</p>
                 </div>
                 {{ module_role_picker('intergroup', site.intergroup_required_role if site else 'viewer') }}
                 <form method="post" action="{{ url_for('main.intergroup_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1135,8 +1108,7 @@
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">{{ site.zoom_tech_title or 'Zoom Tech Training' }}</div>
-              <p class="muted small">Show or hide the Zoom Tech Training page from the sidebar.</p>
+              <div class="u-name">{{ site.zoom_tech_title or 'Zoom Tech Training' }} {% call chip() %}Show or hide the Zoom Tech Training page from the sidebar.{% endcall %}</div>
             </div>
             {{ module_role_picker('zoom_tech', site.zoom_tech_required_role if site else 'viewer') }}
             <form method="post" action="{{ url_for('main.zoom_tech_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1152,8 +1124,7 @@
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Announcements &amp; Events</div>
-              <p class="muted small">Show or hide the Announcements &amp; Events module. When off, the sidebar entry disappears and the routes return 404; existing posts are kept and reappear when re-enabled.</p>
+              <div class="u-name">Announcements &amp; Events {% call chip() %}Show or hide the Announcements &amp; Events module. When off, the sidebar entry disappears and the routes return 404; existing posts are kept and reappear when re-enabled.{% endcall %}</div>
             </div>
             {{ module_role_picker('posts', site.posts_required_role if site else 'admin') }}
             <form method="post" action="{{ url_for('main.posts_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1169,8 +1140,7 @@
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Stories</div>
-              <p class="muted small">Recovery stories — long-form first-person posts at <code>/stories</code> and <code>/stories/&lt;slug&gt;</code>. Each story has an author byline, an optional sobriety / story date, a featured image, and a Markdown body. When off, the sidebar entry disappears and the public + admin routes return 404; existing stories are kept and reappear when re-enabled.</p>
+              <div class="u-name">Stories {% call chip() %}Recovery stories — long-form first-person posts at <code>/stories</code> and <code>/stories/&lt;slug&gt;</code>. Each story has an author byline, an optional sobriety / story date, a featured image, and a Markdown body. When off, the sidebar entry disappears and the public + admin routes return 404; existing stories are kept and reappear when re-enabled.{% endcall %}</div>
             </div>
             {{ module_role_picker('stories', site.stories_required_role if site else 'admin') }}
             <form method="post" action="{{ url_for('main.stories_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1186,8 +1156,7 @@
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Trusted Servants Email List</div>
-              <p class="muted small">Admin-managed contact roster + blast email surface. When on, a sign-up widget appears on every signed-in user's dashboard inviting them to add their name, phone, and email; admins manage the roster and send updates from <code>/email-list</code>. The role gate below decides who can see the roster and send blasts — every signed-in user can self-subscribe via the dashboard widget regardless.</p>
+              <div class="u-name">Trusted Servants Email List {% call chip() %}Admin-managed contact roster + blast email surface. When on, a sign-up widget appears on every signed-in user's dashboard inviting them to add their name, phone, and email; admins manage the roster and send updates from <code>/email-list</code>. The role gate below decides who can see the roster and send blasts — every signed-in user can self-subscribe via the dashboard widget regardless.{% endcall %}</div>
             </div>
             {{ module_role_picker('trusted_servants', site.trusted_servants_required_role if site else 'admin') }}
             <form method="post" action="{{ url_for('main.trusted_servants_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1203,8 +1172,7 @@
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Recovery Contacts</div>
-              <p class="muted small">Public directory at <code>/contactlist</code> where visitors submit their name, phone, and email. Submissions stay hidden until an admin approves them from the <b>Recovery Contacts</b> sidebar section, where each entry has per-field toggles to show the phone, the email, or both. Bot submissions are blocked by a hidden honeypot plus Cloudflare Turnstile (when configured). The role gate below decides who can review and approve entries.</p>
+              <div class="u-name">Recovery Contacts {% call chip() %}Public directory at <code>/contactlist</code> where visitors submit their name, phone, and email. Submissions stay hidden until an admin approves them from the <b>Recovery Contacts</b> sidebar section, where each entry has per-field toggles to show the phone, the email, or both. Bot submissions are blocked by a hidden honeypot plus Cloudflare Turnstile (when configured). The role gate below decides who can review and approve entries.{% endcall %}</div>
             </div>
             {{ module_role_picker('recovery_contacts', site.recovery_contacts_required_role if site else 'admin') }}
             <form method="post" action="{{ url_for('main.recovery_contacts_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1220,8 +1188,7 @@
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Blog</div>
-              <p class="muted small">Long-form editorial blog at <code>/blog</code> and <code>/blog/&lt;slug&gt;</code>, with categories, tags, featured images, author bylines, and Markdown body. Page block can scope a list to a single category or tag — host multiple committee / group blogs from a single Posts table. When off, the sidebar entry disappears and the public + admin routes return 404; existing posts are kept and reappear when re-enabled.</p>
+              <div class="u-name">Blog {% call chip() %}Long-form editorial blog at <code>/blog</code> and <code>/blog/&lt;slug&gt;</code>, with categories, tags, featured images, author bylines, and Markdown body. Page block can scope a list to a single category or tag — host multiple committee / group blogs from a single Posts table. When off, the sidebar entry disappears and the public + admin routes return 404; existing posts are kept and reappear when re-enabled.{% endcall %}</div>
             </div>
             {{ module_role_picker('blog', site.blog_required_role if site else 'admin') }}
             <form method="post" action="{{ url_for('main.blog_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1237,8 +1204,7 @@
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Web Frontend module</div>
-              <p class="muted small">Turn the entire Web Frontend module on or off. When off, the <b>Web Frontend</b> entry disappears from the sidebar, the editor routes are blocked, and the public homepage won't serve. The role gate here only hides/shows the sidebar entry — the underlying editor routes always require <b>admin</b> authority.</p>
+              <div class="u-name">Web Frontend module {% call chip() %}Turn the entire Web Frontend module on or off. When off, the <b>Web Frontend</b> entry disappears from the sidebar, the editor routes are blocked, and the public homepage won't serve. The role gate here only hides/shows the sidebar entry — the underlying editor routes always require <b>admin</b> authority.{% endcall %}</div>
             </div>
             {{ module_role_picker('frontend_module', site.frontend_module_required_role if site else 'admin') }}
             <form method="post" action="{{ url_for('main.frontend_module_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1" data-reload-on-save="1">
@@ -1260,20 +1226,14 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('globe') }}
-            <span>Public Domain</span>
+            <span>Public Domain {% call chip('Public Domain') %}Canonical URL used in outbound emails and any other absolute link this portal sends out. Without this set, links fall back to whatever <code>Host</code> header the request carried — which is usually a Docker bridge IP for portals behind a reverse proxy. Save this once and every welcome email / access-request notification picks up the right hostname.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Canonical URL used in outbound emails and any other absolute link this portal sends out. Without this set, links fall back to whatever <code>Host</code> header the request carried — which is usually a Docker bridge IP for portals behind a reverse proxy. Save this once and every welcome email / access-request notification picks up the right hostname.
-          </p>
           <form class="form appearance-site-url-form" method="post" action="{{ url_for('main.site_url_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Site URL
+            <label>{% call hrow('Site URL') %}Tip: omit the trailing slash. Bare domains (<code>example.com</code>) are auto-prefixed with <code>https://</code>.{% endcall %}
               <input name="site_url" type="url" value="{{ (site.site_url if site else '') or '' }}"
                      placeholder="example.com">
             </label>
-            <p class="muted smaller" style="margin-top:6px;">
-              Tip: omit the trailing slash. Bare domains (<code>example.com</code>) are auto-prefixed with <code>https://</code>.
-            </p>
             <div class="data-card-actions"><button class="btn btn-primary">Save Domain</button></div>
           </form>
         </section>
@@ -1282,19 +1242,15 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('mail') }}
-            <span>SMTP Server</span>
+            <span>SMTP Server {% call chip('SMTP Server') %}Used for sending notification emails, including access requests from the login screen.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Used for sending notification emails, including access requests from the login screen.
-          </p>
           <form class="form" method="post" action="{{ url_for('main.email_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Sending method
+            <label>{% call hrow('Sending method') %}Use <b>API relay</b> when your host blocks outbound SMTP ports (e.g. DigitalOcean). The app sends each message over HTTPS to a relay container that does the SMTP delivery. <b>From email / From name</b> and access-request recipients apply to both modes.{% endcall %}
               <select name="mail_transport" id="mailTransportSelect">
                 <option value="smtp" {% if (site.mail_transport or 'smtp') != 'relay' %}selected{% endif %}>Direct SMTP</option>
                 <option value="relay" {% if (site.mail_transport or 'smtp') == 'relay' %}selected{% endif %}>API relay (HTTPS)</option>
               </select>
-              <span class="muted smaller">Use <b>API relay</b> when your host blocks outbound SMTP ports (e.g. DigitalOcean). The app sends each message over HTTPS to a relay container that does the SMTP delivery. <b>From email / From name</b> and access-request recipients apply to both modes.</span>
             </label>
             <div id="relayFields">
               <div class="row">
@@ -1356,9 +1312,8 @@
               <label>From email<input name="smtp_from_email" type="email" value="{{ site.smtp_from_email or '' }}" placeholder="noreply@example.com"></label>
               <label>From name<input name="smtp_from_name" type="text" value="{{ site.smtp_from_name or '' }}" placeholder="Trusted Servants Pro"></label>
             </div>
-            <label>Send access requests to
+            <label>{% call hrow('Send access requests to') %}Access-request submissions from the login page are emailed here. Separate multiple recipients with commas.{% endcall %}
               <input name="access_request_to" type="text" value="{{ site.access_request_to or '' }}" placeholder="admin@example.com">
-              <span class="muted smaller">Access-request submissions from the login page are emailed here. Separate multiple recipients with commas.</span>
             </label>
             <div class="data-card-actions"><button class="btn btn-primary">Save Email Settings</button></div>
           </form>
@@ -1368,11 +1323,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('send') }}
-            <span>Send test email</span>
+            <span>Send test email {% call chip('Send test email') %}Verifies the SMTP credentials above by sending a test message.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Verifies the SMTP credentials above by sending a test message.
-          </p>
           <form class="form" method="post" action="{{ url_for('main.email_test') }}"
                 data-savebar-skip="1" data-email-test-form>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1388,11 +1340,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('clock') }}
-            <span>Server Timezone</span>
+            <span>Server Timezone {% call chip('Server Timezone') %}Determines what the portal calls "today" and "now" — used by the public meetings block and any other time-dependent display. Set this to your fellowship's local timezone, regardless of where the server is hosted.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Determines what the portal calls "today" and "now" — used by the public meetings block and any other time-dependent display. Set this to your fellowship's local timezone, regardless of where the server is hosted.
-          </p>
           {% set _tz_current = site.timezone or 'UTC' %}
           {% set _tz_now = now_in_timezone(_tz_current) %}
           <form class="form" method="post" action="{{ url_for('main.timezone_save') }}">
@@ -1447,17 +1396,14 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('key') }}
-            <span>Zoom One-Time-Passcodes (OTP)</span>
+            <span>Zoom One-Time-Passcodes (OTP) {% call chip('Zoom One-Time-Passcodes (OTP)') %}Shared inbox where Zoom sends one-time-password codes. These credentials are shown to users on Online/Hybrid meeting pages so they can retrieve OTP codes when logging into Zoom.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Shared inbox where Zoom sends one-time-password codes. These credentials are shown to users on Online/Hybrid meeting pages so they can retrieve OTP codes when logging into Zoom.
-          </p>
           <form class="form" method="post" action="{{ url_for('main.otp_email_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="has_imap_fields" value="1">
             <label>Email Address<input name="email" type="email" value="{{ otp.email or '' }}"></label>
             <label>Login URL<input name="login_url" type="url" value="{{ otp.login_url or '' }}" placeholder="https://mail.example.com"></label>
-            <label>Password <span class="muted smaller">(leave blank to keep current)</span>
+            <label>{% call hrow('Password') %}Leave blank to keep current{% endcall %}
               <input name="password" type="password" placeholder="{% if otp.password_enc %}••••••••{% endif %}">
             </label>
             {% if otp.password_enc %}
@@ -1478,10 +1424,10 @@
             </div>
             <label class="check"><input type="checkbox" name="imap_ssl" value="1" {% if otp.imap_ssl is none or otp.imap_ssl %}checked{% endif %}><span>Use SSL/TLS (recommended)</span></label>
             <div class="otp-imap-grid">
-              <label>IMAP Username <span class="muted smaller">(optional)</span><input name="imap_username" type="text" value="{{ otp.imap_username or '' }}" placeholder="defaults to email above" autocomplete="off"></label>
+              <label><span class="field-label-row">IMAP Username <span class="muted smaller">(optional)</span></span><input name="imap_username" type="text" value="{{ otp.imap_username or '' }}" placeholder="defaults to email above" autocomplete="off"></label>
               <label>Mailbox / Folder<input name="imap_mailbox" type="text" value="{{ otp.imap_mailbox or 'INBOX' }}" placeholder="INBOX"></label>
             </div>
-            <label>IMAP Password <span class="muted smaller">(optional — leave blank to reuse the password above)</span>
+            <label>{% call hrow('IMAP Password') %}Optional — leave blank to reuse the password above{% endcall %}
               <input name="imap_password" type="password" placeholder="{% if otp.imap_password_enc %}•••••••• (saved){% else %}app password{% endif %}" autocomplete="new-password">
             </label>
             {% if otp.imap_password_enc %}
@@ -1496,13 +1442,10 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('shield') }}
-            <span>Login Bot Protection</span>
-          </div>
-          <p class="muted small data-card-lead">
-            Require a Cloudflare Turnstile challenge on the login screen.
+            <span>Login Bot Protection {% call chip('Login Bot Protection') %}Require a Cloudflare Turnstile challenge on the login screen.
             Create a site at <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener">Cloudflare → Turnstile</a>
-            (widget mode: Managed), add your portal hostname to its domain list, then paste the keys below.
-          </p>
+            (widget mode: Managed), add your portal hostname to its domain list, then paste the keys below.{% endcall %}</span>
+          </div>
           <form class="form turnstile-form" method="post" action="{{ url_for('main.turnstile_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>Site key
@@ -1519,8 +1462,7 @@
             {% endif %}
             <li class="special-page-row login-fx-toggle-row">
               <div class="special-page-info">
-                <div class="u-name">Enable on login screen</div>
-                <p class="muted small">When on, successful Turnstile verification is required before credentials are checked.</p>
+                <div class="u-name">Enable on login screen {% call chip() %}When on, successful Turnstile verification is required before credentials are checked.{% endcall %}</div>
               </div>
               <label class="mode-toggle" title="Enable Turnstile on login">
                 <input type="checkbox" name="turnstile_enabled" value="1" {% if site.turnstile_enabled %}checked{% endif %}>
@@ -1537,29 +1479,20 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('database') }}
-            <span>All data</span>
-          </div>
-          <p class="muted small data-card-lead">
-            The complete portal — SQLite database, every uploaded file, and the
+            <span>All data {% call chip('All data') %}The complete portal — SQLite database, every uploaded file, and the
             Fernet key (<code>zoom.key</code>) used to decrypt stored Zoom
             credentials. Use this to migrate the whole install or roll back to
-            a known-good archive.
-          </p>
+            a known-good archive.{% endcall %}</span>
+          </div>
           <div class="data-card-grid">
             <div class="data-card-col">
-              <div class="u-name">Import</div>
-              <p class="muted small">
-                Replaces this portal's database and uploads with the contents of an
+              <div class="u-name">Import {% call chip() %}Replaces this portal's database and uploads with the contents of an
                 export archive. The current database and uploads are moved to a
                 timestamped <code>backup-YYYYMMDD-HHMMSS/</code> folder inside the
                 data directory before the import is applied. You will be signed out
-                when the import completes. Type <code>REPLACE</code> to confirm.
-              </p>
-              <p class="muted small">
-                Large bundles are sliced into ~90 MB chunks in the browser, so
+                when the import completes. Type <code>REPLACE</code> to confirm. Large bundles are sliced into ~90 MB chunks in the browser, so
                 this works behind proxies that cap request bodies at 100 MB
-                (e.g. Cloudflare Free).
-              </p>
+                (e.g. Cloudflare Free).{% endcall %}</div>
               <form class="form" method="post"
                     action="{{ url_for('main.data_import') }}"
                     enctype="multipart/form-data"
@@ -1569,10 +1502,10 @@
                     data-finalize-action="{{ url_for('main.data_import_finalize') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>Export archive (.zip or .zip.enc)<input type="file" name="archive" accept=".zip,.enc,application/zip,application/octet-stream" required></label>
-                <label>Decryption passphrase <span class="muted smaller">(legacy <code>.zip.enc</code> passphrase bundles only; leave blank otherwise)</span>
+                <label>{% call hrow('Decryption passphrase') %}Legacy <code>.zip.enc</code> passphrase bundles only; leave blank otherwise{% endcall %}
                   <input type="password" name="passphrase" autocomplete="off" placeholder="Only for passphrase-encrypted bundles">
                 </label>
-                <label>Private key <span class="muted smaller">(end-to-end-encrypted TS&nbsp;Pro Backup <code>.enc</code> files only)</span>
+                <label>{% call hrow('Private key') %}End-to-end-encrypted TS&nbsp;Pro Backup <code>.enc</code> files only{% endcall %}
                   <input type="password" name="private_key" autocomplete="off" placeholder="tspsk_… — leave blank for ordinary .zip imports">
                 </label>
                 <p class="muted smaller">
@@ -1751,21 +1684,15 @@
               </script>
             </div>
             <div class="data-card-col">
-              <div class="u-name">Export</div>
-              <p class="muted small">
-                Download a complete archive of this portal — database, uploads, and
-                the Fernet key. Use the Import side on a fresh instance to restore.
-              </p>
-              <p class="muted small">
-                Optional: encrypt the bundle with a passphrase (AES-256-GCM,
+              <div class="u-name">Export {% call chip() %}Download a complete archive of this portal — database, uploads, and
+                the Fernet key. Use the Import side on a fresh instance to restore. Optional: encrypt the bundle with a passphrase (AES-256-GCM,
                 PBKDF2-derived key). The downloaded file becomes
                 <code>.zip.enc</code>. The destination needs the same passphrase
                 to import it. Recommended when transmitting through Cloudflare or
-                any other TLS-terminating proxy — the edge only sees ciphertext.
-              </p>
+                any other TLS-terminating proxy — the edge only sees ciphertext.{% endcall %}</div>
               <form method="post" action="{{ url_for('main.data_export') }}" class="form" data-no-ajax="1" data-export-bundle-form>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label>Encryption passphrase <span class="muted smaller">(leave blank for plain .zip)</span>
+                <label>{% call hrow('Encryption passphrase') %}Leave blank for plain .zip{% endcall %}
                   <div class="passphrase-row">
                     <input type="password" name="passphrase" autocomplete="new-password"
                            placeholder="Optional — encrypts the bundle"
@@ -1888,22 +1815,16 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('layout-grid') }}
-            <span>Frontend bundle</span>
-          </div>
-          <p class="muted small data-card-lead">
-            Just the public frontend — content, navigation (nav items, mega-menu
+            <span>Frontend bundle {% call chip('Frontend bundle') %}Just the public frontend — content, navigation (nav items, mega-menu
             columns and blocks), template choices, colors, alerts, and referenced
             logos / assets. Use this to drop your frontend into a fresh install
-            without touching users, meetings, libraries, or meeting uploads.
-          </p>
+            without touching users, meetings, libraries, or meeting uploads.{% endcall %}</span>
+          </div>
           <div class="data-card-grid">
             <div class="data-card-col">
-              <div class="u-name">Import frontend</div>
-              <p class="muted small">
-                Overwrites all frontend settings, nav items, and referenced assets
+              <div class="u-name">Import frontend {% call chip() %}Overwrites all frontend settings, nav items, and referenced assets
                 with the bundle's contents. Other data (users, meetings, libraries)
-                is left alone. Type <code>REPLACE</code> to confirm.
-              </p>
+                is left alone. Type <code>REPLACE</code> to confirm.{% endcall %}</div>
               <form class="form" method="post" action="{{ url_for('main.data_frontend_import') }}" enctype="multipart/form-data" data-no-ajax="1">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>Frontend bundle (.zip)<input type="file" name="archive" accept=".zip,application/zip" required></label>
@@ -1912,12 +1833,9 @@
               </form>
             </div>
             <div class="data-card-col">
-              <div class="u-name">Export frontend</div>
-              <p class="muted small">
-                Download a scoped <code>.zip</code> containing
+              <div class="u-name">Export frontend {% call chip() %}Download a scoped <code>.zip</code> containing
                 <code>frontend.json</code> (settings + nav tree) and an
-                <code>assets/</code> folder with every file the frontend references.
-              </p>
+                <code>assets/</code> folder with every file the frontend references.{% endcall %}</div>
               <div class="form-actions">
                 <a class="btn btn-primary" href="{{ url_for('main.data_frontend_export') }}">Export frontend bundle (.zip)</a>
               </div>
@@ -1935,16 +1853,13 @@
                  data-has-url="{{ '1' if _fs_has_url else '0' }}">
           <div class="data-card-head">
             {{ icon('layout-grid') }}
-            <span>Frontend staging sync</span>
-          </div>
-          <p class="muted small data-card-lead">
-            Build your public website on a separate <strong>Staging</strong> copy, then
+            <span>Frontend staging sync {% call chip('Frontend staging sync') %}Build your public website on a separate <strong>Staging</strong> copy, then
             move it to your <strong>Live</strong> site over the network — no bundle to
             download and re-upload. This wizard pairs the two installs. Only the frontend
             travels (presentation, navigation, page-builder Pages, and the assets they
             use); recovery <em>Stories</em>, users, meetings, and libraries are never
-            touched, and the receiving side auto-saves a rollback snapshot first.
-          </p>
+            touched, and the receiving side auto-saves a rollback snapshot first.{% endcall %}</span>
+          </div>
           {% if _fs_has_token %}
           <div class="fe-sync-snap-row">
             <button type="button" class="btn btn-sm"
@@ -1961,11 +1876,8 @@
 
           {# ── Step: choose this install's role ─────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="role">
-            <div class="u-name">Which install is this?</div>
-            <p class="muted small">
-              Staging sync links two installs. <strong>Set up your Live site first</strong> —
-              it mints the shared token you'll paste into Staging.
-            </p>
+            <div class="u-name">Which install is this? {% call chip() %}Staging sync links two installs. <strong>Set up your Live site first</strong> —
+              it mints the shared token you'll paste into Staging.{% endcall %}</div>
             <div class="fe-sync-roles">
               <button type="button" class="fe-sync-role-card" data-fe-sync-role="live">
                 <span class="fe-sync-role-name">This is my Live site</span>
@@ -1991,11 +1903,8 @@
 
           {# ── Live: create the shared token ────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="live-token">
-            <div class="u-name">Create the shared token</div>
-            <p class="muted small">
-              This secret lets your Staging copy sync with this Live site. Generate it
-              here, then paste it into Staging.
-            </p>
+            <div class="u-name">Create the shared token {% call chip() %}This secret lets your Staging copy sync with this Live site. Generate it
+              here, then paste it into Staging.{% endcall %}</div>
             <form class="form" method="post" action="{{ url_for('main.frontend_sync_save') }}"
                   data-no-ajax="1" data-fe-sync-action="save" data-fe-sync-land="live-done">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2015,12 +1924,9 @@
 
           {# ── Live: handoff / done ─────────────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="live-done">
-            <div class="u-name">Live site ready ✓</div>
-            <p class="muted small">
-              This site will now serve and accept syncs from your Staging copy. To finish,
+            <div class="u-name">Live site ready ✓ {% call chip() %}This site will now serve and accept syncs from your Staging copy. To finish,
               open this wizard on your <strong>Staging</strong> install, choose
-              <em>“This is my Staging copy”</em>, and give it:
-            </p>
+              <em>“This is my Staging copy”</em>, and give it:{% endcall %}</div>
             <div class="fe-sync-handoff">
               <div class="fe-sync-handoff-row">
                 <span class="fe-sync-handoff-label">Shared token</span>
@@ -2046,11 +1952,8 @@
 
           {# ── Staging: paste the token ─────────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="stg-token">
-            <div class="u-name">Paste the token from your Live site</div>
-            <p class="muted small">
-              On your Live site you generated a shared token. Paste it here so the two
-              installs match.
-            </p>
+            <div class="u-name">Paste the token from your Live site {% call chip() %}On your Live site you generated a shared token. Paste it here so the two
+              installs match.{% endcall %}</div>
             <form class="form" method="post" action="{{ url_for('main.frontend_sync_save') }}"
                   data-no-ajax="1" data-fe-sync-action="save" data-fe-sync-land="stg-url">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2068,11 +1971,8 @@
 
           {# ── Staging: Live site address ───────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="stg-url">
-            <div class="u-name">Your Live site's address</div>
-            <p class="muted small">
-              The address of your Live site — what you'd type in a browser to reach it.
-              An <code>https://</code> address is strongly recommended.
-            </p>
+            <div class="u-name">Your Live site's address {% call chip() %}The address of your Live site — what you'd type in a browser to reach it.
+              An <code>https://</code> address is strongly recommended.{% endcall %}</div>
             <form class="form" method="post" action="{{ url_for('main.frontend_sync_save') }}"
                   data-no-ajax="1" data-fe-sync-action="save" data-fe-sync-land="stg-test">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2090,11 +1990,8 @@
 
           {# ── Staging: test ────────────────────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="stg-test">
-            <div class="u-name">Check the connection</div>
-            <p class="muted small">
-              Confirm this Staging copy can reach your Live site with the shared token
-              before moving anything.
-            </p>
+            <div class="u-name">Check the connection {% call chip() %}Confirm this Staging copy can reach your Live site with the shared token
+              before moving anything.{% endcall %}</div>
             <form class="form" method="post" action="{{ url_for('main.frontend_sync_test') }}"
                   data-no-ajax="1" data-fe-sync-action="test">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2113,15 +2010,11 @@
 
           {# ── Staging: sync ────────────────────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="stg-sync">
-            <div class="u-name">Sync the frontend</div>
-            <p class="muted small">
-              Each direction overwrites one side and saves a rollback snapshot on the
-              receiving side first. Type <code>REPLACE</code> to confirm.
-            </p>
+            <div class="u-name">Sync the frontend {% call chip() %}Each direction overwrites one side and saves a rollback snapshot on the
+              receiving side first. Type <code>REPLACE</code> to confirm.{% endcall %}</div>
             <div class="data-card-grid">
               <div class="data-card-col">
-                <div class="fe-sync-subhead">Pull&nbsp;&nbsp;Live&nbsp;→&nbsp;here</div>
-                <p class="muted small">Overwrites <strong>this Staging copy</strong> with your Live site's frontend.</p>
+                <div class="fe-sync-subhead">Pull&nbsp;&nbsp;Live&nbsp;→&nbsp;here {% call chip() %}Overwrites <strong>this Staging copy</strong> with your Live site's frontend.{% endcall %}</div>
                 <form class="form" method="post" action="{{ url_for('main.frontend_sync_pull') }}"
                       data-no-ajax="1" data-fe-sync-action="pull">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2130,8 +2023,7 @@
                 </form>
               </div>
               <div class="data-card-col">
-                <div class="fe-sync-subhead">Push&nbsp;&nbsp;here&nbsp;→&nbsp;Live</div>
-                <p class="muted small">Overwrites <strong>your Live site</strong> with this Staging copy's frontend.</p>
+                <div class="fe-sync-subhead">Push&nbsp;&nbsp;here&nbsp;→&nbsp;Live {% call chip() %}Overwrites <strong>your Live site</strong> with this Staging copy's frontend.{% endcall %}</div>
                 <form class="form" method="post" action="{{ url_for('main.frontend_sync_push') }}"
                       data-no-ajax="1" data-fe-sync-action="push">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2154,14 +2046,11 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('cloud-upload') }}
-            <span>Off-site backups</span>
-          </div>
-          <p class="muted small data-card-lead">
-            Push the full app (database + uploads + Fernet key) to a remote
+            <span>Off-site backups {% call chip('Off-site backups') %}Push the full app (database + uploads + Fernet key) to a remote
             destination on a schedule you control. Local snapshots below
             protect against accidents — off-site backups protect against
-            disasters that take the whole machine with them.
-          </p>
+            disasters that take the whole machine with them.{% endcall %}</span>
+          </div>
           {% set _backup_targets = backup_targets() %}
           {% if _backup_targets %}
           <ul class="data-snapshot-list">
@@ -2205,13 +2094,10 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('save') }}
-            <span>Database snapshots</span>
-          </div>
-          <p class="muted small data-card-lead">
-            One snapshot of <code>tsp.db</code> is taken automatically each day at
+            <span>Database snapshots {% call chip('Database snapshots') %}One snapshot of <code>tsp.db</code> is taken automatically each day at
             app start. The most recent 14 are kept; older ones are pruned. Use
-            these to roll back from an accidental delete or a broken migration.
-          </p>
+            these to roll back from an accidental delete or a broken migration.{% endcall %}</span>
+          </div>
           {% set _snaps = db_snapshots() %}
           {% if _snaps %}
           <ul class="data-snapshot-list">
@@ -2238,14 +2124,11 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('globe') }}
-            <span>WordPress importer</span>
-          </div>
-          <p class="muted small data-card-lead">
-            Pull recovery stories, announcements, or events out of an existing
+            <span>WordPress importer {% call chip('WordPress importer') %}Pull recovery stories, announcements, or events out of an existing
             WordPress site. Connect over the WP REST API or upload a posts CSV.
             The wizard previews exactly what will be created — including slug
-            clashes and image downloads — before anything is saved.
-          </p>
+            clashes and image downloads — before anything is saved.{% endcall %}</span>
+          </div>
           <p class="muted smaller data-card-sub">
             Maps each post (or every post in a category) onto <b>Stories</b>,
             <b>Announcements</b>, <b>Events</b>, or skip. Featured images are
@@ -2321,8 +2204,7 @@
              what's new; the changelog sits behind a closed <details>. #}
           <details class="about-rel-notes" open>
             <summary class="about-sub-summary">
-              <h3 class="about-sub">Release notes</h3>
-              <span class="muted smaller">What's new in each version, in plain English.</span>
+              <h3 class="about-sub">Release notes {% call chip('Release notes') %}What's new in each version, in plain English.{% endcall %}</h3>
             </summary>
             <ul class="release-notes">
               {% for e in app_release_notes() %}
@@ -2341,8 +2223,7 @@
 
           <details class="about-changelog">
             <summary class="about-sub-summary">
-              <h3 class="about-sub">Changelog</h3>
-              <span class="muted smaller">The full implementation log — every change in technical detail.</span>
+              <h3 class="about-sub">Changelog {% call chip('Changelog') %}The full implementation log — every change in technical detail.{% endcall %}</h3>
             </summary>
             <ul class="changelog">
               {% for e in app_changelog() %}
@@ -2377,8 +2258,7 @@
     <div class="modal-body">
       <div class="help-tour-row">
         <div class="help-tour-copy">
-          <div class="u-name">Guided tour</div>
-          <p class="muted small">Replay the portal walkthrough — the sidebar, dashboard, files, and Zoom calendar.</p>
+          <div class="u-name">Guided tour {% call chip() %}Replay the portal walkthrough — the sidebar, dashboard, files, and Zoom calendar.{% endcall %}</div>
         </div>
         <button type="button" class="btn btn-primary" id="help-tour-btn" data-close>Take the tour</button>
       </div>
@@ -3025,13 +2905,12 @@
          pastel, and the texture overlay (grid + scope + noise). #}
       <div class="dynbg-modal-tabs" role="tablist" data-dynbg-modal-tabs>
         <button type="button" role="tab" class="dynbg-modal-tab is-active"
-                data-dynbg-modal-tab="background" aria-selected="true">Background</button>
+                data-dynbg-modal-tab="background" aria-selected="true">Background</button>{% call chip('Dynamic backgrounds') %}CSS-driven backdrops that animate or sit static behind the surface. Each preset is dark-mode aware and respects <code>prefers-reduced-motion</code>. The chosen background paints behind any solid colour or uploaded image you've also configured. Each tile previews a fresh random palette — your saved colours and texture live on the <b>Options</b> tab.{% endcall %}
         <button type="button" role="tab" class="dynbg-modal-tab"
                 data-dynbg-modal-tab="options" aria-selected="false">Options</button>
       </div>
 
       <section class="dynbg-modal-panel is-active" data-dynbg-modal-panel="background">
-        <p class="muted small dynbg-modal-blurb">CSS-driven backdrops that animate or sit static behind the surface. Each preset is dark-mode aware and respects <code>prefers-reduced-motion</code>. The chosen background paints behind any solid colour or uploaded image you've also configured. Each tile previews a fresh random palette — your saved colours and texture live on the <b>Options</b> tab.</p>
         <div class="fe-dynbg-picker fe-dynbg-picker-md" id="dynbg-picker-modal-grid" role="radiogroup">
           <label class="fe-dynbg-picker-card" data-dynbg-modal-card data-dynbg-key="">
             <input type="radio" name="__dynbg_modal_pick" value="">
@@ -3095,8 +2974,7 @@
         </fieldset>
 
         <fieldset class="dynbg-modal-fieldset" id="dynbg-picker-modal-colors-row">
-          <legend>Custom colours</legend>
-          <p class="muted small" style="margin: 0 0 8px;">Override the brand-token colours each preset uses with up to three custom hexes. Unset slots (shown ∅) fall through to the brand accent. Colour 1 is the primary glow, Colour 2 the secondary accent, Colour 3 the tertiary highlight.</p>
+          <legend>Custom colours {% call chip('Custom colours') %}Override the brand-token colours each preset uses with up to three custom hexes. Unset slots (shown ∅) fall through to the brand accent. Colour 1 is the primary glow, Colour 2 the secondary accent, Colour 3 the tertiary highlight.{% endcall %}</legend>
           <div class="dynbg-modal-colors">
             {% for slot in [1, 2, 3] %}
             <label class="dynbg-modal-color-row">
@@ -3163,8 +3041,7 @@
 
         {# ── Texture overlay (merged from the old Overlay tab) ──── #}
         <fieldset class="dynbg-modal-fieldset">
-          <legend>Texture overlay</legend>
-          <p class="muted small" style="margin: 0 0 10px;">A texture pass that paints over the base background AND content (subtle by default; click-through). Compose with any base background or use standalone over a solid colour.</p>
+          <legend>Texture overlay {% call chip('Texture overlay') %}A texture pass that paints over the base background AND content (subtle by default; click-through). Compose with any base background or use standalone over a solid colour.{% endcall %}</legend>
           <div class="fe-dynbg-picker fe-dynbg-picker-md" id="dynbg-picker-modal-overlay-grid" role="radiogroup">
             <label class="fe-dynbg-picker-card" data-dynbg-modal-overlay-card data-dynbg-overlay-key="">
               <input type="radio" name="__dynbg_modal_overlay_pick" value="">
@@ -3201,8 +3078,7 @@
              overlay_intensity. Placed directly under the overlay cards
              per the requested order; Scope sits at the bottom. #}
           <div class="dynbg-modal-subgroup" id="dynbg-picker-modal-overlay-knobs" hidden>
-            <span class="dynbg-modal-subgroup-label" data-dynbg-overlay-knobs-title>Texture knobs</span>
-            <p class="muted small" style="margin: 0 0 8px;" data-dynbg-overlay-knobs-blurb>Fine-tune the texture's scale and how strongly it reads.</p>
+            <span class="dynbg-modal-subgroup-label" data-dynbg-overlay-knobs-title>Texture knobs {% call chip('Texture knobs') %}Fine-tune the texture's scale and how strongly it reads.{% endcall %}</span>
             <label class="dynbg-modal-slider-row">
               <span class="dynbg-modal-slider-label"><span data-dynbg-ovsize-label>Size</span> <output id="dynbg-picker-modal-noise-size-out">{{ _dyn.noise_size }}</output></span>
               <input type="range" id="dynbg-picker-modal-noise-size"
@@ -3221,8 +3097,7 @@
           </div>
 
           <div class="dynbg-modal-subgroup">
-            <span class="dynbg-modal-subgroup-label">Scope</span>
-            <p class="muted small" style="margin: 0 0 8px;">Where the texture lays down. <b>All</b> rides over backgrounds AND content for a consistent surface finish. <b>Background only</b> tucks it under the content (cards / typography stay clean).</p>
+            <span class="dynbg-modal-subgroup-label">Scope {% call chip('Scope') %}Where the texture lays down. <b>All</b> rides over backgrounds AND content for a consistent surface finish. <b>Background only</b> tucks it under the content (cards / typography stay clean).{% endcall %}</span>
             <div class="dynbg-modal-scope-row" role="radiogroup">
               <label class="dynbg-modal-scope-opt">
                 <input type="radio" name="__dynbg_modal_scope_pick" value="all"

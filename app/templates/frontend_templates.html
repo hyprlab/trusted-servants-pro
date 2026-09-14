@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% block heading %}Templates{% endblock %}
@@ -216,8 +217,7 @@
 {% macro tpl_customize_panel(kind, active_key, settings, name, scope_label='page') %}
 <details class="fe-tplgrid-customize" open>
   <summary>
-    <span class="fe-tplgrid-customize-title">Customize{% if name %} {{ name }}{% endif %}</span>
-    <span class="muted small">Background, fonts, and sizes for this template — applies to every {{ scope_label }} that uses it.</span>
+    <span class="fe-tplgrid-customize-title">Customize{% if name %} {{ name }}{% endif %} {% call chip() %}Background, fonts, and sizes for this template — applies to every {{ scope_label }} that uses it.{% endcall %}</span>
   </summary>
   <form class="form fe-tplgrid-customize-form" method="post"
         action="{{ url_for('main.frontend_template_settings_save', kind=kind, key=active_key) }}">
@@ -250,13 +250,12 @@
             <option value="manual" {% if _bg_dm == 'manual' %}selected{% endif %}>Manual</option>
           </select>
         </label>
-        <label data-tpl-bg-dark-row {% if _bg_dm != 'manual' %}hidden{% endif %}>Dark color
+        <label data-tpl-bg-dark-row {% if _bg_dm != 'manual' %}hidden{% endif %}>{% call hrow('Dark color') %}When off, falls through to the global Design page surface color. Auto pulls the <b>Surface — Darkmode</b> design token so the dark variant tracks site palette edits.{% endcall %}
           <input type="color" name="bg_dark"
                  value="{{ settings.get('bg_dark') or '#0f172a' }}"
                  data-tpl-bg-dark-input
                  {% if not settings.bg or _bg_dm != 'manual' %}disabled{% endif %}>
         </label>
-        <p class="muted small">When off, falls through to the global Design page surface color. Auto pulls the <b>Surface — Darkmode</b> design token so the dark variant tracks site palette edits.</p>
         <div style="margin-top: 12px;">
           <span class="fe-tplgrid-bg-toggle" style="font-size: 0.875rem; font-weight: 600; display: block; margin-bottom: 6px;">Dynamic background</span>
           {% from "_dynbg_picker.html" import dynbg_trigger with context %}
@@ -306,7 +305,7 @@
             {% endfor %}
           </select>
         </label>
-        <label>Body font
+        <label>{% call hrow('Body font') %}Manage fonts on the <a href="{{ url_for('main.frontend_fonts_icons') }}">Fonts &amp; Icons</a> page.{% endcall %}
           <select name="body_font">
             <option value="">— Theme default —</option>
             {% for f in font_options %}
@@ -314,7 +313,6 @@
             {% endfor %}
           </select>
         </label>
-        <p class="muted small">Manage fonts on the <a href="{{ url_for('main.frontend_fonts_icons') }}">Fonts &amp; Icons</a> page.</p>
       </fieldset>
 
       {# Per-card body display — announcements + events list templates.
@@ -423,7 +421,7 @@
                  data-tpl-size-toggle="body">
           <span>Override body text size</span>
         </label>
-        <label>Body text size
+        <label>{% call hrow('Body text size') %}Off → template uses its own responsive default size. When on, the value is the desktop target — narrow viewports auto-scale it down so headings don't overflow on phones.{% endcall %}
           <span class="muted smaller">(0.5–4.0 rem)</span>
           <div class="login-fx-speed-row">
             <input type="range" name="body_size" min="0.5" max="4.0" step="0.1"
@@ -433,7 +431,6 @@
             <output data-tpl-size-output="body">{{ '%.1f' % (settings.body_size or _b_default) }}rem</output>
           </div>
         </label>
-        <p class="muted small">Off → template uses its own responsive default size. When on, the value is the desktop target — narrow viewports auto-scale it down so headings don't overflow on phones.</p>
       </fieldset>
     </div>
     <div class="form-actions">
@@ -454,8 +451,7 @@
 {%- set _active_name = _active_entry.name if _active_entry else '' -%}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>{{ title }}</h2>
-    <span class="muted smaller">{{ blurb }}</span>
+    <h2>{{ title }} {% call chip() %}{{ blurb }}{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post" action="{{ action_url }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -504,8 +500,7 @@
    catalog supports adding more layouts later. #}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Announcements list (/announcements)</h2>
-    <span class="muted smaller">Picks the layout for the public announcements page. The default Omni layout pairs a full-card view with a paper-styled GSR Summary set in Libre Baskerville.</span>
+    <h2>Announcements list (/announcements) {% call chip('Announcements list (/announcements)') %}Picks the layout for the public announcements page. The default Omni layout pairs a full-card view with a paper-styled GSR Summary set in Libre Baskerville.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_announcements_list_template_save') }}">
@@ -550,8 +545,7 @@
     {%- set _awhead = (site.frontend_announcements_list_heading     if site else '') or '' -%}
     {%- set _awsub  = (site.frontend_announcements_list_subheading  if site else '') or '' -%}
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Page heading</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Override the title and subheading the public /announcements page shows above the layout. Leave blank to use the chosen layout's built-in copy.</p>
+      <legend>Page heading {% call chip('Page heading') %}Override the title and subheading the public /announcements page shows above the layout. Leave blank to use the chosen layout's built-in copy.{% endcall %}</legend>
       <label>Title
         <input type="text" name="frontend_announcements_list_heading"
                maxlength="200" value="{{ _awhead }}"
@@ -565,8 +559,7 @@
     </fieldset>
     {%- set _awsubmit = (site.frontend_announcements_list_submit_url if site else '') or '' -%}
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Submit button</legend>
-      <p class="muted small" style="margin: 0 0 8px;">The "Submit" pill next to the Archive pill lets visitors add an announcement or event. This one URL also drives the Submit pill on the events list and the "Have an announcement or event to share?" band under the cards on every announcement / event / archive detail page. Leave the URL blank to link to the built-in submission form (all of them hide automatically while that form is disabled); set a custom URL to send visitors elsewhere.</p>
+      <legend>Submit button {% call chip('Submit button') %}The "Submit" pill next to the Archive pill lets visitors add an announcement or event. This one URL also drives the Submit pill on the events list and the "Have an announcement or event to share?" band under the cards on every announcement / event / archive detail page. Leave the URL blank to link to the built-in submission form (all of them hide automatically while that form is disabled); set a custom URL to send visitors elsewhere.{% endcall %}</legend>
       <label>Button URL
         <input type="text" name="frontend_announcements_list_submit_url"
                maxlength="500" value="{{ _awsubmit }}"
@@ -614,8 +607,7 @@
    Contact Form admin page so it sits next to the messages list. #}
 <section class="card fe-tplgrid-section" id="fe-tplgrid-contact">
   <div class="card-head">
-    <h2>Contact us (/contact)</h2>
-    <span class="muted smaller">Public contact-us page with a Turnstile-protected form. Submissions email the public information chair (with reply-to set to the visitor) and land in the Contact Form admin section for safekeeping.</span>
+    <h2>Contact us (/contact) {% call chip('Contact us (/contact)') %}Public contact-us page with a Turnstile-protected form. Submissions email the public information chair (with reply-to set to the visitor) and land in the Contact Form admin section for safekeeping.{% endcall %}</h2>
   </div>
   <div class="fe-tplgrid">
     <label class="fe-tplgrid-card active" style="cursor: default;">
@@ -663,8 +655,7 @@
         style="margin-top: 1rem;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Page heading</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Override the title and subheading shown above the form. Leave blank to use the baked defaults.</p>
+      <legend>Page heading {% call chip('Page heading') %}Override the title and subheading shown above the form. Leave blank to use the baked defaults.{% endcall %}</legend>
       <label>Title
         <input type="text" name="contact_form_heading" maxlength="200"
                value="{{ site.contact_form_heading or '' }}"
@@ -674,7 +665,7 @@
         <textarea name="contact_form_subheading" rows="2" maxlength="500"
                   placeholder="Send the public information committee a note. Replies come straight to your email.">{{ site.contact_form_subheading or '' }}</textarea>
       </label>
-      <label>Optional intro <span class="muted smaller">(Markdown supported, shown below the subheading)</span>
+      <label>{% call hrow('Optional intro') %}Markdown supported, shown below the subheading{% endcall %}
         <textarea name="contact_form_intro" rows="4"
                   placeholder="**Tip:** mention which meeting or service committee your question is about so we can route the reply to the right trusted servant.">{{ site.contact_form_intro or '' }}</textarea>
       </label>
@@ -684,10 +675,7 @@
     {%- set _has_pic_email = (site.pic_email if site else '') -%}
     {%- set _has_pic_phone = (site.pic_phone if site else '') -%}
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Public information chair panel</legend>
-      <p class="muted small" style="margin: 0 0 8px;">
-        Pulls from the <a href="{{ url_for('main.index') }}">dashboard's PIC fields</a>. Each row only renders on the public page when its value is set <em>and</em> its toggle here is on — so an empty PIC field hides the row even with the toggle on.
-      </p>
+      <legend>Public information chair panel {% call chip('Public information chair panel') %}Pulls from the <a href="{{ url_for('main.index') }}">dashboard's PIC fields</a>. Each row only renders on the public page when its value is set <em>and</em> its toggle here is on — so an empty PIC field hides the row even with the toggle on.{% endcall %}</legend>
       <label class="check">
         <input type="checkbox" name="contact_form_show_pic_name" value="1"
                {% if site.contact_form_show_pic_name %}checked{% endif %}>
@@ -778,8 +766,7 @@
    here so a page's appearance sits next to every other template. #}
 <section class="card fe-tplgrid-section" id="fe-tplgrid-recovery-contacts">
   <div class="card-head">
-    <h2>Recovery Contacts (/contactlist)</h2>
-    <span class="muted smaller">Public self-serve directory where members add their own name + phone/email; entries stay hidden until an admin approves them. A live-searchable, PDF-exportable directory sits beside a Turnstile-protected submission form.</span>
+    <h2>Recovery Contacts (/contactlist) {% call chip('Recovery Contacts (/contactlist)') %}Public self-serve directory where members add their own name + phone/email; entries stay hidden until an admin approves them. A live-searchable, PDF-exportable directory sits beside a Turnstile-protected submission form.{% endcall %}</h2>
   </div>
   <div class="fe-tplgrid">
     <label class="fe-tplgrid-card active" style="cursor: default;">
@@ -823,8 +810,7 @@
         style="margin-top: 1rem;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Page heading</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Override the title, subheading, and intro shown above the directory + form. Leave blank to use the baked defaults.</p>
+      <legend>Page heading {% call chip('Page heading') %}Override the title, subheading, and intro shown above the directory + form. Leave blank to use the baked defaults.{% endcall %}</legend>
       <label>Title
         <input type="text" name="recovery_contacts_heading" maxlength="200"
                value="{{ site.recovery_contacts_heading or '' }}"
@@ -834,7 +820,7 @@
         <textarea name="recovery_contacts_subheading" rows="2" maxlength="500"
                   placeholder="Add yourself to the directory and reach other members directly.">{{ site.recovery_contacts_subheading or '' }}</textarea>
       </label>
-      <label>Optional intro <span class="muted smaller">(Markdown supported, shown above the form)</span>
+      <label>{% call hrow('Optional intro') %}Markdown supported, shown above the form{% endcall %}
         <textarea name="recovery_contacts_intro" rows="4"
                   placeholder="Optional paragraph shown above the form.">{{ site.recovery_contacts_intro or '' }}</textarea>
       </label>
@@ -888,8 +874,7 @@
    Layout choices: cards / calendar / timeline / magazine. #}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Events list (/events)</h2>
-    <span class="muted smaller">Picks the layout for the public all-events page. Calendar, timeline, magazine, and a default cards view — pick whichever shape fits the fellowship's calendar best.</span>
+    <h2>Events list (/events) {% call chip('Events list (/events)') %}Picks the layout for the public all-events page. Calendar, timeline, magazine, and a default cards view — pick whichever shape fits the fellowship's calendar best.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_events_list_template_save') }}">
@@ -957,8 +942,7 @@
     {%- set _ewhead = (site.frontend_events_list_heading     if site else '') or '' -%}
     {%- set _ewsub  = (site.frontend_events_list_subheading  if site else '') or '' -%}
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Page heading</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Override the title and subheading the public /events page shows above the layout. Leave blank to use the chosen layout's built-in copy.</p>
+      <legend>Page heading {% call chip('Page heading') %}Override the title and subheading the public /events page shows above the layout. Leave blank to use the chosen layout's built-in copy.{% endcall %}</legend>
       <label>Title
         <input type="text" name="frontend_events_list_heading"
                maxlength="200" value="{{ _ewhead }}"
@@ -1011,8 +995,7 @@
    overrides. #}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Archive (/archive)</h2>
-    <span class="muted smaller">Unified list of past events + archived announcements. Pick a layout, decide how many items load on first paint, and choose infinite scroll or numbered pages. Container width inherits from the Events list settings above.</span>
+    <h2>Archive (/archive) {% call chip('Archive (/archive)') %}Unified list of past events + archived announcements. Pick a layout, decide how many items load on first paint, and choose infinite scroll or numbered pages. Container width inherits from the Events list settings above.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_archive_template_save') }}">
@@ -1107,8 +1090,7 @@
    own edit modal, not here. #}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Literature Library (/library)</h2>
-    <span class="muted smaller">Public-facing index of every library + every library item flagged public. Each library's edit modal carries the public-visibility toggle; once on, the library's row list grows a per-item Public toggle so you can hide individual entries from the public page.</span>
+    <h2>Literature Library (/library) {% call chip('Literature Library (/library)') %}Public-facing index of every library + every library item flagged public. Each library's edit modal carries the public-visibility toggle; once on, the library's row list grows a per-item Public toggle so you can hide individual entries from the public page.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_literature_library_template_save') }}">
@@ -1170,8 +1152,7 @@
    here yet. Same card grid + radio behaviour, no customize panel. #}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Meetings list (/meetings)</h2>
-    <span class="muted smaller">Picks the layout for the public all-meetings page. Every layout shows full meeting info inline (schedule, address, Zoom) so visitors don't have to drill into individual pages.</span>
+    <h2>Meetings list (/meetings) {% call chip('Meetings list (/meetings)') %}Picks the layout for the public all-meetings page. Every layout shows full meeting info inline (schedule, address, Zoom) so visitors don't have to drill into individual pages.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_meetings_list_template_save') }}">
@@ -1228,8 +1209,7 @@
     {%- set _whead = (site.frontend_meetings_list_heading     if site else '') or '' -%}
     {%- set _wsub  = (site.frontend_meetings_list_subheading  if site else '') or '' -%}
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Page heading</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Override the title and subheading the public /meetings page shows above the filter rail. Leave blank to use the layout's built-in copy.</p>
+      <legend>Page heading {% call chip('Page heading') %}Override the title and subheading the public /meetings page shows above the filter rail. Leave blank to use the layout's built-in copy.{% endcall %}</legend>
       <label>Title
         <input type="text" name="frontend_meetings_list_heading"
                maxlength="200" value="{{ _whead }}"
@@ -1270,8 +1250,7 @@
     </fieldset>
     {%- set _pt = meetings_list_protips -%}
     <fieldset class="fieldset fe-mlist-protips-fieldset">
-      <legend>Pro Tips section</legend>
-      <p class="muted small" style="margin: 0 0 8px;">An accordion panel below the meeting list with quick guidance for online attendees. Items default to a built-in list of online-meeting tips; override the JSON to customise them.</p>
+      <legend>Pro Tips section {% call chip('Pro Tips section') %}An accordion panel below the meeting list with quick guidance for online attendees. Items default to a built-in list of online-meeting tips; override the JSON to customise them.{% endcall %}</legend>
       <label class="check" style="margin-bottom: 8px;">
         <input type="checkbox" name="protips_enabled" value="1" {% if _pt.enabled %}checked{% endif %}>
         <span>Show the Pro Tips section on /meetings</span>
@@ -1338,8 +1317,7 @@
     </fieldset>
     {%- set _slinks = meetings_list_sidebar_links -%}
     <fieldset class="fieldset fe-mlist-links-fieldset">
-      <legend>Sidebar custom links</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Renders below the day-of-week filters in the <b>Sidebar</b> meetings-list template, separated by a divider line. Use for in-site shortcuts (Pro Tips, Code of Conduct) or external resources (your fellowship's main site, an outside-issues page). Internal links render with a chevron; external links render with an external-link icon and can open in a new tab.</p>
+      <legend>Sidebar custom links {% call chip('Sidebar custom links') %}Renders below the day-of-week filters in the <b>Sidebar</b> meetings-list template, separated by a divider line. Use for in-site shortcuts (Pro Tips, Code of Conduct) or external resources (your fellowship's main site, an outside-issues page). Internal links render with a chevron; external links render with an external-link icon and can open in a new tab.{% endcall %}</legend>
       <div class="fe-mlist-links-editor" data-mlist-links-editor>
         <div class="fe-mlist-links-list" data-mlist-links-list>
           {% for ln in _slinks %}
@@ -1366,8 +1344,7 @@
    website, page size). #}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Printlist (/printlist)</h2>
-    <span class="muted smaller">Branded, printable meeting schedule. Visitors can print directly or download a PDF; the PDF is rendered server-side via WeasyPrint and uses the same layout as the screen view.</span>
+    <h2>Printlist (/printlist) {% call chip('Printlist (/printlist)') %}Branded, printable meeting schedule. Visitors can print directly or download a PDF; the PDF is rendered server-side via WeasyPrint and uses the same layout as the screen view.{% endcall %}</h2>
   </div>
 
   {# Printlist has no template variants (single layout), so there's
@@ -1383,8 +1360,7 @@
     {%- set _plweb  = (site.frontend_printlist_website if site else '') or '' -%}
     {%- set _plsize = (site.frontend_printlist_page_size if site else None) or 'letter' -%}
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Header content</legend>
-      <p class="muted small" style="margin: 0 0 8px;">The site logo and name already anchor the printed header. These two fields show below the title — use the subheading for context (e.g. "Weekly Meeting Schedule") and the website so visitors who pick up the printout can find your site online.</p>
+      <legend>Header content {% call chip('Header content') %}The site logo and name already anchor the printed header. These two fields show below the title — use the subheading for context (e.g. "Weekly Meeting Schedule") and the website so visitors who pick up the printout can find your site online.{% endcall %}</legend>
       <label>Subheading
         <input type="text" name="frontend_printlist_subheading"
                maxlength="500" value="{{ _plsub }}"
@@ -1425,8 +1401,7 @@
 {% if site and site.stories_enabled %}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Stories list (/stories)</h2>
-    <span class="muted smaller">Picks the layout for the public stories page. Includes paper-textured stacks, ruled ledgers, manuscript / broadsheet / minimal-serif treatments, and a clean magazine grid.</span>
+    <h2>Stories list (/stories) {% call chip('Stories list (/stories)') %}Picks the layout for the public stories page. Includes paper-textured stacks, ruled ledgers, manuscript / broadsheet / minimal-serif treatments, and a clean magazine grid.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_stories_list_template_save') }}">
@@ -1492,8 +1467,7 @@
     {%- set _ssform  = (site.frontend_stories_list_submit_form if site else '') or '' -%}
     {%- set _sslabel = (site.frontend_stories_list_submit_label if site else '') or '' -%}
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Page heading</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Override the title and subheading the public /stories page shows above the layout. Leave blank to use the chosen layout's built-in copy.</p>
+      <legend>Page heading {% call chip('Page heading') %}Override the title and subheading the public /stories page shows above the layout. Leave blank to use the chosen layout's built-in copy.{% endcall %}</legend>
       <label>Title
         <input type="text" name="frontend_stories_list_heading"
                maxlength="200" value="{{ _swhead }}"
@@ -1506,8 +1480,7 @@
       </label>
     </fieldset>
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>"Submit a story" button</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Adds a call-to-action button under the stories list that links to a form. Visitors can submit their own stories from there. Leave the form set to "— None —" to hide the button.</p>
+      <legend>"Submit a story" button {% call chip('"Submit a story" button') %}Adds a call-to-action button under the stories list that links to a form. Visitors can submit their own stories from there. Leave the form set to "— None —" to hide the button.{% endcall %}</legend>
       <label>Form to link to
         <select name="frontend_stories_list_submit_form">
           <option value="" {% if not _ssform %}selected{% endif %}>— None (hide button) —</option>
@@ -1531,7 +1504,7 @@
           {% endif %}
         </select>
       </label>
-      <label>Button label <span class="muted smaller">(optional)</span>
+      <label><span class="field-label-row">Button label <span class="muted smaller">(optional)</span></span>
         <input type="text" name="frontend_stories_list_submit_label"
                maxlength="100" value="{{ _sslabel }}"
                placeholder="Share your story">
@@ -1576,8 +1549,7 @@
    letter, journal, anthology, magazine. #}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Story detail (/stories/&lt;slug&gt;)</h2>
-    <span class="muted smaller">Picks the layout for an individual recovery story. Paper / letter / journal lean organic + serif; anthology is centered + minimal; magazine is modern editorial with a hero image.</span>
+    <h2>Story detail (/stories/&lt;slug&gt;) {% call chip() %}Picks the layout for an individual recovery story. Paper / letter / journal lean organic + serif; anthology is centered + minimal; magazine is modern editorial with a hero image.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_story_template_save') }}">
@@ -1653,8 +1625,7 @@
 {% if site and site.blog_enabled %}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Blog list (/blog)</h2>
-    <span class="muted smaller">Picks the layout for the public blog index. Magazine and cards lean modern + image-forward; gazette is a newspaper feel; minimal is image-light; mosaic is a column-mason grid; sidebar adds a sticky filter rail.</span>
+    <h2>Blog list (/blog) {% call chip('Blog list (/blog)') %}Picks the layout for the public blog index. Magazine and cards lean modern + image-forward; gazette is a newspaper feel; minimal is image-light; mosaic is a column-mason grid; sidebar adds a sticky filter rail.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_blog_list_template_save') }}">
@@ -1715,8 +1686,7 @@
     {%- set _bwhead = (site.frontend_blog_list_heading     if site else '') or '' -%}
     {%- set _bwsub  = (site.frontend_blog_list_subheading  if site else '') or '' -%}
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Page heading</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Override the title and subheading the public /blog page shows above the layout. Leave blank to use the chosen layout's built-in copy.</p>
+      <legend>Page heading {% call chip('Page heading') %}Override the title and subheading the public /blog page shows above the layout. Leave blank to use the chosen layout's built-in copy.{% endcall %}</legend>
       <label>Title
         <input type="text" name="frontend_blog_list_heading"
                maxlength="200" value="{{ _bwhead }}"
@@ -1764,8 +1734,7 @@
 
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Blog detail (/blog/&lt;slug&gt;)</h2>
-    <span class="muted smaller">Picks the layout for an individual blog post. Modern is an editorial default; longform is a Medium-style essay treatment; classic adds a sidebar; cover is a flagship full-bleed treatment.</span>
+    <h2>Blog detail (/blog/&lt;slug&gt;) {% call chip() %}Picks the layout for an individual blog post. Modern is an editorial default; longform is a Medium-style essay treatment; classic adds a sidebar; cover is a flagship full-bleed treatment.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_blog_post_template_save') }}">
@@ -1868,8 +1837,7 @@
 {%- set _sienabled = (site.frontend_site_index_enabled    if site else False) -%}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Site index (/siteindex)</h2>
-    <span class="muted smaller">An auto-generated table of contents that lists every public page on the site — static pages, meetings, events, announcements, stories, and library items. Pick a layout and toggle which sections to include.</span>
+    <h2>Site index (/siteindex) {% call chip('Site index (/siteindex)') %}An auto-generated table of contents that lists every public page on the site — static pages, meetings, events, announcements, stories, and library items. Pick a layout and toggle which sections to include.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_site_index_template_save') }}">
@@ -1913,8 +1881,7 @@
         action="{{ url_for('main.frontend_site_index_template_save') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <fieldset class="fieldset">
-      <legend>Page heading</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Override the title and subheading shown above the index. Leave blank to use the default copy.</p>
+      <legend>Page heading {% call chip('Page heading') %}Override the title and subheading shown above the index. Leave blank to use the default copy.{% endcall %}</legend>
       <label>Title
         <input type="text" name="frontend_site_index_heading"
                maxlength="200" value="{{ _siheading }}"
@@ -1928,8 +1895,7 @@
     </fieldset>
 
     <fieldset class="fieldset">
-      <legend>Sort order</legend>
-      <p class="muted small" style="margin: 0 0 8px;">How the items are ordered on the public page. The Grouped layout always uses Grouped; the Alphabet layout always sorts A–Z regardless of this choice.</p>
+      <legend>Sort order {% call chip('Sort order') %}How the items are ordered on the public page. The Grouped layout always uses Grouped; the Alphabet layout always sorts A–Z regardless of this choice.{% endcall %}</legend>
       <label class="check">
         <input type="radio" name="frontend_site_index_sort_mode" value="grouped"
                {% if _sisort == 'grouped' %}checked{% endif %}>
@@ -1943,8 +1909,7 @@
     </fieldset>
 
     <fieldset class="fieldset">
-      <legend>Sections to include</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Uncheck a content type to hide it from the index. Useful when a section is empty or admins prefer to surface it elsewhere.</p>
+      <legend>Sections to include {% call chip('Sections to include') %}Uncheck a content type to hide it from the index. Useful when a section is empty or admins prefer to surface it elsewhere.{% endcall %}</legend>
       <div class="fe-mlist-width-row">
         {% for col, label in [
             ('show_pages', 'Pages'),
@@ -2001,8 +1966,7 @@
 {%- set _fwenabled = (site.frontend_fellowships_enabled          if site else False) -%}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Fellowships list (/fellowships)</h2>
-    <span class="muted smaller">Public index of sister recovery fellowships. Add and edit rows in Settings → Global → Fellowships Index. This card controls the public-page layout, heading, container width, default sort order, and whether the page is published.</span>
+    <h2>Fellowships list (/fellowships) {% call chip('Fellowships list (/fellowships)') %}Public index of sister recovery fellowships. Add and edit rows in Settings → Global → Fellowships Index. This card controls the public-page layout, heading, container width, default sort order, and whether the page is published.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_fellowships_list_template_save') }}">
@@ -2046,8 +2010,7 @@
         action="{{ url_for('main.frontend_fellowships_list_template_save') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <fieldset class="fieldset fe-mlist-copy-fieldset">
-      <legend>Page heading</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Override the title and subheading the public /fellowships page shows. Leave blank to use the layout's default copy.</p>
+      <legend>Page heading {% call chip('Page heading') %}Override the title and subheading the public /fellowships page shows. Leave blank to use the layout's default copy.{% endcall %}</legend>
       <label>Title
         <input type="text" name="frontend_fellowships_list_heading"
                maxlength="200" value="{{ _fwhead }}"
@@ -2089,8 +2052,7 @@
     </fieldset>
 
     <fieldset class="fieldset">
-      <legend>Default sort</legend>
-      <p class="muted small" style="margin: 0 0 8px;">Initial sort order applied when the page loads. Visitors can change the sort live with the dropdown in the sidebar.</p>
+      <legend>Default sort {% call chip('Default sort') %}Initial sort order applied when the page loads. Visitors can change the sort live with the dropdown in the sidebar.{% endcall %}</legend>
       <label class="check">
         <input type="radio" name="frontend_fellowships_list_sort_mode" value="name-asc"
                {% if _fwsort == 'name-asc' %}checked{% endif %}>
@@ -2144,8 +2106,7 @@
 {%- set _sfenabled = (site.submission_form_enabled if site else True) -%}
 <section class="card fe-tplgrid-section">
   <div class="card-head">
-    <h2>Forms Template</h2>
-    <span class="muted smaller">Controls the appearance of the Announcements/Events form (<code>/submissionform</code>), the Story Submission Form (<code>/storyform</code>), and every custom form — they all render through this shared template chrome (layout, container width, dynamic background, per-template appearance overrides). Heading, subheading, intro copy, and per-form behaviour are managed on each form's settings page under <a href="{{ url_for('main.frontend_forms') }}">Web Frontend → Forms</a>.</span>
+    <h2>Forms Template {% call chip('Forms Template') %}Controls the appearance of the Announcements/Events form (<code>/submissionform</code>), the Story Submission Form (<code>/storyform</code>), and every custom form — they all render through this shared template chrome (layout, container width, dynamic background, per-template appearance overrides). Heading, subheading, intro copy, and per-form behaviour are managed on each form's settings page under <a href="{{ url_for('main.frontend_forms') }}">Web Frontend → Forms</a>.{% endcall %}</h2>
   </div>
   <form class="form fe-tplgrid-form" method="post"
         action="{{ url_for('main.frontend_submission_form_template_save') }}">

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_row_menu.html" import row_menu %}
 {% block heading %}Popups{% endblock %}
 {% block heading_help %}Modal popups shown on the public site, triggered from <code>#name</code> links.{% endblock %}
@@ -28,16 +29,15 @@
                  placeholder="e.g. Newsletter signup" autocomplete="off"
                  data-popup-title-src>
         </label>
-        <label>Trigger handle
+        <label>{% call hrow('Trigger handle') %}Opens from any link to
+            <code data-popup-handle-preview>#newsletter-signup</code>. Leave blank to
+            auto-generate from the name.{% endcall %}
           <span class="fe-popup-handle-field">
             <span class="fe-popup-handle-hash">#</span>
             <input type="text" name="name" maxlength="120"
                    placeholder="newsletter-signup" autocomplete="off"
                    pattern="[A-Za-z0-9\- ]*" data-popup-handle>
           </span>
-          <span class="muted smaller">Opens from any link to
-            <code data-popup-handle-preview>#newsletter-signup</code>. Leave blank to
-            auto-generate from the name.</span>
         </label>
       </div>
       <div class="modal-foot">

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Map posts · WordPress Importer{% endblock %}
 {% block heading %}Review &amp; map{% endblock %}
 {% block heading_help %}
@@ -75,8 +76,7 @@
   {% if stash.categories %}
   <section class="card wp-cat-card">
     <div class="card-head">
-      <h2>{{ icon('list-ordered') }} Map by category</h2>
-      <span class="muted smaller">Set a destination for every post in a WordPress category. Use the per-post overrides below to handle exceptions.</span>
+      <h2>{{ icon('list-ordered') }} Map by category {% call chip() %}Set a destination for every post in a WordPress category. Use the per-post overrides below to handle exceptions.{% endcall %}</h2>
     </div>
     <ul class="wp-cat-list">
       {% for cat in stash.categories %}

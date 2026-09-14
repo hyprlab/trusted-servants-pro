@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Watchtower · Visitors{% endblock %}
 {% block heading %}Watchtower{% endblock %}
 {% block heading_help %}Anonymous traffic to the public web frontend. Signed-in users are excluded — these are real visitors.{% endblock %}
@@ -213,9 +214,8 @@
 {% set hr_uniques_max = (hourly_uniques|map(attribute='count')|max) or 0 %}
 <section class="card">
   <div class="card-head">
-    <h2>Hour of day</h2>
-    <span class="muted smaller">{{ tz_label }} · last {{ hr_days }}d ·
-      <span data-metric-mode="uniques">unique visitors per hour</span>
+    <h2>Hour of day {% call chip('Hour of day') %}{{ tz_label }} · last {{ hr_days }}d ·
+      <span data-metric-mode="uniques">unique visitors per hour{% endcall %}</h2>
       <span data-metric-mode="views">hits per hour</span>
     </span>
   </div>
@@ -253,8 +253,7 @@
   {% set _total = items | sum(attribute='count') %}
   <section class="card vm-donut-card">
     <div class="card-head">
-      <h2>{{ title }}</h2>
-      <span class="muted smaller">{{ hint }}</span>
+      <h2>{{ title }} {% call chip() %}{{ hint }}{% endcall %}</h2>
     </div>
     {% if _total > 0 %}
     <div class="vm-donut-wrap">
@@ -348,9 +347,7 @@
 <div class="wt-two-col">
   <section class="card">
     <div class="card-head">
-      <h2>Top paths</h2>
-      <span class="muted smaller">
-        <span data-metric-mode="uniques" data-wt-expand-meta="vt-top-paths-uniques">{{ window }}d · by unique visitor</span>
+      <h2>Top paths {% call chip('Top paths') %}<span data-metric-mode="uniques" data-wt-expand-meta="vt-top-paths-uniques">{{ window }}d · by unique visitor{% endcall %}</h2>
         <span data-metric-mode="views" data-wt-expand-meta="vt-top-paths-views">{{ window }}d · by hit</span>
       </span>
     </div>
@@ -364,9 +361,7 @@
 
   <section class="card">
     <div class="card-head">
-      <h2>Top referrers</h2>
-      <span class="muted smaller">
-        <span data-metric-mode="uniques" data-wt-expand-meta="vt-top-referrers-uniques">{{ window }}d · by unique visitor</span>
+      <h2>Top referrers {% call chip('Top referrers') %}<span data-metric-mode="uniques" data-wt-expand-meta="vt-top-referrers-uniques">{{ window }}d · by unique visitor{% endcall %}</h2>
         <span data-metric-mode="views" data-wt-expand-meta="vt-top-referrers-views">{{ window }}d · by hit</span>
       </span>
     </div>

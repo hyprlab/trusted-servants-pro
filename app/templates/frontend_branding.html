@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% block heading %}Branding &amp; SEO{% endblock %}
@@ -20,15 +21,13 @@
 
   <section class="card">
     <div class="card-head">
-      <h2>Site identity</h2>
-      <span class="muted smaller">Public-site name, browser-tab favicon, and Open Graph link-preview metadata. All independent from the admin (<code>/tspro</code>) equivalents in Settings → Appearance.</span>
+      <h2>Site identity {% call chip('Site identity') %}Public-site name, browser-tab favicon, and Open Graph link-preview metadata. All independent from the admin (<code>/tspro</code>) equivalents in Settings → Appearance.{% endcall %}</h2>
     </div>
 
     <div class="fe-branding-grid">
       {# ── Site name + Favicon (paired) ── #}
       <div class="fe-header-grid-item">
-        <h3 class="fe-header-grid-title">Site name &amp; favicon</h3>
-        <p class="fe-header-grid-blurb muted small">Browser-tab name + icon for the public site. The site name also appears in the footer and as the OG site name when shared.</p>
+        <h3 class="fe-header-grid-title">Site name &amp; favicon {% call chip('Site name and favicon') %}Browser-tab name + icon for the public site. The site name also appears in the footer and as the OG site name when shared.{% endcall %}</h3>
 
         <label>Name
           <input type="text" name="frontend_title" value="{{ (site.frontend_title if site else '') or '' }}" placeholder="Trusted Servants">
@@ -58,8 +57,7 @@
 
       {# ── Open Graph ── #}
       <div class="fe-header-grid-item">
-        <h3 class="fe-header-grid-title">Open Graph (link previews)</h3>
-        <p class="fe-header-grid-blurb muted small">How the site appears when shared on Slack, iMessage, Discord, Facebook, LinkedIn, etc.</p>
+        <h3 class="fe-header-grid-title">Open Graph (link previews) {% call chip('Open Graph (link previews)') %}How the site appears when shared on Slack, iMessage, Discord, Facebook, LinkedIn, etc.{% endcall %}</h3>
 
         <div class="fe-og-toggle-row">
           <span class="muted small">Enable</span>
@@ -70,10 +68,10 @@
           </label>
         </div>
 
-        <label>Title <span class="muted small">(falls back to the site name)</span>
+        <label>{% call hrow('Title') %}Falls back to the site name{% endcall %}
           <input type="text" name="og_title" value="{{ (site.frontend_og_title if site else '') or '' }}" maxlength="200" placeholder="Trusted Servants Pro">
         </label>
-        <label>Description <span class="muted small">(120–200 chars works best)</span>
+        <label>{% call hrow('Description') %}120–200 chars works best{% endcall %}
           <textarea name="og_description" rows="3" placeholder="A recovery fellowship portal — find meetings, stay connected, take the next step.">{{ (site.frontend_og_description if site else '') or '' }}</textarea>
         </label>
 
@@ -99,8 +97,7 @@
 
   <section class="card">
     <div class="card-head">
-      <h2>Home Screen Icon (iOS / iPadOS)</h2>
-      <span class="muted smaller">Icon and label used when a visitor pins this site to an iPhone or iPad home screen via Safari's "Add to Home Screen." Independent from the admin (<code>/tspro</code>) home-screen icon in Settings → Appearance.</span>
+      <h2>Home Screen Icon (iOS / iPadOS) {% call chip('Home Screen Icon (iOS / iPadOS)') %}Icon and label used when a visitor pins this site to an iPhone or iPad home screen via Safari's "Add to Home Screen." Independent from the admin (<code>/tspro</code>) home-screen icon in Settings → Appearance.{% endcall %}</h2>
     </div>
 
     {% set _fe_ati_has = site and site.frontend_apple_touch_icon_filename %}
@@ -115,7 +112,7 @@
         <p class="muted smaller" style="margin-top:8px;max-width:140px;">180×180 PNG with an opaque background — iOS rounds the corners.</p>
       </div>
       <div class="fe-apple-touch-fields" style="flex:1;min-width:240px;">
-        <label>Display name <span class="muted small">(falls back to the page title)</span>
+        <label>{% call hrow('Display name') %}Falls back to the page title{% endcall %}
           <input type="text" name="frontend_apple_touch_icon_name" id="fe-apple-touch-name-input" value="{{ _fe_ati_name }}" maxlength="100" placeholder="{{ _fe_ati_fallback_name }}">
         </label>
         <label>Replace icon

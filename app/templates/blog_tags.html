@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}Blog tags{% endblock %}
 {% block heading_help %}Free-form topic labels. A post can carry many tags; a frontend page block can scope a list to a single tag.{% endblock %}
 {% block top_actions %}
@@ -8,8 +9,7 @@
 {% block content %}
 <section class="card">
   <div class="card-head">
-    <h2>{% if tags %}Existing tags{% else %}No tags yet{% endif %}</h2>
-    <span class="muted smaller">Click a tag to rename. New tags are usually added inline from the post editor.</span>
+    <h2>{% if tags %}Existing tags{% else %}No tags yet{% endif %} {% call chip() %}Click a tag to rename. New tags are usually added inline from the post editor.{% endcall %}</h2>
   </div>
   {% if tags %}
   <div class="blog-tag-cloud">

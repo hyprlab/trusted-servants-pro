@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}Navigation Links{% endblock %}
 {% block top_actions %}
 <button type="button" class="btn btn-primary" data-open-modal="navlink-new-modal">+ New Link</button>
@@ -12,8 +13,7 @@
 {% endif %}
 
 <section class="card">
-  <div class="card-head"><h2>Custom Sidebar Links</h2></div>
-  <p class="muted small">Links shown in the sidebar below the built-in navigation. Open in a new tab.</p>
+  <div class="card-head"><h2>Custom Sidebar Links {% call chip('Custom Sidebar Links') %}Links shown in the sidebar below the built-in navigation. Open in a new tab.{% endcall %}</h2></div>
   {% if nav_links %}
   <ul class="file-list file-list-sortable"
       data-reorder-url="{{ url_for('main.nav_link_reorder') }}">

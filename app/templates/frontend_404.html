@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% block heading %}404 page{% endblock %}
@@ -20,10 +21,9 @@
 
   <section class="card">
     <div class="card-head">
-      <h2>Copy</h2>
-      <span class="muted smaller">Headline + supporting text shown on the 404 page.</span>
+      <h2>Copy {% call chip('Copy') %}Headline + supporting text shown on the 404 page.{% endcall %}</h2>
     </div>
-    <label>Headline <span class="muted small">(blank = "We couldn't find that page")</span>
+    <label>{% call hrow('Headline') %}Blank = "We couldn't find that page"{% endcall %}
       <input type="text" name="frontend_404_heading" maxlength="200"
              value="{{ (site.frontend_404_heading if site else '') or '' }}"
              placeholder="We couldn't find that page">
@@ -36,8 +36,7 @@
 
   <section class="card">
     <div class="card-head">
-      <h2>Call to action</h2>
-      <span class="muted smaller">Primary button shown under the message. Defaults to "Back to home" pointing at the site root.</span>
+      <h2>Call to action {% call chip('Call to action') %}Primary button shown under the message. Defaults to "Back to home" pointing at the site root.{% endcall %}</h2>
     </div>
     <div class="form-row" style="display: grid; grid-template-columns: 1fr 2fr; gap: 14px;">
       <label>Button label
@@ -55,8 +54,7 @@
 
   <section class="card">
     <div class="card-head">
-      <h2>Illustration</h2>
-      <span class="muted smaller">Optional image shown above the headline. PNG, JPG, WebP, or SVG. Leave blank for the built-in 404 graphic.</span>
+      <h2>Illustration {% call chip('Illustration') %}Optional image shown above the headline. PNG, JPG, WebP, or SVG. Leave blank for the built-in 404 graphic.{% endcall %}</h2>
     </div>
     <div class="og-image-row">
       <div class="og-image-preview">

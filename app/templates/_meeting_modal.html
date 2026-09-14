@@ -1,4 +1,5 @@
 {# Reusable meeting create/edit modal. #}
+{% from "_help_chip.html" import chip, hrow %}
 {% set form_id = modal_id ~ '-form' %}
 
 {# One row of the Extended Content editor — optional title input plus
@@ -38,10 +39,7 @@
         </label>
 
         {% if current_user.is_authenticated and current_user.can_edit_frontend() %}
-        <label>Public URL
-          <span class="muted small" style="display:block; margin: 2px 0 4px;">
-            Only the slug after <code>/meetings/</code> is editable. Leave blank to derive automatically from the name. Lowercase letters, numbers, and hyphens only.
-          </span>
+        <label>{% call hrow('Public URL') %}Only the slug after <code>/meetings/</code> is editable. Leave blank to derive automatically from the name. Lowercase letters, numbers, and hyphens only.{% endcall %}
           <div class="slug-input-row">
             <span class="slug-input-prefix" aria-hidden="true">/meetings/</span>
             <input name="slug" type="text" class="slug-input-field"
@@ -88,12 +86,11 @@
                  value="{% if chosen and not is_preset %}{{ chosen }}{% endif %}">
         </label>
 
-        <label>Location notes <span class="muted smaller">(optional, admin-only)</span>
-          <span class="muted small" style="display:block; margin: 2px 0 4px;">Anything visitors or hosts should know about getting in / where to park / who to ask. Plain text.</span>
+        <label>{% call hrow('Location notes') %}Optional, admin-only. Anything visitors or hosts should know about getting in / where to park / who to ask. Plain text.{% endcall %}
           <textarea name="location_notes" rows="2" placeholder="e.g. Side entrance off Main St. Ring buzzer #4. Free street parking after 6pm.">{{ (meeting.location_notes if meeting else '') or '' }}</textarea>
         </label>
 
-        <label>Description <span class="muted smaller">— Markdown supported</span>
+        <label>{% call hrow('Description') %}Markdown supported — headings, <code>**bold**</code>, lists, and links all render on the public meeting page.{% endcall %}
           <div class="md-editor" data-md-editor>
             <textarea name="description" rows="6" data-md-input
                       class="md-editor-input"
@@ -104,13 +101,11 @@
           </div>
         </label>
 
-        <label>Backend Alert Message <span class="muted smaller">(leave blank to hide)</span>
-          <span class="muted small" style="display:block; margin: 2px 0 4px;">Only appears in the tspro backend — visible to logged-in users on the meeting detail page.</span>
+        <label>{% call hrow('Backend Alert Message') %}Only appears in the tspro backend — visible to logged-in users on the meeting detail page. Leave blank to hide it.{% endcall %}
           <textarea name="alert_message" rows="2" placeholder="Internal note for users.">{{ (meeting.alert_message if meeting else '') or '' }}</textarea>
         </label>
 
-        <label>Public Alert Message <span class="muted smaller">(leave blank to hide)</span>
-          <span class="muted small" style="display:block; margin: 2px 0 4px;">Displayed prominently on the public meeting detail page.</span>
+        <label>{% call hrow('Public Alert Message') %}Displayed prominently on the public meeting detail page. Leave blank to hide it.{% endcall %}
           <textarea name="public_alert_message" rows="2" placeholder="Notice for the public, e.g. cancellation, change of venue.">{{ (meeting.public_alert_message if meeting else '') or '' }}</textarea>
         </label>
         {# Optional auto-expiration for the public alert. When the

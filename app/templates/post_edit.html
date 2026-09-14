@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% set _is_new = post is none %}
 {% set _p = post %}
 {% block heading %}{{ 'New announcement / event' if _is_new else 'Edit announcement / event' }}{% endblock %}
@@ -99,8 +100,7 @@
 {% if _p and _p.is_pending_review %}
 <section class="card pending-submission-card">
   <div class="card-head">
-    <h2>Submitted for review</h2>
-    <span class="muted smaller">Reach out to the submitter before publishing if anything needs clarifying.</span>
+    <h2>Submitted for review {% call chip('Submitted for review') %}Someone sent this in through the public submission form. Reach out to the submitter before publishing if anything needs clarifying.{% endcall %}</h2>
   </div>
   <dl class="pending-submission-meta">
     <dt>From</dt>
@@ -139,8 +139,7 @@
   {# ── 1 · Type + title ────────────────────────────────────────── #}
   <section class="card">
     <div class="card-head">
-      <h2>Type &amp; title</h2>
-      <span class="muted smaller">Tag at least one type — it decides which feeds the post appears in.</span>
+      <h2>Type &amp; title {% call chip('Type and title') %}Tag at least one type — it decides which feeds the post appears in. Everything else on this card controls the post's URL, when it goes live, and when it comes back down.{% endcall %}</h2>
     </div>
 
     <div class="post-type-row">
@@ -148,16 +147,14 @@
         <input type="checkbox" name="is_announcement" value="1"
                {% if _p and _p.is_announcement %}checked{% endif %}>
         <span class="post-type-pill-body">
-          <span class="post-type-pill-title">Announcement</span>
-          <span class="post-type-pill-sub muted smaller">Shows up in announcement feeds.</span>
+          <span class="post-type-pill-title">Announcement {% call chip('Announcement type') %}Shows up in announcement feeds and on the public announcements list. Announcements stay up until you archive them by hand, unless you set an auto-archive deadline below.{% endcall %}</span>
         </span>
       </label>
       <label class="post-type-pill">
         <input type="checkbox" name="is_event" value="1"
                {% if _p and _p.is_event %}checked{% endif %}>
         <span class="post-type-pill-body">
-          <span class="post-type-pill-title">Event</span>
-          <span class="post-type-pill-sub muted smaller">Shows up in event feeds.</span>
+          <span class="post-type-pill-title">Event {% call chip('Event type') %}Shows up in event feeds and on the public calendar, and reveals the <strong>Event details</strong> card below. Events auto-archive on their own — the event's end date takes over the auto-archive setting on this card.{% endcall %}</span>
         </span>
       </label>
     </div>
@@ -168,7 +165,7 @@
              placeholder="Spring serenity workshop">
     </label>
     {% if current_user.is_authenticated and current_user.can_edit_frontend() %}
-    <label>Public URL
+    <label>{% call hrow('Public URL') %}Leave blank to derive from the title. Lowercase letters, numbers, and hyphens; if the slug is taken we append -2, -3, … on save. One slug serves the event, announcement, and archive URLs.{% endcall %}
       <div class="slug-input-row">
         <span class="slug-input-prefix" aria-hidden="true">/event/ · /announcement/ · /archive/</span>
         <input type="text" name="slug" class="slug-input-field"
@@ -176,9 +173,6 @@
                placeholder="{{ _p.public_slug if _p else 'auto-derived from title' }}"
                pattern="[a-z0-9\-]*" maxlength="200">
       </div>
-      <span class="muted small">
-        Leave blank to derive from the title. Lowercase letters, numbers, and hyphens; if the slug is taken we append -2, -3, … on save. One slug serves the event, announcement, and archive URLs.
-      </span>
     </label>
     {% if _p %}
     {% set post = _p %}
@@ -186,7 +180,7 @@
     {% endif %}
     {% endif %}
 
-    <label>Posted on / schedule for
+    <label>{% call hrow('Posted on / schedule for') %}Shown wherever the post surfaces; defaults to now. <strong>Set a future date &amp; time and Publish to schedule it</strong> — the post stays hidden until then, then appears automatically.{% endcall %}
       <span class="dt-field">
         {# ``posted_prefill`` (set for pending-review submissions) wins
            over the stored value: submitted posts have no published_at,
@@ -204,9 +198,6 @@
          Saving keeps writing to ``published_at`` so an explicit edit
          (or a brand-new post) still stores the admin's chosen value.
          A future value gates public visibility (frontend._post_live_clause). #}
-      <span class="muted small">
-        Shown wherever the post surfaces; defaults to now. <strong>Set a future date &amp; time and Publish to schedule it</strong> — the post stays hidden until then, then appears automatically.
-      </span>
     </label>
 
     {# Public visibility — its own axis, deliberately independent of the
@@ -216,38 +207,47 @@
        live post or an archived one. Mirrors
        ``Post.VISIBILITY_CHOICES`` / ``frontend._post_live_clause``. #}
     {%- set _vis = _p.visibility if _p else 'auto' -%}
-    <label>Public visibility
+    <label>{% call hrow('Public visibility') %}Separate from Draft / Archived — archiving files a post under <code>/archive</code>, where the public can still read it.
+        <strong>Follow the post's status:</strong> public once it's published and its posted-on time has arrived.
+        <strong>Always public:</strong> stays on the public site even as a draft or scheduled ahead.
+        <strong>Hidden:</strong> off the public site entirely — no listings, no page, no images, no search — until you set it back.
+        Submissions awaiting review stay private either way.{% endcall %}
       <select name="public_visibility" data-post-visibility>
         <option value="auto" {% if _vis == 'auto' %}selected{% endif %}>Follow the post's status</option>
         <option value="public" {% if _vis == 'public' %}selected{% endif %}>Always public</option>
         <option value="private" {% if _vis == 'private' %}selected{% endif %}>Hidden from the public site</option>
       </select>
-      <span class="muted small">
-        Separate from Draft / Archived — archiving files a post under
-        <code>/archive</code>, where the public can still read it.
-        <strong>Follow the post's status:</strong> public once it's published and its posted-on time has arrived.
-        <strong>Always public:</strong> stays on the public site even as a draft or scheduled ahead.
-        <strong>Hidden:</strong> off the public site entirely — no listings, no page, no images, no search — until you set it back.
-        Submissions awaiting review stay private either way.
-      </span>
     </label>
 
-    {# Announcement-only auto-archive deadline — hidden whenever the
-       Announcement type is off (events already auto-archive via
-       ``event_ends_at``). Panel row styled like the Online-event
-       toggle so the two switches read as siblings; the datetime
-       field reveals inside the same panel when the toggle is on. #}
+    {# Auto-archive — one switch, two possible owners.
+
+       On a pure announcement the admin owns it: flip the toggle, pick
+       a date, and ``_auto_archive_events`` files the post under
+       /archive once that wall-clock moment arrives site-local.
+
+       Tag the post as an Event and the *event* takes over. The sweep's
+       event arm fires unconditionally off ``event_ends_at`` (falling
+       back to ``event_starts_at``), so auto-archiving is no longer
+       optional — the toggle locks on, the readout below spells out the
+       exact moment it will fire, and the hand-set announcement
+       deadline is cleared on save (the locked checkbox is `disabled`,
+       so it never posts and ``post_save`` nulls the column). That
+       keeps the date on screen the only date that can archive this
+       post. The JS at the foot of the page drives all of it. #}
     {%- set _aa = _p.announcement_auto_archive_at if _p else none -%}
     <div class="post-announcement-expiry" data-announcement-expiry hidden>
       <div class="post-toggle-row">
         <div class="post-toggle-info">
-          <div class="post-toggle-title">Auto-archive this announcement</div>
-          <p class="muted small">
-            <strong>Off:</strong> the announcement stays on the public site indefinitely until someone archives it by hand.
-            <strong>On:</strong> after the chosen date &amp; time it drops out of the announcement lists and moves to the public <code>/archive</code> — same place an admin-archived post lands. To take it off the public site altogether, set Public visibility to Hidden.
-          </p>
+          <div class="post-toggle-title">
+            Auto-archive this post
+            <span class="post-archive-owner" data-archive-owner hidden>Set by the event</span>
+            {% call chip('Auto-archive') %}<strong>Off:</strong> the post stays on the public site indefinitely until someone archives it by hand.
+            <strong>On:</strong> after the chosen date &amp; time it drops out of the live lists and moves to the public <code>/archive</code> — same place an admin-archived post lands. To take it off the public site altogether, set Public visibility to Hidden.
+            <strong>Tagged as an Event:</strong> the switch locks on and the event's own end date &amp; time decides when — see the readout below.
+            Drafts are always skipped, however far past the date they are.{% endcall %}
+          </div>
         </div>
-        <label class="mode-toggle">
+        <label class="mode-toggle" data-archive-toggle-wrap>
           <input type="checkbox"
                  name="announcement_auto_archive_enabled"
                  value="1"
@@ -256,34 +256,27 @@
           <span class="mode-track"><span class="mode-thumb"></span></span>
         </label>
       </div>
-      {# Cross-type note — this post is *also* tagged Event, so the
-         auto-archive sweep has two independent triggers and either can
-         fire (see ``_auto_archive_events`` in app/routes.py). Revealed
-         by the Event checkbox, not the toggle above: the event rule
-         applies whether or not the announcement deadline is set. #}
-      <p class="muted small post-announcement-expiry-event-note"
-         data-announcement-expiry-event-note hidden>
-        <strong>Also tagged Event.</strong> Events archive on their own — the sweep
-        uses the event end date (or the start date if there is no end) and archives the
-        post at midnight site-local on the following day, so an event stays visible for
-        the remainder of the day it ends. That happens with or without the toggle above;
-        whichever trigger comes first is the one that archives this post.
-      </p>
+      {# Event-owned readout — the resolved archive moment, recomputed
+         from the Starts / Ends inputs on every keystroke so it always
+         matches what the sweep would do right now. Revealed by the
+         Event checkbox; the announcement date field below hides while
+         it's up so there's only ever one date on screen. #}
+      <div class="post-archive-readout" data-archive-readout hidden>
+        <div class="post-archive-readout-when" data-archive-when></div>
+        <p class="muted small post-archive-readout-note" data-archive-note></p>
+      </div>
       <div class="post-announcement-expiry-field"
            data-announcement-expiry-field
            {% if not _aa %}hidden{% endif %}>
         <label class="post-announcement-expiry-input">
-          <span class="muted smaller">Archive on</span>
+          <span class="field-label-row muted smaller">Archive on {% call chip('Archive on') %}Times are in the site timezone{% if site and site.timezone %} ({{ site.timezone }}){% endif %} —
+            the post drops off the moment that wall-clock time arrives, not at the end of the day.
+            Drafts are skipped: a draft never auto-archives, no matter how long its deadline has been past.{% endcall %}</span>
           <input type="datetime-local"
                  name="announcement_auto_archive_at"
                  value="{% if _aa %}{{ _aa.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
                  data-announcement-expiry-input>
         </label>
-        <p class="muted smaller post-announcement-expiry-help">
-          Times are in the site timezone{% if site and site.timezone %} ({{ site.timezone }}){% endif %} —
-          the announcement drops off the moment that wall-clock time arrives, not at the end of the day.
-          Drafts are skipped: a draft never auto-archives, no matter how long its deadline has been past.
-        </p>
       </div>
     </div>
   </section>
@@ -291,18 +284,17 @@
   {# ── 2 · Content ─────────────────────────────────────────────── #}
   <section class="card">
     <div class="card-head">
-      <h2>Content</h2>
-      <span class="muted smaller">The summary appears in lists and link previews; the body is the full post.</span>
+      <h2>Content {% call chip('Content') %}The summary appears in lists and link previews; the body is the full post.{% endcall %}</h2>
     </div>
     {# ``summary_raw`` / ``body_raw`` — the authored text with any
        {event_date} tags intact. Reading ``.summary`` / ``.body`` here
        would show the resolved dates and save them back as literals,
        silently destroying the tag. #}
-    <label>GSR Summary <span class="muted small">(one or two sentences)</span>
-      <textarea name="summary" rows="2" data-event-tag-target
+    <label>{% call hrow('GSR Summary') %}One or two sentences — what is this and why does it matter? This is the blurb that shows in listings, search results, and link previews.{% endcall %}
+      <textarea name="summary" rows="10" data-event-tag-target
                 placeholder="One or two sentences — what is this and why does it matter?">{{ (_p.summary_raw if _p else '') or '' }}</textarea>
     </label>
-    <label>Body <span class="muted small">(Markdown supported)</span>
+    <label>{% call hrow('Body') %}The full text of the post. <strong>Markdown is supported</strong> — headings, <code>**bold**</code>, lists, and links all render on the public page.{% endcall %}
       <textarea name="body" rows="10" data-event-tag-target
                 placeholder="The full body of the post. Markdown supported.">{{ (_p.body_raw if _p else '') or '' }}</textarea>
     </label>
@@ -317,12 +309,11 @@
   <section class="card" data-event-details-card
            {% if not (_p and _p.is_event) %}hidden{% endif %}>
     <div class="card-head">
-      <h2>Event details</h2>
-      <span class="muted smaller">When and where the event happens. Only shown for posts tagged as an event.</span>
+      <h2>Event details {% call chip('Event details') %}When and where the event happens. Only shown for posts tagged as an event.{% endcall %}</h2>
     </div>
 
     <div class="form-row">
-      <label>Starts
+      <label>{% call hrow('Starts') %}When the event begins, in the site timezone. Used as the auto-archive cutoff when <strong>Ends</strong> is blank.{% endcall %}
         <span class="dt-field">
           <input type="datetime-local" name="event_starts_at" data-event-start
                  value="{% if _p and _p.event_starts_at %}{{ _p.event_starts_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
@@ -330,7 +321,7 @@
                   title="Jump to today">Today</button>
         </span>
       </label>
-      <label>Ends
+      <label>{% call hrow('Ends') %}When the event finishes. This also drives auto-archiving: the post moves to <code>/archive</code> at midnight site-local the day after this date, so it stays up for the rest of the day it ends. Leave it blank and <strong>Starts</strong> is used instead; leave both blank and the post never auto-archives. The resolved date is shown under <strong>Auto-archive this post</strong> on the Type &amp; title card.{% endcall %}
         <span class="dt-field">
           <input type="datetime-local" name="event_ends_at" data-event-end
                  value="{% if _p and _p.event_ends_at %}{{ _p.event_ends_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
@@ -340,28 +331,9 @@
       </label>
     </div>
 
-    {# Auto-archive explainer for the event side of the sweep — the
-       announcement panel in the Publishing card carries the mirror of
-       this note, but that panel is hidden on event-only posts, so
-       without this an event-only editor gets no indication the post
-       disappears on its own. Behaviour tracked in
-       ``_auto_archive_events`` (app/routes.py). The trailing clause
-       reveals only when the post is *also* tagged Announcement. #}
-    <p class="muted small post-event-archive-note">
-      <strong>Events auto-archive.</strong> This post is hidden from the public site and
-      moved to the archive at midnight site-local on the day after it ends — so it stays
-      visible for the remainder of the day it ends. <strong>Ends</strong> drives the
-      cutoff; leave it blank and <strong>Starts</strong> is used instead. Leave both blank
-      and the post never auto-archives. Drafts are skipped, however far past the date they are.<span
-        data-event-archive-ann-note hidden> Because this post is also tagged Announcement,
-        the auto-archive deadline in the Publishing card can archive it sooner — whichever
-        trigger comes first is the one that fires.</span>
-    </p>
-
     <div class="post-toggle-row post-toggle-row--panel">
       <div class="post-toggle-info">
-        <div class="post-toggle-title">Online event</div>
-        <p class="muted small">Location becomes optional and the Zoom fields below are shown publicly.</p>
+        <div class="post-toggle-title">Online event {% call chip('Online event') %}Location becomes optional and the Zoom fields below are shown publicly.{% endcall %}</div>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" name="is_online" value="1"
@@ -379,7 +351,9 @@
       <textarea name="location_address" rows="2" data-maps-address
                 placeholder="123 Main St, Springfield, IL 62701">{{ (_p.location_address if _p else '') or '' }}</textarea>
     </label>
-    <label>Google Maps link <span class="muted small">(optional — rendered as "Get directions")</span>
+    <label>{% call hrow('Google Maps link') %}Optional — rendered as a “Get directions” button on the public page.
+      <strong>Use address</strong> builds the link from the <b>Address</b> above, or the <b>Venue / location name</b> when the address is blank.
+      Leave this field empty and the public event page generates the same link on the fly, so fill it in only to override where the button points.{% endcall %}
       {# "Use address" builds the same maps.google.com/search URL the
          public event templates already synthesise when this column is
          empty (see frontend/events/*.html), so a generated link and the
@@ -398,15 +372,15 @@
           {{ icon('map-pin') }} Use address
         </button>
       </span>
-      <span class="muted small" data-maps-url-help>
-        Builds a Google Maps link from the <b>Address</b> above — or the <b>Venue / location name</b>
-        when the address is blank. Leave this field empty and the public event page generates the
-        same link on the fly, so fill it in only to override where the button points.
-      </span>
+      {# Status line for the "Use address" button. Empty (and hidden)
+         at rest — the static explanation now lives in the label's help
+         chip, so this element only ever carries the transient result
+         of a click. #}
+      <span class="muted small maps-url-status" data-maps-url-help hidden></span>
     </label>
 
     <div class="post-zoom-block">
-      <h3 class="post-subhead">Zoom <span class="muted smaller">(for online events)</span></h3>
+      <h3 class="post-subhead">Zoom {% call chip('Zoom') %}For online events. These three fields show on the public event page once <strong>Online event</strong> is on.{% endcall %}</h3>
       <div class="form-row">
         <label>Meeting ID
           <input type="text" name="zoom_meeting_id" maxlength="64"
@@ -427,7 +401,7 @@
 
     {# Event contact — shown publicly when set; admins can leave all
        three fields blank when an event has no host contact info. #}
-    <h3 class="post-subhead">Event contact <span class="muted smaller">(optional)</span></h3>
+    <h3 class="post-subhead">Event contact {% call chip('Event contact') %}Optional. Whatever you fill in here is shown publicly on the event page — leave all three blank when the event has no host contact.{% endcall %}</h3>
     <label>Name
       <input type="text" name="contact_name" maxlength="120"
              value="{{ (_p.contact_name if _p else '') or '' }}">
@@ -452,8 +426,7 @@
      blank URL are silently dropped at save time. #}
   <section class="card">
     <div class="card-head">
-      <h2>Links</h2>
-      <span class="muted smaller">Optional call-to-action buttons on the public page. Works for announcements and events.</span>
+      <h2>Links {% call chip('Links') %}Optional call-to-action buttons on the public page. Works for announcements and events. Rows with a blank URL are dropped on save.{% endcall %}</h2>
     </div>
     {%- set _existing_links = (_p.event_links if _p else []) -%}
     <div class="post-links-editor" data-links-editor>
@@ -463,7 +436,7 @@
           {% set _idx = loop.index0 %}
           <li class="post-links-row" data-link-row data-link-index="{{ _idx }}">
             <div class="post-links-row-fields">
-              <label>URL <span class="muted small">(absolute or relative)</span>
+              <label>{% call hrow('URL') %}Absolute (<code>https://example.org/event</code>) or relative to this site (<code>/page-slug</code>).{% endcall %}
                 {# `type="text"` + `inputmode="url"` instead of
                    `type="url"` so the browser doesn't reject
                    relative paths like `/about-us` (which the
@@ -474,7 +447,7 @@
                        value="{{ link.url }}"
                        placeholder="https://example.org/event or /page-slug">
               </label>
-              <label>Link label <span class="muted small">(button text)</span>
+              <label>{% call hrow('Link label') %}The visible text on the button — e.g. “Register on Eventbrite”.{% endcall %}
                 <input type="text" name="link_label" maxlength="120"
                        value="{{ link.label or '' }}"
                        placeholder="Register on Eventbrite">
@@ -482,7 +455,7 @@
             </div>
             <div class="post-links-row-meta">
               <label class="post-links-row-style">
-                <span class="muted small">Button style</span>
+                <span class="field-label-row muted small">Button style {% call chip('Button style') %}<strong>Primary</strong> is the solid, filled button; <strong>Secondary</strong> is the outlined one. Use Primary for the single action you most want visitors to take.{% endcall %}</span>
                 <select name="link_style">
                   <option value="primary" {% if (link.style or 'primary') == 'primary' %}selected{% endif %}>Primary (solid)</option>
                   <option value="secondary" {% if link.style == 'secondary' %}selected{% endif %}>Secondary (outline)</option>
@@ -503,18 +476,18 @@
         {% else %}
           <li class="post-links-row" data-link-row data-link-index="0">
             <div class="post-links-row-fields">
-              <label>URL <span class="muted small">(absolute or relative)</span>
+              <label>{% call hrow('URL') %}Absolute (<code>https://example.org/event</code>) or relative to this site (<code>/page-slug</code>).{% endcall %}
                 <input type="text" inputmode="url" name="link_url" maxlength="500"
                        placeholder="https://example.org/event or /page-slug">
               </label>
-              <label>Link label <span class="muted small">(button text)</span>
+              <label>{% call hrow('Link label') %}The visible text on the button — e.g. “Register on Eventbrite”.{% endcall %}
                 <input type="text" name="link_label" maxlength="120"
                        placeholder="Register on Eventbrite">
               </label>
             </div>
             <div class="post-links-row-meta">
               <label class="post-links-row-style">
-                <span class="muted small">Button style</span>
+                <span class="field-label-row muted small">Button style {% call chip('Button style') %}<strong>Primary</strong> is the solid, filled button; <strong>Secondary</strong> is the outlined one. Use Primary for the single action you most want visitors to take.{% endcall %}</span>
                 <select name="link_style">
                   <option value="primary" selected>Primary (solid)</option>
                   <option value="secondary">Secondary (outline)</option>
@@ -543,18 +516,18 @@
       <template data-link-template>
         <li class="post-links-row" data-link-row data-link-index="__IDX__">
           <div class="post-links-row-fields">
-            <label>URL <span class="muted small">(absolute or relative)</span>
+            <label>{% call hrow('URL') %}Absolute (<code>https://example.org/event</code>) or relative to this site (<code>/page-slug</code>).{% endcall %}
               <input type="text" inputmode="url" name="link_url" maxlength="500"
                      placeholder="https://example.org/event or /page-slug">
             </label>
-            <label>Link label <span class="muted small">(button text)</span>
+            <label>{% call hrow('Link label') %}The visible text on the button — e.g. “Register on Eventbrite”.{% endcall %}
               <input type="text" name="link_label" maxlength="120"
                      placeholder="Register on Eventbrite">
             </label>
           </div>
           <div class="post-links-row-meta">
             <label class="post-links-row-style">
-              <span class="muted small">Button style</span>
+              <span class="field-label-row muted small">Button style {% call chip('Button style') %}<strong>Primary</strong> is the solid, filled button; <strong>Secondary</strong> is the outlined one. Use Primary for the single action you most want visitors to take.{% endcall %}</span>
               <select name="link_style">
                 <option value="primary" selected>Primary (solid)</option>
                 <option value="secondary">Secondary (outline)</option>
@@ -583,35 +556,41 @@
   {%- set _gallery_count = _gallery|length -%}
   <section class="card">
     <div class="card-head">
-      <h2>Images</h2>
-      <span class="muted smaller">Optional. The featured image leads the post and link previews; gallery images render in a grid with a lightbox.</span>
+      <h2>Images {% call chip('Images') %}Optional. The featured image leads the post and link previews; gallery images render in a grid with a lightbox.{% endcall %}</h2>
     </div>
 
     <div data-post-featured-image>
       <h3 class="post-subhead">Featured image</h3>
       <div class="og-image-row">
+        {# Both states — thumbnail + clear-pill, and the empty
+           placeholder — are always in the DOM, with `hidden` picking
+           which one shows. The save bar's AJAX save flips these after a
+           round-trip (see syncFeatured at the foot of the page), so
+           rendering only the branch that happened to be true at page
+           load would leave it with nothing to reveal. #}
+        {%- set _has_featured = _p and _p.featured_image_filename -%}
         <div class="og-image-preview" data-featured-preview>
-          {% if _p and _p.featured_image_filename %}
-          <img src="{{ url_for('public.post_featured_image', pid=_p.id) }}" alt="Featured image" data-featured-preview-img>
+          <img {% if _has_featured %}src="{{ url_for('public.post_featured_image', pid=_p.id) }}"{% endif %}
+               alt="Featured image" data-featured-preview-img
+               {% if not _has_featured %}hidden{% endif %}>
+          <div class="og-image-empty muted small" data-featured-preview-empty
+               {% if _has_featured %}hidden{% endif %}>No image uploaded yet.</div>
           {# Pill-style toggle — still a real checkbox (post_save reads
              ``clear_featured_image`` and the File-Browser JS unchecks
              it), just rendered as a chip that fills in red when armed. #}
-          <label class="post-featured-clear">
+          <label class="post-featured-clear" data-featured-clear
+                 {% if not _has_featured %}hidden{% endif %}>
             <input type="checkbox" name="clear_featured_image" value="1">
             <span>{{ icon('x') }} Remove current image</span>
           </label>
-          {% else %}
-          <img alt="Featured image" data-featured-preview-img hidden>
-          <div class="og-image-empty muted small" data-featured-preview-empty>No image uploaded yet.</div>
-          {% endif %}
         </div>
         <div class="og-image-fields">
-          <label>Upload new image <span class="muted small">(PNG, JPG, or WebP)</span>
+          <label>{% call hrow('Upload new image') %}PNG, JPG, or WebP. Replaces whatever featured image the post already has when you save.{% endcall %}
             <input type="file" name="featured_image" accept="image/png,image/jpeg,image/webp" data-featured-upload>
           </label>
           <label class="check og-image-webp">
             <input type="checkbox" name="convert_featured_to_webp" value="1">
-            <span>Auto convert to WebP <span class="muted small">— transcodes the upload to WebP on save</span></span>
+            <span class="field-label-row">Auto convert to WebP {% call chip('Auto convert to WebP') %}Transcodes the upload to WebP on save — smaller files and faster public pages, at the cost of the original format.{% endcall %}</span>
           </label>
           <div class="og-image-actions">
             <button type="button" class="btn btn-sm" data-post-featured-picker>{{ icon('folder') }} Choose from File Browser</button>
@@ -644,8 +623,7 @@
       </ul>
       <div class="post-gallery-actions">
         <label class="post-gallery-upload-label">
-          <span>Upload images</span>
-          <span class="muted smaller">— PNG, JPG, WebP, or GIF. Multi-select supported.</span>
+          <span class="field-label-row">Upload images {% call chip('Upload images') %}PNG, JPG, WebP, or GIF. Multi-select supported — pick several files at once, up to the 6-image limit.{% endcall %}</span>
           <input type="file" name="gallery_upload" multiple
                  accept="image/png,image/jpeg,image/webp,image/gif"
                  data-gallery-upload>
@@ -664,24 +642,134 @@
 {# Type-checkbox visibility wiring — runs after the whole form is in
    the DOM so plain querySelector finds everything:
    · Event details card shows only while the Event type is checked.
-   · The announcement auto-archive block (in the Publishing card)
-     shows only while the Announcement type is checked; its datetime
-     field reveals when the inner toggle is on, and its cross-type
-     note reveals when the Event type is also checked. #}
+   · The auto-archive block (Type & title card) shows while *either*
+     type is checked, and switches owner depending on which:
+       announcement only → the admin picks a date by hand
+       tagged as Event   → the switch locks on, the event's own
+                           end date drives it, and the resolved
+                           archive moment is rendered live below. #}
 <script>
 (function () {
   var annCheck = document.querySelector('input[type="checkbox"][name="is_announcement"]');
   var evtCheck = document.querySelector('input[type="checkbox"][name="is_event"]');
   var expiryWrap = document.querySelector('[data-announcement-expiry]');
-  if (annCheck && expiryWrap) {
+  var startEl = document.querySelector('[data-event-start]');
+  var endEl = document.querySelector('[data-event-end]');
+  var tz = {{ ((site.timezone if site and site.timezone else '') or '')|tojson }};
+
+  if (expiryWrap) {
     var expiryToggle = expiryWrap.querySelector('[data-announcement-expiry-toggle]');
     var expiryField = expiryWrap.querySelector('[data-announcement-expiry-field]');
     var expiryInput = expiryWrap.querySelector('[data-announcement-expiry-input]');
-    var syncWrap = function () { expiryWrap.hidden = !annCheck.checked; };
+    var toggleWrap = expiryWrap.querySelector('[data-archive-toggle-wrap]');
+    var ownerBadge = expiryWrap.querySelector('[data-archive-owner]');
+    var readout = expiryWrap.querySelector('[data-archive-readout]');
+    var whenEl = expiryWrap.querySelector('[data-archive-when]');
+    var noteEl = expiryWrap.querySelector('[data-archive-note]');
+    // Remembers what the admin had the switch set to before an Event
+    // tag locked it on, so un-tagging Event hands their setting back
+    // instead of leaving it stuck in the locked-on position.
+    var preLock = null;
+
+    var isEvent = function () { return !!(evtCheck && evtCheck.checked); };
+
+    // ── The event's archive moment ────────────────────────────────
+    // Mirrors the event arm of ``_auto_archive_events`` exactly: the
+    // sweep archives a post whose end (or start, when there's no end)
+    // falls before midnight *today* site-local, i.e. the post drops at
+    // the first midnight after the day it ends. Both inputs are naive
+    // site-local wall clock, and the Date is rebuilt from its parts,
+    // so no timezone conversion happens anywhere in here.
+    function archiveMoment() {
+      var raw = (endEl && endEl.value) || (startEl && startEl.value) || '';
+      if (!raw) return null;
+      var ref = new Date(raw);
+      if (isNaN(ref.getTime())) return null;
+      return {
+        ref: ref,
+        fromEnd: !!(endEl && endEl.value),
+        at: new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() + 1, 0, 0, 0, 0)
+      };
+    }
+
+    function fmt(d, withTime) {
+      var opts = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+      if (withTime) { opts.hour = 'numeric'; opts.minute = '2-digit'; }
+      try { return d.toLocaleString(undefined, opts); } catch (_) { return d.toString(); }
+    }
+
+    function syncReadout() {
+      if (!readout) return;
+      readout.hidden = !isEvent();
+      if (!isEvent()) return;
+      var m = archiveMoment();
+      readout.classList.toggle('is-warn', !m);
+      if (!m) {
+        if (whenEl) whenEl.textContent = 'No archive date yet';
+        if (noteEl) {
+          noteEl.innerHTML = 'Set <strong>Starts</strong> (or <strong>Ends</strong>) ' +
+            'under <strong>Event details</strong> below and the archive date appears here. ' +
+            'With both blank this post never auto-archives.';
+        }
+        return;
+      }
+      if (whenEl) whenEl.textContent = 'Archives ' + fmt(m.at, true);
+      if (noteEl) {
+        noteEl.innerHTML =
+          'Midnight' + (tz ? ' ' + tz : ' site-local') + ', the day after the event ' +
+          (m.fromEnd ? 'ends' : 'starts') + ' (' + fmt(m.ref, true) + ')' +
+          (m.fromEnd ? '' : ' — <strong>Ends</strong> is blank, so <strong>Starts</strong> sets the cutoff') +
+          '. The post stays up for the rest of the day it ' + (m.fromEnd ? 'ends' : 'starts') +
+          ', then moves to <code>/archive</code>' +
+          (annCheck && annCheck.checked
+            ? '. While this post is tagged Event the event owns the date — any hand-set announcement deadline is cleared on save'
+            : '') +
+          '. Drafts never auto-archive.';
+      }
+    }
+
+    // ── Lock / unlock ─────────────────────────────────────────────
+    // The locked switch is a real `disabled` checkbox, so it reads as
+    // on but posts nothing — ``post_save`` then nulls
+    // ``announcement_auto_archive_at`` and the event arm is the only
+    // thing left that can archive the post. That's deliberate: the
+    // date on screen stays the only date that can fire.
+    function syncLock() {
+      if (!expiryToggle) return;
+      if (isEvent()) {
+        if (preLock === null) preLock = expiryToggle.checked;
+        expiryToggle.checked = true;
+        expiryToggle.disabled = true;
+      } else if (preLock !== null) {
+        expiryToggle.checked = preLock;
+        expiryToggle.disabled = false;
+        preLock = null;
+      } else {
+        expiryToggle.disabled = false;
+      }
+      // The hand-set date goes with it, so a value left over from a
+      // previous edit can't ride along on the POST either.
+      if (expiryInput) expiryInput.disabled = isEvent();
+      if (toggleWrap) toggleWrap.classList.toggle('is-disabled', isEvent());
+      if (toggleWrap) {
+        toggleWrap.title = isEvent()
+          ? "Locked on — this post is tagged Event, so the event's end date decides when it archives."
+          : '';
+      }
+      if (ownerBadge) ownerBadge.hidden = !isEvent();
+    }
+
+    var syncWrap = function () {
+      expiryWrap.hidden = !((annCheck && annCheck.checked) || isEvent());
+    };
+
     var syncField = function () {
       if (!expiryField || !expiryToggle) return;
-      expiryField.hidden = !expiryToggle.checked;
-      if (expiryToggle.checked && expiryInput && !expiryInput.value) {
+      // The hand-set date only belongs to announcements, and only
+      // while the event isn't driving: one date on screen at a time.
+      var show = !isEvent() && !!(annCheck && annCheck.checked) && expiryToggle.checked;
+      expiryField.hidden = !show;
+      if (show && expiryInput && !expiryInput.value) {
         // Sensible default: 14 days out — typical "leave the
         // announcement up for two weeks" cadence. Admin can change
         // before saving.
@@ -692,18 +780,25 @@
                             pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
       }
     };
-    // Cross-type note — only meaningful while both types are on, so
-    // it tracks the Event checkbox independently of the toggle.
-    var evtNote = expiryWrap.querySelector('[data-announcement-expiry-event-note]');
-    var syncEvtNote = function () {
-      if (evtNote) evtNote.hidden = !(evtCheck && evtCheck.checked);
-    };
-    annCheck.addEventListener('change', syncWrap);
-    if (evtCheck) evtCheck.addEventListener('change', syncEvtNote);
+
+    var syncAll = function () { syncLock(); syncWrap(); syncField(); syncReadout(); };
+
+    if (annCheck) annCheck.addEventListener('change', syncAll);
+    if (evtCheck) evtCheck.addEventListener('change', syncAll);
     if (expiryToggle) expiryToggle.addEventListener('change', syncField);
-    syncWrap();
-    syncField();
-    syncEvtNote();
+    // Deferred: the "Ends can't precede Starts" helper further down
+    // the page normalises endEl inside the *same* event dispatch, and
+    // it registers after this script does. Hopping to the next tick
+    // means the readout always reads the settled values rather than
+    // the half-updated ones.
+    var deferReadout = function () { setTimeout(syncReadout, 0); };
+    [startEl, endEl].forEach(function (el) {
+      if (!el) return;
+      el.addEventListener('change', deferReadout);
+      el.addEventListener('input', deferReadout);
+    });
+    syncAll();
+    deferReadout();
   }
 
   // Event details card — hidden unless the Event checkbox is on.
@@ -716,15 +811,6 @@
     var syncEventCard = function () { eventCard.hidden = !evtCheck.checked; };
     evtCheck.addEventListener('change', syncEventCard);
     syncEventCard();
-    // Mirror of the cross-type note in the Publishing card: the
-    // "an announcement deadline can archive this sooner" clause is
-    // only true while the Announcement type is on.
-    var evtAnnNote = eventCard.querySelector('[data-event-archive-ann-note]');
-    if (evtAnnNote && annCheck) {
-      var syncEvtAnnNote = function () { evtAnnNote.hidden = !annCheck.checked; };
-      annCheck.addEventListener('change', syncEvtAnnNote);
-      syncEvtAnnNote();
-    }
   }
 })();
 </script>
@@ -747,7 +833,6 @@
   var addr = document.querySelector('[data-maps-address]');
   var venue = document.querySelector('input[name="location_name"]');
   var help = document.querySelector('[data-maps-url-help]');
-  var helpHTML = help ? help.innerHTML : '';
   var helpTimer = null;
 
   // Address is a textarea: collapse newlines to comma-separated parts so
@@ -765,8 +850,12 @@
   function say(msg, tone) {
     if (!help) return;
     if (helpTimer) { clearTimeout(helpTimer); helpTimer = null; }
-    if (msg === null) { help.innerHTML = helpHTML; help.classList.remove('is-warn', 'is-ok'); return; }
+    // Nothing to say → the line collapses entirely. The standing
+    // explanation lives in the label's help chip now, so this element
+    // is blank unless a click just produced a result.
+    if (msg === null) { help.textContent = ''; help.hidden = true; help.classList.remove('is-warn', 'is-ok'); return; }
     help.textContent = msg;
+    help.hidden = false;
     help.classList.toggle('is-warn', tone === 'warn');
     help.classList.toggle('is-ok', tone === 'ok');
     helpTimer = setTimeout(function () { say(null); }, 9000);
@@ -1040,17 +1129,21 @@
    state" affordance; explicit state transitions (Publish, Move to
    Drafts) stay in the top action area. New posts have to pick state
    on the first save so they keep both top buttons and skip the bar
-   entirely. The bar surfaces only when the form has unsaved edits;
-   the corresponding native submit button (hidden) is what the bar's
-   button targets via the `form` attribute, so server-side validation
-   + the post_save redirect-after-POST path keeps working unchanged. #}
+   entirely. The bar surfaces only when the form has unsaved edits.
+
+   The bar's button is deliberately NOT a submit button: a routine save
+   shouldn't cost the admin their scroll position halfway down a long
+   form. It POSTs the same form through fetch (``X-Requested-With:
+   fetch``, which ``post_save`` answers with JSON instead of a
+   redirect) and reconciles the handful of fields the server can
+   rewrite — see ``_post_save_payload``. The top-of-page buttons stay
+   native submits, because those DO navigate somewhere. #}
 {% if not _is_new %}
 <div id="post-edit-save-bar" class="fe-save-bar fe-save-bar-content" hidden
      data-post-edit-save-bar>
   <span class="fe-save-bar-msg">Unsaved changes</span>
-  <button type="submit" form="post-edit-form"
-          {% if _p and _p.is_draft %}name="action" value="draft"{% endif %}
-          class="btn fe-save-bar-btn">
+  <button type="button" class="btn fe-save-bar-btn"
+          {% if _p and _p.is_draft %}data-save-action="draft"{% endif %}>
     {% if _p and _p.is_draft %}Save draft{% else %}Save post{% endif %}
   </button>
 </div>
@@ -1061,7 +1154,9 @@
   if (!form || !bar) return;
   var msg = bar.querySelector('.fe-save-bar-msg');
   var btn = bar.querySelector('.fe-save-bar-btn');
+  var idleLabel = btn ? btn.textContent.trim() : 'Save';
   var dirty = false;
+  var toast = function (m, kind) { (window.tspShowToast || function () {})(m, kind); };
 
   function show() {
     if (dirty) return;
@@ -1069,7 +1164,7 @@
     bar.hidden = false;
     bar.classList.remove('is-leaving');
     if (msg) msg.textContent = 'Unsaved changes';
-    if (btn) btn.disabled = false;
+    if (btn) { btn.disabled = false; btn.textContent = idleLabel; }
   }
 
   form.addEventListener('input', show);
@@ -1097,13 +1192,157 @@
     mo.observe(form, { childList: true, subtree: true });
   }
 
-  // Native submit through the bar's button — the bar lets the
-  // browser follow the form's redirect-after-POST, so we just flash
-  // "Saving…" while the round-trip runs. The server's flash-success
-  // banner takes over once the new page lands.
+  // The top-of-page buttons (Publish, Move to Drafts) are still native
+  // submits that navigate away — keep flashing "Saving…" for those.
   form.addEventListener('submit', function () {
     if (msg) msg.textContent = 'Saving…';
     if (btn) btn.disabled = true;
+  });
+
+  // ── Reconcile the page with what the server actually stored ──────
+  // Only the fields post_save can rewrite on its own. Everything else
+  // on screen is already exactly what we just sent.
+
+  function syncSlug(data) {
+    var input = form.querySelector('input[name="slug"]');
+    if (!input) return;
+    // Blank means "keep deriving from the title" — the effective URL
+    // moves to the placeholder, same as a freshly rendered page.
+    if (input.value !== data.slug_field) input.value = data.slug_field;
+    if (data.slug) input.placeholder = data.slug;
+  }
+
+  function syncFeatured(data) {
+    var section = form.querySelector('[data-post-featured-image]');
+    if (!section) return;
+    var img = section.querySelector('[data-featured-preview-img]');
+    var empty = section.querySelector('[data-featured-preview-empty]');
+    var clearBox = section.querySelector('input[name="clear_featured_image"]');
+    var upload = section.querySelector('[data-featured-upload]');
+    var mediaId = section.querySelector('[data-featured-media-id]');
+    var picked = section.querySelector('[data-featured-picked-label]');
+    if (img) {
+      if (data.featured_image) {
+        img.src = data.featured_image;
+        img.hidden = false;
+      } else {
+        img.removeAttribute('src');
+        img.hidden = true;
+      }
+      img.classList.remove('is-cleared');
+    }
+    if (empty) empty.hidden = !!data.featured_image;
+    var clearPill = section.querySelector('[data-featured-clear]');
+    if (clearPill) clearPill.hidden = !data.featured_image;
+    // The upload / pick / clear inputs have all been consumed by the
+    // save — leaving them armed would re-apply them on the next one.
+    if (clearBox) clearBox.checked = false;
+    if (upload) upload.value = '';
+    if (mediaId) mediaId.value = '';
+    if (picked) { picked.hidden = true; picked.textContent = ''; }
+  }
+
+  function syncGallery(data) {
+    var section = form.querySelector('[data-post-gallery]');
+    if (!section) return;
+    var list = section.querySelector('[data-gallery-list]');
+    var upload = section.querySelector('[data-gallery-upload]');
+    var picks = section.querySelector('[data-gallery-picks]');
+    if (list) {
+      // Rebuilt wholesale from the stored filenames: uploads land,
+      // removed tiles go, and the indices the thumbnail URLs are keyed
+      // on stay aligned with the row. Per-tile remove still works —
+      // that handler is delegated from the section, not the tiles.
+      list.textContent = '';
+      (data.gallery || []).forEach(function (item, i) {
+        var li = document.createElement('li');
+        li.className = 'post-gallery-tile';
+        li.setAttribute('data-gallery-tile', '');
+        var img = document.createElement('img');
+        img.src = item.url;
+        img.alt = 'Gallery image ' + (i + 1);
+        img.loading = 'lazy';
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'gallery_existing';
+        hidden.value = item.name;
+        var rm = document.createElement('button');
+        rm.type = 'button';
+        rm.className = 'btn btn-sm btn-danger post-gallery-remove';
+        rm.setAttribute('data-gallery-remove', '');
+        rm.title = 'Remove from gallery';
+        rm.textContent = '×';
+        li.appendChild(img);
+        li.appendChild(hidden);
+        li.appendChild(rm);
+        list.appendChild(li);
+      });
+    }
+    if (upload) upload.value = '';
+    if (picks) picks.textContent = '';
+    // Re-run the section's own tally so the "(n / 6)" chip matches.
+    if (typeof section.__galleryRefresh === 'function') section.__galleryRefresh();
+  }
+
+  function settle() {
+    dirty = false;
+    if (msg) msg.textContent = 'Saved';
+    var finish = function () {
+      bar.hidden = true;
+      bar.classList.remove('is-leaving');
+      if (msg) msg.textContent = 'Unsaved changes';
+      if (btn) { btn.disabled = false; btn.textContent = idleLabel; }
+    };
+    bar.addEventListener('animationend', finish, { once: true });
+    bar.classList.add('is-leaving');
+    // Safety net for reduced-motion / background-tab cases where
+    // animationend never fires.
+    setTimeout(finish, 360);
+  }
+
+  function fail(message) {
+    if (msg) msg.textContent = 'Save failed — try again';
+    if (btn) { btn.disabled = false; btn.textContent = idleLabel; }
+    toast(message || 'Save failed — try again', 'error');
+  }
+
+  if (btn) btn.addEventListener('click', function () {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    if (msg) msg.textContent = 'Saving…';
+    var fd = new FormData(form);
+    // The button used to carry this as name/value on a submit; a plain
+    // button contributes nothing to FormData, so add it by hand.
+    if (btn.dataset.saveAction) fd.append('action', btn.dataset.saveAction);
+    // getAttribute, not `form.action`: HTMLFormElement is
+    // [LegacyOverrideBuiltIns], so the top-of-page Publish / Move to
+    // Drafts buttons — which are name="action" and associated with this
+    // form via their `form` attribute — shadow the action property and
+    // make `form.action` return a <button> instead of the URL.
+    fetch(form.getAttribute('action'), {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'fetch' },
+      body: fd
+    }).then(function (r) {
+      return r.json().catch(function () { return null; })
+        .then(function (data) { return { ok: r.ok, data: data }; });
+    }).then(function (res) {
+      var data = res.data;
+      (data && data.flashes || []).forEach(function (f) {
+        toast(f.message, (f.category === 'danger' || f.category === 'error') ? 'error' : '');
+      });
+      if (!res.ok || !data || !data.ok) {
+        fail(data && data.flashes && data.flashes.length ? null : 'Save failed — try again');
+        return;
+      }
+      if (data.redirect) { window.location.assign(data.redirect); return; }
+      syncSlug(data);
+      syncFeatured(data);
+      syncGallery(data);
+      settle();
+    }).catch(function () { fail(); });
   });
 })();
 </script>

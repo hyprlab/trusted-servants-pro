@@ -1,0 +1,40 @@
+{# Reusable "?" help chip.
+
+   Collapses a field's helper paragraph into a click-to-open tooltip so
+   the form reads as labels + inputs instead of labels + inputs + three
+   lines of prose each. Emits exactly the markup the topbar heading help
+   uses (.heading-help / .help-btn / .help-tooltip), so the shared
+   click / Escape handler in app.js drives it with no extra wiring — the
+   extra .field-help class only carries the smaller inline sizing.
+
+     chip(label)  the bare chip. Drop it after a heading you've already
+                  written: a card <h2>, a .post-subhead, a toggle title.
+     hrow(label)  a label heading row — the label text with the chip
+                  pinned to its right. Needed inside `.form label`,
+                  which is a column flex container: without the inline
+                  wrapper the chip would drop onto its own line above
+                  the input.
+
+   Both take the tooltip body as a {% call %} block, so help text can
+   carry markup:
+
+     <label>{% call hrow('Public URL') %}Leave blank to
+       <strong>derive it from the title</strong>.{% endcall %}
+       <input ...>
+     </label>
+
+   `label` is only used for the button's accessible name; the visible
+   mark is always the Lucide `info` icon. #}
+
+{% macro chip(label='') -%}
+<span class="heading-help field-help"><button type="button" class="help-btn" tabindex="-1"
+  aria-label="{{ ('About ' ~ label) if label else 'More information' }}">{{ icon('info') }}</button><span
+  class="help-tooltip" role="tooltip">{{ caller() }}</span></span>
+{%- endmacro %}
+
+{% macro hrow(label) -%}
+<span class="field-label-row">{{ label }}<span class="heading-help field-help"><button
+  type="button" class="help-btn" tabindex="-1"
+  aria-label="About {{ label }}">{{ icon('info') }}</button><span
+  class="help-tooltip" role="tooltip">{{ caller() }}</span></span></span>
+{%- endmacro %}

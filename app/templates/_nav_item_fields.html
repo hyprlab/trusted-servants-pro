@@ -1,5 +1,6 @@
 {# Shared fields for the Add / Edit nav-item modals.
    Expects `_item` to be defined for edit mode; undefined → new item. #}
+{% from "_help_chip.html" import chip, hrow %}
 {% set _style = (_item.style if _item is defined and _item else 'text') %}
 <fieldset class="fieldset fieldset-inline">
   <legend>Style</legend>
@@ -42,25 +43,24 @@
   </label>
 </div>
 <div data-nav-style-pane="two-line"{% if _style != 'two-line' %} hidden{% endif %}>
-  <label>Top line <span class="muted small">(small, muted)</span>
+  <label><span class="field-label-row">Top line <span class="muted small">(small, muted)</span></span>
     <input type="text" name="line1" maxlength="120"
            value="{{ (_item.line1 if _item is defined and _item else '') or '' }}" placeholder="New to CMA?">
   </label>
-  <label>Bottom line <span class="muted small">(bold accent)</span>
+  <label><span class="field-label-row">Bottom line <span class="muted small">(bold accent)</span></span>
     <input type="text" name="line2" maxlength="120"
            value="{{ (_item.line2 if _item is defined and _item else '') or '' }}" placeholder="Start here">
   </label>
 </div>
 
-<label>URL <span class="muted small">(leave blank if this item only reveals a mega menu)</span>
+<label>{% call hrow('URL') %}Leave blank if this item only reveals a mega menu{% endcall %}
   <input type="text" name="url" maxlength="500"
          value="{{ (_item.url if _item is defined and _item else '') or '' }}" placeholder="/meetings or https://…">
 </label>
 
 <li class="special-page-row" style="list-style:none; padding: 6px 0 0;">
   <div class="special-page-info">
-    <div class="u-name">Mega menu</div>
-    <p class="muted small">When on, this item reveals a full-width dropdown. You can manage columns and links after saving.</p>
+    <div class="u-name">Mega menu {% call chip() %}When on, this item reveals a full-width dropdown. You can manage columns and links after saving.{% endcall %}</div>
   </div>
   <label class="mode-toggle">
     <input type="checkbox" name="has_megamenu" value="1"
@@ -71,8 +71,7 @@
 
 <li class="special-page-row" style="list-style:none; padding: 6px 0 0;">
   <div class="special-page-info">
-    <div class="u-name">Open in new tab</div>
-    <p class="muted small">When on, the link opens in a new browser tab (adds <code>target="_blank"</code>).</p>
+    <div class="u-name">Open in new tab {% call chip() %}When on, the link opens in a new browser tab (adds <code>target="_blank"</code>).{% endcall %}</div>
   </div>
   <label class="mode-toggle">
     <input type="checkbox" name="open_in_new_tab" value="1"
@@ -86,7 +85,7 @@
    the URL. The list is populated from app/forms_registry.py — see
    the Forms admin page for what each entry does. #}
 {% set _forms = (form_registry_all if form_registry_all is defined else []) %}
-<label>Triggers form <span class="muted small">(opens as a modal on click)</span>
+<label>{% call hrow('Triggers form') %}Opens as a modal on click{% endcall %}
   <select name="form_trigger">
     <option value="">— No form (navigate to URL) —</option>
     {% for f in _forms %}

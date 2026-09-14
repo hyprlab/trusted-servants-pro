@@ -100,6 +100,10 @@
   --shadow: 0 1px 2px rgba(17,24,39,.04), 0 4px 14px rgba(17,24,39,.06);
   --radius: 12px;
   --sidebar-w: 248px;
+  /* Web Frontend admin's secondary sidebar. Narrower than the main app
+     sidebar — its links are short section names, not a full nav — so the
+     content column beside it gets the difference back. */
+  --fe-subnav-w: 198px;
 }
 [data-theme="dark"] {
   --bg: #0f1117;
@@ -969,17 +973,20 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 /* Type-tag pills inside the edit form — clickable cards with a checkbox. */
 .post-type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
 @media (max-width: 720px) { .post-type-row { grid-template-columns: 1fr; } }
+/* `.form label { flex-direction: column }` outranks a bare class on a
+   <label>, so the pill has to name the form to lay its checkbox out
+   beside the title instead of above it. */
+.post-form label.post-type-pill { flex-direction: row; align-items: center; }
 .post-type-pill {
-  display: flex; align-items: flex-start; gap: 12px;
+  display: flex; align-items: center; gap: 12px;
   padding: 14px 16px; border: 2px solid var(--border); border-radius: 12px;
   background: var(--panel); cursor: pointer;
   transition: border-color 140ms ease, background 140ms ease;
 }
 .post-type-pill:has(input:checked) { border-color: var(--brand); background: var(--brand-soft, var(--panel-2)); }
-.post-type-pill input[type="checkbox"] { margin-top: 4px; flex: 0 0 auto; }
+.post-type-pill input[type="checkbox"] { flex: 0 0 auto; }
 .post-type-pill-body { display: flex; flex-direction: column; gap: 2px; }
 .post-type-pill-title { font-weight: 700; color: var(--text); font-size: 0.95rem; }
-.post-type-pill-sub { line-height: 1.4; }
 
 /* Reusable two-column row for short fields (start/end, phone/email, etc.) */
 .post-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -1433,10 +1440,16 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   display: block; max-width: 100%; max-height: 220px;
   margin-top: 8px; border-radius: 8px; border: 1px solid var(--border);
 }
+/* `display: block` above outranks the UA's `[hidden] { display: none }`,
+   so an empty preview drew a broken-image box instead of nothing. Same
+   for the two siblings below, which the save bar toggles after an AJAX
+   save. */
+.og-image-preview img[hidden] { display: none; }
 .og-image-empty {
   margin-top: 8px; padding: 24px; border: 1px dashed var(--border);
   border-radius: 8px; text-align: center; background: var(--panel-2);
 }
+.og-image-empty[hidden] { display: none; }
 .og-image-actions {
   margin-top: .55rem;
   display: flex;
@@ -1628,20 +1641,37 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   max-width: 280px;
 }
 .post-announcement-expiry-input input { font: inherit; }
-.post-announcement-expiry-help {
-  margin: .35rem 0 0;
-  line-height: 1.4;
-}
-/* Cross-type note for posts tagged Announcement *and* Event — sits
-   between the toggle row and the datetime field, divided from the
-   toggle so it reads as a caveat on the setting above rather than
-   more description of it. */
-.post-announcement-expiry-event-note {
-  margin: 12px 0 0;
+/* Event-owned auto-archive readout. Replaces the hand-set date field
+   whenever the post is tagged Event: the sweep's event arm is not
+   optional, so there is nothing to configure — only the resolved
+   moment to report. Divided from the toggle so it reads as the
+   consequence of the (locked) switch above rather than a second
+   setting. `.is-warn` covers the no-date-yet case, where the switch
+   reads on but nothing can actually fire. */
+.post-archive-readout {
+  margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
-  line-height: 1.45;
 }
+.post-archive-readout-when {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.post-archive-readout.is-warn .post-archive-readout-when { color: var(--danger, #b42318); }
+.post-archive-readout-note { margin: 4px 0 0; line-height: 1.45; }
+/* "Set by the event" — names the owner right on the toggle title, so
+   the locked switch never reads as a control that stopped working. */
+.post-archive-owner {
+  display: inline-block; vertical-align: middle;
+  margin-left: 6px; padding: 2px 8px; border-radius: 999px;
+  font-size: 0.6875rem; font-weight: 700; line-height: 1.4;
+  text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--brand); background: var(--brand-soft, var(--panel-2));
+  border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
+}
+.post-archive-owner[hidden] { display: none; }
+.post-toggle-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 /* Google Maps link + its "Use address" generator button. The button
    sits inline after the field rather than inside a bordered shell (the
    .slug-input-row pattern) because the input is a plain URL field the
@@ -1667,18 +1697,6 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 }
 [data-maps-url-help].is-warn { color: var(--danger, #b42318); }
 [data-maps-url-help].is-ok { color: var(--brand); }
-
-/* Mirror of the above on the Event details card — sits under the
-   Starts/Ends row it describes. Panel-tinted rather than divided so it
-   reads as an annotation on those two fields, not as another setting. */
-.post-event-archive-note {
-  margin: 0 0 4px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--panel-2);
-  line-height: 1.45;
-}
 
 /* Uniform vertical rhythm inside every card on the announcement /
    event edit page — 1rem between each grouping (card-head, pills,
@@ -1720,6 +1738,9 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 .post-toggle-info { min-width: 0; flex: 1; }
 .post-toggle-title { font-weight: 600; }
 .post-toggle-info p { margin: 2px 0 0; }
+/* With the descriptions folded into help chips these rows are a single
+   line of text plus a switch, so centre them on the switch. */
+.post-toggle-row .post-toggle-info:not(:has(p)) { align-self: center; }
 
 /* "Remove current image" — a real checkbox dressed as a pill chip
    under the featured-image thumbnail. Neutral outline at rest;
@@ -1729,6 +1750,7 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   /* don't stretch to the preview column's full width */
   align-self: flex-start; justify-self: start;
 }
+.post-featured-clear[hidden] { display: none; }
 .post-featured-clear input {
   position: absolute; opacity: 0; width: 1px; height: 1px;
   pointer-events: none;
@@ -1854,6 +1876,14 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
   min-width: 180px;
 }
 .post-links-row-style select { font: inherit; }
+.post-form label.check,
+.post-form .post-links-row-newtab {
+  flex-direction: row;
+  align-items: center;
+  gap: .45rem;
+}
+.post-form label.check input[type="checkbox"],
+.post-form .post-links-row-newtab input[type="checkbox"] { width: auto; margin: 0; flex: 0 0 auto; }
 .post-links-row-newtab {
   display: inline-flex;
   align-items: center;
@@ -2060,8 +2090,8 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
    adaptive regardless of viewport, sidebar, or surrounding chrome.
    Why container queries instead of @media: on the frontend admin page
    this card lives inside the main app sidebar (248px) + .content
-   padding + a secondary fe-admin subnav (248px + gap) + card padding,
-   so its actual width is ~viewport−600px. Viewport-keyed breakpoints
+   padding + a secondary fe-admin subnav (--fe-subnav-w + gap) + card
+   padding, so its actual width is ~viewport−550px. Viewport-keyed breakpoints
    guess wrong and the 5-col row grid overflows by ~1100px viewport. */
 .fe-header-grid-item-wide {
   grid-column: 1 / -1;
@@ -2470,7 +2500,8 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 .fe-logo-preview-mock img { max-width: 100%; height: auto; display: block; object-fit: contain; }
 
 /* ===== Web Frontend admin area — secondary sidebar layout ===== */
-.fe-admin-layout { display: grid; grid-template-columns: 248px minmax(0, 1fr);
+.fe-admin-layout { display: grid;
+  grid-template-columns: var(--fe-subnav-w, 198px) minmax(0, 1fr);
   gap: 32px; align-items: start; }
 /* Universal 1rem gap between every direct child of the admin main column
    (cards, forms, free sections, etc.) so we never have to remember to
@@ -2642,8 +2673,8 @@ body.has-fe-save-bar .fe-admin-main .form-actions { display: none; }
    tap on a phone vs. scanning a wrap-flex of 14 pills, and the group
    labels stay meaningful (Setup / Structure / Content). */
 .fe-subnav-select-wrap { display: none; }
-/* Web Frontend admin shell. Collapses the 248px subnav column (plus its
-   32px gap) into the stacked "Jump to:" select. Raised from 900px to
+/* Web Frontend admin shell. Collapses the --fe-subnav-w subnav column
+   (plus its 32px gap) into the stacked "Jump to:" select. Raised from 900px to
    1000px: between those two the sidebar was still claiming 280px of a
    viewport that didn't have it to spare, which squeezed the content
    column hard enough that the list tables spilled past their cards.
@@ -2824,12 +2855,28 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
 .topbar h1 { font-size: 1.375rem; font-weight: 700; flex: 1; display: flex; align-items: center; gap: 8px; }
 .heading-help { position: relative; display: inline-flex; font-size: 0.875rem; font-weight: 400; }
 .help-btn {
-  width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
-  background: var(--panel); color: var(--muted); cursor: pointer;
-  font-size: 0.8125rem; line-height: 1; padding: 0; display: inline-flex;
-  align-items: center; justify-content: center;
+  width: 18px; height: 18px; border: 0; background: transparent;
+  /* Lighter than --muted: the mark is a quiet affordance beside the
+     label it annotates, not a peer of the label text. Mixed toward the
+     surface rather than hard-coded so every theme stays in step. */
+  color: color-mix(in srgb, var(--muted) 55%, var(--panel));
+  cursor: pointer; padding: 0; line-height: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color 120ms ease;
 }
-.help-btn:hover { background: var(--border); color: var(--text); }
+/* The Lucide `info` glyph draws its own circle, so the button no longer
+   carries a border or fill of its own — that would double the ring.
+   Hover and the open state are signalled with colour instead. */
+/* Three classes deep on purpose: several containers restyle a bare
+   `.icon` inside them (`.data-card-head .icon` paints it brand-blue at
+   22px, `.fe-subnav-link > .icon` sizes it to 16px). Those rules are two
+   classes and would otherwise win on source order and blow the chip out
+   of its button. */
+.heading-help .help-btn .icon {
+  width: 100%; height: 100%; color: inherit; flex: 0 0 auto;
+}
+.help-btn:hover { color: var(--text); }
+.heading-help.open > .help-btn { color: var(--brand); }
 .help-tooltip {
   display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
@@ -2838,6 +2885,28 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
   box-shadow: 0 4px 16px rgba(0,0,0,.18);
 }
 .heading-help.open .help-tooltip { display: block; }
+/* Inline field chip — the same control shrunk to sit beside a form
+   label, a card <h2>, or a toggle title instead of the page heading.
+   Every helper paragraph on a form collapses into one of these, so a
+   long form reads as labels and inputs with the prose one click away.
+   `.field-label-row` is the inline wrapper the chip needs inside
+   `.form label`, which is a column flex container — without it the
+   chip would drop onto its own line above the input. */
+.field-label-row {
+  display: inline-flex; align-items: center; gap: 6px;
+  flex-wrap: wrap; min-width: 0;
+}
+.field-help { vertical-align: middle; }
+.field-help .help-btn { width: 15px; height: 15px; }
+/* Cap against the viewport as well as the 360px preference: inside a
+   card the chip can sit in the right-hand column of a two-up row. */
+.field-help .help-tooltip { max-width: min(360px, calc(100vw - 32px)); }
+/* Card heads are `justify-content: space-between`; with the helper text
+   folded into the heading the <h2> is the only child, so lay the words
+   and the chip out as a row. Gated on `:has(.field-help)` so the many
+   card heads whose <h2> is an inline icon + label keep their inline
+   flow untouched. */
+.card-head h2:has(.field-help) { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 /* Header action row. Wraps for the same reason `.row-actions` does — a
    nowrap flex row can't render narrower than the sum of its buttons, so
    a page with a filter cluster plus two or three CTAs (Posts,
@@ -4587,7 +4656,9 @@ button.chip { font-family: inherit; }
   align-items: center; justify-content: center; margin-bottom: 12px;
   background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
 .notif-empty-icon .icon { width: 24px; height: 24px; }
-.notif-empty-title { font-weight: 600; color: var(--text); margin: 0 0 4px; }
+/* Last child of the empty state now that the explanatory line is gone —
+   no trailing margin, so the icon + line sit centred in the padding. */
+.notif-empty-title { font-weight: 600; color: var(--text); margin: 0; }
 .notif-loading { padding: 32px; text-align: center; }
 
 /* Permission-locked button: editor-tier user has the broad gate but
@@ -7707,6 +7778,9 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .sort-select select { flex: 0 0 auto; min-width: 0; }
   .sort-dir { flex: 0 0 auto; }
   .heading-help { display: none; }
+  /* ...but the inline field chips are the only place the help text
+     lives now, so they stay — it's the topbar duplicate that goes. */
+  .heading-help.field-help { display: inline-flex; }
   .media-search { flex-wrap: wrap; }
 }
 

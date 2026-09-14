@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}{{ t.name }} — restore{% endblock %}
 {% block heading %}{{ t.name }} — restore{% endblock %}
 {% block heading_help %}Browse the archives currently on the remote and pull one back to your computer. To apply it to this app, upload the resulting .zip via Settings → Data → Import.{% endblock %}
@@ -39,9 +40,8 @@
     </ul>
 
     {% if t.kind == 'tspro_backup' %}
-    <label>Private key (required — decrypts the archive)
+    <label>{% call hrow('Private key (required — decrypts the archive)') %}The site's private key, shown once when the site was created in the backup server's console. It is used here to decrypt and is never uploaded.{% endcall %}
       <input type="password" name="private_key" autocomplete="off" placeholder="tspsk_…">
-      <span class="muted smaller">The site's private key, shown once when the site was created in the backup server's console. It is used here to decrypt and is never uploaded.</span>
     </label>
     {% elif files | selectattr('name', 'match', '.+\\.enc$') | list %}
     <label>Passphrase (only required if you select an encrypted archive)

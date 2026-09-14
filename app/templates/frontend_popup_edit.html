@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% from "_frontend_structure_card.html" import structure_page_tree, structure_orphans_card, structure_block_palette %}
 {% block heading %}Edit popup{% endblock %}
 {% block heading_help %}Triggered from <code>#{{ popup.name }}</code>.{% endblock %}
@@ -73,9 +74,8 @@
        (#page-blocks-json / #page-editor-root / #page-layout-edit-modal). #}
     <section class="card fe-page-structure">
       <div class="card-head">
-        <h2>Content</h2>
-        <span class="muted smaller">Drag pills to rearrange. Drag from the “Add block” palette
-          (bottom-right) to drop in new blocks. Click any pill to edit its content.</span>
+        <h2>Content {% call chip('Content') %}Drag pills to rearrange. Drag from the “Add block” palette
+          (bottom-right) to drop in new blocks. Click any pill to edit its content.{% endcall %}</h2>
       </div>
       {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
                              _PAGE_BLOCK_LABELS, _editable,
@@ -108,13 +108,12 @@
               <input type="text" name="title" required maxlength="200"
                      value="{{ popup.title }}" autocomplete="off">
             </label>
-            <label>Trigger handle
+            <label>{% call hrow('Trigger handle') %}The <code>#name</code> selector that opens this popup.{% endcall %}
               <span class="fe-popup-handle-field">
                 <span class="fe-popup-handle-hash">#</span>
                 <input type="text" name="name" maxlength="120" value="{{ popup.name }}"
                        autocomplete="off" pattern="[A-Za-z0-9\- ]*">
               </span>
-              <span class="muted smaller">The <code>#name</code> selector that opens this popup.</span>
             </label>
           </div>
           <div class="fe-popup-status-row" style="margin-top: 12px;">
