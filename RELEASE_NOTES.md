@@ -7,7 +7,21 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.18.7 — 2026-09-01 (latest) — Card styles editor fits its panel again
+## 2.18.8 — 2026-09-14 (latest) — Rename a page in two clicks, and admin lists that fit your screen
+
+- **You can rename a page straight from the Pages list.** Every row has a **Rename** button that opens a small box with the page's title and its web address — no need to open the editor and hunt down the setting. (It was always possible, just buried well below the layout and block cards.)
+    - **Change the address and we'll offer to forward the old one.** Tick the box and anyone following an old link — a bookmark, a post, a printed flyer — lands on the new address instead of an error page. You'll find the forward listed afterwards under **Web Frontend → Redirects**, same as any other.
+    - **Rename it back and the old address just works again.** No leftover forward pointing the wrong way and quietly hiding your page.
+    - If the page has unpublished draft changes waiting, the rename carries across to them, so publishing that draft later won't undo it.
+    - Renames show up in the page's **History** with their own "Renamed" marker.
+- **Admin lists no longer run off the side of the screen.** The Pages list — and several others — were wide enough to force a sideways scrollbar on anything but a large monitor. They fit the space now, whatever size your window is.
+    - **Row buttons live behind one Actions menu.** View, Preview, Edit, Rename, Make homepage and Delete are all still there, one click further in, and the list reads as information instead of a wall of buttons. The menu appears when you move your mouse over a row.
+    - **On a phone or tablet it's always showing**, since there's nothing to hover over. Each page becomes a compact card — name, address, then its status and date — with the Actions button on the right.
+    - **Intergroup Officers and the Fellowships Index are usable on a phone.** Both were unreadable grids of squeezed-together boxes; each record is now a stack of clearly labelled fields with its remove button beside the top one. Tapping a field no longer zooms the whole page in.
+    - The Fellowships remove button now matches the one everywhere else, and the current homepage row lost its highlight — the **Homepage** tag beside the name already tells you.
+- **You can drag list items into a different order.** In the page editor, a **List** block's items have a grip handle you can drag to reorder them. Previously the only way to move an item was to retype the whole list.
+
+## 2.18.7 — 2026-09-01 — Card styles editor fits its panel again
 
 - **Fixes the Secondary card settings running off the right-hand side of the page.** In **Web Frontend → Design → Card styles**, the two columns of settings wouldn't shrink to fit the panel, so on a lot of screen sizes the Secondary column spilled off the edge and you had to scroll sideways to reach it. Both columns now fit whatever width you have. If your window is on the narrower side the two columns stack one above the other instead of squeezing, so each setting stays readable.
 - A field title no longer slides under the small **Synced** badge in its corner when the column is narrow.

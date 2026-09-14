@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.18.8] — 2026-09-14
+
 ### Changed
 
 - **Admin list tables stopped overflowing on narrow viewports.** The Pages
