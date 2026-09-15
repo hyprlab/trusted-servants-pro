@@ -5193,6 +5193,38 @@
     const c = m$(mode, '[data-dynbg-mode-overlay-card].active');
     return c ? (c.dataset.dynbgOverlayKey || '') : '';
   }
+  // ── Classic-recipe fallback (JS twin of dynbg.render_key) ──────
+  // A saved config with no version stamp and no per-mode block was
+  // written before the light/dark rework, so it renders with the
+  // `-classic` twin of whatever preset it names. Kept in step with the
+  // Python side by construction: the twin only counts if the catalog
+  // (rendered from dynbg.CATALOG) actually has a card for it.
+  const CONFIG_VERSION = 2;
+  function isLegacyConfig (raw) {
+    if (!raw) return true;
+    let o = raw;
+    if (typeof o === 'string') {
+      try { o = JSON.parse(o); } catch (_) { return true; }
+    }
+    if (!o || typeof o !== 'object') return true;
+    // Accept both the config shape (`v` / `modes`) and the block-data
+    // shape (`bg_dynbg_v` / `bg_dynbg_modes`) — same two facts, two
+    // storage layouts.
+    if (o.v || o.bg_dynbg_v) return false;
+    let modes = o.modes || o.bg_dynbg_modes;
+    if (typeof modes === 'string') {
+      try { modes = JSON.parse(modes); } catch (_) { modes = null; }
+    }
+    return !(modes && typeof modes === 'object' && (modes.light || modes.dark));
+  }
+  function renderKeyFor (key, rawCfg) {
+    key = String(key || '');
+    if (!key) return '';
+    const twin = key + '-classic';
+    if (!document.querySelector('[data-dynbg-key="' + CSS.escape(twin) + '"]')) return key;
+    return isLegacyConfig(rawCfg) ? twin : key;
+  }
+
   function entryByKey (key) {
     if (!key) return null;
     const card = $('[data-dynbg-key="' + CSS.escape(key) + '"]');
@@ -5420,6 +5452,10 @@
       // lines set their own background colour slot instead.
       const fillField = m$(mode, '[data-dynbg-mode-tone-soft]');
       if (fillField) fillField.hidden = !cap.soft;
+      // Pastel wash is the classic recipes' own control — the modern
+      // presets express the same idea through Saturation / Brightness.
+      const pastelField = m$(mode, '[data-dynbg-mode-tone-pastel]');
+      if (pastelField) pastelField.hidden = !cap.pastel;
       const patRow = m$(mode, '[data-dynbg-mode-pat-row]');
       if (patRow) patRow.hidden = key !== 'pattern-tile';
       syncColorSlotsVisibility(mode);
@@ -5469,8 +5505,8 @@
   // Sat defaults to 100 (full vivid); fill defaults to 0 (page white /
   // black shows through the recipe's base). Mirrors dynbg.TONE_DEFAULTS.
   const TONE_DEFAULT = 100;
-  const TONE_DEFAULTS = { sat: 100, bright: 100, fill: 0 };
-  const TONE_MAX = { sat: 100, bright: 200, fill: 100 };
+  const TONE_DEFAULTS = { sat: 100, bright: 100, fill: 0, pastel: 0 };
+  const TONE_MAX = { sat: 100, bright: 200, fill: 100, pastel: 100 };
   const TONE_KEYS = Object.keys(TONE_DEFAULTS);
   function toneDefault (key) { return TONE_DEFAULTS[key] != null ? TONE_DEFAULTS[key] : TONE_DEFAULT; }
   function toneMax (key) { return TONE_MAX[key] != null ? TONE_MAX[key] : 100; }
@@ -5489,7 +5525,50 @@
     syncToneOuts();
   }
   // Colour as the mode displays it: saturation + brightness applied.
-  function tonedHex (mode, hex) { return saturateHex(hex, toneVal(mode, 'sat'), toneVal(mode, 'bright')) || hex; }
+  // JS port of dynbg.pastelize — same lerp toward the pastel band, so
+  // the modal preview and the server render agree colour for colour.
+  function pastelizeHex (hex, strength) {
+    const st = Math.max(0, Math.min(100, strength | 0));
+    if (!st || !hex) return hex;
+    const m = String(hex).trim().replace(/^#/, '');
+    const full = m.length === 3 ? m.split('').map(c => c + c).join('') : m.slice(0, 6);
+    if (!/^[0-9a-fA-F]{6}$/.test(full)) return hex;
+    const r = parseInt(full.slice(0, 2), 16) / 255,
+          g = parseInt(full.slice(2, 4), 16) / 255,
+          b = parseInt(full.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    let h = 0, s = 0;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      h = max === r ? ((g - b) / d + (g < b ? 6 : 0))
+        : max === g ? ((b - r) / d + 2) : ((r - g) / d + 4);
+      h /= 6;
+    }
+    const t = st / 100;
+    const legacyS = Math.min(s, 0.339);
+    const legacyL = Math.max(0.69, Math.min(0.75, l * 0.24 + 0.53));
+    const ns = s * (1 - t) + (legacyS * 0.5) * t;
+    const nl = l * (1 - t) + (legacyL + (1 - legacyL) * 0.5) * t;
+    const hue2rgb = (p, q, tt) => {
+      if (tt < 0) tt += 1;
+      if (tt > 1) tt -= 1;
+      if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+      if (tt < 1 / 2) return q;
+      if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+      return p;
+    };
+    const q = nl < 0.5 ? nl * (1 + ns) : nl + ns - nl * ns, p = 2 * nl - q;
+    const out = [hue2rgb(p, q, h + 1 / 3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1 / 3)]
+      .map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+    return '#' + out;
+  }
+  function tonedHex (mode, hex) {
+    const ps = toneVal(mode, 'pastel');
+    const base = ps ? (pastelizeHex(hex, ps) || hex) : hex;
+    return saturateHex(base, toneVal(mode, 'sat'), toneVal(mode, 'bright')) || base;
+  }
   // Pattern-tile per-mode settings (opacity / backdrop / direction).
   const PAT_DEFAULTS = { opacity: 100, bg: 'solid', bg_angle: 135 };
   function patEl (mode, key) { return m$(mode, '[data-dynbg-mode-pat="' + key + '"]'); }
@@ -6599,6 +6678,11 @@
   // Repaint server-rendered trigger chips inside a subtree that arrived
   // after load (an AJAX-loaded settings pane, say).
   window.dynbgHydrateTriggers = hydrateTriggers;
+  // Classic-recipe fallback for consumers that build their own triggers
+  // (the page builder's block editor) — keeps their chip showing the
+  // same recipe the public page renders.
+  window.dynbgRenderKey = renderKeyFor;
+  window.dynbgConfigVersion = CONFIG_VERSION;
   // Per-preset knob CSS vars, for previews rendered outside this modal.
   window.dynbgKnobVars = knobVarParts;
   window.dynbgKnobVarNames = knobVarNames;

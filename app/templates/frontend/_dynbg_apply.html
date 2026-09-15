@@ -25,8 +25,15 @@
      </article>
 #}
 {%- set _ck_cfg = dynbg_decode(dynbg_config) -%}
-{%- if dynbg_key -%}
-{% with dynbg_key=dynbg_key, dynbg_knobs=_ck_cfg.knobs %}{% include "frontend/_dynbg.html" %}{% endwith %}
+{# Every surface resolves its render key here, so a selection made
+   against the pre-rework recipes keeps rendering them: `render_key`
+   hands back the `-classic` twin for any config that carries neither
+   the version stamp nor a per-mode block. Passing the RAW config
+   matters — a decoded one always has a filled-in `modes`, which would
+   read as "already migrated". #}
+{%- set _ck_key = dynbg_render_key(dynbg_key, dynbg_config) -%}
+{%- if _ck_key -%}
+{% with dynbg_key=_ck_key, dynbg_knobs=_ck_cfg.knobs %}{% include "frontend/_dynbg.html" %}{% endwith %}
 {%- endif -%}
 {# Texture overlays are per mode: emit one layer per configured mode,
    tagged `fe-dynbg-overlay--light` / `--dark`; dynbg.css shows only

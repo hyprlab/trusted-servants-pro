@@ -455,7 +455,7 @@
                                 'overlay_intensity': d.get('bg_dynbg_overlay_intensity'),
                                 'randomize_colors': d.get('bg_dynbg_randomize_colors') or d.get('bg_dynbg_randomize'),
                                 'randomize_positions': d.get('bg_dynbg_randomize_positions') or d.get('bg_dynbg_randomize'),
-                              'modes': d.get('bg_dynbg_modes')} -%}
+                              'v': d.get('bg_dynbg_v'), 'pastel_light': d.get('bg_dynbg_pastel_light'), 'modes': d.get('bg_dynbg_modes')} -%}
     {%- set _ppc_color_vars = dynbg_colors_css(dynbg_resolve_colors(_ppc_pseudo_cfg), _ppc_pseudo_cfg) -%}
     {%- set _ppc_pos_vars = dynbg_resolve_positions(_ppc_pseudo_cfg, d.get('bg_dynamic_key')) -%}
     {%- set _ppc_style = pp_container_styles(d) | trim -%}

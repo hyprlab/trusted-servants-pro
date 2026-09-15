@@ -3137,6 +3137,19 @@
                     <output for="dynbg-picker-modal-{{ _mode }}-fill" aria-live="off">0</output>
                   </span>
                 </label>
+                {# Classic recipes only: the pre-rework light-mode wash.
+                   It's restored as a real, visible slider rather than
+                   hidden compatibility state, so a surface that came
+                   over from the old build shows exactly what it's doing
+                   and the admin can dial it out on their own schedule. #}
+                <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-pastel" data-dynbg-mode-tone-pastel hidden>
+                  <span class="dynbg-modal-tone-label"><b>Pastel wash</b> <span class="muted smaller">— the classic recipes' softening: 0 = colours as picked, 100 = full cream / blush pastel.</span></span>
+                  <span class="dynbg-modal-tone-slider">
+                    <input type="range" id="dynbg-picker-modal-{{ _mode }}-pastel"
+                           data-dynbg-mode-tone="pastel" min="0" max="100" step="1" value="0">
+                    <output for="dynbg-picker-modal-{{ _mode }}-pastel" aria-live="off">0</output>
+                  </span>
+                </label>
               </div>
             </fieldset>
 
