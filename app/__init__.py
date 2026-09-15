@@ -881,6 +881,12 @@ def create_app():
     # size/intensity, or resolve the per-render colour palette
     # (which differs from the saved palette when `randomize` is on).
     app.jinja_env.globals["dynbg_decode"] = _dynbg.decode_config
+    # Effective render key: hands back the `-classic` twin for a config
+    # written before the light/dark rework, so existing surfaces keep
+    # the recipe they were designed against until an admin re-picks.
+    # Feed it the RAW config (a decoded one always has a filled `modes`
+    # block and would read as already-migrated).
+    app.jinja_env.globals["dynbg_render_key"] = _dynbg.render_key
     app.jinja_env.globals["dynbg_colors_css"] = _dynbg.colors_to_css_vars
     app.jinja_env.globals["dynbg_resolve_colors"] = _dynbg.resolve_colors
     app.jinja_env.globals["dynbg_resolve_positions"] = _dynbg.resolve_positions_css

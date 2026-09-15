@@ -11589,6 +11589,13 @@ def frontend_template_settings_save(kind, key):
         leaf["bg_dynbg_animate"] = False
     if dynbg_cfg.get("knobs"):
         leaf["bg_dynbg_knobs"] = dynbg_cfg["knobs"]
+    # Version stamp — the per-template leaves store their dynbg settings
+    # as discrete keys rather than one JSON blob, so `encode_config`'s
+    # own `v` has to be carried across by hand. Without it this surface
+    # would keep resolving to the classic recipe (see dynbg.render_key)
+    # even after an admin deliberately picked a current preset.
+    if dyn_key:
+        leaf["bg_dynbg_v"] = dynbg_cfg.get("v", _dynbg.CONFIG_VERSION)
     # Classic blog detail toggles for the right-side rail. Stored
      # only as explicit `False` so the JSON stays lean — missing keys
      # mean "show the widget" (the default). When the user unchecks

@@ -1071,6 +1071,13 @@ def template_settings(site, kind, key):
               "bg_dynbg_overlay_intensity", "bg_dynbg_randomize_colors",
               "bg_dynbg_randomize_positions", "bg_dynbg_animate",
               "bg_dynbg_tone", "bg_dynbg_modes", "bg_dynbg_knobs",
+              # `bg_dynbg_v` marks a leaf written since the light/dark
+              # rework and `bg_dynbg_pastel_light` is the retired
+              # light-mode wash — the classic-recipe fallback reads both
+              # (see dynbg.render_key / _legacy_mode_from), so they have
+              # to survive this allowlist or every per-template surface
+              # would look un-migrated forever.
+              "bg_dynbg_v", "bg_dynbg_pastel_light",
               # Classic blog detail rail toggles — present only when
               # explicitly disabled, so a missing key means "show".
               "show_related_widget", "show_categories_widget",
@@ -1685,6 +1692,11 @@ def meeting_detail(slug):
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
         "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
         "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
@@ -2454,6 +2466,11 @@ def submission_form():
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
         "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
         "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
@@ -3095,6 +3112,11 @@ def fellowships_list():
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
         "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
         "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
@@ -3478,6 +3500,11 @@ def archive_detail(slug):
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
         "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
         "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
@@ -3781,6 +3808,11 @@ def story_detail(slug):
                     else _story_cfg["animate"]),
 
         "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
         "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
@@ -3944,6 +3976,11 @@ def blog_post_detail(slug):
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
         "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
         "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
@@ -4153,6 +4190,11 @@ def event_detail(slug):
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
         "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
         "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
@@ -4266,6 +4308,11 @@ def announcement_detail(slug):
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
         "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
         "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
@@ -5731,6 +5778,11 @@ def site_index():
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
         "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
         "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }

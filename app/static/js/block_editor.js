@@ -4754,7 +4754,13 @@
         'Empty = transparent.'));
       visualBody.appendChild(row('Dynamic background',
         dynbgTrigger({
-          key: d.bg_dynamic_key || '',
+          // Resolve the classic-recipe fallback the same way the public
+          // render does, so a block laid out against the old recipes
+          // shows what it actually paints (and picking anything in the
+          // modal stamps the version below, opting the block in).
+          key: window.dynbgRenderKey
+            ? window.dynbgRenderKey(d.bg_dynamic_key || '', d)
+            : (d.bg_dynamic_key || ''),
           // Per-mode block (light/dark colours, randomise-colours,
           // saturation, intensity, texture). Blocks saved before the
           // light/dark split carry the flat legacy keys instead; the
@@ -4782,6 +4788,12 @@
             // Round-trip every dimension into the block data so the
             // serialised blocks_json carries the consolidated state.
             d.bg_dynamic_key = key || '';
+            // Version stamp — mirrors dynbg.CONFIG_VERSION on the server
+            // side. Its presence is what tells the renderer this block
+            // was configured against the current recipes, so the classic
+            // fallback stops applying to it.
+            if (key) d.bg_dynbg_v = window.dynbgConfigVersion || 2;
+            else delete d.bg_dynbg_v;
             // Per-mode block — opt-in; store the parsed object only when
             // it carries something. Once written, the flat legacy keys
             // are dropped so there's a single source of truth. The

@@ -45,6 +45,14 @@
    always None even when `current` matched a catalog key, which
    caused the trigger to render "Choose…" / "No dynamic background"
    after every save instead of reflecting the persisted value. #}
+{# Resolve the same classic fallback the public render applies (see
+   frontend/_dynbg_apply.html), so the chip, the picker's selected card
+   and the page all agree on which recipe this surface is using. The
+   resolved key is what the hidden input posts, so the first save of a
+   pre-rework surface writes the classic choice down explicitly — which
+   is the migration: nothing changes until you touch it, and once you
+   do, what you saw is what got saved. #}
+{%- set current = dynbg_render_key(current, config) or '' -%}
 {%- set _entry = (dynbg_catalog() | selectattr('key', 'equalto', current) | list | first) if current else none -%}
 {%- set _cfg = dynbg_decode(config) -%}
 {# Animations default to ON. Persist '0' (disabled) as the only

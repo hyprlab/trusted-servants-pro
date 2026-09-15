@@ -333,17 +333,17 @@ PRESET_CAPS = {
     # alone reproduces the old render exactly, and dialling it up is a
     # purely additive escape hatch.
     "aurora-blobs-classic": {
-        "soft": True,
+        "soft": True, "pastel": True,
         "colors": 3, "randomize_positions": True, "randomize_default": True,
         "animate": True, "knobs": [],
     },
     "mesh-gradient-classic": {
-        "soft": True,
+        "soft": True, "pastel": True,
         "colors": 3, "randomize_positions": True, "randomize_default": True,
         "animate": False, "knobs": [],
     },
     "aurora-bands": {
-        "soft": True,
+        "soft": True, "pastel": True,
         "colors": 2, "randomize_positions": True, "randomize_default": True,
         "animate": True, "knobs": [],
     },
@@ -678,16 +678,92 @@ def normalize_float(value, lo, hi, default=None):
 
 _PASTEL_HEX_RE = __import__("re").compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
+def normalize_pastel_strength(v, default=0):
+    """Coerce a stored ``pastel_light`` value into an int 0-100 strength.
+
+    The oldest storage was a boolean (``True`` = pastelise); later it
+    became the 0-100 strength an admin set on the slider. Both decode
+    here so every vintage of saved config keeps behaving the same:
+
+        True  -> 100   (full pastel, matches the boolean era)
+        False -> 0     (off)
+        '1'   -> 1     (purely numeric - 1% strength, NOT "on")
+        out-of-range -> clamped;  garbage -> ``default``
+    """
+    if v is True:
+        return 100
+    if v is False or v is None or v == "":
+        return default
+    try:
+        n = int(round(float(v)))
+    except (TypeError, ValueError):
+        return default
+    return max(0, min(100, n))
+
+
+def pastelize(hex_str, strength=100):
+    """Return a pastel-soft variant of a hex colour at ``strength`` 0-100.
+
+    The pre-rework light-mode wash, restored verbatim (see the "Classic
+    recipes" block above). It is what an old ``pastel_light`` config
+    actually did to a palette, and the classic recipes' pale opacities
+    alone don't reproduce it — the colours themselves were softened too.
+    At 100 the colour lands in the full pastel band; at 0 it comes back
+    untouched; in between it lerps from the source HSL to the target.
+
+    Returns None on invalid input so callers can skip the slot.
+    """
+    import colorsys
+    if not isinstance(hex_str, str) or not _PASTEL_HEX_RE.match(hex_str):
+        return None
+    st = max(0, min(100, int(strength) if strength is not None else 0))
+    if st == 0:
+        return hex_str if hex_str.startswith("#") else "#" + hex_str
+    t = st / 100.0
+    h = hex_str.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    if len(h) == 8:
+        h = h[:6]
+    try:
+        r = int(h[0:2], 16) / 255.0
+        g = int(h[2:4], 16) / 255.0
+        b = int(h[4:6], 16) / 255.0
+    except ValueError:
+        return None
+    hue, light, sat = colorsys.rgb_to_hls(r, g, b)
+    # Full-strength target: the pastel band (saturation clipped to
+    # 0.339, lightness clamped 0.69-0.75) pushed a further 50% toward
+    # white. Lower strengths lerp from the source into it.
+    legacy_target_s = min(sat, 0.339)
+    legacy_target_l = max(0.69, min(0.75, light * 0.24 + 0.53))
+    target_s = legacy_target_s * 0.5
+    target_l = legacy_target_l + (1.0 - legacy_target_l) * 0.5
+    new_s = sat * (1 - t) + target_s * t
+    new_l = light * (1 - t) + target_l * t
+    nr, ng, nb = colorsys.hls_to_rgb(hue, new_l, new_s)
+    return "#{:02x}{:02x}{:02x}".format(int(nr * 255), int(ng * 255), int(nb * 255))
+
+
+# Neutral pale tints used when a pastel config never picked colours of
+# its own: the recipes' brand fallbacks ignore the palette vars
+# entirely, so without these a pastel surface with no palette would
+# render at full brand strength.
+PASTEL_FALLBACKS = ("#ecf0f6", "#f4ecef", "#eef4ee")
+
+
 MODES = ("light", "dark")
 TONE_DEFAULT = 100  # saturation sits at "full vivid" unless dialled back
 FILL_DEFAULT = 0    # colour fill: 0 = page white/black shows through the recipe
 BRIGHT_DEFAULT = 100  # brightness: 100 = colours as picked; <100 darker, >100 lighter
-TONE_DEFAULTS = {"sat": TONE_DEFAULT, "bright": BRIGHT_DEFAULT, "fill": FILL_DEFAULT}
+PASTEL_DEFAULT = 0  # light-mode pastel wash: 0 = colours as picked
+TONE_DEFAULTS = {"sat": TONE_DEFAULT, "bright": BRIGHT_DEFAULT,
+                 "fill": FILL_DEFAULT, "pastel": PASTEL_DEFAULT}
 # Pattern-tile per-mode defaults (see normalize_mode).
 PAT_DEFAULTS = {"pat_opacity": 100, "pat_bg": "solid", "pat_bg_angle": 135}
 
 
-TONE_MAX = {"sat": 100, "bright": 200, "fill": 100}
+TONE_MAX = {"sat": 100, "bright": 200, "fill": 100, "pastel": 100}
 
 
 def _tone_int(v, hi=100):
@@ -802,10 +878,14 @@ def _legacy_mode_from(data):
         "overlay_intensity": data.get("overlay_intensity"),
     }
     tone = data.get("tone") if isinstance(data.get("tone"), dict) else {}
+    # `pastel_light` was exactly that — LIGHT mode only — so it expands
+    # into the light block and dark keeps the colours as picked.
+    pastel = normalize_pastel_strength(data.get("pastel_light"), 0)
     out = {}
     for mode in MODES:
         sub = tone.get(mode) if isinstance(tone.get(mode), dict) else {}
-        out[mode] = dict(base, sat=sub.get("sat"), bright=sub.get("bright"))
+        out[mode] = dict(base, sat=sub.get("sat"), bright=sub.get("bright"),
+                         pastel=(pastel if mode == "light" else 0))
     return out
 
 
@@ -881,6 +961,76 @@ def saturate_hex(hex_str, sat, bright=BRIGHT_DEFAULT):
     return "#{:02x}{:02x}{:02x}".format(int(round(nr * 255)), int(round(ng * 255)), int(round(nb * 255)))
 
 
+# ── Config version + the classic-recipe fallback ────────────────
+# Every config written since the light/dark rework carries `v`. A saved
+# selection WITHOUT it (and without a per-mode block, which only the
+# rework could have written) was configured against the old recipes, so
+# it renders with the classic twin of whatever preset it names — the
+# site keeps the look it was designed with, and nobody has to re-pick a
+# background to stop their pages changing under them.
+#
+# Moving to the new recipe is then a deliberate act: open the picker on
+# that surface (it shows the classic card as the current one) and choose
+# the modern preset. The first save through the picker stamps `v`, at
+# which point the fallback stops applying to that surface for good.
+CONFIG_VERSION = 2
+
+# Presets that have a classic twin, {modern key: classic key}.
+CLASSIC_TWIN = {key[: -len("-classic")]: key
+                for key in VALID_KEYS if key.endswith("-classic")}
+
+
+def is_legacy_config(raw):
+    """True when a stored dynbg config predates the light/dark rework.
+
+    Takes the RAW stored value — a JSON string, the dict a template
+    assembles from per-template settings leaves, or None. (A *decoded*
+    config always carries a filled-in ``modes`` block, so it can't be
+    sniffed; decode_config therefore exposes the answer as ``legacy``.)
+
+    Nothing saved is also legacy: a surface that names a preset but has
+    never been written by the new picker can only have been set by the
+    old one.
+    """
+    import json as _json
+    if isinstance(raw, str):
+        raw = raw.strip()
+        if not raw:
+            return True
+        try:
+            raw = _json.loads(raw)
+        except (ValueError, TypeError):
+            return True
+    if not isinstance(raw, dict):
+        return True
+    if raw.get("v"):
+        return False
+    modes = raw.get("modes")
+    if isinstance(modes, str):
+        try:
+            modes = _json.loads(modes) if modes.strip() else None
+        except (ValueError, TypeError):
+            modes = None
+    return not (isinstance(modes, dict) and any(modes.get(m) for m in MODES))
+
+
+def render_key(key, raw_config=None):
+    """The preset a saved selection actually renders with.
+
+    Same key back, except that a pre-rework config on a preset with a
+    classic twin resolves to that twin. One call at the render choke
+    point (frontend/_dynbg_apply.html) and one in the picker macro keeps
+    the public page and the admin chip showing the same thing.
+    """
+    key = normalize(key)
+    if not key:
+        return None
+    twin = CLASSIC_TWIN.get(key)
+    if twin and is_legacy_config(raw_config):
+        return twin
+    return key
+
+
 def encode_config(overlay_key=None, colors=None, scope=None,
                   noise_size=None, noise_intensity=None,
                   randomize_colors=False, randomize_positions=False,
@@ -932,6 +1082,12 @@ def encode_config(overlay_key=None, colors=None, scope=None,
     nm = normalize_modes(modes, fill_defaults=False, legacy=legacy)
     if nm:
         cleaned["modes"] = nm
+    # Stamp the version LAST and unconditionally: it's what tells a
+    # later render that this surface was configured against the current
+    # recipes, so it has to survive even when everything else about the
+    # config is default (a preset picked with every option left alone
+    # still writes `{"v": 2}`, not `{}`).
+    cleaned["v"] = CONFIG_VERSION
     return cleaned
 
 
@@ -1040,11 +1196,26 @@ def colors_to_css_vars(colors, cfg=None):
         for mode in MODES:
             c = per[mode][i] if i < len(per[mode]) else None
             if c:
+                # Pastel first, then saturation / brightness: the wash is
+                # what the colour WAS in the old build, and sat/bright
+                # are the current sliders acting on it.
+                ps = modes[mode].get("pastel", PASTEL_DEFAULT)
+                if ps:
+                    c = pastelize(c, ps) or c
                 v = saturate_hex(c, modes[mode].get("sat", TONE_DEFAULT),
                                  modes[mode].get("bright", BRIGHT_DEFAULT)) or c
                 parts.append(f"--fe-dynbg-c{i + 1}-{mode}: {v};")
             else:
                 parts.append(f"--fe-dynbg-c{i + 1}-{mode}: initial;")
+    for mode in MODES:
+        # A pastel mode that never picked colours would otherwise fall
+        # through to the recipe's brand defaults, which don't read the
+        # palette vars at all — stamp the neutral tints so the wash
+        # still means something (this is what the old build did).
+        ps = modes[mode].get("pastel", PASTEL_DEFAULT)
+        if ps and not per[mode]:
+            for i, pale in enumerate(PASTEL_FALLBACKS, start=1):
+                parts.append(f"--fe-dynbg-c{i}-{mode}: {pastelize(pale, ps) or pale};")
     for mode in MODES:
         fl = modes[mode].get("fill", FILL_DEFAULT)
         parts.append(f"--fe-dynbg-fill-{mode}: {fl / 100.0:g};")
