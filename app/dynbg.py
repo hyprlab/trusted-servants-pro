@@ -56,27 +56,21 @@ CATALOG = [
             "load, then dial in scale, line weight and rotation."
         ),
     },
-    {
-        "key": "dotted-grid",
-        "name": "Dotted grid",
-        "description": (
-            "Subtle dot pattern on a flat backdrop. Adds texture "
-            "without competing with content."
-        ),
-    },
-    {
-        "key": "diagonal-lines",
-        "name": "Diagonal lines",
-        "description": (
-            "Soft diagonal stripe pattern. Quiet structural texture "
-            "for cards and section bands."
-        ),
-    },
-    # ── Classic recipes ─────────────────────────────────────────
-    # The pre-per-mode-rework versions of the soft presets, kept as
-    # their own catalog entries so an install designed against them
-    # can reproduce its original look surface by surface instead of
-    # being migrated wholesale.
+    # ── Kept for continuity ─────────────────────────────────────
+    # Two kinds of entry live below the divider in the picker, and
+    # neither is a first choice for new work:
+    #
+    #   * the pre-per-mode-rework versions of the soft presets, kept as
+    #     their own catalog entries so an install designed against them
+    #     can reproduce its original look surface by surface instead of
+    #     being migrated wholesale;
+    #   * presets on their way out (dotted grid, diagonal lines), kept
+    #     so the surfaces already using them keep rendering.
+    #
+    # Both carry `legacy: True`, which is a PICKER-GROUPING flag only —
+    # it has no bearing on render_key's classic fallback, which keys off
+    # the `-classic` suffix. `badge` labels the card ("Classic" unless
+    # the entry says otherwise).
     #
     # The rework pulled the hard-coded pale layer opacities out of the
     # soft recipes (they were what kept every palette washed out, and
@@ -121,6 +115,30 @@ CATALOG = [
             "Retired in the rework and restored here, under its "
             "original key, so surfaces that still point at it render "
             "again."
+        ),
+    },
+    {
+        "key": "dotted-grid",
+        "name": "Dotted grid",
+        "legacy": True,
+        "badge": "Retiring",
+        "description": (
+            "Subtle dot pattern on a flat backdrop. Adds texture "
+            "without competing with content. Being phased out — the "
+            "Pattern tile preset covers the same ground with a far "
+            "wider motif library."
+        ),
+    },
+    {
+        "key": "diagonal-lines",
+        "name": "Diagonal lines",
+        "legacy": True,
+        "badge": "Retiring",
+        "description": (
+            "Soft diagonal stripe pattern. Quiet structural texture "
+            "for cards and section bands. Being phased out — the "
+            "Pattern tile preset covers the same ground with a far "
+            "wider motif library."
         ),
     },
 ]
