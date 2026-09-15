@@ -7,7 +7,13 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.0 — 2026-09-15 (latest) — Dynamic backgrounds, rebuilt
+## 2.19.1 — 2026-09-15 (latest) — Staging sync stops crying wolf
+
+- **The Staging sync panel on your Web Frontend page no longer says "Unreachable" when your Live site is fine.** It checks the connection every time the page loads, and a single slow name lookup — the step that turns your Live site's address into a number your server can dial — was enough for it to give up and declare the pairing broken. That's why testing the same connection a moment later in **Settings → Data → Frontend sync** worked: the second attempt went through. It now gives that first attempt a second try before reporting a problem.
+- **When it does report a problem, it tells you which problem.** The reason now appears under the status instead of only in a hover tooltip, and a failed address lookup says so rather than claiming your Live site can't be reached — different causes, different fixes. Genuinely wrong addresses still fail straight away rather than making you wait.
+- **Click the status to check again.** No page reload needed.
+
+## 2.19.0 — 2026-09-15 — Dynamic backgrounds, rebuilt
 
 - **Dynamic backgrounds can now look different in light and dark mode.** Opening a background's **Options** gives you a **Light** and a **Dark** column: each one has its own colours, its own randomise toggles, its own tone, and its own texture. Set a soft cream wash for daytime and a deep navy for night on the same page. The preview above shows both side by side as you work, and each column has a **Shuffle preview** button for when you want the computer to suggest a palette.
 - **Three new sliders per mode.** **Saturation** and **Brightness** tune the colours you picked; **Colour fill** decides how much of the surface is painted with them versus left as the page's white or black — turn it all the way up and there's no white left at all. Aurora blobs also gains a **Speed** control for how fast it drifts.

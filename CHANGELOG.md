@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.1] — 2026-09-15
+
 ### Fixed
 
 - **Staging sync no longer reports a healthy peer as "Unreachable".** The Web
