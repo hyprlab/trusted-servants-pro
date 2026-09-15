@@ -5175,6 +5175,16 @@
   // Palette width, mirroring dynbg.MAX_COLOR_SLOTS. Most presets show
   // 1-3; the pattern preset uses all five (three inks + backdrop pair).
   const SLOTS = [1, 2, 3, 4, 5, 6];
+  // The `*-classic` catalog entries are the pre-rework recipes kept
+  // under their own keys (see the "Classic recipes" block in
+  // app/dynbg.py). They render the same inner shape as the preset they
+  // mirror, so anything keyed off the SHAPE — random positions, the
+  // knob-row legend — resolves through the family, while anything keyed
+  // off the ENTRY (caps, catalog lookups, saved values) keeps the real
+  // key. Mirrors the same suffix strip in dynbg.random_positions.
+  function presetFamily (key) {
+    return String(key || '').replace(/-classic$/, '');
+  }
   function modeCol (mode) { return $('[data-dynbg-mode="' + mode + '"]'); }
   function m$ (mode, sel) { const c = modeCol(mode); return c ? c.querySelector(sel) : null; }
   function m$$ (mode, sel) { const c = modeCol(mode); return c ? c.querySelectorAll(sel) : []; }
@@ -5270,7 +5280,7 @@
     row.hidden = false;
     if (legend) legend.textContent = (key === 'dotted-grid') ? 'Dot pattern'
       : (key === 'diagonal-lines') ? 'Line pattern'
-      : (key === 'aurora-blobs') ? 'Motion'
+      : (presetFamily(key) === 'aurora-blobs') ? 'Motion'
       : 'Pattern';
     spec.forEach(k => {
       // Enumerated knob (motif choice, background fill) → <select>.
@@ -5712,6 +5722,10 @@
   function previewRandomPositions (key) {
     const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
     const out = {};
+    // A `*-classic` recipe is the same shape as the preset it mirrors,
+    // so it randomises through the same vars (mirrors the server-side
+    // branch in dynbg.random_positions).
+    key = presetFamily(key);
     if (key === 'aurora-blobs') {
       ['a', 'b', 'c'].forEach(slot => {
         out['--fe-dynbg-blob-' + slot + '-top'] = ri(-30, 60) + '%';
@@ -5725,6 +5739,10 @@
         out['--fe-dynbg-mesh-' + slot + '-x'] = ri(15, 85) + '%';
         out['--fe-dynbg-mesh-' + slot + '-y'] = ri(15, 85) + '%';
         out['--fe-dynbg-mesh-' + slot + '-angle'] = ri(0, 360) + 'deg';
+      });
+    } else if (key === 'aurora-bands') {
+      ['a', 'b'].forEach(slot => {
+        out['--fe-dynbg-band-' + slot + '-angle'] = ri(40, 160) + 'deg';
       });
     }
     return out;
@@ -6269,6 +6287,20 @@
     trigger.dataset.dynbgModes = modesStr;
     trigger.dataset.dynbgAnimateOff = animateOff;
     trigger.dataset.dynbgKnobs = knobsStr;
+    paintTrigger(trigger, key, modesObj, knobsStr, !!animateOff);
+    // Notify consumers (block editor uses change events to mark the
+    // form dirty / re-serialise the block JSON). Fire on every input
+    // we touched so listeners pick up the consolidated change.
+    [baseInput, modesIn, animateOffIn, knobsIn].forEach(el => {
+      if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
+  // Paint a trigger's VISIBLE parts — name, status line, thumbnail —
+  // from a resolved config. Split out of applyToTrigger so a
+  // server-rendered trigger can be hydrated on load without touching
+  // its hidden inputs or firing change events (see hydrateTriggers).
+  function paintTrigger (trigger, key, modesObj, knobsStr, animateOff) {
     const entry = entryByKey(key);
     const nameEl = trigger.querySelector('[data-dynbg-trigger-name]');
     const statusEl = trigger.querySelector('[data-dynbg-trigger-status]');
@@ -6310,12 +6342,38 @@
       try { knobsObj = knobsStr ? JSON.parse(knobsStr) : {}; } catch (_) { knobsObj = {}; }
       decorateThumb(thumbEl, key, modesObj, knobsObj);
     }
-    // Notify consumers (block editor uses change events to mark the
-    // form dirty / re-serialise the block JSON). Fire on every input
-    // we touched so listeners pick up the consolidated change.
-    [baseInput, modesIn, animateOffIn, knobsIn].forEach(el => {
-      if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // Hydrate every server-rendered trigger on the page.
+  //
+  // The Jinja macro (_dynbg_picker.html) can only emit the preset's
+  // BARE recipe — it has no palette maths, no motif resolution and no
+  // access to the catalogue's sample thumbnails — so a trigger rendered
+  // by a normal page load showed a washed-out brand-default chip (and,
+  // for a randomised palette, nothing at all) until the admin opened
+  // the picker once. The chips the page builder draws in JS
+  // (block_editor.js) have always gone through decorateThumb and
+  // therefore looked right, which is exactly the mismatch this closes:
+  // same painter, same result, wherever the trigger came from.
+  //
+  // Deliberately does NOT write the hidden inputs or fire change
+  // events — this is a repaint of what the server already rendered, and
+  // a stray `change` here would mark every form on the page dirty.
+  function hydrateTriggers (root) {
+    const scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('[data-dynbg-trigger]').forEach(trigger => {
+      const key = trigger.dataset.dynbgCurrent || '';
+      if (!key) return;
+      paintTrigger(trigger, key,
+                   parseModes(trigger.dataset.dynbgModes || ''),
+                   trigger.dataset.dynbgKnobs || '',
+                   trigger.dataset.dynbgAnimateOff === '1');
     });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => hydrateTriggers());
+  } else {
+    hydrateTriggers();
   }
 
   function closeSelf () {
@@ -6538,6 +6596,9 @@
   window.dynbgLegacyToModes = legacyToModes;
   window.dynbgModesFromConfig = modesFromConfig;
   window.dynbgDecorateThumb = decorateThumb;
+  // Repaint server-rendered trigger chips inside a subtree that arrived
+  // after load (an AJAX-loaded settings pane, say).
+  window.dynbgHydrateTriggers = hydrateTriggers;
   // Per-preset knob CSS vars, for previews rendered outside this modal.
   window.dynbgKnobVars = knobVarParts;
   window.dynbgKnobVarNames = knobVarNames;

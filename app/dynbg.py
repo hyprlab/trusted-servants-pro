@@ -72,6 +72,57 @@ CATALOG = [
             "for cards and section bands."
         ),
     },
+    # ── Classic recipes ─────────────────────────────────────────
+    # The pre-per-mode-rework versions of the soft presets, kept as
+    # their own catalog entries so an install designed against them
+    # can reproduce its original look surface by surface instead of
+    # being migrated wholesale.
+    #
+    # The rework pulled the hard-coded pale layer opacities out of the
+    # soft recipes (they were what kept every palette washed out, and
+    # they made the new Saturation / Brightness / Colour-fill sliders
+    # no-ops) and retired the `pastel_light` treatment. Existing
+    # surfaces keep their saved key and therefore render with the new,
+    # fuller recipe — which is the right default, but it does change
+    # designs that were tuned against the old pale render. These three
+    # entries ARE the old CSS, verbatim, under their own keys.
+    #
+    # `legacy: True` groups them behind a divider in the picker with a
+    # "Classic" badge; everything else (per-mode colours, tone, fill,
+    # overlays, randomisation) works on them exactly as it does on the
+    # current presets.
+    {
+        "key": "aurora-blobs-classic",
+        "name": "Aurora blobs (classic)",
+        "legacy": True,
+        "description": (
+            "The original Aurora blobs recipe — same drifting circles "
+            "at their old pale opacity, with the pre-rework fixed "
+            "tempo. For designs built before the tone sliders landed."
+        ),
+    },
+    {
+        "key": "mesh-gradient-classic",
+        "name": "Mesh gradient (classic)",
+        "legacy": True,
+        "description": (
+            "The original Mesh gradient recipe — the same conic mesh "
+            "at its old washed-out opacity. For designs built before "
+            "the tone sliders landed."
+        ),
+    },
+    {
+        "key": "aurora-bands",
+        "name": "Aurora bands (classic)",
+        "legacy": True,
+        "description": (
+            "Wide angled colour bands sweeping across the surface "
+            "with a slow drift. Reads as soft northern lights. "
+            "Retired in the rework and restored here, under its "
+            "original key, so surfaces that still point at it render "
+            "again."
+        ),
+    },
 ]
 
 
@@ -274,6 +325,27 @@ PRESET_CAPS = {
             {"key": "line_thickness", "label": "Thickness", "min": 1, "max": 6,
              "step": 0.5, "default": 1, "unit": "px", "css_var": "--fe-dynbg-line-thickness"},
         ],
+    },
+    # Classic recipes — same capabilities as the presets they mirror,
+    # minus knobs those recipes never had (the speed slider is new, and
+    # the old blob keyframes drift by fixed px). `soft` still opts them
+    # into the Colour-fill slider: fill defaults to 0, so leaving it
+    # alone reproduces the old render exactly, and dialling it up is a
+    # purely additive escape hatch.
+    "aurora-blobs-classic": {
+        "soft": True,
+        "colors": 3, "randomize_positions": True, "randomize_default": True,
+        "animate": True, "knobs": [],
+    },
+    "mesh-gradient-classic": {
+        "soft": True,
+        "colors": 3, "randomize_positions": True, "randomize_default": True,
+        "animate": False, "knobs": [],
+    },
+    "aurora-bands": {
+        "soft": True,
+        "colors": 2, "randomize_positions": True, "randomize_default": True,
+        "animate": True, "knobs": [],
     },
 }
 
@@ -524,7 +596,7 @@ VALID_OVERLAY_SCOPES = {"all", "bg"}
 # animations. Drives the "Disable animation" toggle in the modal —
 # the picker only shows the toggle when the active preset is one of
 # these, so admins never see a useless control on static presets.
-ANIMATED_KEYS = {"aurora-blobs"}
+ANIMATED_KEYS = {"aurora-blobs", "aurora-blobs-classic", "aurora-bands"}
 
 # Noise-grain admin-tunable ranges. baseFrequency on `<feTurbulence>`
 # controls grain SIZE — lower values produce bigger particles, higher
@@ -1088,6 +1160,10 @@ def random_positions(dynbg_key):
     """
     import random as _random
     out = {}
+    # A classic recipe is the same shape as the preset it mirrors, so it
+    # randomises through the same var family.
+    if dynbg_key.endswith("-classic"):
+        dynbg_key = dynbg_key[: -len("-classic")]
     if dynbg_key == "aurora-blobs":
         # Each blob: (top|bottom, left|right, size). Randomise the
         # corner anchor + offset + size so the trio looks fresh.
@@ -1109,6 +1185,10 @@ def random_positions(dynbg_key):
             out[f"--fe-dynbg-mesh-{slot}-x"] = f"{x}%"
             out[f"--fe-dynbg-mesh-{slot}-y"] = f"{y}%"
             out[f"--fe-dynbg-mesh-{slot}-angle"] = f"{ang}deg"
+    elif dynbg_key == "aurora-bands":
+        # Two bands; each gets a fresh sweep angle.
+        for slot in ("a", "b"):
+            out[f"--fe-dynbg-band-{slot}-angle"] = f"{_random.randint(40, 160)}deg"
     return out
 
 
