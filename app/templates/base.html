@@ -2978,16 +2978,19 @@
             </span>
           </label>
           {% for entry in dynbg_catalog() %}
-          {# The catalog's `legacy` entries (the pre-rework recipes, kept
-             so existing designs can be reproduced surface by surface)
-             sit last and get their own heading + badge, so nobody picks
-             one by accident thinking it's the current preset. #}
+          {# The catalog's `legacy` entries sit last and get their own
+             heading + badge, so nobody picks one by accident thinking
+             it's a current preset. Two things land here: the pre-rework
+             versions of the soft recipes, and presets on their way out.
+             Each entry's `badge` says which. #}
           {% if entry.legacy and not (loop.previtem and loop.previtem.legacy) %}
           <p class="fe-dynbg-picker-divider muted small">
-            <b>Classic recipes</b> — the versions these presets had before the
-            light/dark rework, kept so a site designed against them can be moved
-            over one surface at a time. Everything else (per-mode colours, tone,
-            texture) works on them the same way.
+            <b>Classic &amp; retiring</b> — kept so existing surfaces keep rendering,
+            not a first choice for new work. <b>Classic</b> marks the version a preset
+            had before the light/dark rework, so a site designed against it can be
+            moved over one surface at a time; <b>Retiring</b> marks one being phased
+            out. Everything else (per-mode colours, tone, texture) works on them the
+            same way.
           </p>
           {% endif %}
           {# Each thumb carries a fresh random palette + positions
@@ -3005,7 +3008,8 @@
                  as "Aurora blobs (classic) Classic". #}
               <span class="fe-dynbg-picker-name-row">
                 <span class="fe-dynbg-picker-name">{{ entry.name }}</span>
-                {%- if entry.legacy %}<span class="fe-dynbg-picker-badge">Classic</span>{% endif %}
+                {%- if entry.legacy %}<span class="fe-dynbg-picker-badge
+                  {{- ' fe-dynbg-picker-badge--retiring' if entry.badge == 'Retiring' }}">{{ entry.badge or 'Classic' }}</span>{% endif %}
               </span>
               <span class="fe-dynbg-picker-desc muted small">{{ entry.description }}</span>
             </span>

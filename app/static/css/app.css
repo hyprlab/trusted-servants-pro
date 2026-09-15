@@ -12847,6 +12847,12 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   letter-spacing: 0.02em;
   vertical-align: 1px;
 }
+/* A preset on its way out reads warmer than a merely-older recipe. */
+.fe-dynbg-picker-badge--retiring {
+  border-color: color-mix(in srgb, var(--warn, #b45309) 35%, transparent);
+  background: color-mix(in srgb, var(--warn, #b45309) 10%, transparent);
+  color: var(--warn, #b45309);
+}
 .fe-dynbg-picker-desc {
   line-height: 1.35;
 }
