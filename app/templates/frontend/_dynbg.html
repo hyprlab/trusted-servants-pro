@@ -18,10 +18,22 @@
    recipes carry var() fallbacks to their original hand-tuned look.
 #}
 {%- set _k = dynbg_key or '' -%}
-{%- set _known = _k in ('aurora-blobs', 'mesh-gradient', 'aurora-bands',
+{%- set _known = _k in ('aurora-blobs', 'mesh-gradient', 'pattern-tile',
                          'dotted-grid', 'diagonal-lines') -%}
 {%- if _known %}
-{%- set _knob_css = dynbg_knobs_css(_k, dynbg_knobs|default(none, true)) if dynbg_knobs|default(none, true) else '' -%}
+{%- set _knobs = dynbg_knobs|default(none, true) or {} -%}
+{%- set _knob_css = dynbg_knobs_css(_k, _knobs) if _knobs else '' -%}
+{# The pattern preset paints its motif as a CSS mask, and the motif is
+   encoded into a data-URL here (not in the stylesheet) because the
+   chosen line weight is baked into the SVG — and because "random"
+   means a different motif on every render. #}
+{%- set _pat_urls = [] -%}
+{%- if _k == 'pattern-tile' -%}
+  {%- set _pat = dynbg_pattern_layers(_knobs.get('pattern'), _knobs.get('weight', 2)) -%}
+  {%- set _pat_urls = _pat[1] -%}
+  {# Tile size feeds mask-size (× the scale knob); tiles aren't square. #}
+  {%- set _knob_css = (_knob_css ~ " --fe-dynbg-pat-w: " ~ _pat[2] ~ "px; --fe-dynbg-pat-h: " ~ _pat[3] ~ "px;") | trim -%}
+{%- endif -%}
 <div class="fe-dynbg fe-dynbg-{{ _k }}" aria-hidden="true"{% if _knob_css %} style="{{ _knob_css }}"{% endif %}>
   {%- if _k == 'aurora-blobs' %}
     <span class="fe-dynbg-blob fe-dynbg-blob-a"></span>
@@ -31,9 +43,13 @@
     <span class="fe-dynbg-mesh fe-dynbg-mesh-a"></span>
     <span class="fe-dynbg-mesh fe-dynbg-mesh-b"></span>
     <span class="fe-dynbg-mesh fe-dynbg-mesh-c"></span>
-  {%- elif _k == 'aurora-bands' %}
-    <span class="fe-dynbg-band fe-dynbg-band-a"></span>
-    <span class="fe-dynbg-band fe-dynbg-band-b"></span>
+  {%- elif _k == 'pattern-tile' %}
+    {# One masked span per ink layer: layer N takes palette slot N, so a
+       multi-colour Memphis tile needs no colour inside the SVG. #}
+    {%- for _u in _pat_urls %}
+    <span class="fe-dynbg-pattern"
+          style="--_db-pat-url: url('{{ _u }}'); --_db-pat-ink: var(--_db-ink{{ loop.index }});"></span>
+    {%- endfor %}
   {%- elif _k == 'dotted-grid' %}
     <span class="fe-dynbg-dots"></span>
   {%- elif _k == 'diagonal-lines' %}

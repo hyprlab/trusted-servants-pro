@@ -47,27 +47,16 @@
    after every save instead of reflecting the persisted value. #}
 {%- set _entry = (dynbg_catalog() | selectattr('key', 'equalto', current) | list | first) if current else none -%}
 {%- set _cfg = dynbg_decode(config) -%}
-{%- set _overlay = _cfg.overlay or '' -%}
-{%- set _overlay_entry = (dynbg_overlays() | selectattr('key', 'equalto', _overlay) | list | first) if _overlay else none -%}
-{%- set _colors = _cfg.colors or [] -%}
-{%- set _c1 = _colors[0] if _colors|length > 0 else '' -%}
-{%- set _c2 = _colors[1] if _colors|length > 1 else '' -%}
-{%- set _c3 = _colors[2] if _colors|length > 2 else '' -%}
-{%- set _scope = _cfg.overlay_scope or '' -%}
-{%- set _nsize = _cfg.overlay_size if _cfg.overlay_size is not none else '' -%}
-{%- set _nint = _cfg.overlay_intensity if _cfg.overlay_intensity is not none else '' -%}
-{%- set _rand_c = '1' if _cfg.randomize_colors else '' -%}
-{%- set _rand_p = '1' if _cfg.randomize_positions else '' -%}
 {# Animations default to ON. Persist '0' (disabled) as the only
    non-default state; '' = default = animated. #}
 {%- set _anim = '0' if _cfg.animate is sameas false else '' -%}
-{# Pastel-strength slider value (0-100). decode_config returns an
-   int; a legacy True boolean previously stored was normalised to 100
-   by decode_config's `normalize_pastel_strength`. Empty string when
-   the strength is 0 so the trigger button's status text can detect
-   "off" without parsing. #}
-{%- set _pastel_int = _cfg.pastel_light | int -%}
-{%- set _pastel = (_pastel_int | string) if _pastel_int else '' -%}
+{# Per-mode block (light/dark colours, randomise-colours, saturation,
+   intensity, texture) travels as one JSON blob like knobs. Only
+   non-default values are stored; '' = nothing configured. Re-encode
+   through encode_config so a legacy single-mode config (decoded into
+   both modes by dynbg_decode) round-trips in the new shape. #}
+{%- set _modes = dynbg_encode_modes(_cfg.modes) -%}
+{%- set _modes_json = (_modes | tojson) if _modes else '' -%}
 {# Per-preset knob values (dot size/gap, line angle/thickness, …)
    travel as a single JSON blob so the macro + save handler don't need
    a hidden input per knob. Empty object → '' so the status text /
@@ -80,69 +69,24 @@
   {# Overlay + colour fields persist alongside the base key. The
      server-side save handler bundles them into ``config_field`` as
      a single JSON blob via ``dynbg.encode_config(...)``. #}
-  <input type="hidden" name="{{ config_field }}__overlay"
-         id="{{ _bid }}-overlay" value="{{ _overlay }}"
-         data-dynbg-trigger-overlay>
-  <input type="hidden" name="{{ config_field }}__c1"
-         id="{{ _bid }}-c1" value="{{ _c1 }}"
-         data-dynbg-trigger-c1>
-  <input type="hidden" name="{{ config_field }}__c2"
-         id="{{ _bid }}-c2" value="{{ _c2 }}"
-         data-dynbg-trigger-c2>
-  <input type="hidden" name="{{ config_field }}__c3"
-         id="{{ _bid }}-c3" value="{{ _c3 }}"
-         data-dynbg-trigger-c3>
-  <input type="hidden" name="{{ config_field }}__scope"
-         id="{{ _bid }}-scope" value="{{ _scope }}"
-         data-dynbg-trigger-scope>
-  <input type="hidden" name="{{ config_field }}__noise_size"
-         id="{{ _bid }}-noise-size" value="{{ _nsize }}"
-         data-dynbg-trigger-noise-size>
-  <input type="hidden" name="{{ config_field }}__noise_intensity"
-         id="{{ _bid }}-noise-intensity" value="{{ _nint }}"
-         data-dynbg-trigger-noise-intensity>
-  <input type="hidden" name="{{ config_field }}__randomize_colors"
-         id="{{ _bid }}-randomize-colors" value="{{ _rand_c }}"
-         data-dynbg-trigger-randomize-colors>
-  <input type="hidden" name="{{ config_field }}__randomize_positions"
-         id="{{ _bid }}-randomize-positions" value="{{ _rand_p }}"
-         data-dynbg-trigger-randomize-positions>
+  <input type="hidden" name="{{ config_field }}__modes"
+         id="{{ _bid }}-modes" value="{{ _modes_json }}"
+         data-dynbg-trigger-modes>
   <input type="hidden" name="{{ config_field }}__animate_off"
          id="{{ _bid }}-animate-off" value="{{ _anim }}"
          data-dynbg-trigger-animate-off>
-  <input type="hidden" name="{{ config_field }}__pastel_light"
-         id="{{ _bid }}-pastel-light" value="{{ _pastel }}"
-         data-dynbg-trigger-pastel-light>
   <input type="hidden" name="{{ config_field }}__knobs"
          id="{{ _bid }}-knobs" value="{{ _knobs_json }}"
          data-dynbg-trigger-knobs>
   <button type="button" class="fe-dynbg-trigger" id="{{ _bid }}"
           data-dynbg-trigger
           data-dynbg-trigger-input="#{{ _bid }}-input"
-          data-dynbg-trigger-overlay-input="#{{ _bid }}-overlay"
-          data-dynbg-trigger-c1-input="#{{ _bid }}-c1"
-          data-dynbg-trigger-c2-input="#{{ _bid }}-c2"
-          data-dynbg-trigger-c3-input="#{{ _bid }}-c3"
-          data-dynbg-trigger-scope-input="#{{ _bid }}-scope"
-          data-dynbg-trigger-noise-size-input="#{{ _bid }}-noise-size"
-          data-dynbg-trigger-noise-intensity-input="#{{ _bid }}-noise-intensity"
-          data-dynbg-trigger-randomize-colors-input="#{{ _bid }}-randomize-colors"
-          data-dynbg-trigger-randomize-positions-input="#{{ _bid }}-randomize-positions"
+          data-dynbg-trigger-modes-input="#{{ _bid }}-modes"
           data-dynbg-trigger-animate-off-input="#{{ _bid }}-animate-off"
-          data-dynbg-trigger-pastel-light-input="#{{ _bid }}-pastel-light"
           data-dynbg-trigger-knobs-input="#{{ _bid }}-knobs"
           data-dynbg-current="{{ current or '' }}"
-          data-dynbg-overlay="{{ _overlay }}"
-          data-dynbg-c1="{{ _c1 }}"
-          data-dynbg-c2="{{ _c2 }}"
-          data-dynbg-c3="{{ _c3 }}"
-          data-dynbg-scope="{{ _scope }}"
-          data-dynbg-noise-size="{{ _nsize }}"
-          data-dynbg-noise-intensity="{{ _nint }}"
-          data-dynbg-randomize-colors="{{ _rand_c }}"
-          data-dynbg-randomize-positions="{{ _rand_p }}"
+          data-dynbg-modes="{{ _modes_json }}"
           data-dynbg-animate-off="{{ _anim }}"
-          data-dynbg-pastel-light="{{ _pastel }}"
           data-dynbg-knobs="{{ _knobs_json }}">
     <span class="fe-dynbg-trigger-thumb" data-dynbg-trigger-thumb>
       {%- if _entry -%}
@@ -162,13 +106,20 @@
         No dynamic background — click to add
         {%- endif -%}
         {%- set _extras = [] -%}
-        {%- if _overlay_entry -%}{%- set _ = _extras.append(_overlay_entry.name ~ ' overlay') -%}{%- endif -%}
-        {%- if _cfg.randomize_colors -%}{%- set _ = _extras.append('random colours') -%}
-        {%- elif _colors|length -%}
-          {%- set _color_count = _colors|length -%}
-          {%- set _ = _extras.append(_color_count ~ (' colour' if _color_count == 1 else ' colours')) -%}
-        {%- endif -%}
-        {%- if _cfg.randomize_positions -%}{%- set _ = _extras.append('random positions') -%}{%- endif -%}
+        {%- for _mode in ('light', 'dark') -%}
+          {%- set _mb = _cfg.modes[_mode] -%}
+          {%- set _mbits = [] -%}
+          {%- if _mb.randomize_colors -%}{%- set _ = _mbits.append('random colours') -%}
+          {%- elif _mb.colors|length -%}{%- set _ = _mbits.append(_mb.colors|length ~ (' colour' if _mb.colors|length == 1 else ' colours')) -%}{%- endif -%}
+          {%- if _mb.randomize_positions -%}{%- set _ = _mbits.append('random positions') -%}{%- endif -%}
+          {%- if _mb.overlay -%}
+            {%- set _ov_entry = dynbg_overlays() | selectattr('key', 'equalto', _mb.overlay) | list | first -%}
+            {%- set _ = _mbits.append((_ov_entry.name if _ov_entry else _mb.overlay) ~ ' overlay') -%}
+          {%- endif -%}
+          {%- if _mb.sat != 100 -%}{%- set _ = _mbits.append(_mb.sat ~ '% sat') -%}{%- endif -%}
+          {%- if _mb.intensity != 100 -%}{%- set _ = _mbits.append(_mb.intensity ~ '% intensity') -%}{%- endif -%}
+          {%- if _mbits -%}{%- set _ = _extras.append(_mode ~ ': ' ~ (_mbits | join(' / '))) -%}{%- endif -%}
+        {%- endfor -%}
         {%- if _cfg.animate is sameas false -%}{%- set _ = _extras.append('static') -%}{%- endif -%}
         {%- if _extras -%} · {{ _extras | join(', ') }}{%- endif -%}
       </span>

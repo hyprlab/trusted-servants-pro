@@ -2703,7 +2703,12 @@ html[data-theme="dark"] .fe-recovery-menu-btn span { background: #e2e8f0; }
 }
 
 /* Hero */
-html[data-theme="dark"] .fe-hero { background: linear-gradient(180deg, #0b1026 0%, #0f172a 100%); }
+/* `.fe-hero--force-dark` is the hero edit modal's preview switch: it
+   applies this cluster to one hero without theming the admin shell
+   (the body-level force-dark class would). Keep the alias on every
+   hero dark rule so the preview can't drift from the real render. */
+html[data-theme="dark"] .fe-hero,
+.fe-hero.fe-hero--force-dark { background: linear-gradient(180deg, #0b1026 0%, #0f172a 100%); }
 /* Dark-mode hero heading + sub colours read from per-block dark-mode
    CSS variables when set (admin picks them from the hero edit modal's
    Dark-mode gradient + Text colour fields); fall back to the historic
@@ -2726,17 +2731,21 @@ html[data-theme="dark"] .fe-hero { background: linear-gradient(180deg, #0b1026 0
    override (`.fe-hero-text-light/dark .fe-hero-heading`) uses the
    same trick. */
 html[data-theme="dark"] .fe-hero-heading,
-body.fe-frontend-force-dark .fe-hero-heading {
+body.fe-frontend-force-dark .fe-hero-heading,
+.fe-hero--force-dark .fe-hero-heading {
   background-image: linear-gradient(180deg,
       var(--fe-hero-h-grad-s-dark, #fff) 0%,
       var(--fe-hero-h-grad-e-dark, #94a3b8) 100%) !important;
 }
 html[data-theme="dark"] .fe-hero-sub,
-body.fe-frontend-force-dark .fe-hero-sub {
+body.fe-frontend-force-dark .fe-hero-sub,
+.fe-hero--force-dark .fe-hero-sub {
   color: var(--fe-hero-sub-color-dark, #94a3b8) !important;
 }
-html[data-theme="dark"] .fe-hero-blob { opacity: 0.25; }
-html[data-theme="dark"] .fe-hero-eyebrow { background: rgba(81,100,255,0.18); color: #7aa3ff; }
+html[data-theme="dark"] .fe-hero-blob,
+.fe-hero--force-dark .fe-hero-blob { opacity: 0.25; }
+html[data-theme="dark"] .fe-hero-eyebrow,
+.fe-hero--force-dark .fe-hero-eyebrow { background: rgba(81,100,255,0.18); color: #7aa3ff; }
 html[data-theme="dark"] .fe-btn-primary { background: #052566; color: var(--fe-text-dark-active, #e2e8f0);
   box-shadow: var(--fe-btn-shadow, 0 8px 24px rgba(0,0,0,0.4)); }
 /* Hover: lighten the deep navy bg slightly so the press affordance
@@ -2815,7 +2824,8 @@ html[data-theme="dark"] .frontend-body .fe-meeting-card-actions .fe-btn-primary:
    when the admin hasn't customised the button. */
 html[data-theme="dark"] .fe-hero-cta .fe-btn-primary,
 html[data-theme="dark"] .fe-page .fe-hero-cta .fe-btn-primary,
-html[data-theme="dark"] .frontend-body .fe-hero-cta .fe-btn-primary {
+html[data-theme="dark"] .frontend-body .fe-hero-cta .fe-btn-primary,
+.frontend-body .fe-hero--force-dark .fe-hero-cta .fe-btn-primary {
   background: color-mix(in srgb,
                         var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #2e6bff)) 40%,
                         #000);
@@ -10868,8 +10878,8 @@ body.fe-frontend-force-dark .fe-rc-prefs legend {
 /* ── Dynamic backgrounds + overlays ───────────────────────────────
    Moved to css/dynbg.css (shared by the public frontend AND the admin
    picker modal so the live preview + thumbnails render in both). It is
-   loaded via its own <link> alongside this file. The light-mode pastel
-   swap rules moved there too. */
+   loaded via its own <link> alongside this file. The light/dark tone
+   swap rules live there too. */
 
 /* ── Site Index ─────────────────────────────────────────────────
    Auto-populated /siteindex page. Two layouts share the same

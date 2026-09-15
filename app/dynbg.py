@@ -48,11 +48,12 @@ CATALOG = [
         ),
     },
     {
-        "key": "aurora-bands",
-        "name": "Aurora bands",
+        "key": "pattern-tile",
+        "name": "Pattern tile",
         "description": (
-            "Wide angled colour bands sweeping across the surface "
-            "with a slow drift. Reads as soft northern lights."
+            "A seamless geometric pattern over a solid or gradient "
+            "backdrop. Pick a motif or let it spawn a random one each "
+            "load, then dial in scale, line weight and rotation."
         ),
     },
     {
@@ -77,6 +78,95 @@ CATALOG = [
 VALID_KEYS = {entry["key"] for entry in CATALOG}
 
 
+# ── Pattern-tile motif library ──────────────────────────────────
+# Vendored from Pattern Monster (https://pattern.monster), MIT licensed
+# — see dynbg_patterns.LICENSE.md, and scripts/import_pattern_monster.py
+# to refresh. 330 seamless SVG patterns; each has a tile size, a render
+# mode and one raw `<path d='…'/>` per ink colour:
+#
+#   mode 'fill'        → path is filled
+#   mode 'stroke'      → path is stroked at the admin's line weight
+#   mode 'stroke-join' → stroked, with round caps and joins
+#
+# The paths are used as a CSS `mask-image`, so they carry GEOMETRY
+# ONLY — the ink colour comes from the surface's palette var and
+# therefore follows the light/dark swap for free. A motif only needs
+# re-encoding when the pattern or its weight changes; scale is applied
+# with `mask-size`, so the scale slider never touches the URL.
+import json as _json_patterns
+from pathlib import Path as _Path
+
+with open(_Path(__file__).resolve().parent / "dynbg_patterns.json", encoding="utf-8") as _fh:
+    _PATTERN_DATA = _json_patterns.load(_fh)
+PATTERNS = _PATTERN_DATA["patterns"]
+PATTERNS_SOURCE = _PATTERN_DATA.get("_source", "")
+PATTERN_BY_KEY = {p["key"]: p for p in PATTERNS}
+PATTERN_KEYS = [p["key"] for p in PATTERNS]
+# Attributes injected into each raw path per render mode. `{w}` is the
+# line-weight knob. Mask colour is always black: only alpha matters.
+PATTERN_MODE_ATTRS = {
+    "fill": " fill='#000' stroke='none'",
+    "stroke": " fill='none' stroke='#000' stroke-width='{w}'",
+    "stroke-join": (" fill='none' stroke='#000' stroke-width='{w}'"
+                    " stroke-linecap='round' stroke-linejoin='round'"),
+}
+
+
+def pattern_groups():
+    """Catalogue grouped by its first tag, for the picker's <select>."""
+    groups = {}
+    for p in PATTERNS:
+        g = (p.get("tags") or ["other"])[0].title()
+        groups.setdefault(g, []).append({"value": p["key"], "label": p["name"]})
+    return [{"label": g, "options": groups[g]} for g in sorted(groups)]
+
+
+def normalize_pattern(key):
+    """Coerce a pattern choice to a known motif key, or 'random'."""
+    key = (key or "").strip()
+    return key if key in PATTERN_BY_KEY or key == "random" else "random"
+
+
+def pattern_mask_layers(pattern_key, weight=2, rng=None):
+    """Resolve a motif to ``(key, [mask_url, ...], width, height)`` — one
+    URL per ink layer, ready for `mask-image`, plus the tile size the
+    caller needs for `mask-size`.
+
+    ``pattern_key`` may be 'random', in which case a motif is chosen
+    fresh (per render on the server, per repaint in the picker). The
+    render mode decides which attributes the raw path gets, mirroring
+    the generator at pattern.monster; line weight is baked in for the
+    stroked modes. Layer N is painted with palette slot N, so a
+    four-ink tile reads as four colours without the SVG carrying any.
+    """
+    key = normalize_pattern(pattern_key)
+    if key == "random":
+        import random as _random
+        key = (rng or _random).choice(PATTERN_KEYS)
+    entry = PATTERN_BY_KEY[key]
+    w = normalize_float(weight, 0.5, 14, 2)
+    w = int(w) if float(w).is_integer() else round(w, 2)
+    attrs = PATTERN_MODE_ATTRS[entry["mode"]].replace("{w}", str(w))
+    tw, th = entry["w"], entry["h"]
+    urls = []
+    for body in entry["layers"]:
+        svg = (
+            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 "
+            f"{tw} {th}' width='{tw}' height='{th}'>"
+            + body.replace("/>", attrs + "/>", 1)
+            + "</svg>"
+        )
+        # Percent-encode the characters that would break out of
+        # url('...') or confuse a data-URL parser. Matches
+        # noise_grain_data_url's approach so the two read alike.
+        enc = (svg.replace("%", "%25").replace("#", "%23")
+                  .replace("<", "%3C").replace(">", "%3E")
+                  .replace('"', "%22").replace("'", "%27"))
+        urls.append("data:image/svg+xml;utf8," + enc)
+    return key, urls, tw, th
+
+
+
 # ── Per-preset capability spec ──────────────────────────────────
 # Drives which Options-tab controls the picker modal shows for the
 # active background ("don't show settings that won't apply"), and
@@ -98,6 +188,10 @@ VALID_KEYS = {entry["key"] for entry in CATALOG}
 #                         is a deliberate fg/bg pair the admin sets.
 #   animate             — show the "freeze movement" toggle (and the
 #                         preset's CSS actually animates).
+#   soft                — True for the blurred-layer recipes whose base
+#                         the per-mode Colour fill slider
+#                         (--fe-dynbg-fill) paints. Dots / lines set
+#                         their own background colour slot instead.
 #   knobs               — ordered list of numeric sliders unique to
 #                         this preset. Each: key (stored under
 #                         cfg['knobs'][key] + stamped as the css_var),
@@ -105,16 +199,51 @@ VALID_KEYS = {entry["key"] for entry in CATALOG}
 #                         CSS custom property it feeds.
 PRESET_CAPS = {
     "aurora-blobs": {
+        "soft": True,
         "colors": 3, "randomize_positions": True, "randomize_default": True,
-        "animate": True, "knobs": [],
+        "animate": True,
+        "knobs": [
+            # Drift speed as a % of the recipe's hand-tuned tempo; the
+            # CSS divides each layer's keyframe duration by this (0-1+
+            # fraction), so 200% = twice as fast, 25% = a slow crawl.
+            {"key": "speed", "label": "Speed", "min": 25, "max": 300,
+             "step": 5, "default": 100, "unit": "%", "css_var": "--fe-dynbg-speed"},
+        ],
     },
     "mesh-gradient": {
+        "soft": True,
         "colors": 3, "randomize_positions": True, "randomize_default": True,
         "animate": False, "knobs": [],
     },
-    "aurora-bands": {
-        "colors": 2, "randomize_positions": True, "randomize_default": True,
-        "animate": True, "knobs": [],
+    "pattern-tile": {
+        # Four ink slots (a few Pattern Monster tiles use all four;
+        # simpler motifs hide the unused ones) plus the backdrop pair.
+        # `tone` opts the preset out of the Saturation / Brightness
+        # sliders — these colours are picked literally, not tinted.
+        "colors": 6, "tone": False,
+        "color_labels": ["Pattern 1", "Pattern 2", "Pattern 3", "Pattern 4",
+                         "Background", "Gradient end"],
+        "randomize_positions": False, "randomize_default": False,
+        "animate": False,
+        "knobs": [
+            # Enumerated knobs render as a <select>; "random" re-rolls
+            # the motif on every page load. Options are grouped by the
+            # catalogue's own tags so 330 entries stay navigable.
+            {"key": "pattern", "label": "Pattern", "kind": "select",
+             "default": "random",
+             "options": [{"value": "random", "label": "Random each load"}],
+             "groups": pattern_groups()},
+            # Scale is a multiplier on the tile's native size (as on
+            # pattern.monster), since tiles aren't square.
+            {"key": "scale", "label": "Scale", "min": 0.25, "max": 8,
+             "step": 0.25, "default": 1, "unit": "x", "css_var": "--fe-dynbg-pat-scale"},
+            {"key": "weight", "label": "Line weight", "min": 0.5, "max": 14,
+             "step": 0.5, "default": 2, "unit": "px"},
+            {"key": "angle", "label": "Rotation", "min": 0, "max": 180,
+             "step": 5, "default": 0, "unit": "deg", "css_var": "--fe-dynbg-pat-angle"},
+            # Opacity, backdrop mode and gradient direction are PER MODE
+            # (see normalize_mode / the picker's mode columns), not here.
+        ],
     },
     "dotted-grid": {
         "colors": 2, "color_labels": ["Dots", "Background"],
@@ -164,14 +293,24 @@ def preset_caps(key):
 def normalize_knobs(preset_key, raw):
     """Validate a raw {knob_key: value} mapping against ``preset_key``'s
     spec. Drops unknown keys and any value equal to the knob's default
-    (so a vanilla config stores nothing). Each value is clamped to the
-    knob's [min, max]. Returns a dict (possibly empty)."""
+    (so a vanilla config stores nothing). Numeric values are clamped to
+    the knob's [min, max]; ``kind: "select"`` knobs are checked against
+    their declared options. Returns a dict (possibly empty)."""
     specs = KNOB_SPECS.get(preset_key) or {}
     if not specs or not isinstance(raw, dict):
         return {}
     out = {}
     for k, spec in specs.items():
         if k not in raw:
+            continue
+        if spec.get("kind") == "select":
+            val = (raw.get(k) or "")
+            val = val.strip() if isinstance(val, str) else ""
+            allowed = {o["value"] for o in spec.get("options", [])}
+            for g in spec.get("groups", []):
+                allowed |= {o["value"] for o in g.get("options", [])}
+            if val in allowed and val != spec.get("default"):
+                out[k] = val
             continue
         v = normalize_float(raw.get(k), spec["min"], spec["max"], None)
         if v is None:
@@ -202,6 +341,19 @@ def knobs_to_css_vars(preset_key, knobs):
             continue
         unit = spec.get("unit", "")
         val = knobs[k]
+        # Not every knob feeds CSS — the pattern line weight is baked
+        # into the mask URL instead, so it declares no css_var.
+        if not spec.get("css_var") and spec.get("kind") != "select":
+            continue
+        if spec.get("kind") == "select":
+            # A select only stamps CSS when the chosen option declares
+            # some (e.g. "gradient" supplies the second gradient stop);
+            # otherwise the value is consumed elsewhere, like the
+            # pattern choice that drives the mask URL.
+            opt = next((o for o in spec.get("options", []) if o["value"] == val), None)
+            if opt and opt.get("css") and spec.get("css_var"):
+                parts.append(f"{spec['css_var']}: {opt['css']};")
+            continue
         if unit == "deg":
             parts.append(f"{spec['css_var']}: {_num(val)}deg;")
         elif unit == "px":
@@ -338,23 +490,30 @@ def normalize_color(value):
     return v if _HEX_COLOR_RE.match(v) else None
 
 
+# Palette width. Most presets use 1-3 slots; the pattern preset needs
+# more (up to three ink colours for a multi-colour motif, plus the
+# backdrop and its gradient end), so the persistence layer carries
+# MAX_COLOR_SLOTS and each preset declares how many it actually shows.
+MAX_COLOR_SLOTS = 6
+
+
 def normalize_colors(raw):
-    """Normalise an iterable / sequence of three colour values into a
+    """Normalise an iterable / sequence of colour values into a
     fixed-shape list of (hex|None) for the persistence layer.
 
-    Always returns a 3-element list — None for any slot the admin
-    didn't fill or that didn't parse as a colour. The callers then
-    drop trailing Nones when persisting / stamping CSS so an empty
+    Always returns a MAX_COLOR_SLOTS-element list — None for any slot
+    the admin didn't fill or that didn't parse as a colour. The callers
+    then drop trailing Nones when persisting / stamping CSS so an empty
     palette costs nothing in storage or DOM weight.
     """
     if raw is None:
         raw = []
     if isinstance(raw, str):
-        # Comma-separated form ("#aaa,#bbb,#ccc") — defensive against
+        # Comma-separated form ("#aaa,#bbb") — defensive against
         # callers that pre-joined the values.
         raw = [s for s in raw.split(",")]
-    out = [None, None, None]
-    for i, v in enumerate(raw[:3]):
+    out = [None] * MAX_COLOR_SLOTS
+    for i, v in enumerate(raw[:MAX_COLOR_SLOTS]):
         out[i] = normalize_color(v)
     return out
 
@@ -365,7 +524,7 @@ VALID_OVERLAY_SCOPES = {"all", "bg"}
 # animations. Drives the "Disable animation" toggle in the modal —
 # the picker only shows the toggle when the active preset is one of
 # these, so admins never see a useless control on static presets.
-ANIMATED_KEYS = {"aurora-blobs", "aurora-bands"}
+ANIMATED_KEYS = {"aurora-blobs"}
 
 # Noise-grain admin-tunable ranges. baseFrequency on `<feTurbulence>`
 # controls grain SIZE — lower values produce bigger particles, higher
@@ -445,193 +604,189 @@ def normalize_float(value, lo, hi, default=None):
     return max(lo, min(hi, f))
 
 
-def normalize_pastel_strength(v, default=0):
-    """Coerce a stored ``pastel_light`` value into an int 0-100 strength.
+_PASTEL_HEX_RE = __import__("re").compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
-    Legacy storage was a boolean (``True`` = pastelise, ``False`` = off);
-    new storage is the 0-100 strength the admin set via the slider.
-    Both forms decode here so existing rows keep behaving the same:
+MODES = ("light", "dark")
+TONE_DEFAULT = 100  # saturation sits at "full vivid" unless dialled back
+FILL_DEFAULT = 0    # colour fill: 0 = page white/black shows through the recipe
+BRIGHT_DEFAULT = 100  # brightness: 100 = colours as picked; <100 darker, >100 lighter
+TONE_DEFAULTS = {"sat": TONE_DEFAULT, "bright": BRIGHT_DEFAULT, "fill": FILL_DEFAULT}
+# Pattern-tile per-mode defaults (see normalize_mode).
+PAT_DEFAULTS = {"pat_opacity": 100, "pat_bg": "solid", "pat_bg_angle": 135}
 
-        True  → 100   (full pastel, matches legacy behaviour)
-        False → 0     (off)
-        '1'   → 1     (purely numeric — strength of 1%, NOT legacy on)
-        '100' → 100
-        out-of-range → clamped
-        garbage → ``default``
-    """
-    if v is True:
-        return 100
-    if v is False or v is None or v == "":
-        return default
+
+TONE_MAX = {"sat": 100, "bright": 200, "fill": 100}
+
+
+def _tone_int(v, hi=100):
+    """Coerce one slider value to an int 0-``hi``, or None when absent /
+    unparseable (None = use the key's default)."""
+    if v is None or v == "" or isinstance(v, bool):
+        return None
     try:
         n = int(round(float(v)))
     except (TypeError, ValueError):
-        return default
-    return max(0, min(100, n))
+        return None
+    return max(0, min(hi, n))
 
 
-def encode_config(overlay_key=None, colors=None, scope=None,
-                  noise_size=None, noise_intensity=None,
-                  randomize_colors=False, randomize_positions=False,
-                  animate=True, randomize=None, pastel_light=0,
-                  knobs=None, preset_key=None):
-    """Return a JSON-serialisable dict shape for a surface's dynbg
-    config column. Drops empty / default fields so a fresh install
-    stores ``{}`` rather than a fat default record.
+def normalize_mode(raw, fill_defaults=True):
+    """Normalise ONE mode's block of the per-mode config::
 
-    The legacy ``randomize`` kwarg is accepted for back-compat; when
-    True it implies both ``randomize_colors`` and
-    ``randomize_positions``. The ``animate`` kwarg defaults to True
-    (the preset's keyframe animations run); only an explicit opt-out
-    persists, keeping the JSON minimal for the common case.
+        {"colors": [...], "randomize_colors": bool, "randomize_positions": bool,
+         "sat": 0-100, "bright": 0-200, "fill": 0-100,
+         "overlay": key|None, "overlay_scope": 'all'|'bg'|None,
+         "overlay_size": float|None, "overlay_intensity": float|None}
 
-    ``knobs`` is a {knob_key: value} mapping of the active preset's
-    per-preset sliders (dot size/gap, line angle/thickness, …);
-    ``preset_key`` scopes its validation. ``noise_size`` /
-    ``noise_intensity`` carry the active overlay's Size/Intensity and
-    are dropped only when equal to THAT overlay's default (so pattern
-    overlays whose default differs from noise-grain's persist
-    correctly).
+    ``sat`` sets every palette colour's HSL saturation for the mode
+    (hue + lightness preserved); ``bright`` (default 100) scales its
+    lightness — below 100 toward black, above 100 toward white;
+    ``fill`` (default 0)
+    paints the recipe's BASE with the palette via ``--fe-dynbg-fill``
+    so at 100 none of the page's white / black shows through; the
+    overlay quartet is the mode's own texture pass. With ``fill_defaults`` every key is
+    present (sat → 100, fill → 0) so consumers can index
+    without guards; without it only explicitly-set, non-default values
+    survive (the storage shape).
     """
-    cleaned = {}
-    ov = normalize_overlay(overlay_key)
-    if ov:
-        cleaned["overlay"] = ov
-    sc = normalize_scope(scope)
-    if sc and sc != "all":  # 'all' is the implicit default
-        cleaned["overlay_scope"] = sc
-    # Overlay Size / Intensity. Default-drop against the active
-    # overlay's own defaults (noise-grain vs pattern overlays differ).
+    raw = raw if isinstance(raw, dict) else {}
+    out = {}
+    cols = normalize_colors(raw.get("colors") or [])
+    while cols and cols[-1] is None:
+        cols.pop()
+    if fill_defaults:
+        out["colors"] = [c for c in cols if c]
+    elif cols:
+        out["colors"] = cols
+    rc = bool(raw.get("randomize_colors"))
+    if fill_defaults or rc:
+        out["randomize_colors"] = rc
+    rp = bool(raw.get("randomize_positions"))
+    if fill_defaults or rp:
+        out["randomize_positions"] = rp
+    for k, dflt in TONE_DEFAULTS.items():
+        n = _tone_int(raw.get(k), TONE_MAX.get(k, 100))
+        if fill_defaults:
+            out[k] = dflt if n is None else n
+        elif n is not None and n != dflt:
+            out[k] = n
+    # Pattern-tile per-mode settings: the motif's opacity and the
+    # backdrop (solid vs gradient, and the gradient's direction). These
+    # are per mode so light can sit on a flat cream while dark runs a
+    # gradient, without touching the shared motif choice.
+    po = _tone_int(raw.get("pat_opacity"), 100)
+    pb = raw.get("pat_bg") if raw.get("pat_bg") in ("solid", "gradient") else None
+    pa = _tone_int(raw.get("pat_bg_angle"), 355)
+    if fill_defaults:
+        out["pat_opacity"] = PAT_DEFAULTS["pat_opacity"] if po is None else po
+        out["pat_bg"] = pb or PAT_DEFAULTS["pat_bg"]
+        out["pat_bg_angle"] = PAT_DEFAULTS["pat_bg_angle"] if pa is None else pa
+    else:
+        if po is not None and po != PAT_DEFAULTS["pat_opacity"]:
+            out["pat_opacity"] = po
+        if pb and pb != PAT_DEFAULTS["pat_bg"]:
+            out["pat_bg"] = pb
+        if pa is not None and pa != PAT_DEFAULTS["pat_bg_angle"]:
+            out["pat_bg_angle"] = pa
+    ov = normalize_overlay(raw.get("overlay"))
+    sc = normalize_scope(raw.get("overlay_scope"))
     _ovk = OVERLAY_KNOBS.get(ov) if ov else None
     _sz_def = _ovk["size"]["default"] if _ovk else NOISE_SIZE_DEFAULT
     _int_def = _ovk["intensity"]["default"] if _ovk else NOISE_INTENSITY_DEFAULT
-    ns = normalize_float(noise_size, OVERLAY_SIZE_MIN, OVERLAY_SIZE_MAX, None)
-    if ns is not None and abs(ns - _sz_def) > 1e-6:
-        cleaned["overlay_size"] = round(ns, 3)
-    ni = normalize_float(noise_intensity, OVERLAY_INTENSITY_MIN,
+    ns = normalize_float(raw.get("overlay_size"), OVERLAY_SIZE_MIN, OVERLAY_SIZE_MAX, None)
+    ni = normalize_float(raw.get("overlay_intensity"), OVERLAY_INTENSITY_MIN,
                          OVERLAY_INTENSITY_MAX, None)
-    if ni is not None and abs(ni - _int_def) > 1e-6:
-        cleaned["overlay_intensity"] = round(ni, 4)
-    if randomize:  # legacy single flag → expands to both
-        randomize_colors = True
-        randomize_positions = True
-    if randomize_colors:
-        cleaned["randomize_colors"] = True
-    if randomize_positions:
-        cleaned["randomize_positions"] = True
-    # Per-preset knobs (validated + default-dropped against the spec).
-    nk = normalize_knobs(preset_key, knobs)
-    if nk:
-        cleaned["knobs"] = nk
-    # Opt-in: only persist a non-zero pastel strength. Stored as an int
-    # 0-100 (the slider's value). Legacy True/False is mapped through
-    # normalize_pastel_strength so older callers stay correct without
-    # any migration: True → 100, False → 0 (omitted).
-    ps = normalize_pastel_strength(pastel_light, default=0)
-    if ps > 0:
-        cleaned["pastel_light"] = ps
-    # Opt-OUT semantics: only persist when the admin explicitly
-    # disables animation. Animated presets default to running their
-    # keyframe animations, so a fresh install with no `animate` key
-    # behaves exactly as before.
-    if animate is False:
-        cleaned["animate"] = False
-    norm = normalize_colors(colors)
-    # Trim trailing None slots so ['#a', None, None] persists as ['#a'].
-    while norm and norm[-1] is None:
-        norm.pop()
-    if norm:
-        cleaned["colors"] = norm
-    return cleaned
+    if fill_defaults:
+        out["overlay"] = ov
+        out["overlay_scope"] = sc if ov else None
+        out["overlay_size"] = ns if ov else None
+        out["overlay_intensity"] = ni if ov else None
+    elif ov:
+        out["overlay"] = ov
+        if sc and sc != "all":
+            out["overlay_scope"] = sc
+        if ns is not None and abs(ns - _sz_def) > 1e-6:
+            out["overlay_size"] = round(ns, 3)
+        if ni is not None and abs(ni - _int_def) > 1e-6:
+            out["overlay_intensity"] = round(ni, 4)
+    return out
 
 
-def decode_config(raw):
-    """Parse a stored JSON config string back into a normalised config
-    dict. Tolerant of None / blanks / malformed JSON — always returns
-    a dict with every expected key so callers can `.get()` without
-    extra guards. Keeps the legacy ``randomize`` boolean as an alias
-    so old templates that read `.randomize` still get a sensible
-    truthy value when either dimension is randomised."""
+def _legacy_mode_from(data):
+    """Build a mode block from the pre-per-mode top-level fields
+    (``colors`` / ``randomize_colors`` / ``overlay*`` / ``tone``) so
+    configs saved before the light/dark split keep rendering — both
+    modes inherit the same palette + texture; tone was already
+    per-mode."""
+    data = data if isinstance(data, dict) else {}
+    legacy = bool(data.get("randomize"))
+    base = {
+        "colors": data.get("colors") or [],
+        "randomize_colors": bool(data.get("randomize_colors")) or legacy,
+        "randomize_positions": bool(data.get("randomize_positions")) or legacy,
+        "overlay": data.get("overlay"),
+        "overlay_scope": data.get("overlay_scope"),
+        "overlay_size": data.get("overlay_size"),
+        "overlay_intensity": data.get("overlay_intensity"),
+    }
+    tone = data.get("tone") if isinstance(data.get("tone"), dict) else {}
+    out = {}
+    for mode in MODES:
+        sub = tone.get(mode) if isinstance(tone.get(mode), dict) else {}
+        out[mode] = dict(base, sat=sub.get("sat"), bright=sub.get("bright"))
+    return out
+
+
+def normalize_modes(raw, fill_defaults=True, legacy=None):
+    """Normalise the ``modes`` block ({"light": {...}, "dark": {...}}).
+    Accepts a JSON string or dict. When ``raw`` carries neither mode
+    and ``legacy`` (a top-level config dict) is given, both modes are
+    derived from the legacy fields. Without ``fill_defaults`` empty
+    mode blocks are dropped entirely (storage shape)."""
     import json as _json
-    blank = {
-        "overlay": None,
-        "overlay_scope": None,
-        "overlay_size": None,
-        "overlay_intensity": None,
-        "randomize_colors": False,
-        "randomize_positions": False,
-        "randomize": False,
-        "animate": True,
-        "pastel_light": 0,
-        "knobs": {},
-        "colors": [],
-    }
-    if not raw:
-        return blank
-    try:
-        data = _json.loads(raw) if isinstance(raw, str) else raw
-    except (ValueError, TypeError):
-        return blank
-    if not isinstance(data, dict):
-        return blank
-    legacy = bool(data.get("randomize"))  # back-compat: implies both
-    rc = bool(data.get("randomize_colors")) or legacy
-    rp = bool(data.get("randomize_positions")) or legacy
-    # Animation flag — opt-out semantics. An explicit `animate: false`
-    # in the saved JSON means "freeze the preset's motion"; a missing
-    # field defaults to True so existing configs keep animating.
-    animate = data.get("animate")
-    animate = False if animate is False else True
-    return {
-        "overlay": normalize_overlay(data.get("overlay")),
-        "overlay_scope": normalize_scope(data.get("overlay_scope")),
-        "overlay_size": normalize_float(data.get("overlay_size"),
-                                         OVERLAY_SIZE_MIN, OVERLAY_SIZE_MAX, None),
-        "overlay_intensity": normalize_float(data.get("overlay_intensity"),
-                                              OVERLAY_INTENSITY_MIN, OVERLAY_INTENSITY_MAX, None),
-        "randomize_colors": rc,
-        "randomize_positions": rp,
-        "randomize": rc or rp,  # legacy alias — true when either is on
-        "animate": animate,
-        # Strength int 0-100. Back-compat: a legacy ``True`` boolean
-        # still decodes as 100 (full pastel) via normalize_pastel_strength.
-        "pastel_light": normalize_pastel_strength(data.get("pastel_light"), 0),
-        # Per-preset knob values. Left un-scoped here (we don't know the
-        # preset key at decode time) — the raw dict is passed through and
-        # consumers scope it via knobs_to_css_vars(preset_key, knobs),
-        # which only emits vars for knobs that preset declares.
-        "knobs": (data.get("knobs") if isinstance(data.get("knobs"), dict) else {}),
-        "colors": [c for c in normalize_colors(data.get("colors") or []) if c],
-    }
+    if isinstance(raw, str):
+        try:
+            raw = _json.loads(raw) if raw.strip() else {}
+        except (ValueError, TypeError):
+            raw = {}
+    if not isinstance(raw, dict):
+        raw = {}
+    if not any(isinstance(raw.get(m), dict) for m in MODES) and legacy is not None:
+        raw = _legacy_mode_from(legacy)
+    elif isinstance(legacy, dict) and (legacy.get("randomize_positions") or legacy.get("randomize")):
+        # Transitional shape: per-mode blocks present but positions
+        # randomising still recorded at the top level. Apply it to any
+        # mode that doesn't say otherwise so those saves keep shuffling.
+        raw = {m: dict(raw.get(m) or {}) for m in MODES}
+        for m in MODES:
+            raw[m].setdefault("randomize_positions", True)
+    # Transitional: the pattern preset's opacity / backdrop were briefly
+    # shared knobs. Fold them into any mode that doesn't set its own so
+    # those saves keep rendering as they did.
+    kn = legacy.get("knobs") if isinstance(legacy, dict) else None
+    if isinstance(kn, dict) and any(k in kn for k in ("opacity", "bg_mode", "bg_angle")):
+        raw = {m: dict(raw.get(m) or {}) for m in MODES}
+        for m in MODES:
+            if "opacity" in kn: raw[m].setdefault("pat_opacity", kn["opacity"])
+            if "bg_mode" in kn: raw[m].setdefault("pat_bg", kn["bg_mode"])
+            if "bg_angle" in kn: raw[m].setdefault("pat_bg_angle", kn["bg_angle"])
+    out = {}
+    for mode in MODES:
+        block = normalize_mode(raw.get(mode), fill_defaults=fill_defaults)
+        if fill_defaults or block:
+            out[mode] = block
+    return out
 
 
-_PASTEL_HEX_RE = __import__("re").compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
-
-
-def pastelize(hex_str, strength=100):
-    """Return a pastel-soft variant of an arbitrary hex colour, with the
-    admin-controlled strength dialed in.
-
-    ``strength`` is an int 0-100. At 100 the colour lands fully in the
-    pastel band (low saturation, raised lightness); at 0 the function
-    returns the input unchanged (no pastelisation). Intermediate values
-    linearly interpolate between the source HSL values and the full-
-    pastel target, so admins can dial the paleness from "vivid" through
-    "softened" to "cream wash" without having to swap the toggle.
-
-    Returns ``None`` on invalid input so callers can short-circuit
-    without crashing the render. Output is ``#rrggbb`` (no alpha)
-    because the inline CSS-vars are blended downstream.
-    """
+def saturate_hex(hex_str, sat, bright=BRIGHT_DEFAULT):
+    """Return ``hex_str`` with its HSL saturation set to ``sat`` (0-100)
+    and its lightness scaled by ``bright`` (0-200; 100 = untouched,
+    below 100 lerps toward black, above 100 toward white), hue
+    untouched. Greys (no hue) stay grey but still take the brightness.
+    Returns None on invalid input; output is ``#rrggbb``."""
     import colorsys
     if not isinstance(hex_str, str) or not _PASTEL_HEX_RE.match(hex_str):
         return None
-    s = max(0, min(100, int(strength) if strength is not None else 0))
-    if s == 0:
-        # Strength 0 short-circuits to the source colour so the consumer
-        # can still emit the var without a special case.
-        return hex_str if hex_str.startswith("#") else "#" + hex_str
-    t = s / 100.0
     h = hex_str.lstrip("#")
     if len(h) == 3:
         h = "".join(c * 2 for c in h)
@@ -643,67 +798,198 @@ def pastelize(hex_str, strength=100):
         b = int(h[4:6], 16) / 255.0
     except ValueError:
         return None
-    hue, light, sat = colorsys.rgb_to_hls(r, g, b)
-    # Full-strength target — the legacy pastel band (saturation clipped
-    # to 0.339, lightness clamped 0.69-0.75) pushed an additional 50%
-    # of the way toward pure white. The earlier implementation read as
-    # a still-slightly-punchy pastel; this revision lands at strength=
-    # 100 in true cream / blush / mint territory. At lower strengths
-    # we lerp from the source (sat, light) into this paler target.
-    legacy_target_s = min(sat, 0.339)
-    legacy_target_l = max(0.69, min(0.75, light * 0.24 + 0.53))
-    target_s = legacy_target_s * 0.5
-    target_l = legacy_target_l + (1.0 - legacy_target_l) * 0.5
-    new_s = sat * (1 - t) + target_s * t
-    new_l = light * (1 - t) + target_l * t
-    nr, ng, nb = colorsys.hls_to_rgb(hue, new_l, new_s)
-    return "#{:02x}{:02x}{:02x}".format(int(nr * 255), int(ng * 255), int(nb * 255))
+    hue, light, src_s = colorsys.rgb_to_hls(r, g, b)
+    bt = max(0, min(200, int(bright if bright is not None else BRIGHT_DEFAULT))) / 100.0
+    if bt < 1.0:
+        light = light * bt
+    elif bt > 1.0:
+        light = light + (1.0 - light) * (bt - 1.0)
+    target = src_s if src_s < 0.02 else max(0, min(100, int(sat))) / 100.0
+    nr, ng, nb = colorsys.hls_to_rgb(hue, light, target)
+    return "#{:02x}{:02x}{:02x}".format(int(round(nr * 255)), int(round(ng * 255)), int(round(nb * 255)))
+
+
+def encode_config(overlay_key=None, colors=None, scope=None,
+                  noise_size=None, noise_intensity=None,
+                  randomize_colors=False, randomize_positions=False,
+                  animate=True, randomize=None, tone=None, modes=None,
+                  knobs=None, preset_key=None):
+    """Return a JSON-serialisable dict shape for a surface's dynbg
+    config column. Drops empty / default fields so a fresh install
+    stores ``{}`` rather than a fat default record.
+
+    Shape::
+
+        {"animate": false, "knobs": {...},
+         "modes": {"light": {colors, randomize_colors, randomize_positions, sat, fill,
+                             overlay, overlay_scope, overlay_size,
+                             overlay_intensity},
+                   "dark":  {...}}}
+
+    Everything colour / position / texture related is per mode (light
+    and dark are fully independent). The preset itself, animation and
+    the per-preset pattern knobs are shared.
+
+    ``modes`` (dict or JSON string) is the canonical input. The legacy
+    single-mode kwargs (``overlay_key`` / ``colors`` / ``scope`` /
+    ``noise_*`` / ``randomize_colors`` / ``tone``) are still accepted
+    for older callers and expand into BOTH modes when ``modes`` is not
+    supplied. The legacy ``randomize`` kwarg implies both
+    ``randomize_colors`` and ``randomize_positions``.
+    """
+    cleaned = {}
+    if randomize:  # legacy single flag → expands to both
+        randomize_colors = True
+        randomize_positions = True
+    # Per-preset knobs (validated + default-dropped against the spec).
+    nk = normalize_knobs(preset_key, knobs)
+    if nk:
+        cleaned["knobs"] = nk
+    # Opt-OUT semantics: only persist when the admin explicitly
+    # disables animation. Animated presets default to running their
+    # keyframe animations, so a fresh install with no `animate` key
+    # behaves exactly as before.
+    if animate is False:
+        cleaned["animate"] = False
+    legacy = {
+        "overlay": overlay_key, "colors": colors, "overlay_scope": scope,
+        "overlay_size": noise_size, "overlay_intensity": noise_intensity,
+        "randomize_colors": randomize_colors, "tone": tone,
+        "randomize_positions": randomize_positions,
+    }
+    nm = normalize_modes(modes, fill_defaults=False, legacy=legacy)
+    if nm:
+        cleaned["modes"] = nm
+    return cleaned
+
+
+def decode_config(raw):
+    """Parse a stored JSON config string back into a normalised config
+    dict. Tolerant of None / blanks / malformed JSON — always returns
+    a dict with every expected key so callers can `.get()` without
+    extra guards.
+
+    ``modes`` carries the per-mode blocks with every key filled (see
+    normalize_mode). Configs saved before the light/dark split (flat
+    ``colors`` / ``overlay*`` / ``randomize_colors`` / ``tone``) are
+    expanded into both modes on the fly, so nothing needs migrating.
+
+    A few LEGACY ALIASES are kept at the top level for templates that
+    only need an "is anything configured?" answer: ``overlay`` is the
+    first non-empty overlay across modes, ``colors`` /
+    ``randomize_colors`` / ``overlay_*`` mirror the LIGHT mode, and
+    ``randomize_positions`` / ``randomize`` are true when either mode
+    randomises."""
+    import json as _json
+    blank_modes = normalize_modes(None)
+    blank = {
+        "randomize_positions": False,
+        "randomize_colors": False,
+        "randomize": False,
+        "animate": True,
+        "knobs": {},
+        "modes": blank_modes,
+        "colors": [],
+        "overlay": None,
+        "overlay_scope": None,
+        "overlay_size": None,
+        "overlay_intensity": None,
+    }
+    if not raw:
+        return blank
+    try:
+        data = _json.loads(raw) if isinstance(raw, str) else raw
+    except (ValueError, TypeError):
+        return blank
+    if not isinstance(data, dict):
+        return blank
+    # Animation flag — opt-out semantics. An explicit `animate: false`
+    # in the saved JSON means "freeze the preset's motion"; a missing
+    # field defaults to True so existing configs keep animating.
+    animate = data.get("animate")
+    animate = False if animate is False else True
+    modes = normalize_modes(data.get("modes"), legacy=data)
+    light = modes["light"]
+    any_rc = any(modes[m]["randomize_colors"] for m in MODES)
+    any_rp = any(modes[m]["randomize_positions"] for m in MODES)
+    return {
+        "randomize_positions": any_rp,  # legacy alias — true when either mode randomises
+        "randomize_colors": light["randomize_colors"],
+        "randomize": any_rc or any_rp,  # legacy alias — true when anything randomises
+        "animate": animate,
+        # Per-preset knob values. Left un-scoped here (we don't know the
+        # preset key at decode time) — the raw dict is passed through and
+        # consumers scope it via knobs_to_css_vars(preset_key, knobs),
+        # which only emits vars for knobs that preset declares.
+        "knobs": (data.get("knobs") if isinstance(data.get("knobs"), dict) else {}),
+        "modes": modes,
+        "colors": list(light["colors"]),
+        "overlay": light["overlay"] or modes["dark"]["overlay"],
+        "overlay_scope": light["overlay_scope"],
+        "overlay_size": light["overlay_size"],
+        "overlay_intensity": light["overlay_intensity"],
+    }
 
 
 def colors_to_css_vars(colors, cfg=None):
-    """Stamp up to three custom colours as ``--fe-dynbg-cN`` CSS
-    custom properties for inline ``style`` use. Returns a string like
-    ``--fe-dynbg-c1: #abc; --fe-dynbg-c2: #def;`` (no trailing
-    semicolon trick — caller concatenates as needed) or empty string
-    when the palette is empty.
+    """Stamp a surface's dynbg custom properties for inline ``style`` use.
 
-    When ``cfg`` (the decoded dynbg config dict) is passed AND
-    ``cfg.pastel_light`` is True, emits a companion
-    ``--fe-dynbg-cN-light`` for each colour carrying the pastelised
-    variant. A CSS rule under ``html:not([data-theme="dark"])`` swaps
-    `--fe-dynbg-cN` to the light variant at render time, so the
-    same palette pastelises only when the visitor is in light mode.
+    ``colors`` is the result of ``resolve_colors(cfg)`` — a
+    ``{"light": [...], "dark": [...]}`` dict (a plain list is also
+    accepted and used for both modes). For each palette slot present
+    in EITHER mode we emit ``--fe-dynbg-cN-light`` / ``-dark`` carrying
+    that mode's colour re-saturated by its ``sat``; a mode that leaves
+    the slot empty gets ``initial`` so the swap rule in dynbg.css
+    resets the canonical ``--fe-dynbg-cN`` and the recipe falls back
+    to its brand default in that mode. ``--fe-dynbg-c1..3`` (canonical)
+    are ALSO stamped with the light palette for consumers that read
+    them before the swap applies. The per-mode base colour-fill amount
+    goes out as ``--fe-dynbg-fill-light`` / ``-dark``, emitted even with
+    an empty palette so it still applies to brand-fallback paints.
 
-    Special case for ``pastel_light=True`` with no admin-picked
-    colours: each preset's CSS falls through to its own
-    brand-derived fallback when ``--fe-dynbg-cN`` isn't set, and
-    those hardcoded fallbacks ignore the pastel flag entirely. To
-    keep "Use pastels in light mode" meaningful without forcing
-    the admin to also pick colours, stamp three hardcoded pale
-    defaults onto ``--fe-dynbg-cN-light`` so the light-mode swap
-    still has something to swap to. Dark mode is unaffected — the
-    canonical `--fe-dynbg-cN` is never set, so the preset's brand
-    fallback continues to drive the dark surface.
+    Returns a string like ``--fe-dynbg-c1: #abc; …`` (no trailing
+    semicolon trick — caller concatenates as needed).
     """
+    cfg = cfg if isinstance(cfg, dict) else {}
+    modes = cfg.get("modes")
+    if not (isinstance(modes, dict) and all(isinstance(modes.get(m), dict) for m in MODES)):
+        modes = normalize_modes(modes, legacy=cfg)
+    if isinstance(colors, dict):
+        per = {m: [c for c in (colors.get(m) or []) if c] for m in MODES}
+    else:
+        lst = [c for c in (colors or []) if c]
+        per = {m: list(lst) for m in MODES}
     parts = []
-    pastel_strength = normalize_pastel_strength(
-        cfg.get("pastel_light") if cfg else None, 0)
-    pastel_light = pastel_strength > 0
-    cleaned = [c for c in (colors or []) if c]
-    for i, c in enumerate(cleaned, start=1):
-        parts.append(f"--fe-dynbg-c{i}: {c};")
-        if pastel_light:
-            p = pastelize(c, strength=pastel_strength)
-            if p:
-                parts.append(f"--fe-dynbg-c{i}-light: {p};")
-    if pastel_light and not cleaned:
-        # Hardcoded neutral pastels — soft cool / warm / mint
-        # tints that read as a calm palette in light mode without
-        # locking the surface to any particular brand colour. The
-        # admin's own colour picks (if they're added later) take
-        # precedence via the loop above.
-        for i, default_pastel in enumerate(("#ecf0f6", "#f4ecef", "#eef4ee"), start=1):
-            parts.append(f"--fe-dynbg-c{i}-light: {default_pastel};")
+    n_slots = max(len(per["light"]), len(per["dark"]))
+    for i in range(n_slots):
+        base = per["light"][i] if i < len(per["light"]) else None
+        if base:
+            parts.append(f"--fe-dynbg-c{i + 1}: {base};")
+        for mode in MODES:
+            c = per[mode][i] if i < len(per[mode]) else None
+            if c:
+                v = saturate_hex(c, modes[mode].get("sat", TONE_DEFAULT),
+                                 modes[mode].get("bright", BRIGHT_DEFAULT)) or c
+                parts.append(f"--fe-dynbg-c{i + 1}-{mode}: {v};")
+            else:
+                parts.append(f"--fe-dynbg-c{i + 1}-{mode}: initial;")
+    for mode in MODES:
+        fl = modes[mode].get("fill", FILL_DEFAULT)
+        parts.append(f"--fe-dynbg-fill-{mode}: {fl / 100.0:g};")
+        # Pattern-tile per-mode settings, only when they differ from
+        # the recipe's own fallbacks (which ARE the defaults), so a
+        # surface on another preset carries nothing extra.
+        m = modes[mode]
+        pat = []
+        if m.get("pat_opacity", 100) != 100:
+            pat.append(f"--fe-dynbg-pat-opacity-{mode}: {m['pat_opacity'] / 100.0:g};")
+        if m.get("pat_bg", "solid") == "gradient":
+            pat.append(f"--fe-dynbg-pat-bg2-{mode}: var(--fe-dynbg-c6, var(--fe-dynbg-c5, #e2e8f0));")
+        if m.get("pat_bg_angle", 135) != 135:
+            pat.append(f"--fe-dynbg-pat-bg-angle-{mode}: {m['pat_bg_angle']}deg;")
+        if pat:
+            parts.append(f"--fe-dynbg-pat-{mode}: 1;")  # marker the swap rules key off
+            parts.extend(pat)
     return " ".join(parts)
 
 
@@ -749,7 +1035,7 @@ def thumb_style(dynbg_key):
     if not dynbg_key or dynbg_key not in VALID_KEYS:
         return ""
     parts = []
-    for i, c in enumerate(random_colors(3), start=1):
+    for i, c in enumerate(random_colors(MAX_COLOR_SLOTS), start=1):
         parts.append(f"--fe-dynbg-c{i}: {c};")
     pos = positions_to_css_vars(random_positions(dynbg_key))
     style = " ".join(parts)
@@ -759,26 +1045,28 @@ def thumb_style(dynbg_key):
 
 
 def resolve_colors(cfg):
-    """Return the colours to stamp on a surface's dynbg-host. When
-    ``cfg.randomize_colors`` is True the saved colours are ignored
-    and a fresh random palette is generated for this render —
-    matches the "randomize on every reload" behavior the hero's
-    frosty mode already offers, but applies uniformly to every
-    dynbg surface.
-
-    Reads the colours flag in isolation: the user's ability to
-    randomise positions while keeping the palette constant
-    requires that this resolver doesn't fall back to a "legacy
-    randomize" alias that conflates the two flags. The legacy
-    ``randomize: true`` field is mapped into both new flags by
-    ``decode_config`` upstream, so this resolver only needs to
-    look at ``randomize_colors``.
-    """
+    """Return the per-mode palettes to stamp on a surface's dynbg-host
+    as ``{"light": [...], "dark": [...]}``. A mode with
+    ``randomize_colors`` on ignores its saved colours and takes a fresh
+    random palette for this render (one roll shared by both modes when
+    both randomise, so the light/dark switch keeps the same hues).
+    Feed the result straight into ``colors_to_css_vars``."""
     if isinstance(cfg, str) or cfg is None:
         cfg = decode_config(cfg)
-    if cfg.get("randomize_colors"):
-        return random_colors(3)
-    return cfg.get("colors", []) or []
+    modes = cfg.get("modes") if isinstance(cfg, dict) else None
+    if not (isinstance(modes, dict) and all(isinstance(modes.get(m), dict) for m in MODES)):
+        modes = normalize_modes(modes, legacy=cfg)
+    rolled = None
+    out = {}
+    for mode in MODES:
+        block = modes[mode]
+        if block.get("randomize_colors"):
+            if rolled is None:
+                rolled = random_colors(MAX_COLOR_SLOTS)
+            out[mode] = list(rolled)
+        else:
+            out[mode] = [c for c in (block.get("colors") or []) if c]
+    return out
 
 
 def random_positions(dynbg_key):
@@ -787,6 +1075,12 @@ def random_positions(dynbg_key):
     value is server-rendered fresh on every request, so the same
     surface's blobs / mesh / bands spawn at different coordinates
     each page load.
+
+    Deliberately limited to LAYOUT. Randomising the motion itself
+    (per-layer vectors, tempos, shape morphs) was tried and reverted:
+    it forced the recipes into per-frame repaints, which is far too
+    expensive for a decorative backdrop. The movement stays in
+    transform-only keyframes that the compositor can handle.
 
     Returns an empty dict for presets without meaningfully-randomis-
     able positions (dotted-grid, diagonal-lines) so the consumer can
@@ -815,11 +1109,6 @@ def random_positions(dynbg_key):
             out[f"--fe-dynbg-mesh-{slot}-x"] = f"{x}%"
             out[f"--fe-dynbg-mesh-{slot}-y"] = f"{y}%"
             out[f"--fe-dynbg-mesh-{slot}-angle"] = f"{ang}deg"
-    elif dynbg_key == "aurora-bands":
-        # Two bands; each gets a fresh sweep angle.
-        for slot in ("a", "b"):
-            ang = _random.randint(40, 160)
-            out[f"--fe-dynbg-band-{slot}-angle"] = f"{ang}deg"
     return out
 
 
@@ -832,22 +1121,45 @@ def positions_to_css_vars(positions):
     return " ".join(f"{k}: {v};" for k, v in positions.items())
 
 
+# Every var the randomiser can emit, across all presets. The per-mode
+# swap block in dynbg.css (see "Per-mode positions swap" there) is
+# generated from this list; deriving it from random_positions() rather
+# than hand-listing means a new randomised var can't be forgotten.
+POSITION_VARS = sorted({
+    var for key in VALID_KEYS for var in random_positions(key)
+})
+
+
 def resolve_positions_css(cfg, dynbg_key):
     """One-call helper for templates: returns the inline CSS-vars
-    string for a dynbg's positional state. Empty string when
-    randomize_positions is off OR the preset has nothing positional
-    to randomise. Read from the host element's ``style="..."``.
-
-    Reads the positions flag in isolation — same reasoning as
-    ``resolve_colors``. The legacy single ``randomize: true`` field
-    is mapped into both new flags by ``decode_config`` upstream, so
-    this resolver only checks ``randomize_positions``.
+    string for a dynbg's positional state, per mode. Each mode with
+    ``randomize_positions`` on gets the preset's positional vars
+    stamped with a ``-light`` / ``-dark`` suffix plus a
+    ``--fe-dynbg-pos-<mode>: 1`` marker; the swap rules in dynbg.css
+    rebind the canonical vars from the suffixed ones when that mode is
+    active (a mode without the marker keeps the preset's hand-tuned
+    defaults). One roll is shared when both modes randomise so the
+    light/dark switch keeps the same layout. Empty string when neither
+    mode randomises OR the preset has nothing positional to randomise.
+    Read from the host element's ``style="..."``.
     """
     if isinstance(cfg, str) or cfg is None:
         cfg = decode_config(cfg)
-    if not cfg.get("randomize_positions"):
-        return ""
-    return positions_to_css_vars(random_positions(dynbg_key or ""))
+    modes = cfg.get("modes") if isinstance(cfg, dict) else None
+    if not (isinstance(modes, dict) and all(isinstance(modes.get(m), dict) for m in MODES)):
+        modes = normalize_modes(modes, legacy=cfg)
+    rolled = None
+    parts = []
+    for mode in MODES:
+        if not modes[mode].get("randomize_positions"):
+            continue
+        if rolled is None:
+            rolled = random_positions(dynbg_key or "")
+        if not rolled:
+            return ""
+        parts.append(f"--fe-dynbg-pos-{mode}: 1;")
+        parts.extend(f"{k}-{mode}: {v};" for k, v in rolled.items())
+    return " ".join(parts)
 
 
 def noise_grain_data_url(size=None, intensity=None):

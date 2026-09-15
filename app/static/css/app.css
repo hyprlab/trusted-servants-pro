@@ -2617,6 +2617,10 @@ body.fe-admin-autohide #footer-save-bar { left: var(--content-px, 28px); }
    used in the narrow subnav column is undone here. `body` prefix so
    this outranks the mobile rule above, which would otherwise re-pin
    `right` and stretch the bar across the viewport. */
+/* Suppressed while a self-saving picker modal (dynbg) is on top — see
+   feSaveBarModalDock. Visual only: the dirty set is untouched, so the
+   bar returns as-is when the picker closes. */
+body #fe-save-bar.is-suppressed, body #footer-save-bar.is-suppressed { display: none !important; }
 body #fe-save-bar.is-in-modal, body #footer-save-bar.is-in-modal {
   right: auto; width: auto; max-width: min(380px, calc(100vw - 32px));
   flex-wrap: nowrap; gap: 12px; padding: 10px 14px;
@@ -5107,7 +5111,10 @@ form[data-savebar-row].is-dirty {
   flex-direction: column; gap: 12px; flex: 1 1 auto; min-height: 0; }
 .modal-body > form.form { flex: 0 0 auto; }
 .modal-foot { flex-shrink: 0; }
-.modal-foot { padding: 12px 18px; border-top: 1px solid var(--border);
+/* 20px vertical (was 12) — the yellow save bar docks into this strip's
+   left half while a modal is open, and at 12px it looked cramped
+   against the panel edge (+16px total height). */
+.modal-foot { padding: 20px 18px; border-top: 1px solid var(--border);
   display: flex; justify-content: flex-end; gap: 10px; }
 
 /* ── Guided Zoom launcher ──────────────────────────────────────────── */
@@ -8682,6 +8689,10 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   background: var(--panel-2);
   overflow: hidden;
 }
+.hero-full-preview-theme {
+  position: absolute; top: 6px; right: 12px; z-index: 2;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
 .hero-full-preview-label {
   position: absolute; top: 8px; left: 12px; z-index: 2;
   margin: 0; padding: 2px 8px; border-radius: 4px;
@@ -10418,7 +10429,14 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
   align-self: flex-end;
   margin: 12px 12px -44px 0;
   z-index: 6;
+  /* The base .icon-btn has `flex: 1`, which in this flex COLUMN makes
+     the button's height a share of leftover space — it squashed to a
+     sliver whenever the panel was tight. Take it out of the flex
+     sizing entirely and pin a 1:1 box. */
+  flex: 0 0 auto;
   width: 32px; height: 32px;
+  min-width: 32px; min-height: 32px;
+  aspect-ratio: 1 / 1;
   display: inline-flex; align-items: center; justify-content: center;
 }
 
@@ -12756,6 +12774,13 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   background: var(--card-soft, #f1f5f9);
 }
 .fe-dynbg-picker-md .fe-dynbg-picker-thumb { height: 110px; }
+/* Compact variant for the per-mode texture strips: small square-ish
+   tiles, name only (description moves to a title tooltip). */
+.fe-dynbg-picker-sm { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+.fe-dynbg-picker-sm .fe-dynbg-picker-thumb { height: 52px; }
+.fe-dynbg-picker-sm .fe-dynbg-picker-info { padding: 6px 8px; }
+.fe-dynbg-picker-sm .fe-dynbg-picker-name { font-size: 0.75rem; }
+.fe-dynbg-picker-sm .fe-dynbg-picker-desc { display: none; }
 /* The recipe layer fills the whole tile (it's `position:absolute;
    inset:0` from the base .fe-dynbg rule). Earlier this tile scaled
    the layer down with a transform, which — combined with the inner
@@ -12855,6 +12880,17 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   margin-left: calc(-50% / 0.18);
   margin-top: calc(-50% / 0.18);
 }
+/* The pattern preset is drawn at chip size instead: it's a tiled mask
+   that decorateThumb() already fit-scales to ~26px repeats, and the
+   5.5x-render-then-shrink trick above would reduce those to under 5px
+   — a uniform grey smear. */
+.fe-dynbg-trigger-thumb .fe-dynbg-pattern-tile {
+  transform: none;
+  width: 100%;
+  height: 100%;
+  inset: 0;
+  margin: 0;
+}
 .fe-dynbg-trigger-thumb-none {
   font-size: 1.5rem;
   color: var(--muted);
@@ -12909,6 +12945,25 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
+.dynbg-modal-preview--split {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.dynbg-modal-preview-pane { min-width: 0; }
+/* Dark pane: paint the page-bg the recipes assume in dark mode so the
+   surface reads as a real dark-theme sample, not a light card. */
+.dynbg-modal-preview-surface--dark {
+  background: var(--fe-color-bg, #0b1220);
+  border-color: color-mix(in srgb, #fff 12%, transparent);
+}
+.dynbg-modal-preview-surface--dark .dynbg-modal-preview-empty { color: rgba(255, 255, 255, 0.6); }
+.dynbg-modal-preview-surface.fe-dynbg-host > .dynbg-modal-preview-mode {
+  position: absolute; right: 10px; top: 8px; z-index: 2;
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(15, 23, 42, 0.55); pointer-events: none;
+}
+.dynbg-modal-preview-surface--dark.fe-dynbg-host > .dynbg-modal-preview-mode {
+  color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
 .dynbg-modal-preview-surface {
   position: relative;
   width: 100%;
@@ -12931,7 +12986,16 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 /* When a preset is active the host carries data-has-bg; hide the empty
    placeholder so the recipe reads cleanly. */
 .dynbg-modal-preview-surface[data-has-bg] .dynbg-modal-preview-empty { display: none; }
-.dynbg-modal-preview-badge {
+/* The soft recipes blur by 60-80px, tuned for hero-sized surfaces; in
+   a 150px preview that smears the whole palette into the page bg and
+   every setting reads as "pale". Scale the blur to the box so the
+   preview is representative of the full-size render. */
+.dynbg-modal-preview-surface .fe-dynbg-aurora-blobs .fe-dynbg-blob { filter: blur(22px); }
+.dynbg-modal-preview-surface .fe-dynbg-mesh-gradient .fe-dynbg-mesh { filter: blur(26px); }
+/* `.fe-dynbg-host > *` (dynbg.css) forces content to position:
+   relative so it stacks above the recipe; the badge + mode label must
+   out-specify that to stay pinned to the surface's corners. */
+.dynbg-modal-preview-surface.fe-dynbg-host > .dynbg-modal-preview-badge {
   position: absolute;
   left: 10px; bottom: 10px;
   z-index: 2;
@@ -12989,26 +13053,39 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   border-radius: 10px;
   margin: 0 0 16px;
 }
+/* Each tab half is a wrapper that owns the pill styling and the
+   click target; the <button> inside carries the label and the help
+   chip (Background only) sits flush after it. The ACTIVE half fills
+   with the accent colour so it's unmistakable which side you're on. */
+.dynbg-modal-tab-wrap {
+  flex: 1 1 0; min-width: 0;
+  display: flex; align-items: center; justify-content: center; gap: 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.dynbg-modal-tab-wrap:hover { color: var(--text); }
+.dynbg-modal-tab-wrap.is-active {
+  background: var(--access);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
 .dynbg-modal-tab {
-  flex: 1 1 auto;
   padding: 8px 12px;
   background: transparent;
   border: 0;
-  border-radius: 6px;
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: var(--muted);
+  color: inherit;
   cursor: pointer;
-  transition: background-color 120ms ease, color 120ms ease;
 }
-.dynbg-modal-tab:hover { color: var(--text); }
-.dynbg-modal-tab.is-active {
-  background: var(--card);
-  color: var(--text);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-}
+.dynbg-modal-tab.is-active { font-weight: 600; }
+/* Help chip inside the active (accent-filled) tab: invert to white so
+   the icon stays legible on the accent. */
+.dynbg-modal-tab-wrap.is-active .help-btn { color: #fff; }
+.dynbg-modal-tab-wrap .heading-help { margin-right: 6px; }
 .dynbg-modal-panel { display: none; }
 .dynbg-modal-panel.is-active { display: block; }
 
@@ -13016,39 +13093,55 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   display: flex; flex-direction: column;
   gap: 12px;
 }
+/* Each row is [label | controls] on a fixed label track, and the
+   controls are themselves a fixed-track grid, so the swatch, 🎨,
+   hex chip and Clear line up in columns down the whole list instead
+   of drifting with the label length. */
 .dynbg-modal-color-row {
-  display: flex; align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
 }
 /* The `display:flex` above overrides the native `hidden` attribute, so
    a per-preset gated slot (e.g. Colour 3 on the 2-colour pattern
    presets) would still render. Re-assert the hide. */
 .dynbg-modal-color-row[hidden] { display: none !important; }
 .dynbg-modal-color-label {
-  flex: 0 0 auto;
-  min-width: 80px;
   font-weight: 600;
   font-size: 0.9375rem;
+  white-space: nowrap;
 }
 .dynbg-modal-color-controls {
   /* `position: relative` anchors the ∅ overlay (below) over the
-     swatch. `flex-wrap` lets the shared design-token picker's injected
-     🎨 button / hex caption / token chip wrap to a second line on
-     narrow widths instead of crushing the row. */
+     swatch. Explicit column placement (below) keeps every item in its
+     own track even when the token chip is hidden. */
   position: relative;
-  flex: 1 1 auto;
-  display: flex; align-items: center;
+  display: grid;
+  grid-template-columns: 44px 32px 9.5ch minmax(0, 1fr) auto;
+  align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
+.dynbg-modal-color-controls input[type="color"]    { grid-column: 1; }
+.dynbg-modal-color-controls .dt-shared-token-btn  { grid-column: 2; justify-self: center; }
+.dynbg-modal-color-controls input[type="text"]     { grid-column: 3; }
+.dynbg-modal-color-controls .dt-token-chip         { grid-column: 4; justify-self: start; }
+.dynbg-modal-color-controls .dynbg-modal-color-clear { grid-column: 5; }
 .dynbg-modal-color-controls input[type="color"] {
   width: 44px; height: 44px;
+  box-sizing: border-box;
   flex: 0 0 auto;
   padding: 0; border: 1px solid var(--border);
   border-radius: 8px; cursor: pointer;
   background: var(--card);
+  overflow: hidden;
 }
+/* The native swatch is a padded square inside the input, so its
+   corners poke through the rounded frame. Collapse the wrapper padding
+   and round the swatch itself so it fills the tile edge to edge. */
+.dynbg-modal-color-controls input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.dynbg-modal-color-controls input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 7px; }
+.dynbg-modal-color-controls input[type="color"]::-moz-color-swatch { border: 0; border-radius: 7px; }
 /* ∅ "unset" overlay. A native <input type=color> can never be blank,
    so when the slot is unset we paint a neutral hatched tile + ∅ glyph
    directly over the swatch (which is always the first, left-edge item
@@ -13059,10 +13152,12 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   position: absolute;
   top: 0; left: 0;
   width: 44px; height: 44px;
+  box-sizing: border-box;
   display: none;
   place-items: center;
   border-radius: 8px;
   border: 1px solid var(--border);
+  overflow: hidden;
   color: var(--muted);
   font-size: 1.4rem;
   font-weight: 300;
@@ -13073,19 +13168,26 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
       var(--card) 5px 10px);
 }
 .dynbg-modal-color-null.is-shown { display: grid; }
+/* The hex field is a compact editable chip (same look as the token
+   picker's read-only caption, which these rows opt out of via
+   data-dt-no-caption) — type or paste a hex straight into it. Flex
+   `order` puts it right after the 🎨 button regardless of where the
+   picker injects its elements: swatch → 🎨 → hex → token chip → Clear. */
 .dynbg-modal-color-controls input[type="text"] {
-  flex: 1 1 160px;
-  padding: 8px 12px;
+  width: 9.5ch;
+  padding: 3px 8px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
+  border-radius: 6px;
+  background: var(--panel-2, var(--panel));
   color: var(--text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.9375rem;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  text-transform: lowercase;
 }
-.dynbg-modal-color-clear {
-  flex: 0 0 auto;
-}
+.dynbg-modal-color-controls input[type="text"]::placeholder { color: var(--muted); text-transform: none; }
+.dynbg-modal-color-controls input[type="text"]:focus { outline: 2px solid color-mix(in srgb, var(--access) 40%, transparent); border-color: var(--access); }
+.dynbg-modal-color-controls .dt-token-chip { margin-left: 0; }
 
 /* Overlay-tab thumbnails sit on a soft brand-tinted plate so the
    overlay's translucent texture is visible in isolation. Without
@@ -13163,28 +13265,73 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   flex-shrink: 0;
 }
 
-/* Pastel-strength slider row in the dynbg modal — label + descriptive
-   text on the left, range slider + live numeric readout on the right.
-   Stacks on narrow viewports so the slider keeps a usable width. */
-.dynbg-modal-pastel-row {
-  display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+/* ── Per-mode columns in the dynbg modal ─────────────────────────
+   Light mode on the left, dark mode on the right, each carrying its
+   own colours / tone / texture fieldsets. The dark column is tinted
+   so the two read as distinct surfaces at a glance; collapses to a
+   single column on narrow viewports. */
+.dynbg-modal-modes {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;
+  margin-top: 4px;
 }
-.dynbg-modal-pastel-label {
-  flex: 1 1 320px; min-width: 0;
-  display: block;
-  cursor: pointer;
+@media (max-width: 900px) { .dynbg-modal-modes { grid-template-columns: 1fr; } }
+.dynbg-modal-mode {
+  min-width: 0;
+  padding: 12px 14px 4px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--card);
 }
-.dynbg-modal-pastel-slider {
-  flex: 0 1 240px; min-width: 200px;
+.dynbg-modal-mode--dark {
+  background: color-mix(in srgb, var(--text) 5%, var(--card));
+}
+.dynbg-modal-mode-title {
+  margin: 0 0 6px; font-size: 0.9rem; font-weight: 700;
+  letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted);
+}
+.dynbg-modal-mode .dynbg-modal-fieldset { margin-left: 0; margin-right: 0; }
+/* While "random colours" is on the slot inputs are irrelevant — the
+   whole slot block hides (JS toggles [hidden]) so the column stays
+   focused on what actually applies. */
+.dynbg-modal-mode [data-dynbg-mode-color-slots][hidden] { display: none; }
+.dynbg-modal-colors-blurb { margin: 2px 0 0; }
+.dynbg-modal-shuffle { align-self: flex-start; margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; }
+.dynbg-modal-shuffle .icon { width: 1em; height: 1em; }
+
+/* Tone sliders: Saturation + Intensity, stacked inside a mode column. */
+.dynbg-modal-tone-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px 24px;
+}
+.dynbg-modal-tone-grid--stack { grid-template-columns: 1fr; gap: 10px; }
+
+/* Enumerated knobs (pattern motif, background fill) render as a select
+   inside the same slider-row layout the numeric knobs use. */
+.dynbg-modal-select-row select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+.dynbg-modal-tone-field {
+  display: flex; flex-direction: column; gap: 6px; min-width: 0; cursor: pointer;
+}
+/* `display: flex` above beats the `hidden` attribute's UA rule, so
+   fields gated by JS (Colour fill on non-soft presets, Gradient
+   direction when the backdrop is solid) need the hide re-asserted. */
+.dynbg-modal-tone-field[hidden] { display: none !important; }
+.dynbg-modal-tone-slider {
   display: flex; align-items: center; gap: 10px;
 }
-.dynbg-modal-pastel-slider input[type="range"] {
+.dynbg-modal-tone-slider input[type="range"] {
   flex: 1 1 auto; min-width: 0;
   accent-color: var(--access);
 }
-.dynbg-modal-pastel-slider output {
+.dynbg-modal-tone-slider output {
   flex: 0 0 auto;
-  min-width: 2.5ch; text-align: right;
+  min-width: 3ch; text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 600; color: var(--text);
 }

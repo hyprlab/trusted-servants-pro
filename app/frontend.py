@@ -1070,7 +1070,7 @@ def template_settings(site, kind, key):
               "bg_dynbg_overlay_scope", "bg_dynbg_overlay_size",
               "bg_dynbg_overlay_intensity", "bg_dynbg_randomize_colors",
               "bg_dynbg_randomize_positions", "bg_dynbg_animate",
-              "bg_dynbg_pastel_light", "bg_dynbg_knobs",
+              "bg_dynbg_tone", "bg_dynbg_modes", "bg_dynbg_knobs",
               # Classic blog detail rail toggles — present only when
               # explicitly disabled, so a missing key means "show".
               "show_related_widget", "show_categories_widget",
@@ -1684,7 +1684,8 @@ def meeting_detail(slug):
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     # Resolve the meeting's free-text location to a saved Location row
@@ -2452,7 +2453,8 @@ def submission_form():
         "randomize_colors": _tpl_settings.get("bg_dynbg_randomize_colors", False),
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     width_mode = (site.frontend_submission_form_width_mode if site else None) or "boxed"
@@ -3092,7 +3094,8 @@ def fellowships_list():
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
 
@@ -3474,7 +3477,8 @@ def archive_detail(slug):
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     og = _page_og(site, title=post.title,
@@ -3776,7 +3780,8 @@ def story_detail(slug):
                     if _story_cfg["animate"] is True
                     else _story_cfg["animate"]),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     og = _page_og(site, title=story.title,
@@ -3938,7 +3943,8 @@ def blog_post_detail(slug):
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
 
@@ -4146,7 +4152,8 @@ def event_detail(slug):
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     og = _page_og(site, title=ev.title,
@@ -4258,7 +4265,8 @@ def announcement_detail(slug):
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     # Pass the post in as `event` so the existing event-detail templates
@@ -5722,7 +5730,8 @@ def site_index():
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     sort_mode = (site.frontend_site_index_sort_mode or "grouped") if site else "grouped"
