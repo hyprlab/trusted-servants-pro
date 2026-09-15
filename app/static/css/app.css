@@ -14984,6 +14984,7 @@ body.embed .backups-wrap {
 .dash-sync-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; }
 .dash-sync-btn .icon { font-size: 1.05rem; }
 .dash-sync-when { margin: 0; font-variant-numeric: tabular-nums; }
+.dash-sync-status .backup-status-pill.is-clickable { cursor: pointer; }
 .dash-sync-msg { margin: 0; font-size: .86rem; }
 .dash-sync-msg.is-ok  { color: #166534; }
 .dash-sync-msg.is-err { color: #991b1b; }

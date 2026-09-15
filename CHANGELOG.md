@@ -6,6 +6,24 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+
+- **Staging sync no longer reports a healthy peer as "Unreachable".** The Web
+  Frontend dashboard's sync widget pings the peer on every page load, and a
+  single dropped DNS query — routine for a containerised install resolving
+  through Docker's embedded resolver once the record's TTL lapses — was enough
+  to paint the pairing as unreachable until the admin re-tested by hand in
+  Settings → Data. Outbound sync requests (ping / pull / push) now retry once
+  when the first attempt never reached the peer, i.e. a temporary name
+  resolution failure or a refused connection; a definitively unknown host
+  (a typo in the peer URL) still fails immediately, and TLS errors are never
+  retried. A failed lookup now says so instead of blaming reachability, the
+  raw network error is logged for diagnosis, the widget states the reason
+  inline rather than hiding it in a tooltip, and its status pill is clickable
+  to re-check. Sync requests also identify themselves with a proper
+  `trusted-servants-pro/<version>` user agent, which CDN/WAF-fronted peers are
+  less likely to challenge.
+
 ## [2.19.0] — 2026-09-15
 
 ### Added
