@@ -364,9 +364,15 @@
 
         {# Hidden input carrying the JSON-serialised wave shape so the
            parser can persist it. Empty string = use the canonical wave.
-           Updated by the Randomize / Reset buttons in JS below. #}
+           Updated by the Randomize / Reset buttons in JS below.
+
+           `forceescape` because `tojson` returns markup that leaves `"`
+           unescaped (it targets <script> bodies, not attributes): in a
+           double-quoted attribute the value would otherwise end at the
+           first key's quote, posting a bare `{` and dropping the saved
+           wave. Same fix as the dynbg trigger's modes/knobs inputs. #}
         <input type="hidden" name="footer_bg_sinewave_wave"
-               value="{{ _bg.sinewave_wave | tojson if _bg.sinewave_wave else '' }}"
+               value="{{ (_bg.sinewave_wave | tojson | forceescape) if _bg.sinewave_wave else '' }}"
                data-sinewave-wave-input>
 
         <div class="fe-footer-sw-actions">

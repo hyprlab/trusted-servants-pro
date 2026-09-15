@@ -18,8 +18,16 @@
    recipes carry var() fallbacks to their original hand-tuned look.
 #}
 {%- set _k = dynbg_key or '' -%}
+{# `*-classic` keys are the pre-rework recipes kept as their own
+   catalog entries (see the "Classic recipes" block in app/dynbg.py);
+   they share their modern twin's inner markup, so the shape lookup
+   below strips the suffix. `aurora-bands` is the one retired preset
+   restored under its original key. #}
 {%- set _known = _k in ('aurora-blobs', 'mesh-gradient', 'pattern-tile',
-                         'dotted-grid', 'diagonal-lines') -%}
+                         'dotted-grid', 'diagonal-lines',
+                         'aurora-blobs-classic', 'mesh-gradient-classic',
+                         'aurora-bands') -%}
+{%- set _shape = _k[:-8] if _k.endswith('-classic') else _k -%}
 {%- if _known %}
 {%- set _knobs = dynbg_knobs|default(none, true) or {} -%}
 {%- set _knob_css = dynbg_knobs_css(_k, _knobs) if _knobs else '' -%}
@@ -35,11 +43,11 @@
   {%- set _knob_css = (_knob_css ~ " --fe-dynbg-pat-w: " ~ _pat[2] ~ "px; --fe-dynbg-pat-h: " ~ _pat[3] ~ "px;") | trim -%}
 {%- endif -%}
 <div class="fe-dynbg fe-dynbg-{{ _k }}" aria-hidden="true"{% if _knob_css %} style="{{ _knob_css }}"{% endif %}>
-  {%- if _k == 'aurora-blobs' %}
+  {%- if _shape == 'aurora-blobs' %}
     <span class="fe-dynbg-blob fe-dynbg-blob-a"></span>
     <span class="fe-dynbg-blob fe-dynbg-blob-b"></span>
     <span class="fe-dynbg-blob fe-dynbg-blob-c"></span>
-  {%- elif _k == 'mesh-gradient' %}
+  {%- elif _shape == 'mesh-gradient' %}
     <span class="fe-dynbg-mesh fe-dynbg-mesh-a"></span>
     <span class="fe-dynbg-mesh fe-dynbg-mesh-b"></span>
     <span class="fe-dynbg-mesh fe-dynbg-mesh-c"></span>
@@ -50,6 +58,9 @@
     <span class="fe-dynbg-pattern"
           style="--_db-pat-url: url('{{ _u }}'); --_db-pat-ink: var(--_db-ink{{ loop.index }});"></span>
     {%- endfor %}
+  {%- elif _shape == 'aurora-bands' %}
+    <span class="fe-dynbg-band fe-dynbg-band-a"></span>
+    <span class="fe-dynbg-band fe-dynbg-band-b"></span>
   {%- elif _k == 'dotted-grid' %}
     <span class="fe-dynbg-dots"></span>
   {%- elif _k == 'diagonal-lines' %}

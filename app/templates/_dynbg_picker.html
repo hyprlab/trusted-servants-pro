@@ -56,13 +56,21 @@
    through encode_config so a legacy single-mode config (decoded into
    both modes by dynbg_decode) round-trips in the new shape. #}
 {%- set _modes = dynbg_encode_modes(_cfg.modes) -%}
-{%- set _modes_json = (_modes | tojson) if _modes else '' -%}
+{# `tojson` returns MARKUP — it escapes <, >, & and ' for embedding in a
+   <script>, but deliberately leaves `"` alone, and being marked safe it
+   also bypasses autoescaping. Dropped straight into a double-quoted
+   attribute, the value therefore ended at the JSON's first `"`: every
+   trigger rendered `data-dynbg-modes="{"` and posted a bare `{` in its
+   hidden input, so the per-mode block (colours, tone, texture) was
+   silently lost on render AND wiped on the next save. `forceescape`
+   escapes even safe values, which is what an attribute needs. #}
+{%- set _modes_json = (_modes | tojson | forceescape) if _modes else '' -%}
 {# Per-preset knob values (dot size/gap, line angle/thickness, …)
    travel as a single JSON blob so the macro + save handler don't need
    a hidden input per knob. Empty object → '' so the status text /
    server treat it as "no overrides". #}
 {%- set _knobs = _cfg.knobs or {} -%}
-{%- set _knobs_json = (_knobs | tojson) if _knobs else '' -%}
+{%- set _knobs_json = (_knobs | tojson | forceescape) if _knobs else '' -%}
 <div class="fe-dynbg-trigger-wrap" data-dynbg-trigger-wrap>
   <input type="hidden" name="{{ field_name }}" id="{{ _bid }}-input"
          value="{{ current or '' }}" data-dynbg-trigger-input>
@@ -116,8 +124,17 @@
             {%- set _ov_entry = dynbg_overlays() | selectattr('key', 'equalto', _mb.overlay) | list | first -%}
             {%- set _ = _mbits.append((_ov_entry.name if _ov_entry else _mb.overlay) ~ ' overlay') -%}
           {%- endif -%}
+          {# Tone + pattern-backdrop summary. These must track the mode
+             block's REAL keys (see dynbg.normalize_mode) — an earlier
+             `_mb.intensity` was a key that no longer exists, so every
+             trigger on every page printed a bare "% intensity" with no
+             number. The JS painter in app.js (paintTrigger) builds the
+             same line; keep the two in step. #}
           {%- if _mb.sat != 100 -%}{%- set _ = _mbits.append(_mb.sat ~ '% sat') -%}{%- endif -%}
-          {%- if _mb.intensity != 100 -%}{%- set _ = _mbits.append(_mb.intensity ~ '% intensity') -%}{%- endif -%}
+          {%- if _mb.bright != 100 -%}{%- set _ = _mbits.append(_mb.bright ~ '% bright') -%}{%- endif -%}
+          {%- if _mb.fill -%}{%- set _ = _mbits.append(_mb.fill ~ '% fill') -%}{%- endif -%}
+          {%- if _mb.pat_opacity != 100 -%}{%- set _ = _mbits.append(_mb.pat_opacity ~ '% opacity') -%}{%- endif -%}
+          {%- if _mb.pat_bg == 'gradient' -%}{%- set _ = _mbits.append('gradient') -%}{%- endif -%}
           {%- if _mbits -%}{%- set _ = _extras.append(_mode ~ ': ' ~ (_mbits | join(' / '))) -%}{%- endif -%}
         {%- endfor -%}
         {%- if _cfg.animate is sameas false -%}{%- set _ = _extras.append('static') -%}{%- endif -%}

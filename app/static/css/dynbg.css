@@ -8,7 +8,8 @@
 
    Single source of truth — do NOT re-add these rules to frontend.css.
    Backgrounds: aurora-blobs, mesh-gradient, pattern-tile, dotted-grid,
-   diagonal-lines.  Overlays: noise-grain, scanlines, linen, vignette,
+   diagonal-lines, plus the classic recipes (aurora-blobs-classic,
+   mesh-gradient-classic, aurora-bands).  Overlays: noise-grain, scanlines, linen, vignette,
    crosshatch, dot-weave.
    =========================================================================== */
 
@@ -416,6 +417,185 @@ body.fe-frontend-force-dark .fe-dynbg-diagonal-lines,
   --fe-dynbg-line-fg: color-mix(in srgb, var(--fe-dynbg-c1, #ffffff) calc(var(--fe-dynbg-line-opacity, 0.09) * 100%), transparent);
 }
 
+/* ── Classic recipes ──────────────────────────────────────────────
+   The soft presets as they rendered BEFORE the per-mode rework, kept
+   under their own keys (`*-classic`, plus `aurora-bands` under its
+   original one) so an install designed against them can go back to the
+   old look surface by surface. See the "Classic recipes" block in
+   dynbg.py for why they exist.
+
+   These are the old rules verbatim — the hard-coded pale layer
+   opacities are the whole point, so do NOT "fix" them to match the
+   current recipes. Two deliberate carry-overs from the new base:
+   `background-image: var(--_db-fill-gradient)` (the Colour-fill
+   slider; fill defaults to 0 so the classic render is unchanged
+   unless an admin dials it up) and the shared per-mode colour /
+   position swaps, which work off var names these recipes already use.
+   =============================================================== */
+
+/* ── aurora-blobs-classic ─── the original drifting circles: 0.55
+   layer opacity (0.45 on the third blob), fixed-px drift, no speed
+   knob. */
+.fe-dynbg-aurora-blobs-classic {
+  --_db-c1: var(--fe-dynbg-c1, color-mix(in srgb, var(--fe-accent, #0b5cff) 60%, #16c2ba));
+  --_db-c2: var(--fe-dynbg-c2, color-mix(in srgb, var(--fe-accent, #0b5cff) 50%, #8b5cf6));
+  --_db-c3: var(--fe-dynbg-c3, color-mix(in srgb, var(--fe-accent, #0b5cff) 35%, #fb923c));
+  background-color: var(--fe-color-surface-alt, var(--fe-panel-soft, #f8fafc));
+  background-image: var(--_db-fill-gradient);
+  filter: none;
+}
+.fe-dynbg-aurora-blobs-classic .fe-dynbg-blob {
+  width: var(--_db-blob-size, 380px);
+  height: var(--_db-blob-size, 380px);
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  animation: feDynbgBlobDriftClassic 18s ease-in-out infinite;
+  inset: auto;
+}
+.fe-dynbg-aurora-blobs-classic .fe-dynbg-blob-a {
+  --_db-blob-size: var(--fe-dynbg-blob-a-size, 380px);
+  top: var(--fe-dynbg-blob-a-top, -120px);
+  left: var(--fe-dynbg-blob-a-left, -80px);
+  bottom: var(--fe-dynbg-blob-a-bottom, auto);
+  right: var(--fe-dynbg-blob-a-right, auto);
+  background: var(--_db-c1);
+}
+.fe-dynbg-aurora-blobs-classic .fe-dynbg-blob-b {
+  --_db-blob-size: var(--fe-dynbg-blob-b-size, 380px);
+  top: var(--fe-dynbg-blob-b-top, auto);
+  left: var(--fe-dynbg-blob-b-left, auto);
+  bottom: var(--fe-dynbg-blob-b-bottom, -160px);
+  right: var(--fe-dynbg-blob-b-right, -100px);
+  background: var(--_db-c2);
+  animation-delay: -6s; animation-duration: 22s;
+}
+.fe-dynbg-aurora-blobs-classic .fe-dynbg-blob-c {
+  --_db-blob-size: var(--fe-dynbg-blob-c-size, 240px);
+  top: var(--fe-dynbg-blob-c-top, 30%);
+  left: var(--fe-dynbg-blob-c-left, auto);
+  bottom: var(--fe-dynbg-blob-c-bottom, auto);
+  right: var(--fe-dynbg-blob-c-right, 35%);
+  background: var(--_db-c3);
+  opacity: 0.45;
+  animation-delay: -12s; animation-duration: 26s;
+}
+/* The original px drift, under its own keyframe name: the current
+   preset's `feDynbgBlobDrift` was re-expressed in container units and
+   redefined later in this sheet, which would silently retune the
+   classic recipe's motion too. */
+@keyframes feDynbgBlobDriftClassic {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(40px, -25px) scale(1.05); }
+  66%      { transform: translate(-30px, 30px) scale(0.95); }
+}
+html[data-theme="dark"] .fe-dynbg-aurora-blobs-classic,
+body.fe-frontend-force-dark .fe-dynbg-aurora-blobs-classic,
+.fe-megamenu-force-dark .fe-dynbg-aurora-blobs-classic {
+  background-color: var(--fe-color-bg, #0b1220);
+}
+html[data-theme="dark"] .fe-dynbg-aurora-blobs-classic .fe-dynbg-blob,
+body.fe-frontend-force-dark .fe-dynbg-aurora-blobs-classic .fe-dynbg-blob,
+.fe-megamenu-force-dark .fe-dynbg-aurora-blobs-classic .fe-dynbg-blob {
+  opacity: 0.65;
+}
+
+/* ── mesh-gradient-classic ─── the original conic mesh at its old
+   0.5 / 0.4 / 0.7 layer opacities (0.4 in dark mode). */
+.fe-dynbg-mesh-gradient-classic {
+  --_db-c1: var(--fe-dynbg-c1, var(--fe-accent, #0b5cff));
+  --_db-c2: var(--fe-dynbg-c2, color-mix(in srgb, var(--fe-accent, #0b5cff) 60%, #8b5cf6));
+  --_db-c3: var(--fe-dynbg-c3, color-mix(in srgb, var(--fe-accent, #0b5cff) 40%, #fb923c));
+  background-color: var(--fe-color-bg, #f8fafc);
+  background-image: var(--_db-fill-gradient);
+}
+.fe-dynbg-mesh-gradient-classic .fe-dynbg-mesh {
+  inset: -10%;
+  filter: blur(80px);
+  opacity: 0.5;
+}
+.fe-dynbg-mesh-gradient-classic .fe-dynbg-mesh-a {
+  background: conic-gradient(
+    from var(--fe-dynbg-mesh-a-angle, 0deg)
+      at var(--fe-dynbg-mesh-a-x, 25%) var(--fe-dynbg-mesh-a-y, 30%),
+    var(--_db-c1) 0deg,
+    transparent 90deg,
+    transparent 270deg,
+    var(--_db-c2) 360deg);
+}
+.fe-dynbg-mesh-gradient-classic .fe-dynbg-mesh-b {
+  background: conic-gradient(
+    from var(--fe-dynbg-mesh-b-angle, 180deg)
+      at var(--fe-dynbg-mesh-b-x, 75%) var(--fe-dynbg-mesh-b-y, 60%),
+    var(--_db-c2) 0deg,
+    transparent 120deg,
+    transparent 240deg,
+    var(--_db-c3) 360deg);
+  opacity: 0.4;
+}
+.fe-dynbg-mesh-gradient-classic .fe-dynbg-mesh-c {
+  background: radial-gradient(ellipse 60% 40%
+    at var(--fe-dynbg-mesh-c-x, 50%) var(--fe-dynbg-mesh-c-y, 50%),
+    color-mix(in srgb, var(--_db-c1) 25%, transparent),
+    transparent 70%);
+  opacity: 0.7;
+}
+html[data-theme="dark"] .fe-dynbg-mesh-gradient-classic,
+body.fe-frontend-force-dark .fe-dynbg-mesh-gradient-classic,
+.fe-megamenu-force-dark .fe-dynbg-mesh-gradient-classic {
+  background-color: var(--fe-color-bg, #0b1220);
+}
+html[data-theme="dark"] .fe-dynbg-mesh-gradient-classic .fe-dynbg-mesh,
+body.fe-frontend-force-dark .fe-dynbg-mesh-gradient-classic .fe-dynbg-mesh,
+.fe-megamenu-force-dark .fe-dynbg-mesh-gradient-classic .fe-dynbg-mesh {
+  opacity: 0.4;
+}
+
+/* ── aurora-bands ─── wide angled bands sweeping vertically.
+   Restored under its ORIGINAL key: surfaces that still have
+   `aurora-bands` saved went blank when the preset was retired (the key
+   no longer validated), and they render again as soon as this exists. */
+.fe-dynbg-aurora-bands {
+  --_db-c1: var(--fe-dynbg-c1, color-mix(in srgb, var(--fe-accent, #0b5cff) 70%, #16c2ba));
+  --_db-c2: var(--fe-dynbg-c2, color-mix(in srgb, var(--fe-accent, #0b5cff) 55%, #8b5cf6));
+  background-color: var(--fe-color-surface-alt, var(--fe-panel-soft, #f8fafc));
+  background-image: var(--_db-fill-gradient);
+}
+.fe-dynbg-aurora-bands .fe-dynbg-band {
+  inset: -20%;
+  filter: blur(70px);
+  opacity: 0.55;
+  animation: feDynbgBandDrift 24s ease-in-out infinite alternate;
+}
+.fe-dynbg-aurora-bands .fe-dynbg-band-a {
+  background: linear-gradient(var(--fe-dynbg-band-a-angle, 115deg),
+    transparent 30%,
+    var(--_db-c1) 50%,
+    transparent 70%);
+}
+.fe-dynbg-aurora-bands .fe-dynbg-band-b {
+  background: linear-gradient(var(--fe-dynbg-band-b-angle, 75deg),
+    transparent 25%,
+    var(--_db-c2) 55%,
+    transparent 80%);
+  animation-delay: -8s; animation-duration: 30s;
+  opacity: 0.45;
+}
+@keyframes feDynbgBandDrift {
+  0%   { transform: translate(-5%, -3%); }
+  100% { transform: translate(5%, 3%); }
+}
+html[data-theme="dark"] .fe-dynbg-aurora-bands,
+body.fe-frontend-force-dark .fe-dynbg-aurora-bands,
+.fe-megamenu-force-dark .fe-dynbg-aurora-bands {
+  background-color: var(--fe-color-bg, #0b1220);
+}
+html[data-theme="dark"] .fe-dynbg-aurora-bands .fe-dynbg-band,
+body.fe-frontend-force-dark .fe-dynbg-aurora-bands .fe-dynbg-band,
+.fe-megamenu-force-dark .fe-dynbg-aurora-bands .fe-dynbg-band {
+  opacity: 0.7;
+}
+
 /* ── Dynamic-background overlays ────────────────────────────────
    Independent layer that paints above the base dynbg AND above
    page content (with `pointer-events: none` so clicks pass through).
@@ -658,6 +838,8 @@ html .fe-megamenu-force-dark [style*="--fe-dynbg-pat-dark"] {
    var is invalid at computed-value time, so the canonical var stays
    unset and the fallback wins). */
 html:not([data-theme="dark"]) [style*="--fe-dynbg-pos-light"] {
+  --fe-dynbg-band-a-angle: var(--fe-dynbg-band-a-angle-light);
+  --fe-dynbg-band-b-angle: var(--fe-dynbg-band-b-angle-light);
   --fe-dynbg-blob-a-bottom: var(--fe-dynbg-blob-a-bottom-light);
   --fe-dynbg-blob-a-left: var(--fe-dynbg-blob-a-left-light);
   --fe-dynbg-blob-a-right: var(--fe-dynbg-blob-a-right-light);
@@ -686,6 +868,8 @@ html:not([data-theme="dark"]) [style*="--fe-dynbg-pos-light"] {
 html[data-theme="dark"] [style*="--fe-dynbg-pos-dark"],
 body.fe-frontend-force-dark [style*="--fe-dynbg-pos-dark"],
 html .fe-megamenu-force-dark [style*="--fe-dynbg-pos-dark"] {
+  --fe-dynbg-band-a-angle: var(--fe-dynbg-band-a-angle-dark);
+  --fe-dynbg-band-b-angle: var(--fe-dynbg-band-b-angle-dark);
   --fe-dynbg-blob-a-bottom: var(--fe-dynbg-blob-a-bottom-dark);
   --fe-dynbg-blob-a-left: var(--fe-dynbg-blob-a-left-dark);
   --fe-dynbg-blob-a-right: var(--fe-dynbg-blob-a-right-dark);

@@ -2978,6 +2978,18 @@
             </span>
           </label>
           {% for entry in dynbg_catalog() %}
+          {# The catalog's `legacy` entries (the pre-rework recipes, kept
+             so existing designs can be reproduced surface by surface)
+             sit last and get their own heading + badge, so nobody picks
+             one by accident thinking it's the current preset. #}
+          {% if entry.legacy and not (loop.previtem and loop.previtem.legacy) %}
+          <p class="fe-dynbg-picker-divider muted small">
+            <b>Classic recipes</b> — the versions these presets had before the
+            light/dark rework, kept so a site designed against them can be moved
+            over one surface at a time. Everything else (per-mode colours, tone,
+            texture) works on them the same way.
+          </p>
+          {% endif %}
           {# Each thumb carries a fresh random palette + positions
              (dynbg_thumb_style) so the grid reads as a lively sampler;
              re-rolled server-side on every page load. #}
@@ -2987,7 +2999,14 @@
               {% with dynbg_key=entry.key %}{% include "frontend/_dynbg.html" %}{% endwith %}
             </span>
             <span class="fe-dynbg-picker-info">
-              <span class="fe-dynbg-picker-name">{{ entry.name }}</span>
+              {# Badge sits OUTSIDE `.fe-dynbg-picker-name`: the JS reads that
+                 element's textContent for the trigger chip's label and the
+                 live preview's caption, so a badge nested inside it shows up
+                 as "Aurora blobs (classic) Classic". #}
+              <span class="fe-dynbg-picker-name-row">
+                <span class="fe-dynbg-picker-name">{{ entry.name }}</span>
+                {%- if entry.legacy %}<span class="fe-dynbg-picker-badge">Classic</span>{% endif %}
+              </span>
               <span class="fe-dynbg-picker-desc muted small">{{ entry.description }}</span>
             </span>
           </label>

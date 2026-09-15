@@ -12818,6 +12818,35 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   font-weight: 600;
   color: var(--text);
 }
+/* Full-width heading that splits the current presets from the classic
+   ones. Spans every column so the grid keeps its own flow. */
+.fe-dynbg-picker-divider {
+  grid-column: 1 / -1;
+  margin: 10px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  line-height: 1.45;
+}
+/* Name + optional badge share one row. */
+.fe-dynbg-picker-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+/* "Classic" marker on a legacy card's name row. */
+.fe-dynbg-picker-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card-soft, #f1f5f9);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
+}
 .fe-dynbg-picker-desc {
   line-height: 1.35;
 }
@@ -12867,18 +12896,27 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   display: grid;
   place-items: center;
 }
-/* Reuse the same scaling trick the picker grid uses so the trigger
-   thumb is a tiny live preview. */
+/* Render the recipe on a chip-sized canvas blown up 5.5x, then scale it
+   back down, so blurs and gradient geometry read at their true
+   proportions instead of being squeezed into a 64x44 box.
+;
+   Centring is `translate(-50%, -50%)`, NOT negative margins: a margin
+   percentage resolves against the containing block's WIDTH on BOTH
+   axes, so `margin-top: calc(-50% / 0.18)` pulled the layer up by half
+   the chip's WIDTH over the scale — about 61px too far. The recipe
+   ended up centred ~33px ABOVE the chip, and since the chip clips its
+   overflow, every trigger thumb painted as an empty pale box. A
+   translate percentage resolves against the element's own size on each
+   axis, which is what centring actually wants. */
 .fe-dynbg-trigger-thumb .fe-dynbg {
-  transform: scale(0.18);
-  transform-origin: center center;
   width: calc(100% / 0.18);
   height: calc(100% / 0.18);
   inset: auto;
   top: 50%;
   left: 50%;
-  margin-left: calc(-50% / 0.18);
-  margin-top: calc(-50% / 0.18);
+  margin: 0;
+  transform: translate(-50%, -50%) scale(0.18);
+  transform-origin: center center;
 }
 /* The pattern preset is drawn at chip size instead: it's a tiled mask
    that decorateThumb() already fit-scales to ~26px repeats, and the
