@@ -108,28 +108,27 @@ def _dynbg_config_from_form(form, config_field):
     except (ValueError, TypeError):
         _knobs = None
     cfg = _dynbg.encode_config(
+        # Per-mode block (light/dark colours, randomise-colours,
+        # saturation, intensity, texture) arrives as one JSON blob like
+        # knobs; encode_config normalises + default-drops it.
+        modes=form.get(f"{config_field}__modes"),
+        randomize_positions=form.get(f"{config_field}__randomize_positions") == "1",
+        # Animation is opt-out — only the explicit "1" disables motion.
+        # encode_config drops the field entirely when animate=True so
+        # the JSON stays minimal for the common case.
+        animate=False if form.get(f"{config_field}__animate_off") == "1" else True,
+        # Per-preset knobs, validated + default-dropped against the
+        # active preset's spec inside encode_config.
+        knobs=_knobs, preset_key=_preset_key,
+        # Legacy single-mode inputs still accepted on the off-chance an
+        # older form posts them — encode_config expands them into both
+        # modes when no `__modes` blob is present.
         overlay_key=form.get(f"{config_field}__overlay"),
         colors=[form.get(f"{config_field}__c{i}") for i in (1, 2, 3)],
         scope=form.get(f"{config_field}__scope"),
         noise_size=form.get(f"{config_field}__noise_size"),
         noise_intensity=form.get(f"{config_field}__noise_intensity"),
         randomize_colors=form.get(f"{config_field}__randomize_colors") == "1",
-        randomize_positions=form.get(f"{config_field}__randomize_positions") == "1",
-        # Animation is opt-out — only the explicit "1" disables motion.
-        # encode_config drops the field entirely when animate=True so
-        # the JSON stays minimal for the common case.
-        animate=False if form.get(f"{config_field}__animate_off") == "1" else True,
-        # Pastel-strength slider (0-100). 0 = off; higher values
-        # increasingly soften the palette in light mode. encode_config
-        # normalises the raw form value via normalize_pastel_strength
-        # (also accepts legacy '1' booleans → full strength) and drops
-        # the field entirely when 0 so the JSON stays minimal.
-        pastel_light=form.get(f"{config_field}__pastel_light"),
-        # Per-preset knobs, validated + default-dropped against the
-        # active preset's spec inside encode_config.
-        knobs=_knobs, preset_key=_preset_key,
-        # Legacy single-flag input still accepted on the off-chance an
-        # older form posts it — encode_config maps it to both new flags.
         randomize=form.get(f"{config_field}__randomize") == "1" or None,
     )
     return _json.dumps(cfg) if cfg else None
@@ -11569,41 +11568,25 @@ def frontend_template_settings_save(kind, key):
     except (ValueError, TypeError):
         _knobs = None
     dynbg_cfg = _dynbg.encode_config(
-        overlay_key=request.form.get("bg_dynbg_config_json__overlay"),
-        colors=[request.form.get(f"bg_dynbg_config_json__c{i}") for i in (1, 2, 3)],
-        scope=request.form.get("bg_dynbg_config_json__scope"),
-        noise_size=request.form.get("bg_dynbg_config_json__noise_size"),
-        noise_intensity=request.form.get("bg_dynbg_config_json__noise_intensity"),
-        randomize_colors=request.form.get("bg_dynbg_config_json__randomize_colors") == "1",
+        modes=request.form.get("bg_dynbg_config_json__modes"),
         randomize_positions=request.form.get("bg_dynbg_config_json__randomize_positions") == "1",
         animate=False if request.form.get("bg_dynbg_config_json__animate_off") == "1" else True,
-        # Strength slider 0-100; encode_config normalises legacy
-        # booleans + clamps the int. Raw value passed through here.
-        pastel_light=request.form.get("bg_dynbg_config_json__pastel_light"),
         knobs=_knobs, preset_key=dyn_key,
     )
-    if dynbg_cfg.get("overlay"):
-        leaf["bg_dynbg_overlay"] = dynbg_cfg["overlay"]
-    if dynbg_cfg.get("colors"):
-        leaf["bg_dynbg_colors"] = dynbg_cfg["colors"]
-    if dynbg_cfg.get("overlay_scope"):
-        leaf["bg_dynbg_overlay_scope"] = dynbg_cfg["overlay_scope"]
-    if dynbg_cfg.get("overlay_size") is not None:
-        leaf["bg_dynbg_overlay_size"] = dynbg_cfg["overlay_size"]
-    if dynbg_cfg.get("overlay_intensity") is not None:
-        leaf["bg_dynbg_overlay_intensity"] = dynbg_cfg["overlay_intensity"]
-    if dynbg_cfg.get("randomize_colors"):
-        leaf["bg_dynbg_randomize_colors"] = True
-    if dynbg_cfg.get("randomize_positions"):
-        leaf["bg_dynbg_randomize_positions"] = True
+    # Per-mode block (colours / randomise / saturation / intensity /
+    # texture for light AND dark). The template dict builders pass it
+    # straight through to decode_config.
+    if dynbg_cfg.get("modes"):
+        leaf["bg_dynbg_modes"] = dynbg_cfg["modes"]
+        # Legacy "any texture configured?" marker — the list templates
+        # gate on `bg_dynamic_key or bg_dynbg_overlay` to decide whether
+        # the per-template settings drive the surface, so keep it set
+        # when either mode carries an overlay.
+        _any_ov = next((m.get("overlay") for m in dynbg_cfg["modes"].values() if m.get("overlay")), None)
+        if _any_ov:
+            leaf["bg_dynbg_overlay"] = _any_ov
     if dynbg_cfg.get("animate") is False:
         leaf["bg_dynbg_animate"] = False
-    if dynbg_cfg.get("pastel_light"):
-        # Persist as the int strength (0-100). decode_config returns
-        # an int; legacy True values previously stored here keep
-        # behaving as full-strength because normalize_pastel_strength
-        # at the consumer side coerces ``True`` → 100.
-        leaf["bg_dynbg_pastel_light"] = dynbg_cfg["pastel_light"]
     if dynbg_cfg.get("knobs"):
         leaf["bg_dynbg_knobs"] = dynbg_cfg["knobs"]
     # Classic blog detail toggles for the right-side rail. Stored
@@ -16680,6 +16663,22 @@ def media_download(mid):
 def media_info(mid):
     m = db.session.get(MediaItem, mid) or abort(404)
     return jsonify(_media_json(m))
+
+
+@bp.route("/dynbg/patterns.json")
+@login_required
+def dynbg_patterns_json():
+    """The Pattern-tile motif catalogue (vendored from Pattern Monster,
+    MIT) for the picker's live preview. ~1MB, so it's fetched lazily
+    the first time the preset is selected rather than stamped into
+    every admin page alongside the preset caps."""
+    from . import dynbg as _dynbg
+    from flask import jsonify
+    resp = jsonify({"source": _dynbg.PATTERNS_SOURCE,
+                    "mode_attrs": _dynbg.PATTERN_MODE_ATTRS,
+                    "patterns": _dynbg.PATTERNS})
+    resp.headers["Cache-Control"] = "private, max-age=3600"
+    return resp
 
 
 @bp.route("/files/images.json")

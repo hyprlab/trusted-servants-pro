@@ -49,15 +49,13 @@
 
     // ── Dynbg trigger field plumbing ───────────────────────────
     // The `dynbg_trigger` macro emits hidden inputs by NAME
-    // (bg_dynamic_key + bg_dynbg_config_json__overlay / __c1 ..
-    // __c3 / __scope / __noise_size / __noise_intensity /
-    // __randomize_colors / __randomize_positions / __animate_off)
-    // because the homepage-style admin save handler consumes them
-    // by name. Per-block hero saves through blocks_json, so we
-    // need to tag the key input with `data-hero-field` so readModal
-    // picks it up, AND we need to fold the 9 config sub-inputs
-    // into the single `bg_dynbg_config_json` string the public
-    // renderer reads. The collection happens inside readDynbgFields
+    // (bg_dynamic_key + bg_dynbg_config_json__modes / __animate_off /
+    // __knobs) because the
+    // homepage-style admin save handler consumes them by name.
+    // Per-block hero saves through blocks_json, so we need to tag
+    // the key input with `data-hero-field` so readModal picks it
+    // up, AND we need to fold the config sub-inputs into the single
+    // `bg_dynbg_config_json` string the public renderer reads. The collection happens inside readDynbgFields
     // below; the dynbg picker already dispatches a bubbling
     // `change` event on the trigger inputs after Save, so our
     // document-level listener picks up the edit automatically.
@@ -139,40 +137,29 @@
         data[key] = inp.value;
       }
     });
-    // Dynbg config — combine the 9 hidden sub-inputs the picker
-    // macro emits (`bg_dynbg_config_json__overlay` / `__c1..__c3` /
-    // `__scope` / `__noise_size` / `__noise_intensity` /
-    // `__randomize_colors` / `__randomize_positions` / `__animate_off`)
-    // into the single JSON string the public renderer expects in
-    // `bg_dynbg_config_json`. Mirrors `_dynbg_config_from_form` in
-    // routes.py. Drops empty values so the JSON stays minimal.
+    // Dynbg config — combine the picker macro's hidden sub-inputs
+    // (`bg_dynbg_config_json__modes` / `__animate_off` / `__knobs`)
+    // into the single JSON string the
+    // public renderer expects in `bg_dynbg_config_json`. Mirrors
+    // `_dynbg_config_from_form` in routes.py. Drops empty values so
+    // the JSON stays minimal.
     function _dyn(name) {
       const inp = modal.querySelector('input[name="bg_dynbg_config_json__' + name + '"]');
       return inp ? (inp.value || '').trim() : '';
     }
     const _dynCfg = {};
-    const _dynOverlay = _dyn('overlay');
-    if (_dynOverlay) _dynCfg.overlay = _dynOverlay;
-    const _dynColors = [_dyn('c1'), _dyn('c2'), _dyn('c3')]
-      .filter(c => /^#[0-9a-fA-F]{6}$/.test(c));
-    if (_dynColors.length) _dynCfg.colors = _dynColors;
-    const _dynScope = _dyn('scope');
-    if (_dynScope && _dynScope !== 'all') _dynCfg.overlay_scope = _dynScope;
-    const _dynNoiseSize = _dyn('noise_size');
-    if (_dynNoiseSize) {
-      const n = parseFloat(_dynNoiseSize);
-      if (!isNaN(n)) _dynCfg.overlay_size = n;
+    // Per-mode block (light/dark colours, randomise-colours,
+    // saturation, intensity, texture) arrives as one JSON blob.
+    const _dynModes = _dyn('modes');
+    if (_dynModes) {
+      try {
+        const m = JSON.parse(_dynModes);
+        if (m && typeof m === 'object' && Object.keys(m).length) _dynCfg.modes = m;
+      } catch (_) { /* malformed → ignore */ }
     }
-    const _dynNoiseInt = _dyn('noise_intensity');
-    if (_dynNoiseInt) {
-      const n = parseFloat(_dynNoiseInt);
-      if (!isNaN(n)) _dynCfg.overlay_intensity = n;
-    }
-    if (_dyn('randomize_colors') === '1') _dynCfg.randomize_colors = true;
-    if (_dyn('randomize_positions') === '1') _dynCfg.randomize_positions = true;
     if (_dyn('animate_off') === '1') _dynCfg.animate = false;
-    if (_dyn('pastel_light') === '1') _dynCfg.pastel_light = true;
-    // Per-preset knobs arrive as one JSON blob in the `__knobs` input.
+    // Per-preset knobs (motion speed, dot size/gap, …) arrive as one
+    // JSON blob in the `__knobs` input.
     const _dynKnobs = _dyn('knobs');
     if (_dynKnobs) {
       try {
@@ -343,18 +330,15 @@
         let cfg = {};
         try { cfg = JSON.parse(data.bg_dynbg_config_json || '{}') || {}; }
         catch (_) { cfg = {}; }
-        const colors = Array.isArray(cfg.colors) ? cfg.colors : [];
+        // Per-mode block; configs saved before the light/dark split
+        // carry flat keys instead — expand them so the picker opens
+        // with both modes populated.
+        const modes = window.dynbgModesFromConfig ? window.dynbgModesFromConfig(cfg)
+          : ((cfg.modes && typeof cfg.modes === 'object') ? cfg.modes : null);
         window.applyDynbgTrigger(dynTrigger, {
           key: data.bg_dynamic_key || '',
-          overlay: cfg.overlay || '',
-          colors: [colors[0] || '', colors[1] || '', colors[2] || ''],
-          scope: cfg.overlay_scope || '',
-          noiseSize: cfg.overlay_size != null ? String(cfg.overlay_size) : '',
-          noiseIntensity: cfg.overlay_intensity != null ? String(cfg.overlay_intensity) : '',
-          randomizeColors: !!cfg.randomize_colors,
-          randomizePositions: !!cfg.randomize_positions,
+          modes: modes || '',
           animateOff: cfg.animate === false,
-          pastelLight: !!cfg.pastel_light,
           knobs: (cfg.knobs && typeof cfg.knobs === 'object') ? cfg.knobs : {},
         });
       }
@@ -425,8 +409,22 @@
     try { _syncPreviewInner(); }
     catch (err) { console.warn('[page-hero-modal] syncPreview failed', err); }
   }
+  // Which theme the preview pane is showing. The public hero renders
+  // differently in dark mode — its own backdrop and heading gradient,
+  // plus the dynamic background's dark-mode palette / tone / texture —
+  // so the pane can be flipped independently of the admin's own theme.
+  function previewTheme() {
+    const r = modal.querySelector('[data-hero-preview-theme]:checked');
+    return r && r.value === 'dark' ? 'dark' : 'light';
+  }
   function _syncPreviewInner() {
     if (!preview.section) return;
+    // `.fe-hero--force-dark` applies the hero's dark cluster from
+    // frontend.css to this one section; `.fe-megamenu-force-dark` does
+    // the same for the dynbg recipes' dark rules.
+    const dark = previewTheme() === 'dark';
+    preview.section.classList.toggle('fe-hero--force-dark', dark);
+    preview.section.classList.toggle('fe-megamenu-force-dark', dark);
     // ── Text content ───────────────────────────────────────────
     const heading = _val('heading') || 'You are not alone.';
     const sub = _val('subheading') || 'Find meetings, connect with your community.';
@@ -522,25 +520,101 @@
       let cfg = {};
       try { cfg = JSON.parse(blockData.bg_dynbg_config_json || '{}') || {}; }
       catch (_) { cfg = {}; }
-      const colors = Array.isArray(cfg.colors) ? cfg.colors : [];
-      for (let i = 0; i < 3; i++) {
+      // Preview the block for the pane's selected theme (palette,
+      // saturation, colour fill, texture, pattern settings) exactly
+      // like the public render + picker preview for that mode.
+      // Configs saved before the light/dark split carry flat keys —
+      // expand them.
+      const modes = window.dynbgModesFromConfig ? window.dynbgModesFromConfig(cfg)
+        : ((cfg.modes && typeof cfg.modes === 'object') ? cfg.modes : null);
+      const pm = previewTheme();
+      const L = (modes && modes[pm] && typeof modes[pm] === 'object') ? modes[pm] : {};
+      let colors = Array.isArray(L.colors) ? L.colors : [];
+      // Random / unset palette: the card's server-rendered
+      // `.fe-dynbg-picker-thumb` wrapper carries a sample
+      // `--fe-dynbg-cN` palette inline (dynbg_thumb_style). Use it
+      // as the seed so it flows through the same tone path below —
+      // mirrors the public render, where resolve_colors() rolls a
+      // random palette and re-saturates it. Without this the preview
+      // fell back to the preset's brand colours, which the sliders
+      // can't touch, so it looked dead whenever "random colours" was on.
+      if (L.randomize_colors || !colors.some(Boolean)) {
+        const thumb = card.querySelector('.fe-dynbg-picker-thumb');
+        colors = [1, 2, 3, 4, 5, 6].map(i => thumb ? (thumb.style.getPropertyValue('--fe-dynbg-c' + i) || '').trim() : '');
+      }
+      // Missing keys = 100 (full vivid).
+      const satL = isFinite(parseInt(L.sat, 10)) ? Math.max(0, Math.min(100, parseInt(L.sat, 10))) : 100;
+      const brightL = isFinite(parseInt(L.bright, 10)) ? Math.max(0, Math.min(200, parseInt(L.bright, 10))) : 100;
+      const fillL = isFinite(parseInt(L.fill, 10)) ? Math.max(0, Math.min(100, parseInt(L.fill, 10))) : 0;
+      const soften = window.dynbgSaturateHex ? c => window.dynbgSaturateHex(c, satL, brightL) || c : c => c;
+      preview.section.style.setProperty('--fe-dynbg-fill', String(fillL / 100));
+      // Pattern-tile per-mode settings for light mode (the admin shell).
+      ['--fe-dynbg-pat-opacity', '--fe-dynbg-pat-bg2', '--fe-dynbg-pat-bg-angle']
+        .forEach(v => preview.section.style.removeProperty(v));
+      if (key === 'pattern-tile') {
+        if (L.pat_opacity != null && L.pat_opacity !== 100) preview.section.style.setProperty('--fe-dynbg-pat-opacity', String(L.pat_opacity / 100));
+        if (L.pat_bg === 'gradient') preview.section.style.setProperty('--fe-dynbg-pat-bg2', 'var(--fe-dynbg-c6, var(--fe-dynbg-c5, #e2e8f0))');
+        if (L.pat_bg_angle != null && L.pat_bg_angle !== 135) preview.section.style.setProperty('--fe-dynbg-pat-bg-angle', L.pat_bg_angle + 'deg');
+      }
+      // Per-preset knobs (motion speed, dot size/gap, …). These are
+      // shared across modes and live at the config's top level. Clear
+      // the preset's whole var set first so a knob returned to its
+      // default doesn't linger from a previous sync.
+      if (window.dynbgKnobVarNames) {
+        window.dynbgKnobVarNames(key).forEach(v => preview.section.style.removeProperty(v));
+      }
+      if (window.dynbgKnobVars && cfg.knobs && typeof cfg.knobs === 'object') {
+        window.dynbgKnobVars(key, cfg.knobs).forEach(decl => {
+          const i = decl.indexOf(':');
+          if (i > 0) preview.section.style.setProperty(decl.slice(0, i).trim(),
+                                                       decl.slice(i + 1).replace(/;$/, '').trim());
+        });
+      }
+      for (let i = 0; i < 6; i++) {
         if (colors[i]) {
-          preview.section.style.setProperty('--fe-dynbg-c' + (i + 1), colors[i]);
+          preview.section.style.setProperty('--fe-dynbg-c' + (i + 1), soften(colors[i]));
         } else {
           preview.section.style.removeProperty('--fe-dynbg-c' + (i + 1));
         }
       }
-      // Inject the overlay layer (noise-grain / scanlines / linen /
-      // etc.) when the admin picked one. The overlay card holds the
-      // exact markup the public renderer would emit.
-      if (cfg.overlay) {
+      // The catalog thumb we cloned carries whatever motif the server
+      // randomly drew for the tile — rebuild the pattern preset's
+      // layers for the motif THIS block actually saved.
+      if (key === 'pattern-tile' && window.dynbgPatternLayers) {
+        clone.innerHTML = '';
+        // The thumb we cloned carries ITS motif's tile size inline; it
+        // would outrank anything set on the section, so the chosen
+        // motif's size goes on the clone itself.
+        clone.removeAttribute('style');
+        const kn = (cfg.knobs && typeof cfg.knobs === 'object') ? cfg.knobs : {};
+        window.dynbgPatternLayers(kn.pattern || 'random', kn.weight != null ? kn.weight : 2)
+          .then(pat => {
+            if (!clone.isConnected) return;  // a later sync replaced us
+            if (pat.w) {
+              clone.style.setProperty('--fe-dynbg-pat-w', pat.w + 'px');
+              clone.style.setProperty('--fe-dynbg-pat-h', pat.h + 'px');
+            }
+            pat.urls.forEach((u, i) => {
+              const sp = document.createElement('span');
+              sp.className = 'fe-dynbg-pattern';
+              sp.style.setProperty('--_db-pat-url', "url('" + u + "')");
+              sp.style.setProperty('--_db-pat-ink', 'var(--_db-ink' + (i + 1) + ')');
+              clone.appendChild(sp);
+            });
+          });
+      }
+      // Inject the light-mode overlay layer (noise-grain / scanlines /
+      // linen / etc.) when the admin picked one. The picker's overlay
+      // strip holds the exact markup the public renderer would emit.
+      if (L.overlay) {
         const oCard = document.querySelector(
-          '#dynbg-picker-modal [data-dynbg-modal-overlay-card][data-dynbg-overlay-key="' +
-          CSS.escape(cfg.overlay) + '"]');
+          '#dynbg-picker-modal [data-dynbg-mode-overlay-card][data-dynbg-overlay-key="' +
+          CSS.escape(L.overlay) + '"]');
         if (oCard) {
           const oThumb = oCard.querySelector('.fe-dynbg-picker-thumb .fe-dynbg-overlay');
           if (oThumb) {
             const oClone = oThumb.cloneNode(true);
+            if (L.overlay_scope === 'bg') oClone.classList.add('fe-dynbg-overlay--bg-only');
             preview.section.appendChild(oClone);
           }
         }
@@ -1167,14 +1241,19 @@
   function isInModal(target) {
     return target && target.closest && target.closest('#page-hero-edit-modal');
   }
+  // The preview theme switch is view-only: repaint, but never persist
+  // or dirty the page for it.
+  const isPreviewControl = (t) => t && t.matches && t.matches('[data-hero-preview-theme]');
   document.addEventListener('input', (e) => {
     if (!isInModal(e.target)) return;
+    if (isPreviewControl(e.target)) { syncPreview(); return; }
     persistModalToBlock();
     flagDirty();
     syncPreview();
   }, true);
   document.addEventListener('change', (e) => {
     if (!isInModal(e.target)) return;
+    if (isPreviewControl(e.target)) { syncPreview(); return; }
     persistModalToBlock();
     flagDirty();
     syncPreview();

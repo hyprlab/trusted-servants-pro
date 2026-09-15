@@ -17,7 +17,10 @@
        `be-color-cluster` / `be-color-text` (block-editor wires its
        own picker via attachTokenButton()).
 
-   To opt out for a single input: add ``data-no-token-picker``.
+   To opt out for a single input: add ``data-no-token-picker``. To keep
+   the 🎨 button but drop the read-only hex caption (because the input
+   already has its own editable hex field beside it): add
+   ``data-dt-no-caption``.
 
    This partial is safe to include multiple times per page — the JS
    guards against re-mounting via a window-level flag.
@@ -240,8 +243,10 @@
     input.addEventListener('input', refresh);
     input.addEventListener('change', refresh);
     // Insert immediately after the input. Order: input → 🎨 → hex → chip.
+    // Inputs that own an editable hex field opt out of the caption.
     var anchor = input;
-    [btn, hexEl, chipEl].forEach(function (el) {
+    var parts = input.hasAttribute('data-dt-no-caption') ? [btn, chipEl] : [btn, hexEl, chipEl];
+    parts.forEach(function (el) {
       anchor.insertAdjacentElement('afterend', el);
       anchor = el;
     });

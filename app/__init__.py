@@ -884,6 +884,11 @@ def create_app():
     app.jinja_env.globals["dynbg_colors_css"] = _dynbg.colors_to_css_vars
     app.jinja_env.globals["dynbg_resolve_colors"] = _dynbg.resolve_colors
     app.jinja_env.globals["dynbg_resolve_positions"] = _dynbg.resolve_positions_css
+    # Storage-shape (non-default only) re-encode of a decoded `modes`
+    # block — the picker trigger stamps this as its JSON blob so a
+    # legacy single-mode config round-trips in the per-mode shape.
+    app.jinja_env.globals["dynbg_encode_modes"] = (
+        lambda modes: _dynbg.normalize_modes(modes, fill_defaults=False))
     app.jinja_env.globals["dynbg_noise_url"] = _dynbg.noise_grain_data_url
     # Per-render randomised inline-style for a preset thumbnail (fresh
     # palette + positions each load) — drives the picker grid thumbs.
@@ -891,6 +896,10 @@ def create_app():
     # Per-preset knob CSS-vars (dot size/gap, line angle/thickness, …)
     # stamped on a surface's dynbg-host so the recipe reads them.
     app.jinja_env.globals["dynbg_knobs_css"] = _dynbg.knobs_to_css_vars
+    # Pattern-tile: the chosen motif is encoded into a mask data-URL at
+    # render time (with the line-weight knob baked in), so "random"
+    # spawns a different motif on every page load.
+    app.jinja_env.globals["dynbg_pattern_layers"] = _dynbg.pattern_mask_layers
     # Per-preset capability spec (which Options controls + knobs apply
     # to each background) — the modal stamps this as JSON to drive
     # show/hide + slider rendering. Also the overlay Size/Intensity

@@ -64,6 +64,20 @@
 
   <div class="hero-full-preview-clip">
     <p class="hero-full-preview-label muted smaller">Live preview</p>
+    {# Preview theme switch. The public hero renders differently in
+       dark mode (its own backdrop, heading gradient, and the dynamic
+       background's dark-mode palette / tone / texture); this lets the
+       admin check both without changing the system theme. #}
+    <div class="nav-megalink-seg hero-full-preview-theme" role="radiogroup" aria-label="Preview theme">
+      <label class="nav-megalink-seg-opt">
+        <input type="radio" name="__hero_preview_theme" value="light" data-hero-preview-theme checked>
+        <span>Light</span>
+      </label>
+      <label class="nav-megalink-seg-opt">
+        <input type="radio" name="__hero_preview_theme" value="dark" data-hero-preview-theme>
+        <span>Dark</span>
+      </label>
+    </div>
     {# Inline the same design-token CSS variables the public `<body>`
        carries so `.fe-btn-primary` etc. resolve to the admin's chosen
        tokens (instead of the in-CSS fallbacks like `var(--fe-ink)`). #}

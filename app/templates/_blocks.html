@@ -803,12 +803,11 @@
                               'overlay_size': d.get('bg_dynbg_overlay_size'),
                               'overlay_intensity': d.get('bg_dynbg_overlay_intensity'),
                               'randomize_colors': d.get('bg_dynbg_randomize_colors') or d.get('bg_dynbg_randomize'),
-                              'randomize_positions': d.get('bg_dynbg_randomize_positions') or d.get('bg_dynbg_randomize')} -%}
+                              'randomize_positions': d.get('bg_dynbg_randomize_positions') or d.get('bg_dynbg_randomize'),
+                              'modes': d.get('bg_dynbg_modes')} -%}
   {%- if _bdyn_active -%}
-    {%- set _bdyn_colors = dynbg_resolve_colors(_bdyn_pseudo_cfg) -%}
-    {%- for _c in _bdyn_colors -%}
-      {%- set _ = _styles.append('--fe-dynbg-c' ~ loop.index ~ ': ' ~ _c) -%}
-    {%- endfor -%}
+    {%- set _bdyn_vars = dynbg_colors_css(dynbg_resolve_colors(_bdyn_pseudo_cfg), _bdyn_pseudo_cfg) -%}
+    {%- if _bdyn_vars -%}{%- set _ = _styles.append(_bdyn_vars) -%}{%- endif -%}
     {%- set _bdyn_pos = dynbg_resolve_positions(_bdyn_pseudo_cfg, d.get('bg_dynamic_key')) -%}
     {%- if _bdyn_pos -%}{%- set _ = _styles.append(_bdyn_pos) -%}{%- endif -%}
   {%- endif -%}
