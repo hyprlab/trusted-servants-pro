@@ -318,6 +318,130 @@ html[data-theme="dark"] .fe-utility-bar.is-live { background: #d6b000; }
   background: rgba(0,0,0,0.12); }
 .fe-utility-bar.is-live .fe-theme-toggle:hover { background: rgba(0,0,0,0.22); }
 
+/* ── Desktop collision guard (overflow popover) ───────────────────────
+   The desktop bar is a fixed 3-column grid, and each side wraps — so a
+   side's min-content width is just its widest pill and the rest of the
+   row spills into the centre column when a long live-meeting name eats
+   the space. The script in `_utility_bar.html` measures the row and
+   folds whole side items into the popover below until it fits; these
+   rules are the chrome that fold needs (plus the last-resort ellipsis).
+   Everything here is inert until the script unhides a trigger. */
+.fe-utility-bar { position: relative; }
+
+/* Trigger — same round pill as the theme toggle / collapsed container so
+   the bar's icon chrome reads as one matched set. */
+.fe-utility-overflow-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; width: 30px; height: 30px;
+  background: rgba(255, 255, 255, 0.12); color: inherit;
+  border: 0; padding: 0; border-radius: 999px; cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+.fe-utility-overflow-btn[hidden] { display: none; }
+.fe-utility-overflow-btn:hover,
+.fe-utility-overflow-btn[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.24); transform: scale(1.04);
+}
+.fe-utility-overflow-btn .icon { width: 16px; height: 16px; }
+.fe-utility-bar.is-live .fe-utility-overflow-btn {
+  color: #111; background: rgba(0, 0, 0, 0.12);
+}
+.fe-utility-bar.is-live .fe-utility-overflow-btn:hover,
+.fe-utility-bar.is-live .fe-utility-overflow-btn[aria-expanded="true"] {
+  background: rgba(0, 0, 0, 0.24);
+}
+
+/* Popover — hangs off the bar (not the inner strip, which clips on
+   mobile), positioned horizontally by the script. */
+.fe-utility-overflow-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 80;
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 190px; max-width: min(320px, calc(100vw - 16px));
+  padding: 6px;
+  background: #fff; color: #111;
+  border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 12px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18);
+  font-size: 0.875rem; font-weight: 500;
+}
+.fe-utility-overflow-panel[hidden] { display: none; }
+/* Folded items keep their DOM identity — only their layout changes:
+   pills become full-width menu rows stacked vertically. Selectors are
+   prefixed with `.fe-utility-bar` so they outrank the `.is-live`
+   container rules above without reaching for !important. */
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-mobile-item,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-container {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 4px; width: 100%;
+}
+/* A container with a collapsed_icon emits both variants; inside the
+   popover we always want the expanded one, live or not. */
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-container--collapsed { display: none; }
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-container--live-expanded { display: flex; }
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-btn,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-link,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-text {
+  justify-content: flex-start; width: 100%;
+  padding: 8px 10px; border-radius: 8px;
+  background: transparent; color: inherit; font-weight: 600;
+}
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-btn:hover,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-link:hover {
+  background: rgba(0, 0, 0, 0.06); text-decoration: none;
+}
+/* Labelled items each claim their own full-width menu row (above);
+   fixed-size round chrome that rode along inside a folded container keeps
+   its intrinsic size and flows together on a row of its own. */
+.fe-utility-bar .fe-utility-overflow-panel .fe-theme-toggle,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-search-btn,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-icon-only {
+  flex: 0 0 auto; margin-left: 2px;
+}
+html[data-theme="dark"] .fe-utility-overflow-panel,
+body.fe-frontend-force-dark .fe-utility-overflow-panel {
+  background: var(--fe-dm-surface, #131a33);
+  color: var(--fe-dm-text, #e2e8f0);
+  border-color: var(--fe-dm-border, #1f2a44);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.5);
+}
+html[data-theme="dark"] .fe-utility-bar .fe-utility-overflow-panel .fe-utility-btn:hover,
+html[data-theme="dark"] .fe-utility-bar .fe-utility-overflow-panel .fe-utility-link:hover,
+body.fe-frontend-force-dark .fe-utility-bar .fe-utility-overflow-panel .fe-utility-btn:hover,
+body.fe-frontend-force-dark .fe-utility-bar .fe-utility-overflow-panel .fe-utility-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 721px) {
+  /* Last resort: everything foldable is already folded and the row still
+     doesn't fit. Hand the leftover space to the centre column and let the
+     meeting name ellipsise — never overlap. */
+  .fe-utility-bar.is-cramped .fe-utility-bar-inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .fe-utility-bar.is-cramped .fe-utility-live { flex-wrap: nowrap; min-width: 0; }
+  /* Only the meeting name gives ground — the label and the Join pill hold
+     their intrinsic width, otherwise the flex shrink wraps the CTA's own
+     text onto two lines and the bar grows a second row. */
+  .fe-utility-bar.is-cramped .fe-utility-live-label,
+  .fe-utility-bar.is-cramped .fe-utility-live-cta { flex: 0 0 auto; white-space: nowrap; }
+  .fe-utility-bar.is-cramped .fe-utility-live-name {
+    flex: 0 1 auto; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* Measuring state — each column at its natural max-content width with
+     every shrink/wrap fallback switched off, so the script reads what the
+     row WANTS rather than what it was squeezed into. Added and removed
+     synchronously; never painted. Must come after .is-cramped. */
+  .fe-utility-bar.is-measuring .fe-utility-bar-inner {
+    grid-template-columns: max-content max-content max-content;
+    justify-content: start;
+  }
+  .fe-utility-bar.is-measuring .fe-utility-bar-side { flex-wrap: nowrap; }
+  .fe-utility-bar.is-measuring .fe-utility-live { flex-wrap: nowrap; }
+  .fe-utility-bar.is-measuring .fe-utility-live-name {
+    overflow: visible; text-overflow: clip; max-width: none;
+  }
+}
+
 /* ── Mobile layout ────────────────────────────────────────────────────
    On narrow viewports the bar collapses to a single horizontal swipe
    strip: one snap point per item (or per whole side, depending on the

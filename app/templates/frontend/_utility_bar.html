@@ -190,6 +190,13 @@
             {{ render_item(it, _is_live) }}
           </div>
         {% endfor %}
+        {# Desktop collision guard. Stays hidden until the fit pass in the
+           script below folds one or more items into the popover because the
+           row (side items + live message) no longer fits the bar's width. #}
+        <button type="button" class="fe-utility-overflow-btn"
+                data-fe-utility-overflow="left" hidden
+                aria-expanded="false" aria-haspopup="true"
+                aria-label="More links" title="More links">{{ icon('more-horizontal') }}</button>
       </div>
       <div class="fe-utility-bar-center" data-mobile-key="live">
         {% if _is_live %}
@@ -205,6 +212,12 @@
         {% endif %}
       </div>
       <div class="fe-utility-bar-side fe-utility-bar-right">
+        {# Mirror of the left guard — sits on the side's INNER edge (nearest
+           the live message) so the folded items read as coming from there. #}
+        <button type="button" class="fe-utility-overflow-btn"
+                data-fe-utility-overflow="right" hidden
+                aria-expanded="false" aria-haspopup="true"
+                aria-label="More links" title="More links">{{ icon('more-horizontal') }}</button>
         {% for it in utility_bar.right %}
           <div class="fe-utility-mobile-item" data-mobile-key="right:{{ loop.index0 }}">
             {{ render_item(it, _is_live) }}
@@ -212,6 +225,13 @@
         {% endfor %}
       </div>
     </div>
+    {# Overflow popovers — one per side, empty until the desktop fit pass
+       moves real items into them (the items themselves are relocated, not
+       cloned, so there is never a duplicate in the DOM). #}
+    <div class="fe-utility-overflow-panel" data-fe-utility-overflow-panel="left"
+         role="group" aria-label="More links" hidden></div>
+    <div class="fe-utility-overflow-panel" data-fe-utility-overflow-panel="right"
+         role="group" aria-label="More links" hidden></div>
     {# Mobile swipe hints — same pulsing chevrons as the announcements
        omni bar (.fe-omni-scroll-hint) at half the pulse speed, pinned
        to the bar's outer edges outside the swipe strip's content. The
@@ -282,6 +302,224 @@
       setTimeout(updateHints, 140);
     }
 
+    // ── Desktop collision guard (overflow popover) ──
+    // On desktop the bar is a 3-column grid: left items | live message |
+    // right items. A long meeting name grows the centre column until the
+    // side items have nowhere left to go — and because each side wraps,
+    // its min-content width is only its WIDEST pill, so the rest of the
+    // row silently overflows its own column and collides with the live
+    // message instead of pushing anything.
+    //
+    // Fix: measure what the row actually wants against the width it has
+    // and, while it doesn't fit, fold whole side items into an overflow
+    // popover (the ⋯ button) one at a time, innermost-first — the item
+    // closest to the live message goes first so the outermost chrome
+    // (search / theme toggle) survives longest. Every pass starts from
+    // the fully-expanded state, so items come straight back out as soon
+    // as there's room again (window resize, meeting ends, name changes).
+    var GRID_GAP = 16;          // keep in sync with .fe-utility-bar-inner gap
+    var DESKTOP  = '(min-width: 721px)';
+    var leftSide  = bar.querySelector('.fe-utility-bar-left');
+    var rightSide = bar.querySelector('.fe-utility-bar-right');
+
+    function sideState(key, el){
+      if (!el) return null;
+      var btn   = el.querySelector('.fe-utility-overflow-btn');
+      var panel = bar.querySelector('[data-fe-utility-overflow-panel="' + key + '"]');
+      if (!btn || !panel) return null;
+      var items = [];
+      Array.prototype.forEach.call(el.children, function(c){
+        if (c.classList.contains('fe-utility-mobile-item')) items.push(c);
+      });
+      return {key: key, el: el, btn: btn, panel: panel, items: items};
+    }
+    // Left before right: the left side folds first, then the right.
+    var sides = [sideState('left', leftSide), sideState('right', rightSide)]
+                  .filter(function(s){ return s && s.items.length; });
+
+    function closePanel(s){
+      if (s.panel.hidden) return;
+      s.panel.hidden = true;
+      s.btn.setAttribute('aria-expanded', 'false');
+    }
+    function openPanel(s){
+      sides.forEach(closePanel);
+      s.panel.hidden = false;
+      s.btn.setAttribute('aria-expanded', 'true');
+      positionPanel(s);
+    }
+    // Centre the panel under its trigger, clamped inside the bar.
+    function positionPanel(s){
+      s.panel.style.left = '0px';
+      var br = bar.getBoundingClientRect();
+      var tr = s.btn.getBoundingClientRect();
+      var pw = s.panel.getBoundingClientRect().width;
+      var x  = (tr.left - br.left) + tr.width / 2 - pw / 2;
+      s.panel.style.left = Math.max(8, Math.min(x, br.width - pw - 8)) + 'px';
+    }
+
+    function restoreSide(s){
+      closePanel(s);
+      s.items.forEach(function(it){ s.el.appendChild(it); });
+      // Trigger always sits on the side's inner edge (nearest the centre).
+      if (s.key === 'right') s.el.insertBefore(s.btn, s.el.firstChild);
+      else s.el.appendChild(s.btn);
+      s.btn.hidden = true;
+    }
+    function foldItem(s, item){
+      s.panel.appendChild(item);
+      s.btn.hidden = false;
+    }
+    // Left-side items fold in reverse DOM order, so re-append whatever
+    // landed in the panel in its authored order — the popover then reads
+    // top-to-bottom exactly the way the admin arranged the bar.
+    function orderPanel(s){
+      s.items.forEach(function(it){
+        if (it.parentNode === s.panel) s.panel.appendChild(it);
+      });
+    }
+    // Only labelled content is worth folding; bare icon chrome (theme
+    // toggle, search button, an icon-only link) is as small as it gets and
+    // reads better left in place.
+    function foldable(item){
+      // A container already showing as a single collapsed icon (the
+      // live-mode helpline pill, say) is exactly as wide as the trigger
+      // that would replace it — folding it buys nothing, so skip it and
+      // let the pass reach a heavier neighbour instead.
+      var collapsed = item.querySelector('.fe-utility-container--collapsed');
+      if (collapsed && getComputedStyle(collapsed).display !== 'none') return false;
+      return !!item.querySelector('.fe-utility-btn, .fe-utility-link, .fe-utility-text');
+    }
+
+    function availWidth(){
+      var cs = getComputedStyle(strip);
+      return strip.clientWidth - (parseFloat(cs.paddingLeft) || 0)
+                               - (parseFloat(cs.paddingRight) || 0);
+    }
+    // What the row WANTS, measured behind an `is-measuring` class that puts
+    // every column at max-content so the wrap/ellipsis fallbacks can't
+    // understate it. The class is added and removed inside one synchronous
+    // block, so it never reaches the screen.
+    //
+    // `need` is NOT left + centre + right: the side columns are `1fr`
+    // each, so the grid hands them an EQUAL share of whatever the centre
+    // leaves behind. The WIDER side is what has to fit in that share —
+    // hence 2 x max(left, right). Measuring the plain sum instead reports
+    // "it fits" at widths where the heavier side is still being squeezed
+    // into a half-share it can't hold, and the bar silently wraps to two
+    // rows. The doubling is also what keeps the live message centred on
+    // the viewport rather than in the leftover gap.
+    function measure(){
+      bar.classList.add('is-measuring');
+      var l = leftSide  ? leftSide.getBoundingClientRect().width  : 0;
+      var c = center    ? center.getBoundingClientRect().width    : 0;
+      var r = rightSide ? rightSide.getBoundingClientRect().width : 0;
+      bar.classList.remove('is-measuring');
+      return {l: l, c: c, r: r, need: Math.max(l, r) * 2 + c + GRID_GAP * 2};
+    }
+
+    var fitting = false;
+    function fit(){
+      if (fitting || !strip || !sides.length) return;
+      fitting = true;
+      try {
+        // Every pass starts from the fully-expanded row, so this is a
+        // fresh decision rather than an accumulation of past ones.
+        sides.forEach(restoreSide);
+        bar.classList.remove('is-cramped');
+        // Mobile is a swipe strip — nothing can collide there.
+        if (!window.matchMedia(DESKTOP).matches) return;
+        var avail = availWidth();
+        if (avail <= 0) return;
+        var m = measure();
+        if (m.need <= avail) return;
+
+        // Each side's fold order: innermost item (nearest the live
+        // message) first, so the outermost chrome survives longest.
+        var pending = {};
+        sides.forEach(function(s){
+          pending[s.key] = s.key === 'left' ? s.items.slice().reverse()
+                                            : s.items.slice();
+        });
+        function nextFrom(key){
+          var s = null;
+          for (var i = 0; i < sides.length; i++) if (sides[i].key === key) s = sides[i];
+          var q = pending[key];
+          if (!s || !q) return null;
+          while (q.length && !foldable(q[0])) q.shift();   // zero-gain items
+          return q.length ? [s, q.shift()] : null;
+        }
+
+        // Fold from whichever side is currently WIDER — that's the side
+        // setting `need` (see measure()), so folding the other one would
+        // hide an item and buy nothing. Ties go to the left, which is
+        // where the labelled links usually live.
+        var guard = 0;
+        while (m.need > avail && guard++ < 24){
+          var pick = (m.r > m.l) ? (nextFrom('right') || nextFrom('left'))
+                                 : (nextFrom('left')  || nextFrom('right'));
+          if (!pick) break;
+          foldItem(pick[0], pick[1]);
+          m = measure();
+        }
+        sides.forEach(orderPanel);
+        // Nothing left to fold and it still doesn't fit (a very long name
+        // on a narrow desktop window): let the name ellipsise as the last
+        // resort so the row degrades gracefully instead of overlapping.
+        if (m.need > avail) bar.classList.add('is-cramped');
+      } finally { fitting = false; }
+    }
+
+    var fitPending = false;
+    function scheduleFit(){
+      if (fitPending) return;
+      fitPending = true;
+      requestAnimationFrame(function(){ fitPending = false; fit(); });
+    }
+
+    sides.forEach(function(s){
+      s.btn.addEventListener('click', function(e){
+        e.preventDefault(); e.stopPropagation();
+        if (s.panel.hidden) openPanel(s); else closePanel(s);
+      });
+      // Anything actioned inside the popover dismisses it (navigation,
+      // search modal, theme toggle).
+      s.panel.addEventListener('click', function(e){
+        if (e.target.closest && e.target.closest('a, button')) closePanel(s);
+      });
+    });
+    document.addEventListener('click', function(e){
+      sides.forEach(function(s){
+        if (s.panel.hidden) return;
+        if (s.panel.contains(e.target) || s.btn.contains(e.target)) return;
+        closePanel(s);
+      });
+    });
+    document.addEventListener('keydown', function(e){
+      if (e.key !== 'Escape') return;
+      sides.forEach(function(s){
+        if (!s.panel.hidden){ closePanel(s); s.btn.focus(); }
+      });
+    });
+    window.addEventListener('resize', scheduleFit);
+    if (window.ResizeObserver){
+      // Width-only: folding an item can change the bar's HEIGHT, and
+      // reacting to that would loop the fit pass against itself.
+      var lastFitW = -1;
+      new ResizeObserver(function(entries){
+        var w = entries[0].contentRect.width;
+        if (Math.abs(w - lastFitW) < 1) return;
+        lastFitW = w;
+        scheduleFit();
+      }).observe(strip);
+    }
+    // Webfonts land after first paint and change every pill's width.
+    if (document.fonts && document.fonts.ready){
+      document.fonts.ready.then(scheduleFit).catch(function(){});
+    }
+    scheduleFit();
+    setTimeout(scheduleFit, 140);
+
     // ── Live-meeting auto-refresh ──
     // Poll a tiny JSON endpoint so the LIVE: <meeting> badge appears,
     // updates, and clears on its own as online/hybrid meetings open and
@@ -332,6 +570,8 @@
         // A bar that exists only for the live badge collapses when idle.
         if (!hasStatic) bar.setAttribute('hidden', '');
       }
+      // Centre content just changed — re-run the desktop collision guard.
+      scheduleFit();
     }
     function poll(){
       fetch(POLL_URL, {headers: {'Accept': 'application/json'}, credentials: 'same-origin'})
