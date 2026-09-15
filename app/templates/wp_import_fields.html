@@ -101,7 +101,7 @@ Found {{ discovered|length }} custom field{{ '' if discovered|length == 1 else '
   .wpf-dest { display: flex; align-items: center; gap: .5rem; min-width: 0; }
   .wpf-dest-label { font-weight: 600; }
   .wpf-type-chip {
-    font-size: .68rem; padding: 1px 7px; border-radius: 999px;
+    font-size: var(--fs-3xs); padding: 1px 7px; border-radius: 999px;
     background: var(--panel-2, rgba(0,0,0,.05)); color: var(--muted, #64748b);
     font-family: ui-monospace, 'SF Mono', Menlo, monospace; flex: 0 0 auto;
   }
@@ -125,7 +125,7 @@ Found {{ discovered|length }} custom field{{ '' if discovered|length == 1 else '
   .wpf-discovered-list li { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
   .wpf-key {
     background: var(--panel, #fff); border: 1px solid var(--border, rgba(0,0,0,.1));
-    border-radius: 6px; padding: 1px 7px; font-size: .78rem;
+    border-radius: 6px; padding: 1px 7px; font-size: var(--fs-xs);
   }
   .wpf-sample { max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wpf-count { margin-left: auto; }

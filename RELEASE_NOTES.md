@@ -7,7 +7,14 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.1 — 2026-09-15 (latest) — Staging sync stops crying wolf
+## 2.19.2 — 2026-09-15 (latest) — Admin text, on one scale
+
+- **The admin's text is smaller and, for the first time, consistent.** Every size across the portal's admin screens was a little different from the next — sixty-four distinct sizes, several of them a fraction of a pixel apart. They now come from a single set of ten steps, so a heading is a heading and a caption is a caption wherever you are. Overall the type is a step down from where it was; screens hold more without feeling cramped.
+- **Buttons sit a step below body text**, which stops a row of buttons from shouting over the content it belongs to. Small filter pills stay smaller still.
+- **Dashboard widgets stopped mixing sizes.** "No pending requests." was rendering a size larger than "No accounts currently locked out." sitting right beside it in the same card; all the widget empty states match now, and the Access Requests card's two column titles match every other widget title.
+- **The Web Frontend Status widget is tidier.** On a narrower window the "Auto-hide app sidebar in Web Frontend" row was cut off mid-word, taking its ⓘ help button with it — it wraps to a second line now. That card was also missing its bottom border, and the two toggle cards sat too close together.
+
+## 2.19.1 — 2026-09-15 — Staging sync stops crying wolf
 
 - **The Staging sync panel on your Web Frontend page no longer says "Unreachable" when your Live site is fine.** It checks the connection every time the page loads, and a single slow name lookup — the step that turns your Live site's address into a number your server can dial — was enough for it to give up and declare the pairing broken. That's why testing the same connection a moment later in **Settings → Data → Frontend sync** worked: the second attempt went through. It now gives that first attempt a second try before reporting a problem.
 - **When it does report a problem, it tells you which problem.** The reason now appears under the status instead of only in a hover tooltip, and a failed address lookup says so rather than claiming your Live site can't be reached — different causes, different fixes. Genuinely wrong addresses still fail straight away rather than making you wait.

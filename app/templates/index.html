@@ -129,7 +129,7 @@
         <li><a href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}"><span>{{ m.name }}</span><span class="muted">{% if m.schedules %}{{ m.schedules[0].day_name[:3] }} {{ m.schedules[0].start_time }}{% endif %}</span></a></li>
         {% endfor %}
       </ul>
-      {% else %}<p class="muted">No meetings yet.</p>{% endif %}
+      {% else %}<p class="muted smaller">No meetings yet.</p>{% endif %}
     {% endcall %}
   {% endif %}
 
@@ -143,7 +143,7 @@
         <li><a href="{{ url_for('main.library_detail', slug=l.public_slug) }}"><span>{{ l.name }}</span><span class="muted">{{ l.items.count() }} files</span></a></li>
         {% endfor %}
       </ul>
-      {% else %}<p class="muted">No libraries yet.</p>{% endif %}
+      {% else %}<p class="muted smaller">No libraries yet.</p>{% endif %}
     {% endcall %}
   {% endif %}
 
@@ -157,7 +157,7 @@
         <li><a href="{{ url_for('public.public_file', filename=f.original_filename) }}" target="_blank"><span>{{ f.original_filename }}</span><span class="muted">{{ f.created_at.strftime('%b %d') }}</span></a></li>
         {% endfor %}
       </ul>
-      {% else %}<p class="muted">No files uploaded yet.</p>{% endif %}
+      {% else %}<p class="muted smaller">No files uploaded yet.</p>{% endif %}
     {% endcall %}
   {% endif %}
 
@@ -315,7 +315,7 @@
         </a>
       </div>
       {% else %}
-      <p class="muted">No release notes yet.</p>
+      <p class="muted smaller">No release notes yet.</p>
       {% endif %}
     {% endcall %}
   {% endif %}
@@ -328,7 +328,7 @@
                          badge_key='backups_failed',
                          badge_title='Targets currently failing') %}
       {% if not backup_summary or backup_summary.total == 0 %}
-      <p class="muted">No off-site backups configured yet.</p>
+      <p class="muted smaller">No off-site backups configured yet.</p>
       <div class="dash-backups-foot">
         <button type="button" class="btn btn-sm btn-primary" data-open-modal="backup-wizard-modal">
           {{ icon('plus') }} Set up your first backup
@@ -412,7 +412,7 @@
         {% endfor %}
       </ul>
       <div class="dash-deletions-foot muted smaller">Files are restorable for 30 days.</div>
-      {% else %}<p class="muted">Nothing in the recycle bin.</p>{% endif %}
+      {% else %}<p class="muted smaller">Nothing in the recycle bin.</p>{% endif %}
     {% endcall %}
   {% endif %}
 
@@ -447,7 +447,7 @@
         </li>
         {% endfor %}
       </ul>
-      {% else %}<p class="muted">No forms configured.</p>{% endif %}
+      {% else %}<p class="muted smaller">No forms configured.</p>{% endif %}
     {% endcall %}
   {% endif %}
 
@@ -464,7 +464,7 @@
           <li><a href="{{ url_for('main.watchtower_requests') }}"><span>{{ r.name }}</span><span class="muted">{{ r.created_at.strftime('%b %d') }}</span></a></li>
           {% endfor %}
         </ul>
-        {% else %}<p class="muted">No pending requests.</p>{% endif %}
+        {% else %}<p class="muted smaller">No pending requests.</p>{% endif %}
         <div class="access-requests-foot">
           <a href="{{ url_for('main.watchtower_requests') }}" class="btn btn-sm">View all requests</a>
         </div>

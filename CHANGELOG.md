@@ -6,6 +6,50 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.2] — 2026-09-15
+
+### Changed
+
+- **Admin typography runs off a ten-step scale.** `app.css` carried 64 distinct
+  `font-size` values across 708 declarations (12.4 / 12.48 / 12.8 / 13 / 13.12 /
+  13.4 / 13.6px all coexisting). Every numeric size in the admin stylesheet and
+  in the 19 admin templates that carry inline `<style>` blocks now resolves to
+  one of ten `--fs-*` tokens declared in `:root`: `3xs` 8.8px, `2xs` 10px, `xs`
+  11.2px (`.smaller`), `sm` 12.4px (buttons), `base` 13.6px (body, inputs,
+  table cells, nav), `md` 14.4px (card/widget titles), `lg` 16px (app title,
+  section headings), `xl` 20px, `2xl` 25.6px, `3xl` 32px. Sizes snapped to the
+  nearest step by ratio; the largest shift was ~11%. Two decorative glyphs (a
+  2.4rem drag affordance, a 100px file-picker hit target) and all `em`-based
+  sizes keep literal values. Net effect is a step down in size overall from
+  pre-2.19.2 — the base was 1rem, it is now 0.85rem.
+- **`.btn` and its contextual overrides use `--fs-sm`**, one step below body
+  text, across the base component, topbar top-actions (and the `select` paired
+  with them), modal buttons rendered from a `top_actions` block, the frontend /
+  footer save bars, the template picker, the nav mega-link delete form, tour
+  actions and the two upload `label.btn` rules. `.btn-sm` stays at `--fs-2xs`;
+  the oversized login and Zoom guide CTAs keep their own sizes.
+
+### Fixed
+
+- **Dashboard widget empty states no longer mix two sizes in one card.** The
+  eight `<p class="muted">` empty states in `index.html` inherited the body size
+  while their neighbours (Locked Accounts, Forms, Currently online) spelled out
+  `smaller`; they now all carry `smaller`. The Access Requests card's `.ar-title`
+  / `.locked-accounts-title` take the widget-title size when rendered inside a
+  `.dash-widget`, matching every other widget head.
+- **Settings/toggle row labels wrap instead of truncating.** `.u-name` inherits
+  `white-space: nowrap` + ellipsis from the fixed-width sidebar user chip; in a
+  narrow column (the Web Frontend Status widget below ~1030px) that silently ate
+  the tail of "Auto-hide app sidebar in Web Frontend" *and* the help chip riding
+  at the end of the label. `.special-page-info .u-name` now wraps.
+- **The last boxed row in a `.list` keeps its bottom border.** `.list
+  li:last-child { border-bottom: none }` outranks `.special-page-row`'s own
+  four-sided `border`, erasing the bottom edge of the final card — visible on
+  the Web Frontend Status widget's auto-hide toggle.
+- **The Status widget's two toggle cards have room between them.** Spacing moved
+  from a 4px bottom margin on each row to a 12px flex `gap` on the list, so the
+  last card stays flush with the divider below it.
+
 ## [2.19.1] — 2026-09-15
 
 ### Fixed
