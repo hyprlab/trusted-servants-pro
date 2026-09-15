@@ -7095,9 +7095,11 @@
       return el ? el.value : "";
     };
     function setPill(state, text, title) {
-      pill.className = "backup-status-pill backup-status-" + state;
+      // is-clickable is re-applied here because every state change rewrites
+      // className, and the pill doubles as the re-check button.
+      pill.className = "backup-status-pill backup-status-" + state + " is-clickable";
       pill.textContent = text;
-      pill.title = title || "";
+      pill.title = (title ? title + " " : "") + "(click to re-check)";
     }
     function showMsg(text, ok) {
       if (!msg) return;
@@ -7118,12 +7120,34 @@
       return r.json();
     }
 
-    // Live connection check on load (a real ping to the peer).
-    setPill("running", "Checking…");
-    post(root.dataset.pingUrl)
-      .then(d => d.ok ? setPill("ok", "Connected", d.message)
-                      : setPill("failed", "Unreachable", d.message))
-      .catch(() => setPill("failed", "Unreachable"));
+    // Live connection check on load (a real ping to the peer). A failure
+    // states its reason inline — the pill alone can't say whether the URL
+    // is wrong or the network just hiccuped — and the pill stays clickable
+    // so a transient blip is one click to re-check.
+    let checking = false;
+    function check() {
+      if (checking) return;
+      checking = true;
+      setPill("running", "Checking…");
+      if (msg) msg.hidden = true;
+      post(root.dataset.pingUrl)
+        .then(d => {
+          if (d.ok) { setPill("ok", "Connected", d.message); }
+          else { setPill("failed", "Unreachable", d.message); showMsg(d.message, false); }
+        })
+        .catch(err => {
+          setPill("failed", "Unreachable", err.message);
+          showMsg("Connection check failed: " + err.message, false);
+        })
+        .finally(() => { checking = false; });
+    }
+    pill.setAttribute("role", "button");
+    pill.setAttribute("tabindex", "0");
+    pill.addEventListener("click", check);
+    pill.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); check(); }
+    });
+    check();
 
     // Arm-then-confirm: first click reveals the danger label, second runs it.
     let armed = null, armTimer = null;
