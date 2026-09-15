@@ -2583,12 +2583,33 @@
         return s.classList.contains('fe-tplgrid-section');
       });
 
+    // Heading text WITHOUT the help chip. Each card's <h2> ends in a
+    // help chip (see _help_chip.html) whose tooltip body is a real,
+    // visually-hidden child node — so a plain `h2.textContent` returns
+    // the title with the whole help paragraph glued onto it, which is
+    // what landed in the row name and the modal title, rendered in the
+    // heading's own weight and size.
+    function headingText(el) {
+      if (!el) return '';
+      var clone = el.cloneNode(true);
+      clone.querySelectorAll('.heading-help').forEach(function (n) { n.remove(); });
+      return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+    // The card's blurb now lives in that same help chip's tooltip;
+    // older cards may still carry an inline `.muted.smaller` line.
+    function blurbText(section) {
+      var tip = section.querySelector(':scope > .card-head .heading-help .help-tooltip');
+      if (tip) return (tip.textContent || '').replace(/\s+/g, ' ').trim();
+      var legacy = section.querySelector(':scope > .card-head .muted.smaller');
+      return legacy ? (legacy.textContent || '').replace(/\s+/g, ' ').trim() : '';
+    }
+
     // Each section gets a stable key derived from the heading + the
     // surrounding form's action URL, so reorders in source / future
     // additions don't shuffle the saved index order.
     function keyFor(section) {
       var h = section.querySelector(':scope > .card-head h2, :scope > .card-head h3');
-      var heading = h ? (h.textContent || '').trim() : '';
+      var heading = headingText(h);
       var formAction = (section.querySelector('form') || {}).action || '';
       return (heading || 'card') + '|' + (formAction || '');
     }
@@ -2605,12 +2626,11 @@
     // entry in saved order trail in their source-declared order.
     var meta = sections.map(function (section, i) {
       var headEl = section.querySelector(':scope > .card-head h2');
-      var blurbEl = section.querySelector(':scope > .card-head .muted.smaller');
       return {
         section: section,
         key: keyFor(section),
-        heading: headEl ? (headEl.textContent || '').trim() : 'Template card ' + (i + 1),
-        blurb: blurbEl ? (blurbEl.textContent || '').trim() : '',
+        heading: headingText(headEl) || 'Template card ' + (i + 1),
+        blurb: blurbText(section),
         active: activeTplName(section),
       };
     });
