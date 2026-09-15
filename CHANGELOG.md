@@ -6,6 +6,18 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.3] — 2026-09-15
+
+### Changed
+
+- **The admin type scale steps up ~5%, anchored on a 0.9rem base.** Ten values
+  in `:root` and nothing else: `--fs-3xs` 0.575rem, `--fs-2xs` 0.65, `--fs-xs`
+  0.75, `--fs-sm` 0.825, `--fs-base` 0.9 (was 0.85), `--fs-md` 0.95, `--fs-lg`
+  1.05, `--fs-xl` 1.3, `--fs-2xl` 1.7, `--fs-3xl` 2.1. Steps were re-rounded to
+  clean rem values rather than multiplied through, so each moved 4–7% and the
+  ratios between them hold. Every `font-size` in the admin already resolved to a
+  token, so no rule outside the `:root` block changed.
+
 ## [2.19.2] — 2026-09-15
 
 ### Changed
