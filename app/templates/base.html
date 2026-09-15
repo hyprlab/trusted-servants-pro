@@ -2901,6 +2901,34 @@
 
    Catalog comes from app/dynbg.py via the dynbg_catalog() global,
    so adding a preset there appears here automatically. #}
+{# One catalog card per entry — shared by the picker's two grids
+   (current presets, then the kept-for-continuity ones). #}
+{% macro dynbg_cards(entries) -%}
+  {% for entry in entries %}
+  {# Each thumb carries a fresh random palette + positions
+     (dynbg_thumb_style) so the grid reads as a lively sampler;
+     re-rolled server-side on every page load. #}
+  <label class="fe-dynbg-picker-card" data-dynbg-modal-card data-dynbg-key="{{ entry.key }}">
+    <input type="radio" name="__dynbg_modal_pick" value="{{ entry.key }}">
+    <span class="fe-dynbg-picker-thumb" style="{{ dynbg_thumb_style(entry.key) }}">
+      {% with dynbg_key=entry.key %}{% include "frontend/_dynbg.html" %}{% endwith %}
+    </span>
+    <span class="fe-dynbg-picker-info">
+      {# Badge sits OUTSIDE `.fe-dynbg-picker-name`: the JS reads that
+         element's textContent for the trigger chip's label and the
+         live preview's caption, so a badge nested inside it shows up
+         as "Aurora blobs (classic) Classic". #}
+      <span class="fe-dynbg-picker-name-row">
+        <span class="fe-dynbg-picker-name">{{ entry.name }}</span>
+        {%- if entry.legacy %}<span class="fe-dynbg-picker-badge
+          {{- ' fe-dynbg-picker-badge--retiring' if entry.badge == 'Retiring' }}">{{ entry.badge or 'Classic' }}</span>{% endif %}
+      </span>
+      <span class="fe-dynbg-picker-desc muted small">{{ entry.description }}</span>
+    </span>
+  </label>
+  {% endfor %}
+{%- endmacro %}
+
 <div class="modal modal-lg" id="dynbg-picker-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
   <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="dynbg-picker-modal-title">
@@ -2966,24 +2994,40 @@
       </div>
 
       <section class="dynbg-modal-panel is-active" data-dynbg-modal-panel="background">
-        <div class="fe-dynbg-picker fe-dynbg-picker-md" id="dynbg-picker-modal-grid" role="radiogroup">
-          <label class="fe-dynbg-picker-card" data-dynbg-modal-card data-dynbg-key="">
-            <input type="radio" name="__dynbg_modal_pick" value="">
-            <span class="fe-dynbg-picker-thumb fe-dynbg-picker-thumb-none" aria-hidden="true">
-              <span class="fe-dynbg-picker-none-icon">∅</span>
-            </span>
-            <span class="fe-dynbg-picker-info">
-              <span class="fe-dynbg-picker-name">None</span>
-              <span class="fe-dynbg-picker-desc muted small">Solid colour or uploaded image only — no dynamic backdrop.</span>
-            </span>
-          </label>
-          {% for entry in dynbg_catalog() %}
-          {# The catalog's `legacy` entries sit last and get their own
-             heading + badge, so nobody picks one by accident thinking
-             it's a current preset. Two things land here: the pre-rework
-             versions of the soft recipes, and presets on their way out.
-             Each entry's `badge` says which. #}
-          {% if entry.legacy and not (loop.previtem and loop.previtem.legacy) %}
+        {# Two grids, one radiogroup: the presets to pick from, then the
+           kept-for-continuity ones behind a divider. They're separate
+           grids so each row's cards stretch across the full width on
+           their own — a single grid sizes its columns once for every
+           row, so a 4-card section stranded two empty tracks on the
+           right of the picker. `auto-fit` (not `auto-fill`) is the other
+           half: it collapses the tracks a row doesn't use so the `1fr`
+           spreads across the cards that exist.
+
+           The `dynbg-picker-modal-grid` id moves to the wrapper — the
+           block editor looks up catalog entries through it with a
+           DESCENDANT selector, so it still resolves. #}
+        <div id="dynbg-picker-modal-grid" role="radiogroup">
+          <div class="fe-dynbg-picker fe-dynbg-picker-md">
+            <label class="fe-dynbg-picker-card" data-dynbg-modal-card data-dynbg-key="">
+              <input type="radio" name="__dynbg_modal_pick" value="">
+              <span class="fe-dynbg-picker-thumb fe-dynbg-picker-thumb-none" aria-hidden="true">
+                <span class="fe-dynbg-picker-none-icon">∅</span>
+              </span>
+              <span class="fe-dynbg-picker-info">
+                <span class="fe-dynbg-picker-name">None</span>
+                <span class="fe-dynbg-picker-desc muted small">Solid colour or uploaded image only — no dynamic backdrop.</span>
+              </span>
+            </label>
+            {{ dynbg_cards(dynbg_catalog() | rejectattr('legacy') | list) }}
+          </div>
+
+          {# The catalog's `legacy` entries get their own heading + badge,
+             so nobody picks one by accident thinking it's a current
+             preset. Two things land here: the pre-rework versions of the
+             soft recipes, and presets on their way out. Each entry's
+             `badge` says which. #}
+          {%- set _legacy_entries = dynbg_catalog() | selectattr('legacy') | list -%}
+          {% if _legacy_entries %}
           <p class="fe-dynbg-picker-divider muted small">
             <b>Classic &amp; retiring</b> — kept so existing surfaces keep rendering,
             not a first choice for new work. <b>Classic</b> marks the version a preset
@@ -2992,29 +3036,10 @@
             out. Everything else (per-mode colours, tone, texture) works on them the
             same way.
           </p>
+          <div class="fe-dynbg-picker fe-dynbg-picker-md">
+            {{ dynbg_cards(_legacy_entries) }}
+          </div>
           {% endif %}
-          {# Each thumb carries a fresh random palette + positions
-             (dynbg_thumb_style) so the grid reads as a lively sampler;
-             re-rolled server-side on every page load. #}
-          <label class="fe-dynbg-picker-card" data-dynbg-modal-card data-dynbg-key="{{ entry.key }}">
-            <input type="radio" name="__dynbg_modal_pick" value="{{ entry.key }}">
-            <span class="fe-dynbg-picker-thumb" style="{{ dynbg_thumb_style(entry.key) }}">
-              {% with dynbg_key=entry.key %}{% include "frontend/_dynbg.html" %}{% endwith %}
-            </span>
-            <span class="fe-dynbg-picker-info">
-              {# Badge sits OUTSIDE `.fe-dynbg-picker-name`: the JS reads that
-                 element's textContent for the trigger chip's label and the
-                 live preview's caption, so a badge nested inside it shows up
-                 as "Aurora blobs (classic) Classic". #}
-              <span class="fe-dynbg-picker-name-row">
-                <span class="fe-dynbg-picker-name">{{ entry.name }}</span>
-                {%- if entry.legacy %}<span class="fe-dynbg-picker-badge
-                  {{- ' fe-dynbg-picker-badge--retiring' if entry.badge == 'Retiring' }}">{{ entry.badge or 'Classic' }}</span>{% endif %}
-              </span>
-              <span class="fe-dynbg-picker-desc muted small">{{ entry.description }}</span>
-            </span>
-          </label>
-          {% endfor %}
         </div>
       </section>
 
