@@ -12737,7 +12737,13 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
    (dynbg paints over the colour). */
 .fe-dynbg-picker {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  /* `auto-fit`, not `auto-fill`: both lay out the same number of
+     tracks, but auto-fit COLLAPSES the ones with no item in them, so
+     the `1fr` share is split across the cards that actually exist and
+     the row fills its width. With auto-fill the empty tracks kept their
+     share and a short row (the picker's four current presets) trailed
+     dead space on the right. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
   margin: 8px 0;
 }
@@ -12818,11 +12824,11 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   font-weight: 600;
   color: var(--text);
 }
-/* Full-width heading that splits the current presets from the classic
-   ones. Spans every column so the grid keeps its own flow. */
+/* Heading between the picker's two grids. It sits BETWEEN them rather
+   than inside one, so that each grid sizes its own columns and a short
+   row can stretch to full width. */
 .fe-dynbg-picker-divider {
-  grid-column: 1 / -1;
-  margin: 10px 0 0;
+  margin: 14px 0 0;
   padding-top: 12px;
   border-top: 1px solid var(--border);
   line-height: 1.45;
