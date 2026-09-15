@@ -6,6 +6,153 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.0] — 2026-09-15
+
+### Added
+
+- **Dynamic backgrounds are now configured per mode.** The picker's Options tab
+  is a Light | Dark split: each mode owns its palette (six slots), its
+  random-colours / random-positions toggles, its tone (saturation, brightness,
+  colour fill) and its texture overlay. Rendering goes through `-light` /
+  `-dark` CSS-var swaps, so a surface follows the visitor's theme with no
+  per-preset CSS. Config moves to `{modes: {light: {…}, dark: {…}}}`; flat
+  pre-split configs expand on decode. The live preview splits the same way,
+  with a per-mode "Shuffle preview" that seeds the colour chips from the sample
+  palette when random colours is off.
+- **New "Pattern tile" preset** — 330 seamless SVG patterns vendored from
+  Pattern Monster (MIT; licence text and a reproducible importer included),
+  rendered as per-layer CSS masks so multi-colour tiles take their inks from
+  the palette. Grouped motif select, scale / line weight / rotation knobs, and
+  a per-mode opacity + solid-or-gradient backdrop. The catalogue is served
+  lazily from `/dynbg/patterns.json`.
+- **Colour fill slider** paints the soft recipes' base with the palette, so a
+  surface can dial out the page's white / black entirely, and a **speed knob**
+  for aurora blobs (proportional `cq`-unit drift, so it reads at hero scale).
+- **Classic recipes, for moving an existing site over on its own schedule.**
+  The rework changes how the soft presets render — it pulled their hard-coded
+  pale layer opacities out (they were what kept every palette washed out and
+  made the new tone sliders no-ops) and retired `aurora-bands`. The old CSS
+  lives on verbatim as its own catalog entries: `aurora-blobs-classic`,
+  `mesh-gradient-classic`, and `aurora-bands` under its original key.
+  - **Surfaces configured before the rework resolve to them automatically.**
+    Configs written since carry a version stamp (`v`, or `bg_dynbg_v` on the
+    per-template leaves and block data, which store discrete keys rather than
+    one blob). `dynbg.render_key()` reads it: a selection carrying neither the
+    stamp nor a per-mode block can only have been made against the old
+    recipes, so it renders the `-classic` twin. One call in
+    `frontend/_dynbg_apply.html` covers every public surface; one in the
+    picker macro keeps the admin chip, the picker's selected card and the page
+    in agreement. Migrating is then deliberate: the resolved key is what the
+    hidden input posts, so the first save through the picker writes the choice
+    down explicitly and stamps the version.
+  - **`pastel_light` is restored** as `pastelize()` plus a per-mode `pastel`
+    tone knob — the classic opacities alone don't reproduce the old look,
+    because the wash softened the palette itself. A legacy config's saved
+    strength decodes into its light mode, and the classic presets show a
+    "Pastel wash" slider carrying that value rather than leaving it as
+    invisible state.
+- **The utility bar folds its side items into an overflow popover when the row
+  won't fit.** The bar is a `1fr auto 1fr` grid whose sides are wrapping flex
+  rows, so each side's min-content width is only its widest pill — a long
+  live-meeting name grew the centre column until the remaining pills overflowed
+  their own column and collided with the message. A fit pass measures the row
+  (behind a transient `is-measuring` class that puts every column at
+  max-content) and folds whole items into a per-side `⋯` popover until it fits:
+  innermost-first, always from the currently wider side, skipping items already
+  collapsed to a single icon. The requirement is `2 × max(left, right) +
+  centre`, not the plain sum, because the `1fr` sides split what the centre
+  leaves. Last resort is an ellipsis on the meeting name. Every pass restarts
+  from the expanded row, so items return on resize or when the meeting ends.
+  Mobile is untouched — the swipe strip already handles it.
+
+### Changed
+
+- **~470 verbose admin subheadings collapsed into click-to-open info chips**
+  across 70 templates, via new shared `chip` / `hrow` macros in
+  `_help_chip.html` that emit the markup the topbar heading help already used.
+  Empty states, live status lines, interpolated data rows and radio/preset
+  cards whose description is what you read to make the choice were left inline.
+  The Settings modal's Modules and Data panes keep their descriptions inline
+  too (all 31) — there, the blurb is what tells you what a module or data
+  operation is.
+- **Auto-archive is event-owned in the Announcements & Events editor.** Tagging
+  a post as an Event locks the toggle on, shows the archive moment computed
+  from the event's end date (recomputed live), and clears the hand-set
+  announcement deadline on save, so the date on screen is the only one that can
+  fire.
+- **The yellow save bar POSTs through fetch** instead of submitting, so a
+  routine save no longer costs the admin their scroll position; `post_save`
+  answers `X-Requested-With: fetch` with JSON the page reconciles in place.
+- **The save bar docks to an open modal**, pinning to the panel's lower-left
+  corner rather than sitting in the subnav column behind the backdrop.
+  Positioned by writing coordinates from the panel's rect — not by reparenting
+  — so the existing save handler, leave animation and Save Draft / Publish
+  augmentation keep working on the same element.
+- **The editor reopens the modal you were in after a reload**, by replaying the
+  original trigger click with real coordinates (a bare `.click()` reads as a
+  card-header click and collapses the card).
+- Topbar action buttons run at 13px to match the save bar's, block-edit modal
+  panels keep their 14px radius on the scrollbar side via `clip-path`, and the
+  Web Frontend subnav narrows 248px → 198px, giving the content column 50px
+  back.
+- **Dotted grid and Diagonal lines moved below the picker's divider** and are
+  marked "Retiring" — Pattern tile covers the same ground with a far wider
+  motif library. Nothing changes for a surface already on either: same keys,
+  caps and knobs, rendered as before.
+- The picker's preset grid is split in two (current presets, then the
+  kept-for-continuity ones) with `auto-fit` tracks, so a short row's cards
+  stretch across the full width instead of stranding empty tracks on the right.
+
+### Fixed
+
+- **Saved dynamic-background config was being truncated in the markup — and
+  wiped on the next save.** `|tojson` returns markup that escapes `<`, `>`, `&`
+  and `'` for a `<script>` body but deliberately leaves `"` alone, and being
+  safe it bypasses autoescaping too. In a double-quoted attribute the value
+  ended at the JSON's first quote, so every trigger rendered
+  `data-dynbg-modes="{"` and posted a bare `{` in its hidden input. Both that
+  and the footer's sinewave-wave input are `forceescape`d now.
+- **Every dynamic-background preview chip painted as an empty box.** The
+  thumbnail centred itself with negative margins, but a margin percentage
+  resolves against the containing block's *width* on both axes — so
+  `margin-top: calc(-50% / 0.18)` pulled the recipe up by half the chip's width
+  and landed it above a chip that clips its overflow. Centring is
+  `translate(-50%, -50%)` now.
+- **Server-rendered trigger chips are hydrated on load.** The Jinja macro can't
+  do palette maths or resolve a motif, so a chip showed brand defaults — or
+  nothing at all with a randomised palette — until the picker was opened once.
+  `paintTrigger` is split out of `applyToTrigger` and run over every trigger at
+  `DOMContentLoaded`, without touching inputs or firing change events.
+- The trigger's status line read `_mb.intensity`, a key that no longer exists,
+  so every chip printed a bare "% intensity" with no number.
+- **The Templates page ran each card's help text into its title.** Collapsing
+  admin help into info chips moved the blurb inside the `<h2>` as the chip's
+  tooltip body, and the index builder reads its row titles with
+  `h2.textContent` — which doesn't care that the tooltip is visually hidden. The
+  whole paragraph came back glued to the title in the heading's own weight and
+  size, in the row name and the modal title, while the blurb row vanished with
+  its old selector. The heading is read from a clone with `.heading-help`
+  stripped, and the blurb comes from the chip's tooltip.
+- `form.action` returned a `<button>`, not the URL — `HTMLFormElement` is
+  `[LegacyOverrideBuiltIns]` and the top-of-page `name="action"` buttons shadow
+  the property.
+- The featured-image preview only rendered one of its two states, so an AJAX
+  clear had no placeholder to reveal; both are always present now with `hidden`
+  picking between them.
+- The floating "Add block" palette drops beneath any open modal instead of
+  floating crisp and clickable over the dialog.
+- Web Frontend → Header → Utility bar: item rows are a fixed two-column form
+  instead of a five-across strip that wrapped raggedly; "Open in new tab" is a
+  plain inline checkbox again (it had been picking up the row's
+  `input { width: 100% }` rule and the `.check` pill chrome); the remove ✕ stays
+  top-right at every width.
+- The frontend admin save bar is anchored to the frontend subnav column by id
+  rather than inheriting the main sidebar's width, which spilled 50px into the
+  content column.
+- Hints inside `.form label` were blockified onto their own line by the column
+  flex direction; `.field-label-row` puts them back beside the label.
+- Recovery Contacts hides the Pending review card when nothing is waiting.
+
 ## [2.18.10] — 2026-09-14
 
 ### Added
