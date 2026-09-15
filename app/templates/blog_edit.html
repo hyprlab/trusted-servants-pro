@@ -433,8 +433,8 @@
     display: flex; flex-direction: column; gap: 12px;
   }
   .blog-edit-side .card-head { margin-bottom: 0; }
-  .blog-edit-side .card-head h2 { font-size: 1rem; }
-  .blog-edit-side .card-head .muted { font-size: .78rem; }
+  .blog-edit-side .card-head h2 { font-size: var(--fs-base); }
+  .blog-edit-side .card-head .muted { font-size: var(--fs-xs); }
   .blog-edit-side .blog-tax-tags { grid-template-columns: 1fr; }
   /* Every input lives inside a tight 320px column. Force them to
      respect the box so datetime-local + file pickers don't punch
@@ -457,7 +457,7 @@
        single-line row so the checkbox sits next to its text. */
     flex-direction: row !important;
     align-items: center; gap: 8px;
-    font-weight: 500; font-size: .9rem;
+    font-weight: 500; font-size: var(--fs-sm);
     margin: 0;
   }
 
@@ -480,7 +480,7 @@
      otherwise sizes it to its text content, which can overflow a
      narrow sidebar. */
   .blog-fi-replace input[type="file"] {
-    width: 100%; max-width: 100%; font-size: .85rem;
+    width: 100%; max-width: 100%; font-size: var(--fs-sm);
   }
   .blog-fi-actions { display: flex; flex-direction: column; gap: 8px; }
   .blog-fi-browse {
@@ -515,7 +515,7 @@
   }
   .blog-side-section:last-child { padding-bottom: 0; border-bottom: 0; }
   .blog-side-h3 {
-    margin: 0; font-size: .75rem; font-weight: 700;
+    margin: 0; font-size: var(--fs-2xs); font-weight: 700;
     text-transform: uppercase; letter-spacing: .08em;
     color: var(--muted);
   }
@@ -536,7 +536,7 @@
     padding: 7px 10px;
     border-bottom: 1px solid var(--border);
     cursor: pointer;
-    font-weight: 500; font-size: .9rem;
+    font-weight: 500; font-size: var(--fs-sm);
     transition: background 120ms ease;
   }
   .blog-cat-row:last-child { border-bottom: 0; }
@@ -572,7 +572,7 @@
 
   /* Author dropdown — same width-respect rules as every other sidebar
      select; nothing fancy beyond the existing input chrome. */
-  .blog-author-select { font-size: .92rem; }
+  .blog-author-select { font-size: var(--fs-base); }
 
   /* Tag checklist — same shape as the category checklist (above)
      so the two taxonomy widgets feel like siblings. The hash sits
@@ -583,7 +583,7 @@
     display: flex; flex-direction: column; gap: 2px;
   }
   .blog-side-sublabel {
-    font-size: .92rem; font-weight: 600;
+    font-size: var(--fs-base); font-weight: 600;
   }
   .blog-tag-list {
     display: flex; flex-direction: column;
@@ -597,7 +597,7 @@
     padding: 7px 10px;
     border-bottom: 1px solid var(--border);
     cursor: pointer;
-    font-weight: 500; font-size: .9rem;
+    font-weight: 500; font-size: var(--fs-sm);
     transition: background 120ms ease;
   }
   .blog-tag-row:last-child { border-bottom: 0; }

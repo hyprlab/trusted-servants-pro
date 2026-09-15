@@ -296,7 +296,7 @@
     text-align: center;
   }
   .wp-count-num {
-    font-size: 2.2rem;
+    font-size: var(--fs-3xl);
     font-weight: 700;
     line-height: 1;
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -304,7 +304,7 @@
     font-variant-numeric: tabular-nums;
   }
   .wp-count-label {
-    font-size: .85rem;
+    font-size: var(--fs-sm);
     margin-top: .35rem;
     color: var(--muted, rgba(0,0,0,.6));
     letter-spacing: .04em;
@@ -340,11 +340,11 @@
   }
   .wp-blog-tax-row {
     display: flex; flex-wrap: wrap; gap: .9rem;
-    font-size: .9rem;
+    font-size: var(--fs-sm);
   }
   .wp-blog-tax-label {
     text-transform: uppercase; letter-spacing: .14em;
-    font-size: .68rem; font-weight: 700;
+    font-size: var(--fs-3xs); font-weight: 700;
     color: var(--muted, rgba(0,0,0,.6));
     min-width: 88px;
   }
@@ -358,12 +358,12 @@
     color: var(--muted, rgba(0,0,0,.7));
     border-radius: 999px;
     padding: 1px 8px;
-    font-size: .68rem;
+    font-size: var(--fs-3xs);
   }
   .wp-tag-chip {
     background: #fce7f3; border: 1px solid #f9a8d4; color: #9d174d;
     border-radius: 4px; padding: 1px 7px;
-    font-size: .66rem; font-style: italic;
+    font-size: var(--fs-3xs); font-style: italic;
   }
   [data-theme="dark"] .wp-tag-chip {
     background: #4a1e3a; border-color: #be185d; color: #fbcfe8;
@@ -373,16 +373,16 @@
   .wp-warn-list { margin: 0; padding-left: 1.25rem; line-height: 1.65; }
 
   .wp-preview-table-wrap { overflow-x: auto; }
-  .wp-preview-table th { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .wp-preview-table th { font-size: var(--fs-2xs); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
   .wp-preview-table td { vertical-align: middle; }
   .wp-preview-title { font-weight: 500; }
-  .wp-slug { font-size: .82rem; color: var(--muted, rgba(0,0,0,.6)); }
+  .wp-slug { font-size: var(--fs-xs); color: var(--muted, rgba(0,0,0,.6)); }
 
   .wp-skipped-details { margin-top: 1rem; }
   .wp-skipped-details summary {
     cursor: pointer;
     color: var(--muted, rgba(0,0,0,.6));
-    font-size: .92rem;
+    font-size: var(--fs-base);
     padding: .35rem 0;
   }
   .wp-skipped-list {
@@ -455,7 +455,7 @@
     user-select: none;
     padding: 4px 11px;
     border-radius: 999px;
-    font-size: .82rem;
+    font-size: var(--fs-xs);
     display: inline-block;
   }
   .wp-target-pill--stories.is-active       { background: #fef3c7; color: #78350f; }
@@ -482,7 +482,7 @@
     border: 1px solid var(--border);
     background: var(--panel-2, var(--panel));
     cursor: pointer; user-select: none;
-    font-size: .82rem; transition: background .15s, border-color .15s;
+    font-size: var(--fs-xs); transition: background .15s, border-color .15s;
   }
   .wp-archive-toggle:hover { border-color: var(--brand); }
   .wp-archive-toggle input { margin: 0; }
@@ -495,7 +495,7 @@
   .wp-status-chip {
     background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569;
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-size: .68rem;
+    font-size: var(--fs-3xs);
   }
   [data-theme="dark"] .wp-status-chip {
     background: #1e293b; border-color: #475569; color: #94a3b8;
@@ -512,7 +512,7 @@
   [data-theme="dark"] .wp-stale-card .card-head h2 { color: #fbbf24; }
   .wp-acf-chip {
     background: #ede9fe; border: 1px solid #c4b5fd; color: #5b21b6;
-    font-size: .68rem; font-weight: 600;
+    font-size: var(--fs-3xs); font-weight: 600;
   }
   [data-theme="dark"] .wp-acf-chip {
     background: #2e1065; border-color: #7c3aed; color: #ddd6fe;
@@ -537,7 +537,7 @@
     border-radius: 6px;
     display: grid; gap: .25rem;
     max-width: 540px;
-    font-size: .82rem;
+    font-size: var(--fs-xs);
     line-height: 1.35;
   }
   .wp-acf-map > div {
@@ -548,7 +548,7 @@
   }
   .wp-acf-map dt {
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-size: .76rem;
+    font-size: var(--fs-2xs);
     color: var(--muted, rgba(0,0,0,.6));
     margin: 0;
   }
@@ -560,7 +560,7 @@
   .wp-archive-summary {
     color: var(--muted);
     font-style: italic;
-    font-size: .85rem;
+    font-size: var(--fs-sm);
   }
   .wp-archive-summary.has-archives {
     color: #475569; font-weight: 600; font-style: normal;

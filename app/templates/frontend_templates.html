@@ -257,7 +257,7 @@
                  {% if not settings.bg or _bg_dm != 'manual' %}disabled{% endif %}>
         </label>
         <div style="margin-top: 12px;">
-          <span class="fe-tplgrid-bg-toggle" style="font-size: 0.875rem; font-weight: 600; display: block; margin-bottom: 6px;">Dynamic background</span>
+          <span class="fe-tplgrid-bg-toggle" style="font-size: var(--fs-sm); font-weight: 600; display: block; margin-bottom: 6px;">Dynamic background</span>
           {% from "_dynbg_picker.html" import dynbg_trigger with context %}
           {# Per-template settings absorb overlay + colours into
              the existing template-settings JSON via the picker's
@@ -2450,11 +2450,11 @@
     background: transparent;
     color: var(--muted);
     font-weight: 500;
-    font-size: .78rem;
+    font-size: var(--fs-xs);
     font-family: ui-monospace, Menlo, Consolas, monospace;
   }
   .fe-tpl-index-row-active {
-    font-size: .82rem;
+    font-size: var(--fs-xs);
     color: var(--muted);
     line-height: 1.4;
   }
@@ -2470,7 +2470,7 @@
     color: var(--brand);
   }
   .fe-tpl-index-row-blurb {
-    font-size: .82rem;
+    font-size: var(--fs-xs);
     color: var(--muted);
     line-height: 1.4;
   }

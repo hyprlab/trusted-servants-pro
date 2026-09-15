@@ -280,7 +280,7 @@
   }
   .blog-filter-field { display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1 1 160px; margin: 0; }
   .blog-filter-label {
-    font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+    font-size: var(--fs-2xs); letter-spacing: .08em; text-transform: uppercase;
     color: var(--muted); font-weight: 600;
   }
   .blog-filter-actions { display: flex; gap: .4rem; align-items: end; padding-bottom: 1px; }
@@ -289,12 +289,12 @@
     background: color-mix(in srgb, var(--blog-cat-color, var(--accent)) 18%, transparent);
     color: var(--blog-cat-color, var(--accent));
     border: 1px solid color-mix(in srgb, var(--blog-cat-color, var(--accent)) 35%, transparent);
-    border-radius: 999px; padding: 2px 9px; font-size: .72rem; font-weight: 600;
+    border-radius: 999px; padding: 2px 9px; font-size: var(--fs-2xs); font-weight: 600;
   }
   .blog-tag-chip {
     background: var(--panel-2, var(--panel)); color: var(--muted);
     border: 1px solid var(--border); border-radius: 999px;
-    padding: 2px 9px; font-size: .72rem;
+    padding: 2px 9px; font-size: var(--fs-2xs);
   }
   .post-chip-event { background: #d1fae5; color: #065f46; }
   [data-theme="dark"] .post-chip-event { background: #064e3b; color: #a7f3d0; }
@@ -304,7 +304,7 @@
     display: flex; align-items: center; justify-content: space-between;
     flex-wrap: wrap; gap: 1rem; margin-bottom: .85rem;
   }
-  .posts-meta { font-size: .88rem; }
+  .posts-meta { font-size: var(--fs-sm); }
   .posts-bulkbar {
     display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
     background: var(--panel-2, var(--panel));
@@ -314,14 +314,14 @@
   }
   .posts-bulkbar[hidden] { display: none; }
   .posts-bulkbar-count {
-    font-weight: 600; font-size: .88rem;
+    font-weight: 600; font-size: var(--fs-sm);
     color: var(--text);
   }
   .posts-bulk-sep { color: var(--muted); margin: 0 4px; }
   .posts-bulk-select {
     height: 30px; padding: 2px 8px; min-width: 8rem;
     background: var(--panel); border: 1px solid var(--border);
-    border-radius: 6px; font-size: .85rem; color: var(--text);
+    border-radius: 6px; font-size: var(--fs-sm); color: var(--text);
   }
   .posts-bulk-clear { margin-left: .25rem; }
 
