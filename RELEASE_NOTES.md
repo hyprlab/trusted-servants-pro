@@ -7,7 +7,11 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.2 — 2026-09-15 (latest) — Admin text, on one scale
+## 2.19.3 — 2026-09-15 (latest) — A slightly larger admin
+
+- **The admin's text is a step larger than 2.19.2 shipped it.** The standard size goes from 13.6px to 14.4px, and every other size on the scale moves with it — captions, buttons, headings and the big dashboard numbers all keep their relationship to one another, so the screens read the same, just a touch bigger. If 2.19.2 felt tight, this is the correction.
+
+## 2.19.2 — 2026-09-15 — Admin text, on one scale
 
 - **The admin's text is smaller and, for the first time, consistent.** Every size across the portal's admin screens was a little different from the next — sixty-four distinct sizes, several of them a fraction of a pixel apart. They now come from a single set of ten steps, so a heading is a heading and a caption is a caption wherever you are. Overall the type is a step down from where it was; screens hold more without feeling cramped.
 - **Buttons sit a step below body text**, which stops a row of buttons from shouting over the content it belongs to. Small filter pills stay smaller still.

@@ -88,32 +88,32 @@
    13.2px that sits half a pixel off its neighbours. Sizes are rem at a
    16px root.
 
-     --fs-3xs   8.8px  micro caps — metric labels, eyebrows, tiny badges
-     --fs-2xs  10.0px  small caps + compact pills (.btn-sm, chips, tabs)
-     --fs-xs   11.2px  captions and row meta (.smaller)
-     --fs-sm   12.4px  buttons, secondary copy, dense controls
-     --fs-base 13.6px  body, inputs, table cells, nav
-     --fs-md   14.4px  card and widget titles (.data-card-head)
-     --fs-lg   16.0px  app title, modal and section headings
-     --fs-xl   20.0px  page headings, large stat values
-     --fs-2xl  25.6px  display numerals
-     --fs-3xl  32.0px  hero numerals
+     --fs-3xs   9.2px  micro caps — metric labels, eyebrows, tiny badges
+     --fs-2xs  10.4px  small caps + compact pills (.btn-sm, chips, tabs)
+     --fs-xs   12.0px  captions and row meta (.smaller)
+     --fs-sm   13.2px  buttons, secondary copy, dense controls
+     --fs-base 14.4px  body, inputs, table cells, nav
+     --fs-md   15.2px  card and widget titles (.data-card-head)
+     --fs-lg   16.8px  app title, modal and section headings
+     --fs-xl   20.8px  page headings, large stat values
+     --fs-2xl  27.2px  display numerals
+     --fs-3xl  33.6px  hero numerals
 
    Two decorative glyphs opt out with literal sizes (the 2.4rem drag
    affordance and the 100px file-picker hit target); they render a shape,
    not text. `em`-based sizes are left alone — they scale with whatever
    they sit in, which is the point. */
 :root {
-  --fs-3xs: 0.55rem;
-  --fs-2xs: 0.625rem;
-  --fs-xs: 0.7rem;
-  --fs-sm: 0.775rem;
-  --fs-base: 0.85rem;
-  --fs-md: 0.9rem;
-  --fs-lg: 1rem;
-  --fs-xl: 1.25rem;
-  --fs-2xl: 1.6rem;
-  --fs-3xl: 2rem;
+  --fs-3xs: 0.575rem;
+  --fs-2xs: 0.65rem;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.825rem;
+  --fs-base: 0.9rem;
+  --fs-md: 0.95rem;
+  --fs-lg: 1.05rem;
+  --fs-xl: 1.3rem;
+  --fs-2xl: 1.7rem;
+  --fs-3xl: 2.1rem;
 }
 
 :root {
