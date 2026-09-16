@@ -203,6 +203,28 @@
     let effect = opts.effect || 'network';
     let speed = (opts.speed == null ? 100 : opts.speed) / 100;
     let sizeMul = (opts.size == null ? 100 : opts.size) / 100;
+    // Particle ink. Every drawer paints through `ink(alpha)` rather than a
+    // literal white so a caller can tint the layer (hero particles carry a
+    // light-mode and a dark-mode colour) and scale its overall alpha. The
+    // defaults — white at full strength — are what every caller got before
+    // these opts existed, so omitting them changes nothing.
+    let inkRgb = [255, 255, 255];
+    let alphaMul = 1;
+    function setInk (c) {
+      const h = String(c || '').replace('#', '');
+      if (!/^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(h)) { inkRgb = [255, 255, 255]; return; }
+      inkRgb = hexToRgb(h);
+    }
+    function setAlphaMul (o) {
+      const n = (o == null || !isFinite(+o)) ? 100 : +o;
+      alphaMul = Math.max(0, Math.min(100, n)) / 100;
+    }
+    function ink (a) {
+      const v = Math.max(0, Math.min(1, (+a || 0) * alphaMul));
+      return 'rgba(' + inkRgb[0] + ',' + inkRgb[1] + ',' + inkRgb[2] + ',' + v.toFixed(3) + ')';
+    }
+    setInk(opts.color);
+    setAlphaMul(opts.opacity);
     const parent = canvas.parentElement;
     const ctx = canvas.getContext('2d');
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -266,7 +288,7 @@
         const gx = w * (0.5 + 0.35 * Math.cos(t*(0.6+i*0.3) + i));
         const gy = h * (0.5 + 0.35 * Math.sin(t*(0.5+i*0.25) + i*1.7));
         const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.max(w,h)*0.45);
-        g.addColorStop(0, 'rgba(255,255,255,0.10)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+        g.addColorStop(0, ink(0.10)); g.addColorStop(1, ink(0));
         ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
       }
       for (const p of particles){
@@ -276,7 +298,7 @@
         if (p.x < -10) p.x = w+10; else if (p.x > w+10) p.x = -10;
         if (p.y < -10) p.y = h+10; else if (p.y > h+10) p.y = -10;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r * sizeMul, 0, Math.PI*2);
-        ctx.fillStyle = 'rgba(255,255,255,'+p.a.toFixed(2)+')'; ctx.fill();
+        ctx.fillStyle = ink(p.a); ctx.fill();
       }
       const L = 140;
       for (let i = 0; i < particles.length; i++){
@@ -285,7 +307,7 @@
           const dx = a.x-b.x, dy = a.y-b.y, d2 = dx*dx+dy*dy;
           if (d2 < L*L){
             const alpha = (1 - Math.sqrt(d2)/L) * 0.25;
-            ctx.strokeStyle = 'rgba(255,255,255,'+alpha.toFixed(3)+')'; ctx.lineWidth = 1;
+            ctx.strokeStyle = ink(alpha); ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
           }
         }
@@ -300,7 +322,7 @@
         if (p.y < -5) p.y = h+5; else if (p.y > h+5) p.y = -5;
         const tw = 0.5 + 0.5 * Math.sin(p.tw);
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r * sizeMul, 0, Math.PI*2);
-        ctx.fillStyle = 'rgba(255,255,255,'+(p.a*tw).toFixed(3)+')'; ctx.fill();
+        ctx.fillStyle = ink(p.a*tw); ctx.fill();
       }
     }
     function drawFireflies(s){
@@ -332,10 +354,10 @@
         if (p.y + p.r * sizeMul < 0){ p.y = h + p.r * sizeMul; p.x = Math.random()*w; }
         const pr = p.r * sizeMul;
         ctx.beginPath(); ctx.arc(p.x, p.y, pr, 0, Math.PI*2);
-        ctx.strokeStyle = 'rgba(255,255,255,'+p.a.toFixed(2)+')';
+        ctx.strokeStyle = ink(p.a);
         ctx.lineWidth = 1.2; ctx.stroke();
         ctx.beginPath(); ctx.arc(p.x - pr*0.35, p.y - pr*0.35, pr*0.18, 0, Math.PI*2);
-        ctx.fillStyle = 'rgba(255,255,255,'+(p.a*0.9).toFixed(2)+')'; ctx.fill();
+        ctx.fillStyle = ink(p.a*0.9); ctx.fill();
       }
     }
     function drawSnow(s){
@@ -346,7 +368,7 @@
         if (p.y - p.r * sizeMul > h){ p.y = -p.r * sizeMul; p.x = Math.random()*w; }
         if (p.x < -10) p.x = w+10; else if (p.x > w+10) p.x = -10;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r * sizeMul, 0, Math.PI*2);
-        ctx.fillStyle = 'rgba(255,255,255,'+p.a.toFixed(2)+')'; ctx.fill();
+        ctx.fillStyle = ink(p.a); ctx.fill();
       }
     }
     function drawWaves(s){
@@ -364,7 +386,7 @@
           if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
         ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
-        ctx.fillStyle = 'rgba(255,255,255,'+alpha.toFixed(3)+')';
+        ctx.fillStyle = ink(alpha);
         ctx.fill();
       }
     }
@@ -382,12 +404,12 @@
           const tx = p.cx + Math.cos(ang) * p.rad;
           const ty = p.cy + Math.sin(ang) * p.rad;
           ctx.beginPath(); ctx.arc(tx, ty, p.r * sizeMul * (1 - k/10), 0, Math.PI*2);
-          ctx.fillStyle = 'rgba(255,255,255,'+(p.a*(1-k/10)*0.4).toFixed(3)+')'; ctx.fill();
+          ctx.fillStyle = ink(p.a*(1-k/10)*0.4); ctx.fill();
         }
         const x = p.cx + Math.cos(p.ang) * p.rad;
         const y = p.cy + Math.sin(p.ang) * p.rad;
         ctx.beginPath(); ctx.arc(x, y, p.r * sizeMul, 0, Math.PI*2);
-        ctx.fillStyle = 'rgba(255,255,255,'+p.a.toFixed(2)+')'; ctx.fill();
+        ctx.fillStyle = ink(p.a); ctx.fill();
       }
     }
     function drawRain(s){
@@ -400,7 +422,7 @@
           if (d2 < 120*120){ const d = Math.sqrt(d2)||1, f=(120-d)/120*0.8; p.x += dx/d*f; }
         }
         if (p.y > h + p.len){ p.y = -p.len; p.x = Math.random()*w; }
-        ctx.strokeStyle = 'rgba(255,255,255,'+p.a.toFixed(2)+')';
+        ctx.strokeStyle = ink(p.a);
         ctx.lineWidth = 1.1 * sizeMul;
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y + p.len * sizeMul); ctx.stroke();
       }
@@ -428,6 +450,10 @@
       setSpeed(sp){ speed = Math.max(0.05, sp / 100); },
       setSize(sz){ sizeMul = Math.max(0.1, sz / 100); },
       setColor(c){ parent.style.background = c || ''; },
+      // Particle ink, distinct from setColor() above (which paints the
+      // canvas's parent background).
+      setInk(c){ setInk(c); },
+      setOpacity(o){ setAlphaMul(o); },
       destroy(){
         alive = false; cancelAnimationFrame(raf);
         parent.removeEventListener('mousemove', onMove);

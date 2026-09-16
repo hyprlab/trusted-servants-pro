@@ -5124,5 +5124,12 @@
     return { serialize, getState: () => state.sections };
   }
 
-  window.BlockEditor = { mount };
+  // The hero modal's button preview needs the same catalog lookup to
+  // render a real icon instead of a `[name]` placeholder. Exported here
+  // rather than duplicated so both share one fetch + one cache.
+  window.BlockEditor = {
+    mount,
+    iconCatalog: loadBlockEditorIconCatalog,
+    iconPaths: findIconPathsInCatalog,
+  };
 })();

@@ -104,8 +104,8 @@
              {% if not _pv_tagline_on or not _pv_tagline %}hidden{% endif %}>{{ _pv_tagline }}</p>
           <h1 class="fe-hero-heading fe-hero-heading-{{ _pv_font }}" id="hero-preview-heading"
               style="--fe-hero-h-size: {{ _pv_size / 100 }}; --fe-hero-h-grad-s: {{ _pv_grad_s }}; --fe-hero-h-grad-e: {{ _pv_grad_e }};">{{ _pv_heading_txt }}</h1>
-          <p class="fe-hero-sub fe-hero-sub-{{ _pv_sub_font }}" id="hero-preview-sub"
-             style="--fe-hero-sub-size: {{ _pv_sub_size / 100 }};{% if _pv_sub_color %} --fe-hero-sub-color: {{ _pv_sub_color }};{% endif %}">{{ _pv_sub_txt }}</p>
+          <div class="fe-hero-sub fe-hero-sub-{{ _pv_sub_font }}" id="hero-preview-sub"
+               style="--fe-hero-sub-size: {{ _pv_sub_size / 100 }};{% if _pv_sub_color %} --fe-hero-sub-color: {{ _pv_sub_color }};{% endif %}">{{ _pv_sub_txt | markdown_inline }}</div>
           {# Preview CTA — emptied on the server and re-populated by
              `page_hero_modal.js::syncPreview` from the active block's
              current `buttons` array. Server-rendering placeholder
@@ -129,7 +129,7 @@
     <label>Heading
       <input type="text" data-hero-field="heading" id="hero-heading-input" value="{{ vals.frontend_hero_heading or '' }}" placeholder="You are not alone.">
     </label>
-    <label>Subheading
+    <label>{% call hrow('Subheading') %}Markdown and inline HTML are both supported — **bold**, [links](/meetings), &lt;br&gt;, lists. The preview above renders as you type.{% endcall %}
       <textarea data-hero-field="subheading" rows="8" style="min-height: 240px;" placeholder="Find meetings, connect with your community…">{{ vals.frontend_hero_subheading or '' }}</textarea>
     </label>
     <label>{% call hrow('Tagline') %}Rendered as a small pill above the heading{% endcall %}
@@ -138,6 +138,12 @@
     <li class="special-page-row" style="list-style:none; margin: 1rem 0;">
       <div class="special-page-info">
         <div class="u-name">Show tagline in hero {% call chip() %}Toggle the eyebrow pill above the heading on or off.{% endcall %}</div>
+        {# The eyebrow renders only when there IS tagline text, so with
+           the field above empty this toggle looks broken — it flips and
+           nothing happens. Say so instead. #}
+        <p class="muted smaller" data-tagline-empty-note hidden>
+          Add text in <b>Tagline</b> above — the pill stays hidden while it's empty.
+        </p>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" data-hero-field="frontend_tagline_enabled" value="1"
@@ -474,11 +480,48 @@
         <input type="range" data-hero-field="frontend_hero_particle_speed" min="10" max="300" step="5"
                value="{{ vals.frontend_hero_particle_speed or 100 }}" data-slider-input>
       </div>
-      <div class="nav-megalink-field hero-slider-field">
-        <span class="nav-megalink-field-lbl">Size <output data-slider-out>{{ vals.frontend_hero_particle_size or 100 }}</output>%</span>
+      {# `waves` paints full-width bands rather than discrete particles,
+         so the size multiplier never reaches it. The field greys out for
+         any effect listed here instead of silently doing nothing. #}
+      <div class="nav-megalink-field hero-slider-field"
+           data-particle-size-field data-nosize-effects="waves">
+        <span class="nav-megalink-field-lbl">Size <output data-slider-out>{{ vals.frontend_hero_particle_size or 100 }}</output>%
+          <span class="muted smaller" data-particle-size-note hidden></span></span>
         <input type="range" data-hero-field="frontend_hero_particle_size" min="25" max="400" step="5"
                value="{{ vals.frontend_hero_particle_size or 100 }}" data-slider-input>
       </div>
+    </div>
+    {# ── Per-theme columns ────────────────────────────────────────
+       Effect / Speed / Size above apply to both themes; opacity and ink
+       are per-mode, so they live in their own Light | Dark columns —
+       same shape as the dynamic-background modal's split, rather than
+       two loose rows of (light)(dark) pairs.
+
+       Opacity scales each particle's own alpha, so a snowflake that
+       fades as it falls still fades, just dimmer. Ink was white-only
+       before, which vanishes on a pale hero. Dark opacity falls back to
+       the light value for blocks saved before the split. #}
+    {% set _popacity = vals.frontend_hero_particle_opacity if vals.frontend_hero_particle_opacity is not none else 100 %}
+    {% set _popacity_d = vals.frontend_hero_particle_opacity_dark if vals.frontend_hero_particle_opacity_dark is not none else _popacity %}
+    <div class="hero-part-modes">
+      {% for _sfx, _mlabel, _mopacity, _mcolor in [
+           ('', 'Light mode', _popacity, vals.frontend_hero_particle_color or '#ffffff'),
+           ('_dark', 'Dark mode', _popacity_d, vals.frontend_hero_particle_color_dark or '#ffffff')] %}
+      <section class="hero-part-mode hero-part-mode--{{ 'dark' if _sfx else 'light' }}">
+        <h4 class="hero-part-mode-title">{{ _mlabel }}</h4>
+        <div class="nav-megalink-field hero-slider-field">
+          <span class="nav-megalink-field-lbl">Opacity <output data-slider-out>{{ _mopacity }}</output>%</span>
+          <input type="range" data-hero-field="frontend_hero_particle_opacity{{ _sfx }}"
+                 min="0" max="100" step="5" value="{{ _mopacity }}" data-slider-input>
+        </div>
+        <div class="nav-megalink-field">
+          <span class="nav-megalink-field-lbl">Particle color</span>
+          <input type="color" class="nav-megalink-color-input"
+                 data-hero-field="frontend_hero_particle_color{{ _sfx }}"
+                 value="{{ _mcolor }}">
+        </div>
+      </section>
+      {% endfor %}
     </div>
 
     </div>{# /hero-bg-col #}

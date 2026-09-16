@@ -101,6 +101,7 @@
     'frontend_hero_bg_blur', 'frontend_hero_bg_opacity',
     'frontend_hero_bg_video_speed',
     'frontend_hero_particle_speed', 'frontend_hero_particle_size',
+    'frontend_hero_particle_opacity', 'frontend_hero_particle_opacity_dark',
   ]);
   // Map from modal field name → block.data key.
   function blockKey(fieldName) {
@@ -311,6 +312,13 @@
         try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
         try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
       });
+    // Colour inputs were just set in code, which fires no event — tell
+    // the shared design-token picker to re-read them so each hex caption
+    // and "◈ token" badge describes THIS block rather than whatever the
+    // modal was server-rendered with.
+    try {
+      if (window.tspDesignTokenPicker) window.tspDesignTokenPicker.refresh(modal);
+    } catch (_) {}
     // Buttons editor
     renderButtonsList(data.buttons || []);
     // Image / video previews
@@ -362,7 +370,57 @@
     particles: modal.querySelector('#hero-preview-particles'),
     video: modal.querySelector('#hero-preview-video'),
     cta: modal.querySelector('#hero-preview-cta'),
+    inner: modal.querySelector('#hero-preview-section .fe-hero-inner'),
   };
+  // ── Contain-fit the preview content ────────────────────────────
+  // The clip is a fixed 400px frame. A long heading wraps to three
+  // lines and pushes the CTA row out of it, so the admin can't see the
+  // buttons they're editing. Scale `.fe-hero-inner` down until the
+  // whole hero fits — which is what the public hero does anyway at a
+  // smaller viewport. Only ever scales DOWN: content that already fits
+  // renders 1:1 so the preview isn't lying about size.
+  //
+  // Transform is visual only, so the element's layout box (and the
+  // ResizeObserver below) is unaffected by the scale we apply — no
+  // feedback loop.
+  const FIT_INSET = 24;         // px of breathing room, top + bottom
+  let _fitScale = 1, _fitRaf = 0;
+  function fitPreviewContent() {
+    const sec = preview.section, inner = preview.inner;
+    if (!sec || !inner) return;
+    cancelAnimationFrame(_fitRaf);
+    _fitRaf = requestAnimationFrame(() => {
+      const availH = sec.clientHeight - FIT_INSET;
+      const availW = sec.clientWidth;
+      const needH = inner.scrollHeight;
+      const needW = inner.scrollWidth;
+      if (availH <= 0 || needH <= 0 || needW <= 0) return;
+      const k = Math.min(1, availH / needH, availW / needW);
+      if (Math.abs(k - _fitScale) < 0.002) return;
+      _fitScale = k;
+      inner.style.transform = k < 1 ? ('scale(' + k.toFixed(4) + ')') : '';
+    });
+  }
+  // Re-fit whenever the content reflows for a reason the sync doesn't
+  // see: web fonts landing, an image decoding, a markdown subheading
+  // growing a line, the modal being resized.
+  try {
+    if (window.ResizeObserver && preview.inner) {
+      new ResizeObserver(() => fitPreviewContent()).observe(preview.inner);
+      if (preview.section) new ResizeObserver(() => fitPreviewContent()).observe(preview.section);
+    }
+  } catch (_) { /* no RO — the per-edit sync still re-fits */ }
+  // The admin shell fetches Fraunces / Inter lazily, so the first paint
+  // of a freshly-opened preview can land in the Georgia fallback — which
+  // is wider, wraps the heading a line earlier than the real page, and
+  // would otherwise bake that wrong height into the fit. Re-fit once the
+  // webfonts settle.
+  try {
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => fitPreviewContent());
+    }
+  } catch (_) { /* fine — the RO above catches the reflow anyway */ }
+
   function _val(name) {
     const inp = modal.querySelector('[data-hero-field="' + name + '"]');
     return inp ? inp.value : '';
@@ -388,9 +446,100 @@
     const v = values.filter(x => x != null);
     return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
   }
+  // Button icons, rendered the way the public hero renders them rather
+  // than as a `[name]` placeholder: a custom icon is an <img> off
+  // /pub/icon/<id>, a built-in is the Lucide SVG looked up in the same
+  // catalog (and same cache) the block editor's icon preview uses. The
+  // wrapper carries the same `--fe-btn-icon-color` / `--icon-size` vars
+  // the server emits, so colour and size preview truthfully too.
+  const _LUCIDE_SVG_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  function _btnIconEl(name, color, size) {
+    if (!name) return null;
+    const span = document.createElement('span');
+    span.className = 'fe-btn-icon';
+    const vars = [];
+    if (color) vars.push('--fe-btn-icon-color: ' + color);
+    const px = parseInt(size, 10);
+    if (!isNaN(px)) vars.push('--icon-size: ' + px + 'px');
+    if (vars.length) span.setAttribute('style', vars.join('; ') + ';');
+    if (String(name).indexOf('custom:') === 0) {
+      const cid = String(name).split(':', 2)[1] || '';
+      const img = document.createElement('img');
+      img.className = 'icon icon-custom';
+      img.alt = '';
+      img.src = '/pub/icon/' + encodeURIComponent(cid);
+      span.appendChild(img);
+      return span;
+    }
+    const api = window.BlockEditor;
+    if (!api || !api.iconCatalog || !api.iconPaths) return span;
+    api.iconCatalog().then(catalog => {
+      const paths = api.iconPaths(catalog, name);
+      // Unknown ref (renamed / removed icon): leave the wrapper empty
+      // rather than printing the raw name into the button, which is
+      // what the public page does too.
+      if (paths) span.innerHTML = '<svg class="icon" ' + _LUCIDE_SVG_ATTRS + '>' + paths + '</svg>';
+    }).catch(() => {});
+    return span;
+  }
+
+  // The subheading accepts markdown + inline HTML (the server renders it
+  // through `markdown_inline`, which sanitises via nh3). `marked` is the
+  // same vendored parser the meeting modal previews with; without it the
+  // preview falls back to plain text rather than injecting raw markup.
+  function _setSubHtml(el, value) {
+    const v = value || '';
+    if (typeof marked === 'undefined') { el.textContent = v; return; }
+    try {
+      marked.setOptions({ breaks: true, gfm: true });
+      el.innerHTML = marked.parse(v);
+    } catch (_) { el.textContent = v; }
+  }
   let _partFx = null;
   function _destroyPart() {
     if (_partFx) { try { _partFx.destroy(); } catch (_) {} _partFx = null; }
+  }
+  // Particle ink for whichever theme the preview pane is showing, so
+  // flipping the pane's Light / Dark radio re-tints the layer the same
+  // way the public hero does when the visitor toggles theme.
+  function _partInk() {
+    const f = previewTheme() === 'dark'
+      ? 'frontend_hero_particle_color_dark' : 'frontend_hero_particle_color';
+    return _val(f) || '#ffffff';
+  }
+  function _partOpacity() {
+    const light = parseInt(_val('frontend_hero_particle_opacity'), 10);
+    const v = previewTheme() === 'dark'
+      ? parseInt(_val('frontend_hero_particle_opacity_dark'), 10)
+      : light;
+    if (!isNaN(v)) return v;
+    return isNaN(light) ? 100 : light;   // dark unset → follow light
+  }
+  // Some effects ignore the size multiplier entirely — `waves` paints
+  // full-width bands rather than discrete particles, so the slider would
+  // sit there doing nothing. Grey it out and say why, rather than hide
+  // it: the stored value still applies the moment another effect is
+  // picked. The effect list lives on the field in markup.
+  function _syncParticleSizeState() {
+    const field = modal.querySelector('[data-particle-size-field]');
+    if (!field) return;
+    const effect = _val('frontend_hero_particle_effect') || 'stars';
+    const off = (field.dataset.nosizeEffects || '').split(',')
+      .filter(Boolean).indexOf(effect) !== -1;
+    field.classList.toggle('is-off', off);
+    const input = field.querySelector('input[type="range"]');
+    const label = effect.charAt(0).toUpperCase() + effect.slice(1);
+    if (input) {
+      input.disabled = off;
+      input.title = off ? (label + ' draws full-width bands rather than individual '
+        + 'particles, so size has nothing to scale. Pick another effect to use it.') : '';
+    }
+    const note = field.querySelector('[data-particle-size-note]');
+    if (note) {
+      note.textContent = off ? ('— not used by ' + label) : '';
+      note.hidden = !off;
+    }
   }
   function _buildPart() {
     _destroyPart();
@@ -401,6 +550,8 @@
         effect: _val('frontend_hero_particle_effect') || 'stars',
         speed: parseInt(_val('frontend_hero_particle_speed'), 10) || 100,
         size: parseInt(_val('frontend_hero_particle_size'), 10) || 100,
+        color: _partInk(),
+        opacity: _partOpacity(),
       });
     } catch (_) { _partFx = null; }
   }
@@ -431,7 +582,12 @@
     const eyebrowText = _val('frontend_tagline') || '';
     const eyebrowOn = _checkedBool('frontend_tagline_enabled');
     if (preview.heading) preview.heading.textContent = heading;
-    if (preview.sub) preview.sub.textContent = sub;
+    if (preview.sub) _setSubHtml(preview.sub, sub);
+    // Toggling "Show tagline" on with an empty Tagline field renders
+    // nothing (the public hero needs both), which reads as a dead
+    // switch. Surface the reason next to the toggle.
+    const taglineNote = modal.querySelector('[data-tagline-empty-note]');
+    if (taglineNote) taglineNote.hidden = !(eyebrowOn && !eyebrowText.trim());
     if (preview.eyebrow) {
       preview.eyebrow.textContent = eyebrowText;
       preview.eyebrow.hidden = !(eyebrowOn && eyebrowText.trim());
@@ -713,7 +869,7 @@
       const buttons = (activeBlock && activeBlock.data && activeBlock.data.buttons) || [];
       buttons.forEach(btn => {
         const bstyle = (btn.style === 'ghost' || btn.style === 'yellow'
-                        || btn.style === 'green')
+                        || btn.style === 'green' || btn.style === 'blue')
           ? btn.style : 'primary';
         const a = document.createElement('a');
         a.className = 'fe-btn fe-btn-' + bstyle;
@@ -725,30 +881,19 @@
           if (btn.custom_hover_text_color) vars.push('--fe-btn-hover-text: ' + btn.custom_hover_text_color);
         }
         if (vars.length) a.setAttribute('style', vars.join('; ') + ';');
-        if (btn.icon_before) {
-          const span = document.createElement('span');
-          span.className = 'fe-btn-icon';
-          // Icons are server-side; in the preview we just render the
-          // ref name as small uppercase text so the admin can see
-          // where it'll sit without inflating the JS bundle with a
-          // Lucide catalog.
-          span.textContent = '[' + btn.icon_before + ']';
-          a.appendChild(span);
-        }
+        const before = _btnIconEl(btn.icon_before, btn.icon_before_color, btn.icon_before_size);
+        if (before) a.appendChild(before);
         const label = document.createElement('span');
         label.textContent = btn.label || '';
         a.appendChild(label);
-        if (btn.icon_after) {
-          const span = document.createElement('span');
-          span.className = 'fe-btn-icon';
-          span.textContent = '[' + btn.icon_after + ']';
-          a.appendChild(span);
-        }
+        const after = _btnIconEl(btn.icon_after, btn.icon_after_color, btn.icon_after_size);
+        if (after) a.appendChild(after);
         preview.cta.appendChild(a);
       });
     }
 
     // ── Particle overlay ──────────────────────────────────────
+    _syncParticleSizeState();
     if (_checkedBool('frontend_hero_particle_enabled')) {
       const effect = _val('frontend_hero_particle_effect') || 'stars';
       if (!_partFx || _partFx._effect !== effect) {
@@ -759,11 +904,17 @@
         const sz = parseInt(_val('frontend_hero_particle_size'), 10) || 100;
         try { _partFx.setSpeed(spd); } catch (_) {}
         try { _partFx.setSize(sz); } catch (_) {}
+        try { _partFx.setInk(_partInk()); } catch (_) {}
+        try { _partFx.setOpacity(_partOpacity()); } catch (_) {}
       }
     } else {
       _destroyPart();
       if (preview.particles) preview.particles.hidden = true;
     }
+
+    // Everything above may have changed the content's height (a longer
+    // heading, another button row, a markdown list in the subheading).
+    fitPreviewContent();
   }
 
   // ── Buttons list editor ──────────────────────────────────────
@@ -1041,6 +1192,7 @@
         ['ghost',   'Ghost (outline)'],
         ['yellow',  'Yellow (high-contrast)'],
         ['green',   'Green (filled)'],
+        ['blue',    'Blue (filled)'],
       ]));
       opts.appendChild(toggleField('open_in_new_tab', 'Open in new tab'));
       row.appendChild(opts);

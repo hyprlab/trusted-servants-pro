@@ -681,6 +681,11 @@ window.tspBlogTags = [
    admin loads; safe to include here because it self-initialises on
    explicit calls (no auto-mount). #}
 <script src="{{ url_for('static', filename='js/login_fx.js', v=app_build_id) }}"></script>
+{# Markdown parser for the hero modal's subheading preview — the field
+   accepts markdown + inline HTML, and the server renders it with the
+   `markdown_inline` filter. Same vendored `marked` the meeting modal
+   previews with; load order matters (page_hero_modal.js reads it). #}
+<script src="{{ url_for('static', filename='js/vendor/marked.min.js', v=app_build_id) }}"></script>
 {# Two-way binding for the per-page hero edit modal — captures Hero
    pill clicks, populates the modal from the block's data, and writes
    every input change back into the page form's blocks_json. #}

@@ -7,7 +7,40 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.3 — 2026-09-15 (latest) — A slightly larger admin
+## 2.19.4 — 2026-09-16 (latest) — Hero and background controls that show their work
+
+**Hero particles**
+
+- **Particles can be any colour now, not just white**, and you set a light-mode colour and a dark-mode colour separately — white specks vanish on a pale hero, and the colour that works on a dark one rarely works on both.
+- **Each mode gets its own opacity**, so the layer can be a whisper in light mode and confident in dark.
+- **The particle controls are grouped into Light mode and Dark mode columns**, matching how the dynamic-background picker is laid out. Effect, Speed and Size stay above them, since those apply to both.
+- **The Size slider greys out for effects that ignore it.** "Waves" paints full-width bands rather than individual particles, so size has nothing to scale — it now says so instead of sitting there doing nothing. Your stored value comes straight back when you pick another effect.
+
+**Hero editing**
+
+- **The subheading accepts Markdown and HTML.** Bold, links, line breaks, lists — write it the way you'd write any other rich text. Anything unsafe is stripped, as everywhere else in the portal.
+- **A new "Blue (filled)" button style.** It's the Primary filled button, except in dark mode it stays a muted blue instead of going near-black navy — much easier to see against a bright hero.
+- **"Green (filled)" now darkens properly in dark mode.** It changed for visitors browsing in dark mode, but not on a hero that's pinned to dark — including the editor's own Dark preview, which is where you'd notice. Yellow had the same gap.
+- **Button icons show up in the preview.** They used to appear as the icon's name in brackets — `[custom:8]` — instead of the icon itself. Custom icons and built-in ones both render now, at the colour and size you set.
+- **The preview scales to fit.** A long heading used to wrap and push your buttons out of sight below the preview frame; the whole hero is now scaled down to fit instead, the way it would look on a smaller screen.
+- **…and it wraps where the real page wraps.** The preview was breaking the heading onto two lines nine pixels earlier than the live hero does, so a headline that fits on one line looked like it didn't.
+- **"Show tagline in hero" explains itself.** Switching it on with the Tagline field empty renders nothing — which read as a broken switch. It now tells you the field is empty.
+
+**Dynamic backgrounds**
+
+- **"Roll colours" — try palettes without turning randomise on.** Rolls a fresh brand-friendly palette straight into the colour slots, so you can audition a few and keep the one you like as fixed colours.
+- **"Roll positions" does the same for layout.** Rolls fresh coordinates for the blobs / mesh / bands and keeps them, so every visitor sees the layout you picked. "Reset layout" puts the preset's own arrangement back.
+- **Every randomise toggle now owns the button underneath it.** The old single "Shuffle preview" button re-rolled everything at once — including overwriting hand-picked colours while "random colours" was switched off. Each button now touches only its own setting.
+- **Switching "Colours" off no longer discards your palette.** Ticking and unticking used to replace your colour slots with whatever the preview happened to be showing.
+
+**Everywhere else in the admin**
+
+- **The colour swatches have clean corners.** Every rounded colour chip in the admin was drawing a square swatch inside its rounded border, which made the outline look broken.
+- **Colour chips line up with the controls stacked under them** — the swatch, the palette button, the hex field and the token badge now share one edge and one width.
+- **The "◈ token" badges tell you what they mean.** Hover one and it names the control, the palette token its colour matches, and — importantly — that it's a coincidence of colour, not a live link: editing the palette won't change that control unless you re-pick.
+- **A badge no longer describes the wrong colour.** Opening an editor that fills its colour fields in the background left the hex caption and token badge showing whatever was there beforehand — a white "Surface" badge under a purple swatch.
+
+## 2.19.3 — 2026-09-15 — A slightly larger admin
 
 - **The admin's text is a step larger than 2.19.2 shipped it.** The standard size goes from 13.6px to 14.4px, and every other size on the scale moves with it — captions, buttons, headings and the big dashboard numbers all keep their relationship to one another, so the screens read the same, just a touch bigger. If 2.19.2 felt tight, this is the correction.
 

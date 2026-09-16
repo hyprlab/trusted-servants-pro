@@ -1253,6 +1253,23 @@ body.fe-megamenu-open .fe-recovery-menu-btn span:last-child {
    heading (Fraunces / Inter); other modifier classes are no-ops. */
 .fe-hero-sub-fraunces { font-family: "Fraunces", "Inter", Georgia, serif; font-weight: 400; }
 .fe-hero-sub-inter    { font-family: "Inter", "Fraunces", sans-serif; font-weight: 400; }
+
+/* The subheading is authored in markdown + inline HTML, so it can emit
+   block children (paragraphs, lists, a <br>). Keep them on the hero's
+   own rhythm rather than the page default: no leading or trailing
+   margin, tight paragraph spacing, and lists inset far enough to read
+   as lists while staying inside the hero's centred column. */
+.fe-hero-sub > :first-child { margin-top: 0; }
+.fe-hero-sub > :last-child { margin-bottom: 0; }
+.fe-hero-sub p { margin: 0 0 0.6em; }
+.fe-hero-sub ul,
+.fe-hero-sub ol {
+  display: inline-block; text-align: left;
+  margin: 0.4em 0; padding-left: 1.4em;
+}
+.fe-hero-sub li { margin: 0.15em 0; }
+.fe-hero-sub a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.fe-hero-sub a:hover { text-decoration-thickness: 2px; }
 .fe-hero-cta {
   display: inline-flex; gap: 14px; flex-wrap: wrap; justify-content: center;
 }
@@ -1269,9 +1286,17 @@ body.fe-megamenu-open .fe-recovery-menu-btn span:last-child {
   transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
   cursor: pointer;
 }
+/* `.fe-btn-blue` rides the primary rules in light mode — it IS the
+   primary filled button there, token-driven and all — and parts company
+   only in dark mode, where it stays a muted blue instead of primary's
+   near-black navy. Listed on the same rules rather than duplicated so
+   the two can't drift apart. */
 .fe-btn-primary,
 .fe-page .fe-btn-primary,
-.frontend-body .fe-btn-primary {
+.frontend-body .fe-btn-primary,
+.fe-btn-blue,
+.fe-page .fe-btn-blue,
+.frontend-body .fe-btn-blue {
   background: var(--fe-color-btn-primary-bg, var(--fe-ink));
   color: var(--fe-color-btn-primary-text, #fff);
   /* Border resting + hover are admin-tunable from the Design tokens
@@ -1287,7 +1312,10 @@ body.fe-megamenu-open .fe-recovery-menu-btn span:last-child {
 }
 .fe-btn-primary:hover,
 .fe-page .fe-btn-primary:hover,
-.frontend-body .fe-btn-primary:hover {
+.frontend-body .fe-btn-primary:hover,
+.fe-btn-blue:hover,
+.fe-page .fe-btn-blue:hover,
+.frontend-body .fe-btn-blue:hover {
   transform: var(--fe-btn-hover-transform, translateY(-1px));
   background: var(--fe-color-btn-primary-hover-bg,
                   color-mix(in srgb, var(--fe-color-btn-primary-bg, var(--fe-ink)) 88%, black));
@@ -1331,14 +1359,18 @@ body.fe-megamenu-open .fe-recovery-menu-btn span:last-child {
 }
 html[data-theme="dark"] .fe-btn-yellow,
 html[data-theme="dark"] .fe-page .fe-btn-yellow,
-html[data-theme="dark"] .frontend-body .fe-btn-yellow {
+html[data-theme="dark"] .frontend-body .fe-btn-yellow,
+body.fe-frontend-force-dark .fe-btn-yellow,
+.fe-hero--force-dark .fe-btn-yellow {
   background: #eab308;
   color: #0c0a09;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 html[data-theme="dark"] .fe-btn-yellow:hover,
 html[data-theme="dark"] .fe-page .fe-btn-yellow:hover,
-html[data-theme="dark"] .frontend-body .fe-btn-yellow:hover {
+html[data-theme="dark"] .frontend-body .fe-btn-yellow:hover,
+body.fe-frontend-force-dark .fe-btn-yellow:hover,
+.fe-hero--force-dark .fe-btn-yellow:hover {
   background: #facc15;
   color: #0c0a09;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
@@ -1348,7 +1380,15 @@ html[data-theme="dark"] .frontend-body .fe-btn-yellow:hover {
    like .fe-btn-yellow (no design-token override) so it stays distinct
    from the brand-driven primary button. Hover is a slightly darker
    green in both modes; dark mode dims the resting green a notch so it
-   doesn't glow against a dark page bg. */
+   doesn't glow against a dark page bg.
+
+   The dark cluster below carries all three of this codebase's dark
+   signals — `html[data-theme="dark"]` (visitor toggled dark),
+   `body.fe-frontend-force-dark` (whole site pinned dark) and
+   `.fe-hero--force-dark` (one hero pinned dark, which is also how the
+   hero edit modal renders its Dark preview). Keying only off the first,
+   as this did, left the button sitting at its light-mode green inside a
+   forced-dark hero while the primary button beside it went dark. */
 .fe-btn-green,
 .fe-page .fe-btn-green,
 .frontend-body .fe-btn-green {
@@ -1367,16 +1407,54 @@ html[data-theme="dark"] .frontend-body .fe-btn-yellow:hover {
 }
 html[data-theme="dark"] .fe-btn-green,
 html[data-theme="dark"] .fe-page .fe-btn-green,
-html[data-theme="dark"] .frontend-body .fe-btn-green {
+html[data-theme="dark"] .frontend-body .fe-btn-green,
+body.fe-frontend-force-dark .fe-btn-green,
+.fe-hero--force-dark .fe-btn-green {
   background: #1fb357;
   color: #fff;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 html[data-theme="dark"] .fe-btn-green:hover,
 html[data-theme="dark"] .fe-page .fe-btn-green:hover,
-html[data-theme="dark"] .frontend-body .fe-btn-green:hover {
+html[data-theme="dark"] .frontend-body .fe-btn-green:hover,
+body.fe-frontend-force-dark .fe-btn-green:hover,
+.fe-hero--force-dark .fe-btn-green:hover {
   background: #1a984a;
   color: #fff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+/* Blue CTA — the primary filled button with a gentler dark mode. The
+   primary style darkens to near-black navy on a dark page (either the
+   global `#052566` rule or, inside a hero, a 40%-of-black colour-mix),
+   which reads as "off" next to bright hero art. This variant instead
+   mutes the brand blue toward slate: still unmistakably the brand
+   colour, just desaturated enough to sit on a dark surface. Derived
+   from the same `--fe-color-btn-primary-bg` token, so a rebranded
+   palette carries through. Carries all three dark signals — visitor
+   dark mode, a site pinned dark, and a hero pinned dark (which is also
+   how the hero edit modal renders its Dark preview). */
+html[data-theme="dark"] .fe-btn-blue,
+html[data-theme="dark"] .fe-page .fe-btn-blue,
+html[data-theme="dark"] .frontend-body .fe-btn-blue,
+body.fe-frontend-force-dark .fe-btn-blue,
+.fe-hero--force-dark .fe-btn-blue {
+  background: color-mix(in srgb,
+                        var(--fe-color-btn-primary-bg, #2e6bff) 55%, #475569);
+  color: #f8fafc;
+  border-color: color-mix(in srgb,
+                          var(--fe-color-btn-primary-bg, #2e6bff) 55%, #475569);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+html[data-theme="dark"] .fe-btn-blue:hover,
+html[data-theme="dark"] .fe-page .fe-btn-blue:hover,
+html[data-theme="dark"] .frontend-body .fe-btn-blue:hover,
+body.fe-frontend-force-dark .fe-btn-blue:hover,
+.fe-hero--force-dark .fe-btn-blue:hover {
+  background: color-mix(in srgb,
+                        var(--fe-color-btn-primary-bg, #2e6bff) 70%, #475569);
+  color: #ffffff;
+  border-color: color-mix(in srgb,
+                          var(--fe-color-btn-primary-bg, #2e6bff) 70%, #475569);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
 }
 .fe-btn-ghost:hover,

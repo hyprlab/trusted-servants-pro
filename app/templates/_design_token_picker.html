@@ -194,6 +194,27 @@
   function tokenLabel(key) {
     return (window.tspDesignColorTokenLabels || {})[key] || key;
   }
+  // Best-effort human name for the control a chip belongs to, so the
+  // tooltip can say "Particle color (dark) is …" instead of "This
+  // field is …". Reads the label text that sits above/around the input.
+  function fieldLabel(input) {
+    var host = input.closest('.nav-megalink-field, label, .fe-design-field, td, li');
+    var lbl = host && host.querySelector('.nav-megalink-field-lbl, .fe-design-field-label, .u-name');
+    var txt = '';
+    if (lbl) {
+      txt = lbl.textContent;
+    } else if (host && host.tagName === 'LABEL') {
+      // A bare <label> wrapper: take only its own text nodes, or the
+      // picker's injected caption + chip (already inside it) would end
+      // up quoted back in the tooltip describing them.
+      txt = [].slice.call(host.childNodes)
+        .filter(function (n) { return n.nodeType === 3; })
+        .map(function (n) { return n.textContent; }).join(' ');
+    }
+    txt = txt.replace(/\s+/g, ' ').trim();
+    if (txt.length > 60) txt = txt.slice(0, 60).trim() + '…';
+    return txt || 'This control';
+  }
 
   function attach(input) {
     input.dataset.dtAttached = '1';
@@ -224,24 +245,44 @@
     hexEl.title = 'Current hex value';
     var chipEl = document.createElement('span');
     chipEl.className = 'dt-token-chip';
-    chipEl.title = 'Hex matches this design-palette token. The value is stored as a frozen hex — palette edits won\'t propagate unless you re-pick.';
     chipEl.hidden = true;
     function refresh() {
       var v = (input.value || '').toLowerCase();
       hexEl.textContent = v || '—';
+      hexEl.title = v
+        ? ('This control is set to ' + v + '. Type or pick another colour to change it.')
+        : 'No colour set — this control falls through to its default.';
       var k = matchHexToToken(v);
       if (k) {
         chipEl.textContent = '◈ ' + tokenLabel(k);
         chipEl.dataset.dtChipToken = k;
         chipEl.hidden = false;
+        // Spell out what the chip means for THIS control: which field,
+        // which token, and the fact that it's a coincidence of hex
+        // rather than a live binding. Named the badge "matches" rather
+        // than "bound" for the same reason.
+        chipEl.title = fieldLabel(input) + ' is ' + v + ', which is the same colour as your '
+          + tokenLabel(k) + ' design-palette token.\n\n'
+          + 'It is a match, not a link: the value is stored as a plain hex, so editing '
+          + tokenLabel(k) + ' in the palette will NOT change this control. '
+          + 'Re-pick the token here after a palette change to follow it.\n\n'
+          + 'Pick any other colour and this badge disappears.';
       } else {
         chipEl.textContent = '';
         chipEl.removeAttribute('data-dt-chip-token');
+        chipEl.removeAttribute('title');
         chipEl.hidden = true;
       }
     }
     input.addEventListener('input', refresh);
     input.addEventListener('change', refresh);
+    // Populators that set `.value` programmatically (the hero / block
+    // modals repopulate every field when a block is opened) fire no
+    // event, which used to leave the caption and chip showing whatever
+    // the field held when the picker attached — a white "Surface" badge
+    // sitting under a purple swatch. Hang the refresh off the input so
+    // `refreshAll()` can re-run it after a populate.
+    input._dtRefresh = refresh;
     // Insert immediately after the input. Order: input → 🎨 → hex → chip.
     // Inputs that own an editable hex field opt out of the caption.
     var anchor = input;
@@ -264,7 +305,8 @@
     input.dataset.dtTextAttached = '1';
     var chip = document.createElement('span');
     chip.className = 'dt-token-chip dt-token-chip-bound';
-    chip.title = 'This field is bound to a design-palette token. Future palette edits propagate live.';
+    chip.title = fieldLabel(input) + ' is bound to a design-palette token, not to a fixed colour.\n\n'
+      + 'Edit that token in the palette and this control follows it automatically — everywhere it is used.';
     chip.hidden = true;
     function refresh() {
       var v = (input.value || '').trim();
@@ -310,6 +352,21 @@
       texts.forEach(function (t) { attachTokenTextField(t); });
     });
   }
+
+  // Public hook for any screen that sets colour-input values in code.
+  // `scan` picks up new inputs; `refresh` re-reads the ones already
+  // attached (see `input._dtRefresh` above). Also listens for a
+  // `tsp:design-tokens-refresh` event so callers can stay decoupled.
+  function refreshAll(root) {
+    (root || document).querySelectorAll('input[type="color"][data-dt-attached]')
+      .forEach(function (input) {
+        if (typeof input._dtRefresh === 'function') input._dtRefresh();
+      });
+  }
+  window.tspDesignTokenPicker = { scan: scan, refresh: refreshAll };
+  document.addEventListener('tsp:design-tokens-refresh', function (e) {
+    refreshAll(e && e.detail && e.detail.root);
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { scan(document); });

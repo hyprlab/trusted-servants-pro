@@ -12875,6 +12875,17 @@ def _hero_block_modal_proxy(data):
         frontend_hero_particle_effect=d.get("particle_effect", "stars"),
         frontend_hero_particle_speed=d.get("particle_speed", 100),
         frontend_hero_particle_size=d.get("particle_size", 100),
+        # Opacity + per-mode ink. Blocks saved before these existed have
+        # no keys, and the defaults (opaque white) are exactly what the
+        # canvas painted when the colour was hard-coded.
+        frontend_hero_particle_opacity=d.get("particle_opacity", 100),
+        # Dark-mode opacity falls back to the light value, so a block
+        # that set one opacity before the split keeps rendering at that
+        # strength in both themes until the admin splits them.
+        frontend_hero_particle_opacity_dark=d.get(
+            "particle_opacity_dark", d.get("particle_opacity", 100)),
+        frontend_hero_particle_color=d.get("particle_color", ""),
+        frontend_hero_particle_color_dark=d.get("particle_color_dark", ""),
     )
 
 
