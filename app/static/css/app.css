@@ -258,6 +258,19 @@ a:hover { text-decoration: underline; }
 h1,h2,h3 { margin: 0; }
 p { margin: .25rem 0; }
 
+/* Native colour inputs paint a square swatch — with its own 1px UA
+   border — inside whatever radius the control declares, so every
+   rounded colour chip in the admin had its corners overdrawn and read
+   as a broken outline. Round the swatch to the chip's own radius and
+   drop the UA border; the chip's `padding` (0 or 2px, per control) is
+   what insets it, so the wrapper contributes none of its own.
+   Declared here, before the two chips that already tuned their swatch
+   (`.be-hero-button-color-swatch`, the dynbg modal's), so those keep
+   their explicit values on equal specificity. */
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: 0; border-radius: inherit; }
+input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
+
 .layout { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 100vh; }
 
 .sidebar {
@@ -2495,6 +2508,30 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
   border-radius: 6px; background: transparent; cursor: pointer;
 }
 .nav-megalink-color-input:disabled { opacity: 0.35; cursor: not-allowed; }
+/* When the shared design-token picker has stacked its controls under a
+   colour chip — palette button, hex caption, token pill, each filling
+   the column — the chip's natural 44px leaves the stack looking like a
+   ragged first row. Stretch it to the column so the four rows align.
+   Scoped with :has() so a chip WITHOUT the picker (the nav mega-menu
+   editor's inline swatches) keeps its compact size. */
+.nav-megalink-field:has(> .dt-shared-token-btn) > .nav-megalink-color-input {
+  width: 100%;
+  height: 26px;
+  /* Page-level form-input padding (9px 12px on the footer admin) wins
+     over the class's own `padding: 0` and squeezes the swatch down to a
+     thin bar inside a mostly-white chip. The chip IS the colour, so it
+     fills edge to edge. */
+  padding: 0;
+}
+/* The picker's own left margins are for its inline layout (chip sitting
+   beside an input). Stacked in a column they push each row 6–8px right
+   of the one above and shave that much off its width, so the four rows
+   never share an edge. Same zeroing the dynbg modal's grid does. */
+.nav-megalink-field:has(> .dt-shared-token-btn) > .dt-shared-token-btn,
+.nav-megalink-field:has(> .dt-shared-token-btn) > .dt-hex-caption,
+.nav-megalink-field:has(> .dt-shared-token-btn) > .dt-token-chip {
+  margin-left: 0;
+}
 /* Per-link size-override row: matches the override-color row's
    layout — toggle on the left, slider + percentage readout on the
    right. Slider dims when the toggle is off so the inactive state
@@ -8531,12 +8568,21 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
    and respect the homepage's 820px max so the admin sees the same
    layout the public renderer produces. `!important` defeats any
    admin-context cascade that might otherwise reset text-align. */
+/* Deliberately NO width / max-width here. The public hero sizes this box
+   by the same cascade the preview inherits from frontend.css — the
+   container token's max-width (1400px by default), shrink-to-fit to its
+   content as a flex item. Pinning it to a number got that wrong twice:
+   `width: 100%` squeezed it to the frame, and 820px (the `.fe-hero-inner`
+   value, which the container rule outranks) left the box 9px short of
+   the heading's natural line, so "You belong here." wrapped here and sat
+   on one line on the real page. `flex: 0 0 auto` only stops the centring
+   row from shrinking it; anything wider than the frame is handled by the
+   JS contain-fit scale. */
 #page-hero-edit-modal .hero-full-preview .fe-hero-inner {
   text-align: center !important;
-  max-width: 820px !important;
+  flex: 0 0 auto;
   margin-left: auto !important;
   margin-right: auto !important;
-  width: 100%;
 }
 #page-hero-edit-modal .hero-full-preview .fe-hero-heading,
 #page-hero-edit-modal .hero-full-preview .fe-hero-sub,
@@ -8833,9 +8879,39 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   text-transform: uppercase; letter-spacing: .08em;
   color: var(--muted);
 }
+/* Particle overlay — per-theme columns. Effect / Speed / Size sit above
+   and apply to both themes; opacity and ink are per-mode, so each mode
+   owns a column. Same panel treatment as the dynamic-background modal's
+   Light | Dark split, so the two picker surfaces read as one idea. */
+.hero-part-modes {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px; margin-top: 12px;
+}
+.hero-part-mode {
+  min-width: 0; padding: 12px 14px 14px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--card, var(--panel));
+  display: flex; flex-direction: column; gap: 12px;
+}
+.hero-part-mode--dark { background: color-mix(in srgb, var(--text) 5%, var(--card, var(--panel))); }
+.hero-part-mode-title {
+  margin: 0; font-size: var(--fs-sm); font-weight: 700;
+  letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted);
+}
+/* A slider the active selection doesn't reach (particle Size under an
+   effect that paints bands, not particles). Dimmed rather than hidden so
+   the control's existence — and its stored value — stay visible. */
+.hero-slider-field.is-off { opacity: 0.45; }
+.hero-slider-field.is-off input[type="range"] { cursor: not-allowed; }
+
 .hero-typo-color-row {
   display: flex; flex-wrap: wrap; gap: 12px;
-  align-items: end;
+  /* Top-aligned: the design-token picker adds a "◈ token" badge under
+     a chip only when its hex happens to match a palette token, so two
+     chips side by side can differ in height by a row. Bottom-aligning
+     them pushed the shorter column's label down and the pair read as
+     staggered. */
+  align-items: start;
 }
 /* The reset row inside a typography group sits flush-left with no
    top padding, parallel to the group's other vertical-rhythm items. */
@@ -13403,8 +13479,19 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
    focused on what actually applies. */
 .dynbg-modal-mode [data-dynbg-mode-color-slots][hidden] { display: none; }
 .dynbg-modal-colors-blurb { margin: 2px 0 0; }
-.dynbg-modal-shuffle { align-self: flex-start; margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; }
-.dynbg-modal-shuffle .icon { width: 1em; height: 1em; }
+.dynbg-modal-shuffle,
+.dynbg-modal-roll { align-self: flex-start; margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; }
+/* The action row that sits under each "Randomize on every page load"
+   toggle. Wraps so the button + its one-line explanation stay together
+   in a narrow column. */
+.dynbg-modal-roll-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: 2px 0 10px 2px;
+}
+.dynbg-modal-roll-row[hidden] { display: none; }
+.dynbg-modal-roll-row .dynbg-modal-roll { margin-top: 0; }
+.dynbg-modal-shuffle .icon,
+.dynbg-modal-roll .icon { width: 1em; height: 1em; }
 
 /* Tone sliders: Saturation + Intensity, stacked inside a mode column. */
 .dynbg-modal-tone-grid {

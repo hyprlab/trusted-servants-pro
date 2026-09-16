@@ -830,6 +830,15 @@ def normalize_mode(raw, fill_defaults=True):
     rp = bool(raw.get("randomize_positions"))
     if fill_defaults or rp:
         out["randomize_positions"] = rp
+    # A layout the admin rolled and kept (the picker's "Roll positions"
+    # button). It is the positional twin of the colour slots: concrete
+    # stored values, used when this mode is NOT randomising. A mode that
+    # randomises re-rolls per request and ignores anything stored here.
+    pos = normalize_positions(raw.get("positions"))
+    if pos:
+        out["positions"] = pos
+    elif fill_defaults:
+        out["positions"] = {}
     for k, dflt in TONE_DEFAULTS.items():
         n = _tone_int(raw.get(k), TONE_MAX.get(k, 100))
         if fill_defaults:
@@ -1381,6 +1390,31 @@ def random_positions(dynbg_key):
     return out
 
 
+# A stored layout is written by the admin picker and read straight into
+# an inline `style` attribute, so every key must be one of ours and every
+# value has to look like the lengths/angles the randomiser emits.
+_POSITION_VALUE_RE = _re.compile(r"^(?:-?\d{1,4}(?:\.\d{1,2})?(?:%|px|deg)|auto)$")
+
+
+def normalize_positions(raw):
+    """Sanitise a stored position-var dict: drop anything that isn't a
+    var this module's randomiser can emit, and anything whose value
+    isn't a plain length / angle / ``auto``. Returns ``{}`` for junk, so
+    a malformed config renders the preset's hand-tuned defaults rather
+    than failing."""
+    if not isinstance(raw, dict):
+        return {}
+    allowed = set(POSITION_VARS)
+    out = {}
+    for k, v in raw.items():
+        if not isinstance(k, str) or k not in allowed:
+            continue
+        val = str(v).strip()
+        if _POSITION_VALUE_RE.match(val):
+            out[k] = val
+    return dict(sorted(out.items()))
+
+
 def positions_to_css_vars(positions):
     """Format a dict of position vars into an inline-style string. Sister
     helper to ``colors_to_css_vars``. Returns empty string for an empty
@@ -1418,16 +1452,26 @@ def resolve_positions_css(cfg, dynbg_key):
     if not (isinstance(modes, dict) and all(isinstance(modes.get(m), dict) for m in MODES)):
         modes = normalize_modes(modes, legacy=cfg)
     rolled = None
+    usable = None
     parts = []
     for mode in MODES:
-        if not modes[mode].get("randomize_positions"):
+        if modes[mode].get("randomize_positions"):
+            if rolled is None:
+                rolled = random_positions(dynbg_key or "")
+            mode_vars = rolled
+        else:
+            # A kept layout. Filter against this preset's own var family
+            # so a layout rolled for one preset can't leak into another
+            # after the admin switches the surface's background.
+            mode_vars = normalize_positions(modes[mode].get("positions"))
+            if mode_vars:
+                if usable is None:
+                    usable = set(random_positions(dynbg_key or ""))
+                mode_vars = {k: v for k, v in mode_vars.items() if k in usable}
+        if not mode_vars:
             continue
-        if rolled is None:
-            rolled = random_positions(dynbg_key or "")
-        if not rolled:
-            return ""
         parts.append(f"--fe-dynbg-pos-{mode}: 1;")
-        parts.extend(f"{k}-{mode}: {v};" for k, v in rolled.items())
+        parts.extend(f"{k}-{mode}: {v};" for k, v in mode_vars.items())
     return " ".join(parts)
 
 

@@ -6,6 +6,102 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.4] — 2026-09-16
+
+### Added
+
+- **Hero particle layer takes a colour and an opacity, per theme.** `login_fx.js`
+  painted `rgba(255,255,255,…)` in twelve places; those now resolve through an
+  `ink(alpha)` helper fed by new `color` / `opacity` options, with `setInk()` /
+  `setOpacity()` for live updates. Defaults (opaque white) are byte-identical to
+  the previous output, so the login screen, its appearance preview and the
+  footer's particle layer are unchanged. The hero block stores
+  `particle_color` / `particle_color_dark` / `particle_opacity` /
+  `particle_opacity_dark`; the public canvas carries them as data attributes and
+  re-tints in place on theme toggle. Dark values fall back to light, so blocks
+  saved before the split render unchanged.
+- **`.fe-btn-blue` ("Blue (filled)") hero button style.** Rides the
+  `.fe-btn-primary` light-mode rules (same selectors, not a copy) and overrides
+  only dark mode, where it mutes toward slate —
+  `color-mix(--fe-color-btn-primary-bg 55%, #475569)`, 70% on hover — instead of
+  primary's near-black navy. Carries all three dark signals.
+- **Dynamic backgrounds: kept layouts.** Each mode block accepts a `positions`
+  dict alongside `randomize_positions`. `dynbg.normalize_positions()` filters it
+  against `POSITION_VARS` and a strict length/angle value pattern, so a stored
+  layout can't inject arbitrary CSS into an inline style;
+  `resolve_positions_css()` stamps it for any mode that isn't randomising,
+  filtered to the active preset's var family. The picker gains "Roll positions"
+  / "Reset layout" beside the Positions toggle, and "Roll colours" inside the
+  Colours fieldset.
+- **Hero subheading renders Markdown + inline HTML** via the existing
+  `markdown_inline` filter (nh3-sanitised). The element moved from `<p>` to
+  `<div>` so block-level markdown nests legally; frontend.css keeps block
+  children on the hero's rhythm. The modal previews it through the vendored
+  `marked`.
+- **Shared design-token picker exposes `window.tspDesignTokenPicker`**
+  (`scan` / `refresh`) plus a `tsp:design-tokens-refresh` event, for screens
+  that set colour-input values programmatically.
+- **`window.BlockEditor` exposes `iconCatalog` / `iconPaths`**, so the hero
+  modal renders real button icons instead of a `[name]` placeholder.
+
+### Changed
+
+- **Dynbg randomise panel refactored to one action per toggle.** The single
+  "Shuffle preview" button re-rolled the sample palette, the sample layout AND
+  the pattern motif, and reseeded the fixed colour slots — so shuffling to see a
+  layout silently discarded a hand-picked palette. Split into
+  `shuffleSamplePalette()` / `shuffleSampleLayout()` / `rollColors()`, each
+  wired to a button under its own checkbox. The Positions row keeps its place in
+  both states; only the button inside it swaps.
+- **Unticking "random colours" no longer overwrites populated colour slots** —
+  it seeds from the sample only when the slots are empty.
+- **Hero particle controls regrouped** into `.hero-part-mode` Light / Dark
+  columns (same treatment as the dynbg modal's split); the Size field greys out,
+  disables and explains itself for effects listed in `data-nosize-effects`
+  (`waves`).
+- **Hero preview contain-fits its content.** `.fe-hero-inner` gets a
+  JS-computed `scale()` (down only) recomputed on every sync, via
+  ResizeObserver on the content and frame, and on `document.fonts.ready` — the
+  admin shell fetches Fraunces lazily, so first paint could land in the wider
+  Georgia fallback and bake a wrong height into the fit.
+
+### Fixed
+
+- **Hero preview wrapped the heading earlier than the live page.** The admin
+  override pinned `.fe-hero-inner` to 820px; the public box is sized by
+  `.frontend-body .fe-container` (1400px max) and shrink-to-fits to 829.2px as a
+  flex item, leaving the heading 679px — a one-line fit with nothing to spare.
+  The override now sets no width at all and only prevents flex shrink.
+- **`.fe-btn-green` / `.fe-btn-yellow` had no dark variant under a forced-dark
+  hero or a forced-dark site** — their dark cluster keyed only on
+  `html[data-theme="dark"]`, so they kept light-mode colours in the hero modal's
+  Dark preview while the primary button beside them darkened.
+- **Native colour inputs drew a square swatch inside a rounded chip**, so every
+  rounded colour control in the admin read as a broken outline. One base rule
+  now rounds `::-webkit-color-swatch` / `::-moz-color-swatch` to the chip's own
+  radius and drops the UA border.
+- **Colour chips stacked under the token picker didn't share an edge** with the
+  picker's injected controls (its inline-layout left margins pushed each row
+  right) and a page-level input padding squeezed the swatch into a thin bar.
+- **Token badge / hex caption went stale** when a modal populated its colour
+  inputs in code (no `input` event) — the hero modal now calls the picker's
+  refresh after populating. Both also gained contextual tooltips naming the
+  control and distinguishing "matches a token" from "bound to a token".
+- **Dashboard widget empty states mixed two sizes in one card**; the eight
+  `<p class="muted">` states in `index.html` now carry `smaller`, and the Access
+  Requests card's titles take the widget-title size inside a `.dash-widget`.
+- **Settings/toggle row labels truncated instead of wrapping**
+  (`.u-name` inherits nowrap + ellipsis from the sidebar user chip), which ate
+  the tail of "Auto-hide app sidebar in Web Frontend" and its help chip in a
+  narrow column.
+- **The last boxed row in a `.list` lost its bottom border** —
+  `.list li:last-child { border-bottom: none }` outranks `.special-page-row`'s
+  own four-sided border.
+- **"Show tagline in hero" looked like a dead switch** when the Tagline field is
+  empty; the toggle now says so.
+- **`.hero-typo-color-row` bottom-aligned its columns**, staggering a pair when
+  only one carried a token badge.
+
 ## [2.19.3] — 2026-09-15
 
 ### Changed

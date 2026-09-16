@@ -307,13 +307,47 @@
     (function particleCanvases(){
       if (!window.initLoginFX) return;
       if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+      // A canvas may carry a light-mode and a dark-mode ink (the hero
+      // does; the footer's layer predates the control and carries
+      // neither, so both sides resolve to white and nothing changes).
+      const inkFor = canvas => (isDark()
+        ? (canvas.dataset.colorDark || canvas.dataset.color)
+        : canvas.dataset.color) || '#ffffff';
+      const opacityFor = canvas => {
+        const raw = isDark()
+          ? (canvas.dataset.opacityDark != null && canvas.dataset.opacityDark !== ''
+             ? canvas.dataset.opacityDark : canvas.dataset.opacity)
+          : canvas.dataset.opacity;
+        const n = parseInt(raw, 10);
+        return isNaN(n) ? 100 : n;
+      };
+      const live = [];
       document.querySelectorAll('[data-hero-particles]').forEach(canvas => {
         const effect = canvas.dataset.effect || 'stars';
         if (effect === 'off') { canvas.remove(); return; }
         const speed = parseInt(canvas.dataset.speed, 10) || 100;
         const size = parseInt(canvas.dataset.size, 10) || 100;
-        window.initLoginFX(canvas, { effect, speed, size });
+        const fx = window.initLoginFX(canvas, {
+          effect, speed, size,
+          color: inkFor(canvas),
+          opacity: opacityFor(canvas),
+        });
+        if (fx && fx.setInk) live.push({ canvas, fx });
       });
+      // Re-tint in place when the visitor flips theme — the particles
+      // keep their positions, only the ink changes.
+      if (!live.length) return;
+      const mo = new MutationObserver(records => {
+        for (const r of records) if (r.attributeName === 'data-theme') {
+          live.forEach(it => {
+            try { it.fx.setInk(inkFor(it.canvas)); } catch (_) {}
+            try { it.fx.setOpacity(opacityFor(it.canvas)); } catch (_) {}
+          });
+          break;
+        }
+      });
+      mo.observe(document.documentElement, { attributes: true });
     })();
 
     // Sinewave bg — reuses the login screen's gradient generator and

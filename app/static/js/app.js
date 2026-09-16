@@ -5473,8 +5473,32 @@
     const row = m$(mode, '[data-dynbg-mode-colors-row]');
     const cap = capFor(selectedKey());
     if (row) row.hidden = !selectedKey() || (cap.colors || 0) < 1 || !!getRandomizeColors(mode);
-    const shuffle = m$(mode, '[data-dynbg-mode-shuffle]');
-    if (shuffle) shuffle.hidden = !(getRandomizeColors(mode) || getRandomizePositions(mode));
+    // The sample-palette shuffle belongs to the Colours toggle and is
+    // only meaningful while that toggle is on.
+    const colActions = m$(mode, '[data-dynbg-mode-colors-row-actions]');
+    if (colActions) {
+      colActions.hidden = !selectedKey() || (cap.colors || 0) < 1 || !getRandomizeColors(mode);
+    }
+    syncPosRowActions(mode);
+  }
+  // The Positions row keeps its place; only the button inside it swaps,
+  // because randomising and fixing are genuinely different actions.
+  // Randomising → shuffle the sample the preview shows. Fixed → roll a
+  // layout and keep it (Reset appears once one is being kept).
+  function syncPosRowActions (mode) {
+    const row = m$(mode, '[data-dynbg-mode-pos-row-actions]');
+    if (!row) return;
+    const cap = capFor(selectedKey());
+    const supported = !!selectedKey() && !!cap.randomize_positions;
+    const randomising = !!getRandomizePositions(mode);
+    const kept = !!getKeptPositions(mode);
+    row.hidden = !supported;
+    const show = (sel, on) => { const el = m$(mode, sel); if (el) el.hidden = !on; };
+    show('[data-dynbg-mode-pos-shuffle]', supported && randomising);
+    show('[data-dynbg-mode-pos-shuffle-note]', supported && randomising);
+    show('[data-dynbg-mode-pos-roll]', supported && !randomising);
+    show('[data-dynbg-mode-pos-reset]', supported && !randomising && kept);
+    show('[data-dynbg-mode-pos-note]', supported && !randomising && kept);
   }
 
   // ── Animation toggle ───────────────────────────────────────────
@@ -5826,6 +5850,18 @@
     }
     return out;
   }
+  // A layout the admin rolled and kept, per mode. Unlike the sample
+  // palette / layout above (preview-only, re-rolled per open) this is
+  // real config: it rides along in the mode block as `positions` and the
+  // server stamps it for any mode that isn't randomising.
+  const _modePositions = { light: null, dark: null };
+  function getKeptPositions (mode) {
+    const p = _modePositions[mode];
+    return (p && Object.keys(p).length) ? p : null;
+  }
+  function setKeptPositions (mode, pos) {
+    _modePositions[mode] = (pos && Object.keys(pos).length) ? pos : null;
+  }
   let _previewRandPositions = null, _previewRandPositionsKey = '';
   function previewRandPositions (key) {
     if (!_previewRandPositions || _previewRandPositionsKey !== key) {
@@ -5834,17 +5870,28 @@
     }
     return _previewRandPositions;
   }
-  // Shuffle-preview button (per column). Re-rolls the sample palette
-  // + layout. When the column's random colours is OFF, the fresh
-  // palette is written straight into its colour chips (re-saturated
-  // as displayed, see the randomize-colours handler) so the chips
-  // always show what the preview shows and the admin can shuffle
-  // their way to a starting palette.
-  function reshufflePreview (mode) {
+  // ── Per-concern actions ────────────────────────────────────────
+  // Each of these touches exactly one thing. The old combined
+  // "Shuffle preview" re-rolled the sample palette AND the sample
+  // layout AND rewrote the fixed colour slots, so shuffling to see a
+  // different layout silently threw away hand-picked colours.
+  //
+  // Randomising → shuffle the SAMPLE (preview-only; every page load
+  // rolls its own anyway). Fixed → roll a value and KEEP it.
+  function shuffleSamplePalette () {
     _previewRandPalette = null;
+    updatePreview();
+  }
+  function shuffleSampleLayout () {
     _previewRandPositions = null;
-    _previewPattern = null;
-    if (mode && !getRandomizeColors(mode)) seedColorsFromSample(mode);
+    updatePreview();
+  }
+  // "Roll colours" (Colours fieldset, shown while the column is NOT
+  // randomising): roll a palette and write it into the slots, so what
+  // the preview shows is what every visitor gets.
+  function rollColors (mode) {
+    _previewRandPalette = null;
+    seedColorsFromSample(mode);
     updatePreview();
   }
   function seedColorsFromSample (mode) {
@@ -5958,6 +6005,15 @@
     if (key && getRandomizePositions(mode)) {
       const pos = previewRandPositions(key);
       Object.keys(pos).forEach(k => parts.push(k + ': ' + pos[k] + ';'));
+    } else if (key && getKeptPositions(mode)) {
+      // Mirrors dynbg.resolve_positions_css: only vars this preset can
+      // actually use, so a layout kept under another preset doesn't
+      // leak in after the admin switches backgrounds.
+      const kept = getKeptPositions(mode);
+      const usable = previewRandomPositions(key);
+      Object.keys(kept).forEach(k => {
+        if (k in usable) parts.push(k + ': ' + kept[k] + ';');
+      });
     }
     // Per-preset knob vars (motion speed, dot size/gap, line angle, …).
     if (key) parts.push(...knobVarParts(key, _knobState));
@@ -6144,6 +6200,8 @@
     if (cols.some(Boolean)) out.colors = cols;
     if (getRandomizeColors(mode)) out.randomize_colors = true;
     if (getRandomizePositions(mode)) out.randomize_positions = true;
+    const kept = getKeptPositions(mode);
+    if (kept) out.positions = kept;
     TONE_KEYS.forEach(k => { const v = toneVal(mode, k); if (v !== toneDefault(k)) out[k] = v; });
     if (patVal(mode, 'opacity') !== 100) out.pat_opacity = patVal(mode, 'opacity');
     if (patVal(mode, 'bg') === 'gradient') out.pat_bg = 'gradient';
@@ -6173,6 +6231,7 @@
     SLOTS.forEach(slot => setColor(mode, slot, cols[slot - 1] || ''));
     setRandomizeColors(mode, !!b.randomize_colors);
     setRandomizePositions(mode, !!b.randomize_positions);
+    setKeptPositions(mode, (b.positions && typeof b.positions === 'object') ? b.positions : null);
     TONE_KEYS.forEach(k => setToneVal(mode, k, b[k]));
     setPatVal(mode, 'opacity', b.pat_opacity != null ? b.pat_opacity : 100);
     setPatVal(mode, 'bg', b.pat_bg || 'solid');
@@ -6201,6 +6260,9 @@
       if (cols.some(Boolean)) keep.colors = cols;
       if (b.randomize_colors) keep.randomize_colors = true;
       if (b.randomize_positions) keep.randomize_positions = true;
+      if (b.positions && typeof b.positions === 'object' && Object.keys(b.positions).length) {
+        keep.positions = b.positions;
+      }
       TONE_KEYS.forEach(k => {
         const n = parseInt(b[k], 10);
         if (isFinite(n) && n !== toneDefault(k)) keep[k] = Math.max(0, Math.min(toneMax(k), n));
@@ -6401,6 +6463,7 @@
           mb.push(n + ' colour' + (n === 1 ? '' : 's'));
         }
         if (b.randomize_positions) mb.push('random positions');
+        else if (b.positions && Object.keys(b.positions).length) mb.push('kept layout');
         if (b.overlay) mb.push(overlayNameByKey(b.overlay) + ' overlay');
         if (b.sat != null) mb.push(b.sat + '% sat');
         if (b.bright != null) mb.push(b.bright + '% bright');
@@ -6500,14 +6563,19 @@
           // switched ON so the admin sees a fresh shuffle; the slot
           // inputs hide while it's on.
           _previewRandPalette = null;
-        } else {
-          // Switched OFF: seed the slots with the palette the preview
-          // was just showing, so the admin starts mixing from the
-          // colours they liked rather than from blank / brand defaults.
-          // Seed with the colours AS DISPLAYED (sample re-saturated by
+        } else if (!getColors(mode).some(Boolean)) {
+          // Switched OFF with nothing in the slots: seed them with the
+          // palette the preview was just showing, so the admin starts
+          // mixing from the colours they liked rather than from blank /
+          // brand defaults. Seeded AS DISPLAYED (sample re-saturated by
           // this mode's Saturation) so the preview doesn't shift —
           // saturateHex sets an absolute saturation, so re-applying it
           // to these values is a no-op.
+          //
+          // Slots that ALREADY hold colours are left alone: ticking a
+          // randomise box and unticking it is not an instruction to
+          // throw away a hand-picked palette. Use "Roll colours" to
+          // overwrite them deliberately.
           seedColorsFromSample(mode);
         }
         syncColorSlotsVisibility(mode);
@@ -6516,11 +6584,42 @@
       const rp = m$(mode, '[data-dynbg-mode-randomize-positions]');
       if (rp) rp.addEventListener('change', () => {
         if (rp.checked) _previewRandPositions = null;
+        // Switching randomise OFF leaves the preview on the layout it
+        // was just showing, so the admin keeps the one they liked
+        // rather than snapping back to the preset's default.
+        else if (!getKeptPositions(mode) && selectedKey()) {
+          setKeptPositions(mode, previewRandPositions(selectedKey()));
+        }
         syncColorSlotsVisibility(mode);
         updatePreview();
       });
-      const shuffle = m$(mode, '[data-dynbg-mode-shuffle]');
-      if (shuffle) shuffle.addEventListener('click', () => reshufflePreview(mode));
+      const colShuffle = m$(mode, '[data-dynbg-mode-colors-shuffle]');
+      if (colShuffle) colShuffle.addEventListener('click', () => shuffleSamplePalette());
+      const posShuffle = m$(mode, '[data-dynbg-mode-pos-shuffle]');
+      if (posShuffle) posShuffle.addEventListener('click', () => shuffleSampleLayout());
+      // "Roll colours" lives inside the Colours fieldset (on screen only
+      // while this column is NOT randomising colours), so the admin can
+      // audition palettes and keep the one they like as fixed slots.
+      const roll = m$(mode, '[data-dynbg-mode-roll]');
+      if (roll) roll.addEventListener('click', () => rollColors(mode));
+      // Roll / reset a KEPT layout. Rolling writes concrete position
+      // vars into this mode's config (the positional equivalent of
+      // writing hexes into the colour slots), so what the preview shows
+      // is what every visitor gets — not a fresh roll per page load.
+      const posRoll = m$(mode, '[data-dynbg-mode-pos-roll]');
+      if (posRoll) posRoll.addEventListener('click', () => {
+        const key = selectedKey();
+        if (!key) return;
+        setKeptPositions(mode, previewRandomPositions(key));
+        syncPosRowActions(mode);
+        updatePreview();
+      });
+      const posReset = m$(mode, '[data-dynbg-mode-pos-reset]');
+      if (posReset) posReset.addEventListener('click', () => {
+        setKeptPositions(mode, null);
+        syncPosRowActions(mode);
+        updatePreview();
+      });
       m$$(mode, '[data-dynbg-mode-scope]').forEach(r => r.addEventListener('change', updatePreview));
       // Colour input pairs — text input is canonical; <input type=color>
       // syncs on change. Per-slot Clear button blanks both inputs.

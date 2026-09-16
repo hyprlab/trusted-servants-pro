@@ -3089,20 +3089,48 @@
 
             <fieldset class="dynbg-modal-fieldset" data-dynbg-mode-randomize-row>
               <legend>Randomize on every page load</legend>
+              {# Each toggle owns the button directly under it, and that
+                 button only ever touches its own concern — shuffling a
+                 sample palette never rewrites the fixed colour slots,
+                 rolling a layout never touches colours. A row keeps its
+                 place whether the toggle is on or off; only the button
+                 inside it changes, because "randomising" and "fixed"
+                 genuinely are two different actions:
+                   · randomising → shuffle the SAMPLE the preview shows
+                   · fixed       → roll a value and KEEP it #}
               <label class="check dynbg-modal-randomize" data-dynbg-mode-randomize-colors-label>
                 <input type="checkbox" data-dynbg-mode-randomize-colors value="1">
                 <span><b>Colours</b> <span class="muted smaller">— picks a fresh brand-friendly palette each page load.</span></span>
               </label>
+              <div class="dynbg-modal-roll-row" data-dynbg-mode-colors-row-actions hidden>
+                <button type="button" class="btn btn-sm dynbg-modal-roll" data-dynbg-mode-colors-shuffle>
+                  {{ icon('refresh') }} Shuffle sample palette
+                </button>
+                <span class="muted smaller">Preview another of the palettes visitors will get.</span>
+              </div>
+
               <label class="check dynbg-modal-randomize" data-dynbg-mode-randomize-positions-label>
                 <input type="checkbox" data-dynbg-mode-randomize-positions value="1">
                 <span><b>Positions</b> <span class="muted smaller">— blobs / gradients / bands spawn at fresh coordinates each page load.</span></span>
               </label>
-              {# Re-rolls the preview's sample palette / layout so the
-                 admin can see a few of the renders visitors will get.
-                 Only shown while something in this column randomises. #}
-              <button type="button" class="btn btn-sm dynbg-modal-shuffle" data-dynbg-mode-shuffle hidden>
-                {{ icon('refresh') }} Shuffle preview
-              </button>
+              <div class="dynbg-modal-roll-row" data-dynbg-mode-pos-row-actions hidden>
+                {# Randomising: the layout changes per page load, so the
+                   only useful action is previewing another sample. #}
+                <button type="button" class="btn btn-sm dynbg-modal-roll"
+                        data-dynbg-mode-pos-shuffle hidden>
+                  {{ icon('refresh') }} Shuffle sample layout
+                </button>
+                <span class="muted smaller" data-dynbg-mode-pos-shuffle-note hidden>Preview another of the layouts visitors will get.</span>
+                {# Fixed: roll a layout and keep it — the positional twin
+                   of "Roll colours" in the Colours fieldset below. #}
+                <button type="button" class="btn btn-sm dynbg-modal-roll"
+                        data-dynbg-mode-pos-roll hidden>
+                  {{ icon('refresh') }} Roll positions
+                </button>
+                <button type="button" class="btn btn-sm dynbg-modal-roll"
+                        data-dynbg-mode-pos-reset hidden>Reset layout</button>
+                <span class="muted smaller" data-dynbg-mode-pos-note hidden>Using a kept layout.</span>
+              </div>
             </fieldset>
 
             <fieldset class="dynbg-modal-fieldset" data-dynbg-mode-colors-row>
@@ -3136,6 +3164,13 @@
                 </label>
                 {% endfor %}
                 <p class="muted smaller dynbg-modal-colors-blurb" data-dynbg-mode-colors-blurb>Leave a slot blank to fall through to the brand accent.</p>
+                {# Re-rolls the slots with a fresh brand-friendly palette
+                   without turning "random colours" on — the admin keeps a
+                   fixed palette, they just want help finding one. Same
+                   generator the randomise preview uses. #}
+                <button type="button" class="btn btn-sm dynbg-modal-roll" data-dynbg-mode-roll>
+                  {{ icon('refresh') }} Roll colours
+                </button>
               </div>
             </fieldset>
 
