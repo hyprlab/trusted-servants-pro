@@ -302,7 +302,9 @@
             {% for e in _rn[1:4] %}
             <li class="dash-relnotes-history-row">
               <span class="dash-relnotes-history-ver">{{ e.version }}</span>
-              <span class="dash-relnotes-history-title">{{ e.title or 'Update' }}</span>
+              {# Release headings are version + date; a title is optional, so print
+                 nothing rather than inventing one. #}
+              {% if e.title %}<span class="dash-relnotes-history-title">{{ e.title }}</span>{% endif %}
               {% if e.date_label %}<span class="dash-relnotes-history-date">{{ e.date_label }}</span>{% endif %}
             </li>
             {% endfor %}
