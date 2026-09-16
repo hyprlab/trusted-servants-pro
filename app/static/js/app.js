@@ -6039,22 +6039,44 @@
   // Mirrors dynbg.pattern_mask_layers — one mask URL per ink layer,
   // plus the tile size for mask-size. Attributes are injected per the
   // motif's render mode exactly as the server does.
-  function previewPatternLayers (patternKey, weight) {
+  function previewPatternLayers (patternKey, weight, scale) {
     const entry = previewPatternEntry(patternKey);
     if (!entry) return { urls: [], w: 0, h: 0 };
     const w = Math.max(0.5, Math.min(14, parseFloat(weight)));
     const wv = isFinite(w) ? (w === Math.round(w) ? String(Math.round(w)) : String(w)) : '2';
+    // Scale rides inside the image now (see dynbg.pattern_mask_layers),
+    // because the CSS tiling that used to apply it is what seamed.
+    const sc0 = parseFloat(scale);
+    const sc = isFinite(sc0) ? Math.max(0.25, Math.min(8, sc0)) : 1;
     const attrs = ((_patternModeAttrs || {})[entry.mode] || '').split('{w}').join(wv);
+    // Mirrors dynbg.pattern_mask_layers' wrap step: a motif whose tile
+    // was corrected to its own pitch (PATTERN_TILE_FIXES — the entry
+    // carries `wrap_x` / `wrap_y` through /dynbg/patterns.json) is now
+    // shorter than it was drawn for, so each layer is emitted once per
+    // wrap step and what leaves one edge re-enters the other.
+    const wx = entry.wrap_x || 0, wy = entry.wrap_y || 0;
+    const REPS = 2;
     const urls = (entry.layers || []).map(body => {
-      const svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 "
-        + entry.w + " " + entry.h + "' width='" + entry.w + "' height='" + entry.h + "'>"
-        + body.replace('/>', attrs + '/>') + "</svg>";
+      // Attributes go on before the copies, so every copy carries them.
+      let node = body.replace('/>', attrs + '/>');
+      if (wx || wy) {
+        let acc = '';
+        for (let k = -REPS; k <= REPS; k++) {
+          acc += "<g transform='translate(" + (k * wx) + "," + (k * wy) + ")'>" + node + "</g>";
+        }
+        node = acc;
+      }
+      const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'>"
+        + "<defs><pattern id='p' patternUnits='userSpaceOnUse' width='" + entry.w
+        + "' height='" + entry.h + "' patternTransform='scale(" + sc + ")'>"
+        + node + "</pattern></defs>"
+        + "<rect width='100%' height='100%' fill='url(#p)'/></svg>";
       const enc = svg.replace(/%/g, '%25').replace(/#/g, '%23')
         .replace(/</g, '%3C').replace(/>/g, '%3E')
         .replace(/"/g, '%22').replace(/'/g, '%27');
       return "data:image/svg+xml;utf8," + enc;
     });
-    return { urls, w: entry.w, h: entry.h };
+    return { urls, w: entry.w, h: entry.h, key: entry.key };
   }
   function previewRandomPositions (key) {
     const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -6272,7 +6294,8 @@
           if (key === 'pattern-tile') {
             node.innerHTML = '';
             const pat = previewPatternLayers(_knobState.pattern,
-                                             _knobState.weight != null ? _knobState.weight : 2);
+                                             _knobState.weight != null ? _knobState.weight : 2,
+                                             _knobState.scale != null ? _knobState.scale : 1);
             if (pat.w) {
               host.style.setProperty('--fe-dynbg-pat-w', pat.w + 'px');
               host.style.setProperty('--fe-dynbg-pat-h', pat.h + 'px');
@@ -6614,16 +6637,24 @@
     if (!rec) return;
     const kn = knobsObj || {};
     const token = (thumbEl.__dynbgThumbToken = (thumbEl.__dynbgThumbToken || 0) + 1);
-    window.dynbgPatternLayers(kn.pattern || 'random', kn.weight != null ? kn.weight : 2).then(pat => {
+    // Chip-fit: show roughly two repeats of the tile whatever its native
+    // size, so the motif is recognisable at 64x44. This is a scale, and
+    // scale now lives inside the mask image, so the tile is resolved
+    // first (a 'random' pick isn't known until then) and the layers are
+    // rebuilt at the fitting scale — two string builds, no network.
+    const wgt = kn.weight != null ? kn.weight : 2;
+    window.dynbgPatternLayers(kn.pattern || 'random', wgt, 1)
+      .then(probe => {
+        const fit = probe.w ? Math.min(1, 26 / Math.max(probe.w, probe.h)) : 1;
+        return fit === 1 ? probe
+          : window.dynbgPatternLayers(probe.key || kn.pattern || 'random', wgt, fit);
+      })
+      .then(pat => {
       if (thumbEl.__dynbgThumbToken !== token || !rec.isConnected) return;  // superseded
       rec.innerHTML = '';
       if (pat.w) {
         rec.style.setProperty('--fe-dynbg-pat-w', pat.w + 'px');
         rec.style.setProperty('--fe-dynbg-pat-h', pat.h + 'px');
-        // Chip-fit: show roughly two repeats of the tile, whatever its
-        // native size, so the motif is recognisable at 64x44.
-        const fit = Math.min(1, 26 / Math.max(pat.w, pat.h));
-        thumbEl.style.setProperty('--fe-dynbg-pat-scale', String(+fit.toFixed(3)));
       }
       pat.urls.forEach((u, i) => {
         const sp = document.createElement('span');
@@ -7050,13 +7081,19 @@
   // catalogue is lazy-loaded, so this resolves once it's available.
   // A 'random' choice is resolved fresh here, matching what a page
   // render would do.
-  window.dynbgPatternLayers = function (patternKey, weight) {
+  // Catalogue entry for a motif key (null while the library is still
+  // loading, or for 'random'), so callers can size against its tile.
+  window.dynbgPatternEntry = function (patternKey) {
+    const lib = _patterns || [];
+    return lib.find(p => p.key === patternKey) || null;
+  };
+  window.dynbgPatternLayers = function (patternKey, weight, scale) {
     const build = () => {
       const lib = patterns();
       let entry = lib.find(p => p.key === patternKey) || null;
       if (!entry && lib.length) entry = lib[Math.floor(Math.random() * lib.length)];
       if (!entry) return { urls: [], w: 0, h: 0 };
-      return previewPatternLayers(entry.key, weight);
+      return previewPatternLayers(entry.key, weight, scale);
     };
     if (_patterns) return Promise.resolve(build());
     patterns();  // kicks off the fetch

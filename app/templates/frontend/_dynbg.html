@@ -37,7 +37,11 @@
    means a different motif on every render. #}
 {%- set _pat_urls = [] -%}
 {%- if _k == 'pattern-tile' -%}
-  {%- set _pat = dynbg_pattern_layers(_knobs.get('pattern'), _knobs.get('weight', 2)) -%}
+  {# `scale` is baked into the mask image (it drives the SVG
+     <pattern>'s transform), so it has to be passed here rather
+     than left to a CSS var. #}
+  {%- set _pat = dynbg_pattern_layers(_knobs.get('pattern'), _knobs.get('weight', 2),
+                                      _knobs.get('scale', 1)) -%}
   {%- set _pat_urls = _pat[1] -%}
   {# Tile size feeds mask-size (× the scale knob); tiles aren't square. #}
   {%- set _knob_css = (_knob_css ~ " --fe-dynbg-pat-w: " ~ _pat[2] ~ "px; --fe-dynbg-pat-h: " ~ _pat[3] ~ "px;") | trim -%}

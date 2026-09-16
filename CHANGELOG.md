@@ -6,6 +6,35 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.7] — 2026-09-16
+
+### Fixed
+
+- **Hairline seams through the Pattern tile background.** Each mask was one tile
+  stamped out by `mask-repeat: repeat` at `w * scale` by `h * scale` — sizes that
+  are almost always fractional (waves-11 at scale 2.5 is 66.375 x 62.5), so the
+  tiles never landed on whole device pixels and the compositor's per-tile quads
+  seamed wherever the rounding error accumulated. One visible line every N tiles,
+  and N moved as the Scale knob changed the fractional part. Each layer is now a
+  single full-size mask that tiles ITSELF through an SVG `<pattern>`
+  (`mask-size: 100% 100%; mask-repeat: no-repeat`): one paint with a tiling
+  shader, so there are no per-tile edges to seam. `scale` consequently moves out
+  of the stylesheet and into the image's `patternTransform`, so
+  `pattern_mask_layers()` takes it and the `scale` knob drops its `css_var`; the
+  picker preview, trigger chips and hero-block preview pass it through. Side
+  effect: the tiling grid was centred by `mask-position` and is now anchored at
+  the mask box's corner, so an existing surface's pattern shifts phase once.
+- **`waves-15` left a slack band once per tile.** Its two ribbons are the same
+  wave stacked 9.6675 apart, but the tile was 30 tall — not a whole number of
+  pitches — so every wrap opened a 20.335 gap where the others are 9.6675, which
+  read as a break line between tiles. The tile is now cut to the motif's own
+  pitch (2 x 9.6675) with the geometry that crosses the shorter boundary
+  re-entering from the other side (`PATTERN_TILE_FIXES` / `wrap_y`, which travels
+  to the picker through `/dynbg/patterns.json` so both renderers agree). Checking
+  every motif whose layers are one shape at a uniform pitch, waves-15 was the
+  only one of 330 whose tile didn't divide evenly; the other eight already did,
+  and motifs built from different shapes have an uneven rhythm by design.
+
 ## [2.19.6] — 2026-09-16
 
 ### Fixed
