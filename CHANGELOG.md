@@ -6,6 +6,24 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.6] — 2026-09-16
+
+### Fixed
+
+- **Container blocks dropped every per-preset knob and the Freeze-movement
+  flag.** Unlike the other surfaces, a container block doesn't hand the renderer
+  its saved JSON — `_blocks.html` and `frontend/page.html` rebuild the config as
+  a Jinja dict literal, and that literal never listed `knobs` or `animate`.
+  `decode_config` reads both off the top level, so knobs arrived as `{}`: the
+  pattern preset's `pattern` key came back `None`, `normalize_pattern(None)`
+  resolved it to `'random'`, and the motif re-rolled on every request no matter
+  which one the admin pinned. Scale, line weight, rotation, dot size / gap and
+  motion speed fell back to the recipes' defaults for the same reason, and
+  "Freeze movement" never applied. Both literals now carry `'animate'` and
+  `'knobs'`, matching the twelve `frontend/*_list.html` builders that had them
+  all along. Nothing to re-save — the values were stored correctly, only the
+  render dropped them.
+
 ## [2.19.5] — 2026-09-16
 
 ### Added

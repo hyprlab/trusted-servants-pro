@@ -797,6 +797,15 @@
   {% if d.hover_lift %}{% set _ = _hover_classes.append('block-container--hover-lift') %}{% endif %}
 
   {%- set _bdyn_active = d.get('bg_dynamic_key') or d.get('bg_dynbg_overlay') -%}
+  {# `knobs` + `animate` are NOT optional here. This dict IS the config
+       the renderer decodes (decode_config reads the top-level `knobs` and
+       `animate` keys), so a key omitted from it is a setting the block
+       silently loses: without `knobs` the pattern preset re-rolled its
+       motif on every page load no matter which one the admin pinned, and
+       scale / weight / rotation / dot size / motion speed all fell back
+       to the recipe defaults; without `animate`, "Freeze movement" never
+       applied. Keep this list in step with the per-surface builders in
+       frontend/*_list.html. #}
   {%- set _bdyn_pseudo_cfg = {'overlay': d.get('bg_dynbg_overlay'),
                               'colors': d.get('bg_dynbg_colors') or [],
                               'overlay_scope': d.get('bg_dynbg_overlay_scope'),
@@ -804,6 +813,8 @@
                               'overlay_intensity': d.get('bg_dynbg_overlay_intensity'),
                               'randomize_colors': d.get('bg_dynbg_randomize_colors') or d.get('bg_dynbg_randomize'),
                               'randomize_positions': d.get('bg_dynbg_randomize_positions') or d.get('bg_dynbg_randomize'),
+                              'animate': d.get('bg_dynbg_animate', True),
+                              'knobs': d.get('bg_dynbg_knobs', {}),
                               'v': d.get('bg_dynbg_v'), 'pastel_light': d.get('bg_dynbg_pastel_light'), 'modes': d.get('bg_dynbg_modes')} -%}
   {%- if _bdyn_active -%}
     {%- set _bdyn_vars = dynbg_colors_css(dynbg_resolve_colors(_bdyn_pseudo_cfg), _bdyn_pseudo_cfg) -%}
