@@ -7,7 +7,14 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.5 — 2026-09-16 (latest)
+## 2.19.6 — 2026-09-16 (latest)
+
+- Fixed: a dynamic background on a container block ignored the pattern you picked and drew a different motif on every page load, even with "Randomize pattern" unchecked. The choice was being saved correctly — the page just wasn't reading it.
+- The same fault dropped the other pattern settings on container blocks: scale, line weight, rotation, and the dot presets' size and spacing all fell back to the preset's own defaults.
+- "Freeze movement" also had no effect on a container block's background. It does now.
+- Nothing needs re-saving. These settings were stored all along; reload the page to see them applied.
+
+## 2.19.5 — 2026-09-16
 
 - The dynamic background's colour randomiser no longer hands dark mode a light-mode palette. Dark mode now rolls deep shades by default, so a section set to randomise still reads as dark.
 - A "Shade lightness" slider sets how light or dark those rolled colours come out, per mode. Dark mode starts at 26, light mode at 55 — the band it has always used, so light mode looks unchanged.
