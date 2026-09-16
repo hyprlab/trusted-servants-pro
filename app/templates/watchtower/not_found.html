@@ -183,6 +183,103 @@
   </section>
 </div>
 
+{# ── Top source IPs ────────────────────────────────────────────
+   Which IPs the 404s originate from, ranked by hit count, so an admin
+   can spot a scanner grinding through dead URLs and block it in one
+   click. The per-row "distinct URLs" number is the tell: one IP on one
+   path is a stale bookmark; one IP across 200 paths is probing. Block
+   buttons post to the same endpoint as the per-path panels above and
+   are intercepted by the same delegated fetch handler, so blocking
+   never reloads the page. #}
+<section class="card">
+  <div class="card-head">
+    <h2>Top source IPs</h2>
+    <span class="muted smaller" data-wt-expand-meta="top-ips">{{ window }}d · where the 404s come from</span>
+  </div>
+  {% if not top_ips %}
+  <p class="muted">No 404s with a recorded source IP in this window. (Hits logged before 2.8.1 weren't captured with their IP.)</p>
+  {% else %}
+  {% set ti_max = (top_ips|map(attribute='count')|max) or 1 %}
+  <ul class="wt-rank-list wt-rank-list--with-action wt-rank-list--expandable wt-ip-rank-list"
+      data-wt-expand="top-ips"
+      data-initial="{{ _INITIAL }}"
+      data-step="{{ _STEP }}"
+      data-total="{{ top_ips|length }}">
+    {% for r in top_ips %}
+    <li class="wt-rank-row {% if loop.index0 >= _INITIAL %}wt-rank-row--hidden{% endif %}">
+      <div class="wt-rank-label">
+        <div class="wt-ip-rank-addr">
+          {{ ip_cell(r.ip) }}
+          {# The admin's own address. Flagged here so they recognise it
+             before clicking Block; the modal in _self_block_modal.html
+             is the backstop if they click anyway. #}
+          {% if self_ip and r.ip == self_ip %}
+          <span class="wt-self-ip-chip" title="This is the IP you're browsing from right now — blocking it would lock you out of the portal.">{{ icon('user') }} your IP</span>
+          {% endif %}
+          {# A single IP spread across this many dead URLs isn't a broken
+             link — it's someone walking a wordlist. Flagged so the
+             abusive rows separate from the merely-unlucky ones. #}
+          {% if r.distinct_paths >= 10 %}
+          <span class="wt-ip-scan-chip" title="{{ r.distinct_paths }} different dead URLs from this one IP — typical of an automated vulnerability scan, not a broken link.">{{ icon('search') }} scanning</span>
+          {% endif %}
+        </div>
+        <div class="muted smaller wt-ip-rank-sub">
+          {{ '{:,}'.format(r.distinct_paths) }} distinct URL{{ '' if r.distinct_paths == 1 else 's' }}{% if r.top_path %} · mostly <code title="{{ r.top_path }}">{{ r.top_path|truncate(44) }}</code>{% endif %}{% if r.last_seen %} · last {{ r.last_seen.strftime('%b %d, %H:%M') }}{% endif %}
+        </div>
+      </div>
+      <div class="wt-rank-bar"><span style="width: {{ (r.count / ti_max * 100)|round(0,'floor') }}%"></span></div>
+      <div class="wt-rank-count" title="{{ r.count }} 404 hit{{ '' if r.count == 1 else 's' }} in the last {{ window }} days">{{ '{:,}'.format(r.count) }}</div>
+      <div class="wt-rank-action wt-nf-ips-action">
+        {% if r.is_blocked %}
+        <span class="wt-nf-ips-blocked" title="This IP is currently on the blocklist (manage from Watchtower → Access)">{{ icon('slash') }} Blocked</span>
+        {% elif self_ip and r.ip == self_ip %}
+        {# The admin's own address. Rendered as a live button even though
+           they're necessarily a "recent user" of it — the self-block modal
+           is a far more specific warning than the greyed trusted-user
+           state, and greying it here would make the confirmation the
+           user asked for unreachable. #}
+        <form method="post" action="{{ url_for('main.watchtower_ban_ip') }}"
+              class="wt-nf-ips-block-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="ip" value="{{ r.ip }}">
+          <input type="hidden" name="reason" value="{{ r.count }} 404s across {{ r.distinct_paths }} URL{{ '' if r.distinct_paths == 1 else 's' }} in {{ window }}d">
+          <input type="hidden" name="ttl_hours" value="0">
+          <input type="hidden" name="return_url" value="{{ url_for('main.watchtower_not_found', window=window) }}">
+          <button type="submit" class="btn btn-sm btn-danger" title="This is your own IP — you'll be asked to confirm">{{ icon('slash') }} Block</button>
+        </form>
+        {% elif r.trusted_user %}
+        {# A real user signed in from this IP in the last 30 days — greyed
+           out so we can't accidentally lock them out of the portal. #}
+        <span class="wt-nf-ips-block-protected-wrap"
+              title="Can't block — {{ r.trusted_user }} signed in from this IP in the last 30 days, so blocking it could lock a real user out. Block from Watchtower → Access if you're sure.">
+          <button type="button" class="btn btn-sm btn-danger wt-nf-ips-block-protected" disabled>{{ icon('slash') }} Block</button>
+        </span>
+        {% else %}
+        <form method="post" action="{{ url_for('main.watchtower_ban_ip') }}"
+              class="wt-nf-ips-block-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="ip" value="{{ r.ip }}">
+          <input type="hidden" name="reason" value="{{ r.count }} 404s across {{ r.distinct_paths }} URL{{ '' if r.distinct_paths == 1 else 's' }} in {{ window }}d">
+          <input type="hidden" name="ttl_hours" value="0">
+          <input type="hidden" name="protect_known_users" value="1">
+          <input type="hidden" name="return_url" value="{{ url_for('main.watchtower_not_found', window=window) }}">
+          <button type="submit" class="btn btn-sm btn-danger" title="Add this IP to the blocklist (permanent)">{{ icon('slash') }} Block</button>
+        </form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if top_ips|length > _INITIAL %}
+  <div class="wt-expand-foot">
+    <button type="button" class="btn btn-sm" data-wt-expand-btn="top-ips">
+      Show {{ _STEP }} more {{ icon('chevron-down') }}
+    </button>
+  </div>
+  {% endif %}
+  {% endif %}
+</section>
+
 <section class="card">
   <div class="card-head">
     <h2>Recent 404s {% call chip('Recent 404s') %}latest {{ recent|length }} hit{{ '' if recent|length == 1 else 's' }}{% endcall %}</h2>
@@ -209,7 +306,9 @@
           </td>
           <td class="muted small">{{ (e.device or 'other')|title }}{% if e.browser %} · {{ e.browser }}{% endif %}</td>
           <td class="small" style="white-space:nowrap">
-            {% if e.ip %}{{ ip_cell(e.ip) }}{% else %}<span class="muted">—</span>{% endif %}
+            {% if e.ip %}{{ ip_cell(e.ip) }}{% if self_ip and e.ip == self_ip %}
+            <span class="wt-self-ip-chip" title="This is the IP you're browsing from right now — blocking it would lock you out of the portal.">{{ icon('user') }} your IP</span>
+            {% endif %}{% else %}<span class="muted">—</span>{% endif %}
           </td>
           <td class="row-actions" style="white-space:nowrap">
             {% if _existing %}
@@ -224,6 +323,20 @@
               {% set _trusted = trusted_ips.get(e.ip) %}
               {% if _blocked %}
               <span class="wt-nf-ips-blocked" title="This IP is currently on the blocklist">{{ icon('slash') }} Blocked</span>
+              {% elif self_ip and e.ip == self_ip %}
+              {# The admin's own address. Rendered as a live button even though
+           they're necessarily a "recent user" of it — the self-block modal
+           is a far more specific warning than the greyed trusted-user
+           state, and greying it here would make the confirmation the
+           user asked for unreachable. #}
+              <form method="post" action="{{ url_for('main.watchtower_ban_ip') }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="ip" value="{{ e.ip }}">
+                <input type="hidden" name="reason" value="Hitting 404: {{ e.path|truncate(180) }}">
+                <input type="hidden" name="ttl_hours" value="0">
+                <input type="hidden" name="return_url" value="{{ url_for('main.watchtower_not_found', window=window) }}">
+                <button type="submit" class="btn btn-sm btn-danger" title="This is your own IP — you'll be asked to confirm">{{ icon('slash') }} Block</button>
+              </form>
               {% elif _trusted %}
               {# A real user signed in from this IP in the last 30 days —
                  greyed out so a real user can't be locked out by mistake. #}
@@ -310,8 +423,15 @@
 <style>
   .wt-rank-list--with-action .wt-rank-row {
     /* Base wt-rank-row is label / bar / count; add an action column
-       on the right for the per-row Redirect button. */
-    grid-template-columns: minmax(0, 1fr) 110px 70px auto;
+       on the right for the per-row Redirect button.
+
+       That column is a fixed width, not `auto`: every <li> is its own
+       grid, so an `auto` track sizes to that row's own content and the
+       wider "redirected" chip (147px) would push the bar and count
+       ~14px left of the rows still showing a "Redirect" button (133px),
+       breaking the column alignment down the list. 150px fits the
+       widest state. */
+    grid-template-columns: minmax(0, 1fr) 110px 70px 150px;
   }
   .wt-rank-action { display: flex; justify-content: flex-end; }
   .wt-redirect-btn { display: inline-flex; align-items: center; gap: 4px; }
@@ -427,6 +547,54 @@
     opacity: 0.45; filter: grayscale(1);
     cursor: not-allowed; pointer-events: none;
   }
+
+  /* ── Top source IPs list ──────────────────────────────────────
+     Each row carries a two-line label — the address, then a muted
+     evidence line (distinct URLs / most-hit path / last seen) — so
+     the single-line ellipsis rule on .wt-rank-label is relaxed here
+     and the clamp moves down onto the sub-line alone. */
+  /* This card is full-width (not one half of .wt-two-col), so the bar
+     gets more room than the 110px the shared --with-action rule gives
+     the narrower Top-missing-URLs list. */
+  .wt-ip-rank-list .wt-rank-row {
+    padding: 8px 0;
+    /* Fixed action track for the same reason as above — the "Blocked"
+       chip is 84px against the Block button's 67px, and an `auto` track
+       would stagger the bar/count columns row by row. 90px clears the
+       widest state. */
+    grid-template-columns: minmax(0, 1fr) 220px 70px 90px;
+  }
+  .wt-ip-rank-list .wt-rank-label {
+    white-space: normal; overflow: visible; text-overflow: clip;
+  }
+  .wt-ip-rank-addr {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 0; font-weight: 600;
+  }
+  .wt-ip-rank-sub {
+    margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .wt-ip-rank-sub code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: transparent; padding: 0;
+  }
+  /* Amber to match the 404 trend chart — a warning, not yet a verdict.
+     The Block button next to it is the red one. */
+  .wt-ip-scan-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    flex: 0 0 auto;
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em;
+    padding: 2px 8px; border-radius: 999px;
+    background: color-mix(in srgb, var(--warning, #f5a524) 16%, transparent);
+    /* Mixed toward --text rather than a fixed hue so the label stays
+       legible on both the light and dark panels — raw --warning is a
+       bright amber that washes out on white. */
+    color: color-mix(in srgb, var(--warning, #f5a524) 60%, var(--text, #1a1d29));
+    white-space: nowrap; cursor: help;
+  }
+  .wt-ip-scan-chip .icon { width: 11px; height: 11px; }
+  .wt-ip-rank-list .wt-nf-ips-action { justify-self: end; }
 </style>
 
 <script>
@@ -645,4 +813,8 @@
   });
 })();
 </script>
+{# Guard against an admin banning the address they're browsing from —
+   see the partial for why that is unrecoverable. #}
+{% include "watchtower/_self_block_modal.html" %}
+
 {% endblock %}

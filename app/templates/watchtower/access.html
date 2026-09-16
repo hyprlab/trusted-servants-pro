@@ -294,4 +294,8 @@
   }
 })();
 </script>
+{# Guard against an admin banning the address they're browsing from —
+   see the partial for why that is unrecoverable. #}
+{% include "watchtower/_self_block_modal.html" %}
+
 {% endblock %}

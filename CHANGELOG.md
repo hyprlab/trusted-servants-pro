@@ -6,6 +6,26 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.8] — 2026-09-16
+
+### Added
+
+- **Watchtower → 404s: "Top source IPs" panel.** Per-IP 404 leaderboard for the selected window, between the Top missing URLs / Top referrers pair and the Recent 404s table. `watchtower.top_404_ips(days, limit)` groups `NotFoundEvent` by `ip` for count / distinct-path count / first-seen / last-seen in one query, then batch-resolves active `IPBlock` rows, recent-login usernames (`recent_login_user_ips`) and each IP's most-hit path — no per-row queries. Rows with a NULL `ip` (pre-2.8.1 events, logged before the column existed) are excluded. Route passes `top_ips=wt.top_404_ips(days=window, limit=300)`; the list reuses the shared `wt-rank-list--expandable` contract (30 rows, "Show 30 more").
+- **`scanning` chip at ≥10 distinct paths per IP.** The distinct-path count is what separates an automated probe from link rot — one address on one path is a stale bookmark, one address across a wordlist is recon. Amber, mixed toward `--text` so it stays legible on both panels.
+- **Self-block guard (`templates/watchtower/_self_block_modal.html`).** The `_ip_block_gate` before_request in `create_app()` is unconditional — a blocked IP is 403'd ahead of routing with no exemption for signed-in admins — so banning your own address locks you out of the portal with no in-app recovery. New partial, included by `overview.html` / `access.html` / `requests.html` / `not_found.html`, contributing a confirmation modal plus a **capture-phase** `submit` listener matched on the form's action path (`…/watchtower/ban-ip`), not a marker class, so every current and future Block form is covered without opting in. Capture phase lets it pre-empt the 404s tab's own bubble-phase fetch handler; on confirm it injects `confirm_self=1`, sets `dataset.selfBlockConfirmed` and re-dispatches via `requestSubmit()` so the page's normal handler still runs. `window.confirm` is stubbed for that one synchronous dispatch to swallow the now-redundant native confirm those handlers raise.
+- **`self_ip` in the 404s contexts + "your IP" row chips** on the Top source IPs panel, the Recent 404s table, and the lazily-fetched per-path IP fragment. Sourced from `_requester_ip()` (`request.remote_addr`, ProxyFix-corrected — the same value `_ip_block_gate` compares against, so the match is correct by construction).
+
+### Changed
+
+- **`watchtower_ban_ip` refuses to ban the requester's own IP** unless `confirm_self` is present. JSON callers get `409 {ok: false, self_ip: true}`; form posts get a flash + redirect. Single choke point, so it covers all six Block forms across the four tabs.
+- **A confirmed self-block bypasses the `protect_known_users` guard.** That guard refuses to ban an IP a user signed in from within 30 days, to stop an admin locking out a real user. Your own IP is necessarily a recent-login IP, so leaving it armed made the confirmation unreachable. Gated on `ip == _requester_ip() and confirm_self` only.
+- **Own-IP branch precedes the `trusted_user` branch** in all three 404s Block surfaces and renders a live button rather than the greyed protected one — same reason: the modal is a far more specific warning than the trusted-user tooltip, and greying it out would remove the choice entirely.
+
+### Fixed
+
+- **Ranked-list columns staggered row to row.** The action track was `auto`, and every `<li>` is its own grid, so the track sized to that row's own content: a "Blocked" chip (84 px) pushed the bar and count 17 px left of rows showing a "Block" button (67 px), and a "redirected" chip (147 px) did the same by 14 px against "Redirect" (133 px). Both tracks are now fixed (`90px` / `150px`). Costs the label column ~17 px in the common state, visible only on the narrower Top missing URLs card.
+- **Sidebar Watchtower button one type-step small.** It inherited `--fs-xs` from the shared `.sidebar-quicknav-btn` rule while the Dashboard and Notifications buttons it stacks with are `--fs-sm`. Overridden on `.sidebar-quicknav-watchtower` only, matching the existing precedent that bumps that button's icon to 16px; the narrow Web/View pair keeps `--fs-xs`.
+
 ## [2.19.7] — 2026-09-16
 
 ### Fixed

@@ -4679,6 +4679,11 @@ button.chip { font-family: inherit; }
    size next to its label and chips — bump it to 16px so it matches the
    Notifications/Search icons below it. Web/View stay at 14px. */
 .sidebar-quicknav-watchtower .sidebar-quicknav-icon .icon { width: 16px; height: 16px; }
+/* Same reasoning for the label: Watchtower is a full-width button in the
+   same column as Dashboard / Notifications (both --fs-sm), so the shared
+   --fs-xs left it reading a step smaller than the buttons it stacks
+   with. The narrow Web/View pair keeps --fs-xs. */
+.sidebar-quicknav-watchtower { font-size: var(--fs-sm); }
 .sidebar-quicknav-chips {
   margin-left: auto;
   display: inline-flex;

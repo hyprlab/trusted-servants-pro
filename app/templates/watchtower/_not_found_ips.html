@@ -16,12 +16,29 @@
   <ul class="wt-nf-ips-list">
     {% for r in ips %}
     <li class="wt-nf-ips-row">
-      <span class="wt-nf-ips-addr">{{ ip_cell(r.ip, extra='small') }}</span>
+      <span class="wt-nf-ips-addr">{{ ip_cell(r.ip, extra='small') }}{% if self_ip and r.ip == self_ip %}
+        <span class="wt-self-ip-chip" title="This is the IP you're browsing from right now — blocking it would lock you out of the portal.">{{ icon('user') }} your IP</span>
+        {% endif %}</span>
       <span class="wt-nf-ips-count" title="{{ r.count }} hit{{ '' if r.count == 1 else 's' }}">{{ '{:,}'.format(r.count) }}× </span>
       {% if r.last_seen %}<span class="wt-nf-ips-last muted smaller">last {{ r.last_seen.strftime('%b %d, %H:%M') }}</span>{% endif %}
       <span class="wt-nf-ips-action">
         {% if r.is_blocked %}
         <span class="wt-nf-ips-blocked" title="This IP is currently on the blocklist (manage from Watchtower → Access)">{{ icon('slash') }} Blocked</span>
+        {% elif self_ip and r.ip == self_ip %}
+        {# The admin's own address. Rendered as a live button even though
+           they're necessarily a "recent user" of it — the self-block modal
+           is a far more specific warning than the greyed trusted-user
+           state, and greying it here would make the confirmation the
+           user asked for unreachable. #}
+        <form method="post" action="{{ url_for('main.watchtower_ban_ip') }}"
+              class="wt-nf-ips-block-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="ip" value="{{ r.ip }}">
+          <input type="hidden" name="reason" value="Hitting 404: {{ path|truncate(180) }}">
+          <input type="hidden" name="ttl_hours" value="0">
+          <input type="hidden" name="return_url" value="{{ url_for('main.watchtower_not_found', window=window) }}">
+          <button type="submit" class="btn btn-sm btn-danger" title="This is your own IP — you'll be asked to confirm">{{ icon('slash') }} Block IP</button>
+        </form>
         {% elif r.trusted_user %}
         {# A real user signed in from this IP in the last 30 days — greyed
            out so we can't accidentally lock them out of the portal. #}

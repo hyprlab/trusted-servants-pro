@@ -17439,10 +17439,14 @@ def watchtower_not_found():
         daily=wt.not_found_daily(days=window),
         top_paths=top_paths,
         top_referrers=wt.top_404_referrers(days=window, limit=300),
+        top_ips=wt.top_404_ips(days=window, limit=300),
         recent=recent,
         existing_redirects=existing_redirects,
         blocked_ips=blocked_ips,
         trusted_ips=trusted_ips,
+        # Lets the lists flag the admin's own address before they click,
+        # and feeds the self-block confirmation modal.
+        self_ip=_requester_ip(),
     )
 
 
@@ -17503,7 +17507,8 @@ def watchtower_not_found_path_ips():
         window = 30
     ips = wt.not_found_ips_for_path(path, days=window, limit=25)
     return render_template("watchtower/_not_found_ips.html",
-                           path=path, ips=ips, window=window)
+                           path=path, ips=ips, window=window,
+                           self_ip=_requester_ip())
 
 
 @bp.route("/watchtower/access")
@@ -17714,6 +17719,15 @@ def watchtower_requests():
                            blocked_ips=blocked_ips)
 
 
+def _requester_ip():
+    """The IP the current request came from, normalised the same way the
+    block gate in ``create_app()`` reads it — ProxyFix has already
+    rewritten ``remote_addr`` from X-Forwarded-For where trusted. Used to
+    recognise an admin's own address so they can't ban themselves by
+    accident."""
+    return (request.remote_addr or "").strip()
+
+
 @bp.route("/watchtower/ban-ip", methods=["POST"])
 @admin_required
 def watchtower_ban_ip():
@@ -17736,12 +17750,38 @@ def watchtower_ban_ip():
             return jsonify(ok=False, error="Provide an IP to block."), 400
         flash("Provide an IP to block.", "danger")
         return redirect(url_for("main.watchtower_access"))
+    # Guard the admin's own IP. The block gate in create_app() is
+    # unconditional — it 403s every inbound request from a blocked IP
+    # ahead of routing, with no exemption for signed-in admins — so
+    # banning the address you're currently browsing from locks you out
+    # of the entire portal with no in-app way back. Every Block surface
+    # posts here, so this is the one place that can guarantee the
+    # confirmation happened. ``confirm_self`` is what the self-block
+    # modal sends once the admin has acknowledged the lockout.
+    if ip == _requester_ip() and not request.form.get("confirm_self"):
+        msg = (f"Didn't block {ip} — that's the IP you're browsing from "
+               "right now. Blocking it would lock you out of the portal "
+               "entirely. Confirm from the warning dialog if you really "
+               "mean to.")
+        if wants_json:
+            return jsonify(ok=False, error=msg, self_ip=True), 409
+        flash(msg, "warning")
+        return redirect(_safe_return_url(request.form.get("return_url"),
+                                         "main.watchtower_access"))
     # Guard real users: the 404s-tab Block buttons send ``protect_known_users``
     # so we refuse to block an IP a signed-in user was active from in the last
     # 30 days (the button is also greyed there, this is belt-and-suspenders).
     # The Access / overview block forms don't send it, so an admin can still
     # deliberately block such an IP from those surfaces.
-    if request.form.get("protect_known_users"):
+    #
+    # Exception: the admin's own address, once they've confirmed the
+    # self-block warning. That guard exists to stop an admin locking out a
+    # real user by accident — but here the admin *is* the recent user on
+    # that IP, and they've just acknowledged a dialog that spells out the
+    # lockout in full. Leaving it armed would make the confirmation
+    # unreachable: your own IP is almost always a recent-login IP.
+    _self_confirmed = (ip == _requester_ip() and request.form.get("confirm_self"))
+    if request.form.get("protect_known_users") and not _self_confirmed:
         known_user = wt.recent_login_user_for_ip(ip)
         if known_user:
             msg = (f"Didn't block {ip} — {known_user} signed in from this IP "
