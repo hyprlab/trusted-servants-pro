@@ -13230,13 +13230,23 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 /* ── Dynbg modal — tabs + colour controls ───────────────────────
    The modal is two panels (Background / Options) with a tab bar at
    the top. These rules style that bar and the colour-input fieldset. */
+/* The tab bar's own strip. Like .dynbg-modal-preview it is a direct,
+   non-shrinking child of the flex-column .modal-panel rather than part
+   of the scrolling .modal-body, so preview + tabs stay put and only the
+   panel content beneath them moves. */
+.dynbg-modal-tabbar {
+  flex-shrink: 0;
+  padding: 12px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
 .dynbg-modal-tabs {
   display: flex; gap: 4px;
   padding: 4px;
   background: var(--card-soft, color-mix(in srgb, var(--text) 4%, var(--card)));
   border: 1px solid var(--border);
   border-radius: 10px;
-  margin: 0 0 16px;
+  margin: 0;
 }
 /* Each tab half is a wrapper that owns the pill styling and the
    click target; the <button> inside carries the label and the help
@@ -13429,6 +13439,16 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   gap: 12px;
   align-items: center;
 }
+/* `display: grid` beats the `hidden` attribute's UA rule, so the motif
+   <select> hidden while "Randomize pattern" is on needs it re-asserted
+   (same reason as .dynbg-modal-tone-field[hidden] above). */
+.dynbg-modal-slider-row[hidden] { display: none !important; }
+/* A knob that owns a randomise state: checkbox, the pinned-value
+   control it gates, and the one action button for the current state. */
+.dynbg-modal-knob-group {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.dynbg-modal-knob-group .dynbg-modal-roll-row { margin: 0 0 0 2px; }
 .dynbg-modal-slider-label {
   font-weight: 600;
   font-size: var(--fs-base);
@@ -13478,7 +13498,6 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
    whole slot block hides (JS toggles [hidden]) so the column stays
    focused on what actually applies. */
 .dynbg-modal-mode [data-dynbg-mode-color-slots][hidden] { display: none; }
-.dynbg-modal-colors-blurb { margin: 2px 0 0; }
 .dynbg-modal-shuffle,
 .dynbg-modal-roll { align-self: flex-start; margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; }
 /* The action row that sits under each "Randomize on every page load"
@@ -13531,6 +13550,30 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   font-variant-numeric: tabular-nums;
   font-weight: 600; color: var(--text);
 }
+/* "Shade lightness" is a tone-shaped control living in the Randomize
+   fieldset (it limits what the roller produces rather than restyling a
+   picked colour), so it borrows the tone-field layout and just needs
+   the spacing the tone grid would otherwise have given it. */
+.dynbg-modal-rndlight { margin: 2px 0 2px 2px; }
+/* Helper prose in this modal lives in `chip()` tooltips, so every label
+   is `<b>Name</b>` + the info mark. The chip is inline-flex with no
+   margin of its own; give it the space the old " — " used to provide. */
+.dynbg-modal-tone-label .field-help,
+.dynbg-modal-randomize .field-help,
+.dynbg-modal-fieldset > legend .field-help { margin-left: 5px; }
+/* Roll colours leads the Colours fieldset, so it needs a gap BELOW it
+   rather than the `margin-top` the shared .dynbg-modal-roll carries. */
+.dynbg-modal-roll--lead { margin-top: 0; margin-bottom: 8px; }
+/* Shade lightness leads the fieldset next to Roll colours, so it gets
+   its breathing room below rather than the tone grid's row gap. */
+.dynbg-modal-colors > .dynbg-modal-rndlight { margin: 0 0 12px 2px; }
+/* Backdrop controls re-homed under the Background / Gradient end chips. */
+.dynbg-modal-colors-bg { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 2px; }
+.dynbg-modal-colors-bg[hidden] { display: none !important; }
+/* The copy of Shade lightness that isn't the live control for the
+   current randomise state: still readable, not settable here. */
+.dynbg-modal-tone-field.is-disabled { opacity: 0.45; cursor: default; }
+.dynbg-modal-tone-field.is-disabled input[type="range"] { pointer-events: none; }
 
 /* ── Templates picker · Site Index thumbs ──────────────────────
    Two layouts share the same base palette as other thumbnails;

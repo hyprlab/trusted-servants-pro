@@ -1035,6 +1035,9 @@
           }
           if (b.sat != null) mb.push(b.sat + '% sat');
           if (b.bright != null) mb.push(b.bright + '% bright');
+          // Random-palette lightness; present only when the admin moved
+          // it off this mode's default (dark's is the deep-shade cap).
+          if (b.rnd_light != null) mb.push(b.rnd_light + '% shade');
           if (b.fill != null) mb.push(b.fill + '% fill');
           if (mb.length) extras.push(mode + ': ' + mb.join(' / '));
         });
