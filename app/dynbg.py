@@ -171,6 +171,45 @@ PATTERNS = _PATTERN_DATA["patterns"]
 PATTERNS_SOURCE = _PATTERN_DATA.get("_source", "")
 PATTERN_BY_KEY = {p["key"]: p for p in PATTERNS}
 PATTERN_KEYS = [p["key"] for p in PATTERNS]
+
+# ── Tile corrections ────────────────────────────────────────────────
+# A motif built from N copies of one shape stacked at a fixed pitch
+# only tiles cleanly when its declared tile length is a whole number of
+# those pitches. `waves-15` isn't: its two ribbons are the same wave
+# 9.6675 apart, but the tile is 30 tall, so the wrap leaves a
+# 20.335 gap where every other gap is 9.6675 — a slack band once per
+# tile that reads as a break line between tiles. (This is upstream's
+# geometry, not an import error: pattern.monster renders it the same
+# way at its default spacing.)
+#
+# The fix is to tile at the motif's OWN pitch — 2 x 9.6675 — and let the
+# parts that now cross the shorter boundary re-enter from the other
+# side, which is what `wrap_y` asks the renderers to do. Every other
+# stacked motif in the catalogue (waves-1/2/3, chevron-1/3,
+# straight-lines, stars-and-lines-1, checkerboard) already divides
+# evenly and is left alone; motifs whose layers are DIFFERENT shapes
+# (stars-and-lines-2 and friends) have an uneven rhythm by design.
+#
+# Derivation, should the catalogue ever be re-imported: for each motif
+# whose layer paths are identical bar one constant offset, check
+# `tile_length / offset` is a whole number. waves-15 was the only one
+# of 330 that failed.
+PATTERN_TILE_FIXES = {"waves-15": {"h": 19.335}}
+for _slug, _fix in PATTERN_TILE_FIXES.items():
+    _entry = PATTERN_BY_KEY.get(_slug)
+    if not _entry:
+        continue
+    # `wrap_*` travels on the entry (and so into /dynbg/patterns.json),
+    # so the picker's client-side preview builds the same tile the
+    # server does without a second copy of this table.
+    if "h" in _fix:
+        _entry["h"] = _entry["wrap_y"] = _fix["h"]
+    if "w" in _fix:
+        _entry["w"] = _entry["wrap_x"] = _fix["w"]
+# How many wrapped copies to emit either side of the tile. Two covers a
+# shape up to twice the corrected tile length; anything outside the
+# viewBox is clipped by the SVG viewport, so spare copies cost nothing.
+PATTERN_WRAP_REPS = 2
 # Attributes injected into each raw path per render mode. `{w}` is the
 # line-weight knob. Mask colour is always black: only alpha matters.
 PATTERN_MODE_ATTRS = {
@@ -196,10 +235,10 @@ def normalize_pattern(key):
     return key if key in PATTERN_BY_KEY or key == "random" else "random"
 
 
-def pattern_mask_layers(pattern_key, weight=2, rng=None):
+def pattern_mask_layers(pattern_key, weight=2, scale=1, rng=None):
     """Resolve a motif to ``(key, [mask_url, ...], width, height)`` — one
-    URL per ink layer, ready for `mask-image`, plus the tile size the
-    caller needs for `mask-size`.
+    URL per ink layer, ready for `mask-image`, plus the motif's native
+    tile size (informational; the mask sizes itself, see below).
 
     ``pattern_key`` may be 'random', in which case a motif is chosen
     fresh (per render on the server, per repaint in the picker). The
@@ -207,6 +246,19 @@ def pattern_mask_layers(pattern_key, weight=2, rng=None):
     the generator at pattern.monster; line weight is baked in for the
     stroked modes. Layer N is painted with palette slot N, so a
     four-ink tile reads as four colours without the SVG carrying any.
+
+    EACH URL IS A FULL-SIZE MASK THAT TILES ITSELF, via an SVG
+    ``<pattern>`` filling a 100%-by-100% rect — it is not a single tile
+    for CSS `mask-repeat` to stamp out. That was the earlier shape, and
+    it put a hairline through the pattern: a tile whose size in CSS
+    pixels is fractional (26.55 x 25 at scale 2.5 is 66.375 x 62.5)
+    never lands on whole device pixels, so the compositor's per-tile
+    quads leave a seam wherever the rounding error accumulates — a line
+    that moves as the scale knob changes the fractional part. An SVG
+    pattern is one paint with a tiling shader: no per-tile edges, so
+    there is nothing to seam. It also means ``scale`` has to be known
+    HERE (it rides in `patternTransform`) rather than being applied by
+    the stylesheet.
     """
     key = normalize_pattern(pattern_key)
     if key == "random":
@@ -215,15 +267,36 @@ def pattern_mask_layers(pattern_key, weight=2, rng=None):
     entry = PATTERN_BY_KEY[key]
     w = normalize_float(weight, 0.5, 14, 2)
     w = int(w) if float(w).is_integer() else round(w, 2)
+    # Same bounds as the Scale knob declares, so a tampered value can't
+    # blow the tile up.
+    sc = normalize_float(scale, 0.25, 8, 1)
     attrs = PATTERN_MODE_ATTRS[entry["mode"]].replace("{w}", str(w))
     tw, th = entry["w"], entry["h"]
+    # A corrected tile (see PATTERN_TILE_FIXES) is SHORTER than the
+    # motif was drawn for, so geometry now crosses the boundary. Emit
+    # the layer once per wrap step so what leaves one edge re-enters the
+    # other; the SVG viewport clips the rest.
+    wrap_x, wrap_y = entry.get("wrap_x", 0), entry.get("wrap_y", 0)
     urls = []
     for body in entry["layers"]:
+        # Attributes go on the path BEFORE it is copied, so every copy
+        # carries the same ink / weight (the replace is first-match).
+        node = body.replace("/>", attrs + "/>", 1)
+        if wrap_x or wrap_y:
+            node = "".join(
+                f"<g transform='translate({k * wrap_x:g},{k * wrap_y:g})'>{node}</g>"
+                for k in range(-PATTERN_WRAP_REPS, PATTERN_WRAP_REPS + 1))
+        # The SVG carries no viewBox and sizes at 100%, so with
+        # `mask-size: 100% 100%` one user unit is one CSS pixel and the
+        # <pattern> tiles in the motif's own units.
         svg = (
-            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 "
-            f"{tw} {th}' width='{tw}' height='{th}'>"
-            + body.replace("/>", attrs + "/>", 1)
-            + "</svg>"
+            "<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'>"
+            "<defs><pattern id='p' patternUnits='userSpaceOnUse' "
+            f"width='{tw}' height='{th}' patternTransform='scale({sc:g})'>"
+            + node
+            + "</pattern></defs>"
+            "<rect width='100%' height='100%' fill='url(#p)'/>"
+            "</svg>"
         )
         # Percent-encode the characters that would break out of
         # url('...') or confuse a data-URL parser. Matches
@@ -310,8 +383,12 @@ PRESET_CAPS = {
              "groups": pattern_groups()},
             # Scale is a multiplier on the tile's native size (as on
             # pattern.monster), since tiles aren't square.
+            # No `css_var`: the scale is baked into the mask image's
+            # <pattern> (see pattern_mask_layers) rather than applied
+            # with `mask-size`, because the CSS tiling it used to drive
+            # is what produced the hairline seams.
             {"key": "scale", "label": "Scale", "min": 0.25, "max": 8,
-             "step": 0.25, "default": 1, "unit": "x", "css_var": "--fe-dynbg-pat-scale"},
+             "step": 0.25, "default": 1, "unit": "x"},
             {"key": "weight", "label": "Line weight", "min": 0.5, "max": 14,
              "step": 0.5, "default": 2, "unit": "px"},
             {"key": "angle", "label": "Rotation", "min": 0, "max": 180,

@@ -309,14 +309,22 @@ body.fe-frontend-force-dark .fe-dynbg-mesh-gradient .fe-dynbg-mesh,
   opacity: var(--fe-dynbg-pat-opacity, 1);
   -webkit-mask-image: var(--_db-pat-url);
           mask-image: var(--_db-pat-url);
-  /* Tile at its native size × the scale knob. Pattern Monster tiles
-     are rectangular, so both dimensions are stamped per surface. */
-  -webkit-mask-size: calc(var(--fe-dynbg-pat-w, 40px) * var(--fe-dynbg-pat-scale, 1))
-                     calc(var(--fe-dynbg-pat-h, 40px) * var(--fe-dynbg-pat-scale, 1));
-          mask-size: calc(var(--fe-dynbg-pat-w, 40px) * var(--fe-dynbg-pat-scale, 1))
-                     calc(var(--fe-dynbg-pat-h, 40px) * var(--fe-dynbg-pat-scale, 1));
-  -webkit-mask-repeat: repeat;
-          mask-repeat: repeat;
+  /* ONE mask stretched over the layer — the motif repeats INSIDE the
+     image, via an SVG <pattern> (see dynbg.pattern_mask_layers). This
+     used to be a single tile at `mask-size: w*scale h*scale` with
+     `mask-repeat: repeat`, which drew a hairline through the pattern:
+     those sizes are fractional (26.55 x 25 at scale 2.5 is
+     66.375 x 62.5), so the tiles never land on whole device pixels and
+     the compositor's per-tile quads seam wherever the rounding error
+     accumulates — a line that moved whenever the scale knob changed
+     the fractional part. A pattern fill is one paint with a tiling
+     shader, so there are no per-tile edges to seam. The scale knob now
+     rides inside the image; `--fe-dynbg-pat-w` / `-h` are still stamped
+     for consumers that want the motif's native tile size. */
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
   -webkit-mask-position: center;
           mask-position: center;
 }

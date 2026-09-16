@@ -7,7 +7,13 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.6 — 2026-09-16 (latest)
+## 2.19.7 — 2026-09-16 (latest)
+
+- Fixed: a Pattern tile background drew faint hairlines across itself, and they moved as the Scale slider changed. The motif now repeats inside the mask image instead of being tiled by the browser, which removes the seams the tiling left behind.
+- Because of that change, a Pattern tile background shifts its position slightly the first time a page is loaded after the update. The pattern, its scale and its colours are unchanged; only where the repeat starts has moved.
+- Fixed: the Waves 15 motif had a wider gap once per tile than between its other ribbons, which read as a line between tiles. Its tile is now cut to the spacing the motif itself uses, so the ribbons are evenly spaced everywhere.
+
+## 2.19.6 — 2026-09-16
 
 - Fixed: a dynamic background on a container block ignored the pattern you picked and drew a different motif on every page load, even with "Randomize pattern" unchecked. The choice was being saved correctly — the page just wasn't reading it.
 - The same fault dropped the other pattern settings on container blocks: scale, line weight, rotation, and the dot presets' size and spacing all fell back to the preset's own defaults.

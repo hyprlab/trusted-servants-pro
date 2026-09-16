@@ -743,7 +743,8 @@
         // motif's size goes on the clone itself.
         clone.removeAttribute('style');
         const kn = (cfg.knobs && typeof cfg.knobs === 'object') ? cfg.knobs : {};
-        window.dynbgPatternLayers(kn.pattern || 'random', kn.weight != null ? kn.weight : 2)
+        window.dynbgPatternLayers(kn.pattern || 'random', kn.weight != null ? kn.weight : 2,
+                                  kn.scale != null ? kn.scale : 1)
           .then(pat => {
             if (!clone.isConnected) return;  // a later sync replaced us
             if (pat.w) {
