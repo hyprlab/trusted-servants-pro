@@ -7,38 +7,31 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.4 — 2026-09-16 (latest) — Hero and background controls that show their work
+## 2.19.4 — 2026-09-16 (latest)
 
-**Hero particles**
-
-- **Particles can be any colour now, not just white**, and you set a light-mode colour and a dark-mode colour separately — white specks vanish on a pale hero, and the colour that works on a dark one rarely works on both.
-- **Each mode gets its own opacity**, so the layer can be a whisper in light mode and confident in dark.
-- **The particle controls are grouped into Light mode and Dark mode columns**, matching how the dynamic-background picker is laid out. Effect, Speed and Size stay above them, since those apply to both.
-- **The Size slider greys out for effects that ignore it.** "Waves" paints full-width bands rather than individual particles, so size has nothing to scale — it now says so instead of sitting there doing nothing. Your stored value comes straight back when you pick another effect.
-
-**Hero editing**
-
-- **The subheading accepts Markdown and HTML.** Bold, links, line breaks, lists — write it the way you'd write any other rich text. Anything unsafe is stripped, as everywhere else in the portal.
-- **A new "Blue (filled)" button style.** It's the Primary filled button, except in dark mode it stays a muted blue instead of going near-black navy — much easier to see against a bright hero.
-- **"Green (filled)" now darkens properly in dark mode.** It changed for visitors browsing in dark mode, but not on a hero that's pinned to dark — including the editor's own Dark preview, which is where you'd notice. Yellow had the same gap.
-- **Button icons show up in the preview.** They used to appear as the icon's name in brackets — `[custom:8]` — instead of the icon itself. Custom icons and built-in ones both render now, at the colour and size you set.
-- **The preview scales to fit.** A long heading used to wrap and push your buttons out of sight below the preview frame; the whole hero is now scaled down to fit instead, the way it would look on a smaller screen.
-- **…and it wraps where the real page wraps.** The preview was breaking the heading onto two lines nine pixels earlier than the live hero does, so a headline that fits on one line looked like it didn't.
-- **"Show tagline in hero" explains itself.** Switching it on with the Tagline field empty renders nothing — which read as a broken switch. It now tells you the field is empty.
-
-**Dynamic backgrounds**
-
-- **"Roll colours" — try palettes without turning randomise on.** Rolls a fresh brand-friendly palette straight into the colour slots, so you can audition a few and keep the one you like as fixed colours.
-- **"Roll positions" does the same for layout.** Rolls fresh coordinates for the blobs / mesh / bands and keeps them, so every visitor sees the layout you picked. "Reset layout" puts the preset's own arrangement back.
-- **Every randomise toggle now owns the button underneath it.** The old single "Shuffle preview" button re-rolled everything at once — including overwriting hand-picked colours while "random colours" was switched off. Each button now touches only its own setting.
-- **Switching "Colours" off no longer discards your palette.** Ticking and unticking used to replace your colour slots with whatever the preview happened to be showing.
-
-**Everywhere else in the admin**
-
-- **The colour swatches have clean corners.** Every rounded colour chip in the admin was drawing a square swatch inside its rounded border, which made the outline look broken.
-- **Colour chips line up with the controls stacked under them** — the swatch, the palette button, the hex field and the token badge now share one edge and one width.
-- **The "◈ token" badges tell you what they mean.** Hover one and it names the control, the palette token its colour matches, and — importantly — that it's a coincidence of colour, not a live link: editing the palette won't change that control unless you re-pick.
-- **A badge no longer describes the wrong colour.** Opening an editor that fills its colour fields in the background left the hex caption and token badge showing whatever was there beforehand — a white "Surface" badge under a purple swatch.
+- Hero particles can be any colour, not just white, and light mode and dark mode each get their own colour.
+- Particle opacity is also set per mode, so the layer can be faint in light mode and stronger in dark.
+- The hero's particle controls are grouped into a Light mode and a Dark mode column. Effect, Speed and Size stay above them because they apply to both.
+- The particle Size slider greys out when the selected effect ignores it. Waves paints full-width bands rather than individual particles, so size has nothing to scale. The stored value returns when another effect is picked.
+- The hero subheading accepts Markdown and inline HTML — bold, links, line breaks, lists. Unsafe markup is stripped, as it is elsewhere in the portal.
+- New hero button style, "Blue (filled)". It matches Primary (filled) in light mode; in dark mode it stays a muted blue instead of the near-black navy Primary uses.
+- "Green (filled)" and "Yellow (high-contrast)" now darken on a hero that is pinned to dark, including the editor's Dark preview. Previously they only changed for visitors browsing the site in dark mode.
+- Button icons render in the hero preview. They previously showed as the icon's reference name in brackets, such as `[custom:8]`. Custom and built-in icons both render, at the colour and size set for them.
+- The hero preview scales its content down to fit the preview frame. A long heading used to wrap and push the buttons below the visible area.
+- The hero preview wraps the heading at the same width the live page does. It was breaking to a second line about nine pixels earlier, so a heading that fits on one line looked like it didn't.
+- "Show tagline in hero" now says why nothing appears when the Tagline field is empty. The eyebrow needs both the toggle and some text.
+- Dynamic backgrounds have a "Roll colours" button that fills the colour slots with a fresh palette without turning randomise on, so palettes can be tried and kept as fixed colours.
+- Dynamic backgrounds have a "Roll positions" button that rolls fresh coordinates for the blobs, mesh or bands and keeps them, so every visitor sees the same layout. "Reset layout" restores the preset's own arrangement.
+- Each randomise toggle now has its own button underneath it, and that button only affects that setting. The previous single "Shuffle preview" button re-rolled colours and positions together, and overwrote hand-picked colours even when "random colours" was off.
+- Turning "Colours" off no longer replaces the colour slots with whatever the preview was showing. Slots that already hold colours are left alone.
+- Colour swatches across the admin have clean corners. A native colour input draws a square swatch inside the rounded chip, which made the outline look broken.
+- Colour chips line up with the controls stacked under them — swatch, palette button, hex field and token badge share one edge and one width.
+- The "◈ token" badges have hover text naming the control and the palette token its colour matches, and stating that the value is a fixed hex: editing the palette does not change that control unless the token is re-picked.
+- A token badge no longer describes a colour the field no longer holds. Editors that fill their colour fields in code left the hex caption and badge showing the previous value.
+- Dashboard widget empty states are all the same size. "No pending requests." was rendering larger than "No accounts currently locked out." in the same card.
+- Long labels in settings rows wrap instead of being cut off. In a narrow column, "Auto-hide app sidebar in Web Frontend" lost the end of its label and its help button.
+- The last card in a list keeps its bottom border. The Web Frontend Status widget's auto-hide row was missing one.
+- The two toggle cards in the Web Frontend Status widget have more space between them.
 
 ## 2.19.3 — 2026-09-15 — A slightly larger admin
 
