@@ -5297,6 +5297,26 @@
     return ((capFor(key).knobs) || []).map(k => k.css_var).filter(Boolean);
   }
 
+  // Build a help chip matching _help_chip.html's `chip()` macro, for the
+  // knob rows this file renders in JS. The Lucide `info` glyph is only
+  // available server-side, so the button is cloned from a chip the
+  // template already rendered into this modal; without one (shouldn't
+  // happen — the tab strip has one) we fall back to the prose inline.
+  function makeChip (label, html) {
+    const proto = $('.heading-help .help-btn');
+    if (!proto) return null;
+    const wrap = document.createElement('span');
+    wrap.className = 'heading-help field-help';
+    const btn = proto.cloneNode(true);
+    btn.setAttribute('aria-label', 'About ' + label);
+    const tip = document.createElement('span');
+    tip.className = 'help-tooltip';
+    tip.setAttribute('role', 'tooltip');
+    tip.innerHTML = html;
+    wrap.appendChild(btn);
+    wrap.appendChild(tip);
+    return wrap;
+  }
   // Rebuild the per-preset knob sliders for `key` from its spec, seeding
   // each from `values` (saved) or the spec default. Hides the fieldset
   // when the preset declares no knobs.
@@ -5321,14 +5341,36 @@
         const known = (k.options || []).some(o => o.value === sv)
           || (k.groups || []).some(g => (g.options || []).some(o => o.value === sv));
         _knobState[k.key] = known ? sv : k.default;
+        // Knobs that declare `random_value` (the pattern motif) get the
+        // same shape every other randomisable control in this modal
+        // has: a checkbox for "shuffles per page load", and underneath
+        // it one button that does the single useful thing for the
+        // state you're in — preview another sample while randomising,
+        // roll-and-keep while pinned. Burying "Random each load" as
+        // entry #1 of a 330-option <select> made a pinned motif and a
+        // shuffling one look identical.
+        const rnd = k.random_value || '';
+        const box = document.createElement('div');
+        box.className = 'dynbg-modal-knob-group';
+        box.dataset.dynbgKnob = k.key;
+        // Every concrete (non-random) value the select offers — the
+        // roll pool. Read off the spec, so no catalogue fetch needed.
+        const pool = [];
+        (k.options || []).forEach(o => { if (o.value !== rnd) pool.push(o.value); });
+        (k.groups || []).forEach(g => (g.options || []).forEach(o => {
+          if (o.value !== rnd) pool.push(o.value);
+        }));
         const wrap = document.createElement('label');
         wrap.className = 'dynbg-modal-slider-row dynbg-modal-select-row';
-        wrap.dataset.dynbgKnob = k.key;
+        if (!rnd) wrap.dataset.dynbgKnob = k.key;
         const head = document.createElement('span');
         head.className = 'dynbg-modal-slider-label';
         head.textContent = k.label;
         const sel = document.createElement('select');
         const addOpt = (parent, o) => {
+          // With a checkbox owning the randomise state, the "random"
+          // entry would be a second, contradictable control for it.
+          if (rnd && o.value === rnd) return;
           const opt = document.createElement('option');
           opt.value = o.value; opt.textContent = o.label;
           if (o.value === _knobState[k.key]) opt.selected = true;
@@ -5352,7 +5394,82 @@
         });
         wrap.appendChild(head);
         wrap.appendChild(sel);
-        host.appendChild(wrap);
+        if (!rnd) { host.appendChild(wrap); return; }
+
+        const rndLabel = document.createElement('label');
+        rndLabel.className = 'check dynbg-modal-randomize';
+        const rndBox = document.createElement('input');
+        rndBox.type = 'checkbox';
+        rndBox.checked = _knobState[k.key] === rnd;
+        const rndText = document.createElement('span');
+        const what = (k.random_label || k.label).toLowerCase();
+        rndText.innerHTML = '<b>Randomize ' + what + '</b>';
+        // Same treatment the template gives every other label in this
+        // modal: the name on the row, the explanation one click away.
+        const rndChip = makeChip('Randomize ' + what,
+          'A different ' + what + ' on every page load. Off = the one chosen below, on every visit.');
+        if (rndChip) rndText.appendChild(rndChip);
+        else rndText.innerHTML += ' <span class="muted smaller">— a different ' + what
+          + ' on every page load. Off = the one chosen below, on every visit.</span>';
+        rndLabel.appendChild(rndBox);
+        rndLabel.appendChild(rndText);
+
+        const actions = document.createElement('div');
+        actions.className = 'dynbg-modal-roll-row';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm dynbg-modal-roll';
+        const note = document.createElement('span');
+        note.className = 'muted smaller';
+        actions.appendChild(btn);
+        actions.appendChild(note);
+
+        const syncRnd = () => {
+          const on = _knobState[k.key] === rnd;
+          rndBox.checked = on;
+          wrap.hidden = on;
+          btn.textContent = on ? 'Shuffle sample' : 'Roll';
+          note.textContent = on
+            ? 'Preview another of the ones visitors will get.'
+            : 'Pick one at random and keep it.';
+        };
+        rndBox.addEventListener('change', () => {
+          if (rndBox.checked) {
+            _knobState[k.key] = rnd;
+            _previewPattern = null;
+          } else {
+            // Switching randomise OFF keeps whatever the preview was
+            // just showing (mirrors the colour / position toggles), so
+            // the admin pins the one they liked rather than snapping to
+            // the top of an alphabetical list.
+            _knobState[k.key] = _previewPattern
+              || (pool.length ? pool[Math.floor(Math.random() * pool.length)] : sel.value);
+            sel.value = _knobState[k.key];
+          }
+          syncRnd();
+          syncOptionVisibility(selectedKey());
+          updatePreview();
+        });
+        btn.addEventListener('click', () => {
+          if (_knobState[k.key] === rnd) {
+            _previewPattern = null;          // re-roll the sample only
+          } else if (pool.length) {
+            let next = _knobState[k.key];
+            for (let i = 0; i < 8 && next === _knobState[k.key]; i++) {
+              next = pool[Math.floor(Math.random() * pool.length)];
+            }
+            _knobState[k.key] = next;
+            sel.value = next;
+          }
+          syncRnd();
+          syncOptionVisibility(selectedKey());
+          updatePreview();
+        });
+        syncRnd();
+        box.appendChild(rndLabel);
+        box.appendChild(wrap);
+        box.appendChild(actions);
+        host.appendChild(box);
         return;
       }
       const saved = values && (k.key in values) ? Number(values[k.key]) : null;
@@ -5425,6 +5542,11 @@
       if (rcLabel) rcLabel.hidden = (cap.colors || 0) < 1;
       const rpLabel = m$(mode, '[data-dynbg-mode-randomize-positions-label]');
       if (rpLabel) rpLabel.hidden = !cap.randomize_positions;
+      // Shade lightness shapes what the colour roller produces, so it
+      // shows wherever this preset has colour slots at all — it feeds
+      // "Roll colours" as well as the per-page-load shuffle.
+      const rndLightRow = m$(mode, '[data-dynbg-mode-rndlight-row]');
+      if (rndLightRow) rndLightRow.hidden = (cap.colors || 0) < 1;
       const colorsRow = m$(mode, '[data-dynbg-mode-colors-row]');
       if (colorsRow) colorsRow.hidden = !hasBg || (cap.colors || 0) < 1;
       SLOTS.forEach(slot => {
@@ -5458,6 +5580,11 @@
       if (pastelField) pastelField.hidden = !cap.pastel;
       const patRow = m$(mode, '[data-dynbg-mode-pat-row]');
       if (patRow) patRow.hidden = key !== 'pattern-tile';
+      // The backdrop pair now lives inside the (always-present) Colours
+      // fieldset, so it needs the preset gate the Pattern fieldset used
+      // to give it for free.
+      const colorsBg = m$(mode, '[data-dynbg-mode-colors-bg]');
+      if (colorsBg) colorsBg.hidden = key !== 'pattern-tile';
       syncColorSlotsVisibility(mode);
     });
     // Line weight only applies to stroked motifs.
@@ -5478,6 +5605,20 @@
     const colActions = m$(mode, '[data-dynbg-mode-colors-row-actions]');
     if (colActions) {
       colActions.hidden = !selectedKey() || (cap.colors || 0) < 1 || !getRandomizeColors(mode);
+    }
+    // Shade lightness is one value with two homes, and only one of them
+    // is ever the live control: with Colours ON it limits the generator,
+    // so the copy in the Randomize fieldset is editable and the Colours
+    // fieldset (its twin included) is hidden; with Colours OFF the twin
+    // under the chips drives them, and this one greys out rather than
+    // vanishing — it still shows the value, it just isn't where you set
+    // it. Two enabled sliders for one number would be the real trap.
+    const rndLightRow = m$(mode, '[data-dynbg-mode-rndlight-row]');
+    if (rndLightRow) {
+      const live = !!getRandomizeColors(mode);
+      rndLightRow.classList.toggle('is-disabled', !live);
+      const input = rndLightRow.querySelector('input[type="range"]');
+      if (input) input.disabled = !live;
     }
     syncPosRowActions(mode);
   }
@@ -5529,23 +5670,40 @@
   // Sat defaults to 100 (full vivid); fill defaults to 0 (page white /
   // black shows through the recipe's base). Mirrors dynbg.TONE_DEFAULTS.
   const TONE_DEFAULT = 100;
-  const TONE_DEFAULTS = { sat: 100, bright: 100, fill: 0, pastel: 0 };
-  const TONE_MAX = { sat: 100, bright: 200, fill: 100, pastel: 100 };
+  // `rnd_light` is the centre of the lightness band the RANDOM palette
+  // is rolled from, and it is the one tone key whose default differs
+  // per mode: dark mode is capped at deep shades so "random colours"
+  // can't hand a dark section a light-mode-bright palette. Mirrors
+  // dynbg.RND_LIGHT_DEFAULTS / RND_LIGHT_SPREAD.
+  const RND_LIGHT_DEFAULTS = { light: 55, dark: 26 };
+  const RND_LIGHT_SPREAD = 10, RND_LIGHT_MIN = 3, RND_LIGHT_MAX_L = 97;
+  const TONE_DEFAULTS = { sat: 100, bright: 100, fill: 0, pastel: 0, rnd_light: RND_LIGHT_DEFAULTS.light };
+  const TONE_MAX = { sat: 100, bright: 200, fill: 100, pastel: 100, rnd_light: 100 };
   const TONE_KEYS = Object.keys(TONE_DEFAULTS);
-  function toneDefault (key) { return TONE_DEFAULTS[key] != null ? TONE_DEFAULTS[key] : TONE_DEFAULT; }
+  function toneDefault (key, mode) {
+    if (key === 'rnd_light') return RND_LIGHT_DEFAULTS[mode] != null ? RND_LIGHT_DEFAULTS[mode] : RND_LIGHT_DEFAULTS.light;
+    return TONE_DEFAULTS[key] != null ? TONE_DEFAULTS[key] : TONE_DEFAULT;
+  }
   function toneMax (key) { return TONE_MAX[key] != null ? TONE_MAX[key] : 100; }
   function toneSlider (mode, key) { return m$(mode, '[data-dynbg-mode-tone="' + key + '"]'); }
+  // A tone key may be rendered TWICE in one column — `rnd_light` appears
+  // in the Randomize fieldset (where it limits the generator) and again
+  // under the colour chips (where it dims a fixed palette), because
+  // which one is the live control depends on the randomise toggle. They
+  // are one value, so every write goes to all of them.
+  function toneSliders (mode, key) { return m$$(mode, '[data-dynbg-mode-tone="' + key + '"]'); }
   function toneVal (mode, key) {
     const el = toneSlider(mode, key);
-    if (!el) return toneDefault(key);
+    if (!el) return toneDefault(key, mode);
     const n = parseInt(el.value, 10);
-    return isFinite(n) ? Math.max(0, Math.min(toneMax(key), n)) : toneDefault(key);
+    return isFinite(n) ? Math.max(0, Math.min(toneMax(key), n)) : toneDefault(key, mode);
   }
   function setToneVal (mode, key, v) {
-    const el = toneSlider(mode, key);
-    if (!el) return;
+    const els = toneSliders(mode, key);
+    if (!els.length) return;
     const n = parseInt(v, 10);
-    el.value = String(isFinite(n) ? Math.max(0, Math.min(toneMax(key), n)) : toneDefault(key));
+    const val = String(isFinite(n) ? Math.max(0, Math.min(toneMax(key), n)) : toneDefault(key, mode));
+    els.forEach(el => { el.value = val; });
     syncToneOuts();
   }
   // Colour as the mode displays it: saturation + brightness applied.
@@ -5714,15 +5872,28 @@
     const n = c && c.querySelector('.fe-dynbg-picker-name');
     return n ? n.textContent.trim() : key;
   }
-  // Returns #rrggbb (not hsl()) so saturateHex can retune the
-  // palette — the tone sliders must visibly act on random colours
-  // too, exactly as the server does via resolve_colors → saturate_hex.
-  function previewRandomColors (n) {
+  // JS port of dynbg.random_color_seed — the mode-independent half of
+  // a random palette: hue, saturation, and a 0-1 position within
+  // whatever lightness band the mode asks for. Rolled once so light and
+  // dark show the SAME hues, each shaded into its own band.
+  function previewRandomSeed (n) {
     const out = [];
     for (let i = 0; i < n; i++) {
-      const h = Math.random();
-      const s = 0.55 + Math.random() * 0.35;  // 55–90%
-      const l = 0.45 + Math.random() * 0.20;  // 45–65%
+      out.push([Math.random(), 0.55 + Math.random() * 0.35, Math.random()]);
+    }
+    return out;
+  }
+  // JS port of dynbg.random_colors — shade a seed into the lightness
+  // band centred on `lightness` (0-100). Returns #rrggbb (not hsl()) so
+  // saturateHex can retune the palette — the tone sliders must visibly
+  // act on random colours too, exactly as the server does via
+  // resolve_colors → saturate_hex.
+  function previewShadeSeed (seed, lightness) {
+    const lt = Math.max(0, Math.min(100, isFinite(+lightness) ? (lightness | 0) : RND_LIGHT_DEFAULTS.light));
+    const lo = Math.max(RND_LIGHT_MIN, lt - RND_LIGHT_SPREAD) / 100;
+    const hi = Math.min(RND_LIGHT_MAX_L, lt + RND_LIGHT_SPREAD) / 100;
+    return seed.map(([h, s, t]) => {
+      const l = lo + t * (hi - lo);
       const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
       const pp = 2 * l - q;
       const ch = tt => {
@@ -5733,18 +5904,81 @@
         return pp;
       };
       const hx = v => ('0' + Math.round(v * 255).toString(16)).slice(-2);
-      out.push('#' + hx(ch(h + 1 / 3)) + hx(ch(h)) + hx(ch(h - 1 / 3)));
-    }
-    return out;
+      return '#' + hx(ch(h + 1 / 3)) + hx(ch(h)) + hx(ch(h - 1 / 3));
+    });
   }
-  // The random palette is held stable for the life of a modal open
+  // The random roll is held stable for the life of a modal open
   // (reshuffled when "random colours" is switched on) so dragging the
   // tone / knob sliders shows their effect on ONE palette instead
-  // of re-rolling the colours on every tick.
-  let _previewRandPalette = null;
-  function previewRandPalette () {
-    if (!_previewRandPalette) _previewRandPalette = previewRandomColors(SLOTS.length);
-    return _previewRandPalette;
+  // of re-rolling the colours on every tick. Shading happens per call,
+  // so the Shade-lightness slider repaints live off the same roll.
+  let _previewRandSeed = null;
+  function previewRandSeed () {
+    if (!_previewRandSeed) _previewRandSeed = previewRandomSeed(SLOTS.length);
+    return _previewRandSeed;
+  }
+  function previewRandPalette (mode) {
+    return previewShadeSeed(previewRandSeed(), toneVal(mode || 'light', 'rnd_light'));
+  }
+  // ── Shade lightness over a FIXED palette ───────────────────────
+  // While "random colours" is off the same rnd_light slider acts on the
+  // chips directly. It shifts each one's HSL lightness by the distance
+  // the slider has travelled since the palette was last rolled or typed
+  // — not to an absolute value — so a hand-mixed palette keeps its
+  // internal contrast, and returning the slider returns the colours.
+  // (Setting every chip to one lightness would flatten the palette and
+  // there'd be no way back.)
+  const _shadeBase = { light: null, dark: null };
+  function captureShadeBase (mode) {
+    _shadeBase[mode] = { colors: getColors(mode), at: toneVal(mode, 'rnd_light') };
+  }
+  // hex (#rgb / #rrggbb, with or without alpha) → same hue + saturation,
+  // lightness nudged by `delta` (-1..1) and clamped away from pure
+  // black / white. Alpha rides along untouched. null on bad input.
+  function shiftLightness (hex, delta) {
+    if (typeof hex !== 'string') return null;
+    let h = hex.trim().replace('#', '');
+    let alpha = '';
+    if (h.length === 4) { alpha = h[3] + h[3]; h = h.slice(0, 3); }
+    else if (h.length === 8) { alpha = h.slice(6); h = h.slice(0, 6); }
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    const r = parseInt(h.slice(0, 2), 16) / 255,
+          g = parseInt(h.slice(2, 4), 16) / 255,
+          b = parseInt(h.slice(4, 6), 16) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    const li = (mx + mn) / 2;
+    let hue = 0, sat = 0;
+    if (d) {
+      sat = li > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      if (mx === r) hue = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+      else if (mx === g) hue = ((b - r) / d + 2) / 6;
+      else hue = ((r - g) / d + 4) / 6;
+    }
+    const l2 = Math.max(RND_LIGHT_MIN / 100, Math.min(RND_LIGHT_MAX_L / 100, li + delta));
+    const q = l2 < 0.5 ? l2 * (1 + sat) : l2 + sat - l2 * sat;
+    const pp = 2 * l2 - q;
+    const ch = tt => {
+      if (tt < 0) tt += 1; if (tt > 1) tt -= 1;
+      if (tt < 1 / 6) return pp + (q - pp) * 6 * tt;
+      if (tt < 1 / 2) return q;
+      if (tt < 2 / 3) return pp + (q - pp) * (2 / 3 - tt) * 6;
+      return pp;
+    };
+    const hx = v => ('0' + Math.round(v * 255).toString(16)).slice(-2);
+    return '#' + hx(ch(hue + 1 / 3)) + hx(ch(hue)) + hx(ch(hue - 1 / 3)) + alpha;
+  }
+  // Re-stamp the chips from the captured base at the slider's current
+  // distance from it. No-op while the column randomises (the chips are
+  // hidden and unused then) or before a base exists.
+  function applyShade (mode) {
+    const base = _shadeBase[mode];
+    if (!base || getRandomizeColors(mode)) return;
+    const delta = (toneVal(mode, 'rnd_light') - base.at) / 100;
+    base.colors.forEach((c, i) => {
+      if (!c) return;
+      setColor(mode, i + 1, shiftLightness(c, delta) || c);
+    });
   }
   // JS port of dynbg.random_positions — fresh coordinates / sizes for
   // the preset's movable parts, so the preview can show what "random
@@ -5879,7 +6113,7 @@
   // Randomising → shuffle the SAMPLE (preview-only; every page load
   // rolls its own anyway). Fixed → roll a value and KEEP it.
   function shuffleSamplePalette () {
-    _previewRandPalette = null;
+    _previewRandSeed = null;
     updatePreview();
   }
   function shuffleSampleLayout () {
@@ -5890,17 +6124,20 @@
   // randomising): roll a palette and write it into the slots, so what
   // the preview shows is what every visitor gets.
   function rollColors (mode) {
-    _previewRandPalette = null;
+    _previewRandSeed = null;
     seedColorsFromSample(mode);
     updatePreview();
   }
   function seedColorsFromSample (mode) {
-    const seed = previewRandPalette();
+    const seed = previewRandPalette(mode);
     const n = Math.min(SLOTS.length, capFor(selectedKey()).colors || 3);
     for (let slot = 1; slot <= n; slot++) {
       const c = seed[slot - 1] || '';
       setColor(mode, slot, c ? tonedHex(mode, c) : '');
     }
+    // The freshly-rolled palette IS the new base, at the shade it was
+    // rolled at — so the slider reads 0 distance and nudges from here.
+    captureShadeBase(mode);
   }
   // JS port of dynbg.saturate_hex — rewrites a #rrggbb's HSL
   // saturation to `sat` (0-100) and scales its lightness by `bright`
@@ -5971,7 +6208,7 @@
   function updatePreview () {
     $$('[data-dynbg-preview]').forEach(host => {
       const mode = host.dataset.dynbgPreviewMode || 'light';
-      const colors = getRandomizeColors(mode) ? previewRandPalette() : getColors(mode);
+      const colors = getRandomizeColors(mode) ? previewRandPalette(mode) : getColors(mode);
       updatePreviewHost(host, mode, colors);
     });
   }
@@ -6202,7 +6439,7 @@
     if (getRandomizePositions(mode)) out.randomize_positions = true;
     const kept = getKeptPositions(mode);
     if (kept) out.positions = kept;
-    TONE_KEYS.forEach(k => { const v = toneVal(mode, k); if (v !== toneDefault(k)) out[k] = v; });
+    TONE_KEYS.forEach(k => { const v = toneVal(mode, k); if (v !== toneDefault(k, mode)) out[k] = v; });
     if (patVal(mode, 'opacity') !== 100) out.pat_opacity = patVal(mode, 'opacity');
     if (patVal(mode, 'bg') === 'gradient') out.pat_bg = 'gradient';
     if (patVal(mode, 'bg_angle') !== 135) out.pat_bg_angle = patVal(mode, 'bg_angle');
@@ -6242,6 +6479,9 @@
     // saved values within those bounds ('' → overlay default).
     setNoiseSize(mode, b.overlay_size != null ? b.overlay_size : '');
     setNoiseIntensity(mode, b.overlay_intensity != null ? b.overlay_intensity : '');
+    // Base the Shade-lightness nudge on the palette as saved, read
+    // AFTER the tone sliders land so `at` is the value it was saved at.
+    captureShadeBase(mode);
   }
   function setModes (raw) {
     const t = parseModes(raw);
@@ -6265,7 +6505,7 @@
       }
       TONE_KEYS.forEach(k => {
         const n = parseInt(b[k], 10);
-        if (isFinite(n) && n !== toneDefault(k)) keep[k] = Math.max(0, Math.min(toneMax(k), n));
+        if (isFinite(n) && n !== toneDefault(k, mode)) keep[k] = Math.max(0, Math.min(toneMax(k), n));
       });
       const po = parseInt(b.pat_opacity, 10);
       if (isFinite(po) && po !== 100) keep.pat_opacity = Math.max(0, Math.min(100, po));
@@ -6356,7 +6596,8 @@
     }
     // Randomised colours get a sample palette (as the previews do) so
     // the chip shows *a* real rendering rather than brand fallbacks.
-    const cols = light.randomize_colors ? previewRandPalette()
+    const cols = light.randomize_colors
+      ? previewShadeSeed(previewRandSeed(), light.rnd_light != null ? light.rnd_light : RND_LIGHT_DEFAULTS.light)
       : (Array.isArray(light.colors) ? light.colors : []);
     SLOTS.forEach(i => {
       if (cols[i - 1]) thumbEl.style.setProperty('--fe-dynbg-c' + i, cols[i - 1]);
@@ -6467,6 +6708,10 @@
         if (b.overlay) mb.push(overlayNameByKey(b.overlay) + ' overlay');
         if (b.sat != null) mb.push(b.sat + '% sat');
         if (b.bright != null) mb.push(b.bright + '% bright');
+        // Present only when it differs from THIS mode's default (the
+        // blob is the storage shape), so the chip stays quiet on the
+        // dark-mode limiter everyone gets.
+        if (b.rnd_light != null) mb.push(b.rnd_light + '% shade');
         if (b.fill != null) mb.push(b.fill + '% fill');
         if (b.pat_opacity != null) mb.push(b.pat_opacity + '% opacity');
         if (b.pat_bg === 'gradient') mb.push('gradient');
@@ -6562,7 +6807,7 @@
           // Re-roll the sample palette each time random colours is
           // switched ON so the admin sees a fresh shuffle; the slot
           // inputs hide while it's on.
-          _previewRandPalette = null;
+          _previewRandSeed = null;
         } else if (!getColors(mode).some(Boolean)) {
           // Switched OFF with nothing in the slots: seed them with the
           // palette the preview was just showing, so the admin starts
@@ -6577,6 +6822,8 @@
           // throw away a hand-picked palette. Use "Roll colours" to
           // overwrite them deliberately.
           seedColorsFromSample(mode);
+        } else {
+          captureShadeBase(mode);
         }
         syncColorSlotsVisibility(mode);
         updatePreview();
@@ -6630,15 +6877,21 @@
         if (colorEl) colorEl.addEventListener('input', () => {
           if (textEl) textEl.value = colorEl.value;
           markChipUnset(mode, slot, false);
+          captureShadeBase(mode);
           updatePreview();
         });
         if (textEl) textEl.addEventListener('input', () => {
           const m = textEl.value.match(/^#([0-9a-fA-F]{6})$/);
           if (m && colorEl) colorEl.value = textEl.value;
           markChipUnset(mode, slot, !m);
+          captureShadeBase(mode);
           updatePreview();
         });
-        if (clearEl) clearEl.addEventListener('click', () => { setColor(mode, slot, ''); updatePreview(); });
+        if (clearEl) clearEl.addEventListener('click', () => {
+          setColor(mode, slot, '');
+          captureShadeBase(mode);
+          updatePreview();
+        });
       });
       // Overlay Size / Intensity live readout + reset.
       const sizeEl = m$(mode, '[data-dynbg-mode-ovsize]');
@@ -6654,9 +6907,17 @@
         setSelectedScope(mode, 'all');
         updatePreview();
       });
-      // Tone sliders — live numeric readout + repaint.
+      // Tone sliders — live numeric readout + repaint. `rnd_light` has
+      // a twin in the other fieldset (see toneSliders) and, while the
+      // column isn't randomising, drives the chips themselves.
       m$$(mode, '[data-dynbg-mode-tone]').forEach(el => {
-        el.addEventListener('input', () => { syncToneOuts(); updatePreview(); });
+        el.addEventListener('input', () => {
+          const key = el.dataset.dynbgModeTone;
+          toneSliders(mode, key).forEach(t => { if (t !== el) t.value = el.value; });
+          if (key === 'rnd_light') applyShade(mode);
+          syncToneOuts();
+          updatePreview();
+        });
       });
       // Pattern settings (opacity / backdrop / direction).
       m$$(mode, '[data-dynbg-mode-pat]').forEach(el => {
@@ -6740,7 +7001,7 @@
     } catch (_) { _pendingKnobs = null; }
     setSelectedKey(trigger.dataset.dynbgCurrent || '');
     setAnimateOff(trigger.dataset.dynbgAnimateOff === '1');
-    _previewRandPalette = null;    // fresh sample palette / layout per open
+    _previewRandSeed = null;       // fresh sample palette / layout per open
     _previewRandPositions = null;
     setModes(trigger.dataset.dynbgModes || '');
     setActiveTab('background');

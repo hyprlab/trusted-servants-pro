@@ -895,6 +895,10 @@ def create_app():
     # legacy single-mode config round-trips in the per-mode shape.
     app.jinja_env.globals["dynbg_encode_modes"] = (
         lambda modes: _dynbg.normalize_modes(modes, fill_defaults=False))
+    # Per-mode default for one tone slider — the picker's trigger chip
+    # uses it to decide whether a value is worth printing in the summary
+    # line (`rnd_light` is the one key whose default differs per mode).
+    app.jinja_env.globals["dynbg_tone_default"] = _dynbg.tone_default
     app.jinja_env.globals["dynbg_noise_url"] = _dynbg.noise_grain_data_url
     # Per-render randomised inline-style for a preset thumbnail (fresh
     # palette + positions each load) — drives the picker grid thumbs.

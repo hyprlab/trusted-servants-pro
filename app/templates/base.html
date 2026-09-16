@@ -2972,16 +2972,22 @@
         </div>
       </div>
     </div>
-    <div class="modal-body">
-      {%- set _dyn = dynbg_defaults() -%}
-      {# ── Tabs: Background / Options. Background is the preset grid;
-         Options folds in the per-preset knobs, colours, randomize,
-         light/dark tone, and the texture overlay (grid + scope + noise). #}
-      {# Each tab is a wrapper (carries the active/accent styling and
-         is the click target) holding the tab <button> plus, for
-         Background, the help chip pinned right after the label — the
-         chip contains its own <button>, so it can't nest inside the
-         tab button itself. #}
+    {# ── Tabs: Background / Options. Background is the preset grid;
+       Options folds in the per-preset knobs, colours, randomize,
+       light/dark tone, and the texture overlay (grid + scope + noise).
+
+       Sits OUTSIDE .modal-body, next to the preview band — both are
+       non-shrinking children of the flex-column .modal-panel, so the
+       preview and the tab bar together form a fixed header and only
+       the panel content below scrolls. Scrolling the preset grid used
+       to carry the tabs off-screen, which left no way back to the
+       other panel without scrolling up again. #}
+    {# Each tab is a wrapper (carries the active/accent styling and
+       is the click target) holding the tab <button> plus, for
+       Background, the help chip pinned right after the label — the
+       chip contains its own <button>, so it can't nest inside the
+       tab button itself. #}
+    <div class="dynbg-modal-tabbar">
       <div class="dynbg-modal-tabs" role="tablist" data-dynbg-modal-tabs>
         <div class="dynbg-modal-tab-wrap is-active" data-dynbg-modal-tab-wrap="background">
           <button type="button" role="tab" class="dynbg-modal-tab is-active"
@@ -2992,7 +2998,9 @@
                   data-dynbg-modal-tab="options" aria-selected="false">Options</button>
         </div>
       </div>
-
+    </div>
+    <div class="modal-body">
+      {%- set _dyn = dynbg_defaults() -%}
       <section class="dynbg-modal-panel is-active" data-dynbg-modal-panel="background">
         {# Two grids, one radiogroup: the presets to pick from, then the
            kept-for-continuity ones behind a divider. They're separate
@@ -3062,7 +3070,7 @@
           <legend>Animation</legend>
           <label class="check dynbg-modal-randomize">
             <input type="checkbox" id="dynbg-picker-modal-animate-off" value="1">
-            <span><b>Freeze movement</b> <span class="muted smaller">— stops the keyframe animation on this preset (blobs / bands stay where they're first painted). Useful for marketing screenshots, low-power devices, or visitors who find motion distracting.</span></span>
+            <span><b>Freeze movement</b>{% call chip('Freeze movement') %}Stops the keyframe animation on this preset (blobs / bands stay where they're first painted). Useful for marketing screenshots, low-power devices, or visitors who find motion distracting.{% endcall %}</span>
           </label>
         </fieldset>
 
@@ -3100,7 +3108,7 @@
                    · fixed       → roll a value and KEEP it #}
               <label class="check dynbg-modal-randomize" data-dynbg-mode-randomize-colors-label>
                 <input type="checkbox" data-dynbg-mode-randomize-colors value="1">
-                <span><b>Colours</b> <span class="muted smaller">— picks a fresh brand-friendly palette each page load.</span></span>
+                <span><b>Colours</b>{% call chip('Randomize colours') %}Picks a fresh brand-friendly palette each page load.{% endcall %}</span>
               </label>
               <div class="dynbg-modal-roll-row" data-dynbg-mode-colors-row-actions hidden>
                 <button type="button" class="btn btn-sm dynbg-modal-roll" data-dynbg-mode-colors-shuffle>
@@ -3109,9 +3117,32 @@
                 <span class="muted smaller">Preview another of the palettes visitors will get.</span>
               </div>
 
+              {# The limiter on the roller. Without it both modes drew
+                 from one mid-lightness band, so a dark-mode column with
+                 "Colours" on came back as bright as the light one and
+                 the section stopped reading as dark. This is the centre
+                 of the band the generator picks from, so it governs the
+                 per-page-load shuffle AND the "Roll colours" button. It
+                 sits here rather than under Tone because it shapes what
+                 gets rolled, not how a picked colour is displayed. #}
+              <label class="dynbg-modal-tone-field dynbg-modal-rndlight"
+                     for="dynbg-picker-modal-{{ _mode }}-rnd-light"
+                     data-dynbg-mode-rndlight-row>
+                <span class="dynbg-modal-tone-label"><b>Shade lightness</b>{% call chip('Shade lightness') %}
+                  {%- if _mode == 'dark' %}The ceiling on how bright a randomised colour can be, so dark mode stays dark. Lower = deeper shades.
+                  {%- else %}Where randomised colours land: lower = deeper, higher = paler.
+                  {%- endif %} Only in play while <b>Colours</b> is on — with it off, the same slider leads the Colours section.{% endcall %}</span>
+                <span class="dynbg-modal-tone-slider">
+                  <input type="range" id="dynbg-picker-modal-{{ _mode }}-rnd-light"
+                         data-dynbg-mode-tone="rnd_light" min="0" max="100" step="1"
+                         value="{{ dynbg_tone_default('rnd_light', _mode) }}">
+                  <output for="dynbg-picker-modal-{{ _mode }}-rnd-light" aria-live="off">{{ dynbg_tone_default('rnd_light', _mode) }}</output>
+                </span>
+              </label>
+
               <label class="check dynbg-modal-randomize" data-dynbg-mode-randomize-positions-label>
                 <input type="checkbox" data-dynbg-mode-randomize-positions value="1">
-                <span><b>Positions</b> <span class="muted smaller">— blobs / gradients / bands spawn at fresh coordinates each page load.</span></span>
+                <span><b>Positions</b>{% call chip('Randomize positions') %}Blobs / gradients / bands spawn at fresh coordinates each page load.{% endcall %}</span>
               </label>
               <div class="dynbg-modal-roll-row" data-dynbg-mode-pos-row-actions hidden>
                 {# Randomising: the layout changes per page load, so the
@@ -3134,8 +3165,41 @@
             </fieldset>
 
             <fieldset class="dynbg-modal-fieldset" data-dynbg-mode-colors-row>
-              <legend>Colours</legend>
+              <legend>Colours {% call chip('Colours') %}<span data-dynbg-mode-colors-blurb>Leave a slot blank to fall through to the brand accent.</span>{% endcall %}</legend>
               <div class="dynbg-modal-colors" data-dynbg-mode-color-slots>
+                {# Re-rolls the slots with a fresh brand-friendly palette
+                   without turning "random colours" on — the admin keeps a
+                   fixed palette, they just want help finding one. Same
+                   generator the randomise preview uses. Sits ABOVE the
+                   chips: it's the starting move for a palette you haven't
+                   mixed yet, and at the bottom of six slots it read as an
+                   afterthought you had to scroll past them to find. #}
+                <button type="button" class="btn btn-sm dynbg-modal-roll dynbg-modal-roll--lead" data-dynbg-mode-roll>
+                  {{ icon('refresh') }} Roll colours
+                </button>
+                {# The SAME `rnd_light` value as the slider in the
+                   Randomize fieldset — one shade setting per mode, shown
+                   wherever it's the live control. Here it acts on the
+                   fixed chips directly: dragging it lightens / darkens
+                   every filled slot together (relative to the palette as
+                   last rolled or typed, so returning the slider returns
+                   the colours), and Roll colours draws its palette at
+                   this shade. Up there it limits the generator instead,
+                   which is why that copy is a ceiling and this one is a
+                   dimmer. Leads the fieldset alongside Roll colours: the
+                   two are the "get me a palette" pair, and you reach for
+                   them before touching individual chips. #}
+                <label class="dynbg-modal-tone-field dynbg-modal-rndlight"
+                       for="dynbg-picker-modal-{{ _mode }}-shade"
+                       data-dynbg-mode-shade-row>
+                  <span class="dynbg-modal-tone-label"><b>Shade lightness</b>{% call chip('Shade lightness') %}Lightens or darkens every colour below together{% if _mode == 'dark' %}; keep it low so the section reads as dark{% endif %}. <b>Roll colours</b> picks a fresh palette at this shade.{% endcall %}</span>
+                  <span class="dynbg-modal-tone-slider">
+                    <input type="range" id="dynbg-picker-modal-{{ _mode }}-shade"
+                           data-dynbg-mode-tone="rnd_light" min="0" max="100" step="1"
+                           value="{{ dynbg_tone_default('rnd_light', _mode) }}">
+                    <output for="dynbg-picker-modal-{{ _mode }}-shade" aria-live="off">{{ dynbg_tone_default('rnd_light', _mode) }}</output>
+                  </span>
+                </label>
                 {% for slot in [1, 2, 3, 4, 5, 6] %}
                 <label class="dynbg-modal-color-row" data-dynbg-mode-color-slot="{{ slot }}">
                   <span class="dynbg-modal-color-label" data-dynbg-mode-color-label="{{ slot }}">Colour {{ slot }}</span>
@@ -3163,14 +3227,28 @@
                   </span>
                 </label>
                 {% endfor %}
-                <p class="muted smaller dynbg-modal-colors-blurb" data-dynbg-mode-colors-blurb>Leave a slot blank to fall through to the brand accent.</p>
-                {# Re-rolls the slots with a fresh brand-friendly palette
-                   without turning "random colours" on — the admin keeps a
-                   fixed palette, they just want help finding one. Same
-                   generator the randomise preview uses. #}
-                <button type="button" class="btn btn-sm dynbg-modal-roll" data-dynbg-mode-roll>
-                  {{ icon('refresh') }} Roll colours
-                </button>
+                {# Pattern-tile only: how the backdrop behind the motif is
+                   painted. Lives here because it reads the Background and
+                   Gradient end chips directly above it — "Linear gradient"
+                   is a statement about those two slots. Shown / hidden by
+                   the same preset gate that shows slots 5-6. #}
+                <div class="dynbg-modal-colors-bg" data-dynbg-mode-colors-bg hidden>
+                  <label class="dynbg-modal-slider-row dynbg-modal-select-row" for="dynbg-picker-modal-{{ _mode }}-pat-bg">
+                    <span class="dynbg-modal-slider-label">Background</span>
+                    <select id="dynbg-picker-modal-{{ _mode }}-pat-bg" data-dynbg-mode-pat="bg">
+                      <option value="solid">Solid colour</option>
+                      <option value="gradient">Linear gradient</option>
+                    </select>
+                  </label>
+                  <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-pat-bg-angle" data-dynbg-mode-pat-angle>
+                    <span class="dynbg-modal-tone-label"><b>Gradient direction</b>{% call chip('Gradient direction') %}The angle the Background chip blends into Gradient end.{% endcall %}</span>
+                    <span class="dynbg-modal-tone-slider">
+                      <input type="range" id="dynbg-picker-modal-{{ _mode }}-pat-bg-angle"
+                             data-dynbg-mode-pat="bg_angle" min="0" max="355" step="5" value="135">
+                      <output for="dynbg-picker-modal-{{ _mode }}-pat-bg-angle" aria-live="off">135</output>°
+                    </span>
+                  </label>
+                </div>
               </div>
             </fieldset>
 
@@ -3178,7 +3256,7 @@
               <legend>Tone</legend>
               <div class="dynbg-modal-tone-grid dynbg-modal-tone-grid--stack">
                 <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-sat">
-                  <span class="dynbg-modal-tone-label"><b>Saturation</b> <span class="muted smaller">— 100 = fully vivid, 0 = greyscale.</span></span>
+                  <span class="dynbg-modal-tone-label"><b>Saturation</b>{% call chip('Saturation') %}100 = fully vivid, 0 = greyscale.{% endcall %}</span>
                   <span class="dynbg-modal-tone-slider">
                     <input type="range" id="dynbg-picker-modal-{{ _mode }}-sat"
                            data-dynbg-mode-tone="sat" min="0" max="100" step="1" value="100">
@@ -3186,7 +3264,7 @@
                   </span>
                 </label>
                 <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-bright">
-                  <span class="dynbg-modal-tone-label"><b>Brightness</b> <span class="muted smaller">— 100 = colours as picked; lower darkens toward black, higher lightens toward white.</span></span>
+                  <span class="dynbg-modal-tone-label"><b>Brightness</b>{% call chip('Brightness') %}100 = colours as picked; lower darkens toward black, higher lightens toward white.{% endcall %}</span>
                   <span class="dynbg-modal-tone-slider">
                     <input type="range" id="dynbg-picker-modal-{{ _mode }}-bright"
                            data-dynbg-mode-tone="bright" min="0" max="200" step="1" value="100">
@@ -3194,7 +3272,7 @@
                   </span>
                 </label>
                 <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-fill" data-dynbg-mode-tone-soft>
-                  <span class="dynbg-modal-tone-label"><b>Colour fill</b> <span class="muted smaller">— how much of the surface is painted with the palette vs left as the page's {{ 'white' if _mode == 'light' else 'black' }}. 0 = page colour shows through; 100 = full colour, no {{ 'white' if _mode == 'light' else 'black' }} at all.</span></span>
+                  <span class="dynbg-modal-tone-label"><b>Colour fill</b>{% call chip('Colour fill') %}How much of the surface is painted with the palette vs left as the page's {{ 'white' if _mode == 'light' else 'black' }}. 0 = page colour shows through; 100 = full colour, no {{ 'white' if _mode == 'light' else 'black' }} at all.{% endcall %}</span>
                   <span class="dynbg-modal-tone-slider">
                     <input type="range" id="dynbg-picker-modal-{{ _mode }}-fill"
                            data-dynbg-mode-tone="fill" min="0" max="100" step="1" value="0">
@@ -3207,7 +3285,7 @@
                    over from the old build shows exactly what it's doing
                    and the admin can dial it out on their own schedule. #}
                 <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-pastel" data-dynbg-mode-tone-pastel hidden>
-                  <span class="dynbg-modal-tone-label"><b>Pastel wash</b> <span class="muted smaller">— the classic recipes' softening: 0 = colours as picked, 100 = full cream / blush pastel.</span></span>
+                  <span class="dynbg-modal-tone-label"><b>Pastel wash</b>{% call chip('Pastel wash') %}The classic recipes' softening: 0 = colours as picked, 100 = full cream / blush pastel.{% endcall %}</span>
                   <span class="dynbg-modal-tone-slider">
                     <input type="range" id="dynbg-picker-modal-{{ _mode }}-pastel"
                            data-dynbg-mode-tone="pastel" min="0" max="100" step="1" value="0">
@@ -3217,31 +3295,21 @@
               </div>
             </fieldset>
 
-            {# Pattern-tile only: this mode's motif opacity and backdrop. #}
+            {# Pattern-tile only: this mode's motif opacity. The backdrop
+               controls that used to sit here moved into the Colours
+               fieldset, next to the Background / Gradient end chips they
+               act on — choosing "Linear gradient" here while the second
+               colour it reads lived in another fieldset made the pair
+               impossible to set as one decision. #}
             <fieldset class="dynbg-modal-fieldset dynbg-modal-tone" data-dynbg-mode-pat-row hidden>
               <legend>Pattern</legend>
               <div class="dynbg-modal-tone-grid dynbg-modal-tone-grid--stack">
                 <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-pat-opacity">
-                  <span class="dynbg-modal-tone-label"><b>Opacity</b> <span class="muted smaller">— how strongly the motif paints over the backdrop.</span></span>
+                  <span class="dynbg-modal-tone-label"><b>Opacity</b>{% call chip('Motif opacity') %}How strongly the motif paints over the backdrop.{% endcall %}</span>
                   <span class="dynbg-modal-tone-slider">
                     <input type="range" id="dynbg-picker-modal-{{ _mode }}-pat-opacity"
                            data-dynbg-mode-pat="opacity" min="5" max="100" step="5" value="100">
                     <output for="dynbg-picker-modal-{{ _mode }}-pat-opacity" aria-live="off">100</output>
-                  </span>
-                </label>
-                <label class="dynbg-modal-slider-row dynbg-modal-select-row" for="dynbg-picker-modal-{{ _mode }}-pat-bg">
-                  <span class="dynbg-modal-slider-label">Background</span>
-                  <select id="dynbg-picker-modal-{{ _mode }}-pat-bg" data-dynbg-mode-pat="bg">
-                    <option value="solid">Solid colour</option>
-                    <option value="gradient">Linear gradient</option>
-                  </select>
-                </label>
-                <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-pat-bg-angle" data-dynbg-mode-pat-angle>
-                  <span class="dynbg-modal-tone-label"><b>Gradient direction</b></span>
-                  <span class="dynbg-modal-tone-slider">
-                    <input type="range" id="dynbg-picker-modal-{{ _mode }}-pat-bg-angle"
-                           data-dynbg-mode-pat="bg_angle" min="0" max="355" step="5" value="135">
-                    <output for="dynbg-picker-modal-{{ _mode }}-pat-bg-angle" aria-live="off">135</output>°
                   </span>
                 </label>
               </div>
@@ -3289,11 +3357,11 @@
                 <div class="dynbg-modal-scope-row" role="radiogroup">
                   <label class="dynbg-modal-scope-opt">
                     <input type="radio" name="__dynbg_modal_scope_pick_{{ _mode }}" value="all" data-dynbg-mode-scope="all" checked>
-                    <span><b>All page elements</b> <span class="muted smaller">— textures bg + content</span></span>
+                    <span><b>All page elements</b>{% call chip('All page elements') %}The texture pass covers the background and the content sitting on it.{% endcall %}</span>
                   </label>
                   <label class="dynbg-modal-scope-opt">
                     <input type="radio" name="__dynbg_modal_scope_pick_{{ _mode }}" value="bg" data-dynbg-mode-scope="bg">
-                    <span><b>Background only</b> <span class="muted smaller">— texture sits under content</span></span>
+                    <span><b>Background only</b>{% call chip('Background only') %}The texture sits under the content, so text and cards stay clean.{% endcall %}</span>
                   </label>
                 </div>
                 <button type="button" class="btn btn-sm" data-dynbg-mode-ovreset style="align-self: flex-start; margin-top: 4px;">Reset to default</button>

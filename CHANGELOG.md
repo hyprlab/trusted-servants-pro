@@ -6,6 +6,68 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.5] — 2026-09-16
+
+### Added
+
+- **Dynamic backgrounds: a per-mode "Shade lightness" limiter on the colour
+  randomiser.** The generator rolled one mid-lightness band (0.45-0.65) for both
+  modes, so a dark-mode column with "random colours" on came back as bright as
+  the light one and the section stopped reading as dark. `random_colors()` now
+  takes a lightness centre and draws from ±`RND_LIGHT_SPREAD` around it, and the
+  new `rnd_light` mode key feeds it — defaulting to 55 in light mode (the band
+  it always had) and 26 in dark. The picker exposes it as a slider in each
+  mode's Randomize fieldset, governing the per-page-load shuffle and the "Roll
+  colours" button alike. `random_color_seed()` splits the hue/saturation roll
+  from the shading so both modes still share one roll: same hues, each in its
+  own band.
+- **…and the same slider dims a FIXED palette.** One `rnd_light` value per mode,
+  rendered wherever it's the live control: in the Randomize fieldset while
+  "Colours" is on (where it limits the generator), and again at the head of the
+  Colours fieldset while it's off (where it lightens / darkens every filled slot
+  together, and "Roll colours" draws its palette at that shade). The copy that isn't live
+  greys out rather than vanishing, so the value stays readable but there's only
+  ever one place to set it. The chip nudge is a lightness *shift* from the
+  palette as last rolled or typed, not an absolute — a hand-mixed palette keeps
+  its internal contrast and returning the slider returns the colours.
+- **Dynamic backgrounds: the pattern motif has its own randomise toggle.**
+  "Random each load" was entry #1 of a 330-option `<select>`, where a pinned
+  motif and a shuffling one looked identical. The `pattern` knob now declares
+  `random_value`, and the picker renders it the way colours and positions
+  already are: a checkbox, the motif `<select>` it gates, and one button for the
+  state you're in — **Shuffle sample** while randomising, **Roll** (pick one and
+  keep it) while pinned. Turning the checkbox off pins whatever the preview was
+  showing rather than snapping to the top of the list. Stored shape is
+  unchanged (`knobs.pattern`, absent = random).
+
+### Changed
+
+- **The pattern preset's backdrop controls moved into the Colours fieldset.**
+  "Background" (solid / linear gradient) and "Gradient direction" now sit
+  directly under the Background and Gradient end colour chips they act on,
+  instead of in the per-mode Pattern fieldset — choosing a gradient while the
+  second colour it reads lived in a different fieldset made the pair impossible
+  to set as one decision. The Pattern fieldset keeps the motif's Opacity. Stored
+  shape is unchanged (`pat_bg` / `pat_bg_angle` on the mode block).
+- **Every label in the dynbg picker folds its helper prose into a `chip()`
+  tooltip.** The Options tab was labels + inputs + a line or three of grey prose
+  each; it now reads as `Name ⓘ` + control, with the explanation one click away.
+  Covers Freeze movement, both Randomize toggles, both Shade lightness sliders,
+  Saturation / Brightness / Colour fill / Pastel wash, motif Opacity, Gradient
+  direction, the overlay scope pair, and the per-slot Colours blurb (now a chip
+  on that fieldset's legend — the JS still rewrites it per preset). The JS-built
+  "Randomize pattern" row gets the same treatment via a new `makeChip()` that
+  clones the template's info glyph. Button-adjacent notes ("Preview another of
+  the palettes visitors will get") and slider scale hints ("0.1 = coarse · 2.0 =
+  fine") stay inline — they annotate an action or an axis, not a heading.
+- **"Roll colours" and "Shade lightness" lead the Colours fieldset.** Both were
+  below six colour slots, where the two controls you reach for *before* mixing
+  anything read as an afterthought you had to scroll past the chips to find.
+- **The dynbg picker's preview and tab bar stay put while the panel scrolls.**
+  The tab strip moved out of `.modal-body` to sit beside the preview band as a
+  non-shrinking child of `.modal-panel`, so scrolling the preset grid no longer
+  carries the Background / Options tabs off-screen.
+
 ## [2.19.4] — 2026-09-16
 
 ### Added

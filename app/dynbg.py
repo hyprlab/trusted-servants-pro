@@ -298,8 +298,14 @@ PRESET_CAPS = {
             # Enumerated knobs render as a <select>; "random" re-rolls
             # the motif on every page load. Options are grouped by the
             # catalogue's own tags so 330 entries stay navigable.
+            # ``random_value`` tells the picker this knob has a
+            # randomise state worth its own checkbox + Roll button
+            # (as colours and positions have), instead of burying it as
+            # one entry in a 330-item <select> where "is this pinned or
+            # is it shuffling?" is impossible to read at a glance.
             {"key": "pattern", "label": "Pattern", "kind": "select",
-             "default": "random",
+             "default": "random", "random_value": "random",
+             "random_label": "Pattern",
              "options": [{"value": "random", "label": "Random each load"}],
              "groups": pattern_groups()},
             # Scale is a multiplier on the tile's native size (as on
@@ -775,13 +781,36 @@ TONE_DEFAULT = 100  # saturation sits at "full vivid" unless dialled back
 FILL_DEFAULT = 0    # colour fill: 0 = page white/black shows through the recipe
 BRIGHT_DEFAULT = 100  # brightness: 100 = colours as picked; <100 darker, >100 lighter
 PASTEL_DEFAULT = 0  # light-mode pastel wash: 0 = colours as picked
+# Where a RANDOMISED / rolled palette sits on the HSL lightness axis.
+# This is the only tone key whose default differs per mode, and it has
+# to: the generator used to roll one mid-lightness band (0.45-0.65) for
+# both modes, so a dark-mode surface with "random colours" on came back
+# with the same bright palette light mode got and stopped reading as
+# dark at all. Dark mode is therefore limited to deep shades by
+# default; light mode keeps the band it always had. The slider in the
+# picker moves the centre, so an admin who WANTS bright darks can still
+# have them — they just have to say so.
+RND_LIGHT_DEFAULTS = {"light": 55, "dark": 26}
+RND_LIGHT_SPREAD = 10   # ± lightness points either side of the centre
+RND_LIGHT_MIN = 3       # never roll pure black / pure white
+RND_LIGHT_MAX_L = 97
 TONE_DEFAULTS = {"sat": TONE_DEFAULT, "bright": BRIGHT_DEFAULT,
-                 "fill": FILL_DEFAULT, "pastel": PASTEL_DEFAULT}
+                 "fill": FILL_DEFAULT, "pastel": PASTEL_DEFAULT,
+                 "rnd_light": RND_LIGHT_DEFAULTS["light"]}
 # Pattern-tile per-mode defaults (see normalize_mode).
 PAT_DEFAULTS = {"pat_opacity": 100, "pat_bg": "solid", "pat_bg_angle": 135}
 
 
-TONE_MAX = {"sat": 100, "bright": 200, "fill": 100, "pastel": 100}
+TONE_MAX = {"sat": 100, "bright": 200, "fill": 100, "pastel": 100,
+            "rnd_light": 100}
+
+
+def tone_default(key, mode="light"):
+    """Default value for one tone slider in ``mode``. Everything except
+    ``rnd_light`` shares a single default across both modes."""
+    if key == "rnd_light":
+        return RND_LIGHT_DEFAULTS.get(mode, RND_LIGHT_DEFAULTS["light"])
+    return TONE_DEFAULTS.get(key, TONE_DEFAULT)
 
 
 def _tone_int(v, hi=100):
@@ -796,11 +825,11 @@ def _tone_int(v, hi=100):
     return max(0, min(hi, n))
 
 
-def normalize_mode(raw, fill_defaults=True):
+def normalize_mode(raw, fill_defaults=True, mode="light"):
     """Normalise ONE mode's block of the per-mode config::
 
         {"colors": [...], "randomize_colors": bool, "randomize_positions": bool,
-         "sat": 0-100, "bright": 0-200, "fill": 0-100,
+         "sat": 0-100, "bright": 0-200, "fill": 0-100, "rnd_light": 0-100,
          "overlay": key|None, "overlay_scope": 'all'|'bg'|None,
          "overlay_size": float|None, "overlay_intensity": float|None}
 
@@ -809,7 +838,10 @@ def normalize_mode(raw, fill_defaults=True):
     lightness — below 100 toward black, above 100 toward white;
     ``fill`` (default 0)
     paints the recipe's BASE with the palette via ``--fe-dynbg-fill``
-    so at 100 none of the page's white / black shows through; the
+    so at 100 none of the page's white / black shows through;
+    ``rnd_light`` caps how light a RANDOMISED palette comes out (see
+    RND_LIGHT_DEFAULTS — this is the one key whose default depends on
+    ``mode``, hence the argument); the
     overlay quartet is the mode's own texture pass. With ``fill_defaults`` every key is
     present (sat → 100, fill → 0) so consumers can index
     without guards; without it only explicitly-set, non-default values
@@ -839,7 +871,8 @@ def normalize_mode(raw, fill_defaults=True):
         out["positions"] = pos
     elif fill_defaults:
         out["positions"] = {}
-    for k, dflt in TONE_DEFAULTS.items():
+    for k in TONE_DEFAULTS:
+        dflt = tone_default(k, mode)
         n = _tone_int(raw.get(k), TONE_MAX.get(k, 100))
         if fill_defaults:
             out[k] = dflt if n is None else n
@@ -951,7 +984,7 @@ def normalize_modes(raw, fill_defaults=True, legacy=None):
             if "bg_angle" in kn: raw[m].setdefault("pat_bg_angle", kn["bg_angle"])
     out = {}
     for mode in MODES:
-        block = normalize_mode(raw.get(mode), fill_defaults=fill_defaults)
+        block = normalize_mode(raw.get(mode), fill_defaults=fill_defaults, mode=mode)
         if fill_defaults or block:
             out[mode] = block
     return out
@@ -1263,22 +1296,50 @@ def colors_to_css_vars(colors, cfg=None):
     return " ".join(parts)
 
 
-def random_colors(n=3):
-    """Return a list of ``n`` random vibrant hex colours.
+def random_color_seed(n=3):
+    """Roll the mode-independent half of a random palette: ``n``
+    ``(hue, saturation, lightness_t)`` triples, where ``lightness_t``
+    is a 0-1 position WITHIN whatever lightness band the consumer
+    asks for.
 
-    Uses HSL with random hue + capped-medium saturation / lightness
-    so the palette stays brand-friendly (no muddy browns or eye-
-    searing neons). Each render generates a fresh palette so the
-    same surface looks different every page load when the admin has
-    `randomize` turned on.
+    Split out from ``random_colors`` so light mode and dark mode can
+    share one roll — same hues, same relative shading — while each
+    lands the palette in its own lightness band.
     """
     import random as _random
+    return [(_random.random(),
+             0.55 + _random.random() * 0.35,   # 0.55–0.90 saturation
+             _random.random())
+            for _ in range(n)]
+
+
+def random_colors(n=3, lightness=None, seed=None):
+    """Return a list of ``n`` random vibrant hex colours.
+
+    Uses HSL with random hue + capped-medium saturation so the palette
+    stays brand-friendly (no muddy browns or eye-searing neons).
+    ``lightness`` (0-100, default ``RND_LIGHT_DEFAULTS['light']``) is
+    the CENTRE of the lightness band the colours are drawn from; the
+    band is ±``RND_LIGHT_SPREAD`` points around it, clamped away from
+    pure black / white. That is what keeps a dark-mode surface dark:
+    the mode's ``rnd_light`` slider feeds straight in here, so the
+    randomiser can't hand back a wall of mid-bright colour.
+
+    Pass ``seed`` (from ``random_color_seed``) to re-shade an existing
+    roll at a different lightness; otherwise a fresh one is rolled, so
+    the same surface looks different every page load when the admin
+    has `randomize` turned on.
+    """
     import colorsys as _colorsys
+    lt = (RND_LIGHT_DEFAULTS["light"] if lightness is None
+          else max(0, min(100, int(lightness))))
+    lo = max(RND_LIGHT_MIN, lt - RND_LIGHT_SPREAD) / 100.0
+    hi = min(RND_LIGHT_MAX_L, lt + RND_LIGHT_SPREAD) / 100.0
+    pairs = seed or random_color_seed(n)
     out = []
-    for _ in range(n):
-        h = _random.random()
-        s = 0.55 + _random.random() * 0.35  # 0.55–0.90
-        l = 0.45 + _random.random() * 0.20  # 0.45–0.65
+    for i in range(n):
+        h, s, t = pairs[i % len(pairs)]
+        l = lo + t * (hi - lo)
         r, g, b = _colorsys.hls_to_rgb(h, l, s)
         out.append("#{:02x}{:02x}{:02x}".format(
             int(r * 255), int(g * 255), int(b * 255)))
@@ -1319,21 +1380,29 @@ def resolve_colors(cfg):
     as ``{"light": [...], "dark": [...]}``. A mode with
     ``randomize_colors`` on ignores its saved colours and takes a fresh
     random palette for this render (one roll shared by both modes when
-    both randomise, so the light/dark switch keeps the same hues).
+    both randomise, so the light/dark switch keeps the same hues —
+    each mode shades that roll into its own ``rnd_light`` band, which
+    is what stops dark mode getting light mode's brightness).
     Feed the result straight into ``colors_to_css_vars``."""
     if isinstance(cfg, str) or cfg is None:
         cfg = decode_config(cfg)
     modes = cfg.get("modes") if isinstance(cfg, dict) else None
     if not (isinstance(modes, dict) and all(isinstance(modes.get(m), dict) for m in MODES)):
         modes = normalize_modes(modes, legacy=cfg)
-    rolled = None
+    seed = None
     out = {}
     for mode in MODES:
         block = modes[mode]
         if block.get("randomize_colors"):
-            if rolled is None:
-                rolled = random_colors(MAX_COLOR_SLOTS)
-            out[mode] = list(rolled)
+            if seed is None:
+                seed = random_color_seed(MAX_COLOR_SLOTS)
+            # `modes` may be the storage shape here (defaults omitted),
+            # so fall back to this MODE's default rather than the
+            # dict-wide one — otherwise dark mode rolls light's band.
+            lt = block.get("rnd_light")
+            if lt is None:
+                lt = tone_default("rnd_light", mode)
+            out[mode] = random_colors(MAX_COLOR_SLOTS, lt, seed)
         else:
             out[mode] = [c for c in (block.get("colors") or []) if c]
     return out

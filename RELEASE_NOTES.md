@@ -7,7 +7,21 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.4 — 2026-09-16 (latest)
+## 2.19.5 — 2026-09-16 (latest)
+
+- The dynamic background's colour randomiser no longer hands dark mode a light-mode palette. Dark mode now rolls deep shades by default, so a section set to randomise still reads as dark.
+- A "Shade lightness" slider sets how light or dark those rolled colours come out, per mode. Dark mode starts at 26, light mode at 55 — the band it has always used, so light mode looks unchanged.
+- With "Colours" randomise switched off, the same slider leads the Colours section and dims or lightens every colour chip together. Sliding it back returns the colours exactly, and "Roll colours" draws its next palette at that shade.
+- The slider that is not in play greys out, so there is only ever one place to set the shade.
+- Existing surfaces that already had dark-mode "random colours" turned on will render darker from now on. Nothing needs re-saving; raise that mode's Shade lightness if you want the old brightness back.
+- The pattern motif has its own "Randomize pattern" checkbox. It used to be the first entry in a 330-option list, where a pinned motif and a shuffling one looked identical.
+- With randomise off, a "Roll" button picks a motif at random and keeps it. With it on, "Shuffle sample" previews another of the ones visitors will get.
+- "Roll colours" and "Shade lightness" moved to the top of the Colours section, above the colour slots.
+- The pattern preset's "Background" choice (solid or gradient) and "Gradient direction" moved into the Colours section, next to the Background and Gradient end colours they act on.
+- The preview and the Background / Options tabs stay fixed at the top of the dynamic background window. Scrolling the preset grid no longer carries the tabs out of view.
+- Every setting in that window now shows its name with an ⓘ beside it instead of a line of grey explanation, with the explanation a click away.
+
+## 2.19.4 — 2026-09-16
 
 - Hero particles can be any colour, not just white, and light mode and dark mode each get their own colour.
 - Particle opacity is also set per mode, so the layer can be faint in light mode and stronger in dark.

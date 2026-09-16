@@ -140,6 +140,10 @@
              same line; keep the two in step. #}
           {%- if _mb.sat != 100 -%}{%- set _ = _mbits.append(_mb.sat ~ '% sat') -%}{%- endif -%}
           {%- if _mb.bright != 100 -%}{%- set _ = _mbits.append(_mb.bright ~ '% bright') -%}{%- endif -%}
+          {# Random-palette lightness. Compared against THIS mode's own
+             default (dark mode's is the deep-shade limiter), so the
+             chip only mentions it when the admin moved the slider. #}
+          {%- if _mb.rnd_light != dynbg_tone_default('rnd_light', _mode) -%}{%- set _ = _mbits.append(_mb.rnd_light ~ '% shade') -%}{%- endif -%}
           {%- if _mb.fill -%}{%- set _ = _mbits.append(_mb.fill ~ '% fill') -%}{%- endif -%}
           {%- if _mb.pat_opacity != 100 -%}{%- set _ = _mbits.append(_mb.pat_opacity ~ '% opacity') -%}{%- endif -%}
           {%- if _mb.pat_bg == 'gradient' -%}{%- set _ = _mbits.append('gradient') -%}{%- endif -%}
