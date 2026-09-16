@@ -1,0 +1,216 @@
+{# Self-block guard — the "don't lock yourself out" confirmation.
+
+   The IP block gate in create_app() is unconditional: it 403s every
+   inbound request from a blocked address ahead of routing, with no
+   exemption for signed-in admins. So banning the IP you're currently
+   browsing from locks you out of the whole portal, and the only way
+   back is editing the database by hand. That's a mistake worth one
+   deliberate extra step.
+
+   This partial is included by every Watchtower template that renders a
+   Block button (overview, access, requests, 404s). It contributes two
+   things:
+
+     1. The modal itself, rooted at the end of the page body.
+     2. A capture-phase submit listener that intercepts *any* form
+        posting to /watchtower/ban-ip whose `ip` field matches this
+        admin's own address.
+
+   Capture phase matters: the 404s tab binds its own bubble-phase
+   handler to the same forms to POST them over fetch. Running first
+   (and calling stopPropagation) lets this guard pre-empt that handler,
+   and the "confirm" path re-submits the form so whatever page-specific
+   handler existed still does its normal job.
+
+   Matching on the form's action rather than a marker class means new
+   Block buttons are covered the day they're added, without having to
+   remember to opt them in. #}
+<div class="modal wt-selfblock-modal" id="wt-selfblock-modal" aria-hidden="true"
+     data-self-ip="{{ self_ip or request.remote_addr or '' }}">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true"
+       aria-labelledby="wt-selfblock-title" aria-describedby="wt-selfblock-body">
+    <div class="modal-head">
+      <h2 id="wt-selfblock-title">{{ icon('alert-triangle') }} That's your own IP</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
+    </div>
+    <div class="modal-body" id="wt-selfblock-body">
+      <p class="wt-selfblock-lede">
+        You're about to block
+        <code class="wt-selfblock-ip" id="wt-selfblock-ip"></code>, which is the
+        address you're browsing from right now.
+      </p>
+      <div class="wt-selfblock-warning">
+        <p><strong>This will lock you out of the portal immediately.</strong></p>
+        <p>
+          Blocked IPs are rejected with a 403 on every request — including
+          the admin pages, the login screen, and the public site. Being
+          signed in as an admin does not exempt you.
+        </p>
+        <p>
+          Anyone else browsing from this same address — colleagues on the
+          office or home network — is locked out with you.
+        </p>
+        <p class="wt-selfblock-recovery">
+          There is no way to undo this from inside the app. Getting back in
+          would mean removing the row from the database by hand, or
+          reaching the site from a different network.
+        </p>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-primary" data-close autofocus>Cancel — keep my access</button>
+      <button type="button" class="btn btn-danger" id="wt-selfblock-confirm">
+        {{ icon('slash') }} Block my own IP anyway
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .wt-selfblock-modal .modal-panel { max-width: 520px; }
+  .wt-selfblock-modal .modal-head h2 {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--danger, #dc2626);
+  }
+  .wt-selfblock-modal .modal-head .icon { width: 20px; height: 20px; flex: 0 0 auto; }
+  .wt-selfblock-lede { margin: 0 0 14px; }
+  .wt-selfblock-ip {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-weight: 600;
+    padding: 2px 6px; border-radius: 5px;
+    background: color-mix(in srgb, var(--danger, #dc2626) 12%, transparent);
+    color: var(--danger, #dc2626);
+  }
+  .wt-selfblock-warning {
+    padding: 12px 14px; border-radius: 8px;
+    background: color-mix(in srgb, var(--danger, #dc2626) 8%, transparent);
+    border-left: 3px solid var(--danger, #dc2626);
+  }
+  .wt-selfblock-warning p { margin: 0 0 8px; font-size: var(--fs-sm); }
+  .wt-selfblock-warning p:last-child { margin-bottom: 0; }
+  .wt-selfblock-recovery { color: var(--muted); }
+  /* Cancel is the primary action here — the destructive one should not
+     be the button the eye lands on first or the one Enter triggers. */
+  .wt-selfblock-modal .modal-foot { display: flex; justify-content: flex-end; gap: 8px; }
+  .wt-selfblock-modal .modal-foot .btn { display: inline-flex; align-items: center; gap: 6px; }
+  .wt-selfblock-modal .modal-foot .icon { width: 14px; height: 14px; }
+
+  /* "your IP" row chip — rendered next to an address in the Watchtower
+     lists so the admin recognises their own before they ever click. */
+  .wt-self-ip-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    flex: 0 0 auto;
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em;
+    padding: 2px 8px; border-radius: 999px;
+    background: color-mix(in srgb, var(--brand) 14%, transparent);
+    color: color-mix(in srgb, var(--brand) 70%, var(--text));
+    white-space: nowrap; cursor: help;
+  }
+  .wt-self-ip-chip .icon { width: 11px; height: 11px; }
+</style>
+
+<script>
+(function () {
+  const modal = document.getElementById('wt-selfblock-modal');
+  if (!modal) return;
+  const selfIp = (modal.dataset.selfIp || '').trim();
+  // No resolvable client IP (rare, but possible behind an odd proxy
+  // chain) means there's nothing to compare against — leave every form
+  // alone rather than guessing.
+  if (!selfIp) return;
+
+  const ipOut = document.getElementById('wt-selfblock-ip');
+  const confirmBtn = document.getElementById('wt-selfblock-confirm');
+  let pendingForm = null;
+  let lastFocus = null;
+
+  function open(form, ip) {
+    pendingForm = form;
+    lastFocus = document.activeElement;
+    ipOut.textContent = ip;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    // Focus Cancel, not the destructive button.
+    const cancel = modal.querySelector('.modal-foot [data-close]');
+    if (cancel) setTimeout(() => cancel.focus(), 50);
+  }
+
+  function close() {
+    pendingForm = null;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+    lastFocus = null;
+  }
+
+  modal.querySelectorAll('[data-close]').forEach(el =>
+    el.addEventListener('click', close));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('open')) close();
+  });
+
+  // Is this a form that bans an IP? Matched on the action path so any
+  // Block button added later is covered without opting in.
+  function banFormIp(form) {
+    if (!form || form.tagName !== 'FORM') return null;
+    let path;
+    try {
+      path = new URL(form.action, window.location.href).pathname;
+    } catch (err) {
+      return null;
+    }
+    if (!path.endsWith('/watchtower/ban-ip')) return null;
+    const field = form.querySelector('[name="ip"]');
+    return field ? (field.value || '').trim() : null;
+  }
+
+  document.addEventListener('submit', (e) => {
+    const form = e.target;
+    if (form.dataset.selfBlockConfirmed === '1') return;  // already acknowledged
+    const ip = banFormIp(form);
+    if (!ip || ip !== selfIp) return;
+    // Pre-empt the page's own submit handlers (the 404s tab fetches
+    // these forms) so nothing fires until the admin has decided.
+    e.preventDefault();
+    e.stopPropagation();
+    open(form, ip);
+  }, true);  // capture
+
+  confirmBtn.addEventListener('click', () => {
+    const form = pendingForm;
+    if (!form) return close();
+    // Tell the server the warning was shown and acknowledged; without
+    // this the route refuses the ban outright.
+    if (!form.querySelector('[name="confirm_self"]')) {
+      const flag = document.createElement('input');
+      flag.type = 'hidden';
+      flag.name = 'confirm_self';
+      flag.value = '1';
+      form.appendChild(flag);
+    }
+    form.dataset.selfBlockConfirmed = '1';
+    close();
+    // Re-submit so the page's normal handler (fetch on the 404s tab, a
+    // plain POST elsewhere) runs exactly as it would have.
+    //
+    // Those handlers open their own routine `confirm()` ("Block 1.2.3.4?
+    // This rejects every inbound request…") which, after the warning
+    // above, is both redundant and misleadingly casual. Stub confirm()
+    // for the duration of the dispatch to swallow it. requestSubmit()
+    // fires the submit event synchronously and every one of those
+    // handlers calls confirm() before its first await, so the stub is
+    // only ever in place for this one dispatch.
+    const origConfirm = window.confirm;
+    window.confirm = () => true;
+    try {
+      if (form.requestSubmit) form.requestSubmit();
+      else form.submit();
+    } finally {
+      window.confirm = origConfirm;
+    }
+  });
+})();
+</script>

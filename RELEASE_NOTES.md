@@ -7,7 +7,17 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.7 — 2026-09-16 (latest)
+## 2.19.8 — 2026-09-16 (latest)
+
+- Watchtower's 404s tab has a new "Top source IPs" panel listing the addresses the 404s came from, ranked by how many they account for, so a single source hammering the site is easy to pick out and block.
+- Each row shows how many different dead URLs that address asked for. One address across ten or more of them is marked "scanning" — that pattern is an automated probe looking for a way in, not a broken link.
+- Rows carry a Block button, the same one the per-URL lists use, so an abusive address can be blocked without leaving the page.
+- Blocking your own IP address now asks first. The address you are browsing from is marked "your IP" wherever it appears in Watchtower, and clicking Block on it opens a warning explaining that blocking it locks you out of the portal entirely, with no way back in from inside the app.
+- That confirmation appears on every Block button in Watchtower, including the one where you type an address in by hand, and blocking your own address is refused outright unless the warning has been acknowledged.
+- The bars and counts in the 404s tab's ranked lists now line up in straight columns. Rows showing a "Blocked" or "redirected" label used to sit a few pixels out of line with the rest.
+- The Watchtower button in the sidebar had smaller text than the Dashboard and Notifications buttons beside it. All three now match.
+
+## 2.19.7 — 2026-09-16
 
 - Fixed: a Pattern tile background drew faint hairlines across itself, and they moved as the Scale slider changed. The motif now repeats inside the mask image instead of being tiled by the browser, which removes the seams the tiling left behind.
 - Because of that change, a Pattern tile background shifts its position slightly the first time a page is loaded after the update. The pattern, its scale and its colours are unchanged; only where the repeat starts has moved.
