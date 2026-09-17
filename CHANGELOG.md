@@ -6,6 +6,28 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.9] — 2026-09-17
+
+### Added
+
+- **`app/charts.py` — chart geometry as a module.** Every Watchtower chart was previously its own hand-written SVG path built with arithmetic inside Jinja (`namespace()` accumulators, inline `'%.1f'|format` coordinate maths), which is why none of them carried an axis. `time_chart()` and `bar_chart()` take the roll-up rows `watchtower.py` already produces and return pure numbers: plot box, tick positions, label stride, per-series path `d` strings, and a `points` payload for the hover layer. Templates now render, they don't calculate.
+- **`nice_axis(data_max, ticks=4)`** snaps an axis maximum to a readable step drawn from a 1/1.5/2/2.5/3/4/5/6/8/10 ladder × a power of ten — 28,855 → 32,000 in 8k steps. The ladder is deliberately finer than the usual 1/2/5, which would put a max of 480 on an 800 axis and waste 40% of the plot height. Steps are integers (these are counts); `compact()` formats ticks as 8k / 1.5M.
+- **`templates/watchtower/_chart.html` — shared `line_chart` / `bar_chart` macros.** Labelled y-axis + hairline gridlines, x-axis ticks at a stride from `_x_label_stride()` (every day ≤10 points, monthly past 130), a horizontal unit caption, crosshair, and a `<details>` table-view twin. Both chart types emit the same `points` contract, so one hover implementation covers both.
+- **Chart hover layer in `app.js`.** Crosshair + tooltip listing every series at the pointer; nearest-x lookup over the emitted point coordinates, so the pointer only has to be *closest* to a date, never land on a 2px line. Bars get a full-plot-height transparent hit rect per slot. Keyboard parity (←/→/Home/End/Escape) because the tooltip must never be the only route to a value. Tooltip content is inserted with `textContent` — labels originate in logged request data.
+- **Table-view twin under every chart**, and a legend on the two-series visitor chart. Both are required relief: `#10b981` measures 2.47:1 against the card, under the 3:1 floor, so identity and value have to be reachable as text rather than colour alone.
+
+### Changed
+
+- **Watchtower 404s, Overview visitor traffic, and Overview failed logins** now render through the shared macros. The failed-login severity thresholds moved out of the template into a `color_fn` passed from the route. Hits and unique visitors share one y-axis — never a second scale.
+- **Visitors tab gridlines are solid** (`.vm-grid-line`). A dashed rule reads as a projection or a threshold when it is only a ruler.
+- **Dashboard sparkline keeps its form** but names its own range in `aria-label` and a `<title>`, so the trend isn't shape-only for a screen reader. It sits beside labelled stat tiles, so it isn't in the "no way to read a value" category the other charts were.
+
+### Fixed
+
+- **`preserveAspectRatio="none"` removed from the charts that carry text.** It scales x and y independently, stretching every glyph along with the plot — the reason these charts had to stay wordless in the first place. `.vm-chart`'s `max-height: 360px` went with it; with the aspect ratio locked, a cap letterboxes the plot on a wide monitor instead of shortening it.
+- **`el.hidden = false` doesn't work on SVG elements.** `hidden` is an `HTMLElement` IDL property, so assigning it to an `SVGLineElement` sets a JS expando and leaves the attribute (and the UA `display: none`) in place. The crosshair and focus dots toggle the attribute directly.
+- **Tooltip rode the top of the plot** and drifted into the card heading on tall cards. It now sits above the topmost series value at the crosshair and flips below the point when there isn't headroom, so it never leaves the card.
+
 ## [2.19.8] — 2026-09-16
 
 ### Added

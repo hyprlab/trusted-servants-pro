@@ -5,6 +5,7 @@
 {% block heading_help %}Security + observability dashboard. Visitors, sessions, admin actions, suspicious IPs, and system health — all in one place.{% endblock %}
 {% block content %}
 {% from "watchtower/_ip_cell.html" import ip_cell %}
+{% from "watchtower/_chart.html" import line_chart, bar_chart %}
 {% include "watchtower/_tabs.html" %}
 
 {# ───────── Attention widget ─────────
@@ -232,73 +233,48 @@
   </div>
 </section>
 
-{# ───────── Charts: visitors over 30d + failed logins over 24h ───────── #}
-{% set max_views = (daily|map(attribute='views')|max) or 1 %}
-{% set max_uniq  = (daily|map(attribute='uniques')|max) or 1 %}
-{% set chart_max = ([max_views, max_uniq]|max) or 1 %}
+{# ───────── Charts: visitors over 30d + failed logins over 24h ─────────
+   Both render through the shared macro (geometry from app/charts.py), so
+   they carry the same labelled axes, crosshair tooltip and table view as
+   the 404s trend. #}
 <section class="card wt-chart-card">
   <div class="card-head">
     <h2>Visitor traffic · last 30 days {% call chip() %}<a href="{{ url_for('main.watchtower_visitors') }}">Open Visitors →</a>{% endcall %}</h2>
+    <span class="muted smaller">peak {{ '{:,}'.format(visits_peak) }} hits/day · hover or arrow-key for daily counts</span>
   </div>
-  <div class="wt-chart-wrap">
-    <svg class="wt-chart" viewBox="0 0 600 180" preserveAspectRatio="none" role="img" aria-label="Daily visits over the last 30 days">
-      <defs>
-        <linearGradient id="wt-grad-views" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="rgba(59,130,246,0.45)"/>
-          <stop offset="100%" stop-color="rgba(59,130,246,0.02)"/>
-        </linearGradient>
-      </defs>
-      {# Axis baseline #}
-      <line x1="0" y1="170" x2="600" y2="170" stroke="rgba(148,163,184,0.25)" stroke-width="1"/>
-      {% set n = daily|length %}
-      {% set step = 600 / (n - 1) if n > 1 else 0 %}
-      {# Area fill #}
-      <path d="M 0 170
-        {%- for d in daily -%}
-          L {{ '%.1f'|format(loop.index0 * step) }} {{ '%.1f'|format(170 - (d.views / chart_max) * 150) }}
-        {%- endfor -%}
-        L 600 170 Z" fill="url(#wt-grad-views)"/>
-      {# Views stroke #}
-      <path d="M
-        {%- for d in daily -%}
-          {{ '%.1f'|format(loop.index0 * step) }},{{ '%.1f'|format(170 - (d.views / chart_max) * 150) }}{% if not loop.last %} L {% endif %}
-        {%- endfor -%}" fill="none" stroke="rgb(59,130,246)" stroke-width="2"/>
-      {# Uniques stroke (dashed) #}
-      <path d="M
-        {%- for d in daily -%}
-          {{ '%.1f'|format(loop.index0 * step) }},{{ '%.1f'|format(170 - (d.uniques / chart_max) * 150) }}{% if not loop.last %} L {% endif %}
-        {%- endfor -%}" fill="none" stroke="rgb(16,185,129)" stroke-width="2" stroke-dasharray="4 4"/>
-    </svg>
-    <div class="wt-chart-legend">
-      <span class="wt-chart-key wt-chart-key--views">Views</span>
-      <span class="wt-chart-key wt-chart-key--uniques">Uniques</span>
-      <span class="muted smaller">peak {{ chart_max }}/day</span>
-    </div>
+  {% if visits_chart.empty %}
+  <p class="wtc-empty">No visits recorded in the last 30 days.</p>
+  {% else %}
+  {{ line_chart(visits_chart, id='wt-visits-chart',
+                aria='Hits and unique visitors per day over the last 30 days',
+                y_title='Visitors per day', unit='per day', table_label='Date') }}
+  {# Two series, so a legend is required — identity is never colour
+     alone. The dashed key mirrors the dashed stroke on the chart. #}
+  <div class="wtc-legend">
+    <span class="wtc-legend-item">
+      <span class="wtc-legend-key" style="background: rgb(59,130,246)"></span>Hits
+    </span>
+    <span class="wtc-legend-item" style="color: rgb(16,185,129)">
+      <span class="wtc-legend-key wtc-legend-key--dashed"></span>
+      <span style="color: var(--muted)">Unique visitors</span>
+    </span>
   </div>
+  {% endif %}
 </section>
 
-{% set max_fail = (hourly_fail|map(attribute='count')|max) or 1 %}
-{% set total_fail_24h = hourly_fail|sum(attribute='count') %}
 <section class="card wt-chart-card">
   <div class="card-head">
     <h2>Failed logins · last 24 hours {% call chip() %}{{ total_fail_24h }} total · {{ tz_label }}{% endcall %}</h2>
+    <span class="muted smaller">bars redden as attempts concentrate · hover or arrow-key per hour</span>
   </div>
-  <div class="wt-chart-wrap">
-    <svg class="wt-chart wt-chart--bars" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Failed login attempts per hour">
-      <line x1="0" y1="130" x2="600" y2="130" stroke="rgba(148,163,184,0.25)" stroke-width="1"/>
-      {% set bn = hourly_fail|length %}
-      {% set bw = 600 / bn if bn else 0 %}
-      {% for h in hourly_fail %}
-        {% set hb = ((h.count / max_fail) * 115) if h.count > 0 else 0 %}
-        <rect x="{{ '%.1f'|format(loop.index0 * bw + 1) }}" y="{{ '%.1f'|format(130 - hb) }}"
-              width="{{ '%.1f'|format(bw - 2) }}" height="{{ '%.1f'|format(hb) }}"
-              fill="{% if h.count > 10 %}rgb(220,38,38){% elif h.count > 3 %}rgb(245,158,11){% else %}rgb(148,163,184){% endif %}"
-              rx="2">
-          <title>{{ h.hour }}: {{ h.count }} failure{{ '' if h.count == 1 else 's' }}</title>
-        </rect>
-      {% endfor %}
-    </svg>
-  </div>
+  {% if fail_chart.empty %}
+  <p class="wtc-empty">No failed logins in the last 24 hours — that's a good sign.</p>
+  {% else %}
+  {{ bar_chart(fail_chart, id='wt-fail-chart',
+               aria='Failed login attempts per hour over the last 24 hours',
+               y_title='Attempts per hour', unit='attempts',
+               table_label='Hour (' ~ tz_label ~ ')') }}
+  {% endif %}
 </section>
 
 {# ───────── Two-column: suspicious IPs + recent activity ───────── #}

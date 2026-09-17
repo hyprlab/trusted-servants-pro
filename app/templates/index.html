@@ -204,7 +204,13 @@
         {% set _vh = 56 %}
         {% set _vmax = visitor_sparkline|max %}
         {% set _vstep = (_vw / (visitor_sparkline|length - 1)) if visitor_sparkline|length > 1 else 0 %}
-        <svg class="vm-widget-spark" viewBox="0 0 {{ _vw }} {{ _vh }}" preserveAspectRatio="none" role="img" aria-label="14-day visit sparkline">
+        {# A sparkline reports shape, not values — the stat tiles above it
+           carry the numbers and the Visitors tab carries the full
+           axed chart. It still names its own range so the trend is
+           legible to a screen reader rather than being shape-only. #}
+        <svg class="vm-widget-spark" viewBox="0 0 {{ _vw }} {{ _vh }}" preserveAspectRatio="none" role="img"
+             aria-label="Visits per day over the last 14 days, ranging from {{ visitor_sparkline|min }} to {{ _vmax }}">
+          <title>Visits per day, last 14 days — {{ visitor_sparkline|min }} to {{ _vmax }} per day</title>
           <defs>
             <linearGradient id="vm-widget-fill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="var(--brand)" stop-opacity="0.42"/>

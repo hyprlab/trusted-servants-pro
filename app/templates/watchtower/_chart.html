@@ -1,0 +1,159 @@
+{# Shared chart macros for the Watchtower dashboards.
+
+   Every chart on these pages used to be its own hand-written SVG: no
+   axis, no scale, no labels, and nothing to hover. These macros render
+   the geometry `app/charts.py` computes, so all of them read the same
+   way — a labelled y-axis with gridlines, dated x-axis ticks, a
+   crosshair tooltip listing every series at the pointer, and a table
+   view underneath for anyone who can't hover or can't separate the
+   colours.
+
+   The SVG deliberately does NOT set preserveAspectRatio="none". These
+   charts carry text, and a non-uniform scale stretches the glyphs with
+   the plot — the reason the old charts had to stay wordless.
+
+   Styling lives in app.css (`.wtc-*`), the hover layer in app.js.
+
+   Usage:
+     {% from "watchtower/_chart.html" import line_chart, bar_chart %}
+     {{ line_chart(spec, id='wt-404-chart', y_title='404s per day',
+                   unit='404s') }}
+#}
+
+{# ── Shared chrome: gridlines, axis rules, tick labels ───────────── #}
+{% macro _frame(spec, y_title) -%}
+  {# Gridlines are solid hairlines one shade off the surface — dashed
+     grid reads as a threshold line when it's only a ruler. #}
+  {% for t in spec.y_ticks %}
+  <line class="wtc-grid" x1="{{ spec.plot.x }}" y1="{{ t.y }}"
+        x2="{{ spec.plot.right }}" y2="{{ t.y }}"/>
+  <text class="wtc-tick wtc-tick--y" x="{{ spec.plot.x - 8 }}" y="{{ t.y + 4 }}"
+        text-anchor="end">{{ t.label }}</text>
+  {% endfor %}
+  <line class="wtc-axis" x1="{{ spec.plot.x }}" y1="{{ spec.plot.y }}"
+        x2="{{ spec.plot.x }}" y2="{{ spec.plot.bottom }}"/>
+  <line class="wtc-axis" x1="{{ spec.plot.x }}" y1="{{ spec.plot.bottom }}"
+        x2="{{ spec.plot.right }}" y2="{{ spec.plot.bottom }}"/>
+  {% for l in spec.x_labels %}
+  <text class="wtc-tick wtc-tick--x" x="{{ l.x }}" y="{{ spec.plot.bottom + 18 }}"
+        text-anchor="middle">{{ l.text }}</text>
+  {% endfor %}
+  {% if y_title %}
+  {# Horizontal, above the top tick: a rotated y-axis title costs width
+     and is harder to read than the two words it saves. Anchored to the
+     viewBox's left edge rather than the plot's — the title is wider than
+     the y-tick gutter, so ending it at the axis clips its first glyphs. #}
+  <text class="wtc-axis-title" x="0" y="{{ spec.plot.y - 12 }}"
+        text-anchor="start">{{ y_title }}</text>
+  {% endif %}
+{%- endmacro %}
+
+{# ── Crosshair + hit layer, shared by both chart types ───────────── #}
+{% macro _hover(spec) -%}
+  <line class="wtc-crosshair" x1="0" y1="{{ spec.plot.y }}" x2="0"
+        y2="{{ spec.plot.bottom }}" hidden/>
+  <g class="wtc-focus-dots" hidden></g>
+  {# One transparent rect over the whole plot: the pointer only has to be
+     nearest an x position, never land on a 2px line. #}
+  <rect class="wtc-hit" x="{{ spec.plot.x }}" y="{{ spec.plot.y }}"
+        width="{{ spec.plot.w }}" height="{{ spec.plot.h }}" fill="transparent"/>
+{%- endmacro %}
+
+{# ── Line / area chart ───────────────────────────────────────────── #}
+{% macro line_chart(spec, id, aria, y_title='', unit='', table_label='Date') -%}
+<figure class="wtc" id="{{ id }}" data-wtc="line" tabindex="0"
+        aria-label="{{ aria }}. Use the left and right arrow keys to step through values.">
+  <svg class="wtc-svg" viewBox="0 0 {{ spec.w }} {{ spec.h }}" role="img"
+       aria-label="{{ aria }}">
+    <defs>
+      {% for s in spec.series %}
+      {% if s.fill %}
+      <linearGradient id="{{ id }}-fill-{{ s.key }}" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%" stop-color="{{ s.color }}" stop-opacity="0.34"/>
+        <stop offset="100%" stop-color="{{ s.color }}" stop-opacity="0.02"/>
+      </linearGradient>
+      {% endif %}
+      {% endfor %}
+    </defs>
+    {{ _frame(spec, y_title) }}
+    {% for s in spec.series %}
+    {% if s.fill and s.area %}
+    <path d="{{ s.area }}" fill="url(#{{ id }}-fill-{{ s.key }})" stroke="none"/>
+    {% endif %}
+    {% endfor %}
+    {% for s in spec.series %}
+    <path class="wtc-line" d="{{ s.line }}" fill="none" stroke="{{ s.color }}"
+          stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+          {% if s.dashed %}stroke-dasharray="5 4"{% endif %}/>
+    {% endfor %}
+    {{ _hover(spec) }}
+  </svg>
+  <div class="wtc-tooltip" hidden></div>
+  <script type="application/json" class="wtc-data">{{ spec.points|tojson }}</script>
+  {{ chart_table(spec, table_label, unit) }}
+</figure>
+{%- endmacro %}
+
+{# ── Bar chart ───────────────────────────────────────────────────── #}
+{% macro bar_chart(spec, id, aria, y_title='', unit='', table_label='Bucket',
+                   default_color='') -%}
+<figure class="wtc" id="{{ id }}" data-wtc="bar" tabindex="0"
+        aria-label="{{ aria }}. Use the left and right arrow keys to step through values.">
+  <svg class="wtc-svg" viewBox="0 0 {{ spec.w }} {{ spec.h }}" role="img"
+       aria-label="{{ aria }}">
+    {{ _frame(spec, y_title) }}
+    {% for b in spec.bars %}
+    {# Zero-height bars are skipped rather than drawn as a hairline —
+       the gap at the baseline already says "nothing here". #}
+    {% if b.h > 0 %}
+    <rect class="wtc-bar" x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}"
+          height="{{ b.h }}" rx="2"
+          fill="{{ b.color or default_color }}"/>
+    {% endif %}
+    {% endfor %}
+    <line class="wtc-crosshair" x1="0" y1="{{ spec.plot.y }}" x2="0"
+          y2="{{ spec.plot.bottom }}" hidden/>
+    {# Full-height hit target per bar: a one-pixel bar is otherwise
+       impossible to hover. #}
+    {% for b in spec.bars %}
+    <rect class="wtc-hit wtc-hit--bar" x="{{ b.hit_x }}" y="{{ spec.plot.y }}"
+          width="{{ b.hit_w }}" height="{{ spec.plot.h }}" fill="transparent"
+          data-i="{{ loop.index0 }}"/>
+    {% endfor %}
+  </svg>
+  <div class="wtc-tooltip" hidden></div>
+  <script type="application/json" class="wtc-data">{{ spec.points|tojson }}</script>
+  {{ chart_table(spec, table_label, unit) }}
+</figure>
+{%- endmacro %}
+
+{# ── Table view twin ─────────────────────────────────────────────────
+   Required, not a nicety: the tooltip must never be the only way to
+   read a value, and the green series sits under 3:1 against the card,
+   so the numbers have to be reachable as text. #}
+{% macro chart_table(spec, label_col, unit) -%}
+{% set rows = spec.points %}
+{% if rows %}
+<details class="wtc-table">
+  <summary>View as table{% if unit %} · {{ unit }}{% endif %}</summary>
+  <div class="wtc-table-scroll">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>{{ label_col }}</th>
+          {% for v in rows[0]['values'] %}<th>{{ v.name }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.label }}</td>
+          {% for v in r['values'] %}<td class="wtc-num">{{ '{:,}'.format(v.v|int) }}</td>{% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
+{%- endmacro %}

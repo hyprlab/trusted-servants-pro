@@ -7958,3 +7958,184 @@
     requestAnimationFrame(function () { requestAnimationFrame(replay); });
   });
 })();
+
+// ── Watchtower chart hover layer ──────────────────────────────────────
+// Drives every chart rendered by templates/watchtower/_chart.html. The
+// markup contract:
+//
+//   <figure class="wtc" data-wtc="line|bar" tabindex="0">
+//     <svg class="wtc-svg" viewBox="0 0 W H"> … 
+//       <line class="wtc-crosshair" hidden/>
+//       <g class="wtc-focus-dots" hidden></g>
+//       <rect class="wtc-hit" …/>            (line: one over the plot)
+//       <rect class="wtc-hit--bar" data-i/>  (bar: one per bar)
+//     </svg>
+//     <div class="wtc-tooltip" hidden></div>
+//     <script type="application/json" class="wtc-data">[…points…]</script>
+//   </figure>
+//
+// Points carry their own SVG-space x, so finding the nearest is a scan
+// over numbers rather than any hit-testing against the marks: the
+// pointer only has to be *closest* to a date, never land on a 2px line.
+//
+// Keyboard gets the identical readout — arrow keys step the focus index,
+// which matters because the tooltip is a value's second home (the table
+// view under each chart is the first).
+(function () {
+  const charts = document.querySelectorAll('[data-wtc]');
+  if (!charts.length) return;
+
+  const fmt = (n) => Number(n).toLocaleString();
+
+  charts.forEach((fig) => {
+    const svg = fig.querySelector('.wtc-svg');
+    const dataEl = fig.querySelector('.wtc-data');
+    const tip = fig.querySelector('.wtc-tooltip');
+    const hair = fig.querySelector('.wtc-crosshair');
+    const dots = fig.querySelector('.wtc-focus-dots');
+    if (!svg || !dataEl || !tip) return;
+
+    let points = [];
+    try {
+      points = JSON.parse(dataEl.textContent) || [];
+    } catch (err) {
+      return;
+    }
+    if (!points.length) return;
+
+    // SVG elements don't implement HTMLElement's `hidden` IDL property, so
+    // `el.hidden = false` silently sets a JS expando and leaves the
+    // attribute (and the UA's display:none) in place. Toggle the
+    // attribute directly.
+    const svgShow = (el) => el && el.removeAttribute('hidden');
+    const svgHide = (el) => el && el.setAttribute('hidden', '');
+
+    const isBar = fig.dataset.wtc === 'bar';
+    const vb = (svg.getAttribute('viewBox') || '').split(/\s+/).map(Number);
+    const vbW = vb[2] || 1;
+    const bars = isBar ? Array.from(svg.querySelectorAll('.wtc-bar')) : [];
+    let active = -1;
+
+    // Client x -> viewBox x. The SVG scales uniformly (no
+    // preserveAspectRatio="none"), so one ratio covers it.
+    function toViewBoxX(clientX) {
+      const r = svg.getBoundingClientRect();
+      if (!r.width) return 0;
+      return (clientX - r.left) * (vbW / r.width);
+    }
+
+    function nearestIndex(vx) {
+      let best = 0, bestD = Infinity;
+      for (let i = 0; i < points.length; i++) {
+        const d = Math.abs(points[i].x - vx);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      return best;
+    }
+
+    // Labels come from logged request data (paths, hours, dates), so
+    // every insertion is textContent — never innerHTML concatenation.
+    function renderTip(p) {
+      tip.textContent = '';
+      const head = document.createElement('div');
+      head.className = 'wtc-tt-label';
+      head.textContent = p.label;
+      tip.appendChild(head);
+      (p.values || []).forEach((v) => {
+        const row = document.createElement('div');
+        row.className = 'wtc-tt-row';
+        const key = document.createElement('span');
+        key.className = 'wtc-tt-key';
+        key.style.background = v.color || 'currentColor';
+        const val = document.createElement('span');
+        val.className = 'wtc-tt-value';
+        val.textContent = fmt(v.v);
+        const name = document.createElement('span');
+        name.className = 'wtc-tt-name';
+        name.textContent = v.name;
+        row.appendChild(key); row.appendChild(val); row.appendChild(name);
+        tip.appendChild(row);
+      });
+    }
+
+    function show(i) {
+      const p = points[i];
+      if (!p) return;
+      active = i;
+      renderTip(p);
+      tip.hidden = false;
+      fig.classList.add('is-hovering');
+
+      if (hair) { hair.setAttribute('x1', p.x); hair.setAttribute('x2', p.x); svgShow(hair); }
+      if (bars.length) {
+        bars.forEach((b) => b.classList.remove('is-active'));
+        if (bars[i]) bars[i].classList.add('is-active');
+      }
+      // Dots mark where each series sits at the crosshair.
+      if (dots) {
+        dots.textContent = '';
+        (p.values || []).forEach((v) => {
+          if (v.y === undefined || v.y === null) return;
+          const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          c.setAttribute('cx', p.x); c.setAttribute('cy', v.y); c.setAttribute('r', 4);
+          c.setAttribute('fill', v.color || 'currentColor');
+          c.setAttribute('class', 'wtc-focus-dot');
+          dots.appendChild(c);
+        });
+        svgShow(dots);
+      }
+
+      // Position the tooltip over the point, clamped inside the figure so
+      // the first and last dates don't push it off the card.
+      const r = svg.getBoundingClientRect();
+      const figR = fig.getBoundingClientRect();
+      const scale = r.width / vbW;
+      let left = (r.left - figR.left) + p.x * scale;
+      const halfW = tip.offsetWidth / 2;
+      left = Math.max(halfW + 2, Math.min(left, figR.width - halfW - 2));
+      tip.style.left = left + 'px';
+
+      // Ride just above the topmost series value rather than pinning to
+      // the top of the plot — a fixed-top tooltip drifts into the card
+      // heading on tall cards and hides the title.
+      const ys = (p.values || []).map((v) => v.y).filter((y) => typeof y === 'number');
+      const topY = ys.length ? Math.min.apply(null, ys) : 0;
+      const pointTop = (r.top - figR.top) + topY * scale;
+      const above = pointTop - 12;
+      if (above - tip.offsetHeight >= 0) {
+        tip.style.top = above + 'px';
+        tip.style.transform = 'translate(-50%, -100%)';
+      } else {
+        // Not enough headroom (a peak near the top of the plot) — flip
+        // below the point so the tooltip never leaves the card.
+        tip.style.top = (pointTop + 14) + 'px';
+        tip.style.transform = 'translate(-50%, 0)';
+      }
+    }
+
+    function hide() {
+      active = -1;
+      tip.hidden = true;
+      fig.classList.remove('is-hovering');
+      svgHide(hair);
+      if (dots) { svgHide(dots); dots.textContent = ''; }
+      bars.forEach((b) => b.classList.remove('is-active'));
+    }
+
+    svg.addEventListener('pointermove', (e) => show(nearestIndex(toViewBoxX(e.clientX))));
+    svg.addEventListener('pointerleave', hide);
+    fig.addEventListener('blur', hide);
+    fig.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' &&
+          e.key !== 'Home' && e.key !== 'End' && e.key !== 'Escape') return;
+      e.preventDefault();
+      if (e.key === 'Escape') return hide();
+      let i = active < 0 ? 0 : active;
+      if (e.key === 'ArrowLeft') i = Math.max(0, i - 1);
+      else if (e.key === 'ArrowRight') i = Math.min(points.length - 1, i + 1);
+      else if (e.key === 'Home') i = 0;
+      else if (e.key === 'End') i = points.length - 1;
+      show(i);
+    });
+  });
+})();

@@ -111,7 +111,9 @@
   </div>
   {% if daily %}
   <div class="vm-chart-wrap">
-    <svg class="vm-chart" viewBox="0 0 {{ chart_w }} {{ chart_h }}" preserveAspectRatio="none"
+    {# No preserveAspectRatio="none": this chart carries tick text, and a
+       non-uniform scale stretches the glyphs along with the plot. #}
+    <svg class="vm-chart" viewBox="0 0 {{ chart_w }} {{ chart_h }}"
          role="img" aria-label="Daily visitor traffic for the selected window">
       <defs>
         <linearGradient id="wt-views-fill" x1="0" y1="0" x2="0" y2="1">

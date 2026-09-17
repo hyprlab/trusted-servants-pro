@@ -7,7 +7,17 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.8 — 2026-09-16 (latest)
+## 2.19.9 — 2026-09-17 (latest)
+
+- Watchtower's charts now have axes. The 404s trend, the visitor-traffic chart and the failed-logins strip previously drew a shape with no numbers on it at all — no scale, no dates, nothing to read a value against.
+- Each of those charts has a labelled vertical scale with gridlines, a caption naming what is being counted, and dates (or hours) along the bottom. The number of date labels adapts to the window, so a 7-day view labels every day and a 365-day view labels every month.
+- Hovering anywhere over a chart draws a line at the nearest date and shows a box with that date's numbers. On the visitor chart it lists hits and unique visitors together, so you never have to aim at a particular line.
+- The same readout works from the keyboard: tab to a chart and use the left and right arrow keys, Home, End, and Escape.
+- Every chart has a "View as table" link underneath that opens the same figures as plain rows, for reading exact numbers or copying them out.
+- Chart scales now end on readable numbers. A busy month peaking at 28,855 tops its axis out at 32,000 marked in steps of 8,000, instead of an unlabelled line at an arbitrary height.
+- The Visitors tab's chart had its gridlines changed from dashed to solid, and its labels no longer stretch sideways on a wide screen.
+
+## 2.19.8 — 2026-09-16
 
 - Watchtower's 404s tab has a new "Top source IPs" panel listing the addresses the 404s came from, ranked by how many they account for, so a single source hammering the site is easy to pick out and block.
 - Each row shows how many different dead URLs that address asked for. One address across ten or more of them is marked "scanning" — that pattern is an automated probe looking for a way in, not a broken link.

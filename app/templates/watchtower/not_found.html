@@ -29,6 +29,7 @@
 {% endblock %}
 {% block content %}
 {% from "watchtower/_ip_cell.html" import ip_cell %}
+{% from "watchtower/_chart.html" import line_chart %}
 {% include "watchtower/_tabs.html" %}
 
 <section class="wt-kpi-grid wt-kpi-grid--four">
@@ -57,38 +58,21 @@
   </div>
 </section>
 
-{# Trend chart — single amber series so 404s read distinctly from the
-   blue visitor-traffic chart on the Visitors tab. #}
-{% set chart_max = ((daily|map(attribute='count')|max) if daily else 1) or 1 %}
+{# Trend chart. Amber so 404s read distinctly from the blue visitor
+   traffic on the Visitors tab. One series, so no legend — the card
+   title names it. Geometry from app/charts.py, chrome from the shared
+   macro; hover + table view come with it. #}
 <section class="card wt-chart-card">
   <div class="card-head">
     <h2>404s · last {{ window }} days {% call chip() %}{{ '{:,}'.format(summary.total_window) }} in window{% endcall %}</h2>
+    <span class="muted smaller">peak {{ '{:,}'.format(chart_peak) }}/day · hover or arrow-key for daily counts</span>
   </div>
-  {% if daily and summary.total_window %}
-  <div class="wt-chart-wrap">
-    <svg class="wt-chart wt-chart--tall" viewBox="0 0 900 240" preserveAspectRatio="none" role="img" aria-label="404 errors over time">
-      <defs>
-        <linearGradient id="wt-404-grad" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="rgba(245,158,11,0.42)"/>
-          <stop offset="100%" stop-color="rgba(245,158,11,0.02)"/>
-        </linearGradient>
-      </defs>
-      <line x1="0" y1="230" x2="900" y2="230" stroke="rgba(148,163,184,0.25)"/>
-      {% set n = daily|length %}
-      {% set step = 900 / (n - 1) if n > 1 else 0 %}
-      <path d="M 0 230
-        {%- for d in daily -%}
-          L {{ '%.1f'|format(loop.index0 * step) }} {{ '%.1f'|format(230 - (d.count / chart_max) * 210) }}
-        {%- endfor -%}
-        L 900 230 Z" fill="url(#wt-404-grad)"/>
-      <path d="M
-        {%- for d in daily -%}
-          {{ '%.1f'|format(loop.index0 * step) }},{{ '%.1f'|format(230 - (d.count / chart_max) * 210) }}{% if not loop.last %} L {% endif %}
-        {%- endfor -%}" fill="none" stroke="rgb(245,158,11)" stroke-width="2.5"/>
-    </svg>
-  </div>
+  {% if summary.total_window %}
+  {{ line_chart(nf_chart, id='wt-404-chart',
+                aria='404 errors per day over the last ' ~ window ~ ' days',
+                y_title='404s per day', unit='404s per day', table_label='Date') }}
   {% else %}
-  <p class="muted">No 404s recorded in this window. 🎉</p>
+  <p class="wtc-empty">No 404s recorded in this window. 🎉</p>
   {% endif %}
 </section>
 
