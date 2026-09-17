@@ -17176,16 +17176,48 @@ def watchtower():
     attempts, top suspicious IPs, and recent admin activity. Polls
     nothing — every panel renders from a fresh DB read so a refresh
     always shows current state."""
-    from . import watchtower as wt
+    from . import watchtower as wt, charts
     from .timezone import site_tz_label
     site = SiteSetting.query.first()
+    daily = wt.daily_visits(days=30)
+    hourly_fail = wt.hourly_failed_logins(hours=24, site=site)
+
+    # Hits is the filled headline series; uniques rides as a dashed line
+    # on the SAME axis — never a second y-scale, which would let the two
+    # series be scaled into any relationship you like.
+    visits_chart = charts.time_chart(
+        daily,
+        [{"key": "views", "name": "Hits", "color": "rgb(59,130,246)", "fill": True},
+         {"key": "uniques", "name": "Unique visitors", "color": "rgb(16,185,129)",
+          "dashed": True}],
+        label_key="day", label_fmt=_chart_day_label, width=900, height=240)
+
+    # Severity colouring lives with the chart, not the template: grey is
+    # ordinary noise, amber a cluster, red a run worth acting on.
+    def _fail_color(v):
+        if v > 10:
+            return "rgb(220,38,38)"
+        if v > 3:
+            return "rgb(245,158,11)"
+        return "rgb(148,163,184)"
+
+    fail_chart = charts.bar_chart(
+        hourly_fail, value_key="count", label_key="hour",
+        label_fmt=lambda h: (str(h)[-2:] + ":00") if h else "",
+        color_fn=_fail_color, series_name="Attempts",
+        width=900, height=200)
+
     return render_template(
         "watchtower/overview.html",
         active_tab="overview",
         kpis=wt.overview_kpis(),
-        daily=wt.daily_visits(days=30),
+        daily=daily,
+        visits_chart=visits_chart,
+        visits_peak=max([d["views"] for d in daily], default=0),
+        fail_chart=fail_chart,
+        total_fail_24h=sum(h["count"] for h in hourly_fail),
         tz_label=site_tz_label(site),
-        hourly_fail=wt.hourly_failed_logins(hours=24, site=site),
+        hourly_fail=hourly_fail,
         anomalies=wt.anomaly_signals(),
         top_ips=wt.top_failed_login_ips(days=7, limit=10),
         recent=wt.recent_admin_activity(limit=12),
@@ -17430,13 +17462,26 @@ def watchtower_not_found():
         # to the username — the table greys out their Block button.
         trusted_ips = wt.recent_login_user_ips(recent_ips)
 
+    # Chart geometry is built server-side (app/charts.py) so the template
+    # renders numbers rather than doing arithmetic, and every Watchtower
+    # chart lands on the same axis + hover behaviour.
+    from . import charts
+    daily = wt.not_found_daily(days=window)
+    nf_chart = charts.time_chart(
+        daily,
+        [{"key": "count", "name": "404s", "color": "rgb(245,158,11)", "fill": True}],
+        label_key="day", label_fmt=_chart_day_label,
+        width=900, height=260)
+
     return render_template(
         "watchtower/not_found.html",
         active_tab="not-found",
         window=window,
         windows=(7, 14, 30, 60, 90, 180, 365),
         summary=wt.not_found_summary(days=window),
-        daily=wt.not_found_daily(days=window),
+        daily=daily,
+        nf_chart=nf_chart,
+        chart_peak=max([d["count"] for d in daily], default=0),
         top_paths=top_paths,
         top_referrers=wt.top_404_referrers(days=window, limit=300),
         top_ips=wt.top_404_ips(days=window, limit=300),
@@ -17717,6 +17762,15 @@ def watchtower_requests():
                            pending_resets=pending_resets,
                            recent_resets=recent_resets,
                            blocked_ips=blocked_ips)
+
+
+def _chart_day_label(day):
+    """'2026-09-16' -> 'Sep 16' for a chart's x-axis. Falls back to the
+    raw value for anything that isn't an ISO day bucket."""
+    try:
+        return datetime.strptime(day, "%Y-%m-%d").strftime("%b %d")
+    except (TypeError, ValueError):
+        return str(day or "")
 
 
 def _requester_ip():
