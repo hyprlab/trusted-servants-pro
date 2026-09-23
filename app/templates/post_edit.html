@@ -294,10 +294,26 @@
       <textarea name="summary" rows="10" data-event-tag-target
                 placeholder="One or two sentences — what is this and why does it matter?">{{ (_p.summary_raw if _p else '') or '' }}</textarea>
     </label>
-    <label>{% call hrow('Body') %}The full text of the post. <strong>Markdown is supported</strong> — headings, <code>**bold**</code>, lists, and links all render on the public page.{% endcall %}
-      <textarea name="body" rows="10" data-event-tag-target
-                placeholder="The full body of the post. Markdown supported.">{{ (_p.body_raw if _p else '') or '' }}</textarea>
-    </label>
+    {# Side-by-side Write | Preview (the shared live md-editor, same
+       layout as the meeting description). Preview renders through the
+       ``markdown_block`` filter the public post page uses (Markdown and
+       inline HTML, bleach-allowlisted), with any {event_*} tags
+       resolved against the Starts / Ends fields as currently typed —
+       see ``data-md-event-tokens`` in app.js's initMdEditor. A <div>,
+       not a <label>: clicks on the preview pane would otherwise be
+       forwarded to the first button inside it. #}
+    <div class="form-field-block">{% call hrow('Body') %}The full text of the post. <strong>Markdown and HTML are supported</strong> — headings, <code>**bold**</code>, lists, and links all render on the public page. The right-hand pane previews it as visitors will see it.{% endcall %}
+      <div class="md-editor md-editor-live post-body-md" data-md-editor data-md-live="1"
+           data-md-mode="block" data-md-event-tokens>
+        <div class="md-editor-pane md-editor-pane-write active">
+          <textarea name="body" rows="10" data-event-tag-target
+                    placeholder="The full body of the post. Markdown and HTML supported.">{{ (_p.body_raw if _p else '') or '' }}</textarea>
+        </div>
+        <div class="md-editor-pane md-editor-pane-preview active">
+          <div class="md-editor-preview"><p class="muted smaller">Nothing to preview yet.</p></div>
+        </div>
+      </div>
+    </div>
     {% include "_event_tag_palette.html" %}
   </section>
 
@@ -1124,6 +1140,142 @@
   });
 })();
 </script>
+
+{# Past-event guard for duplicated drafts. Duplicate copies the
+   source's event dates verbatim, so a copy of last month's event
+   still points at last month until the admin re-dates it. Before
+   either route that commits the draft — the save bar's "Save draft"
+   (fetch) or the top "Publish" (native submit) — check the Event
+   window as typed against site-local now and, if it's already
+   passed, ask first. Listeners sit on `document` in the capture
+   phase so they run before the save bar's own click / submit
+   handlers; "…anyway" re-fires the original action with the guard
+   stood down for that one pass. #}
+{% if _p and _p.is_draft and _p.duplicated_from_id and site_now_local %}
+<div class="modal" id="post-past-event-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel post-past-event-panel" role="alertdialog" aria-modal="true"
+       aria-labelledby="post-past-event-title">
+    <div class="modal-head">
+      <h2 id="post-past-event-title">This event date has already passed</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
+    </div>
+    <div class="modal-body">
+      <p>
+        This draft is a copy of
+        {% if duplicate_source %}<b>{{ duplicate_source.title }}</b>{% else %}an older post{% endif %},
+        and its event is still dated <b data-past-event-when></b> — that's in the past.
+      </p>
+      <p class="muted small" data-past-event-consequence></p>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-past-event-edit>Change the date</button>
+      <button type="button" class="btn btn-primary" data-past-event-confirm></button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var form = document.getElementById('post-edit-form');
+  var modal = document.getElementById('post-past-event-modal');
+  if (!form || !modal) return;
+  var evtCheck = form.querySelector('input[type="checkbox"][name="is_event"]');
+  var startEl = form.querySelector('[data-event-start]');
+  var endEl = form.querySelector('[data-event-end]');
+  var whenEl = modal.querySelector('[data-past-event-when]');
+  var consequenceEl = modal.querySelector('[data-past-event-consequence]');
+  var confirmBtn = modal.querySelector('[data-past-event-confirm]');
+  var editBtn = modal.querySelector('[data-past-event-edit]');
+
+  // Site-local "now", advanced by however long the page has been open.
+  // Both it and the datetime-local values parse as browser-local, so
+  // the comparison is like-for-like whatever the browser's timezone.
+  var siteNowAtLoad = new Date({{ site_now_local.strftime('%Y-%m-%dT%H:%M:%S')|tojson }}).getTime();
+  var loadedAt = Date.now();
+  function siteNow() { return siteNowAtLoad + (Date.now() - loadedAt); }
+
+  // The moment the event is over: Ends when set, else Starts. An event
+  // that's started but not yet ended isn't "past".
+  function pastEvent() {
+    if (!evtCheck || !evtCheck.checked) return null;
+    var raw = (endEl && endEl.value) || (startEl && startEl.value) || '';
+    if (!raw) return null;
+    var t = new Date(raw).getTime();
+    if (!isFinite(t) || t >= siteNow()) return null;
+    return new Date((startEl && startEl.value) || raw);
+  }
+
+  var bypass = false;
+  var pending = null;   // function that re-fires the intercepted action
+
+  function ask(action, proceed) {
+    var when = pastEvent();
+    if (!when) return false;
+    whenEl.textContent = when.toLocaleString(undefined, {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit'
+    });
+    if (action === 'publish') {
+      consequenceEl.textContent = 'Publishing it now will put it straight into the archive instead of the upcoming events list.';
+      confirmBtn.textContent = 'Publish anyway';
+    } else {
+      consequenceEl.textContent = 'It will stay a draft, but will publish with this past date unless you change it.';
+      confirmBtn.textContent = 'Save draft anyway';
+    }
+    pending = proceed;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function () { editBtn.focus(); }, 30);
+    return true;
+  }
+  function close() {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  confirmBtn.addEventListener('click', function () {
+    var go = pending;
+    pending = null;
+    close();
+    if (!go) return;
+    bypass = true;
+    try { go(); } finally { bypass = false; }
+  });
+  editBtn.addEventListener('click', function () {
+    pending = null;
+    close();
+    var target = startEl || endEl;
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(function () { target.focus(); }, 250);
+  });
+
+  // Top "Publish" — a native submit of the post form.
+  document.addEventListener('submit', function (e) {
+    if (bypass || e.target !== form) return;
+    var submitter = e.submitter;
+    if (!submitter || submitter.value !== 'publish') return;
+    if (ask('publish', function () { form.requestSubmit(submitter); })) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
+  // Save bar "Save draft" — a fetch save wired to the button's click.
+  document.addEventListener('click', function (e) {
+    if (bypass) return;
+    var btn = e.target.closest && e.target.closest('#post-edit-save-bar .fe-save-bar-btn');
+    if (!btn || btn.disabled) return;
+    if (ask('draft', function () { btn.click(); })) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+})();
+</script>
+{% endif %}
 
 {# Yellow save bar — only renders the routine "save without changing
    state" affordance; explicit state transitions (Publish, Move to

@@ -1616,6 +1616,7 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   flex-direction: column;
   gap: .65rem;
 }
+.schedule-change-list[hidden] { display: none; }
 .schedule-change-item {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1630,6 +1631,33 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 }
 .schedule-change-when { line-height: 1.4; }
 .schedule-change-note { margin-top: .15rem; }
+.schedule-change-actions { display: flex; gap: .4rem; flex: 0 0 auto; }
+/* Staged (not yet saved) states — the modal's Save commits them. */
+.schedule-change-badge {
+  display: inline-block;
+  margin-left: .5rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  vertical-align: 1px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--warning) 22%, transparent);
+}
+.schedule-change-item.is-staged { border-color: color-mix(in srgb, var(--warning) 60%, var(--border)); }
+.schedule-change-item.is-editing { box-shadow: 0 0 0 2px var(--brand-soft); }
+.schedule-change-item.is-removed .schedule-change-when strong,
+.schedule-change-item.is-removed .schedule-change-note,
+.schedule-change-item.is-removed .schedule-change-entries { text-decoration: line-through; opacity: .6; }
+.schedule-change-item.is-removed .schedule-change-badge {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+}
+.schedule-change-error {
+  margin: .75rem 0 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
 .schedule-change-entries {
   margin: .5rem 0 0;
   padding-left: 1.1rem;
@@ -3665,6 +3693,11 @@ button.chip { font-family: inherit; }
 
 .form { display: flex; flex-direction: column; gap: 2rem; }
 .form label { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-base); font-weight: 600; color: var(--text); }
+/* Label-shaped wrapper for fields that hold their own buttons (the
+   Write / Preview editor) — a real <label> would forward stray clicks
+   to the first button inside it. Only the heading row is bold. */
+.form .form-field-block { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-base); color: var(--text); }
+.form .form-field-block > .field-label-row { font-weight: 600; }
 .form input, .form select, .form textarea {
   padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border);
   background: var(--panel-2); color: var(--text); font-size: var(--fs-base); font-family: inherit;
@@ -4460,6 +4493,14 @@ button.chip { font-family: inherit; }
 .search-result-label { font-weight: 600; font-size: var(--fs-base);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .search-result-snippet { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Label + right-aligned date (posts / stories / blog). The label
+   truncates first so the date always stays readable. */
+.search-result-top,
+.search-page-result-top { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.search-result-top .search-result-label,
+.search-page-result-top .search-page-result-label { flex: 1 1 auto; min-width: 0; }
+.search-result-date,
+.search-page-result-date { flex: 0 0 auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .search-modal-body mark {
   background: color-mix(in srgb, var(--brand) 25%, transparent);
   color: inherit; padding: 0 1px; border-radius: 3px;
@@ -11066,6 +11107,17 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
 .md-editor-preview-empty { display: block; padding: 4px 0; }
 @media (max-width: 720px) {
   .md-editor { grid-template-columns: 1fr; }
+}
+/* The side-by-side rules above are for the bare textarea + preview
+   editor (meeting description). Tabbed Write / Preview editors
+   (reading body, announcement body) show one pane at a time inside
+   the bordered shell from the "Markdown editor" block — undo the grid
+   and the per-pane border so they don't split into columns. */
+.md-editor:has(> .md-editor-tabs):not(.md-editor-live) {
+  display: block; gap: 0; margin-top: 0;
+}
+.md-editor:has(> .md-editor-tabs):not(.md-editor-live) .md-editor-preview {
+  border: 0; border-radius: 0; background: var(--panel);
 }
 
 /* Backend meeting-detail location block — multi-line address rendering

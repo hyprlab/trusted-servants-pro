@@ -2807,7 +2807,10 @@
         const tabAttr = item.settings_tab
           ? ' data-settings-tab="' + escapeHtml(item.settings_tab) + '"' : '';
         html += '<li><a class="search-result" href="' + href + '" data-search-result' + tabAttr + '>'
+          + '<span class="search-result-top">'
           + '<span class="search-result-label">' + highlight(item.label || '', tokens) + '</span>'
+          + (item.date ? '<span class="search-result-date muted smaller">' + escapeHtml(item.date) + '</span>' : '')
+          + '</span>'
           + (item.snippet
               ? '<span class="search-result-snippet muted smaller">' + highlight(item.snippet, tokens) + '</span>'
               : '')

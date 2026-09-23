@@ -391,19 +391,38 @@
     if (!writePane || !previewPane || !textarea) return;
     if (!isLive && !tabs.length) return;
 
+    // `data-md-event-tokens` (the announcement / event body) resolves
+    // {event_*} tags against the form's Starts / Ends inputs as typed,
+    // so the preview matches what the public page will print.
+    const eventTokens = editor.hasAttribute("data-md-event-tokens");
+    const hostForm = textarea.form || editor.closest("form");
+    function eventWindow() {
+      if (!eventTokens || !hostForm) return null;
+      const s = hostForm.querySelector("[data-event-start]");
+      const e = hostForm.querySelector("[data-event-end]");
+      return { start: (s && s.value) || "", end: (e && e.value) || "" };
+    }
+
     let lastRendered = null;
     let pending = null;
     async function renderPreview() {
       const content = textarea.value || "";
-      if (content === lastRendered) return;
+      const win = eventWindow();
+      const key = content + (win ? "\u0000" + win.start + "\u0000" + win.end : "");
+      if (key === lastRendered) return;
       if (!content.trim()) {
         previewEl.innerHTML = '<p class="muted smaller">Nothing to preview yet.</p>';
-        lastRendered = content;
+        lastRendered = key;
         return;
       }
       const fd = new FormData();
       fd.append("body", content);
       if (mode) fd.append("mode", mode);
+      if (win) {
+        fd.append("event_tokens", "1");
+        fd.append("event_start", win.start);
+        fd.append("event_end", win.end);
+      }
       try {
         const r = await fetch("/tspro/markdown-preview", {
           method: "POST", body: fd, credentials: "same-origin",
@@ -412,7 +431,7 @@
         if (!r.ok) return;
         const data = await r.json();
         previewEl.innerHTML = data.html || '<p class="muted smaller">(empty)</p>';
-        lastRendered = content;
+        lastRendered = key;
       } catch (_) {}
     }
 
@@ -432,6 +451,16 @@
         if (isLive || previewPane.classList.contains("active")) renderPreview();
       }, 250);
     });
+
+    // Event-tag editors re-render when Starts / Ends change, so the
+    // resolved dates in the preview follow the fields.
+    if (eventTokens && hostForm) {
+      hostForm.querySelectorAll("[data-event-start], [data-event-end]").forEach(inp => {
+        inp.addEventListener("change", () => {
+          if (isLive || previewPane.classList.contains("active")) renderPreview();
+        });
+      });
+    }
 
     // Initial paint for live editors so the user sees what's saved before
     // touching the textarea (tabbed editors render lazily on tab click).

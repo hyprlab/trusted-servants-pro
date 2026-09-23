@@ -230,77 +230,35 @@
         </fieldset>
 
         {% if meeting %}
-        {# Scheduled future schedule swaps. Lives visually inside the
-           Day & Times area so admins see queued changes in context,
-           but every interactive element (cancel buttons + the
-           "Schedule a future change" form fields) is bound via the
-           HTML5 ``form="…"`` attribute to forms rendered AFTER the
-           main edit form's </form>. That sidesteps HTML's "no nested
-           forms" rule while keeping the UI where it belongs. #}
-        {%- set _sched_chg_new_form_id = "meeting-sched-chg-new-" ~ meeting.id -%}
-        <fieldset class="fieldset schedule-change-fieldset">
+        {# Scheduled future schedule swaps. Staged in the modal like
+           every other field: "Queue schedule change" (or Edit / Cancel
+           on a listed change) only updates the list below and flags
+           the save bar; the bar's Save commits the queue together with
+           the rest of the modal (see saveAll in the save-bar script).
+           The list is rendered client-side from the JSON seed so the
+           staged and saved states share one renderer. The editor's
+           inputs carry no ``name`` — they're read by the script, never
+           posted with the meeting form. #}
+        <fieldset class="fieldset schedule-change-fieldset" data-sched-chg
+                  data-sync-url="{{ url_for('main.meeting_schedule_changes_sync', mid=meeting.id) }}">
           <legend>Scheduled changes</legend>
           <p class="muted small schedule-change-blurb">
             Set up a future schedule swap and forget about it. The new
             days and times automatically replace the current ones on
             the date you pick — nothing to remember to do later.
           </p>
-          {% set _changes = meeting.schedule_changes %}
-          {% if _changes %}
-          <ul class="schedule-change-list">
-            {% for chg in _changes %}
-            {%- set _entries = chg.schedules_json|from_json -%}
-            {%- set _cancel_form_id = "meeting-sched-chg-cancel-" ~ chg.id -%}
-            <li class="schedule-change-item">
-              <div class="schedule-change-head">
-                <div>
-                  <div class="schedule-change-when">
-                    Effective <strong>{{ chg.effective_date.strftime('%A, %B %-d, %Y') }}</strong>
-                  </div>
-                  {% if chg.note %}
-                  <div class="muted small schedule-change-note">{{ chg.note }}</div>
-                  {% endif %}
-                </div>
-                <button type="submit" form="{{ _cancel_form_id }}"
-                        class="btn btn-sm"
-                        onclick="return confirm('Cancel this scheduled change? The meeting will keep its current days and times.');">
-                  {{ icon('x') }} Cancel
-                </button>
-              </div>
-              {% if _entries %}
-              <ul class="schedule-change-entries muted small">
-                {% for e in _entries %}
-                {%- set _day_idx = e.day if e.day is defined else -1 -%}
-                <li>
-                  {% if 0 <= _day_idx < 7 %}{{ DAYS_OF_WEEK[_day_idx] }}{% else %}?{% endif %}
-                  · {{ (e.start_time or '?')|fmt12h }}
-                  {% if e.duration %}<span class="muted smaller">· {{ e.duration }} min</span>{% endif %}
-                  {% if e.opens_time %}<span class="muted smaller">· opens {{ e.opens_time|fmt12h }}</span>{% endif %}
-                </li>
-                {% endfor %}
-              </ul>
-              {% else %}
-              <p class="muted smaller">No days defined for this change — it will clear the schedule on the effective date.</p>
-              {% endif %}
-            </li>
-            {% endfor %}
-          </ul>
-          {% endif %}
+          <script type="application/json" data-sched-chg-seed>{{ meeting.schedule_changes|map('serialize_schedule_change')|list|tojson }}</script>
+          <ul class="schedule-change-list" data-sched-chg-list hidden></ul>
 
-          <details class="schedule-change-add">
-            <summary>{{ icon('plus') }} Schedule a future change</summary>
-            {# Inputs below are bound to the outer form rendered after
-               the main </form> tag via the ``form`` attribute. The
-               outer form just carries the csrf + submit button. #}
+          <details class="schedule-change-add" data-sched-chg-editor>
+            <summary>{{ icon('plus') }} <span data-sched-chg-summary>Schedule a future change</span></summary>
             <div class="schedule-change-form">
               <div class="schedule-change-form-row">
                 <label>Effective date
-                  <input type="date" name="change_effective_date"
-                         form="{{ _sched_chg_new_form_id }}" required>
+                  <input type="date" data-sched-chg-date>
                 </label>
                 <label class="schedule-change-form-note">Optional note
-                  <input type="text" name="change_note" maxlength="500"
-                         form="{{ _sched_chg_new_form_id }}"
+                  <input type="text" maxlength="500" data-sched-chg-note
                          placeholder="e.g. Summer schedule — earlier start.">
                 </label>
               </div>
@@ -313,30 +271,26 @@
                 </div>
                 {% for d in DAYS_OF_WEEK %}
                   {% set idx = loop.index0 %}
-                  <div class="day-row">
+                  <div class="day-row" data-sched-chg-day="{{ idx }}">
                     <label class="mode-toggle day-check">
                       <input type="checkbox" class="day-toggle"
                              data-day="{{ idx }}">
                       <span class="mode-track"><span class="mode-thumb"></span></span>
                       <span class="day-label">{{ d }}</span>
                     </label>
-                    <input type="hidden" class="day-hidden" name="change_schedule_day"
-                           form="{{ _sched_chg_new_form_id }}"
-                           value="{{ idx }}" disabled>
-                    <input type="time" class="day-field" name="change_schedule_time"
-                           form="{{ _sched_chg_new_form_id }}"
+                    <input type="time" class="day-field" data-sched-chg-start
                            title="Start time" disabled>
-                    <input type="time" class="day-field" name="change_schedule_end"
-                           form="{{ _sched_chg_new_form_id }}"
+                    <input type="time" class="day-field" data-sched-chg-end
                            title="End time" disabled>
-                    <input type="time" class="day-field zoom-only-field" name="change_schedule_opens"
-                           form="{{ _sched_chg_new_form_id }}"
+                    <input type="time" class="day-field zoom-only-field" data-sched-chg-opens
                            title="Zoom opens at" placeholder="Opens" disabled>
                   </div>
                 {% endfor %}
               </div>
+              <p class="schedule-change-error" data-sched-chg-error role="alert" hidden></p>
               <div class="form-actions">
-                <button type="submit" form="{{ _sched_chg_new_form_id }}" class="btn btn-primary">
+                <button type="button" class="btn" data-sched-chg-discard>Discard</button>
+                <button type="button" class="btn btn-primary" data-sched-chg-queue>
                   Queue schedule change
                 </button>
               </div>
@@ -530,25 +484,6 @@
       </form>
 
       {% if meeting %}
-      {# Bare host forms for the in-place "Scheduled changes" UI that
-         lives visually inside the schedule fieldset above. The inputs
-         and submit buttons up there are tied to these forms via the
-         HTML5 ``form="…"`` attribute — sidesteps the "no nested
-         forms" rule without making the operator hunt for the section
-         at the bottom of the modal. #}
-      <form id="meeting-sched-chg-new-{{ meeting.id }}" method="post"
-            action="{{ url_for('main.meeting_schedule_change_new', slug=meeting.public_slug) }}"
-            hidden>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      </form>
-      {% for chg in meeting.schedule_changes %}
-      <form id="meeting-sched-chg-cancel-{{ chg.id }}" method="post"
-            action="{{ url_for('main.meeting_schedule_change_delete', slug=meeting.public_slug, cid=chg.id) }}"
-            hidden>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      </form>
-      {% endfor %}
-
       <fieldset class="fieldset">
         <legend>Files</legend>
         {% for cat in FILE_CATEGORIES %}
@@ -712,12 +647,278 @@
 {# Per-modal yellow save bar — show when the form has any unsaved
    change. Listens for `input` / `change` events on the form, plus a
    MutationObserver for dynamically-added fields (Add tip / Add block
-   / etc.). Native form submission still happens via the bar's
-   `<button type="submit" form="…">` so server-side redirect-after-
-   POST keeps working. The bar's wrapper carries `data-fe-skip-save-
-   bar` so the global feSaveBar IIFE doesn't double-track it. #}
+   / etc.). The bar's `<button type="submit" form="…">` fires the
+   form's submit, which saveAll() intercepts and POSTs via fetch so
+   the modal stays open. The bar's wrapper carries `data-fe-skip-save-
+   bar` so the global feSaveBar IIFE doesn't double-track it.
+
+   Scheduled changes (edit modal only) are staged in the modal by
+   initSchedChanges() and committed by the same Save: first the
+   staged queue (one JSON call to meeting_schedule_changes_sync, which
+   validates the whole batch), then the meeting form itself if any of
+   its own fields changed. #}
 <script>
 (function () {
+  var DAY_NAMES = {{ DAYS_OF_WEEK|tojson }};
+  var ICONS = {
+    edit: {{ icon('pencil')|string|tojson }},
+    cancel: {{ icon('x')|string|tojson }},
+    undo: {{ icon('rotate-ccw')|string|tojson }}
+  };
+
+  function fmt12h(hhmm) {
+    var m = /^(\d{1,2}):(\d{2})/.exec(hhmm || '');
+    if (!m) return hhmm || '?';
+    var h = parseInt(m[1], 10);
+    return ((h % 12) || 12) + ':' + m[2] + ' ' + (h < 12 ? 'AM' : 'PM');
+  }
+  function fmtDate(iso) {
+    var p = (iso || '').split('-');
+    if (p.length !== 3) return iso || '?';
+    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, {
+      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+    });
+  }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function iconBtn(icon, label) {
+    var b = el('button', 'btn btn-sm');
+    b.type = 'button';
+    b.innerHTML = icon + ' ';
+    b.appendChild(document.createTextNode(label));
+    return b;
+  }
+
+  // ── Scheduled changes: staged list + editor ─────────────────────
+  // Each item: { id (null until saved), effective_date, note, entries,
+  // state: 'saved' | 'new' | 'edited' | 'deleted' }. Nothing here talks
+  // to the server; saveAll() sends payload() and hands the server's
+  // list back through applySaved().
+  function initSchedChanges(fs, markDirty) {
+    var list = fs.querySelector('[data-sched-chg-list]');
+    var editor = fs.querySelector('[data-sched-chg-editor]');
+    var summary = fs.querySelector('[data-sched-chg-summary]');
+    var dateIn = fs.querySelector('[data-sched-chg-date]');
+    var noteIn = fs.querySelector('[data-sched-chg-note]');
+    var errEl = fs.querySelector('[data-sched-chg-error]');
+    var queueBtn = fs.querySelector('[data-sched-chg-queue]');
+    var discardBtn = fs.querySelector('[data-sched-chg-discard]');
+    var dayRows = Array.prototype.slice.call(fs.querySelectorAll('[data-sched-chg-day]'));
+    var items = [];
+    var editing = null;   // item loaded into the editor, or null for a new change
+
+    function fromServer(changes) {
+      return (changes || []).map(function (c) {
+        return { id: c.id, effective_date: c.effective_date, note: c.note || '',
+                 entries: c.entries || [], state: 'saved' };
+      });
+    }
+    try {
+      items = fromServer(JSON.parse(fs.querySelector('[data-sched-chg-seed]').textContent));
+    } catch (_) { items = []; }
+
+    function showError(text) {
+      errEl.textContent = text || '';
+      errEl.hidden = !text;
+    }
+
+    function readEditor() {
+      var entries = [];
+      dayRows.forEach(function (row) {
+        if (!row.querySelector('.day-toggle').checked) return;
+        entries.push({
+          day: parseInt(row.getAttribute('data-sched-chg-day'), 10),
+          start_time: row.querySelector('[data-sched-chg-start]').value,
+          end_time: row.querySelector('[data-sched-chg-end]').value,
+          opens_time: row.querySelector('[data-sched-chg-opens]').value
+        });
+      });
+      return { effective_date: dateIn.value, note: noteIn.value.trim(), entries: entries };
+    }
+
+    function fillEditor(item) {
+      dateIn.value = item ? item.effective_date : '';
+      noteIn.value = item ? item.note : '';
+      dayRows.forEach(function (row) {
+        var day = parseInt(row.getAttribute('data-sched-chg-day'), 10);
+        var e = null;
+        (item ? item.entries : []).forEach(function (x) { if (x.day === day) e = x; });
+        row.querySelector('[data-sched-chg-start]').value = e ? e.start_time : '';
+        row.querySelector('[data-sched-chg-end]').value = e ? (e.end_time || '') : '';
+        row.querySelector('[data-sched-chg-opens]').value = e ? (e.opens_time || '') : '';
+        var t = row.querySelector('.day-toggle');
+        if (t.checked !== !!e) {
+          t.checked = !!e;
+          // Non-bubbling on purpose: app.js's wireDayRow enables the
+          // row's inputs, but loading the editor isn't an edit.
+          t.dispatchEvent(new Event('change'));
+        }
+      });
+    }
+
+    function setEditing(item) {
+      editing = item;
+      fillEditor(item);
+      showError('');
+      summary.textContent = item
+        ? 'Edit the change effective ' + fmtDate(item.effective_date)
+        : 'Schedule a future change';
+      queueBtn.textContent = item ? 'Update queued change' : 'Queue schedule change';
+      render();
+    }
+
+    // True when the editor holds something Save would otherwise drop.
+    function editorTouched() {
+      if (editing) return true;
+      var d = readEditor();
+      return !!(d.effective_date || d.note || d.entries.length);
+    }
+
+    function validate(d) {
+      if (!d.effective_date) return 'Pick the date the new schedule takes effect.';
+      if (!d.entries.length) return 'Turn on at least one day for the new schedule.';
+      for (var i = 0; i < d.entries.length; i++) {
+        if (!d.entries[i].start_time) {
+          return 'Add a start time for ' + DAY_NAMES[d.entries[i].day] + '.';
+        }
+      }
+      return null;
+    }
+
+    // Move the editor's contents into the list. Returns an error
+    // string (and leaves the editor open) when the change is incomplete.
+    function stage() {
+      var d = readEditor();
+      var err = validate(d);
+      if (err) {
+        editor.open = true;
+        showError(err);
+        return err;
+      }
+      if (editing) {
+        editing.effective_date = d.effective_date;
+        editing.note = d.note;
+        editing.entries = d.entries;
+        if (editing.state === 'saved') editing.state = 'edited';
+      } else {
+        items.push({ id: null, effective_date: d.effective_date, note: d.note,
+                     entries: d.entries, state: 'new' });
+      }
+      items.sort(function (a, b) { return a.effective_date < b.effective_date ? -1 : a.effective_date > b.effective_date ? 1 : 0; });
+      editor.open = false;
+      setEditing(null);
+      markDirty();
+      return null;
+    }
+
+    function render() {
+      list.textContent = '';
+      list.hidden = !items.length;
+      items.forEach(function (item) {
+        var li = el('li', 'schedule-change-item');
+        if (item.state === 'new' || item.state === 'edited') li.classList.add('is-staged');
+        if (item.state === 'deleted') li.classList.add('is-removed');
+        if (item === editing) li.classList.add('is-editing');
+
+        var head = el('div', 'schedule-change-head');
+        var info = el('div');
+        var when = el('div', 'schedule-change-when');
+        when.appendChild(document.createTextNode('Effective '));
+        when.appendChild(el('strong', null, fmtDate(item.effective_date)));
+        var badge = {
+          'new': 'New — not saved yet',
+          'edited': 'Edited — not saved yet',
+          'deleted': 'Will be cancelled on save'
+        }[item.state];
+        if (badge) when.appendChild(el('span', 'schedule-change-badge', badge));
+        info.appendChild(when);
+        if (item.note) info.appendChild(el('div', 'muted small schedule-change-note', item.note));
+        head.appendChild(info);
+
+        var actions = el('div', 'schedule-change-actions');
+        if (item.state === 'deleted') {
+          var undo = iconBtn(ICONS.undo, 'Undo');
+          undo.addEventListener('click', function () {
+            item.state = item.prevState || 'saved';
+            render();
+          });
+          actions.appendChild(undo);
+        } else {
+          var edit = iconBtn(ICONS.edit, item === editing ? 'Editing…' : 'Edit');
+          edit.disabled = item === editing;
+          edit.addEventListener('click', function () {
+            setEditing(item);
+            editor.open = true;
+            editor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          });
+          var cancel = iconBtn(ICONS.cancel, 'Cancel');
+          cancel.title = 'Cancel this scheduled change — takes effect when you save';
+          cancel.addEventListener('click', function () {
+            if (item === editing) { editor.open = false; setEditing(null); }
+            if (item.state === 'new') {
+              items.splice(items.indexOf(item), 1);
+            } else {
+              item.prevState = item.state;
+              item.state = 'deleted';
+            }
+            markDirty();
+            render();
+          });
+          actions.appendChild(edit);
+          actions.appendChild(cancel);
+        }
+        head.appendChild(actions);
+        li.appendChild(head);
+
+        if (item.entries.length) {
+          var ul = el('ul', 'schedule-change-entries muted small');
+          item.entries.forEach(function (e) {
+            var text = (DAY_NAMES[e.day] || '?') + ' · ' + fmt12h(e.start_time)
+              + (e.end_time ? ' – ' + fmt12h(e.end_time) : '');
+            var row = el('li', null, text);
+            if (e.opens_time) row.appendChild(el('span', 'muted smaller', ' · opens ' + fmt12h(e.opens_time)));
+            ul.appendChild(row);
+          });
+          li.appendChild(ul);
+        } else {
+          li.appendChild(el('p', 'muted smaller', 'No days defined for this change — it will clear the schedule on the effective date.'));
+        }
+        list.appendChild(li);
+      });
+    }
+
+    queueBtn.addEventListener('click', stage);
+    discardBtn.addEventListener('click', function () {
+      editor.open = false;
+      setEditing(null);
+    });
+    render();
+
+    return {
+      editorTouched: editorTouched,
+      stage: stage,
+      payload: function () {
+        return {
+          upserts: items.filter(function (i) { return i.state === 'new' || i.state === 'edited'; })
+            .map(function (i) {
+              return { id: i.id, effective_date: i.effective_date, note: i.note, entries: i.entries };
+            }),
+          deletes: items.filter(function (i) { return i.state === 'deleted' && i.id; })
+            .map(function (i) { return i.id; })
+        };
+      },
+      applySaved: function (changes) {
+        items = fromServer(changes);
+        setEditing(null);
+      },
+      syncUrl: fs.getAttribute('data-sync-url')
+    };
+  }
+
   document.querySelectorAll('[data-meeting-form]').forEach(function (form) {
     var modal = form.closest('.modal');
     if (!modal) return;
@@ -725,7 +926,9 @@
     if (!bar) return;
     var msg = bar.querySelector('.fe-save-bar-msg');
     var saveBtn = bar.querySelector('.fe-save-bar-btn');
-    var dirty = false;
+    var toast = function (m, kind) { (window.tspShowToast || function () {})(m, kind); };
+    var dirty = false;       // anything in the modal is unsaved
+    var mainDirty = false;   // the meeting form's own fields changed
 
     function show() {
       if (dirty) return;
@@ -743,8 +946,17 @@
       dirty = false;
     }
 
-    form.addEventListener('input', show);
-    form.addEventListener('change', show);
+    var schedFs = form.querySelector('[data-sched-chg]');
+    var sched = schedFs ? initSchedChanges(schedFs, show) : null;
+
+    // Edits inside the Scheduled-changes editor dirty the modal but
+    // not the meeting form — those inputs aren't part of its POST.
+    function onEdit(e) {
+      if (!(schedFs && schedFs.contains(e.target))) mainDirty = true;
+      show();
+    }
+    form.addEventListener('input', onEdit);
+    form.addEventListener('change', onEdit);
 
     if (window.MutationObserver) {
       var mo = new MutationObserver(function (records) {
@@ -756,6 +968,7 @@
             if (n.nodeType === 1 && (
                 (n.matches && n.matches('input, select, textarea')) ||
                 (n.querySelector && n.querySelector('input, select, textarea')))) {
+              mainDirty = true;
               show();
               return;
             }
@@ -765,24 +978,67 @@
       mo.observe(form, { childList: true, subtree: true });
     }
 
-    // Intercept the native submit and POST via fetch so the modal stays
-    // open after a successful save (native form POST would follow the
-    // server's redirect away from this page). The server still validates
-    // and writes through the same route — we just don't navigate after.
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
+    function fail(message) {
+      if (msg) msg.textContent = 'Save failed — try again';
+      if (saveBtn) saveBtn.disabled = false;
+      if (message) toast(message, 'error');
+    }
+
+    // Commit everything the modal holds. Scheduled changes go first:
+    // their endpoint validates the whole batch and says why it failed,
+    // so a bad queued change stops the save before the meeting row is
+    // touched. The meeting form then posts through its usual route
+    // (fetch, so the modal stays open instead of following the
+    // redirect). A change typed into the editor but never queued is
+    // queued here rather than silently dropped.
+    function saveAll() {
       if (!dirty) return;
+      if (sched && sched.editorTouched()) {
+        var err = sched.stage();
+        if (err) { fail(err); return; }
+      }
       if (msg) msg.textContent = 'Saving…';
       if (saveBtn) saveBtn.disabled = true;
-      var fd = new FormData(form);
-      fetch(form.action, {
-        method: 'POST',
-        credentials: 'same-origin',
-        body: fd,
-      }).then(function (r) {
-        if (!r.ok && (r.status < 200 || r.status >= 400)) {
-          throw new Error('save failed: ' + r.status);
-        }
+
+      var chain = Promise.resolve();
+      var pending = sched ? sched.payload() : null;
+      if (pending && (pending.upserts.length || pending.deletes.length)) {
+        var fd0 = new FormData(form);
+        var typeEl = form.querySelector('.meeting-type-radio:checked');
+        pending.meeting_type = typeEl ? typeEl.value : null;
+        pending.zoom_account_id = fd0.has('zoom_account_id') ? fd0.get('zoom_account_id') : null;
+        chain = chain.then(function () {
+          return fetch(sched.syncUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
+            body: JSON.stringify(pending)
+          }).then(function (r) {
+            return r.json().catch(function () { return null; }).then(function (data) {
+              if (!r.ok || !data || !data.ok) {
+                throw new Error((data && data.error) || 'Scheduled changes couldn’t be saved.');
+              }
+              sched.applySaved(data.changes);
+            });
+          });
+        });
+      }
+      if (mainDirty) {
+        chain = chain.then(function () {
+          return fetch(form.action, {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: new FormData(form)
+          }).then(function (r) {
+            if (!r.ok && (r.status < 200 || r.status >= 400)) {
+              throw new Error('save failed: ' + r.status);
+            }
+            mainDirty = false;
+          });
+        });
+      }
+
+      chain.then(function () {
         if (msg) msg.textContent = 'Saved';
         // Mark the modal so closing it reloads the host page — the
         // page behind still shows pre-save data until then.
@@ -800,76 +1056,15 @@
         bar.classList.add('is-leaving');
         // Safety net for reduced-motion / animation skipped by browser.
         setTimeout(finish, 400);
-      }).catch(function () {
-        if (msg) msg.textContent = 'Save failed — try again';
-        if (saveBtn) saveBtn.disabled = false;
-      });
-    });
-
-    // "Queue schedule change" submit — intercepted so the modal stays
-    // open and the save bar handles the success animation (same UX as
-    // the main edit form's inline save). The form lives outside the
-    // main edit form (it's the hidden host form rendered after the
-    // main </form>); its inputs are scattered up under the schedule
-    // grid and tied to it via the HTML5 ``form="…"`` attribute, which
-    // FormData() automatically follows. On success we mark the modal
-    // to reload its host page when closed, so the pending change row
-    // is visible the next time the operator opens this meeting.
-    var schedChgForm = modal.querySelector('form[id^="meeting-sched-chg-new-"]');
-    if (schedChgForm) {
-      schedChgForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        if (msg) msg.textContent = 'Saving…';
-        if (saveBtn) saveBtn.disabled = true;
-        bar.hidden = false;
-        bar.classList.remove('is-leaving');
-        var fd = new FormData(schedChgForm);
-        fetch(schedChgForm.action, {
-          method: 'POST',
-          credentials: 'same-origin',
-          body: fd,
-        }).then(function (r) {
-          if (!r.ok) throw new Error('save failed: ' + r.status);
-          if (msg) msg.textContent = 'Saved';
-          modal.dataset.reloadOnClose = '1';
-          // Animate the bar out using the same is-leaving keyframe the
-          // main form uses, then reset state so a follow-up edit on
-          // the main form re-shows the bar fresh.
-          var done = false;
-          var finish = function () {
-            if (done) return;
-            done = true;
-            hide();
-          };
-          bar.addEventListener('animationend', finish, { once: true });
-          bar.classList.add('is-leaving');
-          setTimeout(finish, 400);
-          // Clear the queue-change form fields + collapse the
-          // details so the next interaction starts fresh. Bound
-          // inputs live outside the form DOM, so reset() doesn't
-          // touch them — walk them manually via the form attribute.
-          modal.querySelectorAll('[form="' + schedChgForm.id + '"]').forEach(function (inp) {
-            if (inp.tagName !== 'INPUT' && inp.tagName !== 'SELECT' && inp.tagName !== 'TEXTAREA') return;
-            if (inp.type === 'checkbox' || inp.type === 'radio') {
-              inp.checked = false;
-            } else if (inp.type !== 'submit' && inp.type !== 'button' && inp.type !== 'hidden') {
-              inp.value = '';
-            }
-          });
-          modal.querySelectorAll('.day-list-change .day-toggle').forEach(function (t) {
-            if (t.checked) {
-              t.checked = false;
-              t.dispatchEvent(new Event('change'));
-            }
-          });
-          var details = modal.querySelector('details.schedule-change-add');
-          if (details) details.open = false;
-        }).catch(function () {
-          if (msg) msg.textContent = 'Save failed — try again';
-          if (saveBtn) saveBtn.disabled = false;
-        });
+      }).catch(function (err) {
+        fail(err && err.message && !/^save failed/.test(err.message) ? err.message : null);
       });
     }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      saveAll();
+    });
 
     // When the modal is closed after a successful save, reload the page
     // so the host view reflects the saved edits. The global close

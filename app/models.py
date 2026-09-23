@@ -2431,6 +2431,11 @@ class Post(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"))
+    # Source post id when this row was made with Duplicate. The editor
+    # uses it to warn before a copy is saved / published still carrying
+    # the original's (now past) event date. Plain int, no FK — the
+    # source may be deleted later and the copy should keep working.
+    duplicated_from_id = db.Column(db.Integer)
 
     @property
     def public_slug(self):

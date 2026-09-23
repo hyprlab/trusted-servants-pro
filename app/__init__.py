@@ -2087,7 +2087,8 @@ def _migrate_sqlite(app):
                          # the DEFAULT ('auto'), i.e. the behaviour they had
                          # before the column existed.
                          ("public_visibility",
-                          "VARCHAR(16) NOT NULL DEFAULT 'auto'")):
+                          "VARCHAR(16) NOT NULL DEFAULT 'auto'"),
+                         ("duplicated_from_id", "INTEGER")):
             add("post", col, ddl)
         for col, ddl in (("published_at", "DATETIME"),
                          ("is_pending_review", "BOOLEAN NOT NULL DEFAULT 0"),

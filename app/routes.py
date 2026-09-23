@@ -1102,7 +1102,9 @@ def _search_sections(tokens, per_section):
 
     Each result carries a ``url`` (relative path navigated to on
     click), a ``label`` (the visible row), a ``snippet`` (small muted
-    line), an ``icon`` (Lucide name), a ``_ts`` (epoch seconds of the
+    line), an optional ``date`` (short "Posted …" / "Event …" stamp on
+    posts, stories, and blog posts), an ``icon`` (Lucide name), a
+    ``_ts`` (epoch seconds of the
     row's last-touched timestamp, 0 when none — used by the full page's
     "Recently updated" sort), and the section carries a ``type``."""
     from sqlalchemy import or_, and_, func as _sa_func
@@ -1241,6 +1243,17 @@ def _search_sections(tokens, per_section):
     def _trim(text, n=110):
         return (text or "").strip()[:n]
 
+    def _day(dt):
+        """Short calendar date for a result row's ``date`` slot."""
+        return dt.strftime("%b %-d, %Y") if dt else ""
+
+    def _post_date(p):
+        """Events are placed by when they happen; everything else by
+        when it was posted."""
+        if p.is_event and p.event_starts_at:
+            return "Event " + _day(p.event_starts_at)
+        return ("Posted " + _day(p.display_posted)) if p.display_posted else ""
+
     # --- Posts (announcements & events) — all states, exhaustive -----------
     s = _get_site_setting()
     if s and s.posts_enabled:
@@ -1265,6 +1278,7 @@ def _search_sections(tokens, per_section):
                     "label": p.title,
                     "snippet": f"{_post_kind(p)} · {_state_label(p)}"
                                + (f" · {_trim(p.summary or p.body)}" if (p.summary or p.body) else ""),
+                    "date": _post_date(p),
                     "url": url_for("main.post_edit", pid=p.id),
                     "icon": "megaphone",
                     "_ts": _ts_of(p),
@@ -1287,6 +1301,7 @@ def _search_sections(tokens, per_section):
                     "label": st.title or "(untitled story)",
                     "snippet": _state_label(st)
                                + (f" · {st.author_name}" if st.author_name else ""),
+                    "date": ("Posted " + _day(st.display_posted)) if st.display_posted else "",
                     "url": url_for("main.story_edit", sid=st.id),
                     "icon": "book-open",
                     "_ts": _ts_of(st),
@@ -1309,6 +1324,7 @@ def _search_sections(tokens, per_section):
                     "label": b.title or "(untitled)",
                     "snippet": _state_label(b)
                                + (f" · {_trim(b.summary or b.body)}" if (b.summary or b.body) else ""),
+                    "date": ("Posted " + _day(b.display_posted)) if b.display_posted else "",
                     "url": url_for("main.blog_edit", bid=b.id),
                     "icon": "rss",
                     "_ts": _ts_of(b),
@@ -2287,85 +2303,139 @@ def meeting_edit(slug):
     return redirect(url_for("main.meeting_detail", slug=m.public_slug))
 
 
-@bp.route("/meetings/<slug>/schedule-changes/new", methods=["POST"])
-@editor_required
-def meeting_schedule_change_new(slug):
-    """Queue a future schedule swap for the named meeting.
-
-    Reuses ``_parse_schedule_form`` so the inline form inside the
-    meeting edit modal can post the same ``schedule_day`` /
-    ``schedule_time`` / ``schedule_end`` / ``schedule_opens`` fields
-    the main edit form uses, just prefixed with ``change_``. The
-    handler stores the parsed list of entries as JSON on a
-    ``MeetingScheduleChange`` row plus the effective date the admin
-    typed. Until that date arrives the meeting keeps showing its
-    current schedules; once reached, ``_apply_meeting_schedule_changes``
-    swaps them in and deletes the change row."""
+@bp.app_template_filter("serialize_schedule_change")
+def _serialize_schedule_change(chg):
+    """JSON shape the meeting modal's Scheduled-changes editor renders
+    from. Entries gain an ``end_time`` (derived from start + duration)
+    so the editor can refill its Start / End inputs when the admin
+    edits a queued change."""
     import json as _json
-    m = _resolve_meeting_by_slug(slug) or abort(404)
-    effective_raw = (request.form.get("change_effective_date") or "").strip()
     try:
-        eff_date = datetime.strptime(effective_raw, "%Y-%m-%d").date()
+        raw = _json.loads(chg.schedules_json or "[]")
     except (TypeError, ValueError):
-        flash("Pick a valid effective date for the schedule change.", "danger")
-        return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
-    # Re-map the change_* form fields into the names _parse_schedule_form
-    # expects, then feed the existing parser so the new schedule is
-    # validated against the same conflict / format rules the live edit
-    # path runs.
-    from werkzeug.datastructures import MultiDict
-    sub_form = MultiDict()
-    sub_form["meeting_type"] = m.meeting_type or "in_person"
-    if m.zoom_account_id:
-        sub_form["zoom_account_id"] = str(m.zoom_account_id)
-    for k_src, k_dst in (("change_schedule_day", "schedule_day"),
-                          ("change_schedule_time", "schedule_time"),
-                          ("change_schedule_end", "schedule_end"),
-                          ("change_schedule_opens", "schedule_opens")):
-        for v in request.form.getlist(k_src):
-            sub_form.add(k_dst, v)
-    entries, err = _parse_schedule_form(sub_form, meeting_id=m.id)
-    if err:
-        flash(err, "danger")
-        return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
-    if not entries:
-        flash("Add at least one day + start time to the future schedule.", "danger")
-        return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
-    note = (request.form.get("change_note") or "").strip()[:500] or None
-    chg = MeetingScheduleChange(
-        meeting_id=m.id,
-        effective_date=eff_date,
-        note=note,
-        schedules_json=_json.dumps(entries),
-        created_by=current_user.id if current_user.is_authenticated else None,
-    )
-    db.session.add(chg)
-    db.session.commit()
-    from . import activity
-    activity.log("meeting.schedule_change.create",
-                 entity_type="meeting", entity_id=m.id,
-                 summary=f"Queued schedule change for “{m.name}” effective {eff_date.isoformat()}")
-    flash(f"Schedule change saved — goes live on {eff_date.strftime('%b %-d, %Y')}.", "success")
-    return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
+        raw = []
+    entries = []
+    for e in raw if isinstance(raw, list) else []:
+        start = (e.get("start_time") or "").strip()
+        end = ""
+        try:
+            h, m = start.split(":")
+            total = (int(h) * 60 + int(m) + int(e.get("duration") or 60)) % (24 * 60)
+            end = f"{total // 60:02d}:{total % 60:02d}"
+        except (ValueError, TypeError):
+            pass
+        entries.append({"day": e.get("day"), "start_time": start, "end_time": end,
+                        "duration": e.get("duration"), "opens_time": e.get("opens_time") or ""})
+    return {"id": chg.id,
+            "effective_date": chg.effective_date.isoformat() if chg.effective_date else "",
+            "note": chg.note or "",
+            "entries": entries}
 
 
-@bp.route("/meetings/<slug>/schedule-changes/<int:cid>/delete", methods=["POST"])
+@bp.route("/meetings/<int:mid>/schedule-changes/sync", methods=["POST"])
 @editor_required
-def meeting_schedule_change_delete(slug, cid):
-    """Cancel a pending schedule swap before it activates."""
-    m = _resolve_meeting_by_slug(slug) or abort(404)
-    chg = db.session.get(MeetingScheduleChange, cid)
-    if not chg or chg.meeting_id != m.id:
-        abort(404)
-    eff = chg.effective_date.isoformat() if chg.effective_date else "?"
-    db.session.delete(chg)
+def meeting_schedule_changes_sync(mid):
+    """Commit the meeting modal's staged Scheduled-changes edits in one
+    go, alongside the modal's main Save.
+
+    JSON body::
+
+        {"meeting_type": "...", "zoom_account_id": "..." | "",
+         "upserts": [{"id": int | null, "effective_date": "YYYY-MM-DD",
+                      "note": str,
+                      "entries": [{"day", "start_time", "end_time",
+                                   "opens_time"}]}],
+         "deletes": [int, ...]}
+
+    ``meeting_type`` / ``zoom_account_id`` come from the modal as
+    currently edited (not the stored row) so a change queued in the
+    same Save as a type switch validates against the new type. Every
+    upsert runs through ``_parse_schedule_form`` like the live
+    schedule does. All-or-nothing: the first bad entry rolls the whole
+    batch back and comes back as ``{"ok": false, "error": …}``. On
+    success, returns the meeting's full pending list."""
+    import json as _json
+    from werkzeug.datastructures import MultiDict
+    m = db.session.get(Meeting, mid) or abort(404)
+    payload = request.get_json(silent=True) or {}
+    upserts = payload.get("upserts") or []
+    deletes = payload.get("deletes") or []
+    if not isinstance(upserts, list) or not isinstance(deletes, list):
+        return jsonify(ok=False, error="Malformed schedule-change payload."), 400
+    mtype = (payload.get("meeting_type") or m.meeting_type or "in_person")
+    acct = payload.get("zoom_account_id")
+    if acct is None:
+        acct = str(m.zoom_account_id) if m.zoom_account_id else ""
+
+    def _fail(msg):
+        db.session.rollback()
+        return jsonify(ok=False, error=msg), 400
+
+    def _own(cid):
+        try:
+            chg = db.session.get(MeetingScheduleChange, int(cid))
+        except (TypeError, ValueError):
+            return None
+        return chg if chg and chg.meeting_id == m.id else None
+
+    created = updated = removed = 0
+    for cid in deletes:
+        chg = _own(cid)
+        if chg:
+            db.session.delete(chg)
+            removed += 1
+    for up in upserts:
+        if not isinstance(up, dict):
+            return _fail("Malformed schedule-change payload.")
+        try:
+            eff_date = datetime.strptime((up.get("effective_date") or "").strip(), "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            return _fail("Pick a valid effective date for each scheduled change.")
+        sub_form = MultiDict()
+        sub_form["meeting_type"] = mtype
+        sub_form["zoom_account_id"] = str(acct or "")
+        for e in up.get("entries") or []:
+            if not isinstance(e, dict):
+                continue
+            sub_form.add("schedule_day", str(e.get("day", "")))
+            sub_form.add("schedule_time", (e.get("start_time") or "").strip())
+            sub_form.add("schedule_end", (e.get("end_time") or "").strip())
+            sub_form.add("schedule_opens", (e.get("opens_time") or "").strip())
+        try:
+            entries, err = _parse_schedule_form(sub_form, meeting_id=m.id)
+        except (TypeError, ValueError):
+            return _fail("One of the scheduled-change times isn't valid.")
+        when = eff_date.strftime("%b %-d, %Y")
+        if err:
+            return _fail(f"Change effective {when}: {err}")
+        if not entries:
+            return _fail(f"Change effective {when}: add at least one day + start time.")
+        note = (up.get("note") or "").strip()[:500] or None
+        chg = _own(up["id"]) if up.get("id") else None
+        if up.get("id") and not chg:
+            return _fail("That scheduled change no longer exists — reopen the meeting and try again.")
+        if chg is None:
+            chg = MeetingScheduleChange(
+                meeting_id=m.id,
+                created_by=current_user.id if current_user.is_authenticated else None,
+            )
+            db.session.add(chg)
+            created += 1
+        else:
+            updated += 1
+        chg.effective_date = eff_date
+        chg.note = note
+        chg.schedules_json = _json.dumps(entries)
     db.session.commit()
     from . import activity
-    activity.log("meeting.schedule_change.delete",
-                 entity_type="meeting", entity_id=m.id,
-                 summary=f"Cancelled schedule change for “{m.name}” effective {eff}")
-    flash("Schedule change cancelled.", "success")
-    return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
+    for verb, n in (("create", created), ("update", updated), ("delete", removed)):
+        if n:
+            label = {"create": "Queued", "update": "Updated", "delete": "Cancelled"}[verb]
+            activity.log(f"meeting.schedule_change.{verb}",
+                         entity_type="meeting", entity_id=m.id,
+                         summary=f"{label} {n} scheduled change{'s' if n != 1 else ''} for “{m.name}”")
+    db.session.refresh(m)
+    return jsonify(ok=True, changes=[_serialize_schedule_change(c) for c in m.schedule_changes])
 
 
 @bp.route("/meetings/<int:mid>.json")
@@ -15883,6 +15953,23 @@ def markdown_preview():
             body = payload.get("body", "")
             mode = mode or (payload.get("mode") or "").strip().lower()
     body = body or ""
+    # Announcement / event bodies carry {event_*} tags; resolve them
+    # against the editor's current Starts / Ends so the preview reads
+    # like the public page rather than showing raw tags.
+    if request.form.get("event_tokens") == "1":
+        from .event_tokens import expand
+
+        def _dt(raw):
+            raw = (raw or "").strip()
+            for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"):
+                try:
+                    return datetime.strptime(raw, fmt)
+                except ValueError:
+                    continue
+            return None
+
+        body = expand(body, _dt(request.form.get("event_start")),
+                      _dt(request.form.get("event_end")))
     filter_name = "markdown_block" if mode == "block" else "markdown"
     html = str(render_template_string("{{ body|" + filter_name + " }}", body=body))
     return jsonify(html=html)
@@ -18582,10 +18669,23 @@ def post_edit(pid):
     if post.is_pending_review:
         from .timezone import now_local_naive
         posted_prefill = now_local_naive(_get_site_setting())
+    # A duplicated draft warns before it's saved / published with an
+    # event date that's already passed (see the past-event modal in
+    # post_edit.html). The page needs the source's title for the copy
+    # and site-local "now" to compare against — the browser clock may
+    # sit in a different timezone than the stored naive datetimes.
+    duplicate_source = None
+    site_now_local = None
+    if post.is_draft and post.duplicated_from_id:
+        from .timezone import now_local_naive
+        duplicate_source = db.session.get(Post, post.duplicated_from_id)
+        site_now_local = now_local_naive(_get_site_setting())
     # Palette examples resolve against this post's own event window
     # when it has one, so the admin previews their real dates.
     return render_template("post_edit.html", post=post,
                            posted_prefill=posted_prefill,
+                           duplicate_source=duplicate_source,
+                           site_now_local=site_now_local,
                            event_tag_groups=catalog(post.event_starts_at,
                                                     post.event_ends_at))
 
@@ -19204,6 +19304,7 @@ def post_duplicate(pid):
         # created, defeating the "duplicate lands in Drafts" contract.
         public_visibility="auto",
         created_by=getattr(current_user, "id", None),
+        duplicated_from_id=src.id,
     )
     db.session.add(copy)
     db.session.commit()

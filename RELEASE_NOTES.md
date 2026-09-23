@@ -7,7 +7,17 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.19.9 — 2026-09-17 (latest)
+## 2.19.10 — 2026-09-23 (latest)
+
+- Search results for announcements and events, stories, and blog posts now show a date on the right. Events show their event date and everything else shows when it was posted. This applies to both the ⌘K search box and the full search page.
+- The announcement and event Body field now has a live preview beside it, like the meeting description. The preview shows Markdown and HTML the way visitors will see them, and fills in event date tags from the Starts and Ends fields.
+- Queuing a meeting schedule change now adds it to the list in the edit window straight away, marked as not saved yet.
+- Queued schedule changes can now be edited, not only cancelled. Cancelling is marked on the change and can be undone until you save.
+- The Save button in the meeting edit window now saves everything in the window, including queued schedule changes. Before, queuing a change saved only that change, and other unsaved edits in the window were never saved.
+- A draft made with Duplicate now shows a warning before Save draft or Publish if its event date has already passed. You can go back and change the date, or save or publish anyway.
+- The library reading editor's Write and Preview tabs no longer split into two columns.
+
+## 2.19.9 — 2026-09-17
 
 - Watchtower's charts now have axes. The 404s trend, the visitor-traffic chart and the failed-logins strip previously drew a shape with no numbers on it at all — no scale, no dates, nothing to read a value against.
 - Each of those charts has a labelled vertical scale with gridlines, a caption naming what is being counted, and dates (or hours) along the bottom. The number of date labels adapts to the window, so a 7-day view labels every day and a 365-day view labels every month.

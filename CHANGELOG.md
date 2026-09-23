@@ -6,6 +6,23 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.19.10] — 2026-09-23
+
+### Added
+
+- **Dates on posts in search.** Announcements & events, stories, and blog posts show a right-aligned date in the ⌘K palette and on the full search page. Events show their event date (`Event May 26, 2026`); everything else shows when it was posted (`Posted Mar 1, 2026`).
+- **Live side-by-side preview on the announcement / event Body** (same layout as the meeting description; stacks on narrow screens). The preview renders through the same `markdown_block` filter as the public page, so Markdown and inline HTML both show as visitors will see them. `{event_*}` tags resolve against the Starts / Ends fields as currently typed, and the preview refreshes when those fields change. `/markdown-preview` accepts `event_tokens=1` plus `event_start` / `event_end` for this.
+- **Past-event warning on duplicated drafts.** A draft made with Duplicate (`Post.duplicated_from_id`, new column) now asks for confirmation before **Save draft** or **Publish** if its event has already ended, going by Ends, or Starts when Ends is blank. You can choose **Change the date**, which jumps to Starts, or save / publish anyway.
+- **Edit a queued meeting schedule change.** Each scheduled change in the meeting modal now has **Edit**, which loads it back into the editor, alongside **Cancel**.
+
+### Changed
+
+- **Scheduled changes are staged in the meeting modal and saved by the modal's Save.** **Queue schedule change**, Edit, and Cancel update the list right away, with a "not saved yet" / "will be cancelled on save" badge, and show the save bar. Save commits everything in one pass: first the queued changes through the new `POST /meetings/<id>/schedule-changes/sync` (validated as one batch, all or nothing), then the meeting's own fields. Anything typed into the editor but never queued gets queued on Save instead of being dropped. Before this, queuing posted on its own and cleared the save bar, so other unsaved edits in the modal were silently skipped. Queued changes also didn't show up until the page was reloaded. The single-change `schedule-changes/new` and `…/delete` routes were removed.
+
+### Fixed
+
+- **Tabbed Markdown editors split into two columns.** A later side-by-side `.md-editor` rule (meeting description) was also applying to the library reading body's Write / Preview editor, splitting it into columns. Tabbed editors now show one pane at a time as intended.
+
 ## [2.19.9] — 2026-09-17
 
 ### Added
