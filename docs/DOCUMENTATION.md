@@ -4,7 +4,7 @@ Configuring, securing, backing up and developing Trusted Servants Pro. Installin
 
 ## Configuration
 
-A `.env` file sits alongside `docker-compose.yml`. At minimum it must define `TSP_SECRET_KEY` — a long, random value used to sign Flask session cookies.
+A `.env` file sits alongside `docker-compose.yml`. At minimum it must define `TSP_SECRET_KEY`, a long, random value used to sign Flask session cookies.
 
 Generate one with `openssl`:
 
@@ -21,7 +21,7 @@ TSP_ADMIN_PASSWORD=change-me-before-first-boot
 TSP_ADMIN_EMAIL=admin@example.com
 ```
 
-Keep `.env` out of version control and set it to mode `600` on the host (the installer does this automatically). Rotating `TSP_SECRET_KEY` will sign out all active users but does not affect stored Zoom / SMTP passwords — those are encrypted with a separate Fernet key stored at `data/zoom.key` (see [Security](#security)).
+Keep `.env` out of version control and set it to mode `600` on the host (the installer does this automatically). Rotating `TSP_SECRET_KEY` will sign out all active users but does not affect stored Zoom / SMTP passwords, which are encrypted with a separate Fernet key stored at `data/zoom.key` (see [Security](#security)).
 
 Other environment variables (all with sensible defaults):
 
@@ -44,7 +44,7 @@ Uploads are limited to **256 MB** per file.
 ## Security
 
 - **Session cookies** are signed with `TSP_SECRET_KEY`. Rotating it will sign users out but does not affect encrypted credentials.
-- **Zoom account passwords, OTP email password, and SMTP password** are encrypted with Fernet. The key lives at `data/zoom.key` (auto-generated on first boot) or is loaded from the `TSP_FERNET_KEY` env var. **Keep this file alongside your database if you restore to another host**, or set `TSP_FERNET_KEY` explicitly — the Data export bundles it for you.
+- **Zoom account passwords, OTP email password, and SMTP password** are encrypted with Fernet. The key lives at `data/zoom.key` (auto-generated on first boot) or is loaded from the `TSP_FERNET_KEY` env var. **Keep this file alongside your database if you restore to another host**, or set `TSP_FERNET_KEY` explicitly. The Data export bundles it for you.
 - Public file URLs (`/pub/<filename>`) are intentionally human-readable and unauthenticated. Anyone with the link can read the file. Do not upload content you do not want shared.
 - Access-request submissions are public (no login required) but rate-limited by the browser.
 
@@ -80,7 +80,7 @@ app/
   crypto.py        # Fernet helpers
   mail.py          # SMTP send helper
   models.py        # SQLAlchemy models (Meeting, Library, Reading, User, ZoomAccount, ...)
-  routes.py        # main blueprint — nearly all feature routes
+  routes.py        # main blueprint: nearly all feature routes
   static/          # CSS, JS, images, login_fx engine
   templates/       # Jinja templates (base + per-feature)
 scripts/           # one-off WP / Zoom import utilities

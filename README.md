@@ -1,6 +1,6 @@
 # Trusted Servants Pro
 
-A self-hosted portal for recovery-fellowship trusted servants and members: organize meetings, share readings and files, manage Zoom host accounts, collect access requests, and brand it to your group — all from a single admin UI, no command line required.
+A self-hosted portal for recovery-fellowship trusted servants and members: organize meetings, share readings and files, manage Zoom host accounts, collect access requests, and brand it to your group, all from a single admin UI, no command line required.
 
 Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a persistent volume.
 
@@ -22,7 +22,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 ### File Browser
 - Central media library indexed from every upload across the app (`MediaItem` auto-backfilled on startup).
 - Search, sort, grid / table views, rename, upload with progress, delete with reference-count guard.
-- Public shareable URLs at `/pub/<original-filename>` — human-readable, no hashes or tokens. Serves the newest file of that name with the correct `Content-Disposition`.
+- Public shareable URLs at `/pub/<original-filename>`: human-readable, no hashes or tokens. Serves the newest file of that name with the correct `Content-Disposition`.
 - Inline **Copy Link** buttons everywhere a file appears (File Browser, Meetings, Libraries).
 
 ### Access Requests
@@ -58,7 +58,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 - Each widget toggleable from the Customize Dashboard modal.
 
 ### Settings
-- Full-viewport modal on mobile, horizontally-scrollable tabs with fade hint, AJAX-save with in-modal toast — the modal never closes when you save.
+- Full-viewport modal on mobile, horizontally-scrollable tabs with fade hint, AJAX-save with in-modal toast; the modal never closes when you save.
 - Tabs: **Appearance** (theme, branding, login screen), **Users**, **Zoom Accounts**, **Meeting Locations**, **External Links**, **Special Sections**, **Email**, **Data**, **About**.
 - Role gating: admins see everything; editors/viewers see Appearance → Theme, Zoom Accounts (read-only), and About.
 
@@ -72,9 +72,9 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 - One-click **Import** takes an export archive, validates it, moves the existing database + uploads + key to a timestamped `backup-YYYYMMDD-HHMMSS/` folder inside `./data`, restores the archive in place, re-runs migrations, and signs the user out. No command-line access required.
 
 ### Frontend staging sync
-- Build your public website on a separate **Staging** copy of the app and move it to your **Live** site over the network — no bundle to download and re-upload. Only the frontend travels (theme, navigation, mega-menus, layouts, fonts, icons, page-builder Pages, and the assets they reference); recovery Stories, users, meetings, libraries, and uploads on the receiving side are never touched.
+- Build your public website on a separate **Staging** copy of the app and move it to your **Live** site over the network, with no bundle to download and re-upload. Only the frontend travels (theme, navigation, mega-menus, layouts, fonts, icons, page-builder Pages, and the assets they reference); recovery Stories, users, meetings, libraries, and uploads on the receiving side are never touched.
 - A role-aware setup wizard (Settings → Data → **Frontend staging sync**) asks whether each install is the Live site or the Staging copy and shows only that side's fields. The Live site mints a shared token and is set to receive; the Staging copy pastes the token, points at the Live URL, tests the connection, then pulls or pushes. Pairing is a single Fernet-encrypted shared secret authenticated in both directions, with rate-limiting and a `REPLACE`-style confirm; the receiving side auto-saves a rollback snapshot before applying.
-- On the Staging copy, the **Web Frontend → Overview** Status card gains one-click **Pull from Live** / **Push to Live** controls with a live connection indicator — deploy without opening Settings.
+- On the Staging copy, the **Web Frontend → Overview** Status card gains one-click **Pull from Live** / **Push to Live** controls with a live connection indicator, so you can deploy without opening Settings.
 
 ### Session
 - 6-month remember-me cookie so users aren't repeatedly prompted for credentials.
@@ -90,7 +90,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 docker compose up -d --build
 ```
 
-Open http://localhost:8090 and sign in with the admin account seeded on first boot. Set `TSP_ADMIN_PASSWORD` in `.env` before first run — without it the app refuses to boot on an empty database. For local development, set `TSP_DEBUG=1` in `.env` instead: that serves over plain HTTP (no Secure cookie flag) and falls back to seeding `admin` / `admin`. Never run production with `TSP_DEBUG=1`.
+Open http://localhost:8090 and sign in with the admin account seeded on first boot. Set `TSP_ADMIN_PASSWORD` in `.env` before first run: without it the app refuses to boot on an empty database. For local development, set `TSP_DEBUG=1` in `.env` instead: that serves over plain HTTP (no Secure cookie flag) and falls back to seeding `admin` / `admin`. Never run production with `TSP_DEBUG=1`.
 
 ### docker-compose.yml
 
@@ -130,9 +130,9 @@ services:
 
 Trusted Servants Pro is built by a human maintainer working with generative AI as a development tool:
 
-- **Code** — the large majority of the Python, JavaScript, and CSS in this repository was written with Anthropic's Claude (via Claude Code), working from the maintainer's direction. The maintainer decides what gets built, reviews the results, tests every release, and signs off on everything that ships.
-- **Text** — documentation, release notes, and in-app copy are largely AI-drafted and human-edited.
-- **The app itself contains no AI.** Trusted Servants Pro has no AI features and makes no requests to AI services — your fellowship's documents and member data never leave your server for one. AI was used to *build* the app, not to run it.
+- **Code:** the large majority of the Python, JavaScript, and CSS in this repository was written with Anthropic's Claude (via Claude Code), working from the maintainer's direction. The maintainer decides what gets built, reviews the results, tests every release, and signs off on everything that ships.
+- **Text:** documentation, release notes, and in-app copy are largely AI-drafted and human-edited.
+- **The app itself contains no AI.** Trusted Servants Pro has no AI features and makes no requests to AI services, so your fellowship's documents and member data never leave your server for one. AI was used to *build* the app, not to run it.
 
 Bug reports and pull requests are welcome from humans and their AI tools alike; everything merged gets the same human review.
 
@@ -146,7 +146,7 @@ You're free to run, copy, modify, and redistribute the portal. If you host a mod
 
 ## Third-party assets
 
-- **Pattern Monster** — the "Pattern tile" dynamic background's 330 seamless
+- **Pattern Monster:** the "Pattern tile" dynamic background's 330 seamless
   SVG patterns are vendored from [pattern.monster](https://pattern.monster)
   ([source](https://github.com/catchspider2002/svelte-svg-patterns)), MIT
   licensed. Licence text: `app/dynbg_patterns.LICENSE.md`. Refresh with
