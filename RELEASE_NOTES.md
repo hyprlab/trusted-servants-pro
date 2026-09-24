@@ -7,6 +7,8 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
+## Unreleased
+
 ## 2.19.10 — 2026-09-23 (latest)
 
 - Search results for announcements and events, stories, and blog posts now show a date on the right. Events show their event date and everything else shows when it was posted. This applies to both the ⌘K search box and the full search page.
