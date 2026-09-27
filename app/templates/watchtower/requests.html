@@ -5,6 +5,7 @@
 {% block heading_help %}Access requests and password-reset activity. Process new requests, archive handled ones, and audit reset history.{% endblock %}
 {% block content %}
 {% from "watchtower/_ip_cell.html" import ip_cell %}
+{% from "_row_menu.html" import row_menu %}
 {% include "watchtower/_tabs.html" %}
 
 {% if pending_resets %}
@@ -85,13 +86,13 @@
     {% if view == 'archived' %}No archived requests yet. Click <i>Archive</i> on a handled request to move it here.{% else %}No access requests yet.{% endif %}
   </p>
   {% else %}
-  {# Even with IPv6 abbreviated, eight columns plus the three-button
-     action cell run wider than the content area beside the sidebar at
+  {# Even with IPv6 abbreviated, eight columns plus the actions menu
+     can run wider than the content area beside the sidebar at
      ~1280px. Same treatment as the Users table (.users-tbl-scroll):
      confine the overflow to the table instead of letting it push the
      whole page sideways. #}
   <div class="wt-tbl-scroll">
-  <table class="tbl" data-requests-table>
+  <table class="tbl wt-req-table" data-requests-table>
     <thead>
       <tr>
         <th>Status</th><th>Name</th><th>Contact</th><th>Roles</th><th>Meeting</th><th>Submitted</th><th>IP</th>
@@ -101,13 +102,13 @@
     <tbody>
       {% for r in items %}
       <tr data-request-row="{{ r.id }}">
-        <td><span class="badge {% if r.status == 'pending' %}badge-warning{% else %}badge-muted{% endif %}">{{ r.status }}</span></td>
-        <td>{{ r.name }}</td>
-        <td class="muted small"><div><a href="mailto:{{ r.email }}">{{ r.email }}</a></div><div>{{ r.phone }}</div></td>
-        <td>{% for role in r.roles %}<span class="chip">{{ role }}</span>{% endfor %}</td>
-        <td class="muted">{{ r.meeting_name or '—' }}</td>
-        <td class="muted small">{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td class="muted small nowrap">
+        <td class="wt-req-status"><span class="badge {% if r.status == 'pending' %}badge-warning{% else %}badge-muted{% endif %}">{{ r.status }}</span></td>
+        <td class="wt-req-name">{{ r.name }}</td>
+        <td class="muted small" data-label="Contact"><div><a href="mailto:{{ r.email }}">{{ r.email }}</a></div><div>{{ r.phone }}</div></td>
+        <td data-label="Roles">{% for role in r.roles %}<span class="chip">{{ role }}</span>{% endfor %}</td>
+        <td class="muted" data-label="Meeting">{{ r.meeting_name or '—' }}</td>
+        <td class="muted small" data-label="Submitted">{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td class="muted small nowrap" data-label="IP">
           {% if r.ip_address %}
             {% set blk = blocked_ips.get(r.ip_address) %}
             <div>{{ ip_cell(r.ip_address) }}</div>
@@ -136,45 +137,44 @@
             {% endif %}
           {% else %}—{% endif %}
         </td>
-        {% if view == 'archived' %}<td class="muted small">{% if r.archived_at %}{{ r.archived_at.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}</td>{% endif %}
-        <td class="nowrap">
-          {% if view == 'active' %}
-          <button type="button" class="btn btn-sm btn-primary"
-                  data-create-user-from-request data-email="{{ r.email }}"
-                  data-name="{{ r.name }}" data-phone="{{ r.phone or '' }}"
-                  data-rid="{{ r.id }}">Create User</button>
-          <form method="post" action="{{ url_for('main.watchtower_request_handled', rid=r.id) }}" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="view" value="{{ view }}">
-            <button class="btn btn-sm">{% if r.status == 'pending' %}Mark Handled{% else %}Reopen{% endif %}</button>
-          </form>
-          {% if r.status == 'handled' %}
-          <form method="post" action="{{ url_for('main.watchtower_request_archive', rid=r.id) }}" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="view" value="{{ view }}">
-            <button class="btn btn-sm" title="Move to archive">Archive</button>
-          </form>
-          {% else %}
-          <form method="post" action="{{ url_for('main.watchtower_request_archive', rid=r.id) }}"
-                onsubmit="return confirm('Archive this pending request? It will be marked handled and moved to the archive.');" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="view" value="{{ view }}">
-            <button class="btn btn-sm">Archive</button>
-          </form>
-          {% endif %}
-          {% else %}
-          <form method="post" action="{{ url_for('main.watchtower_request_unarchive', rid=r.id) }}" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="view" value="{{ view }}">
-            <button class="btn btn-sm btn-primary" title="Restore to active list">Restore</button>
-          </form>
-          {% endif %}
-          <form method="post" action="{{ url_for('main.watchtower_request_delete', rid=r.id) }}"
-                onsubmit="return confirm('Delete this request permanently?');" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="view" value="{{ view }}">
-            <button class="btn btn-sm btn-danger">Delete</button>
-          </form>
+        {% if view == 'archived' %}<td class="muted small" data-label="Archived">{% if r.archived_at %}{{ r.archived_at.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}</td>{% endif %}
+        <td class="row-actions wt-req-actions">
+          {% call row_menu() %}
+            {% if view == 'active' %}
+            <button type="button" class="row-menu-item"
+                    data-create-user-from-request data-email="{{ r.email }}"
+                    data-name="{{ r.name }}" data-phone="{{ r.phone or '' }}"
+                    data-rid="{{ r.id }}">{{ icon('user-plus') }}<span>Create User</span></button>
+            <form method="post" action="{{ url_for('main.watchtower_request_handled', rid=r.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="view" value="{{ view }}">
+              {% if r.status == 'pending' %}
+              <button class="row-menu-item">{{ icon('check') }}<span>Mark Handled</span></button>
+              {% else %}
+              <button class="row-menu-item">{{ icon('rotate-ccw') }}<span>Reopen</span></button>
+              {% endif %}
+            </form>
+            <form method="post" action="{{ url_for('main.watchtower_request_archive', rid=r.id) }}"
+                  {% if r.status != 'handled' %}onsubmit="return confirm('Archive this pending request? It will be marked handled and moved to the archive.');"{% endif %}>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="view" value="{{ view }}">
+              <button class="row-menu-item" title="Move to archive">{{ icon('box') }}<span>Archive</span></button>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url_for('main.watchtower_request_unarchive', rid=r.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="view" value="{{ view }}">
+              <button class="row-menu-item" title="Restore to active list">{{ icon('rotate-ccw') }}<span>Restore</span></button>
+            </form>
+            {% endif %}
+            <div class="row-menu-sep" role="separator"></div>
+            <form method="post" action="{{ url_for('main.watchtower_request_delete', rid=r.id) }}"
+                  onsubmit="return confirm('Delete this request permanently?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="view" value="{{ view }}">
+              <button class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+            </form>
+          {% endcall %}
         </td>
       </tr>
       {% endfor %}

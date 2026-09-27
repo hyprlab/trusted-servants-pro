@@ -7894,6 +7894,30 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
     letter-spacing: 0.04em; margin-bottom: 2px; }
   .tbl.wt-session-table .wt-ua { overflow-wrap: anywhere; }
   .tbl.wt-ip-table td.wt-ip-actions { display: flex; padding-top: 8px; }
+
+  /* Watchtower → Requests. Nine columns can't fit a phone, and scrolled
+     sideways the Actions menu sat off-screen. Each request becomes a
+     card: status badge and Actions on the first line, the name under
+     them, then each field as a labelled row. */
+  .wt-tbl-scroll:has(> .tbl.wt-req-table) { overflow-x: visible; }
+  .tbl.wt-req-table { overflow-x: visible; }
+  .tbl.wt-req-table thead { display: none; }
+  .tbl.wt-req-table tbody { display: block; }
+  .tbl.wt-req-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 8px; padding: 12px 0; border-bottom: 2px solid var(--border); }
+  .tbl.wt-req-table td { grid-column: 1 / -1; display: block; border: none;
+    padding: 4px 0; white-space: normal; }
+  .tbl.wt-req-table td[data-label]::before { content: attr(data-label); display: block;
+    font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.04em; margin-bottom: 2px; }
+  .tbl.wt-req-table td.wt-req-status { grid-column: 1; grid-row: 1; align-self: center; }
+  .tbl.wt-req-table tr:last-child { border-bottom: none; }
+  .tbl.wt-req-table td.wt-req-actions { grid-column: 2; grid-row: 1; align-self: center; }
+  /* No hover-to-reveal in card mode: the cards are stacked, so a faded
+     trigger reads as a row with no actions. */
+  .tbl.wt-req-table tbody tr .row-menu-btn { opacity: 1; }
+  .tbl.wt-req-table td.wt-req-name { font-weight: 600; font-size: var(--fs-base); }
+  .tbl.wt-req-table td a { overflow-wrap: anywhere; }
 }
 
 /* City / state / ZIP grid inside the Location create / edit modals.

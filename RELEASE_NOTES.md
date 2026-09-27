@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- The Watchtower access requests table now has one Actions button per request instead of a row of separate buttons. Create User, Mark Handled or Reopen, Archive or Restore, and Delete are in its menu. On a phone each request is shown as a card with its status and Actions button at the top.
+
 ## 2.19.10 — 2026-09-23 (latest)
 
 - Search results for announcements and events, stories, and blog posts now show a date on the right. Events show their event date and everything else shows when it was posted. This applies to both the ⌘K search box and the full search page.
