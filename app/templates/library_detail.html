@@ -268,7 +268,7 @@
                 {% if r.stored_filename %}
                 <div class="logo-current">
                   <span class="muted small">{{ r.original_filename }}</span>
-                  <label class="check"><input type="checkbox" name="remove_file" value="1"> Remove</label>
+                  <label class="check"><input type="checkbox" name="remove_file" value="1"> <span>Remove</span></label>
                 </div>
                 {% endif %}
                 <div class="file-input-row">
@@ -303,7 +303,7 @@
                 {% if r.thumbnail_filename %}
                 <div class="logo-current">
                   <img src="{{ url_for('main.reading_thumbnail', rid=r.id) }}" alt="">
-                  <label class="check"><input type="checkbox" name="remove_thumbnail" value="1"> Remove</label>
+                  <label class="check"><input type="checkbox" name="remove_thumbnail" value="1"> <span>Remove</span></label>
                 </div>
                 {% endif %}
                 <input type="file" name="thumbnail" accept="image/*">
@@ -604,8 +604,8 @@
         <label class="check">
           <input type="checkbox" name="is_intergroup" value="1"
                  {% if library.is_intergroup %}checked{% endif %}>
-          Intergroup library
-          <span class="muted smaller">— restrict edits to admins and the Intergroup Member role and surface this library in the Intergroup sidebar subsection.</span>
+          <span>Intergroup library
+          <span class="muted smaller">— restrict edits to admins and the Intergroup Member role and surface this library in the Intergroup sidebar subsection.</span></span>
         </label>
         {% endif %}
         {% if current_user.is_admin() %}
@@ -613,8 +613,8 @@
         <label class="check">
           <input type="checkbox" name="public_visible" value="1"
                  {% if library.public_visible %}checked{% endif %}>
-          Show on public Literature Library
-          <span class="muted smaller">— include this library and its items on <code>/library</code>. When on, the Files list below grows a per-item Public toggle so you can hide individual entries from the public page (every item defaults to visible).</span>
+          <span>Show on public Literature Library
+          <span class="muted smaller">— include this library and its items on <code>/library</code>. When on, the Files list below grows a per-item Public toggle so you can hide individual entries from the public page (every item defaults to visible).</span></span>
         </label>
         {% endif %}
         {% if current_user.is_admin() %}

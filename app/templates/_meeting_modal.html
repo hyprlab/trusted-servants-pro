@@ -179,7 +179,7 @@
           {% if meeting and meeting.logo_filename %}
           <div class="logo-current">
             <img src="{{ url_for('main.meeting_logo', mid=meeting.id) }}" alt="">
-            <label class="check"><input type="checkbox" name="remove_logo" value="1"> Remove</label>
+            <label class="check"><input type="checkbox" name="remove_logo" value="1"> <span>Remove</span></label>
           </div>
           {% endif %}
           <input type="file" name="logo" accept="image/*">

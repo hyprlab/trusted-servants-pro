@@ -40,7 +40,7 @@
     {% if t.kind == 'ftp' %}
     <label class="check">
       <input type="checkbox" name="use_tls" value="1" {% if t.use_tls %}checked{% endif %}>
-      Use FTPS (encrypted connection). Strongly recommended — only turn this off if your server doesn't support TLS.
+      <span>Use FTPS (encrypted connection). Strongly recommended — only turn this off if your server doesn't support TLS.</span>
     </label>
     {% endif %}
     {% if t.kind == 'sftp' %}

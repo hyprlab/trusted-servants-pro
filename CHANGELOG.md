@@ -17,6 +17,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - **Watchtower → Requests roles stack one per line** (`.wt-req-roles`) at every width, so a request with several roles no longer makes the Roles column the widest in the table.
 - **Watchtower tab strip swipes on phones.** Below 720px the tabs sit in one row inside a new `.wt-tabs-track` that scrolls sideways, instead of wrapping to three rows. The edges fade only where tabs are hidden past them (`topActionsSwipeFade` in app.js now also drives `.wt-tabs-track`), and the strip opens scrolled to the current tab.
 
+### Fixed
+
+- **Boxed checkboxes stacked above their label inside forms.** `.form label` (a column flex) outranks `.check`, so every `label.check` inside a `.form` without its own override put the box, centered, above its text. `.form label.check` is now a row with the box top-aligned to the first line of text, and the 16 labels whose text was loose (bare text, or text plus a muted note) now wrap it in one `<span>`, so it wraps as a block beside the box.
+
 ## [2.19.10] — 2026-09-23
 
 ### Added

@@ -3963,6 +3963,16 @@ button.chip { font-family: inherit; }
 .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .check { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); cursor: pointer; }
 .check input { accent-color: var(--brand); }
+/* `.form label` (a column flex: label text above its field) outranks
+   `.check`, so inside any .form the box stacked, centered, above its
+   text. Keep it a row there: box on the left, level with the first line
+   of text, and the text in its own <span> so it wraps as one block
+   beside the box instead of under it. */
+.form label.check { flex-direction: row; align-items: flex-start; }
+.form label.check > input[type="checkbox"],
+.form label.check > input[type="radio"] {
+  flex: 0 0 auto; width: auto; margin: 4px 0 0; padding: 0; }
+.form label.check > span { flex: 1 1 auto; min-width: 0; }
 /* Per-form "Submission access" role checkboxes. Left-aligned column of
    pills, each with the checkbox to the LEFT of its label — the higher
    specificity beats ``.form label { flex-direction: column }`` (the edit

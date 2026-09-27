@@ -42,7 +42,7 @@
     {% if reading and reading.stored_filename %}
     <div class="logo-current">
       <span class="muted small">{{ reading.original_filename }}</span>
-      <label class="check"><input type="checkbox" name="remove_file" value="1"> Remove</label>
+      <label class="check"><input type="checkbox" name="remove_file" value="1"> <span>Remove</span></label>
     </div>
     {% endif %}
     <input type="file" name="file"
@@ -67,7 +67,7 @@
     {% if reading and reading.thumbnail_filename %}
     <div class="logo-current">
       <img src="{{ url_for('main.reading_thumbnail', rid=reading.id) }}" alt="">
-      <label class="check"><input type="checkbox" name="remove_thumbnail" value="1"> Remove</label>
+      <label class="check"><input type="checkbox" name="remove_thumbnail" value="1"> <span>Remove</span></label>
     </div>
     {% endif %}
     <input type="file" name="thumbnail" accept="image/*">

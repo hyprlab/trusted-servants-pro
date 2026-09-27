@@ -88,7 +88,7 @@
       {% if t.kind == 'ftp' %}
       <label class="check">
         <input type="checkbox" name="use_tls" value="1" {% if t.use_tls %}checked{% endif %}>
-        Use FTPS (encrypted connection). Strongly recommended — only turn this off if your server doesn't support TLS.
+        <span>Use FTPS (encrypted connection). Strongly recommended — only turn this off if your server doesn't support TLS.</span>
       </label>
       {% endif %}
       {% if t.kind == 'sftp' %}
@@ -119,7 +119,7 @@
         <legend class="smaller"><strong>{{ icon('shield') }} Remote restore</strong></legend>
         <label class="check">
           <input type="checkbox" name="allow_remote_restore" value="1" {% if t.allow_remote_restore %}checked{% endif %}>
-          Allow this backup server to push a stored backup back to this portal
+          <span>Allow this backup server to push a stored backup back to this portal</span>
         </label>
         <p class="muted smaller">Out-of-band disaster recovery — lets you restore from the backup
           server's console if this portal's data is corrupted or you're locked out. The push is
@@ -219,8 +219,8 @@
         </p>
         <label class="check">
           <input type="checkbox" name="ack_saved" value="1">
-          I've stored the passphrase somewhere I can find it again.
-          {% if t.archive_passphrase_enc %}<span class="muted smaller">(only required when setting a new passphrase)</span>{% endif %}
+          <span>I've stored the passphrase somewhere I can find it again.
+          {% if t.archive_passphrase_enc %}<span class="muted smaller">(only required when setting a new passphrase)</span>{% endif %}</span>
         </label>
       </div>
       {% endif %}
