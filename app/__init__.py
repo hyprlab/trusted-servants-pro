@@ -859,14 +859,13 @@ def create_app():
     from .ipfmt import ip_display as _ip_display
     app.jinja_env.globals["ip_display"] = _ip_display
 
-    # Release-notes + changelog single source of truth. The About modal
-    # in templates/base.html iterates these at render time so editing
-    # RELEASE_NOTES.md / CHANGELOG.md at the repo root is the only step
+    # Release-notes single source of truth. The About modal in
+    # templates/base.html and the dashboard iterate these at render time,
+    # so editing RELEASE_NOTES.md at the repo root is the only step
     # needed to update the in-app view. See app/about_docs.py.
     from . import about_docs as _about_docs
     app.jinja_env.globals["app_release_notes"] = _about_docs.load_release_notes
     app.jinja_env.globals["app_release_notes_for_line"] = _about_docs.load_release_notes_for_line
-    app.jinja_env.globals["app_changelog"] = _about_docs.load_changelog
 
     # Dynamic-background catalog. The admin's dynbg picker macro and
     # any future template that wants to enumerate available presets

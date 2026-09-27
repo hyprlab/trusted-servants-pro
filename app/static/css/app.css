@@ -5674,20 +5674,16 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
 .about-pane { padding: 0; width: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
 .about-head { display: flex; flex-direction: column; gap: 2px; }
 .about-sub { font-size: var(--fs-base); font-weight: 700; margin: 4px 0 0; }
-/* Release notes + changelog each live in their own <details> block so
-   the About tab leads with the friendly summary (open by default) and
-   keeps the dense implementation log behind a closed toggle. The
-   summary row hosts the existing `.about-sub` heading + a small muted
-   subtitle; a custom caret rotates when the section is open. */
-.about-rel-notes,
-.about-changelog {
+/* Release notes live in a <details> block, open by default. The summary
+   row hosts the `.about-sub` heading and the GitHub link; a custom
+   caret rotates when the section is open. */
+.about-rel-notes {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--panel-2);
   padding: 4px 16px;
 }
-.about-rel-notes[open],
-.about-changelog[open] {
+.about-rel-notes[open] {
   padding-bottom: 16px;
 }
 .about-sub-summary {
@@ -5706,8 +5702,7 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
   transform: translateY(-75%) rotate(45deg);
   transition: transform 180ms ease;
 }
-.about-rel-notes[open] > .about-sub-summary::after,
-.about-changelog[open] > .about-sub-summary::after {
+.about-rel-notes[open] > .about-sub-summary::after {
   transform: translateY(-25%) rotate(-135deg);
 }
 .about-sub-summary > .about-sub { margin: 0; }
@@ -5718,21 +5713,17 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
   border-radius: 6px;
 }
 
-.changelog,
 .release-notes {
   list-style: none; padding: 0; margin: 8px 0 0;
   display: flex; flex-direction: column; gap: 14px;
 }
-.changelog > li,
 .release-notes > li {
   border: 1px solid var(--border); border-radius: 10px;
   padding: 12px 14px; background: var(--panel);
 }
-.changelog ul,
 .release-notes ul {
   margin: 6px 0 0; padding-left: 18px; color: var(--text); font-size: var(--fs-base);
 }
-.changelog ul li,
 .release-notes ul li { margin: 2px 0; }
 .release-notes > li > p {
   margin: 6px 0 0; color: var(--text); font-size: var(--fs-base); line-height: 1.5;

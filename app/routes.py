@@ -1457,7 +1457,7 @@ def _search_sections(tokens, per_section):
         ("timezone",    "Timezone",       "server timezone clock", False),
         ("security",    "Security",       "login security sessions turnstile captcha lockout", False),
         ("data",        "Data",           "export import backup restore frontend bundle staging sync snapshots", False),
-        ("about",       "About",          "version release notes changelog updates", True),
+        ("about",       "About",          "version release notes updates", True),
     ]
     settings_items = []
     for key, label, kw, everyone in _settings_tabs:

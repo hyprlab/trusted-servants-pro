@@ -19,6 +19,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - **Settings modal uses a sidebar.** The horizontal `.settings-tabs` strip is now a vertical `.settings-nav` with icons, grouped Account / Administration / About, and each pane has a `.settings-main-head` with the section title and close button. `.settings-tab[data-tab]` is kept, so deep links, search results and the users-prefill path work unchanged. Below 720px the nav and the pane are two screens that slide: picking a section adds `.settings-show-pane`, the back button removes it, and closing the modal resets to the list. The save bar now sits in the pane column.
 - **About → Release notes shows the running X.Y line only.** New `load_release_notes_for_line()` in `app/about_docs.py` (Jinja global `app_release_notes_for_line`) keeps entries whose version shares `app_version`'s major.minor, falling back to every entry when the line has none. The summary row gains an "All release notes on GitHub" button linking to `RELEASE_NOTES.md` on main; the changelog below is unchanged.
 
+### Removed
+
+- **Changelog section in About.** The `<details class="about-changelog">` block, its CSS, `load_changelog()` / `_parse_changelog()` and the `app_changelog` Jinja global are gone, and the image no longer copies `CHANGELOG.md`. The file stays in the repo for the release tooling.
+
 ### Fixed
 
 - **Boxed checkboxes stacked above their label inside forms.** `.form label` (a column flex) outranks `.check`, so every `label.check` inside a `.form` without its own override put the box, centered, above its text. `.form label.check` is now a row with the box top-aligned to the first line of text, and the 16 labels whose text was loose (bare text, or text plus a muted note) now wrap it in one `<span>`, so it wraps as a block beside the box.

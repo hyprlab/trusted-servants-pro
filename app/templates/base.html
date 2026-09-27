@@ -2254,14 +2254,11 @@
             </div>
           </div>
 
-          {# Release notes + Changelog both render from the same parsed
-             Markdown — RELEASE_NOTES.md / CHANGELOG.md at the repo
-             root, loaded via app/about_docs.py. Editing those Markdown
-             files is the only step needed to update this view.
-             Release notes default open so the About tab leads with
-             what's new; the changelog sits behind a closed <details>.
-             Release notes list only the running X.Y line (X.Y.0 to now);
-             the button links to the whole file on GitHub. #}
+          {# Release notes render from RELEASE_NOTES.md at the repo root,
+             parsed by app/about_docs.py; editing that file is the only
+             step needed to update this view. They list only the running
+             X.Y line (X.Y.0 to now); the button links to the whole file
+             on GitHub. #}
           <details class="about-rel-notes" open>
             <summary class="about-sub-summary">
               <h3 class="about-sub">Release notes {% call chip('Release notes') %}What's new in this version and the earlier releases of the same line, in plain English.{% endcall %}</h3>
@@ -2282,20 +2279,6 @@
             </ul>
           </details>
 
-          <details class="about-changelog">
-            <summary class="about-sub-summary">
-              <h3 class="about-sub">Changelog {% call chip('Changelog') %}The full implementation log — every change in technical detail.{% endcall %}</h3>
-            </summary>
-            <ul class="changelog">
-              {% for e in app_changelog() %}
-              <li>
-                <div class="u-name">{{ e.version }}</div>
-                {% if e.date_label %}<div class="muted smaller">{{ e.date_label }}</div>{% endif %}
-                {{ e.body_html|safe }}
-              </li>
-              {% endfor %}
-            </ul>
-          </details>
         </div>
       </div>
     </div>
