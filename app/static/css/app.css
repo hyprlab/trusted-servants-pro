@@ -14640,12 +14640,35 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
 
 /* Tabs strip ─────────────────────────────────────────────────────── */
 .wt-tabs {
-  display: flex; flex-wrap: wrap; gap: 4px;
   margin: 0 0 18px;
   padding: 4px;
   background: var(--panel, #f8fafc);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
+}
+.wt-tabs-track { display: flex; flex-wrap: wrap; gap: 4px; }
+/* Phones: one row that swipes sideways instead of wrapping to three.
+   The track is the scroller, so the fade mask (vars driven by
+   topActionsSwipeFade in app.js) only touches the tabs, not the
+   strip's border. The 2px track padding keeps the active tab's shadow
+   from being clipped by the scroll box. */
+@media (max-width: 720px) {
+  .wt-tabs { padding: 2px; }
+  .wt-tabs-track {
+    flex-wrap: nowrap; padding: 2px;
+    overflow-x: auto; overflow-y: hidden;
+    touch-action: pan-x; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; -ms-overflow-style: none;
+    --swipe-fade-l: 0px; --swipe-fade-r: 0px;
+    -webkit-mask-image: linear-gradient(to right,
+      transparent 0, #000 var(--swipe-fade-l),
+      #000 calc(100% - var(--swipe-fade-r)), transparent 100%);
+    mask-image: linear-gradient(to right,
+      transparent 0, #000 var(--swipe-fade-l),
+      #000 calc(100% - var(--swipe-fade-r)), transparent 100%);
+  }
+  .wt-tabs-track::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  .wt-tab { flex: 0 0 auto; white-space: nowrap; }
 }
 .wt-tab {
   display: inline-flex; align-items: center; gap: 8px;

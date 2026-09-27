@@ -11,6 +11,7 @@ release notes expanded by default and the changelog collapsed.
 
 - The Watchtower access requests table now has one Actions button per request instead of a row of separate buttons. Create User, Mark Handled or Reopen, Archive or Restore, and Delete are in its menu. On a phone each request is shown as a card with its status and Actions button at the top.
 - Roles on a Watchtower access request are listed one per line, so a request with several roles takes less room across the table.
+- On a phone, the Watchtower tabs are one row you swipe sideways instead of three stacked rows. The edge fades where more tabs are hidden, and the current tab is scrolled into view.
 
 ## 2.19.10 — 2026-09-23 (latest)
 

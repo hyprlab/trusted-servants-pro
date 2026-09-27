@@ -7698,15 +7698,24 @@
   }
 })();
 
-/* Mobile top-bar action strip — the buttons overflow into a horizontal
-   swipe strip below 720px (scrollbar hidden), so without a cue there's
-   no hint that more actions exist off-screen. Drive the CSS mask vars
-   (--swipe-fade-l / -r on .top-actions) from the live scroll position:
-   an edge only fades while content is actually hidden past it. */
+/* Mobile swipe strips — the top-bar actions and the Watchtower tabs
+   overflow into a horizontal swipe strip below 720px (scrollbar
+   hidden), so without a cue there's no hint that more exists
+   off-screen. Drive the CSS mask vars (--swipe-fade-l / -r) from the
+   live scroll position: an edge only fades while content is actually
+   hidden past it. */
 (function topActionsSwipeFade() {
   const FADE = "28px";
   function init() {
-    document.querySelectorAll(".top-actions").forEach(strip => {
+    // Open a tab strip scrolled to the current tab, so arriving on
+    // Requests doesn't leave it hidden past the right edge.
+    document.querySelectorAll(".wt-tabs-track").forEach(track => {
+      const active = track.querySelector(".is-active");
+      if (!active || track.scrollWidth <= track.clientWidth) return;
+      const t = track.getBoundingClientRect(), a = active.getBoundingClientRect();
+      track.scrollLeft += (a.left - t.left) - (t.width - a.width) / 2;
+    });
+    document.querySelectorAll(".top-actions, .wt-tabs-track").forEach(strip => {
       const update = () => {
         const max = strip.scrollWidth - strip.clientWidth;
         strip.style.setProperty("--swipe-fade-l", max > 2 && strip.scrollLeft > 2 ? FADE : "0px");

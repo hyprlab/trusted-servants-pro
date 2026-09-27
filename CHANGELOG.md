@@ -10,6 +10,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 - **Watchtower → Requests row actions use the shared `row_menu` dropdown.** Create User, Mark Handled / Reopen, Archive / Restore and Delete moved from inline buttons into one Actions menu, matching the other admin list tables. The IP column's Block / Unblock button is unchanged. Below 720px the table (`.wt-req-table`) stacks into labelled cards, with the status badge and Actions trigger on the first line and the trigger always visible, instead of scrolling sideways with Actions off-screen.
 - **Watchtower → Requests roles stack one per line** (`.wt-req-roles`) at every width, so a request with several roles no longer makes the Roles column the widest in the table.
+- **Watchtower tab strip swipes on phones.** Below 720px the tabs sit in one row inside a new `.wt-tabs-track` that scrolls sideways, instead of wrapping to three rows. The edges fade only where tabs are hidden past them (`topActionsSwipeFade` in app.js now also drives `.wt-tabs-track`), and the strip opens scrolled to the current tab.
 
 ## [2.19.10] — 2026-09-23
 
