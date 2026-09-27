@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 2.20.0 — 2026-09-27 (latest)
+
 - Create User has a password generator. Generate fills in a random password (20 characters by default, or 16, 24 or 32), shows it so you can copy it, and a checklist shows whether a password you type meets the rules. Generated passwords leave out look-alike characters such as 0 and O, and never contain the username or email.
 - Reset password now generates 20-character passwords with the same rules.
 - Checkboxes and radio buttons in boxed options across the admin, such as "Email login details to the new user", now sit to the left of their label instead of centered above it, and long labels wrap beside the box.
@@ -19,7 +21,7 @@ release notes expanded by default and the changelog collapsed.
 - Release notes in Settings → About list only the current version and the earlier releases in its line, such as 2.19.0 to 2.19.10. An "All release notes on GitHub" button beside the heading opens the full history.
 - Settings → About no longer has a Changelog section. The technical changelog is still in the project on GitHub.
 
-## 2.19.10 — 2026-09-23 (latest)
+## 2.19.10 — 2026-09-23
 
 - Search results for announcements and events, stories, and blog posts now show a date on the right. Events show their event date and everything else shows when it was posted. This applies to both the ⌘K search box and the full search page.
 - The announcement and event Body field now has a live preview beside it, like the meeting description. The preview shows Markdown and HTML the way visitors will see them, and fills in event date tags from the Starts and Ends fields.

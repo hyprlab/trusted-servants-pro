@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.20.0] — 2026-09-27
+
 ### Added
 
 - **Password generator on Create User** (Settings → Users). Generate, a length picker (16 / 20 / 24 / 32), Show / Hide, Copy, a strength readout with the generated password's entropy, and a live checklist mirroring `validate_password_policy`, including the no-username / no-email rule; the field's custom validity blocks submit until it passes. `autocomplete="new-password"` so password managers offer to save it.
