@@ -6,8 +6,13 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added
+
+- **Password generator on Create User** (Settings → Users). Generate, a length picker (16 / 20 / 24 / 32), Show / Hide, Copy, a strength readout with the generated password's entropy, and a live checklist mirroring `validate_password_policy`, including the no-username / no-email rule; the field's custom validity blocks submit until it passes. `autocomplete="new-password"` so password managers offer to save it.
+
 ### Changed
 
+- **`_generate_password` hardened.** Independent `secrets.choice` draws over a 70-character alphabet without look-alikes (`0 O 1 l I`), default length 20 (about 122 bits), clamped to 16 to 32, and whole-password rejection until `validate_password_policy` passes for the account, instead of one forced character per class plus a shuffle. `/users/generate-password` accepts `length`, `username` and `email` and returns `Cache-Control: no-store`. The Reset password modal passes the account's username and email.
 - **Watchtower → Requests row actions use the shared `row_menu` dropdown.** Create User, Mark Handled / Reopen, Archive / Restore and Delete moved from inline buttons into one Actions menu, matching the other admin list tables. The IP column's Block / Unblock button is unchanged. Below 720px the table (`.wt-req-table`) stacks into labelled cards, with the status badge and Actions trigger on the first line and the trigger always visible, instead of scrolling sideways with Actions off-screen.
 - **Watchtower → Requests roles stack one per line** (`.wt-req-roles`) at every width, so a request with several roles no longer makes the Roles column the widest in the table.
 - **Watchtower tab strip swipes on phones.** Below 720px the tabs sit in one row inside a new `.wt-tabs-track` that scrolls sideways, instead of wrapping to three rows. The edges fade only where tabs are hidden past them (`topActionsSwipeFade` in app.js now also drives `.wt-tabs-track`), and the strip opens scrolled to the current tab.

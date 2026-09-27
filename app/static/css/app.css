@@ -7678,6 +7678,19 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 .pic-form-row label { min-width: 0; }
 @media (max-width: 720px) { .pic-form-row { grid-template-columns: 1fr; } }
 .users-new-card .form-actions { justify-content: flex-end; margin-top: 4px; }
+/* Create-user password generator. The field and its Show / Copy
+   buttons share a row; Generate and the length picker sit under it,
+   then the shared strength meter + policy checklist (.pwreset-*). */
+.form label.pwgen-label { display: block; }
+.pwgen-row { display: flex; gap: 8px; align-items: stretch; }
+.pwgen-row input { flex: 1 1 auto; min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .5px; }
+.pwgen-row .btn { flex: 0 0 auto; }
+.pwgen-controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.pwgen-controls .btn { display: inline-flex; align-items: center; gap: 6px; }
+.form label.pwgen-length { flex-direction: row; align-items: center; gap: 8px;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
+.form label.pwgen-length select { width: auto; }
 @media (max-width: 720px) {
   .users-new-card .users-new-row { grid-template-columns: 1fr 1fr; }
 }

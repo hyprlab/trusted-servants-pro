@@ -29,7 +29,45 @@
         <label>Name<input name="name" value="{{ _prefill_name }}" placeholder="(optional)"></label>
         <label>Email<input name="email" type="email" value="{{ _prefill }}" required></label>
         <label>Phone<input name="phone" type="tel" value="{{ _prefill_phone }}" placeholder="(optional)"></label>
-        <label>Password<input name="password" type="password" required></label>
+        {# Password generator. "Generate" asks the server for a random
+           password (auth._generate_password: CSPRNG, no look-alike
+           characters, redrawn until it passes the policy for the
+           username and email typed above) and reveals it so it can be
+           copied. Typing your own works too; the checklist mirrors
+           validate_password_policy and blocks submit until it passes. #}
+        <div class="form-field-block pwgen" data-pwgen>
+          <label class="pwgen-label" for="new-user-password">Password</label>
+          <div class="pwgen-row">
+            <input id="new-user-password" name="password" type="password" required
+                   minlength="{{ pw_min_length }}" autocomplete="new-password"
+                   spellcheck="false" autocapitalize="off" data-pwgen-input>
+            <button type="button" class="btn btn-sm" data-pwgen-show aria-pressed="false"
+                    aria-controls="new-user-password">Show</button>
+            <button type="button" class="btn btn-sm" data-pwgen-copy
+                    title="Copy the password to the clipboard">Copy</button>
+          </div>
+          <div class="pwgen-controls">
+            <button type="button" class="btn btn-sm btn-secondary" data-pwgen-generate>
+              {{ icon('refresh') }}<span>Generate</span></button>
+            <label class="pwgen-length">Length
+              <select data-pwgen-length aria-label="Generated password length">
+                {% for n in pw_gen_lengths %}<option value="{{ n }}"{% if n == pw_gen_default %} selected{% endif %}>{{ n }}</option>{% endfor %}
+              </select>
+            </label>
+          </div>
+          <div class="pwreset-strength" aria-live="polite">
+            <div class="pwreset-strength-bar"><span data-pwgen-fill></span></div>
+            <div class="pwreset-strength-label" data-pwgen-label>Generate a password or type one</div>
+          </div>
+          <ul class="pwreset-policy" aria-label="Password requirements">
+            <li data-rule="length">At least {{ pw_min_length }} characters</li>
+            <li data-rule="lower">A lowercase letter</li>
+            <li data-rule="upper">An uppercase letter</li>
+            <li data-rule="digit">A digit</li>
+            <li data-rule="symbol">A symbol ({{ pw_symbols|list|join(' ') }})</li>
+            <li data-rule="personal">Not the username or email</li>
+          </ul>
+        </div>
         <label>Role
           <select name="role">
             {% for r in roles %}<option value="{{ r }}">{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
@@ -748,6 +786,114 @@
   })();
 </script>
 {% endif %}
+
+<script>
+(function(){
+  const box = document.querySelector('[data-pwgen]');
+  if (!box) return;
+  const form = box.closest('form');
+  const input = box.querySelector('[data-pwgen-input]');
+  const showBtn = box.querySelector('[data-pwgen-show]');
+  const copyBtn = box.querySelector('[data-pwgen-copy]');
+  const genBtn = box.querySelector('[data-pwgen-generate]');
+  const lengthSel = box.querySelector('[data-pwgen-length]');
+  const fill = box.querySelector('[data-pwgen-fill]');
+  const label = box.querySelector('[data-pwgen-label]');
+  const rules = {};
+  box.querySelectorAll('[data-rule]').forEach(li => { rules[li.dataset.rule] = li; });
+  const MIN = {{ pw_min_length }};
+  const SYMBOLS = {{ pw_symbols|tojson }};
+  // Bits per character of the generator's alphabet, for the readout.
+  const GEN_BITS = Math.log2({{ pw_gen_alphabet_size }});
+  // The value last put in the field by Generate, so the label can
+  // tell a generated password (known entropy) from a typed one.
+  let generated = null;
+
+  function setShown(on){
+    input.type = on ? 'text' : 'password';
+    showBtn.textContent = on ? 'Hide' : 'Show';
+    showBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  // Same rules as auth.validate_password_policy; the server still
+  // checks on submit (and also rejects a short list of common weak
+  // passwords, which isn't worth shipping to the browser).
+  function evaluate(){
+    const v = input.value || '';
+    const low = v.toLowerCase();
+    const user = (form.elements.username.value || '').trim().toLowerCase();
+    const local = (form.elements.email.value || '').trim().toLowerCase().split('@')[0];
+    const checks = {
+      length: v.length >= MIN,
+      lower: /[a-z]/.test(v),
+      upper: /[A-Z]/.test(v),
+      digit: /[0-9]/.test(v),
+      symbol: [...v].some(c => SYMBOLS.includes(c)),
+      personal: !!v && !(user && low.includes(user)) && !(local.length >= 4 && low.includes(local)),
+    };
+    Object.keys(checks).forEach(k => rules[k].classList.toggle('is-met', checks[k]));
+    const passed = Object.values(checks).filter(Boolean).length;
+    const total = Object.keys(checks).length;
+    const ok = passed === total;
+    let tier = 'weak';
+    if (ok) tier = v.length >= 16 ? 'strong' : 'good';
+    else if (passed >= total - 1) tier = 'fair';
+    fill.style.width = (v ? Math.round(passed / total * 100) : 0) + '%';
+    fill.dataset.tier = tier;
+    if (!v) label.textContent = 'Generate a password or type one';
+    else if (!ok) label.textContent = 'Doesn’t meet the policy yet';
+    else if (v === generated) label.textContent = 'Strong · ' + v.length + ' random characters, about ' + Math.floor(v.length * GEN_BITS) + ' bits';
+    else label.textContent = tier === 'strong' ? 'Strong' : 'Meets the policy';
+    input.setCustomValidity(v && !ok ? 'This password doesn’t meet the policy yet.' : '');
+  }
+
+  async function generate(){
+    const fd = new FormData();
+    fd.append('csrf_token', {{ csrf_token()|tojson }});
+    fd.append('length', lengthSel.value);
+    fd.append('username', form.elements.username.value || '');
+    fd.append('email', form.elements.email.value || '');
+    genBtn.disabled = true;
+    try {
+      const r = await fetch({{ url_for('auth.users_generate_password')|tojson }}, {
+        method: 'POST', body: fd, credentials: 'same-origin', cache: 'no-store'
+      });
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      if (!data.password) throw new Error('empty');
+      generated = data.password;
+      input.value = generated;
+      setShown(true);
+      evaluate();
+    } catch (_) {
+      label.textContent = 'Couldn’t generate a password. Try again.';
+    } finally {
+      genBtn.disabled = false;
+    }
+  }
+
+  genBtn.addEventListener('click', generate);
+  lengthSel.addEventListener('change', () => { if (input.value && input.value === generated) generate(); });
+  showBtn.addEventListener('click', () => setShown(input.type === 'password'));
+  copyBtn.addEventListener('click', async () => {
+    if (!input.value) return;
+    try {
+      await navigator.clipboard.writeText(input.value);
+    } catch (_) {
+      const was = input.type;
+      input.type = 'text'; input.select();
+      document.execCommand && document.execCommand('copy');
+      input.type = was;
+    }
+    copyBtn.textContent = 'Copied';
+    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1200);
+  });
+  input.addEventListener('input', evaluate);
+  form.elements.username.addEventListener('input', evaluate);
+  form.elements.email.addEventListener('input', evaluate);
+  evaluate();
+})();
+</script>
 
 {% if _prefill %}
 <script>

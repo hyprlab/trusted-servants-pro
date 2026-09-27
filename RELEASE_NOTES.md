@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Create User has a password generator. Generate fills in a random password (20 characters by default, or 16, 24 or 32), shows it so you can copy it, and a checklist shows whether a password you type meets the rules. Generated passwords leave out look-alike characters such as 0 and O, and never contain the username or email.
+- Reset password now generates 20-character passwords with the same rules.
 - The Watchtower access requests table now has one Actions button per request instead of a row of separate buttons. Create User, Mark Handled or Reopen, Archive or Restore, and Delete are in its menu. On a phone each request is shown as a card with its status and Actions button at the top.
 - Roles on a Watchtower access request are listed one per line, so a request with several roles takes less room across the table.
 - On a phone, the Watchtower tabs are one row you swipe sideways instead of three stacked rows. The edge fades where more tabs are hidden, and the current tab is scrolled into view.

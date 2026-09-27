@@ -134,23 +134,43 @@ def validate_password_policy(pw, *, username=None, email=None):
     return (not errors), errors
 
 
-def _generate_password(length=16):
-    """Generate a random password mixing uppercase, lowercase, digits, and
-    symbols, with at least one character from each class guaranteed. Uses
-    ``secrets`` for cryptographic quality and shuffles via ``SystemRandom``
-    so the guaranteed-class characters aren't always at fixed positions.
-    Symbol set is curated to characters that are safe to paste into a
-    plain-text email and easy to type on most keyboards."""
+# Generator alphabet: every character class the policy requires, minus
+# the look-alikes (0/O, 1/l/I) that get misread when a password is
+# copied off a welcome email by hand. 70 symbols, ~6.13 bits each.
+PASSWORD_GEN_ALPHABET = (
+    "abcdefghijkmnopqrstuvwxyz"   # no l
+    "ABCDEFGHJKLMNPQRSTUVWXYZ"    # no I, O
+    "23456789"                    # no 0, 1
+    + PASSWORD_SYMBOLS
+)
+PASSWORD_GEN_LENGTHS = (16, 20, 24, 32)
+PASSWORD_GEN_DEFAULT_LENGTH = 20
+
+
+def _generate_password(length=PASSWORD_GEN_DEFAULT_LENGTH, *, username=None, email=None):
+    """Generate a random password that passes ``validate_password_policy``
+    for the given account.
+
+    Each character is an independent ``secrets.choice`` (a CSPRNG with no
+    modulo bias) over ``PASSWORD_GEN_ALPHABET``. Class coverage and the
+    no-username / no-email rules are met by rejection: a draw that fails
+    the policy is thrown away and redrawn whole, so every accepted
+    password is uniform over the valid ones. Forcing one character per
+    class into fixed slots and shuffling would skew that distribution.
+    At 20 characters a draw fails well under 5% of the time.
+
+    ``length`` is clamped to ``PASSWORD_GEN_LENGTHS``' range; 16
+    characters is ~98 bits, the default 20 is ~122."""
     import secrets
-    import string
-    symbols = "!@#$%^&*?-_=+"
-    classes = (string.ascii_lowercase, string.ascii_uppercase,
-               string.digits, symbols)
-    pool = "".join(classes)
-    chars = [secrets.choice(c) for c in classes]
-    chars += [secrets.choice(pool) for _ in range(max(length - len(classes), 0))]
-    secrets.SystemRandom().shuffle(chars)
-    return "".join(chars)
+    try:
+        length = int(length)
+    except (TypeError, ValueError):
+        length = PASSWORD_GEN_DEFAULT_LENGTH
+    length = max(PASSWORD_GEN_LENGTHS[0], min(length, PASSWORD_GEN_LENGTHS[-1]))
+    while True:
+        pw = "".join(secrets.choice(PASSWORD_GEN_ALPHABET) for _ in range(length))
+        if validate_password_policy(pw, username=username, email=email)[0]:
+            return pw
 
 
 def _send_welcome_email(user, plaintext_password, *, reason="created"):
@@ -975,7 +995,12 @@ def users():
         for u in user_list if user_is_locked(u.username)
     }
     return render_template("users.html", users=user_list, roles=ROLES,
-                           role_labels=ROLE_LABELS, lockouts=lockouts)
+                           role_labels=ROLE_LABELS, lockouts=lockouts,
+                           pw_min_length=PASSWORD_MIN_LENGTH,
+                           pw_symbols=PASSWORD_SYMBOLS,
+                           pw_gen_lengths=PASSWORD_GEN_LENGTHS,
+                           pw_gen_default=PASSWORD_GEN_DEFAULT_LENGTH,
+                           pw_gen_alphabet_size=len(PASSWORD_GEN_ALPHABET))
 
 
 @bp.route("/users/<int:uid>/unlock", methods=["POST"])
@@ -1288,12 +1313,22 @@ def users_reset_password(uid):
 @bp.route("/users/generate-password", methods=["POST"])
 @login_required
 def users_generate_password():
-    """JSON endpoint used by the admin Reset Password modal to fetch a
-    fresh random password for the "Generate" tab. Admin-only."""
+    """JSON endpoint behind the Reset Password modal's readout and the
+    Create User form's Generate button. Optional ``length``, and the
+    account's ``username`` / ``email`` so the result never contains
+    them (the policy would reject it on submit). Admin-only."""
     from flask import jsonify
     if not current_user.is_admin():
         return jsonify({"error": "forbidden"}), 403
-    return jsonify({"password": _generate_password()})
+    pw = _generate_password(
+        request.form.get("length", PASSWORD_GEN_DEFAULT_LENGTH),
+        username=(request.form.get("username") or "").strip() or None,
+        email=(request.form.get("email") or "").strip() or None,
+    )
+    resp = jsonify({"password": pw})
+    # A credential in the body: keep it out of every cache.
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @bp.route("/users/<int:uid>/reset-allowed", methods=["POST"])
