@@ -681,8 +681,20 @@
   if (settingsModal) {
     const tabs = settingsModal.querySelectorAll(".settings-tab");
     const panes = settingsModal.querySelectorAll(".settings-pane");
+    const paneTitle = settingsModal.querySelector(".settings-pane-title");
     const activate = name => {
-      tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+      tabs.forEach(t => {
+        const on = t.dataset.tab === name;
+        t.classList.toggle("active", on);
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        if (on && paneTitle) {
+          const label = t.querySelector(".settings-tab-label");
+          paneTitle.textContent = (label || t).textContent.trim();
+        }
+      });
+      // Phones show the nav and the pane as two screens; picking a
+      // section moves to its pane.
+      settingsModal.classList.add("settings-show-pane");
       panes.forEach(p => {
         const on = p.dataset.pane === name;
         p.classList.toggle("active", on);
@@ -700,6 +712,23 @@
       }
     };
     tabs.forEach(t => t.addEventListener("click", () => activate(t.dataset.tab)));
+    const backBtn = settingsModal.querySelector(".settings-back");
+    if (backBtn) backBtn.addEventListener("click", () => {
+      settingsModal.classList.remove("settings-show-pane");
+      const cur = settingsModal.querySelector(".settings-tab.active");
+      if (cur) cur.focus();
+    });
+    // A plain open lands on the section list on phones. Deep links
+    // (data-settings-tab) click a tab right after opening, which moves
+    // to that pane again.
+    new MutationObserver(() => {
+      // Guarded: classList.remove writes the attribute even when the
+      // class is absent, which would re-trigger this observer forever.
+      if (!settingsModal.classList.contains("open")
+          && settingsModal.classList.contains("settings-show-pane")) {
+        settingsModal.classList.remove("settings-show-pane");
+      }
+    }).observe(settingsModal, { attributes: true, attributeFilter: ["class"] });
 
     // Submit top-level settings forms via fetch so the page never reloads.
     // Forms inside iframes are untouched (they already reload only the iframe).

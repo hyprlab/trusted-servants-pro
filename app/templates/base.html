@@ -333,25 +333,56 @@
 {# Settings modal #}
 <div class="modal modal-lg" id="settings-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <div class="modal-head">
-      <h2>Settings</h2>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+    {# Sidebar navigation. On phones the nav and the panes are two
+       screens: the nav is the list, picking a section slides to its
+       pane, and the back button returns (app.js toggles
+       .settings-show-pane on the modal). #}
+    {% set _settings_nav = [
+      ('Account', [
+        ('appearance', 'Appearance', 'sun', True),
+        ('your-access', 'Your Access', 'key', True),
+      ]),
+      ('Administration', [
+        ('users', 'Users', 'users', False),
+        ('locations', 'Global', 'globe', False),
+        ('sidebar', 'Sidebar', 'panel-left', False),
+        ('modules', 'Modules', 'puzzle', False),
+        ('email', 'Domain / Email', 'mail', False),
+        ('timezone', 'Timezone', 'clock', False),
+        ('security', 'Security', 'shield', False),
+        ('data', 'Data', 'database', False),
+      ]),
+      ('', [
+        ('about', 'About', 'info', True),
+      ]),
+    ] %}
+    <nav class="settings-nav" aria-label="Settings sections">
+      <div class="settings-nav-head">
+        <h2 id="settings-modal-title">Settings</h2>
+        <button type="button" class="icon-btn settings-nav-close" data-close aria-label="Close">{{ icon('x') }}</button>
+      </div>
+      <div class="settings-tabs" role="tablist" aria-orientation="vertical">
+        {% for group, items in _settings_nav %}
+        {% set _visible = items if current_user.is_admin() else items | selectattr(3) | list %}
+        {% if _visible %}
+        {% if group %}<div class="settings-nav-group" role="presentation">{{ group }}</div>{% else %}<div class="settings-nav-sep" role="presentation"></div>{% endif %}
+        {% for key, label, ic, _everyone in _visible %}
+        <button type="button" class="settings-tab{% if key == 'appearance' %} active{% endif %}" data-tab="{{ key }}" role="tab" aria-selected="{{ 'true' if key == 'appearance' else 'false' }}">
+          <span class="settings-tab-icon" aria-hidden="true">{{ icon(ic) }}</span>
+          <span class="settings-tab-label">{{ label }}</span>
+          <span class="settings-tab-chev" aria-hidden="true">{{ icon('chevron-right') }}</span>
+        </button>
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+      </div>
+    </nav>
+    <div class="settings-main">
+    <div class="modal-head settings-main-head">
+      <button type="button" class="icon-btn settings-back" aria-label="Back to settings">{{ icon('arrow-left') }}</button>
+      <h2 class="settings-pane-title">Appearance</h2>
       <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-    </div>
-    <div class="settings-tabs" role="tablist">
-      <button type="button" class="settings-tab active" data-tab="appearance">Appearance</button>
-      <button type="button" class="settings-tab" data-tab="your-access">Your Access</button>
-      {% if current_user.is_admin() %}
-      <button type="button" class="settings-tab" data-tab="users">Users</button>
-      <button type="button" class="settings-tab" data-tab="locations">Global</button>
-      <button type="button" class="settings-tab" data-tab="sidebar">Sidebar</button>
-      <button type="button" class="settings-tab" data-tab="modules">Modules</button>
-      <button type="button" class="settings-tab" data-tab="email">Domain / Email</button>
-      <button type="button" class="settings-tab" data-tab="timezone">Timezone</button>
-      <button type="button" class="settings-tab" data-tab="security">Security</button>
-      <button type="button" class="settings-tab" data-tab="data">Data</button>
-      {% endif %}
-      <button type="button" class="settings-tab" data-tab="about">About</button>
     </div>
     <div class="settings-body">
       <div class="settings-pane active" data-pane="appearance">
@@ -2271,6 +2302,7 @@
     <div class="fe-save-bar settings-save-bar" id="settings-save-bar" hidden>
       <span class="fe-save-bar-msg">Unsaved changes</span>
       <button type="button" class="btn fe-save-bar-btn" id="settings-save-bar-btn">Save</button>
+    </div>
     </div>
   </div>
 </div>
