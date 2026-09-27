@@ -865,6 +865,7 @@ def create_app():
     # needed to update the in-app view. See app/about_docs.py.
     from . import about_docs as _about_docs
     app.jinja_env.globals["app_release_notes"] = _about_docs.load_release_notes
+    app.jinja_env.globals["app_release_notes_for_line"] = _about_docs.load_release_notes_for_line
     app.jinja_env.globals["app_changelog"] = _about_docs.load_changelog
 
     # Dynamic-background catalog. The admin's dynbg picker macro and

@@ -5692,7 +5692,8 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
 }
 .about-sub-summary {
   list-style: none; cursor: pointer;
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px 12px;
   padding: 12px 0;
   position: relative; padding-right: 28px;
   user-select: none;
@@ -5710,6 +5711,7 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
   transform: translateY(-25%) rotate(-135deg);
 }
 .about-sub-summary > .about-sub { margin: 0; }
+.about-sub-link { flex: 0 0 auto; }
 .about-sub-summary:hover > .about-sub { color: var(--brand, var(--text)); }
 .about-sub-summary:focus-visible {
   outline: 2px solid var(--brand, currentColor); outline-offset: 4px;

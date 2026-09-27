@@ -16,6 +16,7 @@ release notes expanded by default and the changelog collapsed.
 - Roles on a Watchtower access request are listed one per line, so a request with several roles takes less room across the table.
 - On a phone, the Watchtower tabs are one row you swipe sideways instead of three stacked rows. The edge fades where more tabs are hidden, and the current tab is scrolled into view.
 - Settings has its sections in a sidebar on the left, grouped under Account and Administration, instead of a row of tabs across the top. On a phone, Settings opens to the list of sections; tap one to open it and use the back arrow to return.
+- Release notes in Settings → About list only the current version and the earlier releases in its line, such as 2.19.0 to 2.19.10. An "All release notes on GitHub" button beside the heading opens the full history.
 
 ## 2.19.10 — 2026-09-23 (latest)
 

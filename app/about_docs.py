@@ -191,6 +191,24 @@ def load_release_notes() -> List[_Entry]:
     return _load(_RELEASE_NOTES_PATH, _parse_release_notes, "release")
 
 
+def _minor_line(version: str) -> str:
+    """``"2.19.10"`` -> ``"2.19"``. A range header uses its first version."""
+    first = re.split(r"\s*[–\-]\s*", version.strip(), maxsplit=1)[0]
+    return ".".join(first.split(".")[:2])
+
+
+def load_release_notes_for_line(version: str) -> List[_Entry]:
+    """Release notes for the X.Y line of ``version`` (X.Y.0 up to now).
+
+    Falls back to every entry when the line has none yet, so a
+    development build ahead of its notes still shows something.
+    """
+    entries = load_release_notes()
+    line = _minor_line(version)
+    same = [e for e in entries if _minor_line(e.version) == line]
+    return same or entries
+
+
 def load_changelog() -> List[_Entry]:
     """Parsed entries from ``CHANGELOG.md``, newest first."""
     return _load(_CHANGELOG_PATH, _parse_changelog, "changelog")
