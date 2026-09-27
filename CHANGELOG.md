@@ -9,6 +9,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ### Changed
 
 - **Watchtower → Requests row actions use the shared `row_menu` dropdown.** Create User, Mark Handled / Reopen, Archive / Restore and Delete moved from inline buttons into one Actions menu, matching the other admin list tables. The IP column's Block / Unblock button is unchanged. Below 720px the table (`.wt-req-table`) stacks into labelled cards, with the status badge and Actions trigger on the first line and the trigger always visible, instead of scrolling sideways with Actions off-screen.
+- **Watchtower → Requests roles stack one per line** (`.wt-req-roles`) at every width, so a request with several roles no longer makes the Roles column the widest in the table.
 
 ## [2.19.10] — 2026-09-23
 

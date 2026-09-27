@@ -7061,6 +7061,10 @@ html[data-theme="dark"] .access-matrix .access-foot-mark { color: #facc15; }
 .ar-card-head { display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 12px; }
 .ar-ip-action { margin-top: 4px; display: flex; gap: 6px; align-items: center; }
+/* One role per line: side by side, a request with several roles made
+   the column the widest in the table. */
+.wt-req-roles { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.wt-req-roles .chip { white-space: nowrap; }
 .ar-view-tabs { display: inline-flex; gap: 4px; padding: 3px;
   background: var(--panel-2); border: 1px solid var(--border);
   border-radius: 999px; }
