@@ -1694,7 +1694,7 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 
 /* Announcement auto-archive panel on the announcement / event edit
    page. Hidden entirely until the Announcement type is selected.
-   One bordered panel holds the toggle row (info left, switch right —
+   One bordered panel holds the toggle row (switch left, info beside it —
    same shape as the Online-event row) and, when the toggle is on,
    the datetime field reveals below a divider inside the same panel
    so the control reads as a single cohesive setting. */
@@ -1797,8 +1797,8 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 .post-form .slug-history-new,
 .post-form code { font-family: inherit; }
 
-/* Shared setting-toggle row on the post editor — info (title +
-   description) on the left, switch on the right. The --panel variant
+/* Shared setting-toggle row on the post editor — switch on the left,
+   info (title + description) beside it. The --panel variant
    carries its own border/tint (Online event); the bare variant sits
    inside an already-tinted panel (auto-archive). */
 .post-toggle-row {
@@ -2013,7 +2013,7 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 /* Inline enable-toggle row inside the OG panel — the standalone
    .special-page-row pattern was too tall for a sub-panel. */
 .fe-og-toggle-row {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: flex-start;
   gap: 12px; padding: 8px 10px;
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 8px; margin-bottom: 6px;
@@ -6221,11 +6221,12 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
   box-shadow: 0 1px 2px rgba(0,0,0,.2); }
 .mode-toggle input:checked ~ .mode-track { background: var(--access); }
 .mode-toggle input:checked ~ .mode-track .mode-thumb { transform: translateX(16px); }
-/* Fellowships Index virtual toggle sits inside a .form, whose
-   `.form label { flex-direction: column }` would stack (and, via the
-   toggle's own align-items: center, horizontally centre) the track.
-   Higher specificity restores the row layout, keeping it left-aligned. */
-.form label.fellowship-virtual-toggle { flex-direction: row; justify-content: flex-start; }
+/* Every switch inside a .form: `.form label { display: flex;
+   flex-direction: column }` outranks .mode-toggle, which stacked the
+   track above its caption and, via align-items: center, centered both.
+   Higher specificity keeps caption and track on one left-aligned row. */
+.form label.mode-toggle { display: inline-flex; flex-direction: row;
+  justify-content: flex-start; gap: 8px; }
 .mode-label-all { color: var(--text); }
 .mode-label-granular { color: var(--muted); }
 .library-row.is-granular .mode-label-all { color: var(--muted); }
@@ -6957,6 +6958,14 @@ body.embed .wp-wizard-header {
   gap: 16px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px;
   background: var(--panel, var(--bg)); flex-wrap: wrap; }
 .special-page-info { min-width: 0; flex: 1; }
+/* Switches sit on the left of every settings row, ahead of the caption,
+   the same order as a switch captioned inside its own label. */
+.special-page-row > .mode-toggle,
+.special-page-row > .special-page-toggle-form,
+.special-page-subrow > .mode-toggle,
+.special-page-subrow > .special-page-toggle-form,
+.post-toggle-row > .mode-toggle,
+.fe-og-toggle-row > .mode-toggle { order: -1; }
 
 /* Per-module role-permission picker — sits between the info column
    and the toggle on each Modules-tab row. */
@@ -10575,7 +10584,7 @@ html[data-theme="dark"] .fe-page-history-chip-rename {
 /* Rename modal's redirect offer. Qualified with `.form label` so the
    selector outweighs `.form label { flex-direction: column }`, which
    would otherwise stack the checkbox above its own caption — same
-   trick as `.form label.fellowship-virtual-toggle` above. */
+   trick as `.form label.mode-toggle` above. */
 .form label.fe-rename-redirect { flex-direction: row; align-items: flex-start;
   gap: 8px; font-weight: 400; }
 .form label.fe-rename-redirect input[type=checkbox] { flex: 0 0 auto;

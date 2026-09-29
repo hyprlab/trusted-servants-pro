@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Every switch in the admin now sits to the left of its caption. Settings rows (Settings modules, dashboard widgets, Web Frontend pages, caching, cookie compliance, forms, post editor) had the switch on the far right, and some switches in the meeting editor and library settings were stacked and centered above their caption.
+
 ## 2.20.0 — 2026-09-27 (latest)
 
 - Create User has a password generator. Generate fills in a random password (20 characters by default, or 16, 24 or 32), shows it so you can copy it, and a checklist shows whether a password you type meets the rules. Generated passwords leave out look-alike characters such as 0 and O, and never contain the username or email.

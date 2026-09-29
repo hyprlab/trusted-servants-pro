@@ -6,6 +6,14 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- Settings rows put the switch first: `order: -1` on the switch (or its `.special-page-toggle-form`) in `.special-page-row`, `.special-page-subrow`, `.post-toggle-row`, `.fe-og-toggle-row`, `.cc-row` and `.fe-cache-row`, with the last three left-justified.
+
+### Fixed
+
+- `.form label { flex-direction: column }` outranked `.mode-toggle`, stacking and centering switches inside forms. A `.form label.mode-toggle` rule keeps every such switch on one left-aligned row, replacing the one-off Fellowships Index override.
+
 ## [2.20.0] — 2026-09-27
 
 ### Added

@@ -11,12 +11,12 @@
   <div class="fe-admin-main">
 
   <style>
-    .cc-row { display: flex; align-items: center; justify-content: space-between;
+    .cc-row { display: flex; align-items: center; justify-content: flex-start;
       gap: 1rem; padding: .85rem 0; border-top: 1px solid rgba(127,127,127,.18); }
     .cc-row:first-of-type { border-top: 0; }
     .cc-row-text { min-width: 0; }
     .cc-row-label { font-weight: 600; }
-    .cc-row .mode-toggle { flex: 0 0 auto; }
+    .cc-row .mode-toggle { flex: 0 0 auto; order: -1; }
 
     .cc-mode-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; }
     .cc-mode-card { display: block; padding: 14px; border: 1px solid var(--border);
