@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.20.1] — 2026-09-29
+
 ### Changed
 
 - Settings rows put the switch first: `order: -1` on the switch (or its `.special-page-toggle-form`) in `.special-page-row`, `.special-page-subrow`, `.post-toggle-row`, `.fe-og-toggle-row`, `.cc-row` and `.fe-cache-row`, with the last three left-justified.
