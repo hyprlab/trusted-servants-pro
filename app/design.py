@@ -1095,6 +1095,13 @@ def parse_design_form(form):
     return out
 
 
+def text_decoration(key):
+    """CSS ``text-decoration`` value for a LINK_DECORATION_KEYS choice.
+    A bare ``dotted`` only sets the line style, so the shorthand drew no
+    line at all; it needs the ``underline`` line as well."""
+    return "underline dotted" if key == "dotted" else key
+
+
 def design_css_vars(site):
     """CSS custom-property string for the public ``<body>`` style.
 
@@ -1171,7 +1178,7 @@ def design_css_vars(site):
             )
     parts.append(f"--fe-btn-weight: {chosen['btn_weight']};")
     parts.append(f"--fe-btn-text-transform: {chosen['btn_text_transform']};")
-    parts.append(f"--fe-btn-decoration: {chosen['btn_decoration']};")
+    parts.append(f"--fe-btn-decoration: {text_decoration(chosen['btn_decoration'])};")
     # Primary-button effect tokens — empty/`none` when disabled so the
     # CSS rule's `box-shadow: var(--fe-btn-shadow)` resolves to no
     # shadow / no transform without needing a separate disabled rule.
@@ -1183,10 +1190,10 @@ def design_css_vars(site):
     parts.append(f"--fe-btn-hover-glow: {_hover_g};")
 
     # Links.
-    parts.append(f"--fe-link-decoration: {chosen['link_decoration']};")
-    parts.append(f"--fe-link-decoration-hover: {chosen['link_decoration_hover']};")
-    parts.append(f"--fe-megamenu-link-decoration: {chosen['megamenu_link_decoration']};")
-    parts.append(f"--fe-megamenu-link-decoration-hover: {chosen['megamenu_link_decoration_hover']};")
+    parts.append(f"--fe-link-decoration: {text_decoration(chosen['link_decoration'])};")
+    parts.append(f"--fe-link-decoration-hover: {text_decoration(chosen['link_decoration_hover'])};")
+    parts.append(f"--fe-megamenu-link-decoration: {text_decoration(chosen['megamenu_link_decoration'])};")
+    parts.append(f"--fe-megamenu-link-decoration-hover: {text_decoration(chosen['megamenu_link_decoration_hover'])};")
 
     # Text.
     parts.append(f"--fe-text-size-base: {chosen['text_size_base']};")
