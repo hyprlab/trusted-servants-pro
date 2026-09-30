@@ -326,7 +326,6 @@
   min-height: 96px; padding: 18px; border-radius: 10px;
   background: var(--pv-surface-alt); border: 1px solid var(--pv-border);
 }
-.pv-btn-stage--wide { justify-content: flex-start; }
 
 /* Narrow preview (phones, a stacked studio): pairs stack. */
 .pv { container-type: inline-size; }
