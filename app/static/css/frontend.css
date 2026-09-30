@@ -643,6 +643,10 @@ body.fe-frontend-force-dark .fe-utility-bar .fe-utility-overflow-panel .fe-utili
   transition: color 150ms ease, background 150ms ease;
 }
 .fe-nav a:hover { color: var(--fe-color-nav-link-hover, var(--fe-ink)); background: var(--fe-panel-soft); text-decoration: none; }
+/* Classic header: a two-line Navigation item and a mega menu caret. */
+.fe-nav a.fe-nav-twoline { display: inline-flex; flex-direction: column; line-height: 1.15; padding-top: 4px; padding-bottom: 4px; }
+.fe-nav-twoline-lead { font-size: 0.75em; opacity: 0.75; }
+.fe-nav a .fe-nav-caret { display: inline-flex; margin-left: 4px; vertical-align: middle; --icon-size: 14px; }
 .fe-nav-cta {
   margin-left: 8px; padding: 9px 18px !important; border-radius: 999px;
   background: var(--fe-ink); color: #fff !important; font-weight: 600;

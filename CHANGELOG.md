@@ -32,6 +32,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The footer background's Solid and Gradient panes both posted `footer_bg_color`, so `parse_footer` read the Solid picker for the gradient start. The gradient start is now `footer_bg_gradient_start`. The Solid picker showed `#0b1026` for an empty color and saved it on any footer save; a `footer_bg_color_custom` flag now keeps the color empty until it is picked.
 - `cookie_compliance_remember_days` of 0 fell back to 365 through `or 365` in `_inject_cookie_compliance` and the admin template. Only a missing value falls back now.
 - `frontend_cookie_compliance_generate_policy` created the page with `is_published=True`. It is now a draft; the policy picker lists public published pages plus the linked page, marked when it is a draft, so saving the settings doesn't unlink it.
+- `headers/classic.html` hard-coded its links and never read `nav_items`, so Navigation, the mega menu editor and Design → Mega menu had no effect on the Classic theme, and its mega menu panels rendered with no trigger. It now renders `nav_items` with the same `data-megamenu` wiring as `themed.html`, falling back to the fixed links when there are none.
+- `base.html` kept the app sidebar on every `main.frontend_form*` and `main.frontend_custom_form*` endpoint, which caught the form settings pages as well as the inbox. The exception now covers only the inbox routes (`main.frontend_form_submission*` other than `main.frontend_form_submission` itself).
 
 ## [2.20.2] — 2026-09-30
 

@@ -1,6 +1,7 @@
 {# "Classic" header — the original layout we built.
    Sticky glassy bar, logo on the left, nav on the right, mobile hamburger.
-   Respects SiteSetting width/padding/height configs. #}
+   Respects SiteSetting width/padding/height configs and renders the
+   Navigation items. #}
 {% set _header_full = site and site.frontend_header_width_mode == 'full' %}
 {% set _header_max = (site.frontend_header_max_width if site else 1160) or 1160 %}
 {% set _header_pct = (site.frontend_header_padding_pct if site else 5) or 0 %}
@@ -19,7 +20,27 @@
       <span class="fe-brand-name">{{ frontend_title }}</span>
       {% endif %}
     </a>
-    <nav class="fe-nav">
+    <nav class="fe-nav" aria-label="Primary">
+      {# The admin's Navigation items, with the same mega menu wiring as
+         the other headers. The fixed links below only show while no
+         items exist. #}
+      {% if nav_items %}
+        {% for ni in nav_items %}
+          {% set _has_mm = ni.has_megamenu and ni.columns %}
+          {% set _href = ni.url or url_for('frontend.submission_form') if ni.form_trigger == 'submission' else (ni.url or '#') %}
+          {% set _tgt = ' target="_blank" rel="noopener"' if ni.open_in_new_tab else '' %}
+          {%- set _ft = ' data-fe-form-trigger="' ~ ni.form_trigger ~ '"' if ni.form_trigger else '' -%}
+          {% set _cls = 'fe-nav-cta' if ni.style in ('button', 'button-rounded') else ('fe-nav-twoline' if ni.style == 'two-line' else '') %}
+          <a href="{{ _href|safe_url }}"{{ _tgt|safe }}{{ _ft|safe }}
+             class="{{ _cls }}{% if _has_mm %} fe-megaparent{% endif %}"
+             {% if _has_mm %}data-megamenu="{{ ni.id }}"{% endif %}>
+            {%- if ni.style == 'two-line' -%}
+              <span class="fe-nav-twoline-lead">{{ ni.line1 or '' }}</span><span>{{ ni.line2 or '' }}</span>
+            {%- else -%}{{ ni.label or '' }}{%- endif -%}
+            {%- if _has_mm %}<span class="fe-nav-caret">{{ icon('chevron-down') }}</span>{% endif -%}
+          </a>
+        {% endfor %}
+      {% else %}
       <a href="{{ url_for('frontend.index') }}#meetings">Meetings</a>
       <a href="{{ url_for('frontend.index') }}#about">About</a>
       <a href="{{ url_for('frontend.index') }}#contact">Help</a>
@@ -27,6 +48,7 @@
       <a href="{{ url_for('main.index') }}" class="fe-nav-cta">Dashboard</a>
       {% else %}
       <a href="{{ url_for('auth.login') }}" class="fe-nav-cta">Sign in</a>
+      {% endif %}
       {% endif %}
     </nav>
     <button type="button" class="fe-menu-btn" id="fe-menu-btn" aria-label="Toggle menu">

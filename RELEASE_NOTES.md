@@ -28,6 +28,8 @@ release notes expanded by default and the changelog collapsed.
 - The footer's Gradient background now saves its start color. Before, the Solid color was saved in its place. Saving the footer also no longer replaces the theme's footer color with navy when the Solid color was never changed.
 - Cookie Compliance: "Remember choice for 0 days" is kept as 0, which remembers the choice until the visitor closes the browser. Before, 0 was saved but treated as 365.
 - Cookie Compliance: a generated starter privacy policy is created as a draft, since it has placeholders to fill in, and the banner links it once it is published. The policy page list leaves out private pages, which the banner can't link to.
+- The Classic header now shows the items from Web Frontend → Navigation, with their mega menus, instead of fixed Meetings, About and Help links. The fixed links still show while no navigation items exist.
+- The Web Frontend form settings pages (Announcements/Events, Story, Contact, Recovery Contacts and custom forms) now auto-hide the app sidebar like the other Web Frontend pages. Form inboxes keep it.
 
 ## 2.20.2 — 2026-09-30 (latest)
 
