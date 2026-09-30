@@ -456,32 +456,48 @@
   tip.setAttribute('role', 'tooltip');
   tip.hidden = true;
   root.appendChild(tip);
-  var tipFrom = null;
-  function placeTip(e) {
+  // Shown only once the pointer has rested on a part for a second; any
+  // real movement (past a few pixels of jitter) hides it and restarts
+  // the wait.
+  var TIP_DELAY = 1000, TIP_JITTER = 4;
+  var tipTimer = null, rest = null;
+  function placeTip(x0, y0) {
     var pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
-    var x = e.clientX + pad, y = e.clientY + pad;
-    if (x + w > window.innerWidth - 8) x = e.clientX - pad - w;
-    if (y + h > window.innerHeight - 8) y = e.clientY - pad - h;
+    var x = x0 + pad, y = y0 + pad;
+    if (x + w > window.innerWidth - 8) x = x0 - pad - w;
+    if (y + h > window.innerHeight - 8) y = y0 - pad - h;
     tip.style.left = Math.max(8, x) + 'px';
     tip.style.top = Math.max(8, y) + 'px';
   }
+  function hideTip() {
+    clearTimeout(tipTimer);
+    tipTimer = null;
+    rest = null;
+    tip.hidden = true;
+  }
+  function showTip() {
+    if (!rest) return;
+    var info = tipFor(rest.el);
+    if (!info) return;
+    tip.innerHTML = '';
+    var b = document.createElement('b'); b.textContent = info.name; tip.appendChild(b);
+    if (info.group) { var sm = document.createElement('span'); sm.textContent = info.group; tip.appendChild(sm); }
+    if (info.key) { var c = document.createElement('code'); c.textContent = info.key; tip.appendChild(c); }
+    tip.hidden = false;
+    placeTip(rest.x, rest.y);
+  }
   root.addEventListener('pointermove', function (e) {
     var t = e.target.closest && e.target.closest('[data-goto]');
-    if (!t) { tip.hidden = true; tipFrom = null; return; }
-    if (t !== tipFrom) {
-      tipFrom = t;
-      var info = tipFor(t);
-      if (!info) { tip.hidden = true; return; }
-      tip.innerHTML = '';
-      var b = document.createElement('b'); b.textContent = info.name; tip.appendChild(b);
-      if (info.group) { var sm = document.createElement('span'); sm.textContent = info.group; tip.appendChild(sm); }
-      if (info.key) { var c = document.createElement('code'); c.textContent = info.key; tip.appendChild(c); }
-      tip.hidden = false;
-    }
-    placeTip(e);
+    if (rest && t === rest.el &&
+        Math.abs(e.clientX - rest.x) <= TIP_JITTER && Math.abs(e.clientY - rest.y) <= TIP_JITTER) return;
+    hideTip();
+    if (!t) return;
+    rest = { el: t, x: e.clientX, y: e.clientY };
+    tipTimer = setTimeout(showTip, TIP_DELAY);
   });
-  host.addEventListener('pointerleave', function () { tip.hidden = true; tipFrom = null; });
-  window.addEventListener('scroll', function () { tip.hidden = true; tipFrom = null; }, { passive: true });
+  host.addEventListener('pointerleave', hideTip);
+  root.addEventListener('pointerdown', hideTip);
+  window.addEventListener('scroll', hideTip, { passive: true });
 
   // ── Preview ─────────────────────────────────────────────────────────
   function shadow(scaleKey, tint) {
