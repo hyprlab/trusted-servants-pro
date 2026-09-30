@@ -22,6 +22,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 - The Design page preview in a dark admin theme (`dark`, `neobrutal-dark`, `cyberpunk`) painted light card colors under the admin's light text. The preview now has a Light/Dark switch that starts from the admin theme, and it uses the site's own text tokens.
 - A `dotted` link, mega-menu or button decoration was emitted as `text-decoration: dotted`, which sets only the line style and draws no line. `design.text_decoration()` now emits `underline dotted`.
+- `ArchivoBlack-Regular.woff2` was the Google Fonts latin-ext subset, with no basic Latin glyphs, so every Neobrutal heading fell back to Arial Black. It is now `ArchivoBlack-latin-ext.woff2` beside a new `ArchivoBlack-latin.woff2`, split by `unicode-range` like Fraunces.
 
 ## [2.20.2] — 2026-09-30
 
