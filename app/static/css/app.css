@@ -1191,13 +1191,30 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 .fe-admin-main .ds-studio-head { padding: 18px 22px 12px; flex-wrap: wrap; }
 .ds-studio-actions { display: flex; gap: 8px; margin-left: auto; }
 
+/* Tab strip: scrolls sideways with no scrollbar in either direction. The
+   base line is painted as a background (not a border) so the active
+   tab's underline can sit on it without overflowing the strip. */
+.ds-tabs-wrap { position: relative; }
 .ds-tabs {
-  display: flex; gap: 2px; padding: 0 14px; overflow-x: auto;
-  border-bottom: 1px solid var(--border); scrollbar-width: thin;
+  display: flex; gap: 2px; padding: 0 14px;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+  scroll-padding-inline: 56px;
+  scrollbar-width: none; -ms-overflow-style: none;
+  background: linear-gradient(to top, var(--border) 1px, transparent 1px);
 }
+.ds-tabs::-webkit-scrollbar { display: none; }
+/* Edge fades: shown only on a side with tabs scrolled out of view. They
+   stop 1px short of the bottom so the base line stays solid. */
+.ds-tabs-wrap::before, .ds-tabs-wrap::after {
+  content: ""; position: absolute; top: 0; bottom: 1px; width: 56px; z-index: 1;
+  pointer-events: none; opacity: 0; transition: opacity 180ms ease;
+}
+.ds-tabs-wrap::before { left: 0; background: linear-gradient(to right, var(--panel) 15%, transparent); }
+.ds-tabs-wrap::after { right: 0; background: linear-gradient(to left, var(--panel) 15%, transparent); }
+.ds-tabs-wrap[data-fade-start]::before, .ds-tabs-wrap[data-fade-end]::after { opacity: 1; }
 .ds-tab {
   display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
-  padding: 11px 12px 10px; margin-bottom: -1px;
+  padding: 11px 12px 10px;
   border: 0; border-bottom: 2px solid transparent; background: none;
   font: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--muted);
   cursor: pointer; white-space: nowrap;

@@ -307,6 +307,10 @@
       </div>
     </div>
 
+    {# The strip scrolls sideways without a scrollbar when the tabs don't
+       fit; data-fade-start / data-fade-end (set by design_studio.js) fade
+       whichever edge has tabs out of view. #}
+    <div class="ds-tabs-wrap" data-ds-tabs-wrap>
     <nav class="ds-tabs" role="tablist" aria-label="Token groups">
       {% for t in _tabs %}
       <button type="button" role="tab" class="ds-tab" id="ds-tab-{{ t[0] }}" data-ds-tab="{{ t[0] }}"
@@ -315,6 +319,7 @@
       </button>
       {% endfor %}
     </nav>
+    </div>
 
     <div class="ds-body">
       {# ── Preview stage ────────────────────────────────────────────── #}
