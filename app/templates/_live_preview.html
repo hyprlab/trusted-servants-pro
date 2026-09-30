@@ -6,13 +6,14 @@
      path   public page to show, e.g. '/meetings'
      forms  CSS selector list of the forms whose values apply
      focus  optional selector inside the page to scroll to (e.g. 'footer')
+     overlays  keep the cookie banner and popups (hidden by default)
 #}
-{% macro live_preview(path, forms, focus='', height=560, title='Preview', width=1280, note='', id='') %}
+{% macro live_preview(path, forms, focus='', height=560, title='Preview', width=1280, note='', id='', overlays=False) %}
 <div class="lp" data-live-preview{% if id %} id="{{ id }}"{% endif %}
      data-lp-url="{{ url_for('main.frontend_staged_preview') }}"
      data-lp-path="{{ path }}" data-lp-forms="{{ forms }}"
      data-lp-height="{{ height }}" data-lp-width="{{ width }}"
-     {% if focus %}data-lp-focus="{{ focus }}"{% endif %}>
+     {% if focus %}data-lp-focus="{{ focus }}"{% endif %}{% if overlays %} data-lp-overlays{% endif %}>
   <div class="lp-bar">
     <span class="lp-title">{{ title }}</span>
     <span class="lp-status muted smaller" data-lp-status aria-live="polite"></span>

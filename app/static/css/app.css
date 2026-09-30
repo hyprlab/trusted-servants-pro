@@ -17686,3 +17686,65 @@ a.fe-ss-item:hover { background: var(--panel-2); text-decoration: none; }
 .fe-dw-tag.is-off { background: var(--panel-2); color: var(--muted); }
 .fe-cust-sub { font-size: var(--fs-sm); margin: 18px 0 6px; }
 @media (max-width: 700px) { .fe-ss-item { border-left: 0; border-top: 1px solid var(--border); } .fe-ss-item:first-child { border-top: 0; } }
+
+/* ── Header page (frontend_header.html) ───────────────────────────── */
+.hdr-menu-head, .hdr-mm-head { display: flex; align-items: flex-start; gap: 12px 16px; padding: 14px 18px 4px; flex-wrap: wrap; }
+.hdr-menu-head p { margin: 6px 0 0; flex: 1 1 260px; }
+.hdr-mm-head > div { flex: 1 1 300px; }
+.hdr-mm-head h3 { margin: 4px 0 2px; font-size: var(--fs-base); }
+.hdr-mm-head p { margin: 0; }
+.hdr-mm-addcol { margin: 0; }
+.hdr-menu-list { list-style: none; margin: 8px 18px 6px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hdr-menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 10px; min-width: 0; }
+.hdr-menu-item .drag-handle { color: var(--muted); cursor: grab; display: inline-flex; }
+.hdr-menu-main { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.hdr-menu-main .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hdr-menu-item .btn .muted { font-weight: 500; margin-left: 4px; }
+.hdr-empty { padding: 8px 18px 14px; margin: 0; }
+.hdr-foot { padding: 6px 18px 16px; margin: 0; }
+.st-controls #megamenu-editor { padding: 10px 18px 18px; gap: 14px; }
+.st-controls .nav-megacol { padding: 14px 16px; gap: 10px; background: var(--panel); }
+.st-controls .nav-megacol-links { gap: 6px; }
+.hdr-switch-row { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin-bottom: 4px; }
+.hdr-switch-row .mode-toggle { gap: 8px; font-weight: 600; font-size: var(--fs-sm); }
+.hdr-alert-form { display: flex; flex-direction: column; gap: 14px; }
+.hdr-utility .form { gap: 14px; }
+
+/* Mega menu blocks: one line each, options behind More. */
+.nav-megalink { padding: 8px 10px; gap: 8px; }
+.nav-megalink-top { justify-content: flex-start; gap: 8px; }
+.nav-megalink-kind.chip { flex: 0 0 auto; min-width: 58px; text-align: center; }
+.nav-megalink-top-fields { display: flex; gap: 8px; flex: 1 1 auto; min-width: 0; align-items: center; }
+.nav-megalink-top-fields input[type="text"] { flex: 1 1 0; min-width: 0; padding: 7px 10px; font-size: var(--fs-sm);
+  border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--text); }
+.nav-megalink-auto { flex: 1 1 auto; }
+.nav-megalink-more-btn { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; max-width: 40%;
+  padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel-2);
+  color: var(--muted); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
+.nav-megalink-more-btn .icon { width: 14px; height: 14px; transition: transform 140ms ease; }
+.nav-megalink-more-btn[aria-expanded="true"] .icon { transform: rotate(180deg); }
+.nav-megalink-more-sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-megalink-more-sum:empty::before { content: "More"; }
+.nav-megalink-del { color: var(--muted); }
+.nav-megalink-del:hover { color: var(--danger, #dc2626); }
+.nav-megalink-form:not(:has(:not([hidden]))) { display: none; }
+.nav-megalink-form:empty { display: none; }
+.nav-megalink-note { margin: 0 2px; }
+.nav-megalink.is-open { background: var(--panel-2); }
+
+/* Menu item modal. */
+.nav-item-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.nav-item-field-label { font-weight: 600; font-size: var(--fs-sm); display: inline-flex; align-items: center; gap: 6px; }
+.nav-item-twoline { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.nav-item-switches { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+.nav-item-switches .mode-toggle { gap: 8px; }
+[data-nav-for][hidden] { display: none !important; }
+
+/* Design page: the Header and Footer tabs preview the real page. */
+.ds-studio.is-live-stage .ds-stage-host,
+.ds-studio.is-live-stage .ds-stage-hint,
+.ds-studio.is-live-stage .ds-stage-bar { display: none; }
+.ds-live[hidden] { display: none; }
+.ds-row .wc { width: 100%; }
+.nav-megalink [data-megalink-more-panel][hidden] { display: none !important; }

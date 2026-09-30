@@ -61,6 +61,21 @@
     this.forms().forEach(function (f) {
       f.addEventListener('input', sched);
       f.addEventListener('change', sched);
+      // Rows added, removed or dragged into a new order fire no input
+      // event; any change to the form's fields does.
+      if (window.MutationObserver) {
+        new MutationObserver(function (recs) {
+          for (var i = 0; i < recs.length; i++) {
+            var nodes = Array.prototype.slice.call(recs[i].addedNodes)
+              .concat(Array.prototype.slice.call(recs[i].removedNodes));
+            for (var j = 0; j < nodes.length; j++) {
+              var n = nodes[j];
+              if (n.nodeType === 1 && (n.matches('input, select, textarea') ||
+                  n.querySelector('input, select, textarea'))) { sched(); return; }
+            }
+          }
+        }).observe(f, { childList: true, subtree: true });
+      }
     });
     this.root.querySelectorAll('[data-lp-mode-btn]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -110,9 +125,17 @@
 
   Preview.prototype.render = function () {
     var self = this;
+    // Hidden (another tab is open): render when it next shows.
+    if (!this.root.offsetParent) { this.pending = true; return; }
+    this.pending = false;
     var seq = ++this.seq;
     var forms = this.forms().map(function (f) {
       return { action: f.getAttribute('action') || '', fields: formPairs(f) };
+    });
+    // Editors that save JSON rather than a form (the mega menu) add
+    // themselves with FeLivePreview.addSource(fn -> {action, json}).
+    sources.forEach(function (fn) {
+      try { var x = fn(); if (x && x.action) forms.push(x); } catch (_) {}
     });
     try {
       var doc = this.frame.contentDocument;
@@ -124,7 +147,8 @@
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
-      body: JSON.stringify({ path: this.root.getAttribute('data-lp-path') || '/', forms: forms })
+      body: JSON.stringify({ path: this.root.getAttribute('data-lp-path') || '/', forms: forms,
+                             overlays: this.root.hasAttribute('data-lp-overlays') })
     }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.text();
@@ -181,6 +205,7 @@
   };
 
   var all = [];
+  var sources = [];
   function init(scope) {
     (scope || document).querySelectorAll('[data-live-preview]').forEach(function (el) {
       if (el._lp) return;
@@ -189,8 +214,15 @@
     });
   }
 
+  // Render previews that were skipped while hidden once they show.
+  function wake() { all.forEach(function (p) { if (p.pending && p.root.offsetParent) p.render(); }); }
+  document.addEventListener('studio:tab', function () { setTimeout(wake, 0); });
+  document.addEventListener('ds:tab', function () { setTimeout(wake, 0); });
+
   window.FeLivePreview = {
     init: init,
+    addSource: function (fn) { sources.push(fn); },
+    wake: wake,
     refresh: function (el) { if (el && el._lp) el._lp.render(); },
     setPath: function (el, path) {
       if (!el || !el._lp) return;

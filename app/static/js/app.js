@@ -1756,7 +1756,11 @@
           credentials: "same-origin",
           body: JSON.stringify(payload),
         });
-        if (res.ok) showToast(label ? (label + " saved") : "Order saved");
+        if (res.ok) {
+          showToast(label ? (label + " saved") : "Order saved");
+          // A live preview on the page shows the new order.
+          document.dispatchEvent(new Event("lp:refresh"));
+        }
         else showToast("Save failed — retry", "error");
       } catch (_) {
         showToast("Save failed — retry", "error");
@@ -2861,6 +2865,9 @@
     });
     return out;
   }
+
+  // The Header page's live preview renders unsaved mega menu text too.
+  window.tspMegaCollect = collectBlocks;
 
   function activeEditor() {
     return document.querySelector("[data-bulk-save-url]");

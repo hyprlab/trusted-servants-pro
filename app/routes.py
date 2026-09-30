@@ -8084,7 +8084,8 @@ def frontend_staged_preview():
     Nothing is saved: see ``app/staged_preview.py``."""
     from .staged_preview import render_staged
     payload = request.get_json(silent=True) or {}
-    html = render_staged(str(payload.get("path") or "/"), payload.get("forms") or [])
+    html = render_staged(str(payload.get("path") or "/"), payload.get("forms") or [],
+                         overlays=bool(payload.get("overlays")))
     from flask import make_response
     resp = make_response(html)
     resp.headers["Content-Type"] = "text/html; charset=utf-8"
@@ -8157,7 +8158,11 @@ def _apply_alert_form(s, form, prefix):
     setattr(s, f"{prefix}_alert_enabled", form.get(f"{prefix}_alert_enabled") == "1")
     setattr(s, f"{prefix}_alert_message",
             (form.get(f"{prefix}_alert_message") or "").strip() or None)
+    # Colors are set on Design → Header now; only write them when this
+    # post carries them.
     for color_col in ("bg_color", "text_color"):
+        if f"{prefix}_alert_{color_col}" not in form:
+            continue
         val = (form.get(f"{prefix}_alert_{color_col}") or "").strip()
         setattr(s, f"{prefix}_alert_{color_col}", val if HEX_RE.fullmatch(val) else None)
     icon = (form.get(f"{prefix}_alert_icon") or "").strip()
@@ -8178,7 +8183,10 @@ def frontend_utility_bar_save():
     s.utility_bar_enabled = request.form.get("utility_bar_enabled") == "1"
     s.utility_bar_live_meetings = request.form.get("utility_bar_live_meetings") == "1"
     hex_re = re.compile(r"#[0-9a-fA-F]{6}")
+    # Colors are set on Design → Header; only write them when posted.
     for color_col in ("bg_color", "text_color"):
+        if f"utility_bar_{color_col}" not in request.form:
+            continue
         val = (request.form.get(f"utility_bar_{color_col}") or "").strip()
         setattr(s, f"utility_bar_{color_col}", val if hex_re.fullmatch(val) else None)
     # JSON-payload submission (new shape, supports containers) takes
@@ -8211,7 +8219,7 @@ def frontend_utility_bar_save():
     s.utility_bar_mobile_default = chosen or None
     db.session.commit()
     flash("Utility bar saved", "success")
-    return redirect(url_for("main.frontend_header"))
+    return redirect(url_for("main.frontend_header") + "#utility")
 
 
 @bp.route("/frontend/header-alert-save", methods=["POST"])
@@ -8220,8 +8228,8 @@ def frontend_header_alert_save():
     s = _get_site_setting()
     _apply_alert_form(s, request.form, "header")
     db.session.commit()
-    flash("Under-header alert bar saved", "success")
-    return redirect(url_for("main.frontend_header"))
+    flash("Alert bar saved", "success")
+    return redirect(url_for("main.frontend_header") + "#alert")
 
 
 @bp.route("/frontend/logo-save", methods=["POST"])
@@ -8250,38 +8258,42 @@ def frontend_logo_save():
     return redirect(url_for("main.frontend_header"))
 
 
-@bp.route("/frontend/header-save", methods=["POST"])
-@admin_required
-def frontend_header_save():
-    """Persist header layout settings (width mode + sizing)."""
-    s = _get_site_setting()
-    mode = (request.form.get("frontend_header_width_mode") or "boxed").strip()
-    s.frontend_header_width_mode = mode if mode in _WIDTH_MODES else "boxed"
-    try:
-        mw = int(request.form.get("frontend_header_max_width") or 1160)
-    except ValueError:
-        mw = 1160
-    s.frontend_header_max_width = max(600, min(mw, 2400))
-    try:
-        pp = int(request.form.get("frontend_header_padding_pct") or 5)
-    except ValueError:
-        pp = 5
-    s.frontend_header_padding_pct = max(0, min(pp, 20))
-    try:
-        hh = int(request.form.get("frontend_header_height") or 72)
-    except ValueError:
-        hh = 72
-    s.frontend_header_height = max(48, min(hh, 100))
-    db.session.commit()
-    flash("Header settings saved", "success")
-    return redirect(url_for("main.frontend_dashboard"))
-
-
 # ------------------------------------------------------------------
 # Navigation CRUD (top-level items, mega-menu columns, mega-menu links)
 # ------------------------------------------------------------------
 import re as _re
 _HEX = _re.compile(r"#[0-9a-fA-F]{6}")
+
+
+def _save_header_appearance(s, form):
+    """Apply Design → Header: the bar's width, height and logo size, and
+    the utility and alert bar colors in light and dark. A dark color equal
+    to its light one is stored empty, which means "same as light". The
+    caller commits."""
+    from .widths import normalize_width_mode
+
+    def _int(name, lo, hi, default):
+        try:
+            v = int(form.get(name) or default)
+        except ValueError:
+            v = default
+        return max(lo, min(v, hi))
+
+    s.frontend_header_width_mode = normalize_width_mode(
+        form.get("frontend_header_width_mode"), s.frontend_header_width_mode or "boxed")
+    s.frontend_header_max_width = _int("frontend_header_max_width", 600, 2400, 1160)
+    s.frontend_header_padding_pct = _int("frontend_header_padding_pct", 0, 20, 5)
+    s.frontend_header_height = _int("frontend_header_height", 48, 100, 72)
+    s.frontend_logo_width = _int("frontend_logo_width", 16, 200, 40)
+    for base in ("utility_bar_bg_color", "utility_bar_text_color",
+                 "header_alert_bg_color", "header_alert_text_color"):
+        light = (form.get(base) or "").strip()
+        dark = (form.get(base + "_dark") or "").strip()
+        if _HEX.fullmatch(light):
+            setattr(s, base, light)
+        if base + "_dark" in form:
+            setattr(s, base + "_dark",
+                    dark if _HEX.fullmatch(dark) and dark.lower() != (light or "").lower() else None)
 
 
 def _save_mega_appearance(s, form):
@@ -8365,6 +8377,10 @@ def _save_mega_appearance(s, form):
     s.frontend_megamenu_subheading_size = _read_pct("frontend_megamenu_subheading_size", 50, 200)
 
 
+# The mega menu layouts are drawn for up to three columns side by side.
+MEGAMENU_MAX_COLUMNS = 3
+
+
 def _apply_nav_item_form(item, form):
     from .forms_registry import form_keys as _form_keys
     style = (form.get("style") or "text").strip()
@@ -8406,8 +8422,10 @@ def frontend_nav_item_new():
     _apply_nav_item_form(item, request.form)
     db.session.add(item)
     db.session.commit()
-    flash("Nav item added", "success")
-    return redirect(url_for("main.frontend_navigation"))
+    flash("Menu item added", "success")
+    if item.has_megamenu:
+        return redirect(url_for("main.frontend_header", item=item.id) + "#menu")
+    return redirect(url_for("main.frontend_header") + "#menu")
 
 
 @bp.route("/frontend/nav-item/<int:nid>/edit", methods=["POST"])
@@ -8416,8 +8434,8 @@ def frontend_nav_item_edit(nid):
     item = db.session.get(FrontendNavItem, nid) or abort(404)
     _apply_nav_item_form(item, request.form)
     db.session.commit()
-    flash("Nav item updated", "success")
-    return redirect(_safe_referrer() or url_for("main.frontend_header"))
+    flash("Menu item updated", "success")
+    return redirect(_safe_referrer() or (url_for("main.frontend_header") + "#menu"))
 
 
 @bp.route("/frontend/nav-item/<int:nid>/delete", methods=["POST"])
@@ -8426,8 +8444,8 @@ def frontend_nav_item_delete(nid):
     item = db.session.get(FrontendNavItem, nid) or abort(404)
     db.session.delete(item)
     db.session.commit()
-    flash("Nav item deleted", "success")
-    return redirect(url_for("main.frontend_navigation"))
+    flash("Menu item deleted", "success")
+    return redirect(url_for("main.frontend_header") + "#menu")
 
 
 @bp.route("/frontend/nav-items/reorder", methods=["POST"])
@@ -8445,10 +8463,9 @@ def frontend_nav_item_reorder():
 @bp.route("/frontend/nav-item/<int:nid>/megamenu")
 @admin_required
 def frontend_nav_megamenu(nid):
-    from .forms_registry import all_forms
+    """Each item's mega menu is edited on the Header page's Menu tab."""
     item = db.session.get(FrontendNavItem, nid) or abort(404)
-    return render_template("frontend_nav_megamenu.html", item=item, site=_get_site_setting(),
-                           form_registry_all=all_forms())
+    return redirect(url_for("main.frontend_header", item=item.id) + "#menu")
 
 
 # ---- Columns ----
@@ -8456,6 +8473,12 @@ def frontend_nav_megamenu(nid):
 @admin_required
 def frontend_nav_column_new(nid):
     item = db.session.get(FrontendNavItem, nid) or abort(404)
+    if len(item.columns) >= MEGAMENU_MAX_COLUMNS:
+        msg = f"A mega menu holds up to {MEGAMENU_MAX_COLUMNS} columns."
+        if request.headers.get("X-Requested-With") == "fetch":
+            return jsonify(ok=False, error=msg), 400
+        flash(msg, "danger")
+        return redirect(url_for("main.frontend_header", item=item.id) + "#menu")
     max_pos = max([c.position for c in item.columns] + [-1]) + 1
     col = FrontendNavColumn(nav_item_id=item.id, position=max_pos,
                             heading=(request.form.get("heading") or "New column").strip())
@@ -10887,10 +10910,17 @@ def frontend_design():
     mm_key = s.frontend_megamenu_template or "recovery-blue"
     mm = next((t for t in MEGAMENU_TEMPLATES if t["key"] == mm_key), MEGAMENU_TEMPLATES[1])
     mm_kind = mm["partial"].rsplit("/", 1)[-1].removesuffix(".html")
-    from .widths import width_usage
+    from .widths import width_usage, site_container_max
+    from .frontend import HEADER_TEMPLATES, THEMES, UTILITY_BAR_COLOR_MODES
+    theme_key = s.frontend_theme or "classic"
+    theme_name = next((t["name"] for t in THEMES if t["key"] == theme_key), theme_key)
+    hdr_key = s.frontend_header_template or "classic"
+    hdr_name = next((t["name"] for t in HEADER_TEMPLATES if t["key"] == hdr_key), hdr_key)
     return render_template("frontend_design.html", site=s, ds=design_studio_data(s),
                            mm_name=mm["name"], mm_kind=mm_kind,
-                           width_usage=width_usage(s))
+                           width_usage=width_usage(s), site_px=site_container_max(s),
+                           theme_name=theme_name, hdr_name=hdr_name,
+                           ub_modes=UTILITY_BAR_COLOR_MODES.get(theme_key, ()))
 
 
 @bp.route("/frontend/design/save", methods=["POST"])
@@ -10906,6 +10936,8 @@ def frontend_design_save():
     s.frontend_design_json = _json.dumps(overrides) if overrides else None
     if request.form.get("mega_appearance") == "1":
         _save_mega_appearance(s, request.form)
+    if request.form.get("header_appearance") == "1":
+        _save_header_appearance(s, request.form)
     db.session.commit()
     flash("Design saved", "success")
     return redirect(url_for("main.frontend_design"))
@@ -11258,62 +11290,28 @@ def frontend_branding_save():
 @bp.route("/frontend/header")
 @admin_required
 def frontend_header():
-    from .frontend import HEADER_TEMPLATES
+    """The Header page: the menu (top-level items and their mega menus),
+    the utility bar and the alert bar, above a live preview of the real
+    header. How they look is on Design → Header. ``?item=<id>`` opens that
+    item's mega menu editor on the Menu tab."""
+    from .forms_registry import all_forms
     s = _get_site_setting()
+    nav_items = FrontendNavItem.query.order_by(FrontendNavItem.position,
+                                               FrontendNavItem.id).all()
+    mm_item = None
+    raw = (request.args.get("item") or "").strip()
+    if raw.isdigit():
+        mm_item = next((n for n in nav_items if n.id == int(raw)), None)
     return render_template("frontend_header.html", site=s,
-                           header_templates=HEADER_TEMPLATES)
+                           nav_items=nav_items, mm_item=mm_item,
+                           form_registry_all=all_forms())
 
 
 @bp.route("/frontend/navigation")
 @admin_required
 def frontend_navigation():
-    from .frontend import MEGAMENU_TEMPLATES
-    from .forms_registry import all_forms
-    s = _get_site_setting()
-    nav_items = FrontendNavItem.query.order_by(FrontendNavItem.position,
-                                               FrontendNavItem.id).all()
-    return render_template("frontend_navigation.html", site=s, nav_items=nav_items,
-                           megamenu_templates=MEGAMENU_TEMPLATES,
-                           form_registry_all=all_forms())
-
-
-@bp.route("/frontend/megamenu-template", methods=["POST"])
-@admin_required
-def frontend_megamenu_template_save():
-    from .frontend import MEGAMENU_TEMPLATES
-    s = _get_site_setting()
-    key = (request.form.get("frontend_megamenu_template") or "").strip()
-    if key in {t["key"] for t in MEGAMENU_TEMPLATES}:
-        s.frontend_megamenu_template = key
-        db.session.commit()
-        flash(f"Mega menu template set to {key}", "success")
-    return redirect(url_for("main.frontend_navigation"))
-
-
-@bp.route("/frontend/header-template", methods=["POST"])
-@admin_required
-def frontend_header_template_save():
-    from .frontend import HEADER_TEMPLATES
-    s = _get_site_setting()
-    key = (request.form.get("frontend_header_template") or "").strip()
-    allowed = {t["key"] for t in HEADER_TEMPLATES}
-    if key in allowed:
-        s.frontend_header_template = key
-        db.session.commit()
-        flash(f"Header template set to {key}", "success")
-    return redirect(url_for("main.frontend_header"))
-
-
-_FOOTER_PREBUILT_BLOCK_TYPES = {
-    # Ordered lists matching the visual order each prebuilt Jinja file
-    # renders blocks in. Used for the Footer admin's "structure" card —
-    # for prebuilts it's flat (no rows/columns), so we display a single
-    # row of clickable pills in this order.
-    "classic":  ["brand", "link_columns", "copyright", "secondary_nav", "social_row"],
-    "minimal":  ["copyright", "secondary_nav"],
-    "stacked":  ["brand", "link_columns", "social_row", "copyright", "secondary_nav"],
-    "mega":     ["brand", "link_columns", "social_row", "copyright", "secondary_nav"],
-}
+    """Navigation now lives on the Header page's Menu tab."""
+    return redirect(url_for("main.frontend_header") + "#menu")
 
 
 def _footer_active_block_types(active_key, active_rows):

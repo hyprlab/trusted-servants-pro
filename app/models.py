@@ -1403,6 +1403,10 @@ class SiteSetting(db.Model):
     utility_bar_enabled = db.Column(db.Boolean, nullable=False, default=True)
     utility_bar_bg_color = db.Column(db.String(16))
     utility_bar_text_color = db.Column(db.String(16))
+    # Dark-mode pair of the two above (Design → Header). Empty = the
+    # light color in both modes, as before these existed.
+    utility_bar_bg_color_dark = db.Column(db.String(16))
+    utility_bar_text_color_dark = db.Column(db.String(16))
     utility_bar_left_json = db.Column(db.Text)
     utility_bar_right_json = db.Column(db.Text)
     utility_bar_live_meetings = db.Column(db.Boolean, nullable=False, default=False)
@@ -1419,6 +1423,8 @@ class SiteSetting(db.Model):
     header_alert_message = db.Column(db.Text)
     header_alert_bg_color = db.Column(db.String(16))
     header_alert_text_color = db.Column(db.String(16))
+    header_alert_bg_color_dark = db.Column(db.String(16))
+    header_alert_text_color_dark = db.Column(db.String(16))
     header_alert_icon = db.Column(db.String(32))
     header_alert_icon_position = db.Column(db.String(8), nullable=False, default="before")
     setup_complete = db.Column(db.Boolean, nullable=False, default=False)

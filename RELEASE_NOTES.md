@@ -38,6 +38,12 @@ release notes expanded by default and the changelog collapsed.
 - The Web Frontend overview starts with a site status strip that can't be hidden: whether the public site is on, the theme and how it starts, the cookie banner and caching, each linking to its page. Staging sync sits below it when set up.
 - Overview widgets show more: Pages counts published, draft and private pages and those with unpublished changes; Forms lists every form, custom forms included, with what is waiting in each inbox; Redirects lists the missing pages visitors hit most; Header menu lists the menu items. The Branding and Header & Footer shortcut widgets are gone.
 - "Hide the app sidebar in Web Frontend" moved from the overview into Customize, since it is your own setting rather than the site's.
+- Header and Navigation are one page, Header, with a live preview of the real header at the top and tabs for Menu, Utility bar and Alert bar. The preview shows changes as you type, before saving, in light or dark mode and at desktop or phone width.
+- Each menu item's mega menu is edited on the Header page's Menu tab, with the preview holding its panel open. Each mega menu block takes one line; its icons, size, color, new-tab and form options sit behind a More button whose label lists what is set.
+- Menu items are added and edited in a shorter form: pick Text link, Button or Two lines, and for a button its corners. The corners choice says when the header in use draws both the same. Only forms with a pop-up version are offered under "Opens a form"; the others always went to their page anyway.
+- Dragging menu items into a new order saves when you drop them, like mega menu columns and blocks. A mega menu is limited to three columns, as the page already said.
+- The Design page has a Header tab: the header's width, height and logo size, the menu link colors (moved from Links), and the utility bar and alert bar colors, which now have separate dark mode colors. Its preview is the real header. The utility bar colors are marked as unused on themes that color the bar themselves.
+- A mega menu Search block now works: typing in it opens the site search with those words. Before, it did nothing.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
-{% from "_frontend_template_picker.html" import template_picker %}
-{% set _active = (site.frontend_header_template if site else 'classic') or 'classic' %}
-{% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
+{% from "_row_menu.html" import row_menu %}
+{% from "_live_preview.html" import live_preview %}
 {% block heading %}Header{% endblock %}
-{% block heading_help %}Controls the public site's top navigation bar. Logo on the left, navigation on the right.{% endblock %}
+{% block heading_help %}What the public site's header holds: the menu with its mega menus, the utility bar and the alert bar. How it looks (colors, height, width, logo size) is on Design → Header, and the logo image is on Branding.{% endblock %}
 {% block top_actions %}
-<a class="btn" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">View frontend ↗</a>
+<a class="btn" href="{{ url_for('main.frontend_design') }}#header">{{ icon('sliders') }} Header design</a>
 {% endblock %}
 {% block content %}
 <div class="fe-admin-layout">
@@ -14,244 +13,192 @@
   <div class="fe-admin-main">
 
 {% set _alert_icons = [
-  ('', 'No icon'),
-  ('info', 'Info'),
-  ('alert-triangle', 'Warning'),
-  ('bell', 'Bell'),
-  ('megaphone', 'Megaphone'),
-  ('star', 'Star'),
-  ('heart', 'Heart'),
-  ('calendar', 'Calendar'),
-  ('zap', 'Zap'),
-  ('mail', 'Mail'),
-  ('phone', 'Phone'),
-  ('help-circle', 'Help'),
+  ('', 'No icon'), ('info', 'Info'), ('alert-triangle', 'Warning'), ('bell', 'Bell'),
+  ('megaphone', 'Megaphone'), ('star', 'Star'), ('heart', 'Heart'), ('calendar', 'Calendar'),
+  ('zap', 'Zap'), ('mail', 'Mail'), ('phone', 'Phone'), ('help-circle', 'Help'),
 ] %}
+{% set _hdr = (site.frontend_header_template if site else 'classic') or 'classic' %}
 
-{% macro alert_bar_form(s, prefix, title, blurb, action_url) %}
-<div class="fe-header-grid-item">
-  <h3 class="fe-header-grid-title">{{ title }} <span class="heading-help field-help"><button type="button" class="help-btn" tabindex="-1" aria-label="About {{ title }}">{{ icon('info') }}</button><span class="help-tooltip" role="tooltip">{{ blurb }}</span></span></h3>
-  {% set _bg   = (s|attr(prefix ~ '_alert_bg_color')) if s else None %}
-  {% set _fg   = (s|attr(prefix ~ '_alert_text_color')) if s else None %}
-  {% set _icon = (s|attr(prefix ~ '_alert_icon')) if s else None %}
-  {% set _pos  = (s|attr(prefix ~ '_alert_icon_position')) if s else 'before' %}
-  {% set _on   = (s|attr(prefix ~ '_alert_enabled')) if s else False %}
-  {% set _msg  = (s|attr(prefix ~ '_alert_message')) if s else None %}
-  <form class="form" method="post" action="{{ action_url }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    {# A <div>, not a bare <li>: this is a standalone toggle row inside a
-       <form>, not a list item, and the stray <li> was invalid markup.
-       No inline padding either — `.special-page-row` already draws itself
-       as a bordered panel with 14px/16px inside; the old override zeroed
-       the horizontal padding and left the label and switch sitting on the
-       border. Outer spacing comes from the form's own 1rem gap. #}
-    <div class="special-page-row">
-      <div class="special-page-info">
-        <div class="u-name">Show this alert bar {% call chip() %}Appears on every frontend page when on.{% endcall %}</div>
-      </div>
-      <label class="mode-toggle">
-        <input type="checkbox" name="{{ prefix }}_alert_enabled" value="1" {% if _on %}checked{% endif %}>
-        <span class="mode-track"><span class="mode-thumb"></span></span>
-      </label>
-    </div>
-    <label>Message
-      <input type="text" name="{{ prefix }}_alert_message" value="{{ _msg or '' }}" placeholder="Your message here…" maxlength="300">
-    </label>
-    <div class="alert-bar-color-row">
-      <label>Background
-        <input type="color" name="{{ prefix }}_alert_bg_color" value="{{ _bg or '#0b5cff' }}">
-      </label>
-      <label>Text
-        <input type="color" name="{{ prefix }}_alert_text_color" value="{{ _fg or '#ffffff' }}">
-      </label>
-    </div>
-    <div class="alert-bar-icon-row">
-      <label>Icon
-        <select name="{{ prefix }}_alert_icon">
-          {% for val, label in _alert_icons %}
-          <option value="{{ val }}" {% if (_icon or '') == val %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label>Position
-        <select name="{{ prefix }}_alert_icon_position">
-          <option value="before" {% if _pos == 'before' %}selected{% endif %}>Before text</option>
-          <option value="after"  {% if _pos == 'after'  %}selected{% endif %}>After text</option>
-        </select>
-      </label>
-    </div>
-    <div class="form-actions"><button class="btn btn-primary">Save {{ title }}</button></div>
-  </form>
-</div>
-{% endmacro %}
-
-<section class="card">
+<section class="card st-studio" data-studio="header" data-no-collapse>
   <div class="card-head">
-    <h2>Header settings {% call chip('Header settings') %}Layout, logo, and alert bars — all managed here. Saves go through the global save bar.{% endcall %}</h2>
+    <h2>Header {% call chip('Header') %}Changes show in the preview straight away and are saved with the yellow Save button. Adding, removing and reordering menu items and mega menu blocks saves at once.{% endcall %}</h2>
   </div>
-  <div class="fe-header-grid">
 
-    <div class="fe-header-grid-item">
-      <h3 class="fe-header-grid-title">Width &amp; padding</h3>
-      <form class="form" method="post" action="{{ url_for('main.frontend_header_save') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-        {% set _is_full = site and site.frontend_header_width_mode == 'full' %}
-        <div class="header-mode-toggle" data-header-mode-toggle>
-          <input type="hidden" name="frontend_header_width_mode" value="{{ 'full' if _is_full else 'boxed' }}" data-header-mode-input>
-          <label class="mode-toggle content-mode-switch">
-            <span class="content-mode-label" data-header-mode-label="boxed">Boxed</span>
-            <input type="checkbox" data-header-mode-check {% if _is_full %}checked{% endif %}>
-            <span class="mode-track"><span class="mode-thumb"></span></span>
-            <span class="content-mode-label" data-header-mode-label="full">Full width</span>
-          </label>
-        </div>
-
-        <fieldset class="fieldset" data-header-panel="boxed"{% if _is_full %} hidden{% endif %}>
-          <legend>Boxed</legend>
-          <label><span class="field-label-row">Maximum width <span class="muted small">(600–2400 px)</span></span>
-            <input type="number" name="frontend_header_max_width" min="600" max="2400" step="20"
-                   value="{{ site.frontend_header_max_width if site else 1160 }}">
-          </label>
-        </fieldset>
-
-        <fieldset class="fieldset" data-header-panel="full"{% if not _is_full %} hidden{% endif %}>
-          <legend>Full-width</legend>
-          <label><span class="field-label-row">Side padding <span class="muted small">(% of viewport, 0–20)</span></span>
-            <input type="number" name="frontend_header_padding_pct" min="0" max="20" step="1"
-                   value="{{ site.frontend_header_padding_pct if site else 5 }}">
-          </label>
-        </fieldset>
-
-        <fieldset class="fieldset">
-          <legend>Height</legend>
-          {% set _h = (site.frontend_header_height if site else 72) or 72 %}
-          <label><span class="field-label-row">Header height <span class="muted small">(48–100 px)</span></span>
-            <div class="login-fx-speed-row">
-              <input type="range" name="frontend_header_height" id="fe-header-height-slider"
-                     min="48" max="100" step="1" value="{{ _h }}">
-              <output id="fe-header-height-value" for="fe-header-height-slider">{{ _h }}px</output>
-            </div>
-          </label>
-          <p class="muted smaller" style="margin: 4px 0 0;">
-            Mobile scales proportionally so the logo and nav stay readable.
-          </p>
-        </fieldset>
-
-        <div class="form-actions"><button class="btn btn-primary">Save Header Layout</button></div>
-      </form>
+  <div class="st-body st-body--top">
+    <div class="st-preview">
+      {{ live_preview((url_for('frontend.index') ~ ('?__mm=' ~ mm_item.id if mm_item else '')),
+                      '#hdr-utility-form, #hdr-alert-form', height=(460 if mm_item else 280),
+                      title='Header preview') }}
     </div>
 
-    <div class="fe-header-grid-item">
-      <h3 class="fe-header-grid-title">Logo</h3>
-      <form class="form" method="post" action="{{ url_for('main.frontend_logo_save') }}" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="ds-tabs-wrap">
+      <nav class="ds-tabs" role="tablist" aria-label="Header parts">
+        <button type="button" role="tab" class="ds-tab" data-studio-tab="menu">{{ icon('menu') }}<span>Menu</span><span class="ds-tab-count">{{ nav_items|length }}</span></button>
+        <button type="button" role="tab" class="ds-tab" data-studio-tab="utility">{{ icon('panel-top') }}<span>Utility bar</span></button>
+        <button type="button" role="tab" class="ds-tab" data-studio-tab="alert">{{ icon('megaphone') }}<span>Alert bar</span>{% if site and site.header_alert_enabled %}<span class="ds-tab-count" title="Showing">On</span>{% endif %}</button>
+      </nav>
+    </div>
 
-        {% set _has_logo = site and site.frontend_logo_filename %}
-        {% set _logo_w = (site.frontend_logo_width if site else 40) or 40 %}
-        <div class="branding-preview-wrap">
-          <div class="muted smaller">Preview</div>
-          <div class="fe-logo-preview-mock">
-            <img id="fe-logo-preview-img"
-                 src="{{ url_for('public.site_frontend_logo') if _has_logo else '' }}"
-                 alt="" style="width: {{ _logo_w }}px"{% if not _has_logo %} hidden{% endif %}>
-            <div class="fe-logo-preview-empty muted smaller"{% if _has_logo %} hidden{% endif %}>
-              No custom logo — the text site name is shown instead.
+    <div class="st-controls">
+
+      {# ── Menu: the top-level items, or one item's mega menu. ── #}
+      <div class="st-panel" data-studio-panel="menu">
+        {% if mm_item %}
+          <div class="hdr-mm-head">
+            <a class="btn btn-sm" href="{{ url_for('main.frontend_header') }}#menu">{{ icon('arrow-left') }} All menu items</a>
+            <div>
+              <h3>Mega menu: {{ mm_item.label or mm_item.line1 or 'Untitled' }}</h3>
+              <p class="muted small">Up to 3 columns side by side. Start a column with a Title block to give it a heading. Text edits save with the yellow button; adding, removing and dragging save at once. The preview holds the panel open.</p>
             </div>
+            {% if mm_item.columns|length < 3 %}
+            <form method="post" action="{{ url_for('main.frontend_nav_column_new', nid=mm_item.id) }}"
+                  class="hdr-mm-addcol" data-add-column-form data-target="#megamenu-editor" data-fe-skip-save-bar>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-primary">{{ icon('plus') }} Add column</button>
+            </form>
+            {% endif %}
           </div>
-          <label class="width-slider-label">
-            <div class="width-slider-head">
-              <span>Logo width</span>
-              <output id="fe-logo-width-value" for="fe-logo-width-slider">{{ _logo_w }}px</output>
-            </div>
-            <input type="range" name="frontend_logo_width" id="fe-logo-width-slider"
-                   min="16" max="200" step="1" value="{{ _logo_w }}">
-          </label>
+          {% if not mm_item.has_megamenu %}
+          <p class="st-na">{{ icon('alert-triangle') }}This item's Mega menu switch is off, so the panel doesn't show on the site. Turn it on from the item's Edit.</p>
+          {% endif %}
+          <div id="megamenu-editor" class="nav-megamenu-editor file-list-sortable"
+               data-reorder-url="{{ url_for('main.frontend_nav_columns_reorder', nid=mm_item.id) }}"
+               data-reorder-toast="Column order"
+               data-bulk-save-url="{{ url_for('main.frontend_nav_megamenu_save_all', nid=mm_item.id) }}">
+            {% for col in mm_item.columns %}
+              {% include "_nav_megacol.html" %}
+            {% endfor %}
+          </div>
+          {% if not mm_item.columns %}<p class="muted hdr-empty">No columns yet. Add one to start.</p>{% endif %}
+        {% else %}
+          <div class="hdr-menu-head">
+            <p class="muted small">The links across the header, in order. Drag to reorder; the order saves when you drop.</p>
+            <button type="button" class="btn btn-sm btn-primary" data-open-modal="nav-item-new-modal">{{ icon('plus') }} Add menu item</button>
+          </div>
+          {% if nav_items %}
+          <ul class="hdr-menu-list file-list-sortable" id="nav-items-sortable"
+              data-reorder-url="{{ url_for('main.frontend_nav_item_reorder') }}" data-reorder-toast="Menu order">
+            {% for ni in nav_items %}
+            <li class="hdr-menu-item" data-item-id="{{ ni.id }}" draggable="true">
+              <span class="drag-handle" title="Drag to reorder">{{ icon('grip-vertical') }}</span>
+              <div class="hdr-menu-main">
+                <b>{% if ni.style == 'two-line' %}{{ ni.line1 or '' }} {{ ni.line2 or '' }}{% else %}{{ ni.label or 'Untitled' }}{% endif %}</b>
+                <span class="muted small">{{ {'text': 'Text link', 'button': 'Button', 'button-rounded': 'Button, rounded', 'two-line': 'Two lines'}.get(ni.style, ni.style) }}{% if ni.url %} · {{ ni.url }}{% endif %}{% if ni.form_trigger %} · opens a form{% endif %}</span>
+              </div>
+              {% if ni.has_megamenu %}
+              <a class="btn btn-sm" href="{{ url_for('main.frontend_header', item=ni.id) }}#menu">
+                {{ icon('layout-grid') }} Mega menu <span class="muted">{{ ni.columns|length }} col · {{ ni.columns|map(attribute='links')|map('length')|sum }}</span>
+              </a>
+              {% endif %}
+              {% call row_menu() %}
+                <button type="button" class="row-menu-item" data-open-modal="nav-item-edit-{{ ni.id }}">{{ icon('pencil') }}<span>Edit</span></button>
+                {% if ni.has_megamenu %}
+                <a class="row-menu-item" href="{{ url_for('main.frontend_header', item=ni.id) }}#menu">{{ icon('layout-grid') }}<span>Edit mega menu</span></a>
+                {% endif %}
+                <div class="row-menu-sep" role="separator"></div>
+                <form method="post" action="{{ url_for('main.frontend_nav_item_delete', nid=ni.id) }}"
+                      onsubmit="return confirm('Delete this menu item{% if ni.has_megamenu %} and its mega menu{% endif %}?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+                </form>
+              {% endcall %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="muted hdr-empty">No menu items yet. Until you add some, the header shows Meetings, About and Help.</p>
+          {% endif %}
+          <p class="muted small hdr-foot">Mega menu colors, corners, text sizes and animation: <a href="{{ url_for('main.frontend_design') }}#megamenu">Design → Mega menu</a>. Menu link colors: <a href="{{ url_for('main.frontend_design') }}#header">Design → Header</a>.</p>
+        {% endif %}
+      </div>
+
+      {# ── Utility bar ── #}
+      <div class="st-panel" data-studio-panel="utility" hidden>
+        <p class="st-panel-intro">A slim row in the header for short text, secondary links and buttons. Group related items in a container so they stay together and swipe as one on a phone. Colors: <a href="{{ url_for('main.frontend_design') }}#header">Design → Header</a>.</p>
+        <div class="ds-group">
+          {% include "_frontend_utility_bar_admin.html" %}
         </div>
-        <label>Replace image<input type="file" name="frontend_logo" accept="image/*" id="fe-logo-file-input"></label>
-        <label class="check fe-logo-clear-label"{% if not _has_logo %} hidden{% endif %}>
-          <input type="checkbox" name="clear_frontend_logo" value="1"><span>Remove custom logo</span>
-        </label>
-        <div class="form-actions"><button class="btn btn-primary">Save Logo</button></div>
-      </form>
+      </div>
+
+      {# ── Alert bar ── #}
+      <div class="st-panel" data-studio-panel="alert" hidden>
+        <p class="st-panel-intro">A one-line message under the header on every page. Colors: <a href="{{ url_for('main.frontend_design') }}#header">Design → Header</a>.</p>
+        <div class="ds-group">
+          <form class="form hdr-alert-form" method="post" action="{{ url_for('main.frontend_header_alert_save') }}" id="hdr-alert-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="hdr-switch-row">
+              <label class="mode-toggle">
+                <input type="checkbox" name="header_alert_enabled" value="1" {% if site and site.header_alert_enabled %}checked{% endif %}>
+                <span class="mode-track"><span class="mode-thumb"></span></span>
+                <span>Show the alert bar</span>
+              </label>
+            </div>
+            <label class="st-field"><span>Message</span>
+              <input type="text" name="header_alert_message" value="{{ (site.header_alert_message if site else '') or '' }}" placeholder="Your message here…" maxlength="300">
+            </label>
+            <div class="st-grid2">
+              <label class="st-field"><span>Icon</span>
+                <select name="header_alert_icon">
+                  {% for val, label in _alert_icons %}
+                  <option value="{{ val }}" {% if ((site.header_alert_icon if site else '') or '') == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label class="st-field"><span>Icon position</span>
+                <select name="header_alert_icon_position">
+                  {% set _pos = (site.header_alert_icon_position if site else 'before') or 'before' %}
+                  <option value="before" {% if _pos == 'before' %}selected{% endif %}>Before the text</option>
+                  <option value="after" {% if _pos == 'after' %}selected{% endif %}>After the text</option>
+                </select>
+              </label>
+            </div>
+          </form>
+        </div>
+      </div>
+
     </div>
-
-    {{ alert_bar_form(site, 'header', 'Under-header alert bar',
-       'Displayed directly below the header on every frontend page.',
-       url_for('main.frontend_header_alert_save')) }}
-
-    {% include "_frontend_utility_bar_admin.html" %}
-
   </div>
-  <p class="muted small fe-header-grid-foot">
-    Top-level links and the mega menu are managed on the <a href="{{ url_for('main.frontend_navigation') }}">Navigation</a> page.
-  </p>
 </section>
 
   </div>
 </div>
 
-<script>
-  (function(){
-    document.querySelectorAll("[data-header-mode-toggle]").forEach(toggle => {
-      const form = toggle.closest("form");
-      if (!form) return;
-      const hidden = toggle.querySelector("[data-header-mode-input]");
-      const check = toggle.querySelector("[data-header-mode-check]");
-      const labels = toggle.querySelectorAll("[data-header-mode-label]");
-      const panels = form.querySelectorAll("[data-header-panel]");
-      function apply(mode) {
-        if (hidden) hidden.value = mode;
-        if (check) check.checked = (mode === "full");
-        labels.forEach(l => l.classList.toggle("active", l.dataset.headerModeLabel === mode));
-        panels.forEach(p => { p.hidden = p.dataset.headerPanel !== mode; });
-      }
-      if (check) check.addEventListener("change", () => apply(check.checked ? "full" : "boxed"));
-      apply((hidden && hidden.value) || "boxed");
-    });
+{# ---- Add and edit menu item modals ---- #}
+<div class="modal" id="nav-item-new-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <form class="form" method="post" action="{{ url_for('main.frontend_nav_item_new') }}" data-nav-item-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-head"><h2>Add menu item</h2>
+        <button type="button" class="icon-btn" data-close>{{ icon('x') }}</button></div>
+      <div class="modal-body">{% include "_nav_item_fields.html" %}</div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Add item</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% for ni in nav_items %}
+<div class="modal" id="nav-item-edit-{{ ni.id }}" aria-hidden="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <form class="form" method="post" action="{{ url_for('main.frontend_nav_item_edit', nid=ni.id) }}" data-nav-item-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-head"><h2>Edit menu item</h2>
+        <button type="button" class="icon-btn" data-close>{{ icon('x') }}</button></div>
+      <div class="modal-body">{% set _item = ni %}{% include "_nav_item_fields.html" %}</div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
 
-    // Header height slider: live value label.
-    const hSlider = document.getElementById("fe-header-height-slider");
-    const hOut = document.getElementById("fe-header-height-value");
-    if (hSlider && hOut) {
-      const syncH = () => { hOut.textContent = hSlider.value + "px"; };
-      hSlider.addEventListener("input", syncH);
-      syncH();
-    }
-
-    // Logo preview: live width slider + file-select thumbnail.
-    const slider = document.getElementById("fe-logo-width-slider");
-    const slVal = document.getElementById("fe-logo-width-value");
-    const img = document.getElementById("fe-logo-preview-img");
-    const empty = document.querySelector(".fe-logo-preview-empty");
-    const file = document.getElementById("fe-logo-file-input");
-    const clearLbl = document.querySelector(".fe-logo-clear-label");
-    if (slider && slVal) {
-      const sync = () => {
-        slVal.textContent = slider.value + "px";
-        if (img) img.style.width = slider.value + "px";
-      };
-      slider.addEventListener("input", sync);
-      sync();
-    }
-    if (file && img) {
-      file.addEventListener("change", () => {
-        const f = file.files && file.files[0];
-        if (!f) return;
-        img.src = URL.createObjectURL(f);
-        img.hidden = false;
-        if (empty) empty.hidden = true;
-        if (clearLbl) clearLbl.hidden = false;
-      });
-    }
-  })();
-</script>
-
-{# Shared icon-picker modal — fed by every [data-open-icon-picker]
-   trigger on this page (currently the utility-bar item rows + the
-   container collapsed-icon picker). The catalog/list/upload/delete
-   URLs match the modal copies on /frontend/homepage and /frontend/
-   templates so a single chooser experience runs across the admin. #}
+{# Shared icon picker, fed by every [data-open-icon-picker] on this page
+   (utility bar rows and containers, mega menu links). #}
 <div class="modal icon-picker-modal" id="icon-picker-modal" aria-hidden="true"
      data-catalog-url="{{ url_for('static', filename='vendor/lucide/icons.json') }}"
      data-custom-list-url="{{ url_for('main.frontend_custom_icons_list') }}"
@@ -277,6 +224,9 @@
       <div class="icon-picker-catalog" data-icon-catalog>
         <p class="muted smaller" style="padding: 16px;">Loading icons…</p>
       </div>
+      <p class="muted smaller icon-picker-attribution">
+        Built-in icons from <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (ISC). Upload your own SVG or PNG, up to 512&nbsp;KB.
+      </p>
     </div>
     <div class="modal-foot">
       <button type="button" class="btn" data-close>Cancel</button>
@@ -285,4 +235,59 @@
     </div>
   </div>
 </div>
+
+<script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+<script>
+(function () {
+  // Menu item modal: Shape plus Corners write the one `style` field the
+  // route reads, and only the matching label fields show and post.
+  document.querySelectorAll('[data-nav-item-form]').forEach(function (form) {
+    var style = form.querySelector('[data-nav-style]');
+    function apply() {
+      var shape = (form.querySelector('[data-nav-shape]:checked') || {}).value || 'text';
+      var corners = (form.querySelector('[data-nav-corners]:checked') || {}).value || 'button';
+      style.value = shape === 'button' ? corners : shape;
+      form.querySelectorAll('[data-nav-for]').forEach(function (el) {
+        var on = el.getAttribute('data-nav-for').split(' ').indexOf(shape) !== -1;
+        el.hidden = !on;
+        el.querySelectorAll('input, select, textarea').forEach(function (i) { if (i.type !== 'radio') i.disabled = !on; });
+        if (el.matches('input, select, textarea')) el.disabled = !on;
+      });
+    }
+    form.addEventListener('change', function (e) {
+      if (e.target.matches('[data-nav-shape], [data-nav-corners]')) apply();
+    });
+    apply();
+  });
+
+  // Mega menu link rows: the More button shows the less-used options.
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-megalink-more]');
+    if (!b) return;
+    var li = b.closest('.nav-megalink');
+    var panel = li && li.querySelector('[data-megalink-more-panel]');
+    if (!panel) return;
+    panel.hidden = !panel.hidden;
+    b.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+    li.classList.toggle('is-open', !panel.hidden);
+  });
+
+  // The live preview shows unsaved mega menu text too, and refreshes when
+  // columns or blocks are added, removed or moved.
+  var editor = document.getElementById('megamenu-editor');
+  if (editor && window.FeLivePreview) {
+    // app.js (which defines tspMegaCollect) loads after this script.
+    window.FeLivePreview.addSource(function () {
+      if (!window.tspMegaCollect) return null;
+      return { action: editor.getAttribute('data-bulk-save-url'),
+               json: { blocks: window.tspMegaCollect(editor) } };
+    });
+    var refresh = function () { document.dispatchEvent(new Event('lp:refresh')); };
+    editor.addEventListener('input', refresh);
+    editor.addEventListener('change', refresh);
+    new MutationObserver(refresh).observe(editor, { childList: true, subtree: true });
+  }
+})();
+</script>
 {% endblock %}

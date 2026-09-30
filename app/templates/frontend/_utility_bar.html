@@ -149,6 +149,11 @@
      idle palette keeps the inline admin-chosen values. #}
   {% set _bg = utility_bar.bg_color or '#0b1220' %}
   {% set _fg = utility_bar.text_color or '#ffffff' %}
+  {# Dark-mode pair from Design → Header; empty means the light colors
+     in both modes. The CSS rule keyed on data-ub-dark applies them. #}
+  {% set _bg_d = utility_bar.bg_color_dark or _bg %}
+  {% set _fg_d = utility_bar.text_color_dark or _fg %}
+  {% set _ub_dark = utility_bar.bg_color_dark or utility_bar.text_color_dark %}
   {# Width/padding mirrors the header — boxed clamps to a max-width and
      centres; full-width pads by a viewport percentage. Both come from
      the same SiteSetting fields the header consumes. #}
@@ -173,9 +178,9 @@
        data-mobile-default="{{ _mobile_default }}"
        data-ub-show-live="{{ '1' if utility_bar.show_live else '0' }}"
        data-ub-static="{{ '1' if _static_content else '0' }}"
-       data-ub-bg="{{ _bg }}" data-ub-fg="{{ _fg }}"
+       data-ub-bg="{{ _bg }}" data-ub-fg="{{ _fg }}"{% if _ub_dark %} data-ub-dark{% endif %}
        {% if not _has_content %}hidden{% endif %}
-       {% if not _is_live %}style="background: {{ _bg }}; color: {{ _fg }};"{% endif %}>
+       style="{% if _ub_dark %}--ub-bg-dark: {{ _bg_d }}; --ub-fg-dark: {{ _fg_d }};{% endif %}{% if not _is_live %} background: {{ _bg }}; color: {{ _fg }};{% endif %}">
     {# Single inner row that adapts: 3-col grid on desktop (left |
        live | right), horizontal swipe strip on mobile. The live
        message sits in the centre column either way. On mobile in

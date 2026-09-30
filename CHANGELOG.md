@@ -10,6 +10,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `app/widths.py`: a `site` width mode beside `boxed` and `full`. `resolve_width()` draws `site` as boxed at the resolved `container_max_px`; public routes pass the resolved values and the header, footer, page, contact and Recovery Contacts templates use the `width_px` Jinja global, so templates still only know `boxed` and `full`. Save routes accept `site` (`WIDTH_MODES`), the page-level `*_width_mode` model defaults are now `site` (migrations still add `boxed`), and `_width_control.html` is the shared admin control. Design → Layout lists each surface's mode (`width_usage()`).
 - `forms_overview.form_rows()`: one row per built-in and custom form with its inbox URL and waiting count (pending posts, stories and Recovery Contacts, unread contact messages, unseen custom-form submissions). `forms_registry` entries gain `inbox_endpoint`.
 - Live previews for the Web Frontend studios: `POST /tspro/frontend/preview` (`staged_preview.render_staged`) runs the posted forms through their own save routes with the session's commits turned into flushes, renders the public path with a nested request carrying the admin's cookie, and rolls back. Only settings saves in `PREVIEWABLE` may run; file inputs and remove/clear fields are dropped. `_live_preview.html` and `fe_live_preview.js` draw it as a scaled iframe with light/dark and desktop/phone switches; `fe_studio.js` drives the studio tabs and asks before leaving with unsaved changes.
+- Design → Header (`header_appearance=1`, `_save_header_appearance`): header width through `_width_control.html`, height, logo width, and `utility_bar_*` and `header_alert_*` colors with new `*_dark` columns (empty means the light color). Dark colors render through `data-ub-dark` / `data-ab-dark` rules in `frontend.css`; `frontend.UTILITY_BAR_COLOR_MODES` lists the themes that honor the utility bar colors. The Header and Footer tabs swap the drawn stage for a live preview of the page.
 
 ### Changed
 
@@ -28,6 +29,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `_frontend_subnav.html` renders both the desktop list and the phone `<select>` from one list, `fe_admin_nav._SECTIONS`, exposed as the `fe_subnav(site)` Jinja global. Groups are Look, Structure, Content and Site; Visitor metrics is marked as leaving the area.
 - The `template_picker(frontend_themes, …)` pill is removed from every Web Frontend page header except Design.
 - `frontend_dashboard` renders a fixed status strip (`frontend_enabled`, theme and default mode, cookie banner, caching) and the staging sync card above the widget grid. `FE_DASHBOARD_WIDGET_KEYS` drops `fe-status`, `fe-branding` and `fe-header-footer`; their `fe_dash_show_*` columns are no longer read. `fe_dashboard_customize` also saves `fe_admin_autohide_sidebar`.
+- `frontend_header.html` is a studio (`fe_studio.js` tabs, `live_preview` of `/`, with `?__mm=<id>` holding a mega panel open through `data-fe-open-megamenu`). `frontend_navigation` and `frontend_nav_megamenu` redirect to it; their templates are gone. Nav item CRUD redirects to `#menu`, nav reorder saves on drop, and `frontend_nav_column_new` refuses a fourth column (`MEGAMENU_MAX_COLUMNS`).
+- `_nav_megalink.html` puts the text fields in the block's top row and the options in a `data-megalink-more-panel`; `_nav_item_fields.html` posts the same `style` values through a shape and corners control. `app.js` exposes `tspMegaCollect` so the preview posts unsaved mega blocks as JSON to `frontend_nav_megamenu_save_all` (`render_staged` accepts `json` entries).
 
 ### Fixed
 
@@ -44,6 +47,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `base.html` kept the app sidebar on every `main.frontend_form*` and `main.frontend_custom_form*` endpoint, which caught the form settings pages as well as the inbox. The exception now covers only the inbox routes (`main.frontend_form_submission*` other than `main.frontend_form_submission` itself).
 - `_normalize_redirect_pair` rejects sources under `/tspro`, `/static` and `/pub`, and the `before_request` redirect lookup skips `/tspro` as well as the asset prefixes, so a stored rule can't lock the admin out.
 - `contact.html` and `recovery_contacts.html` fall back to `aurora-blobs` when no key is stored, so clearing the picker could never remove it. `frontend_template_settings_save` now stores `none` for those two kinds when the picker posts blank, and the templates treat it as no backdrop.
+- The mega menu Search block rendered an input nothing handled; it now hands its text to the site search modal. Nav and mega-menu links offered every form as a trigger, but only the Announcements/Events form has a modal (`forms_registry` `has_modal`).
+
+### Removed
+- The `/frontend/header-save`, `/frontend/header-template` and `/frontend/megamenu-template` routes, which nothing used.
 
 ## [2.20.2] — 2026-09-30
 

@@ -318,6 +318,15 @@ THEMES = [
 # absent from this map leave the admin's existing default untouched.
 THEME_DEFAULT_MODE = {t["key"]: t["default_mode"] for t in THEMES if t.get("default_mode")}
 
+# Which light/dark modes draw the utility bar in its admin-chosen colors.
+# The other themes paint it themselves (themes/<key>.css), so Design →
+# Header marks the colors as unused there.
+UTILITY_BAR_COLOR_MODES = {
+    "classic": ("light", "dark"),
+    "recovery-blue": ("light", "dark"),
+    "modern-dark": ("light",),
+}
+
 
 # ---------------------------------------------------------------------------
 # Per-theme saved state.

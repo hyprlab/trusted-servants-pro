@@ -1,53 +1,56 @@
 {% set _kind = link.kind or 'link' %}
 <li id="nav-megalink-{{ link.id }}" class="nav-megalink nav-megalink-{{ _kind }}"
     data-item-id="{{ link.id }}" data-block-kind="{{ _kind }}" draggable="true">
+  {# One row per block: handle, kind, the text fields, a More toggle for
+     the less-used options (their summary shows which are set) and
+     delete. #}
+  {% set _has_more = _kind not in ('title', 'section', 'search') %}
+  {% set _set = [] %}
+  {% if link.icon_before or link.icon_after %}{% set _ = _set.append('icon') %}{% endif %}
+  {% if link.link_size_pct %}{% set _ = _set.append(link.link_size_pct ~ '%') %}{% endif %}
+  {% if link.override_color %}{% set _ = _set.append('color') %}{% endif %}
+  {% if link.open_in_new_tab %}{% set _ = _set.append('new tab') %}{% endif %}
+  {% if link.form_trigger %}{% set _ = _set.append('opens form') %}{% endif %}
   <div class="nav-megalink-top">
     <span class="drag-handle nav-megalink-drag" title="Drag to reorder">{{ icon('grip-vertical') }}</span>
-    <span class="nav-megalink-kind chip">{{ _kind }}</span>
+    <span class="nav-megalink-kind chip">{{ {'link': 'Link', 'title': 'Title', 'button': 'Button', 'section': 'Section', 'search': 'Search', 'admin_login': 'Sign in'}.get(_kind, _kind) }}</span>
+    <span class="nav-megalink-top-fields">
+      {% if _kind in ('title', 'section') %}
+        <input type="text" data-block-field="label" value="{{ link.label }}" aria-label="{{ 'Heading' if _kind == 'section' else 'Title' }}"
+               placeholder="{% if _kind == 'section' %}Group heading{% else %}Title text{% endif %}" required>
+      {% elif _kind == 'search' %}
+        <input type="text" data-block-field="label" value="{{ link.label }}" aria-label="Search placeholder"
+               placeholder="Placeholder text in the empty search bar" required>
+      {% elif _kind == 'admin_login' %}
+        {# Label and URL follow the visitor: Login when signed out, Return
+           to dashboard when signed in. Kept as hidden fields so the bulk
+           save posts the same shape for every block. #}
+        <span class="muted small nav-megalink-auto">Shows <b>Login</b> or <b>Return to dashboard</b></span>
+        <input type="hidden" data-block-field="label" value="{{ link.label or 'Login' }}">
+        <input type="hidden" data-block-field="url" value="">
+      {% else %}
+        <input type="text" data-block-field="label" value="{{ link.label }}" placeholder="Text" aria-label="Text" required>
+        <input type="text" data-block-field="url" value="{{ link.url or '' }}" placeholder="/page or https://…" aria-label="Link">
+      {% endif %}
+    </span>
+    {% if _has_more %}
+    <button type="button" class="nav-megalink-more-btn" data-megalink-more aria-expanded="false"
+            title="Icons, size, color, new tab and form">
+      <span class="nav-megalink-more-sum" data-megalink-sum>{{ _set|join(' · ') }}</span>{{ icon('chevron-down') }}
+    </button>
+    {% endif %}
     <form method="post" action="{{ url_for('main.frontend_nav_link_delete', lid=link.id) }}"
           onsubmit="return confirm('Delete this block?');" class="nav-megalink-del-form"
           data-delete-block-form data-target-item="#nav-megalink-{{ link.id }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-sm btn-danger" title="Delete block">{{ icon('trash') }}</button>
+      <button class="icon-btn nav-megalink-del" title="Delete block" aria-label="Delete block">{{ icon('trash') }}</button>
     </form>
   </div>
   <div class="nav-megalink-form">
-    {% if _kind == 'title' or _kind == 'section' %}
-      <div class="nav-megalink-row nav-megalink-row-single">
-        <input type="text" data-block-field="label" value="{{ link.label }}"
-               placeholder="{% if _kind == 'section' %}Group heading{% else %}Title text{% endif %}" required>
-      </div>
-    {% elif _kind == 'search' %}
-      <div class="nav-megalink-row nav-megalink-row-single">
-        <input type="text" data-block-field="label" value="{{ link.label }}"
-               placeholder="Placeholder text (shown inside the empty search bar)" required>
-      </div>
-      <p class="muted smaller" style="margin: 4px 2px 0;">Renders as a full-width pill search bar. Search functionality coming soon.</p>
-    {% else %}
-      {% if _kind == 'admin_login' %}
-        {# Label + URL are managed by the renderer (auth-aware). Showing
-           the inputs anyway would invite admins to "fix" values that
-           the public renderer ignores. The stored label survives in
-           the DB but is never displayed — kept as a hidden field so
-           the bulk-save IIFE in app.js doesn't choke on a missing
-           expected attribute. #}
-        <div class="nav-megalink-row nav-megalink-row-single">
-          <p class="muted small" style="margin: 0; padding: 6px 0;">
-            Renders <b>Login</b> for signed-out visitors and
-            <b>Return to dashboard</b> for signed-in users.
-            Label and URL are managed automatically — every other
-            option below works just like a regular link.
-          </p>
-        </div>
-        <input type="hidden" data-block-field="label" value="{{ link.label or 'Login' }}">
-        <input type="hidden" data-block-field="url" value="">
-      {% else %}
-      <div class="nav-megalink-row nav-megalink-row-text">
-        <input type="text" data-block-field="label" value="{{ link.label }}" placeholder="Text" required>
-        <input type="text" data-block-field="url" value="{{ link.url or '' }}" placeholder="https://…">
-      </div>
-      {% endif %}
-      <div class="nav-megalink-row nav-megalink-row-icons">
+    {% if _kind == 'search' %}
+      <p class="muted smaller nav-megalink-note">A search bar in the panel. Typing in it opens the site search with the words entered.</p>
+    {% elif _has_more %}
+      <div class="nav-megalink-row nav-megalink-row-icons" data-megalink-more-panel hidden>
         <div class="nav-megalink-field nav-megalink-icon-field{% if link.icon_before %} has-icon{% endif %}" data-icon-field>
           <span class="nav-megalink-field-lbl">Icon before</span>
           <div class="icon-picker-trigger-wrap">
@@ -105,7 +108,7 @@
            label gets the same per-link scale + colour treatments as
            a regular link. #}
         <div class="nav-megalink-field nav-megalink-size-field{% if link.link_size_pct %} is-on{% endif %}" data-size-override-field>
-          <span class="nav-megalink-field-lbl">Override font size</span>
+          <span class="nav-megalink-field-lbl">Own text size</span>
           <div class="nav-megalink-size-row">
             <label class="mode-toggle">
               <input type="checkbox" data-block-field="link_size_override"
@@ -124,7 +127,7 @@
         </div>
         <div class="nav-megalink-field nav-megalink-color-field{% if link.override_color %} is-on{% endif %}" data-color-override-field
              title="Applied in light mode; a lighter variant is auto-derived for dark mode.">
-          <span class="nav-megalink-field-lbl">Override color</span>
+          <span class="nav-megalink-field-lbl">Own color</span>
           <div class="nav-megalink-color-row">
             <label class="mode-toggle">
               <input type="checkbox" data-block-field="override_color" value="1"
@@ -163,7 +166,7 @@
            auto-managed (login page vs dashboard) and a modal trigger
            would override that intended navigation. #}
         {% if _kind != 'admin_login' %}
-        {% set _forms = (form_registry_all if form_registry_all is defined else []) %}
+        {% set _forms = (form_registry_all if form_registry_all is defined else []) | selectattr('has_modal') | list %}
         <div class="nav-megalink-field nav-megalink-field-form-trigger">
           <span class="nav-megalink-field-lbl">Triggers form</span>
           <select data-block-field="form_trigger">

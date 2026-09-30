@@ -2,6 +2,8 @@
 {% from "_help_chip.html" import chip %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% from "_dynbg_picker.html" import dynbg_trigger with context %}
+{% from "_width_control.html" import width_control %}
+{% from "_live_preview.html" import live_preview %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% set _def = ds.defaults %}
 {% set _ovr = ds.overrides %}
@@ -178,9 +180,9 @@
    own names, always hold a value, and have no theme default to reset to.
    `kinds` lists the mega menu styles that read a setting; under any
    other style the row is dimmed and says so. #}
-{% macro na(kinds) -%}{% if mm_kind not in kinds %} is-na{% endif %}{%- endmacro %}
+{% macro na(kinds) -%}{% if 'all' not in kinds and mm_kind not in kinds %} is-na{% endif %}{%- endmacro %}
 {% macro na_note(kinds) -%}
-  {%- if mm_kind not in kinds %}<p class="ds-na-note">Not used by the {{ mm_name }} mega menu.</p>{% endif -%}
+  {%- if 'all' not in kinds and mm_kind not in kinds %}<p class="ds-na-note">Not used by the {{ mm_name }} mega menu.</p>{% endif -%}
 {%- endmacro %}
 
 {% macro pcolor(name, value, label, cap, cap_icon) %}
@@ -281,6 +283,7 @@
   ('colors',  'Colors',  'droplets'),
   ('text',    'Text',    'type'),
   ('links',   'Links',   'link'),
+  ('header',  'Header',  'panel-top'),
   ('megamenu', 'Mega menu', 'menu'),
   ('layout',  'Layout',  'layout-grid'),
   ('cards',   'Cards',   'square'),
@@ -296,6 +299,7 @@
   {# Tells the save endpoint this post carries the Mega menu tab's panel
      settings too. #}
   <input type="hidden" name="mega_appearance" value="1">
+  <input type="hidden" name="header_appearance" value="1">
 
   <section class="card ds-studio" data-ds-studio data-no-collapse>
     <div class="card-head ds-studio-head">
@@ -333,6 +337,11 @@
         </div>
         <div class="ds-stage-host" data-ds-stage></div>
         <p class="ds-stage-hint muted smaller">Click part of the preview to highlight its settings.</p>
+        {# Header and footer are previewed from the real public page, with
+           this form's unsaved values applied. #}
+        <div class="ds-live" data-ds-live-for="header" hidden>
+          {{ live_preview(url_for('frontend.index'), '.ds-form', height=340, title='Header, live') }}
+        </div>
       </div>
 
       {# ── Controls ─────────────────────────────────────────────────── #}
@@ -373,9 +382,49 @@
             {{ segmented('link_decoration', 'Underline', _deco) }}
             {{ segmented('link_decoration_hover', 'Underline on hover', _deco) }}
           {% endcall %}
-          {% call group('Header navigation', 'panel-top') %}
+          <p class="ds-note">Header menu link colors are on the Header tab.</p>
+        </div>
+
+        {# ── Header: the bar's size and the colors of its links, utility
+           bar and alert bar. Previewed live from the real header. #}
+        <div class="ds-panel" role="tabpanel" id="ds-panel-header" aria-labelledby="ds-tab-header" data-ds-panel="header" hidden>
+          <p class="ds-note ds-note--panel">This site uses the <b>{{ hdr_name }}</b> header, which follows the theme. The menu, utility bar and alert bar themselves are edited on the <a href="{{ url_for('main.frontend_header') }}">Header</a> page.</p>
+          {% call group('Bar', 'panel-top') %}
+            <div class="ds-row">
+              {{ width_control('frontend_header_width_mode', site.frontend_header_width_mode,
+                               'frontend_header_max_width', site.frontend_header_max_width,
+                               'frontend_header_padding_pct', site.frontend_header_padding_pct,
+                               site_px, label='Width') }}
+            </div>
+            {{ prange('frontend_header_height', site.frontend_header_height or 72, 48, 100, 1,
+                      'Height', 'px', ['all'], help='On phones the header scales down so the logo and menu stay readable.') }}
+            {{ prange('frontend_logo_width', site.frontend_logo_width or 40, 16, 200, 1,
+                      'Logo width', 'px', ['all'], help='The logo image is set on Branding.') }}
+          {% endcall %}
+          {% call group('Menu links', 'link') %}
             {{ color_pair('Color', 'color_nav_link', 'color_nav_link_hover', ('Rest', 'Hover'), ('', 'mouse-pointer-click')) }}
             <p class="ds-note" data-ds-dark-note>In dark mode, header links use the dark body text color.</p>
+          {% endcall %}
+          {% call group('Utility bar', 'panel-top') %}
+            {% set _ub_light = site.utility_bar_bg_color or '#0b1220' %}
+            {% set _ub_text = site.utility_bar_text_color or '#ffffff' %}
+            <div class="ds-row-wrap{% if not ub_modes %} is-na{% endif %}">
+              {{ pcolor_pair('Background', 'utility_bar_bg_color', _ub_light,
+                             'utility_bar_bg_color_dark', site.utility_bar_bg_color_dark or _ub_light, ['all']) }}
+              {{ pcolor_pair('Text', 'utility_bar_text_color', _ub_text,
+                             'utility_bar_text_color_dark', site.utility_bar_text_color_dark or _ub_text, ['all']) }}
+              {% if not ub_modes %}<p class="ds-na-note">The {{ theme_name }} theme draws its own utility bar colors.</p>
+              {% elif ub_modes|length == 1 %}<p class="ds-na-note">The {{ theme_name }} theme draws its own utility bar in dark mode, so the dark colors aren't used.</p>{% endif %}
+            </div>
+            <p class="ds-note">While a meeting is live the bar turns yellow whatever its colors.</p>
+          {% endcall %}
+          {% call group('Alert bar', 'megaphone') %}
+            {% set _ab_light = site.header_alert_bg_color or '#0b5cff' %}
+            {% set _ab_text = site.header_alert_text_color or '#ffffff' %}
+            {{ pcolor_pair('Background', 'header_alert_bg_color', _ab_light,
+                           'header_alert_bg_color_dark', site.header_alert_bg_color_dark or _ab_light, ['all']) }}
+            {{ pcolor_pair('Text', 'header_alert_text_color', _ab_text,
+                           'header_alert_text_color_dark', site.header_alert_text_color_dark or _ab_text, ['all']) }}
           {% endcall %}
         </div>
 
@@ -548,7 +597,7 @@
         <header class="pv-header" data-goto="colors:color_surface">
           <span class="pv-logo" data-goto="colors:color_brand"></span>
           <b class="pv-sitename">Area Service</b>
-          <nav class="pv-nav" data-goto="links:color_nav_link">
+          <nav class="pv-nav" data-goto="header:color_nav_link">
             <span class="pv-nav-link">Meetings</span><span class="pv-nav-link">Events</span><span class="pv-nav-link">Literature</span>
           </nav>
         </header>
@@ -609,13 +658,6 @@
         <div class="pv-states" data-goto="links:color_link">
           <figure><p class="pv-p">Read the <span class="pv-a">newcomer guide</span> first.</p><figcaption>Rest</figcaption></figure>
           <figure><p class="pv-p">Read the <span class="pv-a is-hover">newcomer guide</span> first.</p><figcaption>Hover</figcaption></figure>
-        </div>
-        <div class="pv-label">Header navigation</div>
-        <div class="pv-header pv-header--flat" data-goto="links:color_nav_link">
-          <span class="pv-logo"></span>
-          <nav class="pv-nav">
-            <span class="pv-nav-link">Meetings</span><span class="pv-nav-link is-hover">Events <small>hover</small></span><span class="pv-nav-link">Literature</span>
-          </nav>
         </div>
       </div>
     </div>
@@ -754,5 +796,6 @@
   'scales': ds.scales,
   'shadow_parts': ds.shadow_parts,
 } | tojson }}</script>
+<script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/design_studio.js', v=app_build_id) }}"></script>
 {% endblock %}

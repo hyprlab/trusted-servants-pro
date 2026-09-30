@@ -12416,3 +12416,15 @@ body.fe-frontend-force-dark .fe-event-time-cover:focus-within {
   .fe-event-detail-cover,
   .fe-event-time-cover { transition: none; }
 }
+
+/* Dark-mode colors for the utility and alert bars (Design → Header).
+   Only emitted when set; the themes that paint the utility bar
+   themselves are listed in frontend.UTILITY_BAR_COLOR_MODES and win on
+   specificity where they apply. The live-meeting state keeps its yellow. */
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-utility-bar[data-ub-dark]:not(.is-live),
+html[data-theme="dark"] body[data-fe-theme="recovery-blue"] .fe-utility-bar[data-ub-dark]:not(.is-live) {
+  background: var(--ub-bg-dark) !important; color: var(--ub-fg-dark) !important;
+}
+html[data-theme="dark"] .fe-alertbar[data-ab-dark] {
+  background: var(--ab-bg-dark) !important; color: var(--ab-fg-dark) !important;
+}

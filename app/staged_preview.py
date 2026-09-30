@@ -23,7 +23,6 @@ from .models import db
 PREVIEWABLE = {
     "main.frontend_design_save",
     "main.frontend_default_theme_save",
-    "main.frontend_header_save",
     "main.frontend_header_alert_save",
     "main.frontend_utility_bar_save",
     "main.frontend_footer_save",
@@ -75,8 +74,15 @@ def _safe_fields(pairs):
     return out
 
 
-def render_staged(path, forms):
-    """Stage ``forms`` (``[{"action": url, "fields": [[k, v], ...]}]``),
+# Injected unless the preview is about them: the cookie banner and any
+# auto-opening popup would otherwise cover the part being edited.
+_HIDE_OVERLAYS = ("<style>.tsp-cc-banner,.fe-popup{display:none!important}"
+                  "body{overflow:auto!important}</style>")
+
+
+def render_staged(path, forms, overlays=False):
+    """Stage ``forms`` (``[{"action": url, "fields": [[k, v], ...]}]``, or
+    ``"json": {...}`` in place of ``fields`` for a JSON save route),
     render ``path`` and roll everything back. Returns the page HTML."""
     if not path or not path.startswith("/") or path.startswith("/tspro"):
         abort(400)
@@ -96,10 +102,16 @@ def render_staged(path, forms):
                 abort(400)
             if endpoint not in PREVIEWABLE:
                 abort(400)
-            with app.test_request_context(action.path, method="POST",
-                                          query_string=action.query,
-                                          data=_safe_fields(form.get("fields")),
-                                          headers=headers):
+            if form.get("json") is not None:
+                ctx = app.test_request_context(action.path, method="POST",
+                                               query_string=action.query,
+                                               json=form.get("json"), headers=headers)
+            else:
+                ctx = app.test_request_context(action.path, method="POST",
+                                               query_string=action.query,
+                                               data=_safe_fields(form.get("fields")),
+                                               headers=headers)
+            with ctx:
                 app.view_functions[endpoint](**args)
         target = urlsplit(path)
         with app.test_request_context(target.path, query_string=target.query,
@@ -109,7 +121,10 @@ def render_staged(path, forms):
             return ("<p style='font:14px system-ui;padding:24px'>This address "
                     "redirects to " + (resp.headers.get("Location") or "another page")
                     + ".</p>")
-        return resp.get_data(as_text=True)
+        html = resp.get_data(as_text=True)
+        if not overlays:
+            html = html.replace("</head>", _HIDE_OVERLAYS + "</head>", 1)
+        return html
     finally:
         sess.commit = real_commit
         db.session.rollback()

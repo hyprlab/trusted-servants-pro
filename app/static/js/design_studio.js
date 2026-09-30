@@ -305,8 +305,18 @@
     root.querySelectorAll('[data-pane]').forEach(function (p) {
       p.hidden = p.getAttribute('data-pane') !== id;
     });
+    // Header and footer tabs show the real page (a live preview) in
+    // place of the drawn one.
+    var live = false;
+    studio.querySelectorAll('[data-ds-live-for]').forEach(function (el) {
+      var on = el.getAttribute('data-ds-live-for').split(' ').indexOf(id) !== -1;
+      el.hidden = !on;
+      if (on) live = true;
+    });
+    studio.classList.toggle('is-live-stage', live);
     paint();
     if (id === 'megamenu') replayMega();
+    document.dispatchEvent(new CustomEvent('ds:tab', { detail: { tab: id } }));
   }
   tabs.forEach(function (t, i) {
     t.addEventListener('click', function () { showTab(t.getAttribute('data-ds-tab')); });

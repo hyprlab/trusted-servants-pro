@@ -56,6 +56,10 @@ def all_forms():
             "enabled_setting": "submission_form_enabled",
             # Where its submissions are reviewed.
             "inbox_endpoint": "main.posts",
+            # Has a pop-up version (frontend/_submission_modal.html), so a
+            # menu link can open it in place. The other forms only have
+            # their own page.
+            "has_modal": True,
         },
         {
             "key": "story",
