@@ -11,7 +11,7 @@ release notes expanded by default and the changelog collapsed.
 
 - The Design page has a new layout: a live preview on the left and the settings beside it, in tabs for Colors, Text, Links, Layout, Cards and Buttons. Settings are grouped by the element they change, so everything for a card, a button or a link is in one place.
 - The text colors (body text in light and dark, and muted text) are on both the Colors and Text tabs. A change on either tab shows on the other.
-- Each tab's preview shows its elements at rest and on hover, in light or dark mode. It starts in the admin theme's mode, and clicking part of it jumps to the settings that drive it.
+- Each tab's preview shows its elements at rest and on hover, in light or dark mode. It starts in the admin theme's mode, and clicking part of it highlights the settings that drive it.
 - Scales such as border width, shadow and corner radius are sliders, on/off settings are switches, and light and dark (or rest and hover) colors sit side by side. A dot marks each changed setting, and its reset button returns it to the theme's value.
 - The mega menu's appearance moved from Navigation to a new Mega menu tab on the Design page, together with the mega menu link settings that were under Links. Its preview shows the panel open, with a button to replay the opening animation.
 - The Mega menu tab says which mega menu style the theme uses and dims the settings that style ignores. Before, the link colors under Design had no effect on the Classic and Recovery Blue menus, which color their links with the panel's text color, and nothing said so.
