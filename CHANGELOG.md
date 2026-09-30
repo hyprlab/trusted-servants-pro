@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [2.20.2] — 2026-09-30
+
 ### Changed
 
 - The detail-page featured image (`.fe-event-detail-cover`, `.fe-event-time-cover`) uses the primary card shadow tokens (`--fe-card-primary-shadow`, `-hover-shadow` and their `-dark` pairs) in place of its own lg/xl recipe. The raw `--fe-color-card-{primary,secondary}-shadow` vars it alone used are no longer emitted.

@@ -9,9 +9,11 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 2.20.2 — 2026-09-30 (latest)
+
 - The featured image on announcement, event and archive pages now has the same shadow as the cards beside it, set under Design, in place of a heavier shadow of its own.
 
-## 2.20.1 — 2026-09-29 (latest)
+## 2.20.1 — 2026-09-29
 
 - Every switch in the admin now sits to the left of its caption. Settings rows (Settings modules, dashboard widgets, Web Frontend pages, caching, cookie compliance, forms, post editor) had the switch on the far right, and some switches in the meeting editor and library settings were stacked and centered above their caption.
 
