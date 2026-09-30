@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
 {% block heading %}Cookie Compliance{% endblock %}
-{% block heading_help %}Run a privacy + cookie compliance banner on the public site. Pick a regional preset, customise the copy, and (if you don't have one yet) generate a starter privacy policy with one click. The banner remembers each visitor's choice in their browser for {{ site.cookie_compliance_remember_days or 365 }} day{{ '' if (site.cookie_compliance_remember_days or 365) == 1 else 's' }} so they're not nagged on every visit.{% endblock %}
+{% block heading_help %}Run a privacy + cookie compliance banner on the public site. Pick a regional preset, customise the copy, and (if you don't have one yet) generate a starter privacy policy with one click. The banner remembers each visitor's choice in their browser for {{ 365 if site.cookie_compliance_remember_days is none else site.cookie_compliance_remember_days }} day{{ '' if site.cookie_compliance_remember_days == 1 else 's' }} so they're not nagged on every visit.{% endblock %}
 {% block top_actions %}
 <a class="btn" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">View frontend ↗</a>
 {% endblock %}
@@ -101,7 +101,7 @@
 
       <div class="cc-row">
         <div class="cc-row-text">
-          <div class="cc-row-label">Enable cookie compliance banner {% call chip('Enable cookie compliance banner') %}Renders a privacy banner on the public site until each visitor has made a choice. Their choice is remembered in their browser for {{ site.cookie_compliance_remember_days or 365 }} day{{ '' if (site.cookie_compliance_remember_days or 365) == 1 else 's' }}.{% endcall %}</div>
+          <div class="cc-row-label">Enable cookie compliance banner {% call chip('Enable cookie compliance banner') %}Renders a privacy banner on the public site until each visitor has made a choice. Their choice is remembered in their browser for {{ 365 if site.cookie_compliance_remember_days is none else site.cookie_compliance_remember_days }} day{{ '' if site.cookie_compliance_remember_days == 1 else 's' }}.{% endcall %}</div>
         </div>
         <label class="mode-toggle">
           <input type="checkbox" name="cookie_compliance_enabled" value="1" {% if site.cookie_compliance_enabled %}checked{% endif %}>
@@ -199,8 +199,8 @@
       <label class="cc-field" style="max-width: 280px;">
         <span class="cc-field-label">Remember choice for (days)</span>
         <input type="number" name="cookie_compliance_remember_days" min="0" max="730"
-               value="{{ site.cookie_compliance_remember_days or 365 }}">
-        <span class="muted smaller">0 = re-prompt every page load (useful for testing). 365 = the default. 730 (2 years) is the upper end of what most regulators accept.</span>
+               value="{{ 365 if site.cookie_compliance_remember_days is none else site.cookie_compliance_remember_days }}">
+        <span class="muted smaller">0 = until the visitor closes the browser. 365 = the default. 730 (2 years) is the upper end of what most regulators accept.</span>
       </label>
     </section>
 
@@ -216,7 +216,7 @@
             <option value="">— None —</option>
             {% for p in pages %}
             <option value="{{ p.id }}" {% if site.cookie_compliance_policy_page_id == p.id %}selected{% endif %}>
-              {{ p.title }} (/{{ p.slug }})
+              {{ p.title }} (/{{ p.slug }}){% if not p.is_published %}, draft: not linked until published{% endif %}
             </option>
             {% endfor %}
           </select>

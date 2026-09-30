@@ -10999,7 +10999,13 @@ def frontend_cookie_compliance():
     starter policy templates."""
     from . import cookie_compliance as cc
     s = _get_site_setting()
-    pages = (Page.query.filter(Page.is_published.is_(True))
+    # Only pages the banner can link to (a private page gives no link),
+    # plus the linked page itself, which may still be a draft.
+    from sqlalchemy import and_ as _and, or_ as _or
+    _linked = s.cookie_compliance_policy_page_id or 0
+    pages = (Page.query.filter(_or(
+                 _and(Page.is_published.is_(True), Page.is_private.is_(False)),
+                 Page.id == _linked))
              .order_by(Page.title.asc()).all())
     return render_template(
         "frontend_cookie_compliance.html",
@@ -11111,7 +11117,9 @@ def frontend_cookie_compliance_generate_policy():
         slug=slug,
         title=title,
         blocks_json=blocks_json,
-        is_published=True,
+        # A draft: the starter text has placeholders to fill in first.
+        # The banner links it once it is published.
+        is_published=False,
         is_private=False,
     )
     db.session.add(page)
@@ -11119,10 +11127,10 @@ def frontend_cookie_compliance_generate_policy():
     s.cookie_compliance_policy_page_id = page.id
     db.session.commit()
     flash(
-        f"Generated starter policy page “{title}” (/{slug}) and linked "
-        "it as your privacy policy. Open it from Pages to fill in the "
-        "placeholders (organisation name, contact email, retention "
-        "periods).", "success")
+        f"Created a draft privacy policy page “{title}” (/{slug}) and "
+        "linked it to the banner. Fill in the placeholders (organization "
+        "name, contact email, retention periods), then publish it; the "
+        "banner shows the link once it is published.", "success")
     return redirect(url_for("main.frontend_page_edit", page_id=page.id))
 
 

@@ -1368,7 +1368,10 @@ def _inject_cookie_compliance():
                 "Reject non-essential" if effective != "notice" else ""),
             "more_label": getattr(site, "cookie_compliance_more_label", None) or "Privacy policy",
             "policy_url": policy_url,
-            "remember_days": getattr(site, "cookie_compliance_remember_days", None) or 365,
+            # 0 is a real setting (a session cookie), so only a missing
+            # value falls back to the default.
+            "remember_days": (365 if getattr(site, "cookie_compliance_remember_days", None) is None
+                              else site.cookie_compliance_remember_days),
         }}
     except Exception:
         return {"cookie_compliance": {"enabled": False}}
