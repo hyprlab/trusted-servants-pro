@@ -5,10 +5,6 @@
 {% block heading %}404 page{% endblock %}
 {% block heading_help %}Customize the page visitors see when they land on a URL that doesn't exist on the public site. All fields are optional — sensible defaults are used when blank.{% endblock %}
 {% block top_actions %}
-{{ template_picker(frontend_themes, _active_theme,
-                    "frontend_theme",
-                    url_for('main.frontend_theme_save'),
-                    "site-theme-modal", "homepage", "Site theme", label="Theme") }}
 <a class="btn" href="{{ url_for('public.frontend_404_preview') }}" target="_blank" rel="noopener">Preview 404 ↗</a>
 {% endblock %}
 {% block content %}

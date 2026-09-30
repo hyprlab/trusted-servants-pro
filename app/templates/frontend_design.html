@@ -450,6 +450,27 @@
             {{ length('container_pad_desktop', 'Desktop', 'vw', 0, 12, 0.5) }}
             {{ length('container_pad_mobile', 'Mobile', 'vw', 0, 12, 0.5) }}
           {% endcall %}
+          {% call group('Where this width applies', 'layout-grid') %}
+            {% set _wu_href = {'header': url_for('main.frontend_header'), 'footer': url_for('main.frontend_footer'),
+                               'pages': url_for('main.frontend_pages'), 'templates': url_for('main.frontend_templates')} %}
+            <p class="ds-note">Parts set to <b>Site width</b> follow these settings. Parts with their own width or full width ignore them; change that where the part is edited.</p>
+            <ul class="ds-width-usage">
+              {% for r in width_usage %}
+              <li>
+                <a href="{{ _wu_href[r.href_key] }}">{{ r.label }}</a>
+                {% if r.mode == 'pages' %}
+                  <span class="muted">{{ r.counts.site }} site width, {{ r.counts.boxed }} own width, {{ r.counts.full }} full width</span>
+                {% elif r.mode == 'site' %}
+                  <span class="ds-wu-pill is-site">Site width</span>
+                {% elif r.mode == 'boxed' %}
+                  <span class="ds-wu-pill">Own width, {{ r.px or 1160 }}px</span>
+                {% else %}
+                  <span class="ds-wu-pill">Full width</span>
+                {% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          {% endcall %}
         </div>
 
         <div class="ds-panel" role="tabpanel" id="ds-panel-cards" aria-labelledby="ds-tab-cards" data-ds-panel="cards" hidden>

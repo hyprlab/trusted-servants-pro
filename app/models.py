@@ -876,7 +876,7 @@ class SiteSetting(db.Model):
     # fallback). Per-template font / size / colour overrides live in the
     # shared frontend_template_settings_json bucket under "submission_form".
     frontend_submission_form_template = db.Column(db.String(64), nullable=False, default="classic")
-    frontend_submission_form_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_submission_form_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_submission_form_max_width = db.Column(db.Integer, nullable=False, default=720)
     frontend_submission_form_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_submission_form_bg_dynamic_key = db.Column(db.String(64))
@@ -1077,7 +1077,7 @@ class SiteSetting(db.Model):
     frontend_contact_body = db.Column(db.Text)
     frontend_footer_text = db.Column(db.Text)
     # Header layout
-    frontend_header_width_mode = db.Column(db.String(16), nullable=False, default="boxed")  # 'boxed' | 'full'
+    frontend_header_width_mode = db.Column(db.String(16), nullable=False, default="site")  # 'site' | 'boxed' | 'full' (app/widths.py)
     frontend_header_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_header_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_header_height = db.Column(db.Integer, nullable=False, default=72)
@@ -1097,7 +1097,7 @@ class SiteSetting(db.Model):
     # Picks the layout for the public /events list page (cards / calendar
     # / timeline / magazine). See EVENTS_LIST_TEMPLATES.
     frontend_events_list_template = db.Column(db.String(64), nullable=False, default="cards")
-    frontend_events_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_events_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_events_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_events_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_events_list_heading = db.Column(db.String(200))
@@ -1105,7 +1105,7 @@ class SiteSetting(db.Model):
     # Picks the layout for the public /announcements page. See
     # ANNOUNCEMENTS_LIST_TEMPLATES in app/frontend.py for the catalog.
     frontend_announcements_list_template = db.Column(db.String(64), nullable=False, default="omni")
-    frontend_announcements_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_announcements_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_announcements_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_announcements_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_announcements_list_heading = db.Column(db.String(200))
@@ -1132,7 +1132,7 @@ class SiteSetting(db.Model):
     # client-side sort mode (name-asc / name-desc / country-asc).
     frontend_fellowships_enabled = db.Column(db.Boolean, nullable=False, default=False)
     frontend_fellowships_list_template = db.Column(db.String(64), nullable=False, default="sidebar")
-    frontend_fellowships_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_fellowships_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_fellowships_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_fellowships_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_fellowships_list_heading = db.Column(db.String(200))
@@ -1154,7 +1154,7 @@ class SiteSetting(db.Model):
     trusted_servants_enabled = db.Column(db.Boolean, nullable=False, default=False)
     trusted_servants_required_role = db.Column(db.String(32), nullable=False, default="admin")
     frontend_stories_list_template = db.Column(db.String(64), nullable=False, default="paper-stack")
-    frontend_stories_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_stories_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_stories_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_stories_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_stories_list_heading = db.Column(db.String(200))
@@ -1180,7 +1180,7 @@ class SiteSetting(db.Model):
     blog_enabled = db.Column(db.Boolean, nullable=False, default=False)
     blog_required_role = db.Column(db.String(32), nullable=False, default="admin")
     frontend_blog_list_template = db.Column(db.String(64), nullable=False, default="magazine")
-    frontend_blog_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_blog_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_blog_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_blog_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_blog_list_heading = db.Column(db.String(200))
@@ -1191,7 +1191,7 @@ class SiteSetting(db.Model):
     # content at `max_width` pixels and centres it with viewport-%
     # gutters; `full` lets the content span the viewport. Defaults
     # match the list page so the two read as a pair.
-    frontend_blog_post_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_blog_post_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_blog_post_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_blog_post_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_blog_list_bg_dynamic_key = db.Column(db.String(64))
@@ -1212,7 +1212,7 @@ class SiteSetting(db.Model):
     # Container width for the /meetings page: 'boxed' uses the max-width
     # below to cap the content column; 'full' spans the viewport with the
     # padding % below applied to each side as `Nvw` gutters.
-    frontend_meetings_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_meetings_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_meetings_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_meetings_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     # Customisable title + subheading for the public /meetings page;
@@ -1295,7 +1295,7 @@ class SiteSetting(db.Model):
     # visitor's localStorage choice always wins over this default.
     frontend_default_theme = db.Column(db.String(16), nullable=False, default="system")
     # Footer container dimensions — mirrors header_width_mode pattern.
-    frontend_footer_width_mode = db.Column(db.String(16), nullable=False, default="boxed")  # 'boxed' | 'full'
+    frontend_footer_width_mode = db.Column(db.String(16), nullable=False, default="site")  # 'site' | 'boxed' | 'full' (app/widths.py)
     frontend_footer_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_footer_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     # Structured footer content. JSON-encoded dict of:
@@ -1464,7 +1464,7 @@ class SiteSetting(db.Model):
     # detail surface uses (events_list, announcements_list, etc.).
     # 'boxed' caps content at `max_width` px and centers; 'full' spans
     # the viewport with `padding_pct` % vw gutters.
-    contact_form_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    contact_form_width_mode = db.Column(db.String(16), nullable=False, default="site")
     contact_form_max_width = db.Column(db.Integer, nullable=False, default=1160)
     contact_form_padding_pct = db.Column(db.Integer, nullable=False, default=5)
 
@@ -1495,7 +1495,7 @@ class SiteSetting(db.Model):
     recovery_contacts_removal_alerts = db.Column(db.Boolean, nullable=False, default=False)
     # Container width — same boxed/full + max-width + side-padding shape
     # every other public list surface uses (contact_form, events_list…).
-    recovery_contacts_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    recovery_contacts_width_mode = db.Column(db.String(16), nullable=False, default="site")
     recovery_contacts_max_width = db.Column(db.Integer, nullable=False, default=1160)
     recovery_contacts_padding_pct = db.Column(db.Integer, nullable=False, default=5)
 
@@ -3013,7 +3013,7 @@ class Page(db.Model):
     # `full_padding_pct` only matters in full mode. Together they let
     # the admin choose whether the page hugs a content column or
     # bleeds wide with controllable air on the sides.
-    width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    width_mode = db.Column(db.String(16), nullable=False, default="site")
     max_width = db.Column(db.Integer, nullable=False, default=1160)
     full_padding_pct = db.Column(db.Integer, nullable=False, default=4)
     # Per-page page-shell spacing. Each is a pixel value the public

@@ -6,10 +6,6 @@
 {% block heading %}Web Frontend{% endblock %}
 {% block heading_help %}Manage the public-facing website served at the root URL. The admin portal lives at <code>/tspro</code>.{% endblock %}
 {% block top_actions %}
-{{ template_picker(frontend_themes, _active_theme,
-                    "frontend_theme",
-                    url_for('main.frontend_theme_save'),
-                    "site-theme-modal", "homepage", "Site theme", label="Theme") }}
 <button type="button" class="btn" data-open-modal="fe-overview-customize-modal">Customize</button>
 <a class="btn" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">View frontend ↗</a>
 {% endblock %}

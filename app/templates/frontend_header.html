@@ -6,10 +6,6 @@
 {% block heading %}Header{% endblock %}
 {% block heading_help %}Controls the public site's top navigation bar. Logo on the left, navigation on the right.{% endblock %}
 {% block top_actions %}
-{{ template_picker(frontend_themes, _active_theme,
-                    "frontend_theme",
-                    url_for('main.frontend_theme_save'),
-                    "site-theme-modal", "header", "Site theme", label="Theme") }}
 <a class="btn" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">View frontend ↗</a>
 {% endblock %}
 {% block content %}

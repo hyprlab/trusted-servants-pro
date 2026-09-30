@@ -6,6 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added
+- `app/widths.py`: a `site` width mode beside `boxed` and `full`. `resolve_width()` draws `site` as boxed at the resolved `container_max_px`; public routes pass the resolved values and the header, footer, page, contact and Recovery Contacts templates use the `width_px` Jinja global, so templates still only know `boxed` and `full`. Save routes accept `site` (`WIDTH_MODES`), the page-level `*_width_mode` model defaults are now `site` (migrations still add `boxed`), and `_width_control.html` is the shared admin control. Design → Layout lists each surface's mode (`width_usage()`).
+
 ### Changed
 
 - Design page rebuilt: `frontend_design.html` with `static/js/design_studio.js` and `static/css/design_preview.css`. Tabbed controls beside a sticky preview cloned from a `<template>` into a shadow root, so admin theme rules (neobrutal borders, link and heading styles) can't reach it. Controls are grouped by element: link and nav colors under Links, card colors, card radius and `card_shadow` under Cards, container settings under Layout. The card colors no longer render twice with a mirror sync.
@@ -20,6 +23,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The Site theme picker draws a per-theme thumbnail (`.theme-thumb-<key>` in `app.css`): a miniature homepage in each theme's default palette, heading face and card shape, in place of the shared `homepage` sketch. The other template pickers are unchanged.
 - The Site theme modal's `restore_mode` radios are a `.ds-seg-btns` segmented control with one hint line; the active segment and hint follow the checked radio through `:has()`, since the picker runs without `design_studio.js`. The modal form drops the 2rem `.form` gap. The posted values are unchanged.
 - One set of segmented-control rules in `app.css` (9px track, 6px options, raised active option) now draws `.ds-seg-btns`, `.ds-kind`, `.nav-megalink-seg`, `.view-toggle`, `.ar-view-tabs`, `.fe-mlist-link-type`, `.dynbg-modal-tabs`, `.pbe-segmented`, `.content-mode-seg`, `.ts-aud-submode` and the `.fe-template-picker` pill. Each component keeps only its layout rules; the pill, brand-fill and accent-fill variants and the dark-mode overrides of `.content-mode-seg` are gone. `wp_import_map.html` gives `.wp-target-pillgroup` the same shape and keeps its per-target colors.
+- `_frontend_subnav.html` renders both the desktop list and the phone `<select>` from one list, `fe_admin_nav._SECTIONS`, exposed as the `fe_subnav(site)` Jinja global. Groups are Look, Structure, Content and Site; Visitor metrics is marked as leaving the area.
+- The `template_picker(frontend_themes, …)` pill is removed from every Web Frontend page header except Design.
 
 ### Fixed
 

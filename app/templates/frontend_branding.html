@@ -5,10 +5,6 @@
 {% block heading %}Branding &amp; SEO{% endblock %}
 {% block heading_help %}Site name and Open Graph metadata used when your pages are shared on social media or in chat apps.{% endblock %}
 {% block top_actions %}
-{{ template_picker(frontend_themes, _active_theme,
-                    "frontend_theme",
-                    url_for('main.frontend_theme_save'),
-                    "site-theme-modal", "homepage", "Site theme", label="Theme") }}
 <a class="btn" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">View frontend ↗</a>
 {% endblock %}
 {% block content %}

@@ -17,10 +17,6 @@
                   url_for('main.frontend_custom_layout_save'),
                   kind='page') }}
 {% endif %}
-{{ template_picker(frontend_themes, _active_theme,
-                    "frontend_theme",
-                    url_for('main.frontend_theme_save'),
-                    "site-theme-modal", "page", "Site theme", label="Theme") }}
 <a class="btn" href="{{ url_for('main.frontend_pages') }}">← All pages</a>
 {% if page %}
 <button type="button" class="btn" id="page-history-btn"

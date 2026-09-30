@@ -32,6 +32,9 @@ release notes expanded by default and the changelog collapsed.
 - The Web Frontend form settings pages (Announcements/Events, Story, Contact, Recovery Contacts and custom forms) now auto-hide the app sidebar like the other Web Frontend pages. Form inboxes keep it.
 - Redirects refuses a source under /tspro, /static or /pub, and existing rules no longer apply there. Before, a rule such as /tspro/* could send every admin away from the sign-in page.
 - The Contact and Recovery Contacts pages can now have no dynamic background. Before, choosing none brought back the default aurora backdrop.
+- The Web Frontend menu is regrouped: Look (Design, Branding), Structure (Header, Footer, Page templates), Content (Homepage, Pages, Popups, Forms, 404 page) and Site (Redirects, Caching, Privacy & cookies, Font & icon library, and Visitor metrics, which opens Watchtower).
+- The site theme picker is now only on the Design page. It used to sit at the top of most Web Frontend pages, where changing it restyled the whole site from pages such as Footer or 404.
+- Header, Footer, Pages and the page templates have a new width choice, Site width, which follows Design → Layout, so one setting sizes the whole site. New pages and new installs use it. Parts saved before keep their own width and look the same, and Design → Layout lists which parts follow the site width and which set their own.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

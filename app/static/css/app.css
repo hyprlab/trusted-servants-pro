@@ -2953,6 +2953,8 @@ body.has-fe-save-bar .fe-admin-main .form-actions { display: none; }
   width: 3px; border-radius: 2px; background: var(--brand);
 }
 .fe-subnav-link.active > .icon { color: var(--text); }
+.fe-subnav-ext { margin-left: auto; display: inline-flex; color: var(--muted); }
+.fe-subnav-link > .fe-subnav-ext > .icon { width: 12px; height: 12px; }
 
 /* Mobile section picker. The full link list still renders into the DOM
    (so the desktop nav recipe stays untouched) — at ≤900px we swap it
@@ -17580,3 +17582,29 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 .mfa-skip-btn { background: none; border: 0; padding: 0; color: var(--accent, #1883d5);
   font: inherit; font-weight: 600; cursor: pointer; text-align: left; width: max-content; }
 .mfa-skip-btn:hover { text-decoration: underline; }
+
+/* ── Shared width control (_width_control.html) ─────────────────────
+   Shows the field the checked mode uses; no script needed. */
+.wc { display: flex; flex-direction: column; gap: 10px; }
+.wc-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+.wc-label { font-weight: 600; font-size: var(--fs-sm); display: inline-flex; align-items: center; gap: 6px; }
+.wc-note { margin: 0; }
+.wc .wc-field { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; margin: 0; font-size: var(--fs-sm); }
+.wc-input { display: inline-flex; align-items: center; gap: 6px; }
+.wc-input input { width: 96px; }
+.wc-input em { font-style: normal; color: var(--muted); font-size: var(--fs-xs); }
+.wc-when-site, .wc-when-boxed, .wc-when-full { display: none !important; }
+.wc:has(input[value="site"]:checked) .wc-when-site,
+.wc:has(input[value="boxed"]:checked) .wc-when-boxed,
+.wc:has(input[value="full"]:checked) .wc-when-full { display: flex !important; }
+.wc:has(input[value="site"]:checked) p.wc-when-site { display: block !important; }
+
+/* Design → Layout: which parts follow the site width. */
+.ds-width-usage { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; }
+.ds-width-usage li { display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+  padding: 7px 0; border-top: 1px solid var(--border); font-size: var(--fs-sm); }
+.ds-width-usage li:first-child { border-top: 0; }
+.ds-width-usage .muted { font-size: var(--fs-xs); text-align: right; }
+.ds-wu-pill { font-size: var(--fs-2xs); font-weight: 600; padding: 2px 8px; border-radius: 999px;
+  background: var(--panel-2); color: var(--muted); white-space: nowrap; }
+.ds-wu-pill.is-site { background: color-mix(in srgb, var(--brand, #0b5cff) 14%, transparent); color: var(--brand, #0b5cff); }

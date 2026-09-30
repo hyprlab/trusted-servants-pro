@@ -8069,6 +8069,9 @@ def _clamp_int(raw, lo, hi, default):
     return max(lo, min(hi, n))
 
 
+from .widths import WIDTH_MODES as _WIDTH_MODES  # noqa: E402
+
+
 @bp.route("/frontend/toggle", methods=["POST"])
 @admin_required
 def frontend_toggle():
@@ -8233,7 +8236,7 @@ def frontend_header_save():
     """Persist header layout settings (width mode + sizing)."""
     s = _get_site_setting()
     mode = (request.form.get("frontend_header_width_mode") or "boxed").strip()
-    s.frontend_header_width_mode = mode if mode in ("boxed", "full") else "boxed"
+    s.frontend_header_width_mode = mode if mode in _WIDTH_MODES else "boxed"
     try:
         mw = int(request.form.get("frontend_header_max_width") or 1160)
     except ValueError:
@@ -10532,7 +10535,7 @@ def frontend_contact_template_save():
     # an out-of-range value rather than blanking it; numeric inputs
     # clamp to the schema bounds.
     width = (request.form.get("contact_form_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.contact_form_width_mode = width
     if "contact_form_max_width" in request.form:
         try:
@@ -10569,7 +10572,7 @@ def frontend_recovery_contacts_template_save():
     # list endpoints. Width mode falls through to the model default on
     # an out-of-range value; numeric inputs clamp to the schema bounds.
     width = (request.form.get("recovery_contacts_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.recovery_contacts_width_mode = width
     if "recovery_contacts_max_width" in request.form:
         try:
@@ -10851,8 +10854,10 @@ def frontend_design():
     mm_key = s.frontend_megamenu_template or "recovery-blue"
     mm = next((t for t in MEGAMENU_TEMPLATES if t["key"] == mm_key), MEGAMENU_TEMPLATES[1])
     mm_kind = mm["partial"].rsplit("/", 1)[-1].removesuffix(".html")
+    from .widths import width_usage
     return render_template("frontend_design.html", site=s, ds=design_studio_data(s),
-                           mm_name=mm["name"], mm_kind=mm_kind)
+                           mm_name=mm["name"], mm_kind=mm_kind,
+                           width_usage=width_usage(s))
 
 
 @bp.route("/frontend/design/save", methods=["POST"])
@@ -11763,7 +11768,7 @@ def frontend_events_list_template_save():
     if key in {t["key"] for t in EVENTS_LIST_TEMPLATES}:
         s.frontend_events_list_template = key
     width = (request.form.get("frontend_events_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_events_list_width_mode = width
     if "frontend_events_list_max_width" in request.form:
         try:
@@ -11806,7 +11811,7 @@ def frontend_announcements_list_template_save():
     if key in {t["key"] for t in ANNOUNCEMENTS_LIST_TEMPLATES}:
         s.frontend_announcements_list_template = key
     width = (request.form.get("frontend_announcements_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_announcements_list_width_mode = width
     if "frontend_announcements_list_max_width" in request.form:
         try:
@@ -11884,7 +11889,7 @@ def frontend_stories_list_template_save():
     if key in {t["key"] for t in STORIES_LIST_TEMPLATES}:
         s.frontend_stories_list_template = key
     width = (request.form.get("frontend_stories_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_stories_list_width_mode = width
     if "frontend_stories_list_max_width" in request.form:
         try:
@@ -11969,7 +11974,7 @@ def frontend_blog_list_template_save():
     if key in {t["key"] for t in BLOG_LIST_TEMPLATES}:
         s.frontend_blog_list_template = key
     width = (request.form.get("frontend_blog_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_blog_list_width_mode = width
     if "frontend_blog_list_max_width" in request.form:
         try:
@@ -12011,7 +12016,7 @@ def frontend_blog_post_template_save():
     if key in {t["key"] for t in BLOG_POST_TEMPLATES}:
         s.frontend_blog_post_template = key
     width = (request.form.get("frontend_blog_post_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_blog_post_width_mode = width
     if "frontend_blog_post_max_width" in request.form:
         try:
@@ -12045,7 +12050,7 @@ def frontend_meetings_list_template_save():
     if key in {t["key"] for t in MEETINGS_LIST_TEMPLATES}:
         s.frontend_meetings_list_template = key
     width = (request.form.get("frontend_meetings_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_meetings_list_width_mode = width
     if "frontend_meetings_list_max_width" in request.form:
         try:
@@ -12274,7 +12279,7 @@ def frontend_fellowships_list_template_save():
     if "frontend_fellowships_enabled_present" in request.form:
         s.frontend_fellowships_enabled = request.form.get("frontend_fellowships_enabled") == "1"
     width = (request.form.get("frontend_fellowships_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_fellowships_list_width_mode = width
     if "frontend_fellowships_list_max_width" in request.form:
         try:
@@ -12324,7 +12329,7 @@ def frontend_submission_form_template_save():
         if key in {t["key"] for t in SUBMISSION_FORM_TEMPLATES}:
             s.frontend_submission_form_template = key
     width = (request.form.get("frontend_submission_form_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_submission_form_width_mode = width
     if "frontend_submission_form_max_width" in request.form:
         try:
@@ -14098,7 +14103,7 @@ def frontend_page_save():
 
     # Page-wide width formatting.
     width_mode = (request.form.get("width_mode") or "boxed").strip().lower()
-    if width_mode not in ("boxed", "full"):
+    if width_mode not in _WIDTH_MODES:
         width_mode = "boxed"
     try:
         max_width = int(request.form.get("max_width") or 1160)
@@ -14984,7 +14989,7 @@ def frontend_footer_save():
     s = _get_site_setting()
     # Width mode
     raw_w = (request.form.get("frontend_footer_width_mode") or "").strip().lower()
-    s.frontend_footer_width_mode = raw_w if raw_w in ("boxed", "full") else "boxed"
+    s.frontend_footer_width_mode = raw_w if raw_w in _WIDTH_MODES else "boxed"
     try:
         s.frontend_footer_max_width = max(640, min(int(request.form.get("frontend_footer_max_width") or 1160), 2400))
     except (TypeError, ValueError):

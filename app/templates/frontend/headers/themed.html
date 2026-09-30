@@ -7,7 +7,7 @@
    (colours, glass, glow) comes from static/css/themes/<key>.css scoped to
    body[data-fe-theme]. #}
 {% set _header_full = site and site.frontend_header_width_mode == 'full' %}
-{% set _header_max = (site.frontend_header_max_width if site else 1240) or 1240 %}
+{% set _header_max = width_px(site, site.frontend_header_width_mode if site else 'boxed', (site.frontend_header_max_width if site else 1240) or 1240) %}
 {% set _header_pct = (site.frontend_header_padding_pct if site else 5) or 0 %}
 {% set _header_h = (site.frontend_header_height if site else 76) or 76 %}
 {% set _fe_logo = site and site.frontend_logo_filename %}

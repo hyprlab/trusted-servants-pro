@@ -12,205 +12,35 @@
     </div>
   </div>
 
-  {# Mobile section picker. The full link list below is fine on desktop
-     but at ≤900px wraps into 4–5 rows of grouping-less pills (the
-     "jumbled mess" the operator was hitting). CSS hides this select
-     above the breakpoint and hides the .fe-subnav-nav below it, so we
-     get a one-tap native picker on phones without losing the rich nav
-     on desktop. Active page resolved via the same `request.endpoint`
-     checks the link list uses; <optgroup> labels mirror the desktop
-     section headers (Setup / Structure / Content). #}
+  {# One list (app/fe_admin_nav.py) drives both views: the desktop link
+     list, and below 900px a native <select> so a phone gets one tap
+     instead of rows of wrapped links. CSS shows one or the other. #}
+  {% set _fe_nav = fe_subnav(site) %}
   <label class="fe-subnav-select-wrap">
     <span class="muted smaller">Jump to:</span>
     <select class="fe-subnav-select" data-fe-subnav-select>
-      <option value="{{ url_for('main.frontend_dashboard') }}"
-              {% if request.endpoint == 'main.frontend_dashboard' %}selected{% endif %}>
-        Overview
-      </option>
-      {# Visitor Metrics lives in Watchtower since 2.7.6 — this entry
-         is a cross-area jump-off so the operator doesn't have to
-         hunt for it from the Web Frontend admin. #}
-      <option value="{{ url_for('main.watchtower_visitors') }}">
-        Visitor Metrics
-      </option>
-      <option value="{{ url_for('main.frontend_redirects') }}"
-              {% if request.endpoint == 'main.frontend_redirects' %}selected{% endif %}>
-        Redirects
-      </option>
-      <optgroup label="Setup">
-        <option value="{{ url_for('main.frontend_branding') }}"
-                {% if request.endpoint == 'main.frontend_branding' %}selected{% endif %}>
-          Branding &amp; SEO
-        </option>
-        <option value="{{ url_for('main.frontend_fonts_icons') }}"
-                {% if request.endpoint == 'main.frontend_fonts_icons' %}selected{% endif %}>
-          Fonts &amp; Icons
-        </option>
-        <option value="{{ url_for('main.frontend_design') }}"
-                {% if request.endpoint == 'main.frontend_design' %}selected{% endif %}>
-          Design
-        </option>
-        <option value="{{ url_for('main.frontend_caching') }}"
-                {% if request.endpoint == 'main.frontend_caching' %}selected{% endif %}>
-          Caching
-        </option>
-        <option value="{{ url_for('main.frontend_cookie_compliance') }}"
-                {% if request.endpoint == 'main.frontend_cookie_compliance' %}selected{% endif %}>
-          Cookie Compliance
-        </option>
-      </optgroup>
-      <optgroup label="Structure">
-        <option value="{{ url_for('main.frontend_header') }}"
-                {% if request.endpoint == 'main.frontend_header' %}selected{% endif %}>
-          Header
-        </option>
-        <option value="{{ url_for('main.frontend_footer') }}"
-                {% if request.endpoint == 'main.frontend_footer' %}selected{% endif %}>
-          Footer
-        </option>
-        <option value="{{ url_for('main.frontend_navigation') }}"
-                {% if request.endpoint in ('main.frontend_navigation', 'main.frontend_nav_megamenu') %}selected{% endif %}>
-          Navigation
-        </option>
-        <option value="{{ url_for('main.frontend_templates') }}"
-                {% if request.endpoint == 'main.frontend_templates' %}selected{% endif %}>
-          Templates
-        </option>
-        <option value="{{ url_for('main.frontend_forms') }}"
-                {% if request.endpoint in ('main.frontend_forms', 'main.frontend_form_submission', 'main.frontend_form_story', 'main.frontend_form_contact', 'main.frontend_form_recovery_contacts', 'main.frontend_custom_form_edit') %}selected{% endif %}>
-          Forms
-        </option>
-        <option value="{{ url_for('main.frontend_404') }}"
-                {% if request.endpoint == 'main.frontend_404' %}selected{% endif %}>
-          404 page
-        </option>
-      </optgroup>
-      <optgroup label="Content">
-        {%- set _hp_id = site.homepage_page_id if site else None -%}
-        {%- set _hp_href = url_for('main.frontend_page_edit', page_id=_hp_id) if _hp_id else url_for('main.frontend_pages') -%}
-        {%- set _on_hp_edit = (request.endpoint == 'main.frontend_page_edit'
-                                and request.view_args
-                                and request.view_args.get('page_id') == _hp_id) -%}
-        <option value="{{ _hp_href }}" {% if _on_hp_edit %}selected{% endif %}>
-          Homepage
-        </option>
-        <option value="{{ url_for('main.frontend_pages') }}"
-                {% if request.endpoint == 'main.frontend_pages'
-                    or (request.endpoint == 'main.frontend_page_edit' and not _on_hp_edit) %}selected{% endif %}>
-          Pages
-        </option>
-        <option value="{{ url_for('main.frontend_popups') }}"
-                {% if request.endpoint in ('main.frontend_popups', 'main.frontend_popup_edit') %}selected{% endif %}>
-          Popups
-        </option>
-      </optgroup>
+      {% for group, items in _fe_nav %}
+        {% if group %}<optgroup label="{{ group }}">{% endif %}
+        {% for it in items %}
+        <option value="{{ it.href }}" {% if it.active %}selected{% endif %}>{{ it.label }}{% if it.external %} ↗{% endif %}</option>
+        {% endfor %}
+        {% if group %}</optgroup>{% endif %}
+      {% endfor %}
     </select>
   </label>
 
   <nav class="fe-subnav-nav">
-    <a href="{{ url_for('main.frontend_dashboard') }}"
-       class="fe-subnav-link {% if request.endpoint == 'main.frontend_dashboard' %}active{% endif %}">
-      {{ icon('layout-grid') }}<span>Overview</span>
-    </a>
-    {# Visitor Metrics moved to Watchtower in 2.7.6. Keeping the
-       sidebar entry as a one-tap cross-link so the operator can
-       jump there from the Web Frontend admin without re-navigating. #}
-    <a href="{{ url_for('main.watchtower_visitors') }}"
-       class="fe-subnav-link">
-      {{ icon('bar-chart') }}<span>Visitor Metrics</span>
-    </a>
-    <a href="{{ url_for('main.frontend_redirects') }}"
-       class="fe-subnav-link {% if request.endpoint == 'main.frontend_redirects' %}active{% endif %}">
-      {{ icon('link') }}<span>Redirects</span>
-    </a>
-
-    <div class="fe-subnav-group">
-      <div class="fe-subnav-group-label">Setup</div>
-      <a href="{{ url_for('main.frontend_branding') }}"
-         class="fe-subnav-link {% if request.endpoint == 'main.frontend_branding' %}active{% endif %}">
-        {{ icon('star') }}<span>Branding &amp; SEO</span>
+    {% for group, items in _fe_nav %}
+      {% if group %}<div class="fe-subnav-group">
+      <div class="fe-subnav-group-label">{{ group }}</div>{% endif %}
+      {% for it in items %}
+      <a href="{{ it.href }}" class="fe-subnav-link{% if it.active %} active{% endif %}"
+         {% if it.active %}aria-current="page"{% endif %}>
+        {{ icon(it.icon) }}<span>{{ it.label }}</span>{% if it.external %}<span class="fe-subnav-ext" title="Opens in Watchtower">{{ icon('external-link') }}</span>{% endif %}
       </a>
-      <a href="{{ url_for('main.frontend_fonts_icons') }}"
-         class="fe-subnav-link {% if request.endpoint == 'main.frontend_fonts_icons' %}active{% endif %}">
-        {{ icon('settings') }}<span>Fonts &amp; Icons</span>
-      </a>
-      <a href="{{ url_for('main.frontend_design') }}"
-         class="fe-subnav-link {% if request.endpoint == 'main.frontend_design' %}active{% endif %}">
-        {{ icon('sliders') }}<span>Design</span>
-      </a>
-      <a href="{{ url_for('main.frontend_caching') }}"
-         class="fe-subnav-link {% if request.endpoint == 'main.frontend_caching' %}active{% endif %}">
-        {{ icon('zap') }}<span>Caching</span>
-      </a>
-      <a href="{{ url_for('main.frontend_cookie_compliance') }}"
-         class="fe-subnav-link {% if request.endpoint == 'main.frontend_cookie_compliance' %}active{% endif %}">
-        {{ icon('shield') }}<span>Cookie Compliance</span>
-      </a>
-    </div>
-
-    <div class="fe-subnav-group">
-      <div class="fe-subnav-group-label">Structure</div>
-      <a href="{{ url_for('main.frontend_header') }}"
-         class="fe-subnav-link {% if request.endpoint == 'main.frontend_header' %}active{% endif %}">
-        {{ icon('panel-top') }}<span>Header</span>
-      </a>
-      <a href="{{ url_for('main.frontend_footer') }}"
-         class="fe-subnav-link {% if request.endpoint == 'main.frontend_footer' %}active{% endif %}">
-        {{ icon('panel-bottom') }}<span>Footer</span>
-      </a>
-      <a href="{{ url_for('main.frontend_navigation') }}"
-         class="fe-subnav-link {% if request.endpoint in ('main.frontend_navigation', 'main.frontend_nav_megamenu') %}active{% endif %}">
-        {{ icon('layout-grid') }}<span>Navigation</span>
-      </a>
-      <a href="{{ url_for('main.frontend_templates') }}"
-         class="fe-subnav-link {% if request.endpoint == 'main.frontend_templates' %}active{% endif %}">
-        {{ icon('copy') }}<span>Templates</span>
-      </a>
-      {# Forms — list of every registered public form (see
-         app/forms_registry.py). Lives under Structure alongside
-         Navigation since forms are typically wired up through nav
-         links / triggers rather than as standalone content. The
-         active class lights up on the index page AND on each
-         form's individual settings page so the Forms entry stays
-         visually selected while editing one. #}
-      <a href="{{ url_for('main.frontend_forms') }}"
-         class="fe-subnav-link {% if request.endpoint in ('main.frontend_forms', 'main.frontend_form_submission', 'main.frontend_form_story', 'main.frontend_form_contact', 'main.frontend_form_recovery_contacts', 'main.frontend_custom_form_edit') %}active{% endif %}">
-        {{ icon('send') }}<span>Forms</span>
-      </a>
-      <a href="{{ url_for('main.frontend_404') }}"
-         class="fe-subnav-link {% if request.endpoint == 'main.frontend_404' %}active{% endif %}">
-        {{ icon('alert-circle') }}<span>404 page</span>
-      </a>
-    </div>
-
-    <div class="fe-subnav-group">
-      <div class="fe-subnav-group-label">Content</div>
-      {# Homepage link routes to whichever Page is currently designated
-         as the homepage (`SiteSetting.homepage_page_id`). The auto-seed
-         populates that column on first boot; the link falls back to the
-         Pages list if it's unset (shouldn't happen in normal operation). #}
-      {%- set _hp_id = site.homepage_page_id if site else None -%}
-      {%- set _hp_href = url_for('main.frontend_page_edit', page_id=_hp_id) if _hp_id else url_for('main.frontend_pages') -%}
-      {%- set _on_hp_edit = (request.endpoint == 'main.frontend_page_edit'
-                              and request.view_args
-                              and request.view_args.get('page_id') == _hp_id) -%}
-      <a href="{{ _hp_href }}"
-         class="fe-subnav-link {% if _on_hp_edit %}active{% endif %}">
-        {{ icon('home') }}<span>Homepage</span>
-      </a>
-      <a href="{{ url_for('main.frontend_pages') }}"
-         class="fe-subnav-link {% if request.endpoint == 'main.frontend_pages'
-                                    or (request.endpoint == 'main.frontend_page_edit' and not _on_hp_edit) %}active{% endif %}">
-        {{ icon('file-text') }}<span>Pages</span>
-      </a>
-      {# Popups — site-wide modal popups authored with the page builder
-         and fired from `#name` anchor selectors. Lives under Content
-         next to Pages since both are block-editor content surfaces. #}
-      <a href="{{ url_for('main.frontend_popups') }}"
-         class="fe-subnav-link {% if request.endpoint in ('main.frontend_popups', 'main.frontend_popup_edit') %}active{% endif %}">
-        {{ icon('message-square') }}<span>Popups</span>
-      </a>
-    </div>
+      {% endfor %}
+      {% if group %}</div>{% endif %}
+    {% endfor %}
   </nav>
 </aside>
 

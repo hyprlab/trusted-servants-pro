@@ -23,8 +23,9 @@
    gutters. Falls back to the existing boxed/1160/5 defaults so legacy
    installs render identically. #}
 {%- set _cwmode = (site.contact_form_width_mode if site else None) or 'boxed' -%}
-{%- if _cwmode not in ('boxed', 'full') %}{%- set _cwmode = 'boxed' %}{%- endif -%}
-{%- set _cwmax  = (site.contact_form_max_width   if site else 1160) -%}
+{%- if _cwmode not in ('site', 'boxed', 'full') %}{%- set _cwmode = 'boxed' %}{%- endif -%}
+{%- set _cwmax  = width_px(site, _cwmode, (site.contact_form_max_width if site else 1160)) -%}
+{%- if _cwmode == 'site' %}{% set _cwmode = 'boxed' %}{% endif -%}
 {%- set _cwpad  = (site.contact_form_padding_pct if site else 5) -%}
 {# Dynamic background — admin-configurable via Settings → Templates →
    Contact page → "Customize" (the same dynbg picker every other list /

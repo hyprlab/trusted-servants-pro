@@ -837,8 +837,10 @@
      pages). The inline declaration still takes precedence on desktop. #}
   {%- set _shell_style = 'max-width: none; --fe-pp-pad-x-full: ' ~ _pad_pct ~ 'vw' -%}
 {%- else -%}
-  {%- set _mw = (page.max_width or 1160) | int -%}
+  {# `site` follows Design → Layout; `boxed` uses the page's own px. #}
+  {%- set _mw = width_px(site, _width_mode, (page.max_width or 1160)) | int -%}
   {%- set _shell_style = 'max-width: ' ~ _mw ~ 'px' -%}
+  {%- set _width_mode = 'boxed' -%}
 {%- endif -%}
 {%- set _pp_cfg = dynbg_decode(page.bg_dynbg_config_json) -%}
 {%- set _pp_dynbg_active = page.bg_dynamic_key or _pp_cfg.overlay -%}

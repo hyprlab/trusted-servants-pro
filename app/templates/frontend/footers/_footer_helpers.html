@@ -16,7 +16,7 @@
 
 {%- macro footer_inner_attrs(site) -%}
   {%- set _w = (site.frontend_footer_width_mode if site else 'boxed') or 'boxed' -%}
-  {%- set _max = (site.frontend_footer_max_width if site else 1160) or 1160 -%}
+  {%- set _max = width_px(site, _w, (site.frontend_footer_max_width if site else 1160) or 1160) -%}
   {%- set _pct = (site.frontend_footer_padding_pct if site else 5) -%}
   {%- if _w == 'full' -%}
     class="fe-footer-inner" style="padding-left: {{ _pct }}%; padding-right: {{ _pct }}%;"

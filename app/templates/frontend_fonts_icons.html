@@ -5,10 +5,6 @@
 {% block heading %}Fonts &amp; Icons{% endblock %}
 {% block heading_help %}Override per-role fonts, upload your own typefaces or paste a Google Fonts link, and manage the custom icon library used by nav links and hero buttons.{% endblock %}
 {% block top_actions %}
-{{ template_picker(frontend_themes, _active_theme,
-                    "frontend_theme",
-                    url_for('main.frontend_theme_save'),
-                    "site-theme-modal", "homepage", "Site theme", label="Theme") }}
 <a class="btn" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">View frontend ↗</a>
 {% endblock %}
 {% block content %}

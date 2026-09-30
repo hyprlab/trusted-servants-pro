@@ -1213,6 +1213,9 @@ def _accept_matches(rule, file_storage):
     return False
 
 
+from .widths import normalize_width_mode, resolve_width  # noqa: E402
+
+
 def _site():
     return SiteSetting.query.first()
 
@@ -2009,8 +2012,7 @@ def meetings_list():
     tpl = _template_meta(MEETINGS_LIST_TEMPLATES,
                          (site.frontend_meetings_list_template if site else None) or "sidebar")
     width_mode = (site.frontend_meetings_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         pad_pct = int(site.frontend_meetings_list_padding_pct) if site else 5
     except (TypeError, ValueError):
@@ -2028,8 +2030,8 @@ def meetings_list():
     return render_template("frontend/meetings_list.html",
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            list_current_day=current_day,
                            list_heading=list_heading,
@@ -2153,8 +2155,7 @@ def story_submission_form():
     tpl = _template_meta(SUBMISSION_FORM_TEMPLATES,
                          (site.frontend_submission_form_template if site else None) or "classic")
     width_mode = (site.frontend_submission_form_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_submission_form_max_width) if site else 720
     except (TypeError, ValueError):
@@ -2171,8 +2172,8 @@ def story_submission_form():
         "frontend/submission.html",
         submission_partial=tpl["partial"],
         submission_template_key=tpl["key"],
-        submission_width_mode=width_mode,
-        submission_max_width=max_width,
+        submission_width_mode=resolve_width(site, width_mode, max_width)[0],
+        submission_max_width=resolve_width(site, width_mode, max_width)[1],
         submission_padding_pct=pad_pct,
         tpl_style=tpl_style,
         heading_override=(site.story_form_heading if site else None) or "Share your story",
@@ -2495,8 +2496,7 @@ def submission_form():
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     width_mode = (site.frontend_submission_form_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_submission_form_max_width) if site else 720
     except (TypeError, ValueError):
@@ -2511,8 +2511,8 @@ def submission_form():
     return render_template("frontend/submission.html",
                            submission_partial=tpl["partial"],
                            submission_template_key=tpl["key"],
-                           submission_width_mode=width_mode,
-                           submission_max_width=max_width,
+                           submission_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           submission_max_width=resolve_width(site, width_mode, max_width)[1],
                            submission_padding_pct=pad_pct,
                            tpl_style=tpl_style,
                            tpl_dynbg_key=tpl_dynbg_key,
@@ -2990,8 +2990,7 @@ def literature_library():
     # as the archive page so the literature library inherits the same
     # horizontal geometry without yet another set of admin controls.
     width_mode = (site.frontend_events_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_events_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3004,8 +3003,8 @@ def literature_library():
     pad_pct = max(0, min(20, pad_pct))
 
     return render_template("frontend/literature_library.html",
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            library_buckets=library_buckets,
                            total_items=total_items,
@@ -3142,8 +3141,7 @@ def fellowships_list():
     }
 
     width_mode = (site.frontend_fellowships_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_fellowships_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3174,8 +3172,8 @@ def fellowships_list():
                            subheading=subheading,
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            tpl_style=tpl_style,
                            tpl_dynbg_key=tpl_dynbg_key,
@@ -3251,8 +3249,7 @@ def events_list():
     tpl = _template_meta(EVENTS_LIST_TEMPLATES,
                          (site.frontend_events_list_template if site else None) or "cards")
     width_mode = (site.frontend_events_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_events_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3269,8 +3266,8 @@ def events_list():
                            list_submit_url=_submission_link(site),
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            list_heading=list_heading,
                            list_subheading=list_subheading,
@@ -3403,8 +3400,7 @@ def archive():
     # is the visual successor to /events/archive so it inherits the
     # same horizontal geometry.
     width_mode = (site.frontend_events_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_events_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3441,8 +3437,8 @@ def archive():
     return render_template("frontend/archive.html",
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            archive_items=items,
                            year_buckets=year_buckets,
@@ -3598,8 +3594,7 @@ def announcements_list():
     tpl = _template_meta(ANNOUNCEMENTS_LIST_TEMPLATES,
                          (site.frontend_announcements_list_template if site else None) or "omni")
     width_mode = (site.frontend_announcements_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_announcements_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3619,8 +3614,8 @@ def announcements_list():
     return render_template("frontend/announcements_list.html",
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            list_heading=list_heading,
                            list_subheading=list_subheading,
@@ -3716,8 +3711,7 @@ def stories_list():
     tpl = _template_meta(STORIES_LIST_TEMPLATES,
                          (site.frontend_stories_list_template if site else None) or "paper-stack")
     width_mode = (site.frontend_stories_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_stories_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3740,8 +3734,8 @@ def stories_list():
     return render_template("frontend/stories_list.html",
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            list_heading=list_heading,
                            list_subheading=list_subheading,
@@ -3896,8 +3890,7 @@ def blog_list():
     tpl = _template_meta(BLOG_LIST_TEMPLATES,
                          (site.frontend_blog_list_template if site else None) or "magazine")
     width_mode = (site.frontend_blog_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_blog_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3913,8 +3906,8 @@ def blog_list():
     return render_template("frontend/blog_list.html",
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            list_heading=list_heading,
                            list_subheading=list_subheading,
@@ -4036,8 +4029,7 @@ def blog_post_detail(slug):
     # Templates render either a boxed shell (max-width: Npx) or a
     # full-bleed shell (padding-left/right: Nvw).
     post_width_mode = (site.frontend_blog_post_width_mode if site else None) or "boxed"
-    if post_width_mode not in ("boxed", "full"):
-        post_width_mode = "boxed"
+    post_width_mode = normalize_width_mode(post_width_mode, "boxed")
     try:
         post_max_width = int(site.frontend_blog_post_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -4064,8 +4056,8 @@ def blog_post_detail(slug):
                            all_categories=all_categories,
                            show_related_widget=show_related_widget,
                            show_categories_widget=show_categories_widget,
-                           post_width_mode=post_width_mode,
-                           post_max_width=post_max_width,
+                           post_width_mode=resolve_width(site, post_width_mode, post_max_width)[0],
+                           post_max_width=resolve_width(site, post_width_mode, post_max_width)[1],
                            post_padding_pct=post_padding_pct,
                            is_preview=is_preview,
                            preview_state=preview_state,
@@ -5240,8 +5232,7 @@ def _render_custom_form(cf, ctx, errors=None, values=None, success_message=None)
     tpl_dynbg_key = tpl_settings_dict.get("bg_dynamic_key") \
         or (site.frontend_submission_form_bg_dynamic_key if site else None)
     width_mode = (site.frontend_submission_form_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_submission_form_max_width) if site else 720
     except (TypeError, ValueError):
@@ -5260,8 +5251,8 @@ def _render_custom_form(cf, ctx, errors=None, values=None, success_message=None)
         # in unchanged.
         submission_partial=tpl["partial"],
         submission_template_key=tpl["key"],
-        submission_width_mode=width_mode,
-        submission_max_width=max_width,
+        submission_width_mode=resolve_width(site, width_mode, max_width)[0],
+        submission_max_width=resolve_width(site, width_mode, max_width)[1],
         submission_padding_pct=pad_pct,
         tpl_style=tpl_style,
         tpl_dynbg_key=tpl_dynbg_key,

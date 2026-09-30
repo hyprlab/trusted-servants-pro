@@ -1,0 +1,41 @@
+{% from "_help_chip.html" import chip %}
+{# Shared width control for the header, footer, pages and page templates.
+   Three modes (app/widths.py): Site width follows Design → Layout, Own
+   width is a px cap for this surface alone, Full width spans the screen
+   with a side gutter. Pure CSS shows the field each mode uses
+   (`.wc:has(...)` in app.css), so it works inside any form or modal.
+
+   width_control(mode_name, mode, max_name, max_val, pad_name, pad_val,
+                 site_px, pad_unit='%', pad_max=20, label='Width') #}
+{% macro width_control(mode_name, mode, max_name, max_val, pad_name, pad_val,
+                       site_px, pad_unit='%', pad_max=20, label='Width', help='') %}
+{% set _mode = mode if mode in ('site', 'boxed', 'full') else 'boxed' %}
+<div class="wc" data-width-control>
+  <div class="wc-head">
+    <span class="wc-label">{{ label }}{% if help %} {% call chip(label) %}{{ help }}{% endcall %}{% endif %}</span>
+    <div class="ds-seg-btns wc-modes" role="radiogroup" aria-label="{{ label }}">
+      <label title="Follow Design → Layout ({{ site_px }}px)">
+        <input type="radio" name="{{ mode_name }}" value="site" {% if _mode == 'site' %}checked{% endif %}>
+        <span>Site width</span>
+      </label>
+      <label title="A maximum width for this part only">
+        <input type="radio" name="{{ mode_name }}" value="boxed" {% if _mode == 'boxed' %}checked{% endif %}>
+        <span>Own width</span>
+      </label>
+      <label title="Edge to edge, with a side gutter">
+        <input type="radio" name="{{ mode_name }}" value="full" {% if _mode == 'full' %}checked{% endif %}>
+        <span>Full width</span>
+      </label>
+    </div>
+  </div>
+  <p class="wc-note wc-when-site muted smaller">Follows <a href="{{ url_for('main.frontend_design') }}#layout">Design → Layout</a>: {{ site_px }}px wide, with the site's side padding.</p>
+  <label class="wc-field wc-when-boxed">
+    <span>Maximum width</span>
+    <span class="wc-input"><input type="number" name="{{ max_name }}" min="600" max="2400" step="10" value="{{ max_val or 1160 }}"><em>px</em></span>
+  </label>
+  <label class="wc-field wc-when-full">
+    <span>Side gutter</span>
+    <span class="wc-input"><input type="number" name="{{ pad_name }}" min="0" max="{{ pad_max }}" step="1" value="{{ pad_val if pad_val is not none else 5 }}"><em>{{ pad_unit }}</em></span>
+  </label>
+</div>
+{% endmacro %}

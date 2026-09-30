@@ -3,7 +3,7 @@
    Respects SiteSetting width/padding/height configs and renders the
    Navigation items. #}
 {% set _header_full = site and site.frontend_header_width_mode == 'full' %}
-{% set _header_max = (site.frontend_header_max_width if site else 1160) or 1160 %}
+{% set _header_max = width_px(site, site.frontend_header_width_mode if site else 'boxed', (site.frontend_header_max_width if site else 1160) or 1160) %}
 {% set _header_pct = (site.frontend_header_padding_pct if site else 5) or 0 %}
 {% set _header_h = (site.frontend_header_height if site else 72) or 72 %}
 <header class="fe-header{% if _header_full %} fe-header-full{% endif %}" id="fe-header"

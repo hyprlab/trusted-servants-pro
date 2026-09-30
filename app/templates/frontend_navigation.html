@@ -7,10 +7,6 @@
 {% block heading %}Navigation{% endblock %}
 {% block heading_help %}Top-level header links and mega-menu columns. How the mega menu looks is set under Design → Mega menu.{% endblock %}
 {% block top_actions %}
-{{ template_picker(frontend_themes, _active_theme,
-                    "frontend_theme",
-                    url_for('main.frontend_theme_save'),
-                    "site-theme-modal", "megamenu", "Site theme", label="Theme") }}
 <a class="btn" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">View frontend ↗</a>
 {% endblock %}
 {% block content %}

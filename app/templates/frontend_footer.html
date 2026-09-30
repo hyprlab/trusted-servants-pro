@@ -23,10 +23,6 @@
                   footer_block_catalog,
                   url_for('main.frontend_custom_layout_save'),
                   kind='footer') }}
-{{ template_picker(frontend_themes, _active_theme,
-                    "frontend_theme",
-                    url_for('main.frontend_theme_save'),
-                    "site-theme-modal", "footer", "Site theme", label="Theme") }}
 <a class="btn" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">View frontend ↗</a>
 {% endblock %}
 {% block content %}

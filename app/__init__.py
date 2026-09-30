@@ -852,6 +852,10 @@ def create_app():
 
     from .icons import icon as _icon
     app.jinja_env.globals["icon"] = _icon
+    from .fe_admin_nav import fe_subnav as _fe_subnav
+    app.jinja_env.globals["fe_subnav"] = _fe_subnav
+    from .widths import width_px as _width_px
+    app.jinja_env.globals["width_px"] = _width_px
 
     # Click-to-reveal shortening for long IPv6 values in the Watchtower
     # tables — see app/ipfmt.py. A global rather than a filter because
