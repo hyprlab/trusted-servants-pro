@@ -456,10 +456,10 @@
   tip.setAttribute('role', 'tooltip');
   tip.hidden = true;
   root.appendChild(tip);
-  // Shown only once the pointer has rested on a part for a second; any
+  // Shown only once the pointer has rested on a part for half a second; any
   // real movement (past a few pixels of jitter) hides it and restarts
   // the wait.
-  var TIP_DELAY = 1000, TIP_JITTER = 4;
+  var TIP_DELAY = 500, TIP_JITTER = 4;
   var tipTimer = null, rest = null;
   function placeTip(x0, y0) {
     var pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
