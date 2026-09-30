@@ -2118,6 +2118,145 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 .template-card-preview-homepage-grid span { display: block;
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
   height: 30px; }
+
+/* Site-theme thumbnails: a miniature homepage (utility strip, header, hero
+   with a headline in the theme's display face, three cards) drawn in each
+   theme's default palette, type and card shape. Colors are fixed on purpose:
+   a thumbnail pictures the theme, not the admin's light/dark mode. */
+.theme-thumb { height: 124px; position: relative; isolation: isolate;
+  font-family: 'Inter', system-ui, sans-serif; background: #fff; border-color: rgba(15, 23, 42, 0.12); }
+.theme-thumb .tt-strip { flex: none; height: 0; }
+.theme-thumb .tt-head { flex: none; height: 20px; padding: 0 10px;
+  display: flex; align-items: center; justify-content: space-between; }
+.theme-thumb .tt-logo { width: 26px; height: 7px; border-radius: 2px; background: #0b5cff; }
+.theme-thumb .tt-nav { display: flex; gap: 5px; }
+.theme-thumb .tt-nav span { width: 14px; height: 3px; border-radius: 2px; background: #94a3b8; }
+.theme-thumb .tt-hero { flex: 1; min-height: 0; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.theme-thumb .tt-title { font-size: 17px; line-height: 1.05; font-weight: 700; white-space: nowrap; color: #0f172a; }
+.theme-thumb .tt-copy { width: 34%; height: 3px; border-radius: 2px; background: #94a3b8; opacity: 0.6; }
+.theme-thumb .tt-btn { width: 32px; height: 9px; border-radius: 3px; background: #0b5cff; }
+.theme-thumb .tt-cards { flex: none; display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 6px; padding: 0 10px 9px; }
+.theme-thumb .tt-cards span { height: 18px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; }
+
+/* Classic: light canvas under soft blue / pink / teal blobs, glassy header,
+   Fraunces headline, amber-edged cards. */
+.theme-thumb-classic {
+  background:
+    radial-gradient(circle at 18% 42%, rgba(81, 100, 255, 0.55), transparent 45%),
+    radial-gradient(circle at 84% 30%, rgba(255, 93, 170, 0.5), transparent 44%),
+    radial-gradient(circle at 62% 96%, rgba(42, 212, 195, 0.5), transparent 46%), #fff; }
+.theme-thumb-classic .tt-head { background: rgba(255, 255, 255, 0.62);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08); }
+.theme-thumb-classic .tt-logo { background: linear-gradient(90deg, #0b5cff, #5164ff); }
+.theme-thumb-classic .tt-title { font-family: 'Fraunces', Georgia, serif; font-weight: 600; letter-spacing: -0.02em; }
+.theme-thumb-classic .tt-btn { border-radius: 4px; }
+.theme-thumb-classic .tt-cards span { border-color: #f59e0b; border-radius: 6px; }
+
+/* Recovery Blue: blue utility strip over a white header with a wide
+   logotype, bold Inter headline, sky-edged cards. */
+.theme-thumb-recovery-blue { background: #fff; }
+.theme-thumb-recovery-blue .tt-strip { height: 6px; background: #0b5cff; }
+.theme-thumb-recovery-blue .tt-head { height: 22px; border-bottom: 1px solid #e2e8f0; }
+.theme-thumb-recovery-blue .tt-logo { width: 46px; height: 9px; }
+.theme-thumb-recovery-blue .tt-hero { background: linear-gradient(180deg, #eef4ff, #fff); }
+.theme-thumb-recovery-blue .tt-title { font-weight: 800; letter-spacing: -0.03em; color: #1e293b; }
+.theme-thumb-recovery-blue .tt-cards span { border-color: #0ea5e9; border-radius: 3px; }
+
+/* Modern Dark: deep-indigo canvas with an indigo / teal aurora, gradient
+   Fraunces headline, teal-to-cyan pill button, glass cards. */
+.theme-thumb-modern-dark { border-color: #1d2747;
+  background:
+    radial-gradient(ellipse at 22% 28%, rgba(99, 102, 241, 0.55), transparent 50%),
+    radial-gradient(ellipse at 82% 58%, rgba(45, 212, 191, 0.32), transparent 48%),
+    radial-gradient(ellipse at 55% 0%, rgba(139, 92, 246, 0.35), transparent 50%), #070a1f; }
+.theme-thumb-modern-dark .tt-head { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.theme-thumb-modern-dark .tt-logo { background: #eef0ff; }
+.theme-thumb-modern-dark .tt-nav span,
+.theme-thumb-modern-dark .tt-copy { background: #a3a9d4; }
+.theme-thumb-modern-dark .tt-title { font-family: 'Fraunces', Georgia, serif; font-weight: 600;
+  letter-spacing: -0.02em; color: #fff;
+  background: linear-gradient(100deg, #fff 0%, #c7d2fe 44%, #2dd4bf 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.theme-thumb-modern-dark .tt-btn { border-radius: 999px; background: linear-gradient(100deg, #2dd4bf, #38bdf8); }
+.theme-thumb-modern-dark .tt-cards span { background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12); border-radius: 6px; }
+
+/* Cyberpunk: near-black HUD with a neon grid and scanlines, glitched
+   uppercase Chakra Petch headline, magenta button, corner-bracket cards. */
+.theme-thumb-cyberpunk { border-color: #18234a; border-radius: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px),
+    linear-gradient(rgba(0, 234, 255, 0.12) 1px, transparent 1px) 0 0 / 16px 16px,
+    linear-gradient(90deg, rgba(0, 234, 255, 0.12) 1px, transparent 1px) 0 0 / 16px 16px,
+    #05060f; }
+.theme-thumb-cyberpunk .tt-head { border-bottom: 1px solid rgba(0, 234, 255, 0.35); background: rgba(5, 6, 15, 0.7); }
+.theme-thumb-cyberpunk .tt-logo { border-radius: 0; background: #00eaff; box-shadow: 0 0 6px rgba(0, 234, 255, 0.7); }
+.theme-thumb-cyberpunk .tt-nav span { border-radius: 0; background: #7f8bb6; }
+.theme-thumb-cyberpunk .tt-copy { border-radius: 0; background: #7f8bb6; }
+.theme-thumb-cyberpunk .tt-title { font-family: 'Chakra Petch', ui-monospace, monospace; font-size: 16px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: #d7e6ff;
+  text-shadow: -1.5px 0 #ff2d95, 1.5px 0 #00eaff, 0 0 8px rgba(0, 234, 255, 0.6); }
+.theme-thumb-cyberpunk .tt-btn { border-radius: 0; background: #ff2d95; box-shadow: 0 0 8px rgba(255, 45, 149, 0.7); }
+.theme-thumb-cyberpunk .tt-cards span { border-radius: 0; background-color: #0a0c1a;
+  border-color: rgba(0, 234, 255, 0.22);
+  background-image:
+    linear-gradient(#00eaff, #00eaff), linear-gradient(#00eaff, #00eaff),
+    linear-gradient(#ff2d95, #ff2d95), linear-gradient(#ff2d95, #ff2d95);
+  background-size: 6px 1px, 1px 6px, 6px 1px, 1px 6px;
+  background-position: 0 0, 0 0, 100% 100%, 100% 100%;
+  background-repeat: no-repeat; }
+
+/* Sanctuary: warm cream canvas with a sage and clay glow, Lora headline,
+   sage pill button, soft rounded cards. */
+.theme-thumb-sanctuary { border-color: #e4d9c5;
+  background:
+    radial-gradient(ellipse at 14% 70%, rgba(94, 125, 106, 0.22), transparent 46%),
+    radial-gradient(ellipse at 88% 24%, rgba(192, 122, 78, 0.2), transparent 44%), #faf6ee; }
+.theme-thumb-sanctuary .tt-head { border-bottom: 1px solid #e4d9c5; }
+.theme-thumb-sanctuary .tt-logo { background: #5e7d6a; border-radius: 4px; }
+.theme-thumb-sanctuary .tt-nav span,
+.theme-thumb-sanctuary .tt-copy { background: #7c6f5d; }
+.theme-thumb-sanctuary .tt-title { font-family: 'Lora', Georgia, serif; font-weight: 600; color: #3a3127; }
+.theme-thumb-sanctuary .tt-btn { border-radius: 999px; background: #5e7d6a; }
+.theme-thumb-sanctuary .tt-cards span { background: #fffdf8; border-color: #e4d9c5; border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(58, 49, 39, 0.08); }
+.theme-thumb-sanctuary .tt-cards span:nth-child(2) { border-top: 2px solid #c07a4e; }
+
+/* Terminal: near-black canvas, all-monospace prompt headline with a block
+   cursor, phosphor-green square button, flat boxed panels. */
+.theme-thumb-terminal { border-color: #1e2b24; border-radius: 0;
+  background: radial-gradient(ellipse at 50% 40%, rgba(59, 209, 111, 0.1), transparent 60%), #0a0e0c; }
+.theme-thumb-terminal .tt-head { border-bottom: 1px solid #1e2b24; }
+.theme-thumb-terminal .tt-logo { border-radius: 0; background: #3bd16f; }
+.theme-thumb-terminal .tt-nav span,
+.theme-thumb-terminal .tt-copy { border-radius: 0; background: #7b8a81; }
+.theme-thumb-terminal .tt-title { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 14px; font-weight: 600; color: #eaf3ed; }
+.theme-thumb-terminal .tt-title::before { content: "$ "; color: #3bd16f; }
+.theme-thumb-terminal .tt-title::after { content: ""; display: inline-block; width: 7px; height: 13px;
+  margin-left: 3px; vertical-align: -2px; background: #3bd16f; }
+.theme-thumb-terminal .tt-btn { border-radius: 0; background: #3bd16f; }
+.theme-thumb-terminal .tt-cards span { border-radius: 0; background: #0f1512; border-color: #1e2b24; }
+
+/* Neobrutal: paper canvas, thick black borders and hard offset shadows,
+   uppercase Archivo Black headline on a yellow block, bright flat cards. */
+.theme-thumb-neobrutal { border: 2px solid #111; background: #faf4e6; }
+.theme-thumb-neobrutal .tt-head { border-bottom: 2px solid #111; background: #fff; }
+.theme-thumb-neobrutal .tt-logo { border-radius: 0; background: #111; }
+.theme-thumb-neobrutal .tt-nav span,
+.theme-thumb-neobrutal .tt-copy { border-radius: 0; background: #111; opacity: 1; }
+.theme-thumb-neobrutal .tt-title { font-family: 'Archivo Black', 'Inter', sans-serif; font-weight: 400;
+  font-size: 12px; text-transform: uppercase; color: #111; padding: 4px 7px 3px;
+  background: #ffd23f; border: 2px solid #111; box-shadow: 3px 3px 0 #111; }
+.theme-thumb-neobrutal .tt-btn { width: 30px; height: 9px; border-radius: 2px; background: #ff4d8d;
+  border: 2px solid #111; box-shadow: 2px 2px 0 #111; }
+.theme-thumb-neobrutal .tt-cards { padding-right: 13px; }
+.theme-thumb-neobrutal .tt-cards span { border: 2px solid #111; border-radius: 3px; box-shadow: 2px 2px 0 #111; }
+.theme-thumb-neobrutal .tt-cards span:nth-child(1) { background: #8fe3ef; }
+.theme-thumb-neobrutal .tt-cards span:nth-child(2) { background: #ff4d8d; }
+.theme-thumb-neobrutal .tt-cards span:nth-child(3) { background: #c2f24a; }
 .template-card-info { display: flex; flex-direction: column; gap: 4px; }
 .template-card-name { font-size: var(--fs-base); font-weight: 600; color: var(--text);
   display: flex; align-items: center; gap: 8px; }

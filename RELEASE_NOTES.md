@@ -18,6 +18,7 @@ release notes expanded by default and the changelog collapsed.
 - In dark mode the preview shows what the public site really does: fixed button colors, and header links in the dark body text color. A note says so where it applies.
 - The "Dots" underline for links and buttons now draws a dotted underline. Before, it drew no line at all.
 - "Default section spacing" is no longer on the Design page: nothing on the public site used it. Page spacing is set on each page.
+- Each card in the Site theme picker shows a small picture of that theme: its colors, heading font, buttons and cards. Before, every card showed the same blue sketch.
 - Neobrutal headings, navigation and buttons now use the Archivo Black font. Before, the font file was missing its basic letters, so the browser fell back to Arial Black.
 
 ## 2.20.2 — 2026-09-30 (latest)

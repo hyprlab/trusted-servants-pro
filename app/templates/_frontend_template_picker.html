@@ -42,6 +42,23 @@
             <label class="template-card{% if active == t.key %} active{% endif %}">
               <input type="radio" name="{{ radio_name }}" value="{{ t.key }}"
                      {% if active == t.key %}checked{% endif %}>
+              {% if radio_name == 'frontend_theme' %}
+              {# A miniature homepage in the theme's own palette, type and
+                 card shape; styled per key by .theme-thumb-<key> in app.css. #}
+              <div class="template-card-preview theme-thumb theme-thumb-{{ t.key }}" aria-hidden="true">
+                <div class="tt-strip"></div>
+                <div class="tt-head">
+                  <span class="tt-logo"></span>
+                  <span class="tt-nav"><span></span><span></span><span></span></span>
+                </div>
+                <div class="tt-hero">
+                  <span class="tt-title">Welcome home</span>
+                  <span class="tt-copy"></span>
+                  <span class="tt-btn"></span>
+                </div>
+                <div class="tt-cards"><span></span><span></span><span></span></div>
+              </div>
+              {% else %}
               <div class="template-card-preview template-card-preview-{{ preview_kind }}">
                 {% if preview_kind == 'header' %}
                   <div class="template-card-preview-bar"></div>
@@ -68,6 +85,7 @@
                   <div class="template-card-preview-footer-bar"></div>
                 {% endif %}
               </div>
+              {% endif %}
               <div class="template-card-info">
                 <div class="template-card-name">{{ t.name }}
                   <span class="template-card-badge">Active</span>
