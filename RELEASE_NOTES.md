@@ -35,6 +35,9 @@ release notes expanded by default and the changelog collapsed.
 - The Web Frontend menu is regrouped: Look (Design, Branding), Structure (Header, Footer, Page templates), Content (Homepage, Pages, Popups, Forms, 404 page) and Site (Redirects, Caching, Privacy & cookies, Font & icon library, and Visitor metrics, which opens Watchtower).
 - The site theme picker is now only on the Design page. It used to sit at the top of most Web Frontend pages, where changing it restyled the whole site from pages such as Footer or 404.
 - Header, Footer, Pages and the page templates have a new width choice, Site width, which follows Design → Layout, so one setting sizes the whole site. New pages and new installs use it. Parts saved before keep their own width and look the same, and Design → Layout lists which parts follow the site width and which set their own.
+- The Web Frontend overview starts with a site status strip that can't be hidden: whether the public site is on, the theme and how it starts, the cookie banner and caching, each linking to its page. Staging sync sits below it when set up.
+- Overview widgets show more: Pages counts published, draft and private pages and those with unpublished changes; Forms lists every form, custom forms included, with what is waiting in each inbox; Redirects lists the missing pages visitors hit most; Header menu lists the menu items. The Branding and Header & Footer shortcut widgets are gone.
+- "Hide the app sidebar in Web Frontend" moved from the overview into Customize, since it is your own setting rather than the site's.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

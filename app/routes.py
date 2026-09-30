@@ -484,9 +484,12 @@ _DASHBOARD_WIDGET_ALIASES = {"contact-form": "forms"}
 # scan the overview top-down: status pill, visitor numbers, then
 # section shortcuts in roughly the order they appear in the FE
 # subnav.
-FE_DASHBOARD_WIDGET_KEYS = ("fe-status", "fe-visitor-metrics", "fe-pages",
-                            "fe-redirects", "fe-navigation", "fe-forms",
-                            "fe-branding", "fe-header-footer")
+# The site status strip at the top of the overview is fixed; these are
+# the widgets under it. The older fe-status / fe-branding /
+# fe-header-footer widgets were folded into the strip and their
+# fe_dash_show_* columns are no longer read.
+FE_DASHBOARD_WIDGET_KEYS = ("fe-visitor-metrics", "fe-pages", "fe-forms",
+                            "fe-redirects", "fe-navigation")
 
 ONLINE_WINDOW = timedelta(minutes=5)
 # Idle window — users seen between ONLINE_WINDOW and IDLE_WINDOW are
@@ -8072,6 +8075,23 @@ def _clamp_int(raw, lo, hi, default):
 from .widths import WIDTH_MODES as _WIDTH_MODES  # noqa: E402
 
 
+@bp.route("/frontend/preview", methods=["POST"])
+@admin_required
+def frontend_staged_preview():
+    """Render a public page with unsaved settings applied, for the live
+    previews on the Web Frontend pages. JSON body:
+    ``{"path": "/meetings", "forms": [{"action": url, "fields": [[k, v]]}]}``.
+    Nothing is saved: see ``app/staged_preview.py``."""
+    from .staged_preview import render_staged
+    payload = request.get_json(silent=True) or {}
+    html = render_staged(str(payload.get("path") or "/"), payload.get("forms") or [])
+    from flask import make_response
+    resp = make_response(html)
+    resp.headers["Content-Type"] = "text/html; charset=utf-8"
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @bp.route("/frontend/toggle", methods=["POST"])
 @admin_required
 def frontend_toggle():
@@ -9159,32 +9179,39 @@ def frontend_dashboard():
     Visitor-metrics widget reuses the summary aggregator that backs the
     full /tspro/frontend/metrics page so the numbers match."""
     from . import visitor_metrics as _vm
-    from .forms_registry import all_forms as _all_forms
+    from . import watchtower as _wt
+    from .forms_overview import form_rows
+    from .frontend import THEMES
 
     s = _get_site_setting()
     fe_order = _fe_dashboard_order(current_user)
 
-    # Visitor metrics — same 30-day window the dedicated metrics page
-    # defaults to, so the operator who's used to those numbers doesn't
-    # see a different scale here. Wrap in try/except so an empty
-    # VisitorEvent table or a transient DB hiccup doesn't 500 the
-    # overview page.
+    # Visitor metrics use the same 30-day window as the full metrics page
+    # so the numbers match. Best-effort: an empty table or a DB hiccup
+    # must not 500 the overview.
     vm_window = 30
     try:
         vm_summary = _vm.summary(days=vm_window)
         vm_daily = _vm.daily_series(days=vm_window)
-    except Exception:  # noqa: BLE001 — widget data is best-effort
+    except Exception:  # noqa: BLE001
         vm_summary = None
         vm_daily = []
 
-    # Section data — kept thin so the overview render stays fast.
-    recent_pages = (Page.query.order_by(Page.updated_at.desc()).limit(6).all())
-    pages_count = Page.query.count()
-    redirects_count = UrlRedirect.query.count()
-    recent_redirects = (UrlRedirect.query
-                        .order_by(UrlRedirect.created_at.desc()).limit(5).all())
-    nav_count = FrontendNavItem.query.count()
-    fe_forms = _all_forms()
+    theme_key = s.frontend_theme or "classic"
+    theme = next((t for t in THEMES if t["key"] == theme_key), {"name": theme_key})
+    page_counts = {
+        "published": Page.query.filter(Page.is_published.is_(True), Page.is_private.is_(False)).count(),
+        "private": Page.query.filter(Page.is_private.is_(True)).count(),
+        "draft": Page.query.filter(Page.is_published.is_(False), Page.is_private.is_(False)).count(),
+        "unpublished_changes": Page.query.filter(Page.draft_json.isnot(None)).count(),
+    }
+    recent_pages = Page.query.order_by(Page.updated_at.desc()).limit(6).all()
+    try:
+        missing = _wt.top_missing_paths(days=30, limit=5)
+        missing_total = (_wt.not_found_summary(days=30) or {}).get("total_window", 0)
+    except Exception:  # noqa: BLE001
+        missing, missing_total = [], 0
+    nav_items = FrontendNavItem.query.order_by(FrontendNavItem.position).all()
 
     return render_template("frontend_dashboard.html",
                            site=s,
@@ -9193,12 +9220,17 @@ def frontend_dashboard():
                            vm_window=vm_window,
                            vm_summary=vm_summary,
                            vm_daily=vm_daily,
+                           theme_name=theme.get("name") or theme_key,
                            recent_pages=recent_pages,
-                           pages_count=pages_count,
-                           redirects_count=redirects_count,
-                           recent_redirects=recent_redirects,
-                           nav_count=nav_count,
-                           fe_forms=fe_forms)
+                           page_counts=page_counts,
+                           pages_count=Page.query.count(),
+                           redirects_count=UrlRedirect.query.count(),
+                           recent_redirects=(UrlRedirect.query
+                                             .order_by(UrlRedirect.created_at.desc()).limit(5).all()),
+                           missing_paths=missing,
+                           missing_total=missing_total,
+                           nav_items=nav_items,
+                           form_rows=form_rows(s))
 
 
 @bp.route("/frontend/customize", methods=["POST"])
@@ -9210,6 +9242,7 @@ def fe_dashboard_customize():
     for slug in FE_DASHBOARD_WIDGET_KEYS:
         col = "fe_dash_show_" + slug.replace("fe-", "").replace("-", "_")
         setattr(current_user, col, request.form.get(col) == "1")
+    current_user.fe_admin_autohide_sidebar = request.form.get("fe_admin_autohide_sidebar") == "1"
     db.session.commit()
     flash("Web Frontend overview updated", "success")
     return redirect(url_for("main.frontend_dashboard"))

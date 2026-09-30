@@ -1,0 +1,37 @@
+{# Live preview panel: the real public page with this screen's unsaved
+   settings applied (static/js/fe_live_preview.js, app/staged_preview.py).
+
+   live_preview(path, forms, focus='', height=560, title='Preview',
+                width=1280, note='')
+     path   public page to show, e.g. '/meetings'
+     forms  CSS selector list of the forms whose values apply
+     focus  optional selector inside the page to scroll to (e.g. 'footer')
+#}
+{% macro live_preview(path, forms, focus='', height=560, title='Preview', width=1280, note='', id='') %}
+<div class="lp" data-live-preview{% if id %} id="{{ id }}"{% endif %}
+     data-lp-url="{{ url_for('main.frontend_staged_preview') }}"
+     data-lp-path="{{ path }}" data-lp-forms="{{ forms }}"
+     data-lp-height="{{ height }}" data-lp-width="{{ width }}"
+     {% if focus %}data-lp-focus="{{ focus }}"{% endif %}>
+  <div class="lp-bar">
+    <span class="lp-title">{{ title }}</span>
+    <span class="lp-status muted smaller" data-lp-status aria-live="polite"></span>
+    <div class="lp-tools">
+      <div class="ds-seg-btns" role="radiogroup" aria-label="Preview mode">
+        <button type="button" role="radio" data-lp-mode-btn="light" title="Light mode">{{ icon('sun') }}<span class="lp-hide-sm">Light</span></button>
+        <button type="button" role="radio" data-lp-mode-btn="dark" title="Dark mode">{{ icon('moon') }}<span class="lp-hide-sm">Dark</span></button>
+      </div>
+      <div class="ds-seg-btns" role="radiogroup" aria-label="Preview width">
+        <button type="button" role="radio" data-lp-device-btn="desktop" title="Desktop">{{ icon('monitor') }}</button>
+        <button type="button" role="radio" data-lp-device-btn="phone" title="Phone, 390px">{{ icon('smartphone') }}</button>
+      </div>
+      <button type="button" class="btn btn-sm lp-refresh" data-lp-refresh title="Refresh the preview">{{ icon('refresh') }}</button>
+      <a class="btn btn-sm" href="{{ path }}" target="_blank" rel="noopener" title="Open the saved page in a new tab">{{ icon('external-link') }}</a>
+    </div>
+  </div>
+  <div class="lp-stage" data-lp-stage>
+    <iframe title="{{ title }}" loading="eager"></iframe>
+  </div>
+  <p class="lp-note muted smaller">{% if note %}{{ note }} {% endif %}Shows unsaved changes; nothing is saved until you save.</p>
+</div>
+{% endmacro %}

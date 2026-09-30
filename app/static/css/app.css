@@ -17608,3 +17608,81 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 .ds-wu-pill { font-size: var(--fs-2xs); font-weight: 600; padding: 2px 8px; border-radius: 999px;
   background: var(--panel-2); color: var(--muted); white-space: nowrap; }
 .ds-wu-pill.is-site { background: color-mix(in srgb, var(--brand, #0b5cff) 14%, transparent); color: var(--brand, #0b5cff); }
+
+/* ── Live preview panel (_live_preview.html, fe_live_preview.js) ───── */
+.lp { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.lp-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lp-title { font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.lp-status { flex: 1 1 auto; }
+.lp-tools { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.lp-tools .btn { padding: 5px 8px; }
+.lp-tools .btn .icon { width: 15px; height: 15px; }
+.lp-stage { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--panel-2); }
+.lp-stage iframe { position: absolute; top: 0; left: 0; border: 0; background: #fff; transform-origin: 0 0; }
+.lp[data-lp-device="phone"] .lp-stage iframe { left: 50%; margin-left: -195px; transform-origin: 50% 0; }
+.lp.is-loading .lp-stage::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--panel) 35%, transparent);
+  pointer-events: none; }
+.lp-note { margin: 0; }
+@media (max-width: 700px) { .lp-hide-sm { display: none; } }
+
+/* ── Studio pages (Header, Footer, Page templates, Forms, Pages) ─────
+   Same card, tab strip and setting rows as the Design page (.ds-tabs,
+   .ds-tab, .ds-group, .ds-row) around a live preview of the real public
+   page (_live_preview.html). Two shapes:
+     .st-body--side  controls left, preview sticky on the right
+     .st-body--top   preview across the top, controls below (header,
+                     footer: wide, short parts of the page). */
+.fe-admin-main .st-studio { padding: 0; container-type: inline-size; }
+.fe-admin-main .st-studio > .card-head { padding: 18px 22px 12px; flex-wrap: wrap; margin: 0; }
+.st-studio .card-head h2 { display: flex; align-items: center; gap: 6px; }
+.st-actions { display: flex; gap: 8px; margin-left: auto; align-items: center; flex-wrap: wrap; }
+.st-body--side { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); align-items: start; }
+.st-body--side > .st-controls { border-right: 1px solid var(--border); background: var(--panel-2);
+  border-bottom-left-radius: var(--radius); align-self: stretch; min-width: 0; }
+.st-body--side > .st-preview { position: sticky; top: calc(var(--topbar-h, 56px) + 12px); padding: 16px 20px 20px; min-width: 0; }
+.st-body--top > .st-preview { padding: 16px 20px 6px; border-bottom: 1px solid var(--border); }
+.st-body--top > .st-controls { background: var(--panel-2); border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius); }
+.st-panel[hidden] { display: none; }
+.st-panel > .ds-group:last-child { border-bottom: 0; }
+.st-panel-intro { margin: 0; padding: 14px 18px 0; font-size: var(--fs-sm); color: var(--muted); }
+.st-na { margin: 12px 18px 0; padding: 10px 12px; border-radius: 8px; font-size: var(--fs-sm);
+  background: color-mix(in srgb, #f59e0b 12%, transparent); color: var(--text);
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent); }
+.st-na .icon { width: 15px; height: 15px; vertical-align: -3px; margin-right: 4px; color: #b45309; }
+.is-na { opacity: .5; }
+.st-field { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.st-field > span:first-child { font-size: var(--fs-sm); font-weight: 600; }
+.st-field input[type=text], .st-field input[type=url], .st-field input[type=email],
+.st-field input[type=number], .st-field select, .st-field textarea { width: 100%; }
+.st-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.st-group-body { display: flex; flex-direction: column; gap: 12px; }
+@container (max-width: 860px) {
+  .st-body--side { grid-template-columns: minmax(0, 1fr); }
+  .st-body--side > .st-preview { position: static; order: -1; border-bottom: 1px solid var(--border); }
+  .st-body--side > .st-controls { border-right: 0; border-bottom-right-radius: var(--radius); }
+}
+
+/* ── Web Frontend overview: site status strip and widget details ──── */
+.fe-admin-main .fe-status-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0; padding: 0; overflow: hidden; }
+.fe-ss-item { display: flex; align-items: center; gap: 12px; padding: 16px 18px; min-width: 0;
+  color: inherit; text-decoration: none; border-left: 1px solid var(--border); }
+.fe-ss-item:first-child { border-left: 0; }
+a.fe-ss-item:hover { background: var(--panel-2); text-decoration: none; }
+.fe-ss-item form { margin: 0; display: flex; }
+.fe-ss-icon { display: inline-flex; width: 34px; height: 34px; border-radius: 9px; align-items: center; justify-content: center;
+  background: var(--panel-2); color: var(--muted); flex: 0 0 auto; }
+.fe-ss-icon .icon { width: 17px; height: 17px; }
+.fe-ss-label { font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 4px; }
+.fe-ss-value { font-size: var(--fs-sm); font-weight: 600; margin-top: 2px; }
+.fe-admin-main .fe-status-sync { padding: 16px 18px; margin-top: 0; border-top: 0; }
+.fe-status-sync .dash-sync-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fe-dw-counts { margin: 0 0 8px; }
+.fe-dw-sub { margin: 4px 0 4px; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.fe-dw-tag { display: inline-block; font-size: var(--fs-2xs); font-weight: 600; padding: 1px 7px; border-radius: 999px;
+  background: color-mix(in srgb, #f59e0b 16%, transparent); color: #b45309; vertical-align: 1px; }
+.fe-dw-tag.is-off { background: var(--panel-2); color: var(--muted); }
+.fe-cust-sub { font-size: var(--fs-sm); margin: 18px 0 6px; }
+@media (max-width: 700px) { .fe-ss-item { border-left: 0; border-top: 1px solid var(--border); } .fe-ss-item:first-child { border-top: 0; } }

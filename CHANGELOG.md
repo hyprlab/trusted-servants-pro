@@ -8,6 +8,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ### Added
 - `app/widths.py`: a `site` width mode beside `boxed` and `full`. `resolve_width()` draws `site` as boxed at the resolved `container_max_px`; public routes pass the resolved values and the header, footer, page, contact and Recovery Contacts templates use the `width_px` Jinja global, so templates still only know `boxed` and `full`. Save routes accept `site` (`WIDTH_MODES`), the page-level `*_width_mode` model defaults are now `site` (migrations still add `boxed`), and `_width_control.html` is the shared admin control. Design → Layout lists each surface's mode (`width_usage()`).
+- `forms_overview.form_rows()`: one row per built-in and custom form with its inbox URL and waiting count (pending posts, stories and Recovery Contacts, unread contact messages, unseen custom-form submissions). `forms_registry` entries gain `inbox_endpoint`.
+- Live previews for the Web Frontend studios: `POST /tspro/frontend/preview` (`staged_preview.render_staged`) runs the posted forms through their own save routes with the session's commits turned into flushes, renders the public path with a nested request carrying the admin's cookie, and rolls back. Only settings saves in `PREVIEWABLE` may run; file inputs and remove/clear fields are dropped. `_live_preview.html` and `fe_live_preview.js` draw it as a scaled iframe with light/dark and desktop/phone switches; `fe_studio.js` drives the studio tabs and asks before leaving with unsaved changes.
 
 ### Changed
 
@@ -25,6 +27,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - One set of segmented-control rules in `app.css` (9px track, 6px options, raised active option) now draws `.ds-seg-btns`, `.ds-kind`, `.nav-megalink-seg`, `.view-toggle`, `.ar-view-tabs`, `.fe-mlist-link-type`, `.dynbg-modal-tabs`, `.pbe-segmented`, `.content-mode-seg`, `.ts-aud-submode` and the `.fe-template-picker` pill. Each component keeps only its layout rules; the pill, brand-fill and accent-fill variants and the dark-mode overrides of `.content-mode-seg` are gone. `wp_import_map.html` gives `.wp-target-pillgroup` the same shape and keeps its per-target colors.
 - `_frontend_subnav.html` renders both the desktop list and the phone `<select>` from one list, `fe_admin_nav._SECTIONS`, exposed as the `fe_subnav(site)` Jinja global. Groups are Look, Structure, Content and Site; Visitor metrics is marked as leaving the area.
 - The `template_picker(frontend_themes, …)` pill is removed from every Web Frontend page header except Design.
+- `frontend_dashboard` renders a fixed status strip (`frontend_enabled`, theme and default mode, cookie banner, caching) and the staging sync card above the widget grid. `FE_DASHBOARD_WIDGET_KEYS` drops `fe-status`, `fe-branding` and `fe-header-footer`; their `fe_dash_show_*` columns are no longer read. `fe_dashboard_customize` also saves `fe_admin_autohide_sidebar`.
 
 ### Fixed
 
