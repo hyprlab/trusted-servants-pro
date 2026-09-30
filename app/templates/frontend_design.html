@@ -614,7 +614,19 @@
       var v = readField(key);
       return v != null && v !== '' ? v : defaultFor(key);
     }
+    // The preview follows the admin's own theme: a dark admin shows the
+    // cards as the public site paints them in dark mode, so the text
+    // tokens always match the background they sit on.
+    var DARK_ADMIN_THEMES = ['dark', 'neobrutal-dark', 'cyberpunk'];
+    function adminIsDark() {
+      return DARK_ADMIN_THEMES.indexOf(
+        document.documentElement.getAttribute('data-theme')) !== -1;
+    }
     function applyPreview() {
+      var dark = adminIsDark();
+      var sfx  = dark ? '_dark' : '';
+      var text = resolve(dark ? 'color_text_dark' : 'color_text');
+      var soft = dark ? null : resolve('color_text_soft');
       ['primary', 'secondary'].forEach(function (kind) {
         var card = previewWrap.querySelector(
           '[data-card-preview-target="' + kind + '"]');
@@ -624,8 +636,8 @@
         var hsh  = resolve('card_' + kind + '_hover_shadow');
         var tr   = resolve('card_' + kind + '_transition');
         var hxf  = resolve('card_' + kind + '_hover_transform');
-        var bg   = resolve('color_card_' + kind + '_bg');
-        var br   = resolve('color_card_' + kind + '_border');
+        var bg   = resolve('color_card_' + kind + '_bg' + sfx);
+        var br   = resolve('color_card_' + kind + '_border' + sfx);
         var hbr  = resolve('color_card_' + kind + '_hover_border');
         var s = card.style;
         s.setProperty('--fe-card-' + kind + '-border-width', WIDTH_PX[bw] || '1px');
@@ -636,6 +648,10 @@
         if (bg)  s.setProperty('--fe-color-card-' + kind + '-bg', bg);
         if (br)  s.setProperty('--fe-color-card-' + kind + '-border', br);
         if (hbr) s.setProperty('--fe-color-card-' + kind + '-hover-border', hbr);
+        if (text) s.setProperty('--fe-card-preview-text', text);
+        // Dark mode has no muted-text token, so soften the dark text.
+        s.setProperty('--fe-card-preview-muted', soft ||
+          (text ? 'color-mix(in srgb, ' + text + ' 70%, transparent)' : ''));
       });
     }
     // Apply on every form-level input so colour pickers, hex chips,
@@ -643,6 +659,8 @@
     document.addEventListener('input', applyPreview, true);
     document.addEventListener('change', applyPreview, true);
     applyPreview();
+    new MutationObserver(applyPreview).observe(
+      document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   }
 
   // ── Live button preview ───────────────────────────────────────────

@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- The card previews under Design → Card styles now follow the admin theme: in a dark theme they show the dark-mode card colors and text, so the sample text is readable in both.
+
 ## 2.20.2 — 2026-09-30 (latest)
 
 - The featured image on announcement, event and archive pages now has the same shadow as the cards beside it, set under Design, in place of a heavier shadow of its own.

@@ -1354,15 +1354,17 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   border-color: var(--fe-color-card-secondary-hover-border,
                     var(--fe-color-card-secondary-border, var(--border)));
 }
+/* Text colours come from the site's Text tokens (stamped by the preview
+   JS), not the admin's, so they always read against the card colours. */
 .fe-card-style-preview-label {
   font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--muted);
+  text-transform: uppercase; color: var(--fe-card-preview-muted, var(--muted));
 }
 .fe-card-style-preview-title {
   margin: 0; font-size: var(--fs-lg); font-weight: 600;
-  color: var(--text);
+  color: var(--fe-card-preview-text, var(--text));
 }
-.fe-card-style-preview-body p { margin: 0; }
+.fe-card-style-preview-body p { margin: 0; color: var(--fe-card-preview-muted, var(--muted)); }
 .fe-design-field {
   display: flex; flex-direction: column; gap: 8px;
   padding: 14px 16px;

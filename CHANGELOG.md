@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+
+- Card styles preview in a dark admin theme (`dark`, `neobrutal-dark`, `cyberpunk`) painted the light card colors with the admin's light text. It now resolves the `_dark` background and border tokens and `color_text_dark` there (`color_text` and `color_text_soft` in light themes), stamps them as `--fe-card-preview-text` / `--fe-card-preview-muted`, and repaints when the admin theme changes.
+
 ## [2.20.2] — 2026-09-30
 
 ### Changed
