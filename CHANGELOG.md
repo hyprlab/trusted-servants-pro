@@ -12,6 +12,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - Live previews for the Web Frontend studios: `POST /tspro/frontend/preview` (`staged_preview.render_staged`) runs the posted forms through their own save routes with the session's commits turned into flushes, renders the public path with a nested request carrying the admin's cookie, and rolls back. Only settings saves in `PREVIEWABLE` may run; file inputs and remove/clear fields are dropped. `_live_preview.html` and `fe_live_preview.js` draw it as a scaled iframe with light/dark and desktop/phone switches; `fe_studio.js` drives the studio tabs and asks before leaving with unsaved changes.
 - Design → Header (`header_appearance=1`, `_save_header_appearance`): header width through `_width_control.html`, height, logo width, and `utility_bar_*` and `header_alert_*` colors with new `*_dark` columns (empty means the light color). Dark colors render through `data-ub-dark` / `data-ab-dark` rules in `frontend.css`; `frontend.UTILITY_BAR_COLOR_MODES` lists the themes that honor the utility bar colors. The Header and Footer tabs swap the drawn stage for a live preview of the page.
 - `_icon_picker_modal.html`, the shared icon picker, used by Header and Footer. Secondary footer links store `open_in_new_tab`.
+- `app/form_specs.py`: specs for the built-in forms (`free` for Contact, `fixed` for Story and Announcements/Events) with `resolve_fields`, `normalize_fields` and `field_map`, exposed as the `builtin_form_fields` / `builtin_field_map` Jinja globals. `contact.html` renders its fields through the new `frontend/_form_field.html` macro (extracted from `_custom_form_body.html`); `contact_submit` validates required fields from the spec and appends extra answers to the message. `_submission_form_body.html` takes its labels, help and placeholders from `field_map`.
 
 ### Changed
 
@@ -35,6 +36,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `frontend_branding.html` is a tabbed studio with client-side previews. `frontend_branding_save` also handles `frontend_logo` / `clear_frontend_logo`; the `/frontend/logo-save` route is gone.
 - `frontend_footer.html` is a studio: the seven content modals became `st-panel` tabs (same field names, still parsed by `parse_footer`), the layout is a `frontend_footer_template` radio in the form, the row builder shows only for a custom layout, and a prebuilt shows its `FOOTER_PREBUILT_BLOCKS` slots. `frontend_footer_save` delegates to `_apply_footer_form`, which only rewrites a custom layout's rows; `/frontend/footer/customize` copies `FOOTER_PREBUILT_ROWS` into a new `CustomLayout`.
 - Design → Footer (`footer_appearance=1`, `_save_footer_appearance`): width through `_width_control.html`, min height, font scale, `frontend_footer_bg_mode`, and the background via the new `blocks.parse_footer_bg` (controls in `_footer_bg_controls.html` with `footer_bg_controls.js`). New tokens `color_footer_dark_{bg,line,text,muted,chip,chip_hover}` (defaults are the old hard-coded values) replace the literals in the dark footer rules of `frontend.css`; `frontend.FOOTER_SURFACE_THEMES` marks where they apply.
+- `frontend_form_studio.html` replaces the five form settings templates; `_form_studio_ctx` describes each form. `_field_builder.html` replaces `_form_field_builder.html` and the custom form's inline copy, with `custom`, `free` and `fixed` modes and in-place editing. `frontend_forms` renders `forms_overview.form_rows`. Contact and Recovery Contacts page copy is saved by their form routes; the Page templates routes only write it when posted.
 
 ### Fixed
 
@@ -54,10 +56,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The mega menu Search block rendered an input nothing handled; it now hands its text to the site search modal. Nav and mega-menu links offered every form as a trigger, but only the Announcements/Events form has a modal (`forms_registry` `has_modal`).
 - `frontend/base.html` emitted `<meta name="description">` only inside the `frontend_og_enabled` branch. It is now emitted from the page or site description (falling back to `frontend_tagline`) regardless, and `og:url` / `og:image` are built from `SiteSetting.site_url` when set instead of the request host.
 - `_FOOTER_PREBUILT_BLOCK_TYPES` was referenced but never defined, so `frontend_footer` raised NameError whenever a prebuilt footer was active. It is now `frontend.FOOTER_PREBUILT_BLOCKS`, which also drives the picker previews (Stacked lacked secondary nav, Mega listed link columns twice and no social icons).
+- `_normalise_module_form_slug` passed a blank value to `_slugify_form_title`, which returns `form`, so clearing a built-in form's address saved `/form`.
 
 ### Removed
 - The `/frontend/header-save`, `/frontend/header-template` and `/frontend/megamenu-template` routes, which nothing used.
 - The unused `frontend/footers/recovery-blue.html` (not in `FOOTER_TEMPLATES`), the `frontend_footer_text` context value only it read, the `/frontend/footer-template` route and the footer page's own second save bar.
+- The unused `frontend_form_submission_import_to_story` route and the `_default_*_form_blocks` / `_resolve_module_form_fields` helpers.
 
 ## [2.20.2] — 2026-09-30
 

@@ -9284,29 +9284,12 @@ def frontend_fonts_icons():
 @bp.route("/frontend/forms")
 @admin_required
 def frontend_forms():
-    """Forms index — two lists.
-
-    The first lists the **built-in** forms from ``forms_registry`` (the
-    legacy events/announcements Submission Form and the standalone
-    Contact Form). Each registry entry declares an ``enabled_setting``
-    column; the index reads its current value off SiteSetting and
-    exposes an inline toggle.
-
-    The second lists **custom forms** authored from the admin UI —
-    rows in the ``custom_form`` table. Each custom form has its own
-    builder page (Phase 2) and its own public URL ``/<slug>``."""
-    from .forms_registry import all_forms
+    """Every public form in one table, built-in and custom
+    (forms_overview.form_rows): its address, on/off switch, what waits
+    in its inbox, and links to its settings and inbox."""
+    from .forms_overview import form_rows
     s = _get_site_setting()
-    forms = []
-    for f in all_forms():
-        enabled = True
-        col = f.get("enabled_setting")
-        if col:
-            enabled = bool(getattr(s, col, True))
-        forms.append({**f, "enabled": enabled})
-    custom_forms = CustomForm.query.order_by(CustomForm.created_at.desc()).all()
-    return render_template("frontend_forms.html",
-                           site=s, forms=forms, custom_forms=custom_forms)
+    return render_template("frontend_forms.html", site=s, rows=form_rows(s))
 
 
 # Routes/slugs we refuse to let a CustomForm claim. Mirrors the same
@@ -9326,16 +9309,12 @@ _RESERVED_FORM_SLUGS = {
 _FORM_FIELD_TYPES = {"name", "text", "email", "phone", "textarea",
                      "select", "radio", "checkboxes", "file"}
 _FORM_FIELD_TYPES_WITH_OPTIONS = {"select", "radio", "checkboxes"}
-# Dropdown order for the Custom Form builder. "name" is a composite
-# first+last name field, offered first; the rest follow in a natural
-# data-entry order. The Contact / Story / Events module forms reuse the
-# same builder + parser but DON'T expose the composite name field (their
-# public render + submit handlers are bespoke and only know the
-# primitives), so they get _MODULE_FORM_FIELD_TYPES instead.
+# Dropdown order for the Custom Form builder. "name" is a full-name
+# field, offered first; the rest follow in a natural data-entry order.
+# The built-in forms offer their own types (form_specs.SPECS).
 _CUSTOM_FORM_FIELD_TYPE_ORDER = ("name", "text", "email", "phone",
                                  "textarea", "select", "radio",
                                  "checkboxes", "file")
-_MODULE_FORM_FIELD_TYPES = sorted(_FORM_FIELD_TYPES - {"name"})
 
 
 def _name_from_label(label, existing_names=()):
@@ -9513,6 +9492,10 @@ def _normalise_module_form_slug(raw, exclude_attr=None):
     about to overwrite — e.g. saving ``submission_form_slug`` =
     ``story-submit`` shouldn't reject itself just because it
     previously held the same value."""
+    # Blank keeps the built-in address. (_slugify_form_title turns an
+    # empty string into "form", so check before calling it.)
+    if not (raw or "").strip():
+        return None
     cleaned = _slugify_form_title((raw or "").strip().lower())
     if not cleaned:
         return None
@@ -9554,90 +9537,6 @@ def _peek_existing_module_form_slug(attr):
         return getattr(s, attr, None) or None
     except Exception:  # noqa: BLE001
         return None
-
-
-def _default_submission_form_blocks():
-    """Default field set for the Announcements/Events submission form
-    — mirrors the hardcoded fields the public template currently
-    renders so admins land on the existing layout in the builder
-    and customize from there."""
-    return [
-        {"id": "f-0", "type": "text", "name": "title", "label": "Title", "required": True,
-         "placeholder": "e.g. Spring serenity workshop"},
-        {"id": "f-1", "type": "textarea", "name": "summary", "label": "Summary",
-         "required": False, "placeholder": "Short blurb shown in link previews"},
-        {"id": "f-2", "type": "textarea", "name": "body", "label": "Description",
-         "required": False, "placeholder": "Full details — Markdown supported"},
-        {"id": "f-3", "type": "text", "name": "event_starts_at", "label": "Event starts",
-         "required": False, "placeholder": "YYYY-MM-DDTHH:MM"},
-        {"id": "f-4", "type": "text", "name": "event_ends_at", "label": "Event ends",
-         "required": False, "placeholder": "YYYY-MM-DDTHH:MM"},
-        {"id": "f-5", "type": "text", "name": "location_name", "label": "Location name",
-         "required": False, "placeholder": "Community Center · Hall B"},
-        {"id": "f-6", "type": "text", "name": "location_address", "label": "Address",
-         "required": False},
-        {"id": "f-7", "type": "text", "name": "website_url", "label": "Event website URL",
-         "required": False, "placeholder": "https://example.org"},
-        {"id": "f-8", "type": "file", "name": "featured_image", "label": "Featured image",
-         "required": False, "help": "PNG, JPG, or WebP — optional."},
-        {"id": "f-9", "type": "text", "name": "submitter_name", "label": "Your name",
-         "required": True},
-        {"id": "f-10", "type": "email", "name": "submitter_email", "label": "Your email",
-         "required": True},
-        {"id": "f-11", "type": "phone", "name": "submitter_phone", "label": "Your phone",
-         "required": False},
-        {"id": "f-12", "type": "textarea", "name": "submitter_notes",
-         "label": "Notes for the admin", "required": False},
-    ]
-
-
-def _default_story_form_blocks():
-    """Default field set for the Story Submission Form — matches
-    the original "Story Submission Form" custom form layout
-    (Name + Email + Story + File Upload + Accept Terms)."""
-    return [
-        {"id": "f-0", "type": "text", "name": "submitter_name", "label": "Name",
-         "required": True, "placeholder": "Name"},
-        {"id": "f-1", "type": "email", "name": "submitter_email", "label": "Email",
-         "required": False},
-        {"id": "f-2", "type": "textarea", "name": "body", "label": "Story",
-         "required": True, "placeholder": "Type/Paste your story here"},
-        {"id": "f-3", "type": "file", "name": "attachment", "label": "File Upload",
-         "required": False, "placeholder": "Upload a file (PDF, DOC)",
-         "help": "If your story is in a file, optionally upload it here instead of pasting it"},
-        {"id": "f-4", "type": "checkboxes", "name": "accept_terms",
-         "label": "Accept Terms", "required": True,
-         "placeholder": "Please read and accept the terms below:",
-         "help": "",
-         "options": ["I accept the terms below"]},
-    ]
-
-
-def _default_contact_form_blocks():
-    """Default field set for the Contact Form — mirrors the existing
-    hardcoded fields on /contact (name, email, optional subject /
-    phone, and message)."""
-    return [
-        {"id": "f-0", "type": "text", "name": "name", "label": "Your name",
-         "required": True},
-        {"id": "f-1", "type": "email", "name": "email", "label": "Email",
-         "required": True},
-        {"id": "f-2", "type": "text", "name": "subject", "label": "Subject",
-         "required": False},
-        {"id": "f-3", "type": "phone", "name": "phone", "label": "Phone",
-         "required": False},
-        {"id": "f-4", "type": "textarea", "name": "message", "label": "Message",
-         "required": True, "placeholder": "How can we help?"},
-    ]
-
-
-def _resolve_module_form_fields(saved_raw, default_factory):
-    """Return the field list to feed the builder on a module form's
-    settings page. Saved overrides win when present; otherwise the
-    module's default blocks load so the admin sees the form's
-    current shape in the editor and can tweak from there."""
-    saved = _decode_blocks_json(saved_raw)
-    return saved if saved else default_factory()
 
 
 def _slugify_form_title(title):
@@ -9688,11 +9587,9 @@ def frontend_custom_form_new():
 @bp.route("/frontend/forms/custom/<int:form_id>/edit", methods=["GET", "POST"])
 @admin_required
 def frontend_custom_form_edit(form_id):
-    """Phase 1 stub for the custom-form edit page. Round-trips title,
-    slug, recipients, thank-you message, and redirect URL so the
-    operator can verify the row exists and basic settings persist.
-    Phase 2 layers the drag-and-drop field builder on top of this same
-    page."""
+    """A custom form's settings, in the shared form studio
+    (frontend_form_studio.html): fields, page, delivery, look, sharing
+    and who can see its inbox."""
     cf = db.session.get(CustomForm, form_id) or abort(404)
     if request.method == "POST":
         cf.title = (request.form.get("title") or cf.title).strip()
@@ -9714,9 +9611,10 @@ def frontend_custom_form_edit(form_id):
         # Per-form submission access for non-admin roles. Admins always
         # qualify, so they're not a checkbox option; only valid non-admin
         # roles are stored.
-        _picked = set(request.form.getlist("submission_roles"))
-        _allowed = [r for r in ("editor", "intergroup_member", "viewer") if r in _picked]
-        cf.submission_roles_csv = ",".join(_allowed) or None
+        if "submission_roles_present" in request.form or "submission_roles" in request.form:
+            _picked = set(request.form.getlist("submission_roles"))
+            _allowed = [r for r in ("editor", "intergroup_member", "viewer") if r in _picked]
+            cf.submission_roles_csv = ",".join(_allowed) or None
         # Optional per-form dynamic background. Same picker macro + save
         # path the page / site surfaces use: a normalised base key plus
         # the bundled overlay/colour/knob config JSON. Tampered values
@@ -9746,12 +9644,10 @@ def frontend_custom_form_edit(form_id):
         fields = _parse_form_fields(request.form)
         cf.blocks_json = _json.dumps(fields) if fields else None
         db.session.commit()
-        flash("Form settings saved.", "success")
+        flash("Form saved", "success")
         return redirect(url_for("main.frontend_custom_form_edit", form_id=cf.id))
-    return render_template("frontend_custom_form_edit.html",
-                           form=cf,
-                           fields=_load_form_fields(cf),
-                           field_types=_CUSTOM_FORM_FIELD_TYPE_ORDER)
+    return render_template("frontend_form_studio.html", site=_get_site_setting(),
+                           cf=cf, fs=_form_studio_ctx("custom", cf))
 
 
 def _summarise_form_submission(sub):
@@ -10167,184 +10063,6 @@ def frontend_form_submissions_csv():
     return resp
 
 
-@bp.route("/frontend/forms/submissions/<int:sub_id>/import-to-stories", methods=["POST"])
-@admin_required
-def frontend_form_submission_import_to_story(sub_id):
-    """Promote a legacy ``FormSubmission`` row into a pending-review
-    ``Story`` row so it lands in the Stories admin's Pending tab.
-
-    Used to migrate existing story submissions that came in through
-    the old CustomForm → FormSubmission pipeline before the dedicated
-    /storyform route shipped. Walks the parent CustomForm's
-    ``blocks_json`` to pick out title / summary / body / author /
-    submitter contact fields by name+type heuristics (same logic
-    ``_summarise_form_submission`` uses for list previews), copies
-    them onto a new Story row with ``is_pending_review=True``, and
-    deletes the FormSubmission so it doesn't double-track.
-
-    Any file uploads attached to the submission ride along: the first
-    image-typed file becomes the story's featured image, the first
-    non-image file becomes the submission attachment for download.
-    The on-disk files themselves aren't copied — both Story and
-    FormSubmission storage live under the same ``UPLOAD_FOLDER``,
-    so we just hand off the stored filename to the Story row.
-    """
-    import json as _json
-    sub = db.session.get(FormSubmission, sub_id) or abort(404)
-    try:
-        payload = _json.loads(sub.payload_json or "{}")
-    except (ValueError, TypeError):
-        payload = {}
-    fvals = payload.get("fields") or {}
-    files = payload.get("files") or {}
-
-    cf = sub.form
-    blocks = []
-    if cf and cf.blocks_json:
-        try:
-            blocks = _json.loads(cf.blocks_json)
-        except (ValueError, TypeError):
-            blocks = []
-    if not isinstance(blocks, list):
-        blocks = []
-
-    # Field name heuristics — mirrors _summarise_form_submission's hint
-    # lists so the import picks the same "obvious" fields the list
-    # preview already calls out.
-    TITLE_HINTS = ("title", "subject", "headline", "story_title")
-    SUMMARY_HINTS = ("summary", "blurb", "excerpt", "headline")
-    BODY_HINTS = ("body", "story", "message", "content", "details", "narrative")
-    NAME_HINTS = ("full_name", "your_name", "submitter_name", "name")
-    AUTHOR_HINTS = ("author", "byline", "pen_name", "display_name")
-    PHONE_HINTS = ("phone", "tel", "mobile")
-    NOTES_HINTS = ("notes", "comments", "for_editor")
-
-    def _first(types=None, name_hints=()):
-        for block in blocks:
-            if not isinstance(block, dict):
-                continue
-            bn = (block.get("name") or "").lower()
-            if not bn:
-                continue
-            if types and block.get("type") not in types:
-                continue
-            if name_hints and not any(h in bn for h in name_hints):
-                continue
-            val = fvals.get(bn)
-            if val:
-                return val
-        return None
-
-    def _coerce(val):
-        if val is None:
-            return None
-        if isinstance(val, (list, tuple)):
-            return ", ".join(str(x) for x in val if x)
-        return str(val).strip() or None
-
-    title = _coerce(_first(name_hints=TITLE_HINTS)) or "Imported story submission"
-    # Body falls back to the longest text-area value in the payload
-    # so submissions whose form named its main field "your_story" or
-    # "tell_us_more" still get something useful. The same fallback
-    # logic is used by the list-preview headline picker, but here we
-    # take the whole value instead of a truncated snippet.
-    body = _coerce(_first(types={"textarea"}, name_hints=BODY_HINTS))
-    if not body:
-        # Pick the longest textarea answer across the whole payload as
-        # a last resort. Sorted by length descending so the most
-        # substantial answer wins.
-        ta_vals = []
-        for block in blocks:
-            if not isinstance(block, dict) or block.get("type") != "textarea":
-                continue
-            bn = (block.get("name") or "").lower()
-            v = fvals.get(bn)
-            if v and isinstance(v, str):
-                ta_vals.append(v)
-        if ta_vals:
-            body = max(ta_vals, key=len).strip() or None
-
-    summary = _coerce(_first(name_hints=SUMMARY_HINTS))
-    author_name = _coerce(_first(name_hints=AUTHOR_HINTS))
-    submitter_name = _coerce(_first(types={"text"}, name_hints=NAME_HINTS)) \
-        or author_name
-    submitter_email = _coerce(_first(types={"email"}))
-    submitter_phone = _coerce(_first(name_hints=PHONE_HINTS))
-    submitter_notes = _coerce(_first(name_hints=NOTES_HINTS))
-
-    # Walk the uploaded files block by block so the first image-typed
-    # file becomes the featured image and the first non-image file
-    # becomes the downloadable attachment. The stored file lives on
-    # disk under UPLOAD_FOLDER; we hand its stored name to the Story
-    # row directly so admin downloads stay a straight send_from_dir.
-    IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".webp")
-    featured = None
-    attachment = None
-    for block in blocks:
-        if not isinstance(block, dict) or block.get("type") != "file":
-            continue
-        bn = (block.get("name") or "").lower()
-        info = files.get(bn) or {}
-        stored = (info.get("stored") or "").strip()
-        original = (info.get("original") or "").strip()
-        if not stored:
-            continue
-        ext = ("." + stored.rsplit(".", 1)[-1].lower()) if "." in stored else ""
-        if ext in IMAGE_EXTS and featured is None:
-            featured = stored
-        elif attachment is None:
-            attachment = (stored, original)
-    # Also consider any extra files (block-less) in payload.files.
-    for bn, info in files.items():
-        if not isinstance(info, dict):
-            continue
-        stored = (info.get("stored") or "").strip()
-        original = (info.get("original") or "").strip()
-        if not stored:
-            continue
-        ext = ("." + stored.rsplit(".", 1)[-1].lower()) if "." in stored else ""
-        if ext in IMAGE_EXTS and featured is None:
-            featured = stored
-        elif attachment is None:
-            attachment = (stored, original)
-
-    s = Story()
-    s.title = title[:255]
-    s.summary = (summary or "")[:2000] or None
-    s.body = body or None
-    s.author_name = (author_name or "")[:120] or None
-    s.is_draft = False
-    s.is_archived = False
-    s.is_pending_review = True
-    s.submitter_name = (submitter_name or "")[:120] or None
-    s.submitter_email = (submitter_email or "")[:255] or None
-    s.submitter_phone = (submitter_phone or "")[:64] or None
-    s.submitter_notes = (submitter_notes or "")[:4000] or None
-    # Preserve the original submission timestamp so the admin sees
-    # *when* this came in, not when it was imported.
-    s.submitted_at = sub.created_at
-    if featured:
-        s.featured_image_filename = featured
-    if attachment:
-        stored, original = attachment
-        s.submission_attachment_filename = stored
-        s.submission_attachment_original = original[:500] if original else stored
-
-    db.session.add(s)
-    # Drop the FormSubmission so it doesn't double-track. The on-disk
-    # files survive because they're now referenced by the Story row.
-    form_id = sub.form_id
-    db.session.delete(sub)
-    db.session.commit()
-
-    from . import activity
-    activity.log("story.import_from_form_submission",
-                 entity_type="story", entity_id=s.id,
-                 summary=f"Imported story submission “{s.title}” from form #{form_id}")
-    flash("Submission imported to the Stories holding tank. Review and edit before publishing.", "success")
-    return redirect(url_for("main.stories", show="pending"))
-
-
 @bp.route("/frontend/forms/custom/<int:form_id>/delete", methods=["POST"])
 @admin_required
 def frontend_custom_form_delete(form_id):
@@ -10413,6 +10131,143 @@ def frontend_form_toggle(key):
     return jsonify(key=key, enabled=enabled)
 
 
+
+# ---------------------------------------------------------------------------
+# Form studio: one settings page shape for every public form
+# (frontend_form_studio.html). _form_studio_ctx describes a form for it.
+# ---------------------------------------------------------------------------
+_BUILTIN_FORM_STUDIO = {
+    "submission": dict(
+        name="Announcements/Events form", prefix="submission_form",
+        action="main.frontend_form_submission", public="frontend.submission_form",
+        slug_field="submission_form_slug", default_slug="submissionform",
+        enabled_field="submission_form_enabled", to_field="submission_to",
+        submit_field="submission_form_submit_label", submit_default="Submit for review",
+        success_field="submission_form_success_message",
+        success_default="Thank you: your submission was received and will be reviewed before publishing.",
+        heading_default="Submit an event or announcement",
+        subheading_default="Fill out the form below and an admin will review your submission before publishing it.",
+        template_anchor="submission_form", template_label="Forms", template_name="Forms",
+        template_shared="the Story form and every custom form",
+        about="Visitors send events and announcements; each waits for review on Announcements & Events."),
+    "story": dict(
+        name="Story form", prefix="story_form",
+        action="main.frontend_form_story", public="frontend.story_submission_form",
+        slug_field="story_form_slug", default_slug="storyform",
+        enabled_field="story_form_enabled", to_field="story_form_to",
+        submit_field="story_form_submit_label", submit_default="Submit your story",
+        success_field="story_form_success_message",
+        success_default="Thank you for sharing your story. It will be reviewed before it is published.",
+        heading_default="Share your story", subheading_default="",
+        template_anchor="submission_form", template_label="Forms", template_name="Forms",
+        template_shared="the Announcements/Events form and every custom form",
+        about="Visitors send recovery stories; each waits as a draft on Stories."),
+    "contact": dict(
+        name="Contact form", prefix="contact_form",
+        action="main.frontend_form_contact", public="frontend.contact",
+        slug_field="contact_form_slug", default_slug="contact",
+        enabled_field="contact_form_enabled", to_field="contact_form_to",
+        submit_field="contact_form_submit_label", submit_default="Send message",
+        success_field="contact_form_success_message",
+        success_default="Thanks: your message has been sent. We'll be in touch shortly.",
+        heading_default="Get in touch",
+        subheading_default="Send the public information committee a note. Replies come straight to your email.",
+        template_anchor="contact", template_label="Contact", template_name="Contact",
+        template_shared="",
+        about="Visitors send the public information committee a message by email; each is also kept in the Contact Form inbox."),
+    "recovery_contacts": dict(
+        name="Recovery Contacts form", prefix="recovery_contacts",
+        action="main.frontend_form_recovery_contacts", public="frontend.recovery_contacts",
+        slug_field=None, default_slug="contactlist",
+        enabled_field="recovery_contacts_enabled", to_field="recovery_contacts_to",
+        submit_field="recovery_contacts_submit_label", submit_default="Add me to the list",
+        success_field="recovery_contacts_success_message",
+        success_default="Thanks! Your entry will show once an admin approves it.",
+        heading_default="Recovery contacts", subheading_default="",
+        template_anchor="recovery_contacts", template_label="Recovery Contacts",
+        template_name="Recovery Contacts", template_shared="",
+        about="A public phone and email list members add themselves to; entries show once approved on Recovery Contacts."),
+}
+
+
+def _form_studio_ctx(key, cf=None):
+    from markupsafe import escape
+    from .forms_overview import form_rows
+    from .form_specs import resolve_fields, SPECS
+    s = _get_site_setting()
+    rows = {r["key"]: r for r in form_rows(s)}
+    if key == "custom":
+        row = rows.get(f"custom-{cf.id}", {})
+        fs = dict(
+            key="custom", name=cf.title, prefix=None, is_custom=True,
+            action=url_for("main.frontend_custom_form_edit", form_id=cf.id),
+            public_path="/" + cf.slug, enabled_field="enabled", enabled=cf.enabled,
+            to_field="recipients_csv", to_fallback="",
+            to_note="Leave blank to only keep submissions in the inbox, with no email.",
+            fields=_load_form_fields(cf), field_types=list(_CUSTOM_FORM_FIELD_TYPE_ORDER),
+            fb_mode="custom", fields_note="",
+            template_anchor="submission_form", template_label="Forms", template_name="Forms",
+            template_shared="every form except Contact and Recovery Contacts",
+            about="A form of your own. Its answers are kept in its inbox and, if you like, emailed.",
+            inbox_url=row.get("inbox_url"), inbox_label="Open the inbox",
+            inbox_about="Submissions to this form are kept in its own inbox, where they can be read, archived, deleted and exported.",
+            count=row.get("count", 0), count_label="new",
+            links=[])
+        return fs
+    meta = dict(_BUILTIN_FORM_STUDIO[key])
+    row = rows.get(key, {})
+    fs = dict(meta, key=key, is_custom=False,
+              action=url_for(meta["action"]),
+              public_path=row.get("public_url") or ("/" + meta["default_slug"]),
+              enabled=bool(getattr(s, meta["enabled_field"], False)),
+              inbox_url=row.get("inbox_url"), count=row.get("count", 0),
+              count_label=row.get("count_label", "new"))
+    fallback = {
+        "submission": ("access_request_to", "Blank sends to the access-request address in Settings"),
+        "story": ("submission_to", "Blank sends to the Announcements/Events form's addresses, then the access-request address in Settings"),
+        "contact": ("pic_email", "Blank sends to the public information chair's email in Settings, then the access-request address"),
+        "recovery_contacts": ("access_request_to", "Blank sends to the access-request address in Settings"),
+    }[key]
+    fb_value = (getattr(s, fallback[0], None) or "").strip()
+    if key == "story" and not fb_value:
+        fb_value = (s.access_request_to or "").strip()
+    if key == "contact" and not fb_value:
+        fb_value = (s.access_request_to or "").strip()
+    fs["to_fallback"] = fb_value
+    fs["to_note"] = fallback[1] + (f" (now <b>{escape(fb_value)}</b>)." if fb_value else ", which is empty: set one in Settings or here.")
+    labels = {"submission": "Open Announcements & Events", "story": "Open Stories",
+              "contact": "Open the Contact Form inbox", "recovery_contacts": "Open Recovery Contacts"}
+    fs["inbox_label"] = labels[key]
+    fs["inbox_about"] = {
+        "submission": "Submissions wait under <b>Pending review</b> on Announcements &amp; Events, where they are edited and published.",
+        "story": "Stories wait as drafts under <b>Pending review</b> on Stories, where they are edited and published.",
+        "contact": "Every message is emailed and also kept in the Contact Form inbox, so nothing is lost to a spam folder.",
+        "recovery_contacts": "New entries and changes wait for approval on the Recovery Contacts page.",
+    }[key]
+    if key in SPECS:
+        spec = SPECS[key]
+        fs["fields"] = resolve_fields(key, getattr(s, f"{meta['prefix']}_blocks_json", None))
+        fs["fb_mode"] = spec["mode"]
+        fs["field_types"] = spec.get("types", [])
+        fs["fields_note"] = {
+            "submission": "These fields are set by the form. Change what they say; the event fields show once a visitor picks Event.",
+            "story": "These fields are set by the form. Change what they say, and whether an email address is required.",
+            "contact": "Name, email and message are always on the form. Phone and subject can be removed, and fields you add arrive with the message.",
+        }[key]
+    else:
+        fs["fb_mode"] = None
+    # Menu links that open this form in its pop-up.
+    links = []
+    for ni in FrontendNavItem.query.filter_by(form_trigger=key).all():
+        links.append({"label": ni.label or ni.line1 or "Menu item", "where": "header menu",
+                      "href": url_for("main.frontend_header") + "#menu"})
+    for nl in FrontendNavLink.query.filter_by(form_trigger=key).all():
+        links.append({"label": nl.label or "Link", "where": "mega menu",
+                      "href": url_for("main.frontend_header", item=nl.column.nav_item_id) + "#menu"})
+    fs["links"] = links
+    return fs
+
+
 @bp.route("/frontend/forms/submission", methods=["GET", "POST"])
 @admin_required
 def frontend_form_submission():
@@ -10440,16 +10295,14 @@ def frontend_form_submission():
         # admin hasn't touched the builder we leave the column NULL
         # so the public form falls back to its built-in defaults.
         import json as _json
-        fields = _parse_form_fields(request.form)
-        s.submission_form_blocks_json = _json.dumps(fields) if fields else None
+        from .form_specs import normalize_fields
+        if "field_order" in request.form:
+            s.submission_form_blocks_json = _json.dumps(
+                normalize_fields("submission", _parse_form_fields(request.form)))
         db.session.commit()
-        flash("Announcements/Events form settings saved", "success")
+        flash("Announcements/Events form saved", "success")
         return redirect(url_for("main.frontend_form_submission"))
-    return render_template("frontend_form_submission.html", site=s,
-                           form_fields=_resolve_module_form_fields(
-                               s.submission_form_blocks_json,
-                               _default_submission_form_blocks),
-                           field_types=_MODULE_FORM_FIELD_TYPES)
+    return render_template("frontend_form_studio.html", site=s, fs=_form_studio_ctx("submission"))
 
 
 @bp.route("/frontend/forms/story", methods=["GET", "POST"])
@@ -10475,16 +10328,14 @@ def frontend_form_story():
         s.story_form_slug = _normalise_module_form_slug(
             request.form.get("story_form_slug"), exclude_attr="story_form_slug")
         import json as _json
-        fields = _parse_form_fields(request.form)
-        s.story_form_blocks_json = _json.dumps(fields) if fields else None
+        from .form_specs import normalize_fields
+        if "field_order" in request.form:
+            s.story_form_blocks_json = _json.dumps(
+                normalize_fields("story", _parse_form_fields(request.form)))
         db.session.commit()
-        flash("Story form settings saved", "success")
+        flash("Story form saved", "success")
         return redirect(url_for("main.frontend_form_story"))
-    return render_template("frontend_form_story.html", site=s,
-                           form_fields=_resolve_module_form_fields(
-                               s.story_form_blocks_json,
-                               _default_story_form_blocks),
-                           field_types=_MODULE_FORM_FIELD_TYPES)
+    return render_template("frontend_form_studio.html", site=s, fs=_form_studio_ctx("story"))
 
 
 @bp.route("/frontend/forms/contact", methods=["GET", "POST"])
@@ -10505,16 +10356,22 @@ def frontend_form_contact():
         s.contact_form_slug = _normalise_module_form_slug(
             request.form.get("contact_form_slug"), exclude_attr="contact_form_slug")
         import json as _json
-        fields = _parse_form_fields(request.form)
-        s.contact_form_blocks_json = _json.dumps(fields) if fields else None
+        from .form_specs import normalize_fields
+        if "field_order" in request.form:
+            s.contact_form_blocks_json = _json.dumps(
+                normalize_fields("contact", _parse_form_fields(request.form)))
+        # Page copy and the side panel, moved here from Page templates.
+        if "contact_page_copy" in request.form:
+            s.contact_form_heading = (request.form.get("contact_form_heading") or "").strip()[:200] or None
+            s.contact_form_subheading = (request.form.get("contact_form_subheading") or "").strip()[:500] or None
+            s.contact_form_intro = (request.form.get("contact_form_intro") or "").strip() or None
+            s.contact_form_show_pic_name = request.form.get("contact_form_show_pic_name") == "1"
+            s.contact_form_show_pic_email = request.form.get("contact_form_show_pic_email") == "1"
+            s.contact_form_show_pic_phone = request.form.get("contact_form_show_pic_phone") == "1"
         db.session.commit()
-        flash("Contact form settings saved", "success")
+        flash("Contact form saved", "success")
         return redirect(url_for("main.frontend_form_contact"))
-    return render_template("frontend_form_contact.html", site=s,
-                           form_fields=_resolve_module_form_fields(
-                               s.contact_form_blocks_json,
-                               _default_contact_form_blocks),
-                           field_types=_MODULE_FORM_FIELD_TYPES)
+    return render_template("frontend_form_studio.html", site=s, fs=_form_studio_ctx("contact"))
 
 
 @bp.route("/frontend/forms/recovery-contacts", methods=["GET", "POST"])
@@ -10538,10 +10395,15 @@ def frontend_form_recovery_contacts():
         s.recovery_contacts_to = (request.form.get("recovery_contacts_to") or "").strip()[:500] or None
         s.recovery_contacts_submit_label = (request.form.get("recovery_contacts_submit_label") or "").strip()[:100] or None
         s.recovery_contacts_success_message = (request.form.get("recovery_contacts_success_message") or "").strip()[:500] or None
+        # Page copy, moved here from Page templates.
+        if "rc_page_copy" in request.form:
+            s.recovery_contacts_heading = (request.form.get("recovery_contacts_heading") or "").strip()[:200] or None
+            s.recovery_contacts_subheading = (request.form.get("recovery_contacts_subheading") or "").strip()[:500] or None
+            s.recovery_contacts_intro = (request.form.get("recovery_contacts_intro") or "").strip() or None
         db.session.commit()
-        flash("Recovery Contacts settings saved", "success")
+        flash("Recovery Contacts form saved", "success")
         return redirect(url_for("main.frontend_form_recovery_contacts"))
-    return render_template("frontend_form_recovery_contacts.html", site=s)
+    return render_template("frontend_form_studio.html", site=s, fs=_form_studio_ctx("recovery_contacts"))
 
 
 @bp.route("/frontend/contact-template/save", methods=["POST"])
@@ -10554,12 +10416,15 @@ def frontend_contact_template_save():
     this surface is purely about how the page looks and which PIC
     channels appear in the side panel."""
     s = _get_site_setting()
-    s.contact_form_heading = (request.form.get("contact_form_heading") or "").strip()[:200] or None
-    s.contact_form_subheading = (request.form.get("contact_form_subheading") or "").strip()[:500] or None
-    s.contact_form_intro = (request.form.get("contact_form_intro") or "").strip() or None
-    s.contact_form_show_pic_name = request.form.get("contact_form_show_pic_name") == "1"
-    s.contact_form_show_pic_email = request.form.get("contact_form_show_pic_email") == "1"
-    s.contact_form_show_pic_phone = request.form.get("contact_form_show_pic_phone") == "1"
+    # The page copy and side panel are edited with the form now (Forms →
+    # Contact form); older posts that still carry them are honored.
+    if "contact_form_heading" in request.form:
+        s.contact_form_heading = (request.form.get("contact_form_heading") or "").strip()[:200] or None
+        s.contact_form_subheading = (request.form.get("contact_form_subheading") or "").strip()[:500] or None
+        s.contact_form_intro = (request.form.get("contact_form_intro") or "").strip() or None
+        s.contact_form_show_pic_name = request.form.get("contact_form_show_pic_name") == "1"
+        s.contact_form_show_pic_email = request.form.get("contact_form_show_pic_email") == "1"
+        s.contact_form_show_pic_phone = request.form.get("contact_form_show_pic_phone") == "1"
     # Container-width controls — mirror the events/announcements/stories
     # list endpoints. Width mode falls through to the model default on
     # an out-of-range value rather than blanking it; numeric inputs
@@ -10595,9 +10460,10 @@ def frontend_recovery_contacts_template_save():
     success message, bot protection); this surface is purely about how
     the page looks, so it lives next to every other page template."""
     s = _get_site_setting()
-    s.recovery_contacts_heading = (request.form.get("recovery_contacts_heading") or "").strip()[:200] or None
-    s.recovery_contacts_subheading = (request.form.get("recovery_contacts_subheading") or "").strip()[:500] or None
-    s.recovery_contacts_intro = (request.form.get("recovery_contacts_intro") or "").strip() or None
+    if "recovery_contacts_heading" in request.form:
+        s.recovery_contacts_heading = (request.form.get("recovery_contacts_heading") or "").strip()[:200] or None
+        s.recovery_contacts_subheading = (request.form.get("recovery_contacts_subheading") or "").strip()[:500] or None
+        s.recovery_contacts_intro = (request.form.get("recovery_contacts_intro") or "").strip() or None
     # Container-width controls — same shape/bounds as the contact +
     # list endpoints. Width mode falls through to the model default on
     # an out-of-range value; numeric inputs clamp to the schema bounds.

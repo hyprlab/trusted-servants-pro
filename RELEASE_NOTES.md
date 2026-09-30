@@ -52,6 +52,13 @@ release notes expanded by default and the changelog collapsed.
 - The footer's look moved to a Footer tab on the Design page: always dark or following the page, the background style and particles, width, minimum height and text size, and new settings for the dark footer's colors (background, lines, text and social icons), which were fixed before. Its preview is the real footer. On themes that paint their own footer the background and colors are marked as unused.
 - Footer social icons are chosen with the icon picker instead of typing an icon name, and secondary links can open in a new tab. The icon picker for footer locations now opens; it was missing from the Footer page.
 - The Footer page no longer fails to open when a built-in footer layout is active.
+- Every form, built-in or your own, has the same settings page: tabs for Fields, Page, Delivery, Look, Spam, Sharing and Inbox beside a live preview of the form's page. Tabs that don't apply to a form say why.
+- The Forms page lists every form in one table with its address, an on/off switch, what is waiting in its inbox and links to its settings and inbox.
+- The Contact form's fields now come from its field builder: rename them, reorder them, remove phone or subject, and add fields of your own, whose answers arrive with the message. Before, the builder was saved but the public form ignored it.
+- The Announcements/Events and Story forms show their real, fixed fields in the builder; you can change what each one says (and on the Story form whether an email is required), and the public forms use that wording. Their earlier builders were ignored or listed fields the form didn't have.
+- Custom forms keep their accepted file types when saved. Before, saving the form's settings dropped them.
+- The Contact and Recovery Contacts forms' heading, subheading and intro, and the Contact form's side panel, are edited on the form's Page tab. Delivery shows where email goes when the address is left blank.
+- Leaving a built-in form's address blank keeps its usual address. Before, a blank address was saved as /form.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

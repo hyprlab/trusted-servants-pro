@@ -4419,19 +4419,37 @@ def contact_submit():
         flash(success_msg, "success")
         return redirect(url_for("frontend.contact"))
 
+    # The fields are the Contact form's builder (form_specs): name, email
+    # and message always; phone and subject unless removed; any extra
+    # fields ride along in the message and the email.
+    from .form_specs import resolve_fields
+    fields = resolve_fields("contact", getattr(site, "contact_form_blocks_json", None))
+    by_name = {b["name"]: b for b in fields}
     name = (f.get("name") or "").strip()[:200]
     email = (f.get("email") or "").strip()[:255]
-    phone = (f.get("phone") or "").strip()[:64] or None
-    subject = (f.get("subject") or "").strip()[:255] or None
+    phone = ((f.get("phone") or "").strip()[:64] or None) if "phone" in by_name else None
+    subject = ((f.get("subject") or "").strip()[:255] or None) if "subject" in by_name else None
     message = (f.get("message") or "").strip()[:6000]
-    subj_required = bool(getattr(site, "contact_form_subject_required", False))
 
-    if not name or not email or not message:
-        flash("Name, email, and message are required.", "danger")
+    missing = []
+    extras = []
+    for b in fields:
+        if b.get("core"):
+            val = {"name": name, "email": email, "phone": phone, "subject": subject,
+                   "message": message}.get(b["name"])
+        elif b["type"] == "checkboxes":
+            val = ", ".join(v.strip() for v in f.getlist(b["name"]) if v.strip())[:2000]
+        else:
+            val = (f.get(b["name"]) or "").strip()[:2000]
+        if b.get("required") and not val:
+            missing.append(b.get("label") or b["name"])
+        if not b.get("core") and val:
+            extras.append((b.get("label") or b["name"], val))
+    if missing:
+        flash("Please fill in: " + ", ".join(missing) + ".", "danger")
         return redirect(url_for("frontend.contact"))
-    if subj_required and not subject:
-        flash("Please include a subject for your message.", "danger")
-        return redirect(url_for("frontend.contact"))
+    if extras:
+        message = (message + "\n\n" + "\n".join(f"{k}: {v}" for k, v in extras))[:8000]
     # Cheap email sanity check — anything past this would be caught
     # by the SMTP server anyway, but we'd rather not write rows that
     # are obvious typos.

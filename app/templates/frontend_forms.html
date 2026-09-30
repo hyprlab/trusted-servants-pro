@@ -2,256 +2,89 @@
 {% from "_help_chip.html" import chip, hrow %}
 {% from "_row_menu.html" import row_menu %}
 {% block heading %}Forms{% endblock %}
-{% block heading_help %}Public-facing forms that visitors can fill out. Each form has its own settings page; admins can also point any nav link or button at a form so it opens as a modal anywhere on the public site.{% endblock %}
+{% block heading_help %}Every form on the public site, built-in and your own. Open one to change its fields, wording, where it is emailed and more; its inbox holds what visitors sent.{% endblock %}
 {% block top_actions %}
-<a class="btn" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener">View frontend ↗</a>
+<form method="post" action="{{ url_for('main.frontend_custom_form_new') }}" class="inline-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn btn-primary">{{ icon('plus') }} New form</button>
+</form>
 {% endblock %}
 {% block content %}
 <div class="fe-admin-layout">
   {% include "_frontend_subnav.html" %}
   <div class="fe-admin-main">
 
-    <section class="card">
-      <div class="card-head">
-        <h2>Available forms {% call chip('Available forms') %}Every form registered with the site appears below. Toggle a form on/off site-wide with the switch on the right; click <b>Configure</b> to open its full settings page. Adding a new form to the codebase automatically populates this list and the navigation builder's "Triggers form" picker.{% endcall %}</h2>
-      </div>
-
-      <ul class="fe-forms-list">
-        {% for f in forms %}
-        <li class="fe-forms-row" data-form-key="{{ f.key }}">
-          <span class="fe-forms-row-icon" aria-hidden="true">{{ icon(f.icon or 'send') }}</span>
-          <div class="fe-forms-row-text">
-            <div class="fe-forms-row-name">{{ f.name }}</div>
-            <p class="fe-forms-row-desc muted small">{{ f.description }}</p>
-            <p class="fe-forms-row-meta muted smaller">
-              <code>key: {{ f.key }}</code>
-              {% if f.public_url_endpoint %}
-                <span class="fe-forms-row-meta-sep">·</span>
-                <a href="{{ url_for(f.public_url_endpoint) }}" target="_blank" rel="noopener">Preview public page ↗</a>
-              {% endif %}
-            </p>
-          </div>
-          <div class="fe-forms-row-actions">
-            {% if f.settings_endpoint %}
-            <a class="btn btn-sm" href="{{ url_for(f.settings_endpoint) }}">Configure</a>
-            {% endif %}
-            {% if f.enabled_setting %}
-            <label class="mode-toggle fe-forms-row-toggle"
-                   title="Enable or disable this form site-wide">
-              <input type="checkbox"
-                     data-form-toggle="{{ f.key }}"
-                     data-toggle-url="{{ url_for('main.frontend_form_toggle', key=f.key) }}"
-                     {% if f.enabled %}checked{% endif %}>
-              <span class="mode-track"><span class="mode-thumb"></span></span>
-              <span class="mode-toggle-label muted smaller"
-                    data-form-toggle-label>{{ 'On' if f.enabled else 'Off' }}</span>
-            </label>
-            {% endif %}
-          </div>
-        </li>
-        {% else %}
-        <li class="muted">No forms registered yet.</li>
-        {% endfor %}
-      </ul>
-    </section>
-
-    <section class="card">
-      <div class="card-head">
-        <h2>Custom forms {% call chip('Custom forms') %}Build your own forms with drag-and-drop fields. Each form gets its own public URL (<code>/&lt;slug&gt;</code>) and submissions land in <b>Custom Forms</b>.{% endcall %}</h2>
-      </div>
-
-      {% if custom_forms %}
-      {# Multi-select bulk delete. Revealed by JS (the bar is useless
-         without it); the per-row delete buttons stay as the no-JS path. #}
-      <div class="fe-forms-bulkbar" data-forms-bulkbar hidden>
-        <label class="fe-forms-bulk-all">
-          <input type="checkbox" data-forms-select-all aria-label="Select all forms">
-          <span>Select all</span>
-        </label>
-        <span class="muted smaller" data-forms-bulk-count>0 selected</span>
-        <button type="button" class="btn btn-sm btn-danger" data-forms-bulk-delete
-                data-bulk-url="{{ url_for('main.frontend_custom_forms_bulk_delete') }}" disabled hidden>
-          {{ icon('trash') }} Delete selected
-        </button>
-      </div>
-      <ul class="fe-forms-list" data-forms-list>
-        {% for cf in custom_forms %}
-        <li class="fe-forms-row">
-          <label class="fe-forms-row-check" aria-label="Select {{ cf.title }}">
-            <input type="checkbox" data-forms-select value="{{ cf.id }}">
+<section class="card" data-no-collapse>
+  <div class="card-head">
+    <h2>All forms {% call chip('All forms') %}The switch turns a form's page on or off at once. Built-in forms feed their own admin pages (Announcements & Events, Stories, Recovery Contacts); the Contact form and your own forms keep an inbox here.{% endcall %}</h2>
+  </div>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" data-forms-csrf>
+  <div class="fe-tbl-scroll">
+  <table class="tbl fe-forms-tbl">
+    <thead><tr><th>Form</th><th>Address</th><th>Waiting</th><th>On</th><th></th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>
+          <a class="fe-forms-name" href="{{ r.settings_url }}">{{ icon(r.icon) }}<b>{{ r.name }}</b></a>
+          <span class="muted smaller">{{ 'Your form' if r.custom else 'Built in' }}</span>
+        </td>
+        <td>{% if r.public_url %}<a class="muted small" href="{{ r.public_url }}" target="_blank" rel="noopener"><code>{{ r.public_url }}</code></a>{% endif %}</td>
+        <td>
+          {% if r.inbox_url %}
+          <a href="{{ r.inbox_url }}" class="fe-forms-wait{% if r.count %} has-count{% endif %}">
+            {% if r.count %}<b>{{ r.count }}</b> {{ r.count_label }}{% else %}Inbox{% endif %}
+          </a>
+          {% endif %}
+        </td>
+        <td>
+          <label class="mode-toggle" title="{{ 'Turn off' if r.enabled else 'Turn on' }} {{ r.name }}">
+            <input type="checkbox" data-form-toggle {% if r.enabled %}checked{% endif %}
+                   data-toggle-url="{{ url_for('main.frontend_custom_form_toggle', form_id=r.id) if r.custom else url_for('main.frontend_form_toggle', key=r.key) }}">
+            <span class="mode-track"><span class="mode-thumb"></span></span>
           </label>
-          <span class="fe-forms-row-icon" aria-hidden="true">{{ icon('send') }}</span>
-          <div class="fe-forms-row-text">
-            <div class="fe-forms-row-name">{{ cf.title }}</div>
-            {% if cf.description %}<p class="fe-forms-row-desc muted small">{{ cf.description }}</p>{% endif %}
-            <p class="fe-forms-row-meta muted smaller">
-              <code>/{{ cf.slug }}</code>
-              <span class="fe-forms-row-meta-sep">·</span>
-              {{ cf.submissions|length }} submission{{ '' if cf.submissions|length == 1 else 's' }}
-            </p>
-          </div>
-          <div class="fe-forms-row-actions">
-            {# The on/off switch stays out of the menu: it's a live state
-               control the admin scans down the column, not an action. #}
-            <label class="mode-toggle fe-forms-row-toggle"
-                   title="Enable or disable this form site-wide">
-              <input type="checkbox"
-                     data-form-toggle="cf-{{ cf.id }}"
-                     data-toggle-url="{{ url_for('main.frontend_custom_form_toggle', form_id=cf.id) }}"
-                     {% if cf.enabled %}checked{% endif %}>
-              <span class="mode-track"><span class="mode-thumb"></span></span>
-              <span class="mode-toggle-label muted smaller" data-form-toggle-label>{{ 'On' if cf.enabled else 'Off' }}</span>
-            </label>
-            {% call row_menu() %}
-              <a class="row-menu-item" data-form-view target="_blank" rel="noopener"
-                 title="View on frontend"
-                 href="{{ url_for('frontend.page_detail', slug=cf.slug) }}"
-                 {% if not cf.enabled %}hidden{% endif %}>
-                {{ icon('external-link') }}<span>View on frontend</span></a>
-              <a class="row-menu-item" href="{{ url_for('main.frontend_custom_form_edit', form_id=cf.id) }}">
-                {{ icon('pencil') }}<span>Edit</span></a>
-              <div class="row-menu-sep" role="separator"></div>
-              <form method="post" action="{{ url_for('main.frontend_custom_form_delete', form_id=cf.id) }}"
-                    onsubmit="return confirm('Delete this form? Existing submissions will also be removed.');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="row-menu-item row-menu-item-danger" title="Delete form">
-                  {{ icon('trash') }}<span>Delete</span></button>
-              </form>
-            {% endcall %}
-          </div>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="muted">No custom forms yet.</p>
-      {% endif %}
-
-      {# The "+ Add form" button is a trigger, not a save — it creates
-         a stub row + redirects to the edit page. ``data-fe-skip-save-
-         bar`` opts the form out of the FE save-bar tracker so the
-         global ``body.has-fe-save-bar .form-actions { display: none }``
-         rule doesn't swallow the button. Wrapping the button directly
-         (no ``.form-actions``) belt-and-braces the visibility. #}
-      {# Bare <form> (no ``.form`` class) — ``.form`` is a column-flex
-         container that would stretch the single child button to fill
-         the row. ``data-fe-skip-save-bar`` opts out of the FE save-bar
-         tracker so the global rule that hides .form-actions doesn't
-         touch us; the button sits at its natural content width. #}
-      <form method="post" class="fe-new-form-row"
-            action="{{ url_for('main.frontend_custom_form_new') }}"
-            data-fe-skip-save-bar>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-primary">{{ icon('plus') }} Add form</button>
-      </form>
-
-      {% if custom_forms %}
-      <script>
-      (function () {
-        var bar = document.querySelector('[data-forms-bulkbar]');
-        var list = document.querySelector('[data-forms-list]');
-        if (!bar || !list) return;
-        var boxes = function () { return Array.prototype.slice.call(list.querySelectorAll('input[data-forms-select]')); };
-        if (!boxes().length) return;
-        bar.hidden = false;
-        var all = bar.querySelector('[data-forms-select-all]');
-        var count = bar.querySelector('[data-forms-bulk-count]');
-        var del = bar.querySelector('[data-forms-bulk-delete]');
-        function selected() { return boxes().filter(function (b) { return b.checked; }); }
-        function refresh() {
-          var sel = selected(), total = boxes();
-          count.textContent = sel.length + ' selected';
-          // The Delete button only shows once at least one form is ticked.
-          del.hidden = sel.length === 0;
-          del.disabled = sel.length === 0;
-          all.checked = sel.length > 0 && sel.length === total.length;
-          all.indeterminate = sel.length > 0 && sel.length < total.length;
-        }
-        list.addEventListener('change', function (e) {
-          if (e.target.matches('input[data-forms-select]')) refresh();
-        });
-        all.addEventListener('change', function () {
-          boxes().forEach(function (b) { b.checked = all.checked; });
-          refresh();
-        });
-        del.addEventListener('click', function () {
-          var ids = selected().map(function (b) { return b.value; });
-          if (!ids.length) return;
-          var word = ids.length === 1 ? 'form' : 'forms';
-          if (!confirm('Delete ' + ids.length + ' ' + word + '? Their submissions will also be removed. This cannot be undone.')) return;
-          var f = document.createElement('form');
-          f.method = 'POST'; f.action = del.dataset.bulkUrl;
-          var meta = document.querySelector('meta[name="csrf-token"]');
-          if (meta) {
-            var t = document.createElement('input');
-            t.type = 'hidden'; t.name = 'csrf_token'; t.value = meta.content;
-            f.appendChild(t);
-          }
-          ids.forEach(function (id) {
-            var i = document.createElement('input');
-            i.type = 'hidden'; i.name = 'form_ids'; i.value = id;
-            f.appendChild(i);
-          });
-          document.body.appendChild(f); f.submit();
-        });
-        refresh();
-      })();
-      </script>
-      {% endif %}
-    </section>
-
-    <section class="card">
-      <div class="card-head">
-        <h2>Triggering a form from a nav link {% call chip('Triggering a form from a nav link') %}Pop a form modal from anywhere on the public site without writing code.{% endcall %}</h2>
-      </div>
-      <p>Open the <a href="{{ url_for('main.frontend_navigation') }}">Navigation</a> admin and edit any top-level item or mega-menu link. Each link's edit panel includes a <strong>Triggers form</strong> dropdown that lists every form on this page. Pick one — the rendered link still carries its label / icon / button style, but clicking it opens the matching form modal instead of navigating to the URL. The link's URL stays as a no-JS / right-click fallback, so visitors with JavaScript disabled still reach the standalone form page.</p>
-    </section>
+        </td>
+        <td class="row-actions">
+          {% call row_menu() %}
+            <a class="row-menu-item" href="{{ r.settings_url }}">{{ icon('settings') }}<span>Settings</span></a>
+            {% if r.inbox_url %}<a class="row-menu-item" href="{{ r.inbox_url }}">{{ icon('inbox') }}<span>Inbox</span></a>{% endif %}
+            {% if r.public_url %}<a class="row-menu-item" href="{{ r.public_url }}" target="_blank" rel="noopener">{{ icon('external-link') }}<span>View page</span></a>{% endif %}
+            {% if r.custom %}
+            <div class="row-menu-sep" role="separator"></div>
+            <form method="post" action="{{ url_for('main.frontend_custom_form_delete', form_id=r.id) }}"
+                  onsubmit="return confirm('Delete the {{ r.name|e }} form and all its submissions?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+            </form>
+            {% endif %}
+          {% endcall %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="muted small fe-forms-foot">A menu link can open the Announcements/Events form in a pop-up instead of its page: choose it under "Opens a form" when editing the link on <a href="{{ url_for('main.frontend_header') }}#menu">Header → Menu</a>.</p>
+</section>
 
   </div>
 </div>
 
 <script>
-// Per-form enable/disable toggle. Posts JSON, optimistically flips
-// the visual state, snaps back on failure. Mirrors the per-item
-// public toggle on the library admin page.
+// On/off switches post JSON and settle on the saved state.
 (function () {
-  var csrf = document.querySelector('input[name="csrf_token"]');
-  var csrfToken = csrf ? csrf.value : '';
+  var csrf = (document.querySelector('[data-forms-csrf]') || {}).value || '';
   document.querySelectorAll('[data-form-toggle]').forEach(function (cb) {
     cb.addEventListener('change', function () {
-      var url = cb.getAttribute('data-toggle-url');
       var want = cb.checked;
-      var label = cb.parentElement.querySelector('[data-form-toggle-label]');
-      // Custom-form rows carry a "View ↗" button that only makes sense while
-      // the form is live — mirror the toggle state onto it. (No-op for the
-      // built-in "Available forms" rows, which have no [data-form-view].)
-      function syncView() {
-        var row = cb.closest('.fe-forms-row');
-        var view = row && row.querySelector('[data-form-view]');
-        if (view) view.hidden = !cb.checked;
-      }
       cb.disabled = true;
-      if (label) label.textContent = want ? 'On' : 'Off';
-      fetch(url, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,
-        },
-        body: JSON.stringify({ enabled: want }),
-      })
-        .then(function (r) { if (!r.ok) throw new Error('save failed'); return r.json(); })
-        .then(function (data) {
-          cb.checked = !!data.enabled;
-          if (label) label.textContent = data.enabled ? 'On' : 'Off';
-          syncView();
-        })
-        .catch(function () {
-          cb.checked = !want;
-          if (label) label.textContent = !want ? 'On' : 'Off';
-          syncView();
-          alert('Could not update form. Try again or refresh the page.');
-        })
+      fetch(cb.getAttribute('data-toggle-url'), {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify({ enabled: want })
+      }).then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function (d) { cb.checked = !!d.enabled; })
+        .catch(function () { cb.checked = !want; alert('Could not change the form. Try again.'); })
         .finally(function () { cb.disabled = false; });
     });
   });

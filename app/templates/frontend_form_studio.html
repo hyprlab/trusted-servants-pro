@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% from "_live_preview.html" import live_preview %}
+{% from "_dynbg_picker.html" import dynbg_trigger with context %}
+{# One settings page for every public form, built-in or custom, in the
+   same tabs: Fields, Page, Delivery, Look, Spam, Sharing, Inbox. A tab
+   that doesn't apply to this form says why instead of disappearing.
+   Everything posts to the form's own settings route (fs.action) through
+   the yellow save bar; the preview beside it is the form's real public
+   page with the unsaved values applied. #}
+{% block heading %}{{ fs.name }}{% endblock %}
+{% block heading_help %}{{ fs.about }}{% endblock %}
+{% block top_actions %}
+<a class="btn" href="{{ url_for('main.frontend_forms') }}">{{ icon('arrow-left') }} All forms</a>
+{% if fs.inbox_url %}<a class="btn" href="{{ fs.inbox_url }}">{{ icon('inbox') }} {{ fs.inbox_label }}{% if fs.count %} <span class="nav-badge">{{ fs.count }}</span>{% endif %}</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% set s = site %}
+{% macro text(name, label, value, ph='', maxlength=200, help='') %}
+  <label class="st-field"><span>{{ label }}{% if help %} {% call chip(label) %}{{ help }}{% endcall %}{% endif %}</span>
+    <input type="text" name="{{ name }}" value="{{ value or '' }}" maxlength="{{ maxlength }}" placeholder="{{ ph }}">
+  </label>
+{% endmacro %}
+{% macro area(name, label, value, ph='', rows=3, help='') %}
+  <label class="st-field"><span>{{ label }}{% if help %} {% call chip(label) %}{{ help }}{% endcall %}{% endif %}</span>
+    <textarea name="{{ name }}" rows="{{ rows }}" placeholder="{{ ph }}">{{ value or '' }}</textarea>
+  </label>
+{% endmacro %}
+{% macro switch(name, label, on, help='') %}
+  <div class="hdr-switch-row">
+    <label class="mode-toggle">
+      <input type="checkbox" name="{{ name }}" value="1" {% if on %}checked{% endif %}>
+      <span class="mode-track"><span class="mode-thumb"></span></span>
+      <span>{{ label }}</span>
+    </label>
+    {% if help %}{% call chip(label) %}{{ help }}{% endcall %}{% endif %}
+  </div>
+{% endmacro %}
+{% macro note(msg) %}<p class="st-na">{{ icon('info') }}{{ msg|safe }}</p>{% endmacro %}
+
+<div class="fe-admin-layout">
+  {% include "_frontend_subnav.html" %}
+  <div class="fe-admin-main">
+
+<form class="form" method="post" action="{{ fs.action }}" enctype="multipart/form-data" id="fs-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+<section class="card st-studio" data-studio="form-{{ fs.key }}" data-no-collapse>
+  <div class="card-head">
+    <h2>{{ fs.name }}</h2>
+    <div class="st-actions">
+      {% if fs.public_path %}<code class="fs-url">{{ fs.public_path }}</code>{% endif %}
+      <label class="mode-toggle fs-live">
+        <input type="checkbox" name="{{ fs.enabled_field }}" value="1" {% if fs.enabled %}checked{% endif %}>
+        <span class="mode-track"><span class="mode-thumb"></span></span>
+        <span>{{ 'On' if fs.enabled else 'Off' }}</span>
+      </label>
+      {% call chip('On or off') %}Off: the form's page answers "not found" and menu links to it hide. Its settings and submissions are kept.{% endcall %}
+    </div>
+  </div>
+  <div class="ds-tabs-wrap">
+    <nav class="ds-tabs" role="tablist" aria-label="Form settings">
+      {% for k, lbl, ic in [('fields', 'Fields', 'list'), ('page', 'Page', 'file-text'), ('delivery', 'Delivery', 'mail'),
+                            ('look', 'Look', 'sliders'), ('spam', 'Spam', 'shield'), ('sharing', 'Sharing', 'share'),
+                            ('inbox', 'Inbox', 'inbox')] %}
+      <button type="button" role="tab" class="ds-tab" data-studio-tab="{{ k }}">{{ icon(ic) }}<span>{{ lbl }}</span>{% if k == 'inbox' and fs.count %}<span class="ds-tab-count">{{ fs.count }}</span>{% endif %}</button>
+      {% endfor %}
+    </nav>
+  </div>
+
+  <div class="st-body st-body--side">
+    <div class="st-controls">
+
+      {# ── Fields ── #}
+      <div class="st-panel" data-studio-panel="fields">
+        {% if fs.key == 'submission' %}
+        <div class="ds-group st-group-body">
+          <h3 class="ds-group-title">{{ icon('list') }}What visitors can submit</h3>
+          {% set _allowed = s.submission_form_allowed_types or 'both' %}
+          <div class="ds-seg-btns" role="radiogroup" aria-label="What visitors can submit">
+            {% for v, l in [('both', 'Both'), ('announcements', 'Announcements'), ('events', 'Events')] %}
+            <label><input type="radio" name="submission_form_allowed_types" value="{{ v }}" {% if _allowed == v %}checked{% endif %}><span>{{ l }}</span></label>
+            {% endfor %}
+          </div>
+          <p class="muted smaller">Both: visitors tick what they are sending. One kind: the choice is hidden, and for events the event fields always show.</p>
+        </div>
+        {% endif %}
+        {% if fs.fb_mode %}
+        <div class="ds-group">
+          {% if fs.fields_note %}<p class="muted small fs-fields-note">{{ fs.fields_note|safe }}</p>{% endif %}
+          {% set fields = fs.fields %}{% set field_types = fs.field_types %}{% set fb_mode = fs.fb_mode %}
+          {% include "_field_builder.html" %}
+        </div>
+        {% else %}
+        {{ note("This form's fields are fixed: name, phone, email, whether the person can sponsor, and what may be shown. Each entry's own settings decide what the public directory shows.") }}
+        {% endif %}
+      </div>
+
+      {# ── Page: address, wording around the form, and what follows a submit ── #}
+      <div class="st-panel" data-studio-panel="page" hidden>
+        <div class="ds-group st-group-body">
+          {% if fs.key == 'custom' %}
+            {{ text('title', 'Title', cf.title, maxlength=200, help='The heading on the form\'s page, the name in the admin and the title in link previews.') }}
+            {{ text('slug', 'Address', cf.slug, maxlength=120, help='The form lives at /' ~ cf.slug ~ '. Letters, numbers and hyphens.') }}
+            {{ area('description', 'Intro', cf.description, 'Optional. **bold**, *italic*, [links](https://example.org) and lists work.', 4) }}
+          {% else %}
+            {% if fs.slug_field %}
+            {{ text(fs.slug_field, 'Address', s[fs.slug_field] or fs.default_slug, fs.default_slug, 120,
+                    'The form lives at /' ~ (s[fs.slug_field] or fs.default_slug) ~ '. Blank keeps /' ~ fs.default_slug ~ '.') }}
+            {% else %}
+            <p class="muted small">This form lives at <code>{{ fs.public_path }}</code>.</p>
+            {% endif %}
+            {{ text(fs.prefix ~ '_heading', 'Heading', s[fs.prefix ~ '_heading'], fs.heading_default) }}
+            {{ area(fs.prefix ~ '_subheading', 'Subheading', s[fs.prefix ~ '_subheading'], fs.subheading_default, 2) }}
+            {{ area(fs.prefix ~ '_intro', 'Intro', s[fs.prefix ~ '_intro'], 'Optional. Markdown works.', 4) }}
+          {% endif %}
+          {% if fs.key == 'submission' %}
+            {{ text('submission_form_modal_heading', 'Heading in the pop-up', s.submission_form_modal_heading, 'Submit an event or announcement',
+                    help='A menu link can open this form in a pop-up (Header → Menu → Opens a form). This is its heading there.') }}
+          {% endif %}
+        </div>
+        <div class="ds-group st-group-body">
+          <h3 class="ds-group-title">{{ icon('send') }}Sending</h3>
+          {% if fs.key != 'custom' %}
+            {{ text(fs.submit_field, 'Button label', s[fs.submit_field], fs.submit_default, 100) }}
+            {{ area(fs.success_field, 'Thank-you message', s[fs.success_field], fs.success_default, 2) }}
+          {% else %}
+            {{ area('thank_you_message', 'Thank-you message', cf.thank_you_message, "Thanks for your submission, we'll be in touch.", 2) }}
+            <label class="st-field"><span>Or go to this page instead {% call chip('Or go to this page instead') %}When set, visitors go to this address after sending, instead of seeing the thank-you message.{% endcall %}</span>
+              <input type="url" name="redirect_url" value="{{ cf.redirect_url or '' }}" placeholder="https://example.org/thanks">
+            </label>
+          {% endif %}
+        </div>
+        {% if fs.key == 'contact' %}
+        <div class="ds-group st-group-body">
+          <h3 class="ds-group-title">{{ icon('user') }}Beside the form</h3>
+          <p class="muted smaller">The public information chair's details, from Settings, shown next to the form.</p>
+          {{ switch('contact_form_show_pic_name', 'Name', s.contact_form_show_pic_name) }}
+          {{ switch('contact_form_show_pic_email', 'Email', s.contact_form_show_pic_email) }}
+          {{ switch('contact_form_show_pic_phone', 'Phone', s.contact_form_show_pic_phone) }}
+          <input type="hidden" name="contact_page_copy" value="1">
+        </div>
+        {% elif fs.key == 'recovery_contacts' %}
+          <input type="hidden" name="rc_page_copy" value="1">
+        {% endif %}
+      </div>
+
+      {# ── Delivery: who gets an email ── #}
+      <div class="st-panel" data-studio-panel="delivery" hidden>
+        <div class="ds-group st-group-body">
+          {% if fs.key == 'recovery_contacts' %}
+            {{ switch('recovery_contacts_email_alerts', 'Email about new entries', s.recovery_contacts_email_alerts,
+                      'New entries and update requests. They always show in the Recovery Contacts admin either way.') }}
+            {{ switch('recovery_contacts_removal_alerts', 'Email about removal requests', s.recovery_contacts_removal_alerts,
+                      'Sent once the person confirms from the link we email them.') }}
+          {% endif %}
+          <label class="st-field"><span>Send to</span>
+            <input type="text" name="{{ fs.to_field }}" value="{{ (cf.recipients_csv if fs.key == 'custom' else s[fs.to_field]) or '' }}" maxlength="{{ 2000 if fs.key == 'custom' else 500 }}"
+                   placeholder="{{ fs.to_fallback or 'name@example.org' }}">
+          </label>
+          <p class="muted smaller">Addresses separated by commas. {{ fs.to_note|safe }}</p>
+          <p class="muted smaller">Replies to the email go to the visitor{% if fs.key in ('submission', 'story', 'recovery_contacts') %} when they gave an email address{% endif %}.{% if not s.mail_ready() %} <b>Email isn't set up yet</b>: <a href="{{ url_for('main.index') }}">Settings → Email</a>.{% endif %}</p>
+        </div>
+      </div>
+
+      {# ── Look: the page template this form uses ── #}
+      <div class="st-panel" data-studio-panel="look" hidden>
+        <div class="ds-group st-group-body">
+          <p class="small">This form's page uses the <b>{{ fs.template_name }}</b> page template, set with its layout, width and background on <a href="{{ url_for('main.frontend_templates') }}#{{ fs.template_anchor }}">Page templates → {{ fs.template_label }}</a>{% if fs.template_shared %}, shared by {{ fs.template_shared }}{% endif %}.</p>
+          <a class="btn btn-sm" href="{{ url_for('main.frontend_templates') }}#{{ fs.template_anchor }}">{{ icon('copy') }} Open the page template</a>
+        </div>
+        {% if fs.key == 'custom' %}
+        <div class="ds-group st-group-body">
+          <h3 class="ds-group-title">{{ icon('sparkles') }}Background for this form only</h3>
+          <p class="muted smaller">Optional. Replaces the page template's dynamic background on this form's page.</p>
+          {{ dynbg_trigger(field_name='bg_dynamic_key', current=cf.bg_dynamic_key,
+                           config_field='bg_dynbg_config_json', config=cf.bg_dynbg_config_json,
+                           button_id='form-dynbg-trigger', label='Choose a dynamic background…') }}
+        </div>
+        {% endif %}
+      </div>
+
+      {# ── Spam ── #}
+      <div class="st-panel" data-studio-panel="spam" hidden>
+        <div class="ds-group st-group-body">
+          <p class="small"><b>Cloudflare Turnstile</b> is {% if s.turnstile_enabled and s.turnstile_site_key %}<span class="fs-on">on</span>: visitors pass a quick check before this form sends{% else %}<span class="fs-off">off</span>{% endif %}. It is one setting for every public form and the sign-in page, under Settings → Login &amp; security.</p>
+          {% if fs.key in ('contact', 'recovery_contacts') %}
+          <p class="small">This form also has a hidden field that catches simple bots; a filled-in one is dropped quietly.</p>
+          {% endif %}
+          {% if fs.key == 'recovery_contacts' %}
+          <p class="small">Repeated contact requests from one address are limited, and reports show under Watchtower.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      {# ── Sharing ── #}
+      <div class="st-panel" data-studio-panel="sharing" hidden>
+        <div class="ds-group st-group-body">
+          {% if fs.key == 'custom' %}
+            <p class="muted smaller">The image when this form's link is shared in chats and social media. The title and description come from the Page tab. Without an image, the site's preview image (Branding) is used.</p>
+            {% if cf.og_image_filename %}<img class="fs-og" src="{{ url_for('public.custom_form_og_image', form_id=cf.id) }}" alt="">{% endif %}
+            <label class="st-field"><span>Preview image</span><input type="file" name="og_image" accept="image/png,image/jpeg,image/webp"></label>
+            {% if cf.og_image_filename %}<label class="check"><input type="checkbox" name="clear_og_image" value="1"><span>Remove the image</span></label>{% endif %}
+          {% else %}
+            <p class="small">Shared links to this form use the site's link preview, set on <a href="{{ url_for('main.frontend_branding') }}#sharing">Branding</a>.</p>
+          {% endif %}
+          {% if fs.links %}
+          <h3 class="ds-group-title">{{ icon('link') }}Menu links that open it</h3>
+          <ul class="fs-links">{% for l in fs.links %}<li><a href="{{ l.href }}">{{ l.label }}</a> <span class="muted smaller">{{ l.where }}</span></li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+      </div>
+
+      {# ── Inbox ── #}
+      <div class="st-panel" data-studio-panel="inbox" hidden>
+        <div class="ds-group st-group-body">
+          <p class="small">{{ fs.inbox_about|safe }}</p>
+          {% if fs.count %}<p class="small"><b>{{ fs.count }}</b> {{ fs.count_label }}.</p>{% endif %}
+          {% if fs.inbox_url %}<a class="btn btn-sm btn-primary" href="{{ fs.inbox_url }}">{{ icon('inbox') }} {{ fs.inbox_label }}</a>{% endif %}
+        </div>
+        {% if fs.key == 'custom' %}
+        <div class="ds-group st-group-body">
+          <h3 class="ds-group-title">{{ icon('users') }}Who can see submissions</h3>
+          <p class="muted smaller">Admins always can. Checked roles get this form's inbox in their sidebar and can read, archive, delete and export its entries, but not change the form.</p>
+          {% set _roles = cf.submission_role_set() %}
+          <input type="hidden" name="submission_roles_present" value="1">
+          {% for r, l in [('editor', 'Editors'), ('intergroup_member', 'Intergroup members'), ('viewer', 'Viewers')] %}
+          <label class="check"><input type="checkbox" name="submission_roles" value="{{ r }}" {% if r in _roles %}checked{% endif %}><span>{{ l }}</span></label>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="st-preview">
+      {% if fs.public_path %}
+      {{ live_preview(fs.public_path, '#fs-form', height=640, width=1200, title='Form page preview',
+                      note="While the form is off its page shows as not found, here too." if not fs.enabled else '') }}
+      {% endif %}
+    </div>
+  </div>
+</section>
+</form>
+
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+{% endblock %}

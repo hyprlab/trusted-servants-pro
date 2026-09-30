@@ -856,6 +856,9 @@ def create_app():
     app.jinja_env.globals["fe_subnav"] = _fe_subnav
     from .widths import width_px as _width_px
     app.jinja_env.globals["width_px"] = _width_px
+    from .form_specs import resolve_fields as _resolve_fields, field_map as _field_map
+    app.jinja_env.globals["builtin_form_fields"] = _resolve_fields
+    app.jinja_env.globals["builtin_field_map"] = _field_map
 
     # Click-to-reveal shortening for long IPv6 values in the Watchtower
     # tables — see app/ipfmt.py. A global rather than a filter because

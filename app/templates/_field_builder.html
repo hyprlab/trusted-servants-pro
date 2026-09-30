@@ -1,0 +1,195 @@
+{# The form field builder, shared by every form's Fields tab.
+
+   Include with:
+     fields       list of field dicts (a custom form's blocks, or
+                  form_specs.resolve_fields() for a built-in form)
+     field_types  types offered by "Add field"
+     fb_mode      'custom'  every field can be edited, moved and removed
+                  'free'    a built-in form that takes extra fields: its
+                            core fields keep their name, and the ones it
+                            needs can't be removed or made optional
+                  'fixed'   a built-in form with a set list of fields:
+                            only their wording (and some required flags)
+                            change
+
+   Posts the ``field_<idx>_*`` inputs plus ``field_order`` that
+   routes._parse_form_fields reads. A card opens in place to edit. #}
+{% from "_help_chip.html" import chip, hrow %}
+{% set _movable = fb_mode != 'fixed' %}
+{% set _type_names = {'name': 'Full name', 'text': 'Text', 'email': 'Email', 'phone': 'Phone', 'textarea': 'Paragraph',
+                      'select': 'Dropdown', 'radio': 'One choice', 'checkboxes': 'Checkboxes', 'file': 'File'} %}
+
+{% macro card(f, idx) %}
+  {% set _core = f.get('core') %}
+  {% set _lock_req = _core and f.get('lock_required') %}
+  {% set _deletable = fb_mode == 'custom' or (fb_mode == 'free' and (not _core or f.get('removable'))) %}
+  <div class="fb-card" data-field-card data-field-idx="{{ idx }}">
+    <input type="hidden" name="field_{{ idx }}_type" value="{{ f.type }}">
+    <div class="fb-head" data-fb-toggle>
+      {% if _movable %}<span class="fb-drag" title="Drag to reorder" aria-hidden="true">{{ icon('grip-vertical') }}</span>{% endif %}
+      <span class="fb-type">{{ _type_names.get(f.type, f.type) }}</span>
+      <span class="fb-title" data-fb-title>{{ f.label or 'New field' }}</span>
+      <span class="fb-flags" data-fb-flags>{% if f.required %}required{% endif %}</span>
+      {% if _core %}<span class="fb-lock" title="The form needs this field{% if not f.get('removable') %}; it can't be removed{% endif %}">{{ icon('lock') }}</span>{% endif %}
+      <button type="button" class="fb-open" aria-expanded="false" aria-label="Edit {{ f.label }}">{{ icon('chevron-down') }}</button>
+      {% if _deletable %}<button type="button" class="fb-del" data-field-delete title="Remove this field" aria-label="Remove {{ f.label }}">{{ icon('trash') }}</button>{% endif %}
+    </div>
+    <div class="fb-body" hidden>
+      <div class="st-grid2">
+        <label class="st-field"><span>Label</span>
+          <input type="text" name="field_{{ idx }}_label" value="{{ f.label }}" maxlength="200" required>
+        </label>
+        {% if fb_mode == 'custom' or not _core %}
+        <label class="st-field"><span>Name {% call chip('Name') %}The field's key in submissions and exports. Blank makes one from the label.{% endcall %}</span>
+          <input type="text" name="field_{{ idx }}_name" value="{{ f.name }}" maxlength="80" pattern="[a-z0-9_]*" placeholder="From the label">
+        </label>
+        {% else %}
+        <input type="hidden" name="field_{{ idx }}_name" value="{{ f.name }}">
+        {% endif %}
+      </div>
+      {% if f.type not in ('radio', 'file') %}
+      <label class="st-field"><span>{{ 'Intro line above the boxes' if f.type == 'checkboxes' else 'Placeholder' }}</span>
+        <input type="text" name="field_{{ idx }}_placeholder" value="{{ f.get('placeholder', '') }}" maxlength="200">
+      </label>
+      {% endif %}
+      {% if f.type == 'checkboxes' %}
+      <label class="st-field"><span>Help text {% call chip('Help text') %}Markdown: **bold**, *italic*, [links](https://example.org) and lists.{% endcall %}</span>
+        <textarea name="field_{{ idx }}_help" rows="4" maxlength="2000">{{ f.get('help', '') }}</textarea>
+      </label>
+      {% else %}
+      <label class="st-field"><span>Help text</span>
+        <input type="text" name="field_{{ idx }}_help" value="{{ f.get('help', '') }}" maxlength="500">
+      </label>
+      {% endif %}
+      {% if f.type in ('select', 'radio', 'checkboxes') %}
+      <label class="st-field"><span>Options, one per line</span>
+        <textarea name="field_{{ idx }}_options" rows="3">{{ (f.get('options') or [])|join('\n') }}</textarea>
+      </label>
+      {% endif %}
+      {% if f.type == 'file' and fb_mode == 'custom' %}
+      <label class="st-field"><span>Accepted file types {% call chip('Accepted file types') %}Extensions or types, separated by commas, such as .pdf,.docx or image/*. Blank accepts any file. Checked again when the form is sent.{% endcall %}</span>
+        <input type="text" name="field_{{ idx }}_accept" value="{{ f.get('accept', '') }}" maxlength="500" placeholder=".pdf,.docx">
+      </label>
+      {% endif %}
+      {% if _lock_req %}
+        {% if f.required %}<input type="hidden" name="field_{{ idx }}_required" value="1">{% endif %}
+        <p class="muted smaller fb-note">{{ 'Always required: the form needs it.' if f.required else 'Always optional.' }}</p>
+      {% else %}
+      <label class="check"><input type="checkbox" name="field_{{ idx }}_required" value="1" {% if f.required %}checked{% endif %} data-fb-required><span>Required</span></label>
+      {% endif %}
+    </div>
+  </div>
+{% endmacro %}
+
+<div class="fb" data-form-builder data-fb-mode="{{ fb_mode }}">
+  <input type="hidden" name="field_order" value="" data-field-order>
+  <div class="fb-list" data-fb-list>
+    {% for f in fields %}{{ card(f, loop.index0) }}{% endfor %}
+  </div>
+  {% if not fields %}<p class="muted small fb-empty" data-fb-empty>No fields yet. Add the first one below.</p>{% endif %}
+  {% if fb_mode != 'fixed' %}
+  {% for ft in field_types %}
+  <template data-field-template="{{ ft }}">{{ card({'type': ft, 'label': '', 'name': '', 'required': False}, '__IDX__') }}</template>
+  {% endfor %}
+  <div class="fb-add">
+    <select data-field-type-picker aria-label="Type of field to add">
+      {% for ft in field_types %}<option value="{{ ft }}">{{ _type_names.get(ft, ft) }}</option>{% endfor %}
+    </select>
+    <button type="button" class="btn btn-sm" data-field-add>{{ icon('plus') }} Add field</button>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+(function () {
+  var root = document.currentScript.previousElementSibling;
+  if (!root || !root.matches('[data-form-builder]')) return;
+  var list = root.querySelector('[data-fb-list]');
+  var orderIn = root.querySelector('[data-field-order]');
+  var form = root.closest('form');
+  var movable = root.getAttribute('data-fb-mode') !== 'fixed';
+  var names = {{ _type_names|tojson }};
+
+  function syncOrder() {
+    orderIn.value = Array.prototype.map.call(list.querySelectorAll('[data-field-card]'),
+      function (c) { return c.dataset.fieldIdx; }).join(',');
+  }
+  function syncHead(card) {
+    var lbl = card.querySelector('input[name$="_label"]');
+    var req = card.querySelector('[data-fb-required]') || card.querySelector('input[type=hidden][name$="_required"]');
+    card.querySelector('[data-fb-title]').textContent = (lbl && lbl.value.trim()) || 'New field';
+    card.querySelector('[data-fb-flags]').textContent =
+      req && (req.type === 'hidden' || req.checked) ? 'required' : '';
+  }
+  function toggle(card, open) {
+    var body = card.querySelector('.fb-body');
+    open = open === undefined ? body.hidden : open;
+    body.hidden = !open;
+    card.classList.toggle('is-open', open);
+    card.querySelector('.fb-open').setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) { var l = body.querySelector('input[name$="_label"]'); if (l) l.focus(); }
+  }
+  function wire(card) {
+    card.querySelector('[data-fb-toggle]').addEventListener('click', function (e) {
+      if (e.target.closest('[data-field-delete], .fb-drag')) return;
+      toggle(card);
+    });
+    var del = card.querySelector('[data-field-delete]');
+    if (del) del.addEventListener('click', function () {
+      if (!confirm('Remove this field from the form?')) return;
+      card.remove(); syncOrder();
+    });
+    card.querySelectorAll('input').forEach(function (i) {
+      i.addEventListener('input', function () { syncHead(card); });
+      i.addEventListener('change', function () { syncHead(card); });
+    });
+    if (!movable) return;
+    var handle = card.querySelector('.fb-drag');
+    if (handle) handle.addEventListener('mousedown', function () { card.draggable = true; });
+    card.addEventListener('dragstart', function (e) {
+      card.classList.add('is-dragging');
+      try { e.dataTransfer.setData('text/plain', ''); } catch (_) {}
+    });
+    card.addEventListener('dragend', function () {
+      card.classList.remove('is-dragging'); card.draggable = false; syncOrder();
+      // A new order changes no field, so announce it to the save bar
+      // and the preview.
+      orderIn.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    card.addEventListener('dragover', function (e) {
+      var d = list.querySelector('.is-dragging');
+      if (!d || d === card) return;
+      e.preventDefault();
+      var r = card.getBoundingClientRect();
+      list.insertBefore(d, (e.clientY - r.top) > r.height / 2 ? card.nextSibling : card);
+    });
+  }
+  list.querySelectorAll('[data-field-card]').forEach(wire);
+  syncOrder();
+
+  var add = root.querySelector('[data-field-add]');
+  if (add) {
+    var picker = root.querySelector('[data-field-type-picker]');
+    var next = list.querySelectorAll('[data-field-card]').length + 100;
+    add.addEventListener('click', function () {
+      var type = picker.value || 'text';
+      var tpl = root.querySelector('[data-field-template="' + type + '"]');
+      if (!tpl) return;
+      var html = tpl.innerHTML.replace(/__IDX__/g, String(next++));
+      var wrap = document.createElement('div');
+      wrap.innerHTML = html.trim();
+      var card = wrap.firstElementChild;
+      list.appendChild(card);
+      var empty = root.querySelector('[data-fb-empty]');
+      if (empty) empty.remove();
+      var lbl = card.querySelector('input[name$="_label"]');
+      if (lbl) lbl.value = names[type] || type;
+      wire(card); syncHead(card); syncOrder(); toggle(card, true);
+    });
+  }
+  if (form) {
+    form.addEventListener('submit', syncOrder);
+    form.addEventListener('formdata', syncOrder);
+  }
+})();
+</script>

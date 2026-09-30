@@ -1,11 +1,10 @@
 {% extends "frontend/base.html" %}
+{% from "frontend/_form_field.html" import form_field %}
 {%- set _heading = (site.contact_form_heading if site else None) or 'Get in touch' -%}
 {%- set _subheading = (site.contact_form_subheading if site else None)
     or 'Send the public information committee a note. Replies come straight to your email.' -%}
 {%- set _intro = (site.contact_form_intro if site else None) -%}
 {%- set _submit_label = (site.contact_form_submit_label if site else None) or 'Send message' -%}
-{%- set _subj_required = (site.contact_form_subject_required if site else False) -%}
-{%- set _show_phone = (site.contact_form_show_phone if site is not none else True) -%}
 {% block title %}{{ _heading }} · {{ frontend_title }}{% endblock %}
 {% block content %}
 {# Contact us — two-column hero on desktop (intro on the left, form
@@ -128,33 +127,13 @@
               </label>
             </div>
 
-            <div class="fe-submission-grid-2">
-              <label>
-                <span>Your name <span class="req">*</span></span>
-                <input name="name" type="text" maxlength="200" required autocomplete="name">
-              </label>
-              <label>
-                <span>Your email <span class="req">*</span></span>
-                <input name="email" type="email" maxlength="255" required autocomplete="email">
-              </label>
-            </div>
-
-            {% if _show_phone %}
-            <label>
-              <span>Phone <span class="muted smaller">(optional)</span></span>
-              <input name="phone" type="tel" maxlength="64" autocomplete="tel">
-            </label>
-            {% endif %}
-
-            <label>
-              <span>Subject{% if _subj_required %} <span class="req">*</span>{% else %} <span class="muted smaller">(optional)</span>{% endif %}</span>
-              <input name="subject" type="text" maxlength="255"{% if _subj_required %} required{% endif %}>
-            </label>
-
-            <label>
-              <span>Message <span class="req">*</span></span>
-              <textarea name="message" rows="6" maxlength="6000" required></textarea>
-            </label>
+            {# The fields come from the builder on the Contact form's
+               settings page (form_specs.SPECS["contact"]): name, email
+               and message always, phone and subject unless removed,
+               plus any extra fields. #}
+            {% for block in builtin_form_fields('contact', site.contact_form_blocks_json if site else None) %}
+              {{ form_field(block) }}
+            {% endfor %}
 
             {% if site and site.turnstile_enabled and site.turnstile_site_key %}
             <div class="cf-turnstile fe-submission-turnstile"
