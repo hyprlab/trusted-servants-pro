@@ -381,28 +381,40 @@
     b.addEventListener('click', function () { showMode(b.getAttribute('data-mode')); });
   });
 
-  // Clicking part of the preview opens the settings that drive it:
-  // data-goto="tab:primary|secondary" picks a style, "tab:<key>" a token.
+  // Each preview part names what drives it: data-goto="tab:primary|
+  // secondary" is a card or button style, "tab:<key>" one setting. While
+  // the preview shows dark mode, a key with a `<key>_dark` sibling on
+  // that tab means the sibling, since that is the color on screen
+  // (data-goto-exact opts out, for the light/dark halves of a chip).
+  function gotoTarget(t) {
+    var parts = t.getAttribute('data-goto').split(':');
+    var tab = parts[0], what = parts[1];
+    if (what === 'primary' || what === 'secondary') return { tab: tab, kind: what };
+    function find(key) {
+      // Prefer the copy on that tab (a mirror or the original).
+      return studio.querySelector('[data-ds-panel="' + tab + '"] .ds-ctl[data-key="' + key + '"]') ||
+        studio.querySelector('[data-ds-panel="' + tab + '"] [name="' + key + '"]') || ctls[key];
+    }
+    var el = null;
+    if (state.mode === 'dark' && !t.hasAttribute('data-goto-exact')) {
+      el = find(what + '_dark');
+      if (el) what += '_dark';
+    }
+    return { tab: tab, key: what, el: el || find(what) };
+  }
+
   root.addEventListener('click', function (e) {
     var t = e.target.closest('[data-goto]');
     if (!t) return;
-    var parts = t.getAttribute('data-goto').split(':');
-    var tab = parts[0], what = parts[1];
-    if (tab !== state.tab) showTab(tab);
-    var target;
-    if (what === 'primary' || what === 'secondary') {
-      showKind(tab, what);
-      target = studio.querySelector('[data-ds-panel="' + tab + '"] [data-ds-kind-only="' + what + '"]');
-    } else {
-      // Prefer the copy on the tab being shown (a mirror or the original).
-      var el = studio.querySelector('[data-ds-panel="' + tab + '"] .ds-ctl[data-key="' + what + '"]') ||
-        ctls[what] ||
-        studio.querySelector('[data-ds-panel="' + tab + '"] [name="' + what + '"]');
-      if (el) {
-        var only = el.closest('[data-ds-kind-only]');
-        if (only && only.hidden) showKind(tab, only.getAttribute('data-ds-kind-only'));
-        target = el.closest('.ds-row') || el;
-      }
+    var g = gotoTarget(t), target;
+    if (g.tab !== state.tab) showTab(g.tab);
+    if (g.kind) {
+      showKind(g.tab, g.kind);
+      target = studio.querySelector('[data-ds-panel="' + g.tab + '"] [data-ds-kind-only="' + g.kind + '"]');
+    } else if (g.el) {
+      var only = g.el.closest('[data-ds-kind-only]');
+      if (only && only.hidden) showKind(g.tab, only.getAttribute('data-ds-kind-only'));
+      target = g.el.closest('.ds-row') || g.el;
     }
     if (!target) return;
     var r = target.getBoundingClientRect();
@@ -411,6 +423,65 @@
     void target.offsetWidth;
     target.classList.add('is-flash');
   });
+
+  // Hover tooltip: the setting's name, its group and the token key,
+  // read from the control the part would highlight.
+  function ownText(el) {
+    if (!el) return '';
+    var out = '';
+    el.childNodes.forEach(function (n) { if (n.nodeType === 3) out += n.textContent; });
+    return out.trim();
+  }
+  var KIND_NAMES = { cards: 'card', buttons: 'button' };
+  function tipFor(t) {
+    var g = gotoTarget(t);
+    if (g.kind) {
+      var noun = KIND_NAMES[g.tab] || g.tab;
+      var name = g.kind.charAt(0).toUpperCase() + g.kind.slice(1) + ' ' + noun;
+      return { name: name, group: 'Every ' + g.kind + ' ' + noun + ' setting' };
+    }
+    if (!g.el) return null;
+    var row = g.el.closest('.ds-row');
+    var label = ownText(row && row.querySelector('.ds-label'));
+    var cap = g.el.closest('.ds-color') && g.el.closest('.ds-color').querySelector('.ds-cap');
+    var groupTitle = g.el.closest('.ds-group');
+    return {
+      name: label + (cap ? ', ' + ownText(cap).toLowerCase() : ''),
+      group: ownText(groupTitle && groupTitle.querySelector('.ds-group-title')),
+      key: g.key,
+    };
+  }
+  var tip = document.createElement('div');
+  tip.className = 'pv-tip';
+  tip.setAttribute('role', 'tooltip');
+  tip.hidden = true;
+  root.appendChild(tip);
+  var tipFrom = null;
+  function placeTip(e) {
+    var pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = e.clientX + pad, y = e.clientY + pad;
+    if (x + w > window.innerWidth - 8) x = e.clientX - pad - w;
+    if (y + h > window.innerHeight - 8) y = e.clientY - pad - h;
+    tip.style.left = Math.max(8, x) + 'px';
+    tip.style.top = Math.max(8, y) + 'px';
+  }
+  root.addEventListener('pointermove', function (e) {
+    var t = e.target.closest && e.target.closest('[data-goto]');
+    if (!t) { tip.hidden = true; tipFrom = null; return; }
+    if (t !== tipFrom) {
+      tipFrom = t;
+      var info = tipFor(t);
+      if (!info) { tip.hidden = true; return; }
+      tip.innerHTML = '';
+      var b = document.createElement('b'); b.textContent = info.name; tip.appendChild(b);
+      if (info.group) { var sm = document.createElement('span'); sm.textContent = info.group; tip.appendChild(sm); }
+      if (info.key) { var c = document.createElement('code'); c.textContent = info.key; tip.appendChild(c); }
+      tip.hidden = false;
+    }
+    placeTip(e);
+  });
+  host.addEventListener('pointerleave', function () { tip.hidden = true; tipFrom = null; });
+  window.addEventListener('scroll', function () { tip.hidden = true; tipFrom = null; }, { passive: true });
 
   // ── Preview ─────────────────────────────────────────────────────────
   function shadow(scaleKey, tint) {

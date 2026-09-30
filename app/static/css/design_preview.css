@@ -336,3 +336,17 @@
   .pv-nav { gap: 12px; }
   .pv-rowhead { flex-wrap: wrap; }
 }
+
+/* Hover tooltip naming the setting behind a preview part. Sits outside
+   .pv (so its overflow can't clip it) and keeps fixed colors. */
+.pv-tip {
+  position: fixed; z-index: 10; pointer-events: none; max-width: 260px;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 7px 10px; border-radius: 8px;
+  background: #0f172a; color: #f8fafc;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.28);
+  font: 12px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.pv-tip b { font-weight: 650; }
+.pv-tip span { color: #cbd5e1; font-size: 11px; }
+.pv-tip code { color: #93c5fd; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }

@@ -562,8 +562,8 @@
           ('muted', 'Muted', 'color_text_soft', 'color_text_dark')] %}
         <div class="pv-swatch" data-swatch="{{ role }}">
           <span class="pv-swatch-chip">
-            <button type="button" data-half="light" data-goto="colors:{{ light }}" title="{{ label }}, light mode" aria-label="{{ label }}, light mode"></button>
-            <button type="button" data-half="dark" data-goto="colors:{{ dark }}" title="{{ label }}, dark mode" aria-label="{{ label }}, dark mode"></button>
+            <button type="button" data-half="light" data-goto="colors:{{ light }}" data-goto-exact aria-label="{{ label }}, light mode"></button>
+            <button type="button" data-half="dark" data-goto="colors:{{ dark }}" data-goto-exact aria-label="{{ label }}, dark mode"></button>
           </span>
           <span class="pv-swatch-name">{{ label }}</span>
           <code class="pv-swatch-val" data-val="light">{{ icon('sun') }}<span></span></code>
