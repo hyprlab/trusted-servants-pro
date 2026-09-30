@@ -59,6 +59,10 @@ release notes expanded by default and the changelog collapsed.
 - Custom forms keep their accepted file types when saved. Before, saving the form's settings dropped them.
 - The Contact and Recovery Contacts forms' heading, subheading and intro, and the Contact form's side panel, are edited on the form's Page tab. Delivery shows where email goes when the address is left blank.
 - Leaving a built-in form's address blank keeps its usual address. Before, a blank address was saved as /form.
+- Templates is now Page templates: a list of every generated page grouped by part of the site (Meetings, Events and announcements, Stories, Blog, Library, Directories, Forms), and for the one you pick, Layout, Appearance and Page tabs beside a live preview of the real page. Picking a layout shows it in the preview before you save.
+- Appearance shows only the settings the chosen layout uses and names the ones it doesn't. Before, background color, fonts and sizes were offered for every page, but most list pages ignored them.
+- Each page template's layout, heading, width and other page settings save together, so changing a layout can no longer undo other settings.
+- Meeting, announcement, event, story and blog post templates preview on a real published item.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

@@ -37,6 +37,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `frontend_footer.html` is a studio: the seven content modals became `st-panel` tabs (same field names, still parsed by `parse_footer`), the layout is a `frontend_footer_template` radio in the form, the row builder shows only for a custom layout, and a prebuilt shows its `FOOTER_PREBUILT_BLOCKS` slots. `frontend_footer_save` delegates to `_apply_footer_form`, which only rewrites a custom layout's rows; `/frontend/footer/customize` copies `FOOTER_PREBUILT_ROWS` into a new `CustomLayout`.
 - Design → Footer (`footer_appearance=1`, `_save_footer_appearance`): width through `_width_control.html`, min height, font scale, `frontend_footer_bg_mode`, and the background via the new `blocks.parse_footer_bg` (controls in `_footer_bg_controls.html` with `footer_bg_controls.js`). New tokens `color_footer_dark_{bg,line,text,muted,chip,chip_hover}` (defaults are the old hard-coded values) replace the literals in the dark footer rules of `frontend.css`; `frontend.FOOTER_SURFACE_THEMES` marks where they apply.
 - `frontend_form_studio.html` replaces the five form settings templates; `_form_studio_ctx` describes each form. `_field_builder.html` replaces `_form_field_builder.html` and the custom form's inline copy, with `custom`, `free` and `fixed` modes and in-place editing. `frontend_forms` renders `forms_overview.form_rows`. Contact and Recovery Contacts page copy is saved by their form routes; the Page templates routes only write it when posted.
+- `frontend_templates.html` rebuilt around `app/page_templates.py` (`GROUPS`, `KINDS`, `appearance_support`, `sample_path`): one kind at a time (`?kind=`), its layout radios and page fields in one form posting to the kind's existing save route, and Appearance in a second form posting to `frontend_template_settings_save` for the chosen layout. `appearance_support` reads each layout template for the `--tpl-*` variables it uses and knows which routes emit `template_css_vars`; unsupported groups are hidden and disabled so they don't post. The per-kind extras moved to `_tpl_extras.html`; CSS thumbnails are replaced by the live preview. Template save routes return to the referring kind.
 
 ### Fixed
 
@@ -62,6 +63,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The `/frontend/header-save`, `/frontend/header-template` and `/frontend/megamenu-template` routes, which nothing used.
 - The unused `frontend/footers/recovery-blue.html` (not in `FOOTER_TEMPLATES`), the `frontend_footer_text` context value only it read, the `/frontend/footer-template` route and the footer page's own second save bar.
 - The unused `frontend_form_submission_import_to_story` route and the `_default_*_form_blocks` / `_resolve_module_form_fields` helpers.
+- The site index "Sort order" setting from the admin: no layout read it. Contact and Recovery Contacts page copy is no longer on Page templates (it is on their forms).
 
 ## [2.20.2] — 2026-09-30
 

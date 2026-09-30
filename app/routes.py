@@ -10446,7 +10446,7 @@ def frontend_contact_template_save():
         s.contact_form_padding_pct = max(0, min(20, pad))
     db.session.commit()
     flash("Contact page saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/recovery-contacts-template/save", methods=["POST"])
@@ -10484,7 +10484,7 @@ def frontend_recovery_contacts_template_save():
         s.recovery_contacts_padding_pct = max(0, min(20, pad))
     db.session.commit()
     flash("Recovery Contacts page saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/404")
@@ -11290,105 +11290,60 @@ _HOMEPAGE_BLOCK_CATALOG = [
 @bp.route("/frontend/templates")
 @admin_required
 def frontend_templates():
-    from .frontend import (MEETING_TEMPLATES, EVENT_TEMPLATES,
-                           MEETINGS_LIST_TEMPLATES, EVENTS_LIST_TEMPLATES,
-                           ANNOUNCEMENTS_LIST_TEMPLATES, ARCHIVE_TEMPLATES,
-                           STORIES_LIST_TEMPLATES, STORY_TEMPLATES,
-                           BLOG_LIST_TEMPLATES, BLOG_POST_TEMPLATES,
-                           LITERATURE_LIBRARY_TEMPLATES, SITE_INDEX_TEMPLATES,
-                           FELLOWSHIPS_LIST_TEMPLATES,
-                           SUBMISSION_FORM_TEMPLATES,
-                           template_settings, meetings_list_protips_resolved,
-                           meetings_list_sidebar_links_resolved)
+    """Page templates: a list of every generated public page, grouped by
+    the part of the site it belongs to (page_templates.GROUPS), and a
+    studio for the one chosen with ``?kind=``: Layout, Appearance and
+    Page tabs beside a live preview of the real page."""
+    from . import frontend as _fe
+    from . import page_templates as PT
     from .fonts import all_fonts
     s = _get_site_setting()
-    meeting_key = (s.frontend_meeting_template if s else None) or "classic"
-    event_key = (s.frontend_event_template if s else None) or "classic"
-    meetings_list_key = (s.frontend_meetings_list_template if s else None) or "sidebar"
-    events_list_key = (s.frontend_events_list_template if s else None) or "cards"
-    announcements_list_key = (s.frontend_announcements_list_template if s else None) or "omni"
-    archive_key = (s.frontend_archive_template if s else None) or "year-sidebar"
-    stories_list_key = (s.frontend_stories_list_template if s else None) or "paper-stack"
-    story_key = (s.frontend_story_template if s else None) or "paper"
-    blog_list_key = (s.frontend_blog_list_template if s else None) or "magazine"
-    blog_post_key = (s.frontend_blog_post_template if s else None) or "modern"
-    literature_library_key = (s.frontend_literature_library_template if s else None) or "classic"
-    site_index_key = (s.frontend_site_index_template if s else None) or "grouped"
-    fellowships_list_key = (s.frontend_fellowships_list_template if s else None) or "sidebar"
-    submission_form_key = (s.frontend_submission_form_template if s else None) or "classic"
-    # Render the cards alphabetised by display name so admins always
-    # see them in a stable, predictable order regardless of how each
-    # `*_TEMPLATES` catalog list happens to be declared. Sort is
-    # case-insensitive on `name`; only the picker order on this page
-    # is affected — the catalogs themselves keep their declared order
-    # (which other call sites use as a fallback for "first available
-    # template", lookups by key, etc.).
-    def _by_name(catalog):
-        return sorted(catalog, key=lambda t: (t.get("name") or "").lower())
-    return render_template("frontend_templates.html", site=s,
-                           meeting_templates=_by_name(MEETING_TEMPLATES),
-                           event_templates=_by_name(EVENT_TEMPLATES),
-                           meetings_list_templates=_by_name(MEETINGS_LIST_TEMPLATES),
-                           meetings_list_active_key=meetings_list_key,
-                           meetings_list_protips=meetings_list_protips_resolved(s),
-                           meetings_list_sidebar_links=meetings_list_sidebar_links_resolved(s),
-                           events_list_templates=_by_name(EVENTS_LIST_TEMPLATES),
-                           events_list_active_key=events_list_key,
-                           announcements_list_templates=_by_name(ANNOUNCEMENTS_LIST_TEMPLATES),
-                           announcements_list_active_key=announcements_list_key,
-                           archive_templates=_by_name(ARCHIVE_TEMPLATES),
-                           archive_active_key=archive_key,
-                           stories_list_templates=_by_name(STORIES_LIST_TEMPLATES),
-                           stories_list_active_key=stories_list_key,
-                           story_templates=_by_name(STORY_TEMPLATES),
-                           story_active_key=story_key,
-                           blog_list_templates=_by_name(BLOG_LIST_TEMPLATES),
-                           blog_list_active_key=blog_list_key,
-                           blog_post_templates=_by_name(BLOG_POST_TEMPLATES),
-                           blog_post_active_key=blog_post_key,
-                           literature_library_templates=_by_name(LITERATURE_LIBRARY_TEMPLATES),
-                           literature_library_active_key=literature_library_key,
-                           meeting_active_settings=template_settings(s, "meeting", meeting_key),
-                           event_active_settings=template_settings(s, "event", event_key),
-                           # All seven list / detail sections also need their per-template
-                           # settings dict for the customize panel. Each kind reuses the
-                           # same `frontend_template_settings_json` JSON column keyed by
-                           # (kind, key) — no schema changes needed.
-                           meetings_list_active_settings=template_settings(s, "meetings_list", meetings_list_key),
-                           events_list_active_settings=template_settings(s, "events_list", events_list_key),
-                           announcements_list_active_settings=template_settings(s, "announcements_list", announcements_list_key),
-                           archive_active_settings=template_settings(s, "archive", archive_key),
-                           stories_list_active_settings=template_settings(s, "stories_list", stories_list_key),
-                           story_active_settings=template_settings(s, "story", story_key),
-                           blog_list_active_settings=template_settings(s, "blog_list", blog_list_key),
-                           blog_post_active_settings=template_settings(s, "blog_post", blog_post_key),
-                           literature_library_active_settings=template_settings(s, "literature_library", literature_library_key),
-                           # Printlist has no template variants (single layout); use a
-                           # synthetic 'default' key so the customize panel keeps the same
-                           # shape as everywhere else.
-                           printlist_active_settings=template_settings(s, "printlist", "default"),
-                           contact_active_settings=template_settings(s, "contact", "split"),
-                           # Recovery Contacts mirrors Contact: a single
-                           # rendering ('default' key) that still gets a
-                           # customize panel for UI uniformity, plus its own
-                           # page-level heading + container-width controls.
-                           recovery_contacts_active_settings=template_settings(s, "recovery_contacts", "default"),
-                           site_index_templates=_by_name(SITE_INDEX_TEMPLATES),
-                           site_index_active_key=site_index_key,
-                           site_index_active_settings=template_settings(s, "site_index", site_index_key),
-                           fellowships_list_templates=_by_name(FELLOWSHIPS_LIST_TEMPLATES),
-                           fellowships_list_active_key=fellowships_list_key,
-                           fellowships_list_active_settings=template_settings(s, "fellowships_list", fellowships_list_key),
-                           submission_form_templates=_by_name(SUBMISSION_FORM_TEMPLATES),
-                           submission_form_active_key=submission_form_key,
-                           submission_form_active_settings=template_settings(s, "submission_form", submission_form_key),
-                           # Form picker for the stories-list "Submit a story"
-                           # CTA. Combines registry forms (events
-                           # submission, contact) with admin-authored
-                           # CustomForm rows so the operator picks from a
-                           # single dropdown. Each entry has ``value`` (the
-                           # identifier stored on SiteSetting) and
-                           # ``label`` (visible name in the dropdown).
+    defaults = {"meeting": "classic", "event": "classic", "meetings_list": "sidebar",
+                "events_list": "cards", "announcements_list": "omni", "archive": "year-sidebar",
+                "stories_list": "paper-stack", "story": "paper", "blog_list": "magazine",
+                "blog_post": "modern", "literature_library": "classic", "site_index": "grouped",
+                "fellowships_list": "sidebar", "submission_form": "classic"}
+
+    def catalog(meta):
+        cat = getattr(_fe, meta["catalog"]) if meta.get("catalog") else []
+        return sorted(cat, key=lambda t: (t.get("name") or "").lower())
+
+    def active_key(k, meta):
+        if not meta.get("catalog"):
+            return meta.get("fixed_key")
+        return getattr(s, meta["field"], None) or defaults.get(k)
+
+    rail = []
+    for group, keys in PT.GROUPS:
+        items = []
+        for k in keys:
+            meta = PT.KINDS[k]
+            ak = active_key(k, meta)
+            name = next((t["name"] for t in catalog(meta) if t["key"] == ak), None)
+            off = bool(meta.get("module")) and not getattr(s, meta["module"], False)
+            items.append({"key": k, "label": meta["label"], "layout": name, "off": off})
+        rail.append((group, items))
+    first = next(it["key"] for _g, its in rail for it in its if not it["off"])
+    kind = request.args.get("kind") or first
+    if kind not in PT.KINDS:
+        kind = first
+    meta = PT.KINDS[kind]
+    cat = catalog(meta)
+    ak = active_key(kind, meta)
+    layout = next((t for t in cat if t["key"] == ak), None)
+    support = PT.appearance_support(kind, layout)
+    layout_support = {t["key"]: sorted(PT.appearance_support(kind, t)) for t in cat}
+    path = meta.get("path") or PT.sample_path(kind)
+    from .widths import site_container_max
+    return render_template("frontend_templates.html", site=s, rail=rail, kind=kind, meta=meta,
+                           catalog=cat, active_key=ak, layout=layout,
+                           settings=_fe.template_settings(s, kind, ak) if ak else {},
+                           support=support, layout_support=layout_support,
+                           unsupported=[v for k, v in PT.APPEARANCE_LABELS.items() if k not in support],
+                           appearance_labels=PT.APPEARANCE_LABELS,
+                           preview_path=path, site_px=site_container_max(s),
+                           meetings_list_protips=_fe.meetings_list_protips_resolved(s),
+                           meetings_list_sidebar_links=_fe.meetings_list_sidebar_links_resolved(s),
                            form_picker_options=_form_picker_options(),
                            font_options=all_fonts())
 
@@ -11609,7 +11564,7 @@ def frontend_template_settings_save(kind, key):
     s.frontend_template_settings_json = _json.dumps(data) if data else None
     db.session.commit()
     flash(f"{kind.capitalize()} template settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/meeting-template", methods=["POST"])
@@ -11622,7 +11577,7 @@ def frontend_meeting_template_save():
         s.frontend_meeting_template = key
         db.session.commit()
         flash(f"Meeting template set to {key}", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/events-list-template", methods=["POST"])
@@ -11665,7 +11620,7 @@ def frontend_events_list_template_save():
             request.form, "frontend_events_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Events list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/announcements-list-template", methods=["POST"])
@@ -11711,7 +11666,7 @@ def frontend_announcements_list_template_save():
             request.form, "frontend_announcements_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Announcements list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/archive-template", methods=["POST"])
@@ -11743,7 +11698,7 @@ def frontend_archive_template_save():
             request.form, "frontend_archive_bg_dynbg_config_json")
     db.session.commit()
     flash("Archive settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/stories-list-template", methods=["POST"])
@@ -11808,7 +11763,7 @@ def frontend_stories_list_template_save():
             request.form, "frontend_stories_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Stories list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/story-template", methods=["POST"])
@@ -11828,7 +11783,7 @@ def frontend_story_template_save():
             request.form, "frontend_story_bg_dynbg_config_json")
     db.session.commit()
     flash("Story template settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/blog-list-template", methods=["POST"])
@@ -11871,7 +11826,7 @@ def frontend_blog_list_template_save():
             request.form, "frontend_blog_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Blog list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/blog-post-template", methods=["POST"])
@@ -11907,7 +11862,7 @@ def frontend_blog_post_template_save():
             request.form, "frontend_blog_post_bg_dynbg_config_json")
     db.session.commit()
     flash("Blog post template settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/meetings-list-template", methods=["POST"])
@@ -12032,7 +11987,7 @@ def frontend_meetings_list_template_save():
             request.form, "frontend_meetings_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Meetings list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/literature-library-template", methods=["POST"])
@@ -12056,7 +12011,7 @@ def frontend_literature_library_template_save():
             request.form, "frontend_literature_library_bg_dynbg_config_json")
     db.session.commit()
     flash("Literature Library settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/printlist-template", methods=["POST"])
@@ -12081,7 +12036,7 @@ def frontend_printlist_template_save():
             request.form, "frontend_printlist_bg_dynbg_config_json")
     db.session.commit()
     flash("Printlist settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/site-index-template", methods=["POST"])
@@ -12128,7 +12083,7 @@ def frontend_site_index_template_save():
             request.form, "frontend_site_index_bg_dynbg_config_json")
     db.session.commit()
     flash("Site Index settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/fellowships-list-template", methods=["POST"])
@@ -12180,7 +12135,7 @@ def frontend_fellowships_list_template_save():
             request.form, "frontend_fellowships_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Fellowships list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/submission-form-template", methods=["POST"])
@@ -12220,7 +12175,7 @@ def frontend_submission_form_template_save():
             request.form, "frontend_submission_form_bg_dynbg_config_json")
     db.session.commit()
     flash("Submission form layout saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/event-template", methods=["POST"])
@@ -12233,7 +12188,7 @@ def frontend_event_template_save():
         s.frontend_event_template = key
         db.session.commit()
         flash(f"Event template set to {key}", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 _CUSTOM_LAYOUT_BLOCK_TYPES = {

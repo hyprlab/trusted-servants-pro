@@ -166,8 +166,8 @@
       {# ── Look: the page template this form uses ── #}
       <div class="st-panel" data-studio-panel="look" hidden>
         <div class="ds-group st-group-body">
-          <p class="small">This form's page uses the <b>{{ fs.template_name }}</b> page template, set with its layout, width and background on <a href="{{ url_for('main.frontend_templates') }}#{{ fs.template_anchor }}">Page templates → {{ fs.template_label }}</a>{% if fs.template_shared %}, shared by {{ fs.template_shared }}{% endif %}.</p>
-          <a class="btn btn-sm" href="{{ url_for('main.frontend_templates') }}#{{ fs.template_anchor }}">{{ icon('copy') }} Open the page template</a>
+          <p class="small">This form's page uses the <b>{{ fs.template_name }}</b> page template, set with its layout, width and background on <a href="{{ url_for('main.frontend_templates', kind=fs.template_anchor) }}">Page templates → {{ fs.template_label }}</a>{% if fs.template_shared %}, shared by {{ fs.template_shared }}{% endif %}.</p>
+          <a class="btn btn-sm" href="{{ url_for('main.frontend_templates', kind=fs.template_anchor) }}">{{ icon('copy') }} Open the page template</a>
         </div>
         {% if fs.key == 'custom' %}
         <div class="ds-group st-group-body">
