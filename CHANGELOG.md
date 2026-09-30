@@ -42,8 +42,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `frontend_page_layout_save` applies a preset to the draft (`draft_json.blocks_json`, with a revision) for published pages. `frontend_page_save` adds a redirect from the old slug of a published page and forces the homepage public; `frontend_page_status`, the bulk action and `frontend_page_delete` refuse to unpublish or delete the homepage.
 - `frontend_popup_edit.html` and `frontend_404.html` rebuilt as studios. New `frontend_404_show_sub`, `frontend_404_show_art` and `frontend_404_show_home` columns (default on) read by `frontend/404.html`. `block_editor.js` only shows a section title input for sections that already have a title.
 
+- Font choices move to the design form (`fonts_present` marker in `frontend_design_save`); `frontend_fonts_icons_save` redirects to Design → Text and the fonts page becomes the Font & icon library.
+- Caching page rebuilt with master switches that disable their dependent settings via `:has()`.
+- Privacy & cookies page rebuilt as a studio with a staged banner preview; region presets apply client-side and `frontend_cookie_compliance_apply_preset` is removed. Overlay previews run with `document.cookie` stubbed so the admin's own consent cookie neither hides nor answers the banner.
+- Redirects page rebuilt list-first with add/edit modals; renamed-item rows resolve their current URL (`_history_entity_url`) and `new_slug` is read-only.
+- Admin search registry labels match the current subnav.
+
 ### Fixed
 
+- `frontend_page_delete` clears `cookie_compliance_policy_page_id` when it points at the deleted page.
 - The Design page preview in a dark admin theme (`dark`, `neobrutal-dark`, `cyberpunk`) painted light card colors under the admin's light text. The preview now has a Light/Dark switch that starts from the admin theme, and it uses the site's own text tokens.
 - A `dotted` link, mega-menu or button decoration was emitted as `text-decoration: dotted`, which sets only the line style and draws no line. `design.text_decoration()` now emits `underline dotted`.
 - `ArchivoBlack-Regular.woff2` was the Google Fonts latin-ext subset, with no basic Latin glyphs, so every Neobrutal heading fell back to Arial Black. It is now `ArchivoBlack-latin-ext.woff2` beside a new `ArchivoBlack-latin.woff2`, split by `unicode-range` like Fraunces.

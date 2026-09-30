@@ -125,8 +125,8 @@
         {%- for _mode in ('light', 'dark') -%}
           {%- set _mb = _cfg.modes[_mode] -%}
           {%- set _mbits = [] -%}
-          {%- if _mb.randomize_colors -%}{%- set _ = _mbits.append('random colours') -%}
-          {%- elif _mb.colors|length -%}{%- set _ = _mbits.append(_mb.colors|length ~ (' colour' if _mb.colors|length == 1 else ' colours')) -%}{%- endif -%}
+          {%- if _mb.randomize_colors -%}{%- set _ = _mbits.append('random colors') -%}
+          {%- elif _mb.colors|length -%}{%- set _ = _mbits.append(_mb.colors|length ~ (' color' if _mb.colors|length == 1 else ' colors')) -%}{%- endif -%}
           {%- if _mb.randomize_positions -%}{%- set _ = _mbits.append('random positions') -%}{%- endif -%}
           {%- if _mb.overlay -%}
             {%- set _ov_entry = dynbg_overlays() | selectattr('key', 'equalto', _mb.overlay) | list | first -%}

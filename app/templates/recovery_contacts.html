@@ -176,7 +176,7 @@
     <div class="data-card-head">
       {{ icon('phone') }}
       <span>Published entries {% call chip('Published entries') %}These show on the public Recovery Contacts page. Flip a toggle to show or hide that entry's phone or email instantly — the name always shows.
-        Page copy, the notification recipient, and layout for the public page live on the <a href="{{ url_for('main.frontend_form_recovery_contacts') }}">Recovery Contacts form settings</a> (Web Frontend → Forms).{% endcall %}</span>
+        The page wording and the notification recipient are in the <a href="{{ url_for('main.frontend_form_recovery_contacts') }}">Recovery Contacts form settings</a> (Web Frontend → Forms); its layout is under Web Frontend → Page templates.{% endcall %}</span>
       <div class="data-card-head-actions muted smaller">
         {% if approved %}
         <label class="rc-filter-wrap">

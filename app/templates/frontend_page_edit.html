@@ -322,7 +322,7 @@
             <div class="st-panel" data-studio-panel="background" hidden>
         <div class="fe-page-settings-section">
           <h3 class="fe-page-settings-sub">Dynamic background
-            <span class="muted smaller">CSS-driven backdrop layered behind the page. Pairs cleanly with a colour or uploaded image (the dynamic background paints on top of those). Each preset is dark-mode aware.</span>
+            <span class="muted smaller">CSS-driven backdrop layered behind the page. Pairs cleanly with a color or uploaded image (the dynamic background paints on top of those). Each preset is dark-mode aware.</span>
           </h3>
           {% from "_dynbg_picker.html" import dynbg_trigger with context %}
           {{ dynbg_trigger(field_name='bg_dynamic_key',
@@ -358,7 +358,7 @@
               <span class="fe-page-bg-color-pair" data-token-pair="light">
                 <input type="color" id="page-bg-color-swatch"
                        value="{{ page.bg_color or '#ffffff' }}"
-                       aria-label="Light-mode background colour">
+                       aria-label="Light-mode background color">
                 <input type="text" name="bg_color" id="page-bg-color-text"
                        value="{{ page.bg_color or '' }}"
                        placeholder="hex (e.g. #f8fafc) or token:color_brand"
@@ -384,7 +384,7 @@
               <span class="fe-page-bg-color-pair" data-token-pair="dark">
                 <input type="color" id="page-bg-color-dark-swatch"
                        value="{{ page.bg_color_dark or '#1a1a2e' }}"
-                       aria-label="Dark-mode background colour">
+                       aria-label="Dark-mode background color">
                 <input type="text" name="bg_color_dark" id="page-bg-color-dark-text"
                        value="{{ page.bg_color_dark or '' }}"
                        placeholder="hex or token:color_surface (blank → auto-derive)"
@@ -411,7 +411,7 @@
               <button type="button" class="icon-btn" data-token-popover-close
                       aria-label="Close">{{ icon('x') }}</button>
             </div>
-            <p class="muted smaller">Pick a colour token. Updating it under <b>Settings → Design</b> propagates to every page that uses it.</p>
+            <p class="muted smaller">Pick a color token. Updating it under <b>Web Frontend → Design</b> propagates to every page that uses it.</p>
             <div class="fe-page-bg-token-grid">
               {% for tok in _color_tokens %}
               <button type="button" class="fe-page-bg-token-tile"

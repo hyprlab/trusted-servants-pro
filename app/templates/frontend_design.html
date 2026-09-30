@@ -375,6 +375,27 @@
             {{ color_row('color_text_soft', 'Muted text', mirror=True) }}
             <p class="ds-note">Also on the Colors tab; a change in either place shows in both.</p>
           {% endcall %}
+          {% call group('Fonts', 'type') %}
+            {# Saved per theme like the tokens (fonts.frontend_fonts_json is
+               part of each theme's saved state). Custom fonts are added in
+               the Font & icon library. #}
+            <input type="hidden" name="fonts_present" value="1">
+            {% for role, label in [('heading', 'Headings'), ('body', 'Text')] %}
+            {% set _theme_default = font_theme_defaults.get(role) %}
+            {% set _tdf = (all_font_options | selectattr('key', 'equalto', _theme_default) | list | first) %}
+            <div class="ds-row">
+              <span class="ds-label">{{ label }}</span>
+              <select name="font_{{ role }}" class="ds-font-select" data-font-role="{{ role }}">
+                <option value="" data-stack="{{ _tdf.stack if _tdf else 'inherit' }}">Theme font ({{ _tdf.name if _tdf else _theme_default }})</option>
+                {% for f in all_font_options %}
+                <option value="{{ f.key }}" data-stack="{{ f.stack }}" {% if font_overrides.get(role) == f.key %}selected{% endif %}>{{ f.name }}</option>
+                {% endfor %}
+              </select>
+              <p class="ds-font-sample" data-font-sample="{{ role }}">{{ 'Find a meeting near you' if role == 'heading' else 'Our meetings are open to anyone who wants to stop.' }}</p>
+            </div>
+            {% endfor %}
+            <p class="ds-note">Add your own fonts in the <a href="{{ url_for('main.frontend_fonts_icons') }}">Font &amp; icon library</a>. Some themes set their own fonts on parts of the page, such as Cyberpunk's titles.</p>
+          {% endcall %}
           {% call group('Size and spacing', 'type') %}
             {{ length('text_size_base', 'Base size', 'px', 12, 22, 1) }}
             {{ length('text_line_height', 'Line height', '', 1, 2.4, 0.05) }}
@@ -847,4 +868,31 @@
 <script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/design_studio.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/footer_bg_controls.js', v=app_build_id) }}"></script>
+{% set _custom_fonts = custom_fonts() %}
+{% for cf in _custom_fonts %}
+{% if cf.source == 'upload' %}<style>@font-face { font-family: '{{ cf.family }}'; src: url('{{ url_for("public.public_custom_font", fid=cf.id) }}'); font-display: swap; }</style>
+{% else %}<link rel="stylesheet" href="{{ url_for('public.public_custom_font', fid=cf.id) }}">{% endif %}
+{% endfor %}
+<script>
+// Font choices: show each in its own face beside the select and in the
+// Text preview.
+(function () {
+  var targets = { heading: '.pv-type .pv-h', body: '.pv-type .pv-p, .pv-type .pv-muted' };
+  document.querySelectorAll('.ds-font-select').forEach(function (sel) {
+    var role = sel.getAttribute('data-font-role');
+    var sample = document.querySelector('[data-font-sample="' + role + '"]');
+    function show() {
+      var opt = sel.options[sel.selectedIndex];
+      var stack = (opt && opt.getAttribute('data-stack')) || 'inherit';
+      if (sample) sample.style.fontFamily = stack;
+      // The preview lives in the stage's shadow root (design_studio.js).
+      var stage = document.querySelector('[data-ds-stage]');
+      var scope = (stage && stage.shadowRoot) || document;
+      scope.querySelectorAll(targets[role]).forEach(function (el) { el.style.fontFamily = stack; });
+    }
+    sel.addEventListener('change', show);
+    setTimeout(show, 0);
+  });
+})();
+</script>
 {% endblock %}

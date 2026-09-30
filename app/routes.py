@@ -1482,19 +1482,19 @@ def _search_sections(tokens, per_section):
     if current_user.can_edit_frontend():
         _fe_sections = [
             ("main.frontend_dashboard",          "Overview",           "web frontend dashboard status staging sync pull push"),
-            ("main.frontend_branding",           "Branding & SEO",     "logo brand name seo favicon og meta"),
-            ("main.frontend_fonts_icons",        "Fonts & Icons",      "custom fonts icons typography"),
-            ("main.frontend_design",             "Design",             "theme colors design palette"),
+            ("main.frontend_branding",           "Branding",           "logo brand name seo favicon og meta search sharing"),
+            ("main.frontend_fonts_icons",        "Font & icon library", "custom fonts icons typography upload"),
+            ("main.frontend_design",             "Design",             "theme colors design palette fonts width header footer"),
             ("main.frontend_caching",            "Caching",            "cache performance speed"),
-            ("main.frontend_cookie_compliance",  "Cookie Compliance",  "cookie banner consent gdpr privacy"),
-            ("main.frontend_header",             "Header",             "header editor utility bar top"),
+            ("main.frontend_cookie_compliance",  "Privacy & cookies",  "cookie banner consent gdpr privacy policy"),
+            ("main.frontend_header",             "Header",             "header editor utility bar alert top menu nav mega menu links navigation"),
             ("main.frontend_footer",             "Footer",             "footer editor bottom"),
-            ("main.frontend_navigation",         "Navigation",         "menu nav mega menu links"),
-            ("main.frontend_templates",          "Templates",          "page templates layouts"),
+            ("main.frontend_templates",          "Page templates",     "page templates layouts"),
             ("main.frontend_forms",              "Forms",              "submission contact forms public"),
             ("main.frontend_redirects",          "Redirects",          "url redirects 301 moved"),
             ("main.frontend_pages",              "Pages",              "page builder pages list"),
             ("main.frontend_popups",             "Popups",             "popups modals"),
+            ("main.frontend_404",                "404 page",           "404 not found missing page"),
         ]
         fe_items = []
         for endpoint, label, kw in _fe_sections:
@@ -8239,6 +8239,23 @@ import re as _re
 _HEX = _re.compile(r"#[0-9a-fA-F]{6}")
 
 
+def _all_fonts_list():
+    from .fonts import all_fonts
+    return all_fonts()
+
+
+def _font_overrides(s):
+    try:
+        return json.loads(s.frontend_fonts_json or "{}") or {}
+    except (ValueError, TypeError):
+        return {}
+
+
+def _font_theme_defaults(theme_key):
+    from .fonts import THEME_DEFAULTS
+    return THEME_DEFAULTS.get(theme_key) or THEME_DEFAULTS.get("classic") or {}
+
+
 def _save_header_appearance(s, form):
     """Apply Design → Header: the bar's width, height and logo size, and
     the utility and alert bar colors in light and dark. A dark color equal
@@ -10568,14 +10585,28 @@ def frontend_redirects():
         Model, title_attr = model_label
         rows_q = Model.query.filter(Model.id.in_(ids)).all()
         for r in rows_q:
+            slug = getattr(r, "public_slug", None) or getattr(r, "slug", None)
             entity_lookup[(ent_type, r.id)] = {
                 "title": getattr(r, title_attr, "") or f"#{r.id}",
-                "slug":  getattr(r, "public_slug", None) or getattr(r, "slug", None),
+                "slug":  slug,
+                "url":   _history_entity_url(ent_type, r, slug),
             }
     return render_template("frontend_redirects.html", site=s,
                            redirects=rows,
                            slug_history=history,
                            entity_lookup=entity_lookup)
+
+
+def _history_entity_url(ent_type, obj, slug):
+    """Current public address of a renamed item; its old slug works
+    under the same section, so the Redirects page shows both there."""
+    if not slug:
+        return ""
+    if ent_type == "post":
+        from .frontend import _post_url
+        return _post_url(obj)
+    prefix = {"meeting": "/meetings/", "story": "/stories/", "blog": "/blog/"}.get(ent_type, "/")
+    return prefix + slug
 
 
 def _normalize_redirect_pair(src, tgt):
@@ -10682,14 +10713,15 @@ def frontend_slug_history_save(hid):
     other row's redirect."""
     row = db.session.get(EntitySlugHistory, hid) or abort(404)
     old = (request.form.get("old_slug") or "").strip().lower()
-    new = (request.form.get("new_slug") or "").strip().lower()
+    # The new slug is a record of the rename, shown read-only.
+    new = (request.form.get("new_slug") or row.new_slug or "").strip().lower()
     if not old or not new:
-        flash("Both old and new slug are required.", "danger")
+        flash("The old address is required.", "danger")
         return redirect(url_for("main.frontend_redirects"))
     norm_old = _normalize_slug(old)
     norm_new = _normalize_slug(new)
     if not norm_old or not norm_new:
-        flash("Slugs must be lowercase letters, digits, and hyphens.", "danger")
+        flash("Addresses use lowercase letters, digits and hyphens only.", "danger")
         return redirect(url_for("main.frontend_redirects"))
     if norm_old != row.old_slug:
         # Uniqueness check on (entity_type, old_slug) so the redirect
@@ -10699,12 +10731,12 @@ def frontend_slug_history_save(hid):
             EntitySlugHistory.old_slug == norm_old,
             EntitySlugHistory.id != row.id).first()
         if dup:
-            flash(f"Old slug “{norm_old}” already redirects elsewhere for this entity type.", "danger")
+            flash(f"“{norm_old}” already leads to another item of this kind.", "danger")
             return redirect(url_for("main.frontend_redirects"))
     row.old_slug = norm_old[:255]
     row.new_slug = norm_new[:255]
     db.session.commit()
-    flash("Slug-redirect updated.", "success")
+    flash("Old address updated.", "success")
     return redirect(url_for("main.frontend_redirects"))
 
 
@@ -10718,7 +10750,7 @@ def frontend_slug_history_delete(hid):
     old = row.old_slug
     db.session.delete(row)
     db.session.commit()
-    flash(f"Deleted slug-redirect for {old}", "success")
+    flash(f"The old address {old} no longer redirects.", "success")
     return redirect(url_for("main.frontend_redirects"))
 
 
@@ -10766,7 +10798,10 @@ def frontend_design():
                            width_usage=width_usage(s), site_px=site_container_max(s),
                            theme_name=theme_name, hdr_name=hdr_name,
                            ub_modes=UTILITY_BAR_COLOR_MODES.get(theme_key, ()),
-                           footer_surface_follows=theme_key in FOOTER_SURFACE_THEMES)
+                           footer_surface_follows=theme_key in FOOTER_SURFACE_THEMES,
+                           all_font_options=_all_fonts_list(),
+                           font_overrides=_font_overrides(s),
+                           font_theme_defaults=_font_theme_defaults(theme_key))
 
 
 @bp.route("/frontend/design/save", methods=["POST"])
@@ -10786,6 +10821,14 @@ def frontend_design_save():
         _save_header_appearance(s, request.form)
     if request.form.get("footer_appearance") == "1":
         _save_footer_appearance(s, request.form)
+    if request.form.get("fonts_present") == "1":
+        from .fonts import font_by_key, ROLES
+        fonts = {}
+        for role in ROLES:
+            v = (request.form.get("font_" + role) or "").strip().lower()
+            if v and font_by_key(v):
+                fonts[role] = v
+        s.frontend_fonts_json = json.dumps(fonts) if fonts else None
     db.session.commit()
     flash("Design saved", "success")
     return redirect(url_for("main.frontend_design"))
@@ -10892,7 +10935,7 @@ def frontend_caching_clear():
     """Force every visitor to refetch images now by advancing the bust
     token (a new ?v= on every image URL)."""
     imgcache.clear_cache()
-    flash("Image cache cleared — visitors will refetch images on their next visit.", "success")
+    flash("Every image has a new address. Visitors download them again on their next visit.", "success")
     return redirect(url_for("main.frontend_caching"))
 
 
@@ -10902,7 +10945,7 @@ def frontend_caching_thumbnails_clear():
     """Delete generated thumbnail files from disk; they regenerate lazily
     on the next request."""
     removed = imgcache.clear_thumbnails()
-    flash(f"Cleared {removed} generated thumbnail file{'' if removed == 1 else 's'}.", "success")
+    flash(f"Deleted {removed} thumbnail{'' if removed == 1 else 's'}. They are made again as pages need them.", "success")
     return redirect(url_for("main.frontend_caching"))
 
 
@@ -10915,10 +10958,9 @@ _COOKIE_POSITIONS = ("bottom-bar", "bottom-left", "bottom-right", "modal")
 @bp.route("/frontend/cookie-compliance")
 @admin_required
 def frontend_cookie_compliance():
-    """Admin page for the cookie + privacy compliance banner. Lets the
-    admin enable the module, pick a prompt mode, customise the banner
-    copy + position, link a privacy policy (existing Page OR external
-    URL), and one-click apply a regional preset (GDPR / CCPA / generic).
+    """Admin page for the cookie banner: on/off, what visitors are asked,
+    its wording and position, and the privacy policy it links (a Page or
+    an external URL). Region presets fill the form client-side.
     See ``app/cookie_compliance.py`` for region inference + presets +
     starter policy templates."""
     from . import cookie_compliance as cc
@@ -10988,30 +11030,7 @@ def frontend_cookie_compliance_save():
         days = 365
     s.cookie_compliance_remember_days = max(0, min(730, days))
     db.session.commit()
-    flash("Cookie compliance settings saved.", "success")
-    return redirect(url_for("main.frontend_cookie_compliance"))
-
-
-@bp.route("/frontend/cookie-compliance/apply-preset", methods=["POST"])
-@admin_required
-def frontend_cookie_compliance_apply_preset():
-    """Stamp one of the region presets onto the current settings (mode,
-    auto-region flag, banner copy, position). Doesn't touch the
-    enabled flag or the policy linkage — those are intentional choices
-    the admin makes separately. Always followed by a hand-edit so the
-    admin can tailor wording to their own voice."""
-    from . import cookie_compliance as cc
-    key = (request.form.get("preset") or "").strip()
-    try:
-        preset = cc.get_preset(key)
-    except KeyError:
-        flash("Unknown preset.", "danger")
-        return redirect(url_for("main.frontend_cookie_compliance"))
-    s = _get_site_setting()
-    for col, val in preset["settings"].items():
-        setattr(s, col, val)
-    db.session.commit()
-    flash(f"Applied preset: {preset['label']}. Review the copy and click Save.", "success")
+    flash("Privacy and cookie settings saved.", "success")
     return redirect(url_for("main.frontend_cookie_compliance"))
 
 
@@ -11061,21 +11080,8 @@ def frontend_cookie_compliance_generate_policy():
 @bp.route("/frontend/fonts-icons/save", methods=["POST"])
 @admin_required
 def frontend_fonts_icons_save():
-    """Persist per-role font overrides. Admin can pick any vendored font
-    key, ``custom:<id>`` for an admin-uploaded font, or the empty string
-    to clear the override and fall back to the theme default."""
-    import json as _json
-    from .fonts import font_by_key, ROLES
-    s = _get_site_setting()
-    overrides = {}
-    for role in ROLES:
-        v = (request.form.get("font_" + role) or "").strip().lower()
-        if v and font_by_key(v):
-            overrides[role] = v
-    s.frontend_fonts_json = _json.dumps(overrides) if overrides else None
-    db.session.commit()
-    flash("Frontend settings saved", "success")
-    return redirect(url_for("main.frontend_fonts_icons"))
+    """Font choices moved to Design → Text; an old bookmark lands there."""
+    return redirect(url_for("main.frontend_design") + "#text")
 
 
 @bp.route("/frontend/branding/save", methods=["POST"])
@@ -14496,10 +14502,13 @@ def frontend_page_rename(page_id):
 def frontend_page_delete(page_id):
     from .models import Page
     page = Page.query.get_or_404(page_id)
-    if _get_site_setting().homepage_page_id == page.id:
+    s = _get_site_setting()
+    if s.homepage_page_id == page.id:
         flash("The homepage can't be deleted. Make another page the homepage first.", "danger")
         return redirect(url_for("main.frontend_pages"))
     title = page.title
+    if s.cookie_compliance_policy_page_id == page.id:
+        s.cookie_compliance_policy_page_id = None
     db.session.delete(page)
     db.session.commit()
     flash(f"Page “{title}” deleted", "success")
@@ -14994,7 +15003,7 @@ def site_frontend_logo():
 
 @public_bp.route("/site-branding/frontend-logo.png")
 def site_frontend_logo_png():
-    """Raster (PNG) version of the header logo (Web Frontend → Header) for
+    """Raster (PNG) version of the header logo (Web Frontend → Branding) for
     HTML emails — email clients don't render SVG. Serves the original when
     it's already a raster, otherwise a same-stem ``.png`` twin. The twin is
     auto-generated on upload (see ``_save_upload``); we also rasterize it

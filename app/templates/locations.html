@@ -152,7 +152,7 @@
 <section class="card data-card fellowships-card">
   <div class="data-card-head">
     {{ icon('globe') }}
-    <span>Fellowships Index {% call chip('Fellowships Index') %}Sister fellowships surfaced on the public /fellowships page. Toggle Virtual for online-only fellowships (geography hidden); leave it off and fill in the country + state/region for in-region fellowships. The Web Frontend → Templates panel controls the public layout.{% endcall %}</span>
+    <span>Fellowships Index {% call chip('Fellowships Index') %}Sister fellowships surfaced on the public /fellowships page. Toggle Virtual for online-only fellowships (geography hidden); leave it off and fill in the country + state/region for in-region fellowships. Its public layout is set under Web Frontend → Page templates.{% endcall %}</span>
   </div>
   <form method="post" action="{{ url_for('main.fellowships_save') }}" class="form fellowships-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

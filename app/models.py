@@ -948,7 +948,7 @@ class SiteSetting(db.Model):
     # Public visibility: when False (but module is enabled), signed-in editors
     # and admins can still preview while the public root redirects to login.
     frontend_enabled = db.Column(db.Boolean, nullable=False, default=False)
-    # ── Cookie & privacy compliance (managed from Web Frontend → Cookie Compliance) ──
+    # ── Cookie & privacy compliance (managed from Web Frontend → Privacy & cookies) ──
     # Module gate. When False, no banner is rendered and the public site
     # behaves as it did before the feature existed.
     cookie_compliance_enabled = db.Column(db.Boolean, nullable=False, default=False)

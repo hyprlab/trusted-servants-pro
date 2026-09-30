@@ -80,6 +80,14 @@ _HIDE_OVERLAYS = ("<style>.tsp-cc-banner,.fe-popup{display:none!important}"
                   "body{overflow:auto!important}</style>")
 
 
+# With overlays the preview shows what a first-time visitor sees: the
+# frame reads no cookies (so the admin's own banner answer doesn't hide
+# it) and writes none (so clicking in the preview answers nothing).
+_FRESH_VISITOR = ("<script>try{Object.defineProperty(document,'cookie',"
+                  "{get:function(){return ''},set:function(){},configurable:true})}"
+                  "catch(e){}</script>")
+
+
 def render_staged(path, forms, overlays=False):
     """Stage ``forms`` (``[{"action": url, "fields": [[k, v], ...]}]``, or
     ``"json": {...}`` in place of ``fields`` for a JSON save route),
@@ -124,6 +132,8 @@ def render_staged(path, forms, overlays=False):
         html = resp.get_data(as_text=True)
         if not overlays:
             html = html.replace("</head>", _HIDE_OVERLAYS + "</head>", 1)
+        else:
+            html = html.replace("<head>", "<head>" + _FRESH_VISITOR, 1)
         return html
     finally:
         sess.commit = real_commit

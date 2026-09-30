@@ -71,6 +71,12 @@ release notes expanded by default and the changelog collapsed.
 - The page structure names every block correctly (Lottie, Library, Officer roster and others showed their internal names), and the Pages list shows each page's layout instead of "Standard".
 - The popup editor has tabs for Popup, Box, Backdrop, and Opening and closing beside a live preview of the popup open over a page, with switches in place of the stacked checkboxes.
 - The 404 page has Text, Buttons and Picture tabs beside a live preview, and can now drop the line under the heading, the built-in artwork and the extra Home button.
+- The heading and text fonts are chosen on Design → Text, where each shows in its own face and the theme's font is named. Fonts & Icons is now the Font & icon library, for adding your own fonts and icons.
+- The Caching page has one switch for images and one for styles and scripts; the settings under each are grayed out while it is off. It says that caching styles and scripts applies to the admin as well, and its buttons say what they do.
+- Privacy & cookies has Behavior, Banner and Privacy policy tabs beside a live preview of the banner as a new visitor sees it. The region presets fill in the form instead of saving at once, and the wording says what each mode really does: the banner records the answer and does not block scripts.
+- The Redirects page lists your redirects first and adds or edits them in a pop-up. Renamed items show their old and current addresses, with the right address for announcements; only the old one can be edited.
+- The admin search finds the frontend sections by their current names.
+- Deleting the page the cookie banner links as its privacy policy now removes the link, and Privacy & cookies says when the linked page was deleted.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

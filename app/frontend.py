@@ -172,7 +172,7 @@ FOOTER_BLOCK_CATALOG = [
     {"key": "admin_login",   "name": "Admin login",    "icon": "log-in",
      "desc": "Pill-style link to the admin sign-in page. Authenticated users get redirected straight to the dashboard."},
     {"key": "privacy_links", "name": "Privacy & cookies", "icon": "shield",
-     "desc": "Privacy policy link + a \"Cookie settings\" button that re-prompts the cookie banner. Both pieces appear only when the matching feature is configured under Web Frontend → Cookie Compliance."},
+     "desc": "Privacy policy link + a \"Cookie settings\" button that re-prompts the cookie banner. Both pieces appear only when the matching feature is configured under Web Frontend → Privacy & cookies."},
 ]
 
 

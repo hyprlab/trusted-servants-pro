@@ -17894,3 +17894,58 @@ a.fe-ss-item:hover { background: var(--panel-2); text-decoration: none; }
 .st-controls .fe-page-settings-section:last-child { border-bottom: 0; }
 .st-controls .fe-page-settings-section .form-grid { grid-template-columns: minmax(0, 1fr); }
 .st-controls .page-og-grid { grid-template-columns: minmax(0, 1fr) !important; }
+
+/* ── Caching: a master switch per card greys what depends on it ── */
+.cache-group { display: flex; flex-direction: column; gap: 12px; }
+.cache-group .pop-switch { align-items: flex-start; }
+.cache-group .pop-switch > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.cache-group .pop-switch small { font-weight: 400; font-size: var(--fs-xs); }
+.cache-deps { border: 0; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--border, rgba(127,127,127,.25));
+  display: flex; flex-direction: column; gap: 12px; }
+.cache-group:has(.cache-master input:not(:checked)) .cache-deps { opacity: .45; pointer-events: none; }
+.cache-field { max-width: 22rem; }
+.fe-cache-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .75rem; margin: .25rem 0 1rem; }
+.fe-cache-stat { border: 1px solid rgba(127,127,127,.18); border-radius: 10px; padding: .7rem .85rem; }
+.fe-cache-stat-k { font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: .04em; opacity: .65; }
+.fe-cache-stat-v { font-size: var(--fs-lg); font-weight: 600; margin-top: .15rem; word-break: break-word; }
+.fe-cache-action { display: flex; align-items: center; gap: .85rem; flex-wrap: wrap; padding: .75rem 0; border-top: 1px solid rgba(127,127,127,.18); }
+.fe-cache-action form { margin: 0; }
+.fe-cache-action .btn { flex: 0 0 auto; }
+
+/* ── Privacy & cookies studio ── */
+.st-studio[data-studio="cookies"] > .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cc-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.cc-modes { display: grid; gap: 8px; margin: 4px 0; }
+.cc-mode { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: start; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); cursor: pointer; }
+.cc-mode input { grid-row: span 2; margin-top: 3px; }
+.cc-mode b { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); }
+.cc-mode b .icon { width: 15px; height: 15px; }
+.cc-mode small { color: var(--muted); font-size: var(--fs-xs); line-height: 1.4; }
+.cc-mode:has(input:checked) { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--panel-2)); }
+.cc-switch { align-items: flex-start; }
+.cc-switch > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.cc-switch small { font-weight: 400; font-size: var(--fs-xs); }
+.cc-days-in { display: inline-flex; align-items: center; gap: 8px; }
+.cc-days-in input { width: 6rem; }
+
+/* ── Redirects ── */
+.rd-tbl code { word-break: break-all; }
+.rd-arrow { text-align: center; padding: 0 6px; user-select: none; width: 1.5rem; }
+.rd-kind { display: inline-block; padding: 1px 8px; font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; border-radius: 999px; background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand); }
+.rd-title { margin-top: 3px; font-weight: 500; }
+.rd-modal { width: min(560px, 94vw); }
+.rd-modal .modal-body { display: flex; flex-direction: column; gap: 14px; }
+.rd-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.rd-slug { display: flex; align-items: center; gap: 4px; }
+.rd-slug input { flex: 1; }
+.st-studio[data-studio="cookies"] textarea,
+.st-studio[data-studio="notfound"] textarea { font-family: inherit; }
+.cc-warn { color: var(--warn, #b45309); font-size: var(--fs-xs); }
+.cc-mode input[type=radio] { width: auto; grid-column: 1; grid-row: 1 / span 2; margin: 3px 0 0; }
+.cc-mode b, .cc-mode small { grid-column: 2; }
+.cc-mode small { font-weight: 400; }
+.st-field .cc-days-in input { width: 6rem; }
+.st-field .cc-days-in { font-weight: 400; }
+.form .cc-modes .cc-mode { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; }
