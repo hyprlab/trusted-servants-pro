@@ -2321,8 +2321,7 @@ html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-social a:hove
   opacity: 0;
   transform: translateY(-12px);
   /* No default transition — opt in via the .fe-megamenu-panel-fade
-     modifier (admin toggle in Frontend → Navigation → Mega menu
-     appearance). When the modifier isn't present the panel snaps
+     modifier (admin toggle in Design → Mega menu). When the modifier isn't present the panel snaps
      in / out without a fade. */
   /* Tall panels on small screens need internal scroll so the user can reach
      every link. The panel is capped to the remaining viewport below the header
@@ -2336,8 +2335,8 @@ html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-social a:hove
 .fe-megamenu.open { pointer-events: auto; opacity: 1; transform: translateY(0); }
 /* Panel fade-in modifier — added by the public template when
    `frontend_megamenu_panel_fade` is on. Duration drives off
-   `--fe-mm-fade-ms` (admin-controlled in the Mega menu appearance
-   panel; default 180 ms). Independent of the staggered link reveal
+   `--fe-mm-fade-ms` (admin-controlled in Design → Mega menu;
+   default 180 ms). Independent of the staggered link reveal
    below, so admins can mix-and-match (e.g. snappy panel + slow
    link stagger). */
 .fe-megamenu-panel-fade {

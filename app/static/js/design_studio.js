@@ -188,6 +188,59 @@
     sync(el);
   });
 
+  // ── Mega menu panel settings ────────────────────────────────────────
+  // Plain named inputs (SiteSetting columns): no override state, so no
+  // dot or reset; the controls only need their readouts kept current.
+  var form = studio.closest('form');
+  function fv(name) {
+    var el = form.elements[name];
+    if (!el) return null;
+    return el.type === 'checkbox' ? el.checked : el.value;
+  }
+  studio.querySelectorAll('.ds-pcolor').forEach(function (el) {
+    var picker = el.querySelector('.ds-picker'), hex = el.querySelector('.ds-hex');
+    var n0 = normHex(picker.getAttribute('value'));
+    if (n0) picker.value = n0;
+    function show() {
+      el.style.setProperty('--ds-sw', picker.value);
+      if (document.activeElement !== hex) hex.value = picker.value;
+    }
+    picker.addEventListener('input', show);
+    hex.addEventListener('input', function () {
+      var n = normHex(hex.value);
+      if (n && n !== picker.value) { picker.value = n; fire(picker); }
+    });
+    hex.addEventListener('blur', function () { hex.value = picker.value; });
+    hex.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); hex.blur(); }
+    });
+    show();
+  });
+  var FMT = {
+    pct: function (v) { return v + '%' + (+v === 100 ? ", the style's size" : ''); },
+    ms: function (v) { return v + ' ms'; },
+    px: function (v) { return v + 'px'; },
+    percent: function (v) { return v + '%'; },
+  };
+  studio.querySelectorAll('.ds-prange').forEach(function (row) {
+    var r = row.querySelector('.ds-range'), out = row.querySelector('.ds-readout');
+    var f = FMT[row.getAttribute('data-fmt')] || String;
+    function show() {
+      out.textContent = f(r.value);
+      r.style.setProperty('--ds-fill', (r.value - r.min) / ((r.max - r.min) || 1) * 100 + '%');
+    }
+    r.addEventListener('input', show);
+    show();
+  });
+  // Speed rows only show while their switch is on.
+  studio.querySelectorAll('[data-requires]').forEach(function (row) {
+    var sw = form.elements[row.getAttribute('data-requires')];
+    if (!sw) return;
+    function show() { row.hidden = !sw.checked; }
+    sw.addEventListener('change', show);
+    show();
+  });
+
   // ── Tabs, style switch, preview mode ────────────────────────────────
   var tabs = studio.querySelectorAll('[data-ds-tab]');
   var panels = studio.querySelectorAll('[data-ds-panel]');
@@ -204,6 +257,10 @@
       (['dark', 'neobrutal-dark', 'cyberpunk'].indexOf(
         document.documentElement.getAttribute('data-theme')) !== -1 ? 'dark' : 'light'),
   };
+  // A link such as Design#megamenu opens that tab.
+  var hashTab = (window.location.hash || '').slice(1);
+  var fromHash = !!(hashTab && studio.querySelector('[data-ds-panel="' + hashTab + '"]'));
+  if (fromHash) state.tab = hashTab;
   if (!studio.querySelector('[data-ds-panel="' + state.tab + '"]')) state.tab = 'colors';
 
   function showTab(id) {
@@ -217,6 +274,7 @@
       p.hidden = p.getAttribute('data-pane') !== id;
     });
     paint();
+    if (id === 'megamenu') replayMega();
   }
   tabs.forEach(function (t, i) {
     t.addEventListener('click', function () { showTab(t.getAttribute('data-ds-tab')); });
@@ -278,7 +336,8 @@
       showKind(tab, what);
       target = studio.querySelector('[data-ds-panel="' + tab + '"] [data-ds-kind-only="' + what + '"]');
     } else {
-      var el = ctls[what];
+      var el = ctls[what] ||
+        studio.querySelector('[data-ds-panel="' + tab + '"] [name="' + what + '"]');
       if (el) {
         var only = el.closest('[data-ds-kind-only]');
         if (only && only.hidden) showKind(tab, only.getAttribute('data-ds-kind-only'));
@@ -443,6 +502,60 @@
     });
   }
 
+  // Mega menu pane. Classic and Recovery Blue paint the panel from the
+  // panel settings and color every link with its text color; the
+  // theme-styled menus take their colors from the theme and the link
+  // color tokens. Base sizes match each style's --fe-mm-*-base in rem.
+  var MM_BASE = { classic: [0.875, 0.9375], 'recovery-blue': [2, 1.2], themed: [1.5, 1.05] };
+  function paintMega(dark, V) {
+    var wrap = root.querySelector('[data-mm-kind]');
+    if (!wrap) return;
+    var kind = wrap.getAttribute('data-mm-kind'), themed = kind === 'themed';
+    var s = wrap.style, bg, fg, link, hover;
+    if (themed) {
+      bg = mix(V.brand, 30, '#0b1026'); fg = '#ffffff';
+      link = V.mm; hover = V['mm-hover'];
+    } else {
+      bg = fv(dark ? 'frontend_mega_bg_color_dark' : 'frontend_mega_bg_color');
+      fg = fv(dark ? 'frontend_mega_text_color_dark' : 'frontend_mega_text_color');
+      link = hover = fg;
+    }
+    s.setProperty('--mm-bg', bg);
+    s.setProperty('--mm-fg', fg);
+    s.setProperty('--mm-link', link);
+    s.setProperty('--mm-link-hover', hover);
+    s.setProperty('--mm-bl', (fv('frontend_mega_radius_bl') || 0) + 'px');
+    s.setProperty('--mm-br', (fv('frontend_mega_radius_br') || 0) + 'px');
+    var base = MM_BASE[kind] || MM_BASE.themed;
+    var hs = themed ? 1 : (parseInt(fv('frontend_megamenu_heading_size'), 10) || 100) / 100;
+    var ls = themed ? 1 : (parseInt(fv('frontend_megamenu_subheading_size'), 10) || 100) / 100;
+    s.setProperty('--mm-h', base[0] * hs);
+    s.setProperty('--mm-l', base[1] * ls);
+    // Off, the panel snaps in and the stagger is suppressed with it.
+    var fade = fv('frontend_megamenu_panel_fade');
+    s.setProperty('--mm-fade', fade ? (fv('frontend_megamenu_panel_fade_ms') || 0) + 'ms' : '0ms');
+    s.setProperty('--mm-reveal', (fv('frontend_megamenu_animate_ms') || 320) + 'ms');
+    wrap.classList.toggle('is-stagger', !!(fade && kind === 'recovery-blue' && fv('frontend_megamenu_animate')));
+    var badge = root.querySelector('[data-mm-dynbg]');
+    if (badge) badge.hidden = !fv('frontend_mega_bg_dynamic_key');
+  }
+  function replayMega() {
+    var panel = root.querySelector('[data-mm-panel]');
+    if (!panel) return;
+    panel.classList.remove('is-opening');
+    void panel.offsetWidth;
+    panel.classList.add('is-opening');
+  }
+  root.addEventListener('click', function (e) {
+    if (e.target.closest('[data-mm-replay]')) replayMega();
+  });
+  studio.addEventListener('change', function (e) {
+    var n = e.target.name || '';
+    if (/^frontend_megamenu_(panel_fade|animate)(_ms)?$/.test(n)) {
+      requestAnimationFrame(replayMega);
+    }
+  });
+
   function paint() {
     var dark = state.mode === 'dark';
     var V = vars(dark);
@@ -454,6 +567,7 @@
     var m = root.querySelector('[data-measure="type"]');
     if (m) m.textContent = 'Base size ' + V['text-size'] + ', line height ' + V['line-height'];
     paintLayout();
+    paintMega(dark, V);
     // Tab counts: how many tokens in each tab carry an override.
     tabs.forEach(function (t) {
       var id = t.getAttribute('data-ds-tab');
@@ -476,6 +590,7 @@
 
   showMode(state.mode);
   showTab(state.tab);
+  if (fromHash) studio.scrollIntoView({ block: 'start' });
 })();
 
 // Default appearance: the checked radio's segment reads as selected.

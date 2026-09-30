@@ -36,8 +36,8 @@
 {% set _animate_mobile_ms = (site.frontend_megamenu_animate_mobile_ms if site and site.frontend_megamenu_animate_mobile_ms else _animate_ms) %}
 {% set _mm_h_pct = site.frontend_megamenu_heading_size if site and site.frontend_megamenu_heading_size else None %}
 {% set _mm_sh_pct = site.frontend_megamenu_subheading_size if site and site.frontend_megamenu_subheading_size else None %}
-{# Optional dynamic background for the panel (admin: Navigation → Mega menu
-   appearance). When set, the panel becomes a dynbg-host and the solid bg
+{# Optional dynamic background for the panel (admin: Design → Mega menu).
+   When set, the panel becomes a dynbg-host and the solid bg
    colour steps aside so the animated backdrop shows behind the links. #}
 {%- set _mm_key = (site.frontend_mega_bg_dynamic_key if site else None) -%}
 {%- set _mm_cfg = dynbg_decode(site.frontend_mega_bg_dynbg_config_json if site else None) -%}

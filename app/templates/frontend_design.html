@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip %}
 {% from "_frontend_template_picker.html" import template_picker %}
+{% from "_dynbg_picker.html" import dynbg_trigger with context %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% set _def = ds.defaults %}
 {% set _ovr = ds.overrides %}
@@ -169,6 +170,66 @@
   </div>
 {% endmacro %}
 
+{# ── Mega menu panel settings ─────────────────────────────────────────
+   These are SiteSetting columns, not theme tokens: they post under their
+   own names, always hold a value, and have no theme default to reset to.
+   `kinds` lists the mega menu styles that read a setting; under any
+   other style the row is dimmed and says so. #}
+{% macro na(kinds) -%}{% if mm_kind not in kinds %} is-na{% endif %}{%- endmacro %}
+{% macro na_note(kinds) -%}
+  {%- if mm_kind not in kinds %}<p class="ds-na-note">Not used by the {{ mm_name }} mega menu.</p>{% endif -%}
+{%- endmacro %}
+
+{% macro pcolor(name, value, label, cap, cap_icon) %}
+  <div class="ds-color ds-pcolor" data-mode-part="{{ 'light' if cap_icon == 'sun' else 'dark' }}">
+    <span class="ds-cap">{{ icon(cap_icon) }}{{ cap }}</span>
+    <label class="ds-swatch" title="Pick a color">
+      <input type="color" name="{{ name }}" value="{{ value }}" class="ds-picker"
+             data-no-token-picker aria-label="{{ label }} ({{ cap|lower }})">
+    </label>
+    <input type="text" class="ds-hex" value="{{ value }}" maxlength="7" spellcheck="false"
+           autocomplete="off" aria-label="{{ label }} ({{ cap|lower }}) hex value">
+  </div>
+{% endmacro %}
+
+{% macro pcolor_pair(label, a, a_val, b, b_val, kinds, help='') %}
+  <div class="ds-row{{ na(kinds) }}">
+    <span class="ds-label">{{ label }}{% if help %}{% call chip(label) %}{{ help }}{% endcall %}{% endif %}</span>
+    <div class="ds-pair">
+      {{ pcolor(a, a_val, label, 'Light', 'sun') }}
+      {{ pcolor(b, b_val, label, 'Dark', 'moon') }}
+    </div>
+    {{ na_note(kinds) }}
+  </div>
+{% endmacro %}
+
+{# `fmt`: pct (100 = theme size), ms, px or percent. `requires` names a
+   switch that must be on for the row to show. #}
+{% macro prange(name, value, lo, hi, step, label, fmt, kinds, help='', requires='') %}
+  <div class="ds-row ds-prange{{ na(kinds) }}" data-fmt="{{ fmt }}"{% if requires %} data-requires="{{ requires }}"{% endif %}>
+    <div class="ds-row-head">
+      <span class="ds-label">{{ label }}{% if help %}{% call chip(label) %}{{ help }}{% endcall %}{% endif %}</span>
+      <output class="ds-readout"></output>
+    </div>
+    <input type="range" class="ds-range" name="{{ name }}" value="{{ value }}"
+           min="{{ lo }}" max="{{ hi }}" step="{{ step }}" aria-label="{{ label }}">
+    <div class="ds-ticks ds-ticks--ends" aria-hidden="true"><span>{{ lo }}{{ '%' if fmt in ('pct', 'percent') else (' ms' if fmt == 'ms' else 'px') }}</span><span>{{ hi }}{{ '%' if fmt in ('pct', 'percent') else (' ms' if fmt == 'ms' else 'px') }}</span></div>
+    {{ na_note(kinds) }}
+  </div>
+{% endmacro %}
+
+{% macro pswitch(name, checked, label, kinds, help='') %}
+  <div class="ds-row ds-row--inline ds-pswitch{{ na(kinds) }}">
+    <label class="mode-toggle">
+      <input type="checkbox" name="{{ name }}" value="1" {% if checked %}checked{% endif %}>
+      <span class="mode-track"><span class="mode-thumb"></span></span>
+      <span class="ds-label">{{ label }}</span>
+    </label>
+    {% if help %}{% call chip(label) %}{{ help }}{% endcall %}{% endif %}
+    {{ na_note(kinds) }}
+  </div>
+{% endmacro %}
+
 {% macro group(title, ico, kind='') %}
   <section class="ds-group"{% if kind %} data-ds-kind-only="{{ kind }}"{% endif %}>
     <h3 class="ds-group-title">{{ icon(ico) }}{{ title }}</h3>
@@ -217,6 +278,7 @@
   ('colors',  'Colors',  'droplets'),
   ('text',    'Text',    'type'),
   ('links',   'Links',   'link'),
+  ('megamenu', 'Mega menu', 'menu'),
   ('layout',  'Layout',  'layout-grid'),
   ('cards',   'Cards',   'square'),
   ('buttons', 'Buttons', 'mouse-pointer-click'),
@@ -228,6 +290,9 @@
   {# Not consumed by the public stylesheet, so it has no control; a saved
      value is carried through unchanged. #}
   <input type="hidden" name="design_section_gap" value="{{ _ovr.section_gap or '' }}">
+  {# Tells the save endpoint this post carries the Mega menu tab's panel
+     settings too. #}
+  <input type="hidden" name="mega_appearance" value="1">
 
   <section class="card ds-studio" data-ds-studio data-no-collapse>
     <div class="card-head ds-studio-head">
@@ -298,10 +363,68 @@
             {{ color_pair('Color', 'color_nav_link', 'color_nav_link_hover', ('Rest', 'Hover'), ('', 'mouse-pointer-click')) }}
             <p class="ds-note" data-ds-dark-note>In dark mode, header links use the dark body text color.</p>
           {% endcall %}
-          {% call group('Mega menu', 'layout-grid') %}
-            {{ color_pair('Color', 'color_megamenu_link', 'color_megamenu_link_hover', ('Rest', 'Hover'), ('', 'mouse-pointer-click')) }}
+        </div>
+
+        <div class="ds-panel" role="tabpanel" id="ds-panel-megamenu" aria-labelledby="ds-tab-megamenu" data-ds-panel="megamenu" hidden>
+          {% set _all = ['classic', 'recovery-blue', 'themed'] %}
+          {% set _colored = ['classic', 'recovery-blue'] %}
+          {% set _rb = ['recovery-blue'] %}
+          <p class="ds-note ds-note--panel">The mega menu style follows the site theme: this site uses <b>{{ mm_name }}</b>. Settings that style doesn't read are dimmed.</p>
+          {% call group('Panel', 'square') %}
+            {{ pcolor_pair('Background', 'frontend_mega_bg_color', site.frontend_mega_bg_color or '#0b5cff',
+                           'frontend_mega_bg_color_dark', site.frontend_mega_bg_color_dark or '#131a33', _colored) }}
+            {{ prange('frontend_mega_radius_bl', site.frontend_mega_radius_bl if site.frontend_mega_radius_bl is not none else 18, 0, 60, 1,
+                      'Bottom-left corner', 'px', _all, help='Classic rounds the top-left corner the same way.') }}
+            {{ prange('frontend_mega_radius_br', site.frontend_mega_radius_br if site.frontend_mega_radius_br is not none else 18, 0, 60, 1,
+                      'Bottom-right corner', 'px', _all, help='Classic rounds the top-right corner the same way.') }}
+          {% endcall %}
+          {% call group('Text and links', 'type') %}
+            {{ pcolor_pair('Text and links', 'frontend_mega_text_color', site.frontend_mega_text_color or '#ffffff',
+                           'frontend_mega_text_color_dark', site.frontend_mega_text_color_dark or ((site.frontend_mega_text_color or '#ffffff') | dark_variant),
+                           _colored, help='Colors the headings and every link in the panel, at rest and on hover.') }}
+            <div class="ds-row-wrap{{ na(['themed']) }}">
+              {{ color_pair('Link color', 'color_megamenu_link', 'color_megamenu_link_hover', ('Rest', 'Hover'), ('', 'mouse-pointer-click')) }}
+              {{ na_note(['themed']) }}
+            </div>
             {{ segmented('megamenu_link_decoration', 'Underline', _deco) }}
             {{ segmented('megamenu_link_decoration_hover', 'Underline on hover', _deco) }}
+            {{ prange('frontend_megamenu_heading_size', site.frontend_megamenu_heading_size or 100, 50, 200, 5,
+                      'Heading size', 'pct', _colored, help="100% is the style's own size. Applies to every block title.") }}
+            {{ prange('frontend_megamenu_subheading_size', site.frontend_megamenu_subheading_size or 100, 50, 200, 5,
+                      'Link size', 'pct', _colored, help="100% is the style's own size. Per-link small and large settings still apply.") }}
+          {% endcall %}
+          {% call group('Dynamic background', 'sparkles') %}
+            <div class="ds-row">
+              <span class="ds-label">Animated backdrop{% call chip('Animated backdrop') %}Optional. When set, the background color steps aside, as far as the blend below allows, so the effect shows through.{% endcall %}</span>
+              {{ dynbg_trigger(field_name='frontend_mega_bg_dynamic_key',
+                               current=site.frontend_mega_bg_dynamic_key,
+                               config_field='frontend_mega_bg_dynbg_config_json',
+                               config=site.frontend_mega_bg_dynbg_config_json,
+                               button_id='mega-dynbg-trigger',
+                               label='Choose a dynamic background…') }}
+            </div>
+            {{ pswitch('frontend_mega_bg_dynbg_dark', site.frontend_mega_bg_dynbg_dark, 'Dark in light mode', _all,
+                       help="Uses the dynamic background's dark variant even when the site is in light mode, so light text keeps its contrast.") }}
+            {{ prange('frontend_mega_bg_dynbg_blend', site.frontend_mega_bg_dynbg_blend if site.frontend_mega_bg_dynbg_blend is not none else 100, 0, 100, 5,
+                      'Blend over the background', 'percent', _all, help='0% shows only the background color, 100% only the dynamic background.') }}
+          {% endcall %}
+          {% call group('Opening animation', 'play') %}
+            {% set _fade = site.frontend_megamenu_panel_fade %}
+            {{ pswitch('frontend_megamenu_panel_fade', _fade, 'Fade in on hover', _all,
+                       help='Fades the panel in and slides it down slightly. Off makes it appear at once, and turns off the staggered links too.') }}
+            {{ prange('frontend_megamenu_panel_fade_ms', site.frontend_megamenu_panel_fade_ms if site.frontend_megamenu_panel_fade_ms is not none else 180, 0, 1500, 20,
+                      'Fade speed', 'ms', _all, requires='frontend_megamenu_panel_fade') }}
+            {{ pswitch('frontend_megamenu_animate', site.frontend_megamenu_animate, 'Staggered links', _rb,
+                       help='After the panel appears, the links fade in one after another. Needs the fade above.') }}
+            {{ prange('frontend_megamenu_animate_ms', site.frontend_megamenu_animate_ms or 320, 100, 1500, 20,
+                      'Stagger speed', 'ms', _rb, requires='frontend_megamenu_animate') }}
+          {% endcall %}
+          {% call group('On phones, 720px and narrower', 'smartphone') %}
+            {{ pswitch('frontend_megamenu_animate_mobile', site.frontend_megamenu_animate_mobile, 'Staggered links', _rb) }}
+            {{ prange('frontend_megamenu_animate_mobile_ms', site.frontend_megamenu_animate_mobile_ms or 320, 100, 1500, 20,
+                      'Stagger speed', 'ms', _rb, requires='frontend_megamenu_animate_mobile') }}
+            {{ prange('frontend_megamenu_panel_fade_mobile_ms', site.frontend_megamenu_panel_fade_mobile_ms if site.frontend_megamenu_panel_fade_mobile_ms is not none else 180, 0, 1500, 20,
+                      'Fade speed', 'ms', _colored) }}
           {% endcall %}
         </div>
 
@@ -450,10 +573,36 @@
             <span class="pv-nav-link">Meetings</span><span class="pv-nav-link is-hover">Events <small>hover</small></span><span class="pv-nav-link">Literature</span>
           </nav>
         </div>
-        <div class="pv-label">Mega menu</div>
-        <div class="pv-mega" data-goto="links:color_megamenu_link">
-          <div><b>Find</b><span class="pv-mm-link">Meetings</span><span class="pv-mm-link is-hover">Online meetings <small>hover</small></span><span class="pv-mm-link">Events</span></div>
-          <div><b>Learn</b><span class="pv-mm-link">Newcomers</span><span class="pv-mm-link">Literature</span><span class="pv-mm-link">Contact</span></div>
+      </div>
+    </div>
+
+    <div class="pv-pane" data-pane="megamenu" hidden>
+      <div class="pv-page">
+        <div class="pv-mmwrap" data-mm-kind="{{ mm_kind }}">
+          <div class="pv-header pv-mm-head">
+            <span class="pv-logo"></span>
+            <nav class="pv-nav"><span class="pv-nav-link pv-nav-link--open">Meetings ▾</span><span class="pv-nav-link">Events</span><span class="pv-nav-link">Literature</span></nav>
+          </div>
+          <div class="pv-mm-panel" data-mm-panel data-goto="megamenu:frontend_mega_bg_color">
+            {% for title, links in [
+              ('Find a meeting', ['In person', 'Online', 'Tonight']),
+              ('Newcomers', ['What to expect', 'Literature', 'Contact']),
+              ('Service', ['Events', 'Minutes', 'Volunteer'])] %}
+            {% set col = loop.index0 %}
+            <div class="pv-mm-col">
+              <b class="pv-mm-title" style="--i: 0" data-goto="megamenu:frontend_megamenu_heading_size">{{ title }}</b>
+              {% for l in links %}
+              <span class="pv-mm-link{% if col == 0 and loop.index == 2 %} is-hover{% endif %}" style="--i: {{ loop.index }}"
+                    data-goto="megamenu:{{ 'color_megamenu_link' if mm_kind == 'themed' else 'frontend_mega_text_color' }}">{{ l }}{% if col == 0 and loop.index == 2 %} <small>hover</small>{% endif %}</span>
+              {% endfor %}
+            </div>
+            {% endfor %}
+            <span class="pv-mm-badge" data-mm-dynbg hidden data-goto="megamenu:frontend_mega_bg_dynamic_key">Dynamic background on</span>
+          </div>
+        </div>
+        <div class="pv-mm-foot">
+          <button type="button" class="pv-replay" data-mm-replay>Replay opening</button>
+          <span class="pv-muted">{{ mm_name }} style{% if mm_kind == 'themed' %}; the theme sets the panel's colors{% endif %}. Shown at desktop width.</span>
         </div>
       </div>
     </div>

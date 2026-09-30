@@ -8261,22 +8261,22 @@ import re as _re
 _HEX = _re.compile(r"#[0-9a-fA-F]{6}")
 
 
-@bp.route("/frontend/nav-appearance", methods=["POST"])
-@admin_required
-def frontend_nav_appearance_save():
-    s = _get_site_setting()
-    bg = (request.form.get("frontend_mega_bg_color") or "").strip()
-    fg = (request.form.get("frontend_mega_text_color") or "").strip()
+def _save_mega_appearance(s, form):
+    """Apply the mega menu panel settings from the Design page's Mega menu
+    tab to ``s``. Every field posts on each save, so an unchecked switch
+    reads as off. The caller commits."""
+    bg = (form.get("frontend_mega_bg_color") or "").strip()
+    fg = (form.get("frontend_mega_text_color") or "").strip()
     if _HEX.fullmatch(bg): s.frontend_mega_bg_color = bg
     if _HEX.fullmatch(fg): s.frontend_mega_text_color = fg
     # Independent dark-mode colours.
-    bgd = (request.form.get("frontend_mega_bg_color_dark") or "").strip()
-    fgd = (request.form.get("frontend_mega_text_color_dark") or "").strip()
+    bgd = (form.get("frontend_mega_bg_color_dark") or "").strip()
+    fgd = (form.get("frontend_mega_text_color_dark") or "").strip()
     if _HEX.fullmatch(bgd): s.frontend_mega_bg_color_dark = bgd
     if _HEX.fullmatch(fgd): s.frontend_mega_text_color_dark = fgd
     try:
-        bl = int(request.form.get("frontend_mega_radius_bl") or 18)
-        br = int(request.form.get("frontend_mega_radius_br") or 18)
+        bl = int(form.get("frontend_mega_radius_bl") or 18)
+        br = int(form.get("frontend_mega_radius_br") or 18)
     except ValueError:
         bl, br = 18, 18
     s.frontend_mega_radius_bl = max(0, min(bl, 60))
@@ -8285,25 +8285,25 @@ def frontend_nav_appearance_save():
     # used by the hero / pages). normalize() gates the key against the catalog;
     # _dynbg_config_from_form bundles the overlay + colours + flags into JSON.
     from . import dynbg as _dynbg
-    s.frontend_mega_bg_dynamic_key = _dynbg.normalize(request.form.get("frontend_mega_bg_dynamic_key"))
+    s.frontend_mega_bg_dynamic_key = _dynbg.normalize(form.get("frontend_mega_bg_dynamic_key"))
     s.frontend_mega_bg_dynbg_config_json = _dynbg_config_from_form(
-        request.form, "frontend_mega_bg_dynbg_config_json")
-    s.frontend_mega_bg_dynbg_dark = request.form.get("frontend_mega_bg_dynbg_dark") == "1"
+        form, "frontend_mega_bg_dynbg_config_json")
+    s.frontend_mega_bg_dynbg_dark = form.get("frontend_mega_bg_dynbg_dark") == "1"
     try:
-        blend = int(request.form.get("frontend_mega_bg_dynbg_blend") or 100)
+        blend = int(form.get("frontend_mega_bg_dynbg_blend") or 100)
     except ValueError:
         blend = 100
     s.frontend_mega_bg_dynbg_blend = max(0, min(blend, 100))
-    s.frontend_megamenu_animate = request.form.get("frontend_megamenu_animate") == "1"
+    s.frontend_megamenu_animate = form.get("frontend_megamenu_animate") == "1"
     try:
-        ms = int(request.form.get("frontend_megamenu_animate_ms") or 320)
+        ms = int(form.get("frontend_megamenu_animate_ms") or 320)
     except ValueError:
         ms = 320
     s.frontend_megamenu_animate_ms = max(100, min(ms, 1500))
     # Panel-level fade (independent of the staggered link reveal).
-    s.frontend_megamenu_panel_fade = request.form.get("frontend_megamenu_panel_fade") == "1"
+    s.frontend_megamenu_panel_fade = form.get("frontend_megamenu_panel_fade") == "1"
     try:
-        fms = int(request.form.get("frontend_megamenu_panel_fade_ms") or 180)
+        fms = int(form.get("frontend_megamenu_panel_fade_ms") or 180)
     except ValueError:
         fms = 180
     s.frontend_megamenu_panel_fade_ms = max(0, min(fms, 1500))
@@ -8311,14 +8311,14 @@ def frontend_nav_appearance_save():
     # the existing @media (max-width: 720px) breakpoint. Clamped to
     # the same ranges as the desktop sliders so a forged POST can't
     # push wild values into the JSON column.
-    s.frontend_megamenu_animate_mobile = request.form.get("frontend_megamenu_animate_mobile") == "1"
+    s.frontend_megamenu_animate_mobile = form.get("frontend_megamenu_animate_mobile") == "1"
     try:
-        ams_m = int(request.form.get("frontend_megamenu_animate_mobile_ms") or 320)
+        ams_m = int(form.get("frontend_megamenu_animate_mobile_ms") or 320)
     except ValueError:
         ams_m = 320
     s.frontend_megamenu_animate_mobile_ms = max(100, min(ams_m, 1500))
     try:
-        fms_m = int(request.form.get("frontend_megamenu_panel_fade_mobile_ms") or 180)
+        fms_m = int(form.get("frontend_megamenu_panel_fade_mobile_ms") or 180)
     except ValueError:
         fms_m = 180
     s.frontend_megamenu_panel_fade_mobile_ms = max(0, min(fms_m, 1500))
@@ -8329,7 +8329,7 @@ def frontend_nav_appearance_save():
     # we don't store a redundant value. Out-of-range values clamp to
     # the band rather than being rejected.
     def _read_pct(field, lo, hi):
-        raw = (request.form.get(field) or "").strip()
+        raw = (form.get(field) or "").strip()
         if not raw:
             return None
         try:
@@ -8340,9 +8340,6 @@ def frontend_nav_appearance_save():
         return None if v == 100 else v
     s.frontend_megamenu_heading_size    = _read_pct("frontend_megamenu_heading_size", 50, 200)
     s.frontend_megamenu_subheading_size = _read_pct("frontend_megamenu_subheading_size", 50, 200)
-    db.session.commit()
-    flash("Mega menu appearance saved", "success")
-    return redirect(url_for("main.frontend_navigation"))
 
 
 def _apply_nav_item_form(item, form):
@@ -10851,8 +10848,15 @@ def frontend_design():
     Theme provides defaults; this page lets the admin override any
     subset. Empty inputs fall through to the theme default."""
     from .design import design_studio_data
+    from .frontend import MEGAMENU_TEMPLATES
     s = _get_site_setting()
-    return render_template("frontend_design.html", site=s, ds=design_studio_data(s))
+    # The mega menu style follows the theme; each style reads a different
+    # subset of the panel settings, so the Mega menu tab marks the rest.
+    mm_key = s.frontend_megamenu_template or "recovery-blue"
+    mm = next((t for t in MEGAMENU_TEMPLATES if t["key"] == mm_key), MEGAMENU_TEMPLATES[1])
+    mm_kind = mm["partial"].rsplit("/", 1)[-1].removesuffix(".html")
+    return render_template("frontend_design.html", site=s, ds=design_studio_data(s),
+                           mm_name=mm["name"], mm_kind=mm_kind)
 
 
 @bp.route("/frontend/design/save", methods=["POST"])
@@ -10866,6 +10870,8 @@ def frontend_design_save():
     s = _get_site_setting()
     overrides = parse_design_form(request.form)
     s.frontend_design_json = _json.dumps(overrides) if overrides else None
+    if request.form.get("mega_appearance") == "1":
+        _save_mega_appearance(s, request.form)
     db.session.commit()
     flash("Design saved", "success")
     return redirect(url_for("main.frontend_design"))

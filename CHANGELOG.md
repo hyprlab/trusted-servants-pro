@@ -14,6 +14,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The dark preview mirrors `frontend.css`: fixed dark button colors, `.fe-th-nav-link` in `--fe-dm-text`, and mega-menu links through `dark_variant`.
 - `section_gap` has no control: `--fe-section-gap` is emitted but no stylesheet reads it. A saved value is carried through a hidden input.
 - Default appearance is a compact segmented control, saved through the save bar.
+- The Navigation page's Mega menu appearance card moved to a Mega menu tab on the Design page, with the `megamenu_link_*` tokens from Links. `frontend_nav_appearance_save` became `_save_mega_appearance()`, which `frontend_design_save` runs when the post carries `mega_appearance=1`; the `/frontend/nav-appearance` route is gone. The field names and clamps are unchanged.
+- `frontend_design` passes the active mega menu style (`mm_name`, `mm_kind` from the template partial). Settings that style's partial doesn't read are dimmed with a note: colors and text sizes are read by `classic.html` and `recovery-blue.html` only, the stagger by `recovery-blue.html` only, and the `color_megamenu_link*` tokens only take effect in `themed.html`, since the other two set `--fe-color-megamenu-link` inline from the panel text color.
 
 ### Fixed
 
