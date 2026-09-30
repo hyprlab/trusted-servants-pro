@@ -100,19 +100,21 @@
            the scrolling body and pinned above the footer, so it (and the Apply
            button below it) stay visible no matter how far the card list scrolls. #}
         {% if radio_name == 'frontend_theme' %}
-        <fieldset class="fe-theme-mode">
-          <legend class="muted smaller">When applying the selected theme</legend>
-          <label class="fe-theme-mode-opt">
-            <input type="radio" name="restore_mode" value="last" checked>
-            <span><strong>Return to last saved state</strong>
-              <span class="muted smaller">Bring the theme back exactly how you last left it — colours, fonts, and per-template settings. Falls back to its defaults if you've never customised it.</span></span>
-          </label>
-          <label class="fe-theme-mode-opt">
-            <input type="radio" name="restore_mode" value="default">
-            <span><strong>Reset to default</strong>
-              <span class="muted smaller">Start the theme fresh from its built-in defaults, clearing your customisations for it. Your pages, blocks, and footer content are not affected.</span></span>
-          </label>
-        </fieldset>
+        <div class="fe-theme-mode">
+          <span class="fe-theme-mode-label muted small" id="{{ modal_id }}-mode-label">Apply as</span>
+          <div class="ds-seg-btns" role="radiogroup" aria-labelledby="{{ modal_id }}-mode-label">
+            <label>
+              <input type="radio" name="restore_mode" value="last" checked>
+              <span>Last saved state</span>
+            </label>
+            <label>
+              <input type="radio" name="restore_mode" value="default">
+              <span>Theme defaults</span>
+            </label>
+          </div>
+          <p class="fe-theme-mode-hint fe-theme-mode-hint-last muted smaller">Your colors, fonts and template settings for this theme, as you left them.</p>
+          <p class="fe-theme-mode-hint fe-theme-mode-hint-default muted smaller">Clears your changes to this theme. Pages, blocks and footer content are kept.</p>
+        </div>
         {% endif %}
         <div class="modal-foot">
           <button type="button" class="btn" data-close>Cancel</button>

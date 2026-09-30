@@ -377,6 +377,9 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
 .fe-template-picker .btn { padding: 4px 12px; font-size: var(--fs-sm); border-radius: 999px; }
 .fe-template-picker-modal .modal-panel { width: min(820px, 94vw); max-height: 86vh; }
 .fe-template-picker-modal .modal-body { overflow-y: auto; }
+/* The head, body, mode band and foot carry their own padding and dividers;
+   the generic 2rem .form gap only left empty strips between them. */
+.fe-template-picker-modal .modal-panel > .form { gap: 0; }
 .fe-layout-picker-modal .modal-panel { width: min(960px, 96vw); max-height: 88vh; }
 
 /* New-page modal: small gap below the title input before the layout
@@ -17624,21 +17627,21 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   border-left: 3px solid var(--accent, #2563eb);
 }
 
-/* Theme switcher — "when applying" mode chooser (Return to last state /
-   Reset to default). Rendered in the Site theme modal only, pinned as a band
+/* Theme switcher: the "apply as" segmented control (last saved state or
+   theme defaults). Rendered in the Site theme modal only, pinned as a band
    between the scrolling card grid and the footer so it (and the Apply button)
-   stay visible however far the list scrolls — hence flex-shrink:0 + a full-
-   width top divider rather than a free-floating bordered box. */
+   stay visible however far the list scrolls. The picker macro runs on pages
+   without design_studio.js, so the active segment and the matching one-line
+   hint follow the checked radio through :has() rather than script. */
 .fe-theme-mode { flex-shrink: 0; margin: 0;
-  border: 0; border-top: 1px solid var(--line, #e2e8f0); border-radius: 0;
-  padding: 12px 24px 14px; }
-.fe-theme-mode legend { padding: 0; }
-.fe-theme-mode-opt { display: flex; gap: 10px; align-items: flex-start;
-  padding: 9px 4px; cursor: pointer; }
-.fe-theme-mode-opt + .fe-theme-mode-opt { border-top: 1px solid var(--line, #e2e8f0); }
-.fe-theme-mode-opt input { margin-top: 4px; flex: 0 0 auto; }
-.fe-theme-mode-opt strong { display: block; margin-bottom: 2px; }
-.fe-theme-mode-opt .muted { display: block; }
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+  border-top: 1px solid var(--line, #e2e8f0); padding: 10px 24px; }
+.fe-theme-mode .ds-seg-btns > label:has(input:checked) {
+  background: var(--panel); color: var(--text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border); }
+.fe-theme-mode-hint { margin: 0; flex: 1 1 220px; }
+.fe-theme-mode:has(input[value="default"]:checked) .fe-theme-mode-hint-last,
+.fe-theme-mode:not(:has(input[value="default"]:checked)) .fe-theme-mode-hint-default { display: none; }
 
 /* ===== Settings → Security: Two-Factor Authentication card ===== */
 /* Status pill in the card head — green when active, neutral when off. */

@@ -18,6 +18,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The Navigation page's Mega menu appearance card moved to a Mega menu tab on the Design page, with the `megamenu_link_*` tokens from Links. `frontend_nav_appearance_save` became `_save_mega_appearance()`, which `frontend_design_save` runs when the post carries `mega_appearance=1`; the `/frontend/nav-appearance` route is gone. The field names and clamps are unchanged.
 - `frontend_design` passes the active mega menu style (`mm_name`, `mm_kind` from the template partial). Settings that style's partial doesn't read are dimmed with a note: colors and text sizes are read by `classic.html` and `recovery-blue.html` only, the stagger by `recovery-blue.html` only, and the `color_megamenu_link*` tokens only take effect in `themed.html`, since the other two set `--fe-color-megamenu-link` inline from the panel text color.
 - The Site theme picker draws a per-theme thumbnail (`.theme-thumb-<key>` in `app.css`): a miniature homepage in each theme's default palette, heading face and card shape, in place of the shared `homepage` sketch. The other template pickers are unchanged.
+- The Site theme modal's `restore_mode` radios are a `.ds-seg-btns` segmented control with one hint line; the active segment and hint follow the checked radio through `:has()`, since the picker runs without `design_studio.js`. The modal form drops the 2rem `.form` gap. The posted values are unchanged.
 
 ### Fixed
 
