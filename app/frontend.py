@@ -1392,7 +1392,7 @@ def _inject_cookie_compliance():
 def _page_og(site, title=None, description=None, image_url=None):
     """Build the per-page Open Graph override context consumed by
     ``frontend/base.html``. Any arg left None / empty falls back to the
-    site-wide ``frontend_og_*`` defaults set under Branding & SEO.
+    site-wide ``frontend_og_*`` defaults set on Branding.
 
     Returns a dict ready to splat into ``render_template``::
 

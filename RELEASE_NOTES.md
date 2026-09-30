@@ -44,6 +44,9 @@ release notes expanded by default and the changelog collapsed.
 - Dragging menu items into a new order saves when you drop them, like mega menu columns and blocks. A mega menu is limited to three columns, as the page already said.
 - The Design page has a Header tab: the header's width, height and logo size, the menu link colors (moved from Links), and the utility bar and alert bar colors, which now have separate dark mode colors. Its preview is the real header. The utility bar colors are marked as unused on themes that color the bar themselves.
 - A mega menu Search block now works: typing in it opens the site search with those words. Before, it did nothing.
+- Branding (formerly Branding & SEO) has tabs for Name and logo, Icons, and Search and sharing, each beside a preview of where it shows: the browser tab and header, a phone home screen, a search result and a chat link preview. The previews follow your edits and newly chosen images before you save.
+- The logo image is set on Branding. It used to be on the Header page; its size is on Design → Header.
+- The site description is always sent to search engines. Before, turning off link previews also dropped the description, leaving only the homepage tagline. Link previews now use the site address from Settings for their links and image when it is set, so a site behind a proxy no longer shares its internal address.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

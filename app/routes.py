@@ -8232,32 +8232,6 @@ def frontend_header_alert_save():
     return redirect(url_for("main.frontend_header") + "#alert")
 
 
-@bp.route("/frontend/logo-save", methods=["POST"])
-@admin_required
-def frontend_logo_save():
-    """Upload / clear / resize the public-frontend logo."""
-    s = _get_site_setting()
-    try:
-        w = int(request.form.get("frontend_logo_width") or 40)
-    except ValueError:
-        w = 40
-    s.frontend_logo_width = max(16, min(w, 200))
-    if request.form.get("clear_frontend_logo") == "1":
-        old = s.frontend_logo_filename
-        s.frontend_logo_filename = None
-        _cleanup_retired_asset(old)
-    uploaded = request.files.get("frontend_logo")
-    if uploaded and uploaded.filename:
-        old = s.frontend_logo_filename
-        stored, _original = _save_upload(uploaded)
-        s.frontend_logo_filename = stored
-        if old and old != stored:
-            _cleanup_retired_asset(old)
-    db.session.commit()
-    flash("Logo saved", "success")
-    return redirect(url_for("main.frontend_header"))
-
-
 # ------------------------------------------------------------------
 # Navigation CRUD (top-level items, mega-menu columns, mega-menu links)
 # ------------------------------------------------------------------
@@ -11242,6 +11216,19 @@ def frontend_branding_save():
     s = _get_site_setting()
     s.frontend_title = (request.form.get("frontend_title") or "").strip() or None
     s.frontend_og_enabled = request.form.get("og_enabled") == "1"
+    # The public logo (header, footer brand block, printouts). Its size is
+    # on Design → Header.
+    if request.form.get("clear_frontend_logo") == "1":
+        old = s.frontend_logo_filename
+        s.frontend_logo_filename = None
+        _cleanup_retired_asset(old)
+    logo_upload = request.files.get("frontend_logo")
+    if logo_upload and logo_upload.filename:
+        old = s.frontend_logo_filename
+        stored, _original = _save_upload(logo_upload)
+        s.frontend_logo_filename = stored
+        if old and old != stored:
+            _cleanup_retired_asset(old)
     s.frontend_og_title = (request.form.get("og_title") or "").strip()[:200] or None
     s.frontend_og_description = (request.form.get("og_description") or "").strip() or None
     if request.form.get("clear_og_image") == "1":
@@ -14437,7 +14424,7 @@ def frontend_page_save():
 
     # Per-page Open Graph overrides. Blank values clear the column so
     # the public render falls back to the site-wide frontend_og_*
-    # defaults set under Web Frontend → Branding & SEO. Hidden marker
+    # defaults set on Web Frontend → Branding. Hidden marker
     # `og_present` gates assignment so a partial POST (e.g. the
     # background-only sub-form) can't wipe previously-set OG values.
     if request.form.get("og_present") == "1":
@@ -15161,7 +15148,7 @@ def site_og_image():
 @public_bp.route("/site-branding/frontend-og-image")
 def site_frontend_og_image():
     """Serves the frontend-specific OG image (set on the Web Frontend's
-    Branding & SEO page). Distinct from /site-branding/og-image which
+    Branding page). Distinct from /site-branding/og-image which
     serves the backend OG image used on /tspro pages."""
     s = _get_site_setting()
     if not s.frontend_og_image_filename:

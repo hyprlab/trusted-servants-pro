@@ -31,6 +31,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `frontend_dashboard` renders a fixed status strip (`frontend_enabled`, theme and default mode, cookie banner, caching) and the staging sync card above the widget grid. `FE_DASHBOARD_WIDGET_KEYS` drops `fe-status`, `fe-branding` and `fe-header-footer`; their `fe_dash_show_*` columns are no longer read. `fe_dashboard_customize` also saves `fe_admin_autohide_sidebar`.
 - `frontend_header.html` is a studio (`fe_studio.js` tabs, `live_preview` of `/`, with `?__mm=<id>` holding a mega panel open through `data-fe-open-megamenu`). `frontend_navigation` and `frontend_nav_megamenu` redirect to it; their templates are gone. Nav item CRUD redirects to `#menu`, nav reorder saves on drop, and `frontend_nav_column_new` refuses a fourth column (`MEGAMENU_MAX_COLUMNS`).
 - `_nav_megalink.html` puts the text fields in the block's top row and the options in a `data-megalink-more-panel`; `_nav_item_fields.html` posts the same `style` values through a shape and corners control. `app.js` exposes `tspMegaCollect` so the preview posts unsaved mega blocks as JSON to `frontend_nav_megamenu_save_all` (`render_staged` accepts `json` entries).
+- `frontend_branding.html` is a tabbed studio with client-side previews. `frontend_branding_save` also handles `frontend_logo` / `clear_frontend_logo`; the `/frontend/logo-save` route is gone.
 
 ### Fixed
 
@@ -48,6 +49,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `_normalize_redirect_pair` rejects sources under `/tspro`, `/static` and `/pub`, and the `before_request` redirect lookup skips `/tspro` as well as the asset prefixes, so a stored rule can't lock the admin out.
 - `contact.html` and `recovery_contacts.html` fall back to `aurora-blobs` when no key is stored, so clearing the picker could never remove it. `frontend_template_settings_save` now stores `none` for those two kinds when the picker posts blank, and the templates treat it as no backdrop.
 - The mega menu Search block rendered an input nothing handled; it now hands its text to the site search modal. Nav and mega-menu links offered every form as a trigger, but only the Announcements/Events form has a modal (`forms_registry` `has_modal`).
+- `frontend/base.html` emitted `<meta name="description">` only inside the `frontend_og_enabled` branch. It is now emitted from the page or site description (falling back to `frontend_tagline`) regardless, and `og:url` / `og:image` are built from `SiteSetting.site_url` when set instead of the request host.
 
 ### Removed
 - The `/frontend/header-save`, `/frontend/header-template` and `/frontend/megamenu-template` routes, which nothing used.
