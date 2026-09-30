@@ -10,7 +10,6 @@
 * { box-sizing: border-box; }
 
 .pv {
-  --pv-guide: color-mix(in srgb, var(--pv-brand) 22%, transparent);
   color: var(--pv-text);
   background: var(--pv-surface);
   border: 1px solid var(--pv-border);
@@ -106,11 +105,7 @@
   display: inline-block; font-size: 11px; font-weight: 600; color: var(--pv-muted);
   padding: 3px 8px; border-radius: 6px; border: 1px dashed var(--pv-border);
 }
-/* Line-height guides: one rule per line box. */
-.pv-lines {
-  background-image: linear-gradient(to bottom, transparent calc(100% - 1px), var(--pv-guide) calc(100% - 1px));
-  background-size: 100% calc(var(--pv-line-height, 1.6) * 1em);
-}
+.pv-type-body { transition: line-height 120ms ease; }
 
 /* ── Mega menu ──────────────────────────────────────────────────
    --mm-* values come from design_studio.js. --mm-h / --mm-l are each
