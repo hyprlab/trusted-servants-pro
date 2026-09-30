@@ -549,17 +549,26 @@
           <p class="pv-p" data-goto="links:color_link">Read the <span class="pv-a">newcomer guide</span> before your first meeting.</p>
         </section>
       </div>
+      {# Each chip is split: light mode on the left, dark on the right.
+         Colors without a dark setting show what dark mode derives. #}
       <div class="pv-swatches">
-        {% for role, label, target in [
-          ('brand', 'Brand', 'colors:color_brand'), ('accent', 'Accent', 'colors:color_accent'),
-          ('surface', 'Page', 'colors:color_surface'), ('surface-alt', 'Alternate', 'colors:color_surface_alt'),
-          ('border', 'Border', 'colors:color_border'), ('text', 'Text', 'colors:color_text'),
-          ('muted', 'Muted', 'colors:color_text_soft')] %}
-        <button type="button" class="pv-swatch" data-goto="{{ target }}">
-          <span class="pv-swatch-chip" style="background: var(--pv-{{ role }})"></span>
+        {% for role, label, light, dark in [
+          ('brand', 'Brand', 'color_brand', 'color_brand'),
+          ('accent', 'Accent', 'color_accent', 'color_accent'),
+          ('surface', 'Page', 'color_surface', 'color_surface_dark'),
+          ('surface-alt', 'Alternate', 'color_surface_alt', 'color_surface_dark'),
+          ('border', 'Border', 'color_border', 'color_surface_dark'),
+          ('text', 'Text', 'color_text', 'color_text_dark'),
+          ('muted', 'Muted', 'color_text_soft', 'color_text_dark')] %}
+        <div class="pv-swatch" data-swatch="{{ role }}">
+          <span class="pv-swatch-chip">
+            <button type="button" data-half="light" data-goto="colors:{{ light }}" title="{{ label }}, light mode" aria-label="{{ label }}, light mode"></button>
+            <button type="button" data-half="dark" data-goto="colors:{{ dark }}" title="{{ label }}, dark mode" aria-label="{{ label }}, dark mode"></button>
+          </span>
           <span class="pv-swatch-name">{{ label }}</span>
-          <code class="pv-swatch-val" data-swatch="{{ role }}"></code>
-        </button>
+          <code class="pv-swatch-val" data-val="light">{{ icon('sun') }}<span></span></code>
+          <code class="pv-swatch-val" data-val="dark">{{ icon('moon') }}<span></span></code>
+        </div>
         {% endfor %}
       </div>
     </div>

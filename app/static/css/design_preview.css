@@ -88,16 +88,31 @@
   border-top: 1px solid var(--pv-border);
 }
 .pv-swatch {
-  all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 4px;
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
   padding: 10px 12px; background: var(--pv-surface); color: var(--pv-text);
 }
-.pv-swatch:focus-visible { outline: 2px solid var(--pv-brand); outline-offset: -2px; }
 .pv-swatch-chip {
-  display: block; height: 28px; border-radius: 6px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pv-text) 14%, transparent);
+  display: flex; height: 30px; border-radius: 6px; overflow: hidden; margin-bottom: 2px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pv-text) 14%, transparent);
 }
+.pv-swatch-chip button { all: unset; flex: 1 1 0; cursor: pointer; transition: background-color 160ms ease; }
+.pv-swatch-chip button:hover,
+.pv-swatch-chip button:focus-visible { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--pv-brand) 70%, transparent); }
 .pv-swatch-name { font-size: 12px; font-weight: 600; }
-.pv-swatch-val { font-size: 11px; overflow: hidden; text-overflow: ellipsis; color: var(--pv-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.pv-swatch-val {
+  display: flex; align-items: center; gap: 4px; min-width: 0;
+  font-size: 11px; color: var(--pv-muted); white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.pv-swatch-val span { overflow: hidden; text-overflow: ellipsis; }
+.pv-swatch-val svg { width: 11px; height: 11px; flex: 0 0 auto; }
+.pv-swatch-val small {
+  font-family: inherit; font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; opacity: 0.75; margin-left: 3px;
+}
+/* The mode the preview is showing reads a little stronger. */
+.pv[data-mode="light"] .pv-swatch-val[data-val="light"],
+.pv[data-mode="dark"] .pv-swatch-val[data-val="dark"] { color: var(--pv-text); }
 
 /* ── Text ───────────────────────────────────────────────────────── */
 .pv-type { gap: 14px; }

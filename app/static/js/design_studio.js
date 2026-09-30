@@ -421,6 +421,15 @@
     var n = parseInt(h.slice(1), 16);
     return parts[0] + ' rgba(' + (n >> 16) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ', ' + parts[1] + ')';
   }
+  // Computed colors come back as rgb() or color(srgb …); hex for display.
+  function toHex(c) {
+    var m = String(c).match(/[\d.]+/g);
+    if (!m || m.length < 3) return c;
+    var scale = c.indexOf('color(') === 0 ? 255 : 1;
+    return '#' + m.slice(0, 3).map(function (x) {
+      return ('0' + Math.round(parseFloat(x) * scale).toString(16)).slice(-2);
+    }).join('');
+  }
   function deco(v) { return v === 'dotted' ? 'underline dotted' : v; }
   // Port of colors.dark_variant: the mega menu's dark-mode link colors.
   function darkVariant(hex) {
@@ -620,9 +629,20 @@
     var dark = state.mode === 'dark';
     var V = vars(dark);
     Object.keys(V).forEach(function (k) { pv.style.setProperty('--pv-' + k, V[k]); });
+    // Palette chips show both modes whichever one the preview is in.
+    var both = { light: dark ? vars(false) : V, dark: dark ? V : vars(true) };
     root.querySelectorAll('[data-swatch]').forEach(function (el) {
-      var role = el.getAttribute('data-swatch'), v = V[role] || '';
-      el.textContent = v.indexOf('color-mix') === 0 ? 'derived' : v;
+      var role = el.getAttribute('data-swatch');
+      ['light', 'dark'].forEach(function (mode) {
+        var v = both[mode][role] || '';
+        var half = el.querySelector('[data-half="' + mode + '"]');
+        half.style.backgroundColor = v;
+        var out = el.querySelector('[data-val="' + mode + '"] span');
+        var derived = v.indexOf('color-mix') === 0;
+        out.textContent = derived ? toHex(getComputedStyle(half).backgroundColor) : v;
+        if (derived) out.insertAdjacentHTML('beforeend', '<small>auto</small>');
+        out.title = derived ? 'Derived from the dark page background and text' : '';
+      });
     });
     var m = root.querySelector('[data-measure="type"]');
     if (m) m.textContent = 'Base size ' + V['text-size'] + ', line height ' + V['line-height'];
