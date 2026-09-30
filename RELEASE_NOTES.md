@@ -23,6 +23,8 @@ release notes expanded by default and the changelog collapsed.
 - Every segmented control in the admin has the same squared shape, with the chosen option raised: list and grid switches, Active and Archived views, content source, email audience, link type, background style and the dynamic background tabs.
 - The theme pill at the top of the Web Frontend pages shows the theme's name, such as Recovery Blue, instead of its key.
 - Neobrutal headings, navigation and buttons now use the Archivo Black font. Before, the font file was missing its basic letters, so the browser fell back to Arial Black.
+- Saving the Contact form settings no longer hides the phone field or turns off the subject check on the public form, and saving the Story form settings no longer clears its older wording settings. The story form now requires an email exactly when its Email field is marked required.
+- Changing the Meetings list layout on the Templates page no longer turns off Pro Tips and deletes the sidebar links.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

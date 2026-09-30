@@ -10434,19 +10434,11 @@ def frontend_form_story():
         s.story_form_intro = (request.form.get("story_form_intro") or "").strip() or None
         s.story_form_success_message = (request.form.get("story_form_success_message") or "").strip()[:500] or None
         s.story_form_submit_label = (request.form.get("story_form_submit_label") or "").strip()[:100] or None
-        # Per-field label / placeholder / help overrides — admins can
-        # tweak the wording of each field without touching templates.
-        s.story_form_name_label = (request.form.get("story_form_name_label") or "").strip()[:120] or None
-        s.story_form_email_label = (request.form.get("story_form_email_label") or "").strip()[:120] or None
-        s.story_form_email_required = request.form.get("story_form_email_required") == "1"
-        s.story_form_story_label = (request.form.get("story_form_story_label") or "").strip()[:120] or None
-        s.story_form_story_placeholder = (request.form.get("story_form_story_placeholder") or "").strip()[:200] or None
-        s.story_form_file_label = (request.form.get("story_form_file_label") or "").strip()[:120] or None
-        s.story_form_file_help = (request.form.get("story_form_file_help") or "").strip() or None
-        s.story_form_terms_label = (request.form.get("story_form_terms_label") or "").strip()[:120] or None
-        s.story_form_terms_intro = (request.form.get("story_form_terms_intro") or "").strip()[:200] or None
-        s.story_form_terms_text = (request.form.get("story_form_terms_text") or "").strip() or None
-        s.story_form_terms_checkbox_label = (request.form.get("story_form_terms_checkbox_label") or "").strip()[:200] or None
+        # The per-field wording lives in the field builder below
+        # (story_form_blocks_json). The legacy story_form_*_label /
+        # _placeholder / _help / _terms_* columns are read only as
+        # fallbacks for installs that never saved the builder, so they
+        # are left untouched here rather than blanked.
         s.story_form_slug = _normalise_module_form_slug(
             request.form.get("story_form_slug"), exclude_attr="story_form_slug")
         import json as _json
@@ -10477,8 +10469,6 @@ def frontend_form_contact():
         s.contact_form_to = (request.form.get("contact_form_to") or "").strip()[:500] or None
         s.contact_form_success_message = (request.form.get("contact_form_success_message") or "").strip()[:500] or None
         s.contact_form_submit_label = (request.form.get("contact_form_submit_label") or "").strip()[:100] or None
-        s.contact_form_subject_required = request.form.get("contact_form_subject_required") == "1"
-        s.contact_form_show_phone = request.form.get("contact_form_show_phone") == "1"
         s.contact_form_slug = _normalise_module_form_slug(
             request.form.get("contact_form_slug"), exclude_attr="contact_form_slug")
         import json as _json
@@ -12070,72 +12060,77 @@ def frontend_meetings_list_template_save():
     def _hex_or_blank(v):
         v = (v or "").strip()
         return v if _hex_re.match(v) else ""
-    pt_cfg = {
-        "enabled": request.form.get("protips_enabled") == "1",
-        "heading": (request.form.get("protips_heading") or "").strip()[:200],
-        "subheading": (request.form.get("protips_subheading") or "").strip()[:500],
-        "icon": (request.form.get("protips_icon") or "").strip()[:64],
-        "icon_color": _hex_or_blank(request.form.get("protips_icon_color")),
-    }
-    # Per-item form-array editor — same shape as the homepage FAQ
-    # parser, but with a `protip_item_*` prefix. Items keyed by the
-    # `protip_item_present` markers so submission order = render order.
-    pt_items = []
-    for raw_idx in request.form.getlist("protip_item_present"):
-        try:
-            i = int(raw_idx)
-        except (TypeError, ValueError):
-            continue
-        question = (request.form.get(f"protip_item_{i}_question") or "").strip()
-        answer = (request.form.get(f"protip_item_{i}_answer") or "").strip()
-        ic = (request.form.get(f"protip_item_{i}_icon") or "").strip()
-        ic_size = (request.form.get(f"protip_item_{i}_icon_size") or "").strip()
-        if not (question or answer):
-            continue
-        try:
-            sz = int(ic_size) if ic_size else 0
-        except (TypeError, ValueError):
-            sz = 0
-        size_out = str(sz) if 12 <= sz <= 200 else ""
-        pt_items.append({
-            "icon": ic[:64],
-            "icon_size": size_out,
-            "question": question[:300],
-            "answer": answer[:4000],
-        })
-    # When the editor submits any rows, that's the canonical list.
-    # An entirely empty submission (admin removed every row) saves an
-    # empty list so the section hides via the items-empty gate. No
-    # JSON-textarea fallback path — the GUI is the source of truth.
-    if request.form.getlist("protip_item_present"):
-        pt_cfg["items"] = pt_items
-    s.frontend_meetings_list_protips_json = _json_pt.dumps(pt_cfg)
+    # The layout grid posts to this route on its own, without the Pro
+    # Tips or sidebar-link fields; only rewrite a section when its
+    # marker says the post carries it, or a layout switch wipes both.
+    if "protips_section" in request.form:
+        pt_cfg = {
+            "enabled": request.form.get("protips_enabled") == "1",
+            "heading": (request.form.get("protips_heading") or "").strip()[:200],
+            "subheading": (request.form.get("protips_subheading") or "").strip()[:500],
+            "icon": (request.form.get("protips_icon") or "").strip()[:64],
+            "icon_color": _hex_or_blank(request.form.get("protips_icon_color")),
+        }
+        # Per-item form-array editor — same shape as the homepage FAQ
+        # parser, but with a `protip_item_*` prefix. Items keyed by the
+        # `protip_item_present` markers so submission order = render order.
+        pt_items = []
+        for raw_idx in request.form.getlist("protip_item_present"):
+            try:
+                i = int(raw_idx)
+            except (TypeError, ValueError):
+                continue
+            question = (request.form.get(f"protip_item_{i}_question") or "").strip()
+            answer = (request.form.get(f"protip_item_{i}_answer") or "").strip()
+            ic = (request.form.get(f"protip_item_{i}_icon") or "").strip()
+            ic_size = (request.form.get(f"protip_item_{i}_icon_size") or "").strip()
+            if not (question or answer):
+                continue
+            try:
+                sz = int(ic_size) if ic_size else 0
+            except (TypeError, ValueError):
+                sz = 0
+            size_out = str(sz) if 12 <= sz <= 200 else ""
+            pt_items.append({
+                "icon": ic[:64],
+                "icon_size": size_out,
+                "question": question[:300],
+                "answer": answer[:4000],
+            })
+        # When the editor submits any rows, that's the canonical list.
+        # An entirely empty submission (admin removed every row) saves an
+        # empty list so the section hides via the items-empty gate. No
+        # JSON-textarea fallback path — the GUI is the source of truth.
+        if request.form.getlist("protip_item_present"):
+            pt_cfg["items"] = pt_items
+        s.frontend_meetings_list_protips_json = _json_pt.dumps(pt_cfg)
 
-    # Sidebar custom-links editor — same form-array pattern as protips,
-    # keyed off `sidebar_link_present` so admin row order = render
-    # order. Empty rows (missing label OR url) are silently dropped;
-    # an entirely empty submission saves an empty list so the section
-    # auto-hides via the `if list_sidebar_links` gate in the partial.
-    sidebar_links = []
-    for raw_idx in request.form.getlist("sidebar_link_present"):
-        try:
-            i = int(raw_idx)
-        except (TypeError, ValueError):
-            continue
-        label = (request.form.get(f"sidebar_link_{i}_label") or "").strip()
-        url = (request.form.get(f"sidebar_link_{i}_url") or "").strip()
-        if not (label and url):
-            continue
-        link_type = (request.form.get(f"sidebar_link_{i}_type") or "internal").strip().lower()
-        if link_type not in ("internal", "external"):
-            link_type = "internal"
-        sidebar_links.append({
-            "label":           label[:200],
-            "url":             url[:600],
-            "link_type":       link_type,
-            "open_in_new_tab": request.form.get(f"sidebar_link_{i}_new_tab") == "1",
-        })
-    s.frontend_meetings_list_sidebar_links_json = _json_pt.dumps(sidebar_links)
+    if "sidebar_links_section" in request.form:
+        # Sidebar custom-links editor — same form-array pattern as protips,
+        # keyed off `sidebar_link_present` so admin row order = render
+        # order. Empty rows (missing label OR url) are silently dropped;
+        # an entirely empty submission saves an empty list so the section
+        # auto-hides via the `if list_sidebar_links` gate in the partial.
+        sidebar_links = []
+        for raw_idx in request.form.getlist("sidebar_link_present"):
+            try:
+                i = int(raw_idx)
+            except (TypeError, ValueError):
+                continue
+            label = (request.form.get(f"sidebar_link_{i}_label") or "").strip()
+            url = (request.form.get(f"sidebar_link_{i}_url") or "").strip()
+            if not (label and url):
+                continue
+            link_type = (request.form.get(f"sidebar_link_{i}_type") or "internal").strip().lower()
+            if link_type not in ("internal", "external"):
+                link_type = "internal"
+            sidebar_links.append({
+                "label":           label[:200],
+                "url":             url[:600],
+                "link_type":       link_type,
+                "open_in_new_tab": request.form.get(f"sidebar_link_{i}_new_tab") == "1",
+            })
+        s.frontend_meetings_list_sidebar_links_json = _json_pt.dumps(sidebar_links)
 
     if "frontend_meetings_list_bg_dynamic_key" in request.form:
         from . import dynbg as _dynbg

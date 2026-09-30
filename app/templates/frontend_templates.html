@@ -1252,6 +1252,9 @@
     {%- set _pt = meetings_list_protips -%}
     <fieldset class="fieldset fe-mlist-protips-fieldset">
       <legend>Pro Tips section {% call chip('Pro Tips section') %}An accordion panel below the meeting list with quick guidance for online attendees. Items default to a built-in list of online-meeting tips; override the JSON to customise them.{% endcall %}</legend>
+      {# Marks that this post carries the Pro Tips fields: the layout
+         grid posts to the same route without them. #}
+      <input type="hidden" name="protips_section" value="1">
       <label class="check" style="margin-bottom: 8px;">
         <input type="checkbox" name="protips_enabled" value="1" {% if _pt.enabled %}checked{% endif %}>
         <span>Show the Pro Tips section on /meetings</span>
@@ -1319,6 +1322,7 @@
     {%- set _slinks = meetings_list_sidebar_links -%}
     <fieldset class="fieldset fe-mlist-links-fieldset">
       <legend>Sidebar custom links {% call chip('Sidebar custom links') %}Renders below the day-of-week filters in the <b>Sidebar</b> meetings-list template, separated by a divider line. Use for in-site shortcuts (Pro Tips, Code of Conduct) or external resources (your fellowship's main site, an outside-issues page). Internal links render with a chevron; external links render with an external-link icon and can open in a new tab.{% endcall %}</legend>
+      <input type="hidden" name="sidebar_links_section" value="1">
       <div class="fe-mlist-links-editor" data-mlist-links-editor>
         <div class="fe-mlist-links-list" data-mlist-links-list>
           {% for ln in _slinks %}

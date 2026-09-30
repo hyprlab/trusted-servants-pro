@@ -2200,6 +2200,23 @@ class _StoryAttachmentTooLarge(Exception):
     """Internal sentinel for the streaming size check below."""
 
 
+def _story_email_required(site):
+    """Whether the story form's email field is required: the field
+    builder's ``required`` flag on ``submitter_email`` when the builder
+    has been saved, else the legacy ``story_form_email_required`` column.
+    Mirrors what ``_story_form_body.html`` marks as required."""
+    import json as _json
+    raw = getattr(site, "story_form_blocks_json", None) or ""
+    try:
+        blocks = _json.loads(raw) if raw else []
+    except (ValueError, TypeError):
+        blocks = []
+    for b in blocks if isinstance(blocks, list) else []:
+        if isinstance(b, dict) and b.get("name") == "submitter_email":
+            return bool(b.get("required"))
+    return bool(getattr(site, "story_form_email_required", False))
+
+
 def _rc_token_hash(token):
     """SHA-256 of a recovery-contacts confirmation token. Only the hash
     is persisted (``RecoveryContact.removal_token``) — a DB leak then
@@ -2250,7 +2267,7 @@ def story_submission_submit():
     submitter_email = (f.get("submitter_email") or "").strip()[:255]
     body = (f.get("body") or "").strip()
     accepted = f.get("accept_terms") == "1"
-    email_required = bool(getattr(site, "story_form_email_required", False))
+    email_required = _story_email_required(site)
 
     if not submitter_name:
         flash("Please include your name so we can follow up.", "danger")

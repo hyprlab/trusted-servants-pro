@@ -27,6 +27,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - A `dotted` link, mega-menu or button decoration was emitted as `text-decoration: dotted`, which sets only the line style and draws no line. `design.text_decoration()` now emits `underline dotted`.
 - `ArchivoBlack-Regular.woff2` was the Google Fonts latin-ext subset, with no basic Latin glyphs, so every Neobrutal heading fell back to Arial Black. It is now `ArchivoBlack-latin-ext.woff2` beside a new `ArchivoBlack-latin.woff2`, split by `unicode-range` like Fraunces.
 - The template-picker pill showed the theme key (`recovery-blue`): the name lookup set a variable inside a Jinja `for` loop, which does not leave the loop. It now uses a `namespace`.
+- `frontend_form_contact` wrote `contact_form_show_phone` and `contact_form_subject_required` from inputs the page no longer has, so every save set both False. `frontend_form_story` blanked the eleven legacy `story_form_*` wording columns the same way. Both writes are gone. `story_submission_submit` takes "email required" from the builder's `submitter_email` block (`_story_email_required`), falling back to the column, matching the public form.
+- `frontend_meetings_list_template_save` rewrote `frontend_meetings_list_protips_json` and `_sidebar_links_json` on every post, including the layout grid's, which carries neither. The sections now carry `protips_section` / `sidebar_links_section` markers and are only rewritten when present.
 
 ## [2.20.2] — 2026-09-30
 
