@@ -35,8 +35,13 @@
   function stored(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
 
   var ctls = {};
+  // Mirrors (data-mirror) are unnamed second copies of a color shown on
+  // another tab; `ctls` holds only the originals, which carry the inputs.
+  var mirrors = {};
   studio.querySelectorAll('.ds-ctl[data-key]').forEach(function (el) {
-    ctls[el.getAttribute('data-key')] = el;
+    var key = el.getAttribute('data-key');
+    if (el.hasAttribute('data-mirror')) (mirrors[key] = mirrors[key] || []).push(el);
+    else ctls[key] = el;
   });
 
   // ── Reading values ──────────────────────────────────────────────────
@@ -77,6 +82,13 @@
       var n = normHex(picker.value);
       el.style.setProperty('--ds-sw', n || picker.value);
       if (hex && document.activeElement !== hex) hex.value = picker.value;
+      (mirrors[key] || []).forEach(function (m) {
+        var mp = m.querySelector('.ds-picker'), mh = m.querySelector('.ds-hex');
+        m.classList.toggle('is-custom', custom);
+        mp.value = picker.value;
+        m.style.setProperty('--ds-sw', n || picker.value);
+        if (document.activeElement !== mh) mh.value = picker.value;
+      });
       return;
     }
     var range = el.querySelector('.ds-range');
@@ -185,6 +197,26 @@
         });
       }
     }
+    sync(el);
+  });
+
+  // A mirror edits its original, which then repaints every copy.
+  Object.keys(mirrors).forEach(function (key) {
+    var el = ctls[key];
+    if (!el) return;
+    mirrors[key].forEach(function (m) {
+      var mp = m.querySelector('.ds-picker'), mh = m.querySelector('.ds-hex');
+      mp.addEventListener('input', function () { setOverride(el, mp.value); });
+      mh.addEventListener('input', function () {
+        var n = normHex(mh.value);
+        if (n) setOverride(el, n);
+      });
+      mh.addEventListener('blur', function () { mh.value = mp.value; });
+      mh.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); mh.blur(); }
+      });
+      m.querySelector('[data-ds-reset]').addEventListener('click', function () { setOverride(el, null); });
+    });
     sync(el);
   });
 
@@ -336,7 +368,9 @@
       showKind(tab, what);
       target = studio.querySelector('[data-ds-panel="' + tab + '"] [data-ds-kind-only="' + what + '"]');
     } else {
-      var el = ctls[what] ||
+      // Prefer the copy on the tab being shown (a mirror or the original).
+      var el = studio.querySelector('[data-ds-panel="' + tab + '"] .ds-ctl[data-key="' + what + '"]') ||
+        ctls[what] ||
         studio.querySelector('[data-ds-panel="' + tab + '"] [name="' + what + '"]');
       if (el) {
         var only = el.closest('[data-ds-kind-only]');

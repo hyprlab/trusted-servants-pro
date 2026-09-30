@@ -35,16 +35,19 @@
         aria-label="Reset {{ label }} to the theme default">{{ icon('rotate-ccw') }}</button>
 {%- endmacro %}
 
-{% macro color(key, label, cap='', cap_icon='') %}
+{# `mirror=True` renders a second copy of a color that lives on another
+   tab: no `name`s, so only the original posts; design_studio.js keeps the
+   two in step whichever one is edited. #}
+{% macro color(key, label, cap='', cap_icon='', mirror=False) %}
   {% set on = key in _ovr %}
   {% set cur = _ovr[key] if on else _def[key] %}
   <div class="ds-ctl ds-color{% if on %} is-custom{% endif %}"
-       data-key="{{ key }}" data-kind="color" data-default="{{ _def[key] }}"
+       data-key="{{ key }}" data-kind="color" data-default="{{ _def[key] }}"{% if mirror %} data-mirror{% endif %}
        {% if cap_icon in ('sun', 'moon') %}data-mode-part="{{ 'light' if cap_icon == 'sun' else 'dark' }}"{% endif %}>
     {% if cap %}<span class="ds-cap">{% if cap_icon %}{{ icon(cap_icon) }}{% endif %}{{ cap }}</span>{% endif %}
-    <input type="checkbox" name="design_{{ key }}_enabled" value="1" class="ds-on" hidden {% if on %}checked{% endif %}>
+    {% if not mirror %}<input type="checkbox" name="design_{{ key }}_enabled" value="1" class="ds-on" hidden {% if on %}checked{% endif %}>{% endif %}
     <label class="ds-swatch" title="Pick a color">
-      <input type="color" name="design_{{ key }}" value="{{ cur }}" class="ds-picker"
+      <input type="color"{% if not mirror %} name="design_{{ key }}"{% endif %} value="{{ cur }}" class="ds-picker"
              data-no-token-picker aria-label="{{ label }}{% if cap %} ({{ cap|lower }}){% endif %}">
     </label>
     <input type="text" class="ds-hex" value="{{ cur }}" maxlength="7" spellcheck="false"
@@ -54,20 +57,20 @@
 {% endmacro %}
 
 {# One color on one line: label left, swatch + hex right. #}
-{% macro color_row(key, label) %}
+{% macro color_row(key, label, mirror=False) %}
   <div class="ds-row ds-row--inline">
     <span class="ds-label">{{ label }}{{ help(key) }}</span>
-    {{ color(key, label) }}
+    {{ color(key, label, mirror=mirror) }}
   </div>
 {% endmacro %}
 
 {# Two related colors side by side (light / dark, rest / hover). #}
-{% macro color_pair(label, a, b, caps=('Light', 'Dark'), icons=('sun', 'moon'), help_key=None) %}
+{% macro color_pair(label, a, b, caps=('Light', 'Dark'), icons=('sun', 'moon'), help_key=None, mirror=False) %}
   <div class="ds-row">
     <span class="ds-label">{{ label }}{% if help_key %}{{ help(help_key) }}{% endif %}</span>
     <div class="ds-pair">
-      {{ color(a, label, caps[0], icons[0]) }}
-      {{ color(b, label, caps[1], icons[1]) }}
+      {{ color(a, label, caps[0], icons[0], mirror) }}
+      {{ color(b, label, caps[1], icons[1], mirror) }}
     </div>
   </div>
 {% endmacro %}
@@ -340,12 +343,18 @@
             {{ color_row('color_surface_alt', 'Alternate background') }}
             {{ color_row('color_border', 'Border') }}
           {% endcall %}
+          {% call group('Text', 'type') %}
+            {{ color_pair('Body text', 'color_text', 'color_text_dark', help_key='color_text_dark') }}
+            {{ color_row('color_text_soft', 'Muted text') }}
+            <p class="ds-note">Also on the Text tab; a change in either place shows in both.</p>
+          {% endcall %}
         </div>
 
         <div class="ds-panel" role="tabpanel" id="ds-panel-text" aria-labelledby="ds-tab-text" data-ds-panel="text" hidden>
           {% call group('Color', 'droplet') %}
-            {{ color_pair('Body text', 'color_text', 'color_text_dark', help_key='color_text_dark') }}
-            {{ color_row('color_text_soft', 'Muted text') }}
+            {{ color_pair('Body text', 'color_text', 'color_text_dark', help_key='color_text_dark', mirror=True) }}
+            {{ color_row('color_text_soft', 'Muted text', mirror=True) }}
+            <p class="ds-note">Also on the Colors tab; a change in either place shows in both.</p>
           {% endcall %}
           {% call group('Size and spacing', 'type') %}
             {{ length('text_size_base', 'Base size', 'px', 12, 22, 1) }}
@@ -519,8 +528,8 @@
         </header>
         <section class="pv-hero" data-goto="colors:color_surface_alt">
           <span class="pv-chip" data-goto="colors:color_accent">This week</span>
-          <h2 class="pv-h" data-goto="text:color_text">Find a meeting near you</h2>
-          <p class="pv-muted" data-goto="text:color_text_soft">In person and online, every day of the week.</p>
+          <h2 class="pv-h" data-goto="colors:color_text">Find a meeting near you</h2>
+          <p class="pv-muted" data-goto="colors:color_text_soft">In person and online, every day of the week.</p>
           <div class="pv-btnrow">
             <span class="pv-btn pv-btn--primary" data-goto="buttons:primary">Find a meeting</span>
             <span class="pv-btn pv-btn--secondary" data-goto="buttons:secondary">New here?</span>
@@ -539,8 +548,8 @@
         {% for role, label, target in [
           ('brand', 'Brand', 'colors:color_brand'), ('accent', 'Accent', 'colors:color_accent'),
           ('surface', 'Page', 'colors:color_surface'), ('surface-alt', 'Alternate', 'colors:color_surface_alt'),
-          ('border', 'Border', 'colors:color_border'), ('text', 'Text', 'text:color_text'),
-          ('muted', 'Muted', 'text:color_text_soft')] %}
+          ('border', 'Border', 'colors:color_border'), ('text', 'Text', 'colors:color_text'),
+          ('muted', 'Muted', 'colors:color_text_soft')] %}
         <button type="button" class="pv-swatch" data-goto="{{ target }}">
           <span class="pv-swatch-chip" style="background: var(--pv-{{ role }})"></span>
           <span class="pv-swatch-name">{{ label }}</span>
