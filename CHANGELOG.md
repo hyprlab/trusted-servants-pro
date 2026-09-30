@@ -34,6 +34,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `frontend_cookie_compliance_generate_policy` created the page with `is_published=True`. It is now a draft; the policy picker lists public published pages plus the linked page, marked when it is a draft, so saving the settings doesn't unlink it.
 - `headers/classic.html` hard-coded its links and never read `nav_items`, so Navigation, the mega menu editor and Design → Mega menu had no effect on the Classic theme, and its mega menu panels rendered with no trigger. It now renders `nav_items` with the same `data-megamenu` wiring as `themed.html`, falling back to the fixed links when there are none.
 - `base.html` kept the app sidebar on every `main.frontend_form*` and `main.frontend_custom_form*` endpoint, which caught the form settings pages as well as the inbox. The exception now covers only the inbox routes (`main.frontend_form_submission*` other than `main.frontend_form_submission` itself).
+- `_normalize_redirect_pair` rejects sources under `/tspro`, `/static` and `/pub`, and the `before_request` redirect lookup skips `/tspro` as well as the asset prefixes, so a stored rule can't lock the admin out.
 
 ## [2.20.2] — 2026-09-30
 

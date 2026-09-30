@@ -10690,6 +10690,12 @@ def _normalize_redirect_pair(src, tgt):
         src = "/" + src
     src = src[:2000]
     tgt = tgt[:2000]
+    # The admin portal, its assets and the public asset paths never
+    # redirect: a rule over /tspro could lock every admin out.
+    for reserved in ("/tspro", "/static", "/pub"):
+        if src == reserved or src.startswith(reserved + "/") or src == reserved + "*":
+            return src, tgt, (f"Paths under {reserved}/ can't be redirected: "
+                              "they belong to the admin portal or its files.")
     # Wildcard validation. The only place `*` is allowed is the very
     # end of the source as `/*`. No wildcards in the target — every
     # match lands on the literal URL.

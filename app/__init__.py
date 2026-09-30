@@ -637,7 +637,7 @@ def create_app():
         p = request.path or ""
         # Skip asset paths — these never redirect, but they're the
         # bulk of per-page request volume.
-        if p.startswith("/static/") or p.startswith("/pub/"):
+        if p.startswith(("/static/", "/pub/", "/tspro/")) or p == "/tspro":
             return None
         # Trailing-slash-insensitive match: a rule stored as "/donate"
         # should also fire for "/donate/" and vice versa. Query both

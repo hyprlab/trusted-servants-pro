@@ -30,6 +30,7 @@ release notes expanded by default and the changelog collapsed.
 - Cookie Compliance: a generated starter privacy policy is created as a draft, since it has placeholders to fill in, and the banner links it once it is published. The policy page list leaves out private pages, which the banner can't link to.
 - The Classic header now shows the items from Web Frontend → Navigation, with their mega menus, instead of fixed Meetings, About and Help links. The fixed links still show while no navigation items exist.
 - The Web Frontend form settings pages (Announcements/Events, Story, Contact, Recovery Contacts and custom forms) now auto-hide the app sidebar like the other Web Frontend pages. Form inboxes keep it.
+- Redirects refuses a source under /tspro, /static or /pub, and existing rules no longer apply there. Before, a rule such as /tspro/* could send every admin away from the sign-in page.
 
 ## 2.20.2 — 2026-09-30 (latest)
 
