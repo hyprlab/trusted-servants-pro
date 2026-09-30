@@ -19,12 +19,14 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `frontend_design` passes the active mega menu style (`mm_name`, `mm_kind` from the template partial). Settings that style's partial doesn't read are dimmed with a note: colors and text sizes are read by `classic.html` and `recovery-blue.html` only, the stagger by `recovery-blue.html` only, and the `color_megamenu_link*` tokens only take effect in `themed.html`, since the other two set `--fe-color-megamenu-link` inline from the panel text color.
 - The Site theme picker draws a per-theme thumbnail (`.theme-thumb-<key>` in `app.css`): a miniature homepage in each theme's default palette, heading face and card shape, in place of the shared `homepage` sketch. The other template pickers are unchanged.
 - The Site theme modal's `restore_mode` radios are a `.ds-seg-btns` segmented control with one hint line; the active segment and hint follow the checked radio through `:has()`, since the picker runs without `design_studio.js`. The modal form drops the 2rem `.form` gap. The posted values are unchanged.
+- One set of segmented-control rules in `app.css` (9px track, 6px options, raised active option) now draws `.ds-seg-btns`, `.ds-kind`, `.nav-megalink-seg`, `.view-toggle`, `.ar-view-tabs`, `.fe-mlist-link-type`, `.dynbg-modal-tabs`, `.pbe-segmented`, `.content-mode-seg`, `.ts-aud-submode` and the `.fe-template-picker` pill. Each component keeps only its layout rules; the pill, brand-fill and accent-fill variants and the dark-mode overrides of `.content-mode-seg` are gone. `wp_import_map.html` gives `.wp-target-pillgroup` the same shape and keeps its per-target colors.
 
 ### Fixed
 
 - The Design page preview in a dark admin theme (`dark`, `neobrutal-dark`, `cyberpunk`) painted light card colors under the admin's light text. The preview now has a Light/Dark switch that starts from the admin theme, and it uses the site's own text tokens.
 - A `dotted` link, mega-menu or button decoration was emitted as `text-decoration: dotted`, which sets only the line style and draws no line. `design.text_decoration()` now emits `underline dotted`.
 - `ArchivoBlack-Regular.woff2` was the Google Fonts latin-ext subset, with no basic Latin glyphs, so every Neobrutal heading fell back to Arial Black. It is now `ArchivoBlack-latin-ext.woff2` beside a new `ArchivoBlack-latin.woff2`, split by `unicode-range` like Fraunces.
+- The template-picker pill showed the theme key (`recovery-blue`): the name lookup set a variable inside a Jinja `for` loop, which does not leave the loop. It now uses a `namespace`.
 
 ## [2.20.2] — 2026-09-30
 

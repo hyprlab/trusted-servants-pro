@@ -332,22 +332,24 @@
   .wp-target-pillgroup {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 2px;
     background: var(--panel-2, rgba(0,0,0,.05));
+    border: 1px solid var(--border);
     padding: 3px;
-    border-radius: 999px;
+    border-radius: 9px;
   }
   .wp-target-pillgroup--vertical {
     flex-direction: column;
-    border-radius: 12px;
     align-items: stretch;
   }
   .wp-target-pill {
     cursor: pointer;
     user-select: none;
-    padding: 6px 12px;
-    border-radius: 999px;
+    padding: 5px 10px;
+    border-radius: 6px;
     font-size: var(--fs-sm);
+    font-weight: 600;
+    line-height: 1.2;
     color: var(--muted, rgba(0,0,0,.6));
     display: inline-flex;
     align-items: center;
@@ -356,9 +358,7 @@
     white-space: nowrap;
   }
   .wp-target-pillgroup--vertical .wp-target-pill {
-    border-radius: 8px;
     justify-content: space-between;
-    padding: 6px 10px;
   }
   .wp-target-pill input[type=radio] {
     position: absolute;
@@ -369,9 +369,8 @@
   .wp-target-pill:hover { color: var(--text, #111); }
   .wp-target-pill.is-active {
     background: var(--panel, #fff);
-    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    box-shadow: 0 1px 2px rgba(15,23,42,.12), 0 0 0 1px var(--border);
     color: var(--text, #111);
-    font-weight: 600;
   }
   .wp-target-pill--stories.is-active       { background: #fef3c7; color: #78350f; }
   .wp-target-pill--announcements.is-active { background: #dbeafe; color: #1e3a8a; }

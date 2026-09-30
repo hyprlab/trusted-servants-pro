@@ -20,6 +20,8 @@ release notes expanded by default and the changelog collapsed.
 - "Default section spacing" is no longer on the Design page: nothing on the public site used it. Page spacing is set on each page.
 - Each card in the Site theme picker shows a small picture of that theme: its colors, heading font, buttons and cards. Before, every card showed the same blue sketch.
 - In the Site theme picker, the choice between a theme's last saved state and its defaults is a two-part switch with a one-line explanation, so more of the theme list fits on screen.
+- Every segmented control in the admin has the same squared shape, with the chosen option raised: list and grid switches, Active and Archived views, content source, email audience, link type, background style and the dynamic background tabs.
+- The theme pill at the top of the Web Frontend pages shows the theme's name, such as Recovery Blue, instead of its key.
 - Neobrutal headings, navigation and buttons now use the Archivo Black font. Before, the font file was missing its basic letters, so the browser fell back to Arial Black.
 
 ## 2.20.2 — 2026-09-30 (latest)

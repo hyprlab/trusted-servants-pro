@@ -14,11 +14,12 @@
      title        — long label for the modal heading (e.g. "Header template")
 #}
 {% macro template_picker(templates, active, radio_name, action_url, modal_id, preview_kind, title, label='Template') -%}
-  {%- set _active_name = active -%}
-  {%- for t in templates if t.key == active %}{% set _active_name = t.name %}{% endfor -%}
+  {#- A plain `set` inside the loop would not leave it; a namespace does. -#}
+  {%- set _ns = namespace(active_name=active) -%}
+  {%- for t in templates if t.key == active %}{% set _ns.active_name = t.name %}{% endfor -%}
   <div class="fe-template-picker">
     <span class="fe-template-picker-label muted smaller">{{ label }}:</span>
-    <span class="fe-template-picker-active">{{ _active_name }}</span>
+    <span class="fe-template-picker-active">{{ _ns.active_name }}</span>
     <button type="button" class="btn btn-sm" data-open-modal="{{ modal_id }}">Change</button>
   </div>
 

@@ -364,17 +364,60 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px; margin: 8px 0 4px; }
 
+/* Segmented control: one look for every radio-style choice in the admin.
+   A squared track (9px) holds the options (6px); the chosen option is a
+   raised panel with a hairline ring. The tracks and options are listed by
+   class because several are built by script or keep their own markup;
+   component rules further down add layout only (width, wrap, flex). */
+.ds-seg-btns, .ds-kind, .nav-megalink-seg, .ar-view-tabs, .fe-mlist-link-type,
+.dynbg-modal-tabs, .pbe-segmented, .content-mode-seg, .ts-aud-submode,
+.view-toggle, .fe-template-picker {
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px; margin: 0;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px;
+}
+.ds-seg-btns > button, .ds-kind > button, .ds-seg-btns > label, .form .ds-seg-btns > label,
+.nav-megalink-seg-opt, .form .nav-megalink-seg-opt, .ts-aud-submode-pill, .form .ts-aud-submode-pill,
+.ar-view-tab, .fe-mlist-link-type-opt > span, .dynbg-modal-tab-wrap, .pbe-segmented-btn,
+.content-mode-seg-btn, .view-toggle > .btn, .fe-template-picker .btn {
+  display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 6px;
+  padding: 5px 10px; margin: 0; border: 0; border-radius: 6px; background: transparent;
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; line-height: 1.2;
+  color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: none; box-shadow: none;
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+.ds-seg-btns > button:hover, .ds-kind > button:hover, .ds-seg-btns > label:hover,
+.nav-megalink-seg-opt:hover, .ts-aud-submode-pill:hover, .ar-view-tab:hover,
+.fe-mlist-link-type-opt:hover > span, .dynbg-modal-tab-wrap:hover, .pbe-segmented-btn:hover,
+.content-mode-seg-btn:hover, .view-toggle > .btn:hover {
+  background: transparent; color: var(--text); text-decoration: none;
+}
+.ds-seg-btns > [aria-checked="true"], .ds-kind > [aria-checked="true"], .ds-seg-btns > label.is-active,
+.ds-seg-btns > label:has(input:checked), .nav-megalink-seg-opt:has(input:checked),
+.ts-aud-submode-pill:has(input:checked), .ar-view-tab.is-active,
+.fe-mlist-link-type-opt input:checked + span, .dynbg-modal-tab-wrap.is-active,
+.pbe-segmented-btn.is-active, .content-mode-seg-btn.is-active,
+.view-toggle > .btn.active, .view-toggle > .btn.active:hover, .fe-template-picker .btn {
+  background: var(--panel); color: var(--text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border);
+}
+.ds-seg-btns .icon, .ds-kind .icon, .view-toggle .icon, .fe-mlist-link-type-opt .icon { width: 15px; height: 15px; }
+.ds-seg-btns > label input, .nav-megalink-seg-opt input, .ts-aud-submode-pill input,
+.fe-mlist-link-type-opt input {
+  position: absolute; width: 0; height: 0; opacity: 0; margin: 0; pointer-events: none;
+}
+.ds-seg-btns > label:has(input:focus-visible), .nav-megalink-seg-opt:has(input:focus-visible),
+.ts-aud-submode-pill:has(input:focus-visible), .fe-mlist-link-type-opt input:focus-visible + span,
+.ds-seg-btns > button:focus-visible, .ds-kind > button:focus-visible, .ar-view-tab:focus-visible,
+.dynbg-modal-tab-wrap:has(:focus-visible), .pbe-segmented-btn:focus-visible,
+.content-mode-seg-btn:focus-visible, .view-toggle > .btn:focus-visible, .fe-template-picker .btn:focus-visible {
+  outline: 2px solid var(--brand); outline-offset: 1px;
+}
+
 /* Compact template-picker pill (top-actions). Tracks the live template
    name and opens the modal for choosing a different one. */
-.fe-template-picker {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 4px 4px 4px 12px; border-radius: 999px;
-  border: 1px solid var(--border); background: var(--panel-2);
-  font-size: var(--fs-sm);
-}
+.fe-template-picker { gap: 8px; padding-left: 10px; font-size: var(--fs-sm); }
 .fe-template-picker-label { font-weight: 500; }
 .fe-template-picker-active { font-weight: 600; color: var(--text); }
-.fe-template-picker .btn { padding: 4px 12px; font-size: var(--fs-sm); border-radius: 999px; }
 .fe-template-picker-modal .modal-panel { width: min(820px, 94vw); max-height: 86vh; }
 .fe-template-picker-modal .modal-body { overflow-y: auto; }
 /* The head, body, mode band and foot carry their own padding and dividers;
@@ -1161,30 +1204,6 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
    static/js/design_studio.js; the preview's own styles live in
    static/css/design_preview.css inside a shadow root. */
 
-/* Segmented control: shared by the kind switch, preview mode, token
-   choices and the default-appearance picker. */
-.ds-seg-btns, .ds-kind {
-  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
-  background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px;
-}
-.ds-seg-btns > button, .ds-kind > button, .form .ds-seg-btns > label {
-  display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 6px;
-  padding: 5px 10px; border: 0; border-radius: 6px; background: transparent;
-  font: inherit; font-size: var(--fs-sm); font-weight: 600; line-height: 1.2;
-  color: var(--muted); cursor: pointer; white-space: nowrap;
-  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
-}
-.ds-seg-btns > button:hover, .ds-kind > button:hover, .ds-seg-btns > label:hover { color: var(--text); }
-.ds-seg-btns > [aria-checked="true"], .ds-kind > [aria-checked="true"], .ds-seg-btns > label.is-active {
-  background: var(--panel); color: var(--text);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border);
-}
-.ds-seg-btns .icon, .ds-kind .icon { width: 15px; height: 15px; }
-.ds-seg-btns > label input { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
-.ds-seg-btns > label:has(input:focus-visible),
-.ds-seg-btns > button:focus-visible, .ds-kind > button:focus-visible {
-  outline: 2px solid var(--brand); outline-offset: 1px;
-}
 .ds-deco-underline { text-decoration: underline; text-underline-offset: 3px; }
 .ds-deco-dotted { text-decoration: underline dotted; text-underline-offset: 3px; }
 
@@ -2626,19 +2645,7 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 @media (max-width: 720px) {
   .nav-megalink-row-text { grid-template-columns: 1fr; }
 }
-.nav-megalink-seg {
-  display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
-  background: var(--panel);
-}
-.nav-megalink-seg-opt {
-  display: inline-flex; align-items: center; gap: 0; padding: 6px 10px;
-  font-size: var(--fs-2xs); color: var(--muted); cursor: pointer; line-height: 1;
-}
-.nav-megalink-seg-opt + .nav-megalink-seg-opt { border-left: 1px solid var(--border); }
-.nav-megalink-seg-opt input { position: absolute; opacity: 0; pointer-events: none; }
-.nav-megalink-seg-opt:has(input:checked) {
-  background: var(--brand-soft); color: var(--brand); font-weight: 600;
-}
+.nav-megalink-seg { flex-wrap: wrap; align-self: flex-start; max-width: 100%; }
 .nav-megalink-color-field .nav-megalink-color-row {
   display: inline-flex; align-items: center; gap: 10px;
 }
@@ -5959,13 +5966,6 @@ body.embed .card.data-card:last-child {
    rules take over and set `flex-wrap: nowrap` again deliberately.) */
 .view-controls { display: inline-flex; flex-wrap: wrap; align-items: center;
   gap: 12px; row-gap: 8px; margin-right: 8px; min-width: 0; }
-.view-toggle { display: inline-flex; gap: 0; }
-.view-toggle .btn { border-radius: 0; border-right-width: 0; }
-.view-toggle .btn:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
-.view-toggle .btn:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px;
-  border-right-width: 1px; }
-.view-toggle .btn.active { background: var(--access); color: white; border-color: var(--access); }
-.view-toggle .btn .icon { font-size: var(--fs-md); }
 .view-toggle-label { margin-left: 4px; }
 @media (max-width: 540px) {
   .view-toggle-label { display: none; }
@@ -6370,7 +6370,6 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
    solid `.active` fill, so it reads as "there's something here" without
    competing with the tab you're actually on. */
 .view-toggle .btn.has-pending {
-  border-color: rgba(245, 158, 11, 0.75);
   color: #92400e;
   background: rgba(245, 158, 11, 0.12);
   font-weight: 600;
@@ -6379,7 +6378,6 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
 html[data-theme="dark"] .view-toggle .btn.has-pending {
   color: #fcd34d;
   background: rgba(245, 158, 11, 0.18);
-  border-color: rgba(245, 158, 11, 0.6);
 }
 .row-actions form { margin: 0; display: inline-flex; align-items: center; }
 .tbl .row-actions .btn { vertical-align: middle; }
@@ -7217,21 +7215,6 @@ html[data-theme="dark"] .access-matrix .access-foot-mark { color: #facc15; }
    the column the widest in the table. */
 .wt-req-roles { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .wt-req-roles .chip { white-space: nowrap; }
-.ar-view-tabs { display: inline-flex; gap: 4px; padding: 3px;
-  background: var(--panel-2); border: 1px solid var(--border);
-  border-radius: 999px; }
-.ar-view-tab {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 12px; border-radius: 999px;
-  font-size: var(--fs-xs); font-weight: 600; color: var(--muted);
-  text-decoration: none; line-height: 1.4;
-  transition: background 120ms, color 120ms;
-}
-.ar-view-tab:hover { color: var(--text); }
-.ar-view-tab.is-active {
-  background: var(--panel); color: var(--brand);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-}
 .ar-view-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 6px;
@@ -8208,7 +8191,7 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
      non-wrapping inline group */
   .view-controls { width: auto; flex: 0 0 auto; margin-right: 0; flex-wrap: nowrap; gap: 8px; }
   .view-controls > .view-toggle { flex: 0 0 auto; min-width: 0; }
-  .view-toggle .btn { flex: 0 0 auto; min-width: 0; padding: 7px 10px; text-align: center; white-space: nowrap; }
+  .view-toggle .btn { flex: 0 0 auto; min-width: 0; }
   .sort-select { flex: 0 0 auto; min-width: 0; }
   .sort-select select { flex: 0 0 auto; min-width: 0; }
   .sort-dir { flex: 0 0 auto; }
@@ -11535,33 +11518,7 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
   display: flex; flex-wrap: wrap; align-items: center;
   gap: 12px;
 }
-.fe-mlist-link-type {
-  display: inline-flex; gap: 4px;
-  padding: 3px; background: var(--panel);
-  border: 1px solid var(--border); border-radius: 8px;
-}
-.fe-mlist-link-type-opt {
-  position: relative;
-  display: inline-flex; align-items: center;
-}
-.fe-mlist-link-type-opt input[type="radio"] {
-  position: absolute; opacity: 0; pointer-events: none;
-}
-.fe-mlist-link-type-opt > span {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 10px; border-radius: 6px;
-  font-size: var(--fs-sm); font-weight: 500; color: var(--muted);
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
-}
-.fe-mlist-link-type-opt > span .icon {
-  width: 14px; height: 14px;
-}
-.fe-mlist-link-type-opt:hover > span { color: var(--text); }
-.fe-mlist-link-type-opt input[type="radio"]:checked + span {
-  background: var(--brand-soft, color-mix(in srgb, var(--brand, #6366f1) 14%, transparent));
-  color: var(--text);
-}
+.fe-mlist-link-type-opt { position: relative; display: inline-flex; }
 .fe-mlist-link-newtab {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: var(--fs-sm); color: var(--text); cursor: pointer;
@@ -12550,8 +12507,7 @@ input.be-container-color-text.is-invalid {
    container-panel chrome so the visual rhythm of "click block →
    collapsible settings panel below the body" stays consistent. */
 .be-typo-panel { margin-top: 4px; }
-.be-typo-align { display: inline-flex; gap: 4px; flex-wrap: wrap; }
-.be-typo-align .btn.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.be-typo-align { flex-wrap: wrap; }
 
 /* Range slider in the image block ("Width  100%") — inline output
    uses the same muted style the bg-scale slider does. */
@@ -13464,46 +13420,14 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
-.dynbg-modal-tabs {
-  display: flex; gap: 4px;
-  padding: 4px;
-  background: var(--card-soft, color-mix(in srgb, var(--text) 4%, var(--card)));
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 0;
-}
-/* Each tab half is a wrapper that owns the pill styling and the
-   click target; the <button> inside carries the label and the help
-   chip (Background only) sits flush after it. The ACTIVE half fills
-   with the accent colour so it's unmistakable which side you're on. */
-.dynbg-modal-tab-wrap {
-  flex: 1 1 0; min-width: 0;
-  display: flex; align-items: center; justify-content: center; gap: 2px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: var(--muted);
-  transition: background-color 120ms ease, color 120ms ease;
-}
-.dynbg-modal-tab-wrap:hover { color: var(--text); }
-.dynbg-modal-tab-wrap.is-active {
-  background: var(--access);
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
-}
+/* The two halves share the bar's width. Each half is a wrapper holding
+   the tab <button> and, on Background, the help chip flush after it. */
+.dynbg-modal-tabs { display: flex; }
+.dynbg-modal-tab-wrap { flex: 1 1 0; min-width: 0; gap: 2px; }
 .dynbg-modal-tab {
-  padding: 8px 12px;
-  background: transparent;
-  border: 0;
-  font: inherit;
-  font-size: var(--fs-base);
-  font-weight: 500;
-  color: inherit;
-  cursor: pointer;
+  padding: 0; background: transparent; border: 0;
+  font: inherit; color: inherit; cursor: pointer;
 }
-.dynbg-modal-tab.is-active { font-weight: 600; }
-/* Help chip inside the active (accent-filled) tab: invert to white so
-   the icon stays legible on the accent. */
-.dynbg-modal-tab-wrap.is-active .help-btn { color: #fff; }
 .dynbg-modal-tab-wrap .heading-help { margin-right: 6px; }
 .dynbg-modal-panel { display: none; }
 .dynbg-modal-panel.is-active { display: block; }
@@ -14510,29 +14434,6 @@ body.pbe-is-palette-dragging .pbe-canvas {
 }
 .pbe-check input { cursor: pointer; }
 
-/* Segmented control — small pill-shaped radio group. */
-.pbe-segmented {
-  display: inline-flex;
-  padding: 3px;
-  border-radius: 8px;
-  background: var(--panel-2, var(--panel));
-  border: 1px solid var(--border);
-}
-.pbe-segmented-btn {
-  border: 0; padding: 5px 12px;
-  background: transparent; color: var(--muted);
-  font-size: var(--fs-xs); font-weight: 600;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
-}
-.pbe-segmented-btn:hover { color: var(--text); }
-.pbe-segmented-btn.is-active {
-  background: var(--brand, var(--access));
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.10);
-}
-
 .pbe-range { width: 120px; accent-color: var(--brand, var(--access)); }
 .pbe-range-label { gap: 10px; }
 .pbe-range-value { font-variant-numeric: tabular-nums; min-width: 32px; }
@@ -15344,58 +15245,9 @@ html.metric-mode-views [data-metric-mode="uniques"] { display: none !important; 
    Three-way picker (upload / paste / link) that lives at the top of
    the library-item form. Each button toggles its sibling
    `[data-content-panel=...]` block via the JS wiring in app.js.
-   Pill-row visual recipe — soft track with the active option
-   floating on a brand-tinted surface so the picked mode reads at
-   a glance. */
+   Drawn by the shared segmented-control rules. */
 .content-mode-seg-wrap { margin: 4px 0 10px; }
-.content-mode-seg {
-  display: inline-flex; flex-wrap: wrap; gap: 4px;
-  padding: 4px;
-  background: var(--panel, #f1f5f9);
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 999px;
-}
-.content-mode-seg-btn {
-  flex: 0 0 auto;
-  padding: 7px 14px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted, #475569);
-  font: inherit; font-size: var(--fs-sm); font-weight: 600;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease,
-              border-color 140ms ease, box-shadow 140ms ease;
-}
-.content-mode-seg-btn:hover {
-  background: rgba(15, 23, 42, 0.04);
-  color: var(--text, #0f172a);
-}
-.content-mode-seg-btn.is-active {
-  background: var(--bg, #ffffff);
-  color: var(--text, #0f172a);
-  border-color: rgba(15, 23, 42, 0.08);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.10);
-}
-.content-mode-seg-btn:focus-visible {
-  outline: 2px solid var(--brand, #2563eb);
-  outline-offset: 2px;
-}
-[data-theme="dark"] .content-mode-seg {
-  background: #0f172a;
-  border-color: #1f2937;
-}
-[data-theme="dark"] .content-mode-seg-btn { color: #94a3b8; }
-[data-theme="dark"] .content-mode-seg-btn:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: #e5e7eb;
-}
-[data-theme="dark"] .content-mode-seg-btn.is-active {
-  background: #1f2937;
-  color: #f1f5f9;
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-}
+.content-mode-seg { flex-wrap: wrap; }
 
 /* ─── Off-site backups: list, wizard, restore ─────────────────────
    Sized to sit inside the existing settings shell. The wizard reuses
@@ -16505,29 +16357,7 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   .ts-aud-group-detail { margin-left: 0; }
 }
 
-.ts-aud-submode {
-  display: flex;
-  gap: .4rem;
-  flex-wrap: wrap;
-  margin-bottom: .65rem;
-}
-.ts-aud-submode-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: .35rem;
-  padding: .35rem .75rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  background: var(--panel);
-  margin: 0;
-}
-.ts-aud-submode-pill input { margin: 0; }
-.ts-aud-submode-pill:has(input:checked) {
-  border-color: var(--brand);
-  background: color-mix(in srgb, var(--brand) 8%, var(--panel));
-}
+.ts-aud-submode { flex-wrap: wrap; margin-bottom: .65rem; }
 
 .ts-aud-sub-picker {
   border-top: 1px solid var(--border);
@@ -17636,9 +17466,6 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 .fe-theme-mode { flex-shrink: 0; margin: 0;
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
   border-top: 1px solid var(--line, #e2e8f0); padding: 10px 24px; }
-.fe-theme-mode .ds-seg-btns > label:has(input:checked) {
-  background: var(--panel); color: var(--text);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border); }
 .fe-theme-mode-hint { margin: 0; flex: 1 1 220px; }
 .fe-theme-mode:has(input[value="default"]:checked) .fe-theme-mode-hint-last,
 .fe-theme-mode:not(:has(input[value="default"]:checked)) .fe-theme-mode-hint-default { display: none; }
