@@ -17884,3 +17884,13 @@ a.fe-ss-item:hover { background: var(--panel-2); text-decoration: none; }
   .fe-admin-main .tp-rail { position: static; display: flex; flex-wrap: wrap; gap: 8px; }
   .tp-group + .tp-group { margin-top: 0; }
 }
+
+/* Switch rows in the studio panels (popup, 404). */
+.pop-switch { gap: 8px; font-weight: 600; font-size: var(--fs-sm); }
+.fe-page-edit-status-locked { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; }
+.fe-page-edit-status-locked .icon { width: 14px; height: 14px; }
+.be-section-untitled { padding: 0 6px; }
+.st-controls .fe-page-settings-section { padding: 14px 18px; border-bottom: 1px solid var(--border); margin: 0; }
+.st-controls .fe-page-settings-section:last-child { border-bottom: 0; }
+.st-controls .fe-page-settings-section .form-grid { grid-template-columns: minmax(0, 1fr); }
+.st-controls .page-og-grid { grid-template-columns: minmax(0, 1fr) !important; }

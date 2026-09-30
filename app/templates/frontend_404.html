@@ -1,80 +1,81 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
-{% from "_frontend_template_picker.html" import template_picker %}
-{% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
+{% from "_live_preview.html" import live_preview %}
 {% block heading %}404 page{% endblock %}
-{% block heading_help %}Customize the page visitors see when they land on a URL that doesn't exist on the public site. All fields are optional — sensible defaults are used when blank.{% endblock %}
+{% block heading_help %}What visitors see when an address on the public site leads nowhere. Addresses that moved are better sent on with a redirect (Site → Redirects); Watchtower lists the missing addresses visitors hit most.{% endblock %}
 {% block top_actions %}
-<a class="btn" href="{{ url_for('public.frontend_404_preview') }}" target="_blank" rel="noopener">Preview 404 ↗</a>
+<a class="btn" href="{{ url_for('main.watchtower_not_found') }}">{{ icon('bar-chart') }} Missing pages</a>
 {% endblock %}
 {% block content %}
+{% set s = site %}
 <div class="fe-admin-layout">
   {% include "_frontend_subnav.html" %}
   <div class="fe-admin-main">
 
-<form class="form" method="post" action="{{ url_for('main.frontend_404_save') }}" enctype="multipart/form-data">
+<form class="form" method="post" action="{{ url_for('main.frontend_404_save') }}" enctype="multipart/form-data" id="nf-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="frontend_404_switches" value="1">
 
-  <section class="card">
-    <div class="card-head">
-      <h2>Copy {% call chip('Copy') %}Headline + supporting text shown on the 404 page.{% endcall %}</h2>
-    </div>
-    <label>{% call hrow('Headline') %}Blank = "We couldn't find that page"{% endcall %}
-      <input type="text" name="frontend_404_heading" maxlength="200"
-             value="{{ (site.frontend_404_heading if site else '') or '' }}"
-             placeholder="We couldn't find that page">
-    </label>
-    <label>Subheading
-      <textarea name="frontend_404_subheading" rows="3"
-                placeholder="Short, friendly note explaining what happened and how to get back on track.">{{ (site.frontend_404_subheading if site else '') or '' }}</textarea>
-    </label>
-  </section>
-
-  <section class="card">
-    <div class="card-head">
-      <h2>Call to action {% call chip('Call to action') %}Primary button shown under the message. Defaults to "Back to home" pointing at the site root.{% endcall %}</h2>
-    </div>
-    <div class="form-row" style="display: grid; grid-template-columns: 1fr 2fr; gap: 14px;">
-      <label>Button label
-        <input type="text" name="frontend_404_cta_label" maxlength="120"
-               value="{{ (site.frontend_404_cta_label if site else '') or '' }}"
-               placeholder="Back to home">
-      </label>
-      <label>Button URL
-        <input type="text" name="frontend_404_cta_url" maxlength="500"
-               value="{{ (site.frontend_404_cta_url if site else '') or '' }}"
-               placeholder="/">
-      </label>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card-head">
-      <h2>Illustration {% call chip('Illustration') %}Optional image shown above the headline. PNG, JPG, WebP, or SVG. Leave blank for the built-in 404 graphic.{% endcall %}</h2>
-    </div>
-    <div class="og-image-row">
-      <div class="og-image-preview">
-        {% if site and site.frontend_404_image_filename %}
-        <img src="{{ url_for('public.frontend_404_image') }}" alt="404 illustration">
-        <label class="check fe-logo-clear-label">
-          <input type="checkbox" name="clear_404_image" value="1"><span>Remove current image</span>
-        </label>
-        {% else %}
-        <div class="og-image-empty muted small">No image — using the built-in graphic.</div>
-        {% endif %}
+<section class="card st-studio" data-studio="notfound" data-no-collapse>
+  <div class="card-head">
+    <h2>404 page {% call chip('404 page') %}Blank fields use the wording shown as their placeholder. The preview is the real page with your unsaved changes; save with the yellow bar.{% endcall %}</h2>
+  </div>
+  <div class="ds-tabs-wrap">
+    <nav class="ds-tabs" role="tablist" aria-label="404 page">
+      <button type="button" role="tab" class="ds-tab" data-studio-tab="text">{{ icon('type') }}<span>Text</span></button>
+      <button type="button" role="tab" class="ds-tab" data-studio-tab="buttons">{{ icon('mouse-pointer-click') }}<span>Buttons</span></button>
+      <button type="button" role="tab" class="ds-tab" data-studio-tab="picture">{{ icon('image') }}<span>Picture</span></button>
+    </nav>
+  </div>
+  <div class="st-body st-body--side">
+    <div class="st-controls">
+      <div class="st-panel" data-studio-panel="text">
+        <div class="ds-group st-group-body">
+          <label class="st-field"><span>Heading</span>
+            <input type="text" name="frontend_404_heading" maxlength="200" value="{{ s.frontend_404_heading or '' }}" placeholder="We couldn't find that page">
+          </label>
+          <label class="mode-toggle pop-switch"><input type="checkbox" name="frontend_404_show_sub" value="1" {% if s.frontend_404_show_sub %}checked{% endif %}><span class="mode-track"><span class="mode-thumb"></span></span><span>A line under the heading</span></label>
+          <label class="st-field"><span>Line under the heading</span>
+            <textarea name="frontend_404_subheading" rows="3" placeholder="The link you followed may be stale, the page may have moved, or you may have typed something off.">{{ s.frontend_404_subheading or '' }}</textarea>
+          </label>
+        </div>
       </div>
-      <div class="og-image-fields">
-        <label>Replace image
-          <input type="file" name="frontend_404_image"
-                 accept="image/png,image/jpeg,image/webp,image/svg+xml">
-        </label>
+      <div class="st-panel" data-studio-panel="buttons" hidden>
+        <div class="ds-group st-group-body">
+          <div class="st-grid2">
+            <label class="st-field"><span>Button label</span>
+              <input type="text" name="frontend_404_cta_label" maxlength="120" value="{{ s.frontend_404_cta_label or '' }}" placeholder="Back to home">
+            </label>
+            <label class="st-field"><span>Button link</span>
+              <input type="text" name="frontend_404_cta_url" maxlength="500" value="{{ s.frontend_404_cta_url or '' }}" placeholder="/">
+            </label>
+          </div>
+          <label class="mode-toggle pop-switch"><input type="checkbox" name="frontend_404_show_home" value="1" {% if s.frontend_404_show_home %}checked{% endif %}><span class="mode-track"><span class="mode-thumb"></span></span><span>Also a Home button when the button goes elsewhere</span></label>
+        </div>
+      </div>
+      <div class="st-panel" data-studio-panel="picture" hidden>
+        <div class="ds-group st-group-body">
+          {% if s.frontend_404_image_filename %}
+          <img class="fs-og" src="{{ url_for('public.frontend_404_image') }}" alt="">
+          <label class="check"><input type="checkbox" name="clear_404_image" value="1"><span>Remove this picture</span></label>
+          {% endif %}
+          <label class="st-field"><span>{{ 'Replace the picture' if s.frontend_404_image_filename else 'Your own picture' }}</span>
+            <input type="file" name="frontend_404_image" accept="image/*">
+          </label>
+          <label class="mode-toggle pop-switch"><input type="checkbox" name="frontend_404_show_art" value="1" {% if s.frontend_404_show_art %}checked{% endif %}><span class="mode-track"><span class="mode-thumb"></span></span><span>Without a picture of your own, show the built-in 404 artwork</span></label>
+          <p class="muted smaller">The artwork uses the brand and accent colors from Design.</p>
+        </div>
       </div>
     </div>
-  </section>
-
-  <div class="form-actions"><button class="btn btn-primary">Save 404 page</button></div>
+    <div class="st-preview">
+      {{ live_preview('/this-page-does-not-exist', '#nf-form', height=560, width=1280, title='404 preview') }}
+    </div>
+  </div>
+</section>
 </form>
 
   </div>
 </div>
+<script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
 {% endblock %}

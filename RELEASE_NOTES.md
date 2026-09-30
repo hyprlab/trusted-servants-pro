@@ -63,6 +63,14 @@ release notes expanded by default and the changelog collapsed.
 - Appearance shows only the settings the chosen layout uses and names the ones it doesn't. Before, background color, fonts and sizes were offered for every page, but most list pages ignored them.
 - Each page template's layout, heading, width and other page settings save together, so changing a layout can no longer undo other settings.
 - Meeting, announcement, event, story and blog post templates preview on a real published item.
+- The page editor's settings are in tabs (Page, Width and spacing, Background, Search and sharing) beside a live preview of the page with every unsaved change, blocks included. Page width offers Site width, which new pages use.
+- Applying a layout to a published page now goes into its draft, like any other edit; the live page changes when you publish. Before, it changed the live page at once, and publishing an older draft could undo it.
+- Changing a published page's address in the editor now redirects the old address to the new one, as Rename already did.
+- The homepage's status is locked to public, since the homepage shows at / whatever its status. It can't be set to draft or private, including from the Pages list, and can't be deleted.
+- Pages with heading styles from an older version of the editor say so on the Page tab and can remove them. New sections no longer get a stray title field; sections that already have a title keep it.
+- The page structure names every block correctly (Lottie, Library, Officer roster and others showed their internal names), and the Pages list shows each page's layout instead of "Standard".
+- The popup editor has tabs for Popup, Box, Backdrop, and Opening and closing beside a live preview of the popup open over a page, with switches in place of the stacked checkboxes.
+- The 404 page has Text, Buttons and Picture tabs beside a live preview, and can now drop the line under the heading, the built-in artwork and the extra Home button.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

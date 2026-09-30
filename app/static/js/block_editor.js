@@ -753,11 +753,15 @@
       const wrap = el('div', { class: 'be-section', 'data-id': sec.id });
       const head = el('div', { class: 'be-section-head' }, [
         el('span', { class: 'be-section-drag', title: 'Drag to reorder' }, [iconEl('grip-vertical')]),
-        el('input', {
+        // Sections are grouped with container blocks now. A section that
+        // already has a title (older pages show it as a heading) keeps
+        // an input so it can be edited or cleared; new ones get none.
+        (sec.title ? el('input', {
           type: 'text', class: 'be-section-title', value: sec.title || '',
-          placeholder: 'Section title',
+          placeholder: 'Section heading (clear to remove)',
+          title: 'Shown as a heading on the page. Newer pages use a Heading block instead.',
           oninput: (e) => { sec.title = e.target.value; },
-        }),
+        }) : el('span', { class: 'be-section-untitled muted smaller' }, ['Section'])),
         el('button', {
           type: 'button', class: 'icon-btn be-remove', title: 'Delete section',
           onclick: () => {

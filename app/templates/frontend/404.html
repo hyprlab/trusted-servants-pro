@@ -2,7 +2,7 @@
 {% block title %}Page not found · {{ frontend_title }}{% endblock %}
 {% block content %}
 {% set _heading = (site.frontend_404_heading if site else None) or "We couldn't find that page" %}
-{% set _sub = (site.frontend_404_subheading if site else None) or "The link you followed may be stale, the page may have moved, or you may have typed something off. No worries — pick a way back below." %}
+{% set _sub = ((site.frontend_404_subheading if site else None) or "The link you followed may be stale, the page may have moved, or you may have typed something off. No worries — pick a way back below.") if (not site or site.frontend_404_show_sub) else '' %}
 {% set _cta_label = (site.frontend_404_cta_label if site else None) or "Back to home" %}
 {% set _cta_url = (site.frontend_404_cta_url if site else None) or url_for('frontend.index') %}
 <section class="fe-section fe-404">
@@ -10,7 +10,7 @@
     {% if site and site.frontend_404_image_filename %}
       <img class="fe-404-image"
            src="{{ url_for('public.frontend_404_image') }}" alt="">
-    {% else %}
+    {% elif not site or site.frontend_404_show_art %}
       {# Default illustration — large 404 numerals over a meandering path. #}
       <svg class="fe-404-art" viewBox="0 0 480 200" aria-hidden="true">
         <defs>
@@ -32,7 +32,7 @@
     {% if _sub %}<p class="fe-404-sub">{{ _sub }}</p>{% endif %}
     <div class="fe-404-actions">
       <a class="fe-btn fe-btn-primary" href="{{ _cta_url|safe_url }}">{{ _cta_label }}</a>
-      {% if _cta_url != url_for('frontend.index') %}
+      {% if _cta_url != url_for('frontend.index') and (not site or site.frontend_404_show_home) %}
         <a class="fe-btn fe-btn-ghost" href="{{ url_for('frontend.index') }}">Home</a>
       {% endif %}
     </div>

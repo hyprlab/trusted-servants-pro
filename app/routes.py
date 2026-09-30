@@ -10504,6 +10504,10 @@ def frontend_404_save():
     s.frontend_404_subheading = (request.form.get("frontend_404_subheading") or "").strip() or None
     s.frontend_404_cta_label = (request.form.get("frontend_404_cta_label") or "").strip()[:120] or None
     s.frontend_404_cta_url = (request.form.get("frontend_404_cta_url") or "").strip()[:500] or None
+    if "frontend_404_switches" in request.form:
+        s.frontend_404_show_sub = request.form.get("frontend_404_show_sub") == "1"
+        s.frontend_404_show_art = request.form.get("frontend_404_show_art") == "1"
+        s.frontend_404_show_home = request.form.get("frontend_404_show_home") == "1"
     if request.form.get("clear_404_image") == "1":
         old = s.frontend_404_image_filename
         s.frontend_404_image_filename = None
@@ -13351,7 +13355,13 @@ def frontend_page_edit(page_id):
                            features_modal_vals=features_modal_vals,
                            faq_modal_vals=faq_modal_vals,
                            draft_active=draft_active,
-                           draft_saved_at=draft_saved_at)
+                           draft_saved_at=draft_saved_at,
+                           site_px=_site_px(s))
+
+
+def _site_px(s):
+    from .widths import site_container_max
+    return site_container_max(s)
 
 
 @bp.route("/frontend/pages/<int:page_id>/layout", methods=["POST"])
@@ -13408,8 +13418,17 @@ def frontend_page_layout_save(page_id):
                     shell_sections.append({
                         "id": _uuid_short(), "title": "", "blocks": [b],
                     })
+            # A published page's draft (when it has one) is what the
+            # editor shows, so the layout is applied to that.
+            _draft = None
+            if page.draft_json:
+                try:
+                    _draft = _json.loads(page.draft_json)
+                except (ValueError, TypeError):
+                    _draft = None
+            _base = (_draft or {}).get("blocks_json") or page.blocks_json or "[]"
             try:
-                existing_sections = _json.loads(page.blocks_json or "[]") or []
+                existing_sections = _json.loads(_base) or []
             except (ValueError, TypeError):
                 existing_sections = []
             existing_sections = [s for s in existing_sections if isinstance(s, dict)]
@@ -13449,6 +13468,18 @@ def frontend_page_layout_save(page_id):
                 })
             if not new_sections:
                 new_sections = [{"id": _uuid_short(), "title": "", "blocks": []}]
+            if page.is_published:
+                # Staged, like any other edit to a published page: the
+                # live page changes when the draft is published.
+                from datetime import datetime as _dt_now
+                _draft = _draft or {}
+                _draft["blocks_json"] = _json.dumps(new_sections)
+                page.draft_json = _json.dumps(_draft)
+                page.draft_saved_at = _dt_now.utcnow()
+                _record_page_revision(page, "draft", _draft)
+                db.session.commit()
+                flash(f"Layout “{raw_key}” applied to the draft. The live page changes when you publish.", "success")
+                return redirect(url_for("main.frontend_page_edit", page_id=page.id))
             page.blocks_json = _json.dumps(new_sections)
     db.session.commit()
     flash(f"Layout “{raw_key}” applied", "success")
@@ -13900,6 +13931,10 @@ def frontend_page_save():
     else:
         is_published = request.form.get("is_published") == "1"
         is_private = request.form.get("is_private") == "1"
+    # The homepage renders at / whatever its status, so it is always
+    # public; the editor locks the control and this keeps it so.
+    if page_id.isdigit() and (_get_site_setting().homepage_page_id or 0) == int(page_id):
+        is_published, is_private = True, False
     # Only update blocks_json when the form carries an actual value.
     # An empty/missing value means the editor didn't serialise — usually
     # a JS hiccup or a partial form submit (e.g. uploading a background
@@ -14153,7 +14188,22 @@ def frontend_page_save():
     # uniqueness probe inside the helper would otherwise autoflush a
     # half-populated Page and crash on its NOT NULL columns.
     slug = _unique_page_slug(slug, exclude_id=page.id)
+    _old_slug = page.slug if page.id else None
     page.slug = slug
+    # A new address for a page that was already public: send the old
+    # address to it (as Rename does), and drop a redirect that would hide
+    # the new one. The homepage lives at / and needs neither.
+    if (_old_slug and _old_slug != slug and page.is_published
+            and (_get_site_setting().homepage_page_id or 0) != page.id):
+        for _row in UrlRedirect.query.filter(
+                UrlRedirect.source_path.in_([f"/{slug}", f"/{slug}/"])).all():
+            db.session.delete(_row)
+        _old_path = f"/{_old_slug}"
+        _existing = UrlRedirect.query.filter(UrlRedirect.source_path == _old_path).first()
+        if _existing:
+            _existing.target_path = f"/{slug}"
+        else:
+            db.session.add(UrlRedirect(source_path=_old_path, target_path=f"/{slug}"))
 
     if not page_id:
         db.session.add(page)
@@ -14446,6 +14496,9 @@ def frontend_page_rename(page_id):
 def frontend_page_delete(page_id):
     from .models import Page
     page = Page.query.get_or_404(page_id)
+    if _get_site_setting().homepage_page_id == page.id:
+        flash("The homepage can't be deleted. Make another page the homepage first.", "danger")
+        return redirect(url_for("main.frontend_pages"))
     title = page.title
     db.session.delete(page)
     db.session.commit()
@@ -14480,6 +14533,9 @@ def frontend_page_status(page_id):
     from .models import Page
     page = Page.query.get_or_404(page_id)
     status = (request.form.get("status") or "").strip().lower()
+    if _get_site_setting().homepage_page_id == page.id and status != "published":
+        flash("The homepage is always public.", "danger")
+        return redirect(_safe_referrer() or url_for("main.frontend_page_edit", page_id=page.id))
     if not _apply_page_status(page, status):
         flash("Unknown status", "danger")
         return redirect(url_for("main.frontend_page_edit", page_id=page.id))
@@ -14536,6 +14592,11 @@ def frontend_pages_bulk():
         flash("Select at least one page first", "warning")
         return redirect(url_for("main.frontend_pages"))
     rows = Page.query.filter(Page.id.in_(page_ids)).all()
+    hp_id = _get_site_setting().homepage_page_id
+    if status != "published" and any(r.id == hp_id for r in rows):
+        # The homepage is always public; leave it out.
+        rows = [r for r in rows if r.id != hp_id]
+        flash("The homepage stays public; the other pages were changed.", "info")
     for row in rows:
         _apply_page_status(row, status)
     db.session.commit()

@@ -110,7 +110,7 @@
                  data-fe-rename-redirect-box>
           <span>Redirect the old URL
             (<code data-fe-rename-old-path>/old</code>) to the new one
-            <span class="muted smaller">— keeps existing links working. Manage these under Structure → Redirects.</span>
+            <span class="muted smaller">— keeps existing links working. Manage them under Site → Redirects.</span>
           </span>
         </label>
       </div>
@@ -165,7 +165,8 @@
           {%- set _hp_id = site.homepage_page_id if site else None -%}
           {% for p in pages %}
           {%- set _status = 'draft' if not p.is_published else ('private' if p.is_private else 'published') -%}
-          {%- set _layout_label = 'Wiki' if p.template == 'wiki' else 'Standard' -%}
+          {%- set _lk = p.layout_key or 'custom' -%}
+          {%- set _layout_label = ((page_layouts | selectattr('key', 'equalto', _lk) | map(attribute='name') | first) or 'Custom') -%}
           {%- set _updated = p.updated_at -%}
           {%- set _is_hp = (p.id == _hp_id) -%}
           <tr data-page-id="{{ p.id }}"

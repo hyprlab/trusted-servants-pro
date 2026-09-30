@@ -47,6 +47,7 @@
     this.scrollY = null;
     this.bind();
     this.render();
+    if (root.hasAttribute('data-lp-watch')) this.watch();
   }
 
   Preview.prototype.forms = function () {
@@ -113,6 +114,22 @@
     this.root.setAttribute('data-lp-device', this.device);
   };
 
+  // Editors that change fields from script (the page builder writes its
+  // blocks into a hidden input) fire no event: notice those by comparing
+  // what the forms would post every couple of seconds.
+  Preview.prototype.snapshot = function () {
+    return JSON.stringify(this.forms().map(function (f) { return formPairs(f); }));
+  };
+  Preview.prototype.watch = function () {
+    var self = this;
+    setInterval(function () {
+      if (!self.root.offsetParent || !self.loaded) return;
+      var now = self.snapshot();
+      if (self.lastSnap !== undefined && now !== self.lastSnap) self.schedule();
+      self.lastSnap = now;
+    }, 2000);
+  };
+
   Preview.prototype.schedule = function () {
     var self = this;
     clearTimeout(this.timer);
@@ -129,8 +146,12 @@
     if (!this.root.offsetParent) { this.pending = true; return; }
     this.pending = false;
     var seq = ++this.seq;
+    var over = {};
+    try { over = JSON.parse(this.root.getAttribute('data-lp-overrides') || '{}'); } catch (_) {}
     var forms = this.forms().map(function (f) {
-      return { action: f.getAttribute('action') || '', fields: formPairs(f) };
+      var pairs = formPairs(f).filter(function (p) { return !(p[0] in over); });
+      Object.keys(over).forEach(function (k) { pairs.push([k, String(over[k])]); });
+      return { action: f.getAttribute('action') || '', fields: pairs };
     });
     // Editors that save JSON rather than a form (the mega menu) add
     // themselves with FeLivePreview.addSource(fn -> {action, json}).

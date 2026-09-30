@@ -930,6 +930,10 @@ class SiteSetting(db.Model):
     frontend_404_cta_label = db.Column(db.String(120))
     frontend_404_cta_url = db.Column(db.String(500))
     frontend_404_image_filename = db.Column(db.String(500))
+    # What the 404 page shows beyond its text (Web Frontend → 404 page).
+    frontend_404_show_sub = db.Column(db.Boolean, nullable=False, default=True)
+    frontend_404_show_art = db.Column(db.Boolean, nullable=False, default=True)
+    frontend_404_show_home = db.Column(db.Boolean, nullable=False, default=True)
     # Public-facing web frontend
     # Module gate: when False, hides Web Frontend from the sidebar entirely,
     # blocks the admin editor routes, and the public homepage won't serve.
