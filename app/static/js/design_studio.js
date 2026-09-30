@@ -253,6 +253,7 @@
     ms: function (v) { return v + ' ms'; },
     px: function (v) { return v + 'px'; },
     percent: function (v) { return v + '%'; },
+    vh: function (v) { return +v ? v + 'vh' : 'Fits the content'; },
   };
   studio.querySelectorAll('.ds-prange').forEach(function (row) {
     var r = row.querySelector('.ds-range'), out = row.querySelector('.ds-readout');

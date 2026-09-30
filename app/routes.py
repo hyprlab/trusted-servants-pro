@@ -10885,7 +10885,8 @@ def frontend_design():
     mm = next((t for t in MEGAMENU_TEMPLATES if t["key"] == mm_key), MEGAMENU_TEMPLATES[1])
     mm_kind = mm["partial"].rsplit("/", 1)[-1].removesuffix(".html")
     from .widths import width_usage, site_container_max
-    from .frontend import HEADER_TEMPLATES, THEMES, UTILITY_BAR_COLOR_MODES
+    from .frontend import (HEADER_TEMPLATES, THEMES, UTILITY_BAR_COLOR_MODES,
+                           FOOTER_SURFACE_THEMES)
     theme_key = s.frontend_theme or "classic"
     theme_name = next((t["name"] for t in THEMES if t["key"] == theme_key), theme_key)
     hdr_key = s.frontend_header_template or "classic"
@@ -10894,7 +10895,8 @@ def frontend_design():
                            mm_name=mm["name"], mm_kind=mm_kind,
                            width_usage=width_usage(s), site_px=site_container_max(s),
                            theme_name=theme_name, hdr_name=hdr_name,
-                           ub_modes=UTILITY_BAR_COLOR_MODES.get(theme_key, ()))
+                           ub_modes=UTILITY_BAR_COLOR_MODES.get(theme_key, ()),
+                           footer_surface_follows=theme_key in FOOTER_SURFACE_THEMES)
 
 
 @bp.route("/frontend/design/save", methods=["POST"])
@@ -10912,6 +10914,8 @@ def frontend_design_save():
         _save_mega_appearance(s, request.form)
     if request.form.get("header_appearance") == "1":
         _save_header_appearance(s, request.form)
+    if request.form.get("footer_appearance") == "1":
+        _save_footer_appearance(s, request.form)
     db.session.commit()
     flash("Design saved", "success")
     return redirect(url_for("main.frontend_design"))
@@ -11301,6 +11305,11 @@ def frontend_navigation():
     return redirect(url_for("main.frontend_header") + "#menu")
 
 
+def _prebuilt_footer_blocks():
+    from .frontend import FOOTER_PREBUILT_BLOCKS
+    return FOOTER_PREBUILT_BLOCKS
+
+
 def _footer_active_block_types(active_key, active_rows):
     """Return the set of block-type strings used by the active footer
     layout. For prebuilt keys we read from the hardcoded mapping above;
@@ -11314,7 +11323,7 @@ def _footer_active_block_types(active_key, active_rows):
                     if t:
                         types.add(t)
         return types
-    return set(_FOOTER_PREBUILT_BLOCK_TYPES.get(active_key, []))
+    return set(_prebuilt_footer_blocks().get(active_key, []))
 
 
 def _footer_active_block_order(active_key, active_rows):
@@ -11333,7 +11342,7 @@ def _footer_active_block_order(active_key, active_rows):
                         seen.add(t)
                         order.append(t)
         return order
-    for t in _FOOTER_PREBUILT_BLOCK_TYPES.get(active_key, []):
+    for t in _prebuilt_footer_blocks().get(active_key, []):
         if t not in seen:
             seen.add(t); order.append(t)
     return order
@@ -11354,7 +11363,8 @@ def frontend_footer():
     icons hides the Social icons editor — the data still persists in
     JSON; switching back reveals the editor and its saved values."""
     import json as _json
-    from .frontend import all_footer_layouts, FOOTER_BLOCK_CATALOG
+    from .frontend import (all_footer_layouts, FOOTER_BLOCK_CATALOG, THEMES,
+                           FOOTER_SURFACE_THEMES)
     s = _get_site_setting()
     active_key = (s.frontend_footer_template if s else None) or "classic"
     active_layout = CustomLayout.query.filter_by(key=active_key, kind="footer").first()
@@ -11364,52 +11374,27 @@ def frontend_footer():
             active_rows = _normalize_footer_blocks(_json.loads(active_layout.blocks_json or "[]"))
         except (ValueError, TypeError):
             active_rows = []
-    active_block_types = _footer_active_block_types(active_key, active_rows)
-    active_block_order = _footer_active_block_order(active_key, active_rows)
-    # Rows for the inline structure builder. A custom layout supplies its
-    # own rows; a prebuilt is seeded as a vertical stack of its blocks so
-    # the footer is always editable inline (the admin re-columns as they
-    # like; saving turns a prebuilt into an editable custom layout).
-    if active_rows:
-        footer_rows = active_rows
-    else:
-        footer_rows = [{"type": "row", "cols": 1, "columns": [[{"type": t}]]}
-                       for t in (active_block_order or [])]
-    # Pre-defined Meeting Locations from Settings — surfaced in the
-    # meeting_locations modal as a checkbox list so the admin can pull
-    # them in without retyping. Only in-person locations are shown
-    # (online meetings have no address to render in the footer).
+    used_types = _footer_active_block_types(active_key, active_rows)
+    # Pre-defined Meeting Locations from Settings, offered as a checklist
+    # in the Locations tab. In-person only: online meetings have no
+    # address to show.
     all_locations = (Location.query
                      .filter(Location.location_type == "in_person")
                      .order_by(Location.name).all())
+    layouts = all_footer_layouts()
+    active_name = next((l.name for l in layouts if l.key == active_key), active_key)
+    theme_key = s.frontend_theme or "classic"
     return render_template("frontend_footer.html", site=s,
-                           footer_layouts=all_footer_layouts(),
+                           footer_layouts=layouts,
                            footer_block_catalog=FOOTER_BLOCK_CATALOG,
-                           active_layout=active_layout,
-                           active_layout_rows=active_rows,
-                           active_block_types=active_block_types,
-                           active_block_order=active_block_order,
-                           footer_rows=footer_rows,
-                           all_locations=all_locations)
-
-
-@bp.route("/frontend/footer-template", methods=["POST"])
-@admin_required
-def frontend_footer_template_save():
-    """Set the active footer layout. Accepts either a hardcoded prebuilt
-    key (FOOTER_TEMPLATES) OR a CustomLayout row of kind='footer' built
-    via the structure-layout drag-drop builder."""
-    from .frontend import FOOTER_TEMPLATES
-    s = _get_site_setting()
-    key = (request.form.get("frontend_footer_template") or "").strip()
-    valid_keys = {t["key"] for t in FOOTER_TEMPLATES}
-    if CustomLayout.query.filter_by(key=key, kind="footer").first():
-        valid_keys.add(key)
-    if key in valid_keys:
-        s.frontend_footer_template = key
-        db.session.commit()
-        flash(f"Footer layout set to {key}", "success")
-    return redirect(url_for("main.frontend_footer"))
+                           active_key=active_key, active_name=active_name,
+                           is_custom=active_layout is not None,
+                           footer_rows=active_rows or [],
+                           used_types=used_types,
+                           prebuilt_order=_footer_active_block_order(active_key, None) if not active_layout else [],
+                           all_locations=all_locations,
+                           theme_name=next((t["name"] for t in THEMES if t["key"] == theme_key), theme_key),
+                           surface_follows=theme_key in FOOTER_SURFACE_THEMES)
 
 
 _HOMEPAGE_BLOCK_CATALOG = [
@@ -14998,49 +14983,64 @@ def frontend_popup_delete(popup_id):
 @bp.route("/frontend/footer-save", methods=["POST"])
 @admin_required
 def frontend_footer_save():
-    """Save the structured footer content + container settings (width
-    mode, max width, padding %). The legacy plain-text `frontend_footer_text`
-    field is still accepted for backwards compat — old templates that
-    haven't migrated yet read from it as a copyright fallback."""
-    import json as _json
-    from .blocks import parse_footer
+    """Save the footer's content (the tabs on the Footer page), the chosen
+    layout and, for a custom layout, its rows. How the footer looks
+    (background, width, height, text size) is saved from Design → Footer."""
     s = _get_site_setting()
-    # Width mode
-    raw_w = (request.form.get("frontend_footer_width_mode") or "").strip().lower()
-    s.frontend_footer_width_mode = raw_w if raw_w in _WIDTH_MODES else "boxed"
-    try:
-        s.frontend_footer_max_width = max(640, min(int(request.form.get("frontend_footer_max_width") or 1160), 2400))
-    except (TypeError, ValueError):
-        s.frontend_footer_max_width = 1160
-    try:
-        s.frontend_footer_padding_pct = max(0, min(int(request.form.get("frontend_footer_padding_pct") or 5), 20))
-    except (TypeError, ValueError):
-        s.frontend_footer_padding_pct = 5
-    # Background mode — 'dark' (default; footer always dark) or 'light'
-    # (follows page theme).
-    raw_bg = (request.form.get("frontend_footer_bg_mode") or "").strip().lower()
-    s.frontend_footer_bg_mode = raw_bg if raw_bg in ("light", "dark") else "dark"
-    # Min-height in vh (0 = no min-height; clamp 0-100).
-    try:
-        s.frontend_footer_min_height_vh = max(0, min(int(request.form.get("frontend_footer_min_height_vh") or 0), 100))
-    except (TypeError, ValueError):
-        s.frontend_footer_min_height_vh = 0
-    # Font scale percentage — desktop-first; mobile media queries cap
-    # the upper bound so a 200% setting doesn't blow out a phone view.
-    try:
-        s.frontend_footer_font_scale = max(50, min(int(request.form.get("frontend_footer_font_scale") or 100), 200))
-    except (TypeError, ValueError):
-        s.frontend_footer_font_scale = 100
-    # Brand custom-logo upload — handled before parse_footer so the
-    # uploaded filename ends up on `s.frontend_brand_logo_filename`. The
-    # brand block's `logo_source` lives in the JSON content (see below)
-    # and the public render dispatches on it. A `clear_brand_logo`
-    # checkbox on the modal removes the file (the saved filename only;
-    # the on-disk asset is left for cleanup later).
-    if "footer_brand_present" in request.form:
-        if request.form.get("clear_brand_logo") == "1":
+    _apply_footer_form(s, request.form, request.files)
+    db.session.commit()
+    flash("Footer saved", "success")
+    return redirect(url_for("main.frontend_footer"))
+
+
+@bp.route("/frontend/footer/customize", methods=["POST"])
+@admin_required
+def frontend_footer_customize():
+    """Save the posted footer form, then turn the active prebuilt layout
+    into an editable custom copy and switch to it. The prebuilt stays in
+    the list, unchanged."""
+    import json as _json
+    from .frontend import FOOTER_PREBUILT_ROWS, FOOTER_TEMPLATES
+    s = _get_site_setting()
+    _apply_footer_form(s, request.form, request.files)
+    src = s.frontend_footer_template or "classic"
+    if src in FOOTER_PREBUILT_ROWS:
+        name = next((t["name"] for t in FOOTER_TEMPLATES if t["key"] == src), src)
+        n = 1
+        key = f"footer-custom-{src}"
+        while CustomLayout.query.filter_by(key=key, kind="footer").first():
+            n += 1
+            key = f"footer-custom-{src}-{n}"
+        db.session.add(CustomLayout(key=key, kind="footer", is_prebuilt=False,
+                                    name=f"{name}, customized" + (f" {n}" if n > 1 else ""),
+                                    blocks_json=_json.dumps(FOOTER_PREBUILT_ROWS[src])))
+        s.frontend_footer_template = key
+        flash(f"Made an editable copy of the {name} footer. Arrange its blocks below.", "success")
+    db.session.commit()
+    return redirect(url_for("main.frontend_footer") + "#layout")
+
+
+def _apply_footer_form(s, form, files):
+    """Apply the Footer page's form to ``s``: layout choice, content, and
+    the rows of a custom layout. The caller commits."""
+    import json as _json
+    from .blocks import parse_footer, footer_content
+    from .frontend import FOOTER_TEMPLATES
+    # Layout choice: a prebuilt key or a footer CustomLayout.
+    key = (form.get("frontend_footer_template") or "").strip()
+    if key and (key in {t["key"] for t in FOOTER_TEMPLATES}
+                or CustomLayout.query.filter_by(key=key, kind="footer").first()):
+        s.frontend_footer_template = key
+    # Older posts (and the Design page before it moved) carried the
+    # footer's size settings; they are only written when present.
+    if "frontend_footer_width_mode" in form:
+        _save_footer_size(s, form)
+    # Brand block's own logo. `clear_brand_logo` forgets the file name;
+    # the file itself is left for cleanup.
+    if "footer_brand_present" in form:
+        if form.get("clear_brand_logo") == "1":
             s.frontend_brand_logo_filename = None
-        upload = request.files.get("frontend_brand_logo")
+        upload = files.get("frontend_brand_logo") if files else None
         if upload and upload.filename:
             from werkzeug.utils import secure_filename
             from uuid import uuid4
@@ -15050,44 +15050,56 @@ def frontend_footer_save():
             upload.save(os.path.join(current_app.config["UPLOAD_FOLDER"], stored))
             s.frontend_brand_logo_filename = stored
             imgcache.note_image_change()  # bust cached brand-logo URL
-    # Structured content — only update if the form-level marker is
-    # present. parse_footer is given the existing content so any section
-    # whose editor card was hidden (because the active layout doesn't
-    # use that block) preserves its saved values instead of being wiped.
-    if "footer_blocks_present" in request.form:
-        from .blocks import footer_content
-        existing = footer_content(s)
-        content = parse_footer(request.form, existing=existing)
+    # Content: parse_footer keeps each section whose editor didn't post.
+    if "footer_blocks_present" in form:
+        content = parse_footer(form, existing=footer_content(s))
         s.frontend_footer_blocks_json = _json.dumps(content)
-    # Footer arrangement from the inline structure builder → a footer
-    # CustomLayout (rows/columns of block types). The public render reads
-    # this layout + the content dict above, so the two stay decoupled.
-    raw_layout = request.form.get("footer_layout_json")
-    if raw_layout is not None:
+    # Rows are only posted by the custom-layout builder, and only change
+    # the active custom layout; a prebuilt is never rewritten here.
+    raw_layout = form.get("footer_layout_json")
+    if raw_layout:
         try:
             rows = _json.loads(raw_layout)
         except (ValueError, TypeError):
             rows = None
-        if isinstance(rows, list):
-            rows = _normalize_footer_blocks(rows)
-            active_key = (s.frontend_footer_template or "classic")
-            cl = CustomLayout.query.filter_by(key=active_key, kind="footer").first()
-            if cl is None:
-                # Active layout is a prebuilt — promote to an editable
-                # custom layout the inline builder owns going forward.
-                cl = CustomLayout.query.filter_by(key="footer-custom", kind="footer").first()
-                if cl is None:
-                    cl = CustomLayout(key="footer-custom", kind="footer",
-                                      name="Custom footer", is_prebuilt=False)
-                    db.session.add(cl)
-                s.frontend_footer_template = "footer-custom"
-            cl.blocks_json = _json.dumps(rows)
-    # Legacy single-textarea field — still supported.
-    if "frontend_footer_text" in request.form:
-        s.frontend_footer_text = (request.form.get("frontend_footer_text") or "").strip() or None
-    db.session.commit()
-    flash("Footer saved", "success")
-    return redirect(url_for("main.frontend_footer"))
+        cl = CustomLayout.query.filter_by(key=s.frontend_footer_template or "", kind="footer").first()
+        if isinstance(rows, list) and cl is not None:
+            cl.blocks_json = _json.dumps(_normalize_footer_blocks(rows))
+
+
+def _save_footer_size(s, form):
+    """Footer width, minimum height and text size (Design → Footer)."""
+    from .widths import normalize_width_mode
+
+    def _int(name, lo, hi, default):
+        try:
+            v = int(form.get(name) or default)
+        except (TypeError, ValueError):
+            v = default
+        return max(lo, min(v, hi))
+
+    s.frontend_footer_width_mode = normalize_width_mode(
+        form.get("frontend_footer_width_mode"), s.frontend_footer_width_mode or "boxed")
+    s.frontend_footer_max_width = _int("frontend_footer_max_width", 600, 2400, 1160)
+    s.frontend_footer_padding_pct = _int("frontend_footer_padding_pct", 0, 20, 5)
+    s.frontend_footer_min_height_vh = _int("frontend_footer_min_height_vh", 0, 100, 0)
+    s.frontend_footer_font_scale = _int("frontend_footer_font_scale", 50, 200, 100)
+
+
+def _save_footer_appearance(s, form):
+    """Design → Footer: size, the always-dark or follow-page mode, and the
+    background (style, its settings, particles). The caller commits."""
+    import json as _json
+    from .blocks import parse_footer_bg, footer_content
+    _save_footer_size(s, form)
+    mode = (form.get("frontend_footer_bg_mode") or "").strip().lower()
+    if mode in ("light", "dark"):
+        s.frontend_footer_bg_mode = mode
+    bg = parse_footer_bg(form)
+    if bg is not None:
+        content = footer_content(s)
+        content["bg"] = bg
+        s.frontend_footer_blocks_json = _json.dumps(content)
 
 
 @public_bp.route("/site-branding/frontend-logo")

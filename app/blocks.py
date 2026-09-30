@@ -742,7 +742,7 @@ def _normalize_footer(stored):
     social = [_coerce_footer_social(s) for s in social_in] if isinstance(social_in, list) else []
     nav_in = stored.get("secondary_nav")
     if isinstance(nav_in, list):
-        secondary_nav = [_coerce_footer_link(l, with_new_tab=False) for l in nav_in]
+        secondary_nav = [_coerce_footer_link(l) for l in nav_in]
     else:
         secondary_nav = list(FOOTER_DEFAULTS["secondary_nav"])
     copyright_str = stored.get("copyright")
@@ -1088,6 +1088,77 @@ FOOTER_MAX_LOCATIONS = 12
 FOOTER_MAX_CONTACT_PANES = 4
 
 
+def parse_footer_bg(form):
+    """Read the footer background controls (_footer_bg_controls.html,
+    on Design → Footer) into a normalized background dict, or None when
+    the post doesn't carry them (``footer_bg_section_present``)."""
+    if "footer_bg_section_present" not in form:
+        return None
+    # Sinewave palette — four discrete colour pickers
+    # `footer_bg_sinewave_c1` … `c4`. Empty / non-hex slots drop out
+    # so the public footer falls back to the default teal→blue→purple
+    # when no valid colours are stored. Legacy comma-separated
+    # `footer_bg_sinewave_colors` field is still honoured for posts
+    # from older form caches.
+    sw_list = []
+    for i in range(1, 5):
+        c = (form.get(f"footer_bg_sinewave_c{i}") or "").strip()
+        if c and _coerce_hex(c):
+            sw_list.append(c)
+    if not sw_list:
+        sw_raw = (form.get("footer_bg_sinewave_colors") or "").strip()
+        if sw_raw:
+            try:
+                import json as _json_local
+                parsed = _json_local.loads(sw_raw)
+                if isinstance(parsed, list):
+                    sw_list = [str(c) for c in parsed]
+            except (ValueError, TypeError):
+                sw_list = [c.strip() for c in sw_raw.split(",") if c.strip()]
+    # Wave-shape JSON — emitted by the admin's Randomize button as a
+    # `{f1Mul, f2Mul, amp1, amp2, phase}` blob. Empty / invalid →
+    # fall back to the canonical wave on the public painter.
+    sw_wave = None
+    raw_wave = (form.get("footer_bg_sinewave_wave") or "").strip()
+    if raw_wave:
+        try:
+            import json as _json_local
+            parsed_wave = _json_local.loads(raw_wave)
+            if isinstance(parsed_wave, dict):
+                sw_wave = parsed_wave
+        except (ValueError, TypeError):
+            sw_wave = None
+    # Solid and Gradient each have their own first color input. A
+    # Solid color stays empty (the theme's footer color) until the
+    # admin picks one, flagged by `footer_bg_color_custom`.
+    _style = (form.get("footer_bg_style") or "").strip()
+    if _style == "gradient":
+        _color = form.get("footer_bg_gradient_start") or form.get("footer_bg_color")
+    elif "footer_bg_color_custom" in form and form.get("footer_bg_color_custom") != "1":
+        _color = ""
+    else:
+        _color = form.get("footer_bg_color")
+    return _normalize_footer_bg({
+        "style":            form.get("footer_bg_style"),
+        "color":            _color,
+        "color_2":          form.get("footer_bg_color_2"),
+        "gradient_angle":   form.get("footer_bg_gradient_angle"),
+        "hue":              form.get("footer_bg_hue"),
+        "hue_2":            form.get("footer_bg_hue_2"),
+        "blur":             form.get("footer_bg_blur"),
+        "opacity":          form.get("footer_bg_opacity"),
+        "randomize":        form.get("footer_bg_randomize") == "1",
+        "sinewave_colors":  sw_list,
+        "sinewave_wave":    sw_wave,
+        "sinewave_randomize_colors": form.get("footer_bg_sinewave_randomize_colors") == "1",
+        "sinewave_randomize_wave":   form.get("footer_bg_sinewave_randomize_wave") == "1",
+        "particle_enabled": form.get("footer_bg_particle_enabled") == "1",
+        "particle_effect":  form.get("footer_bg_particle_effect"),
+        "particle_speed":   form.get("footer_bg_particle_speed"),
+        "particle_size":    form.get("footer_bg_particle_size"),
+    })
+
+
 def parse_footer(form, existing=None):
     """Read the structured footer admin form into the canonical dict.
     Each editor section carries its own `footer_<section>_present`
@@ -1182,7 +1253,8 @@ def parse_footer(form, existing=None):
             url   = (form.get(f"footer_nav_{i}_url")   or "").strip()
             if not (label or url):
                 continue
-            secondary_nav.append({"label": label, "url": url})
+            secondary_nav.append({"label": label, "url": url,
+                                  "open_in_new_tab": form.get(f"footer_nav_{i}_new_tab") == "1"})
             if len(secondary_nav) >= FOOTER_MAX_SECONDARY:
                 break
     else:
@@ -1275,73 +1347,9 @@ def parse_footer(form, existing=None):
     else:
         copyright_str = existing.get("copyright") or FOOTER_DEFAULTS["copyright"]
 
-    # ── Background (style + per-style settings + particle overlay) ──
-    if "footer_bg_section_present" in form:
-        # Sinewave palette — four discrete colour pickers
-        # `footer_bg_sinewave_c1` … `c4`. Empty / non-hex slots drop out
-        # so the public footer falls back to the default teal→blue→purple
-        # when no valid colours are stored. Legacy comma-separated
-        # `footer_bg_sinewave_colors` field is still honoured for posts
-        # from older form caches.
-        sw_list = []
-        for i in range(1, 5):
-            c = (form.get(f"footer_bg_sinewave_c{i}") or "").strip()
-            if c and _coerce_hex(c):
-                sw_list.append(c)
-        if not sw_list:
-            sw_raw = (form.get("footer_bg_sinewave_colors") or "").strip()
-            if sw_raw:
-                try:
-                    import json as _json_local
-                    parsed = _json_local.loads(sw_raw)
-                    if isinstance(parsed, list):
-                        sw_list = [str(c) for c in parsed]
-                except (ValueError, TypeError):
-                    sw_list = [c.strip() for c in sw_raw.split(",") if c.strip()]
-        # Wave-shape JSON — emitted by the admin's Randomize button as a
-        # `{f1Mul, f2Mul, amp1, amp2, phase}` blob. Empty / invalid →
-        # fall back to the canonical wave on the public painter.
-        sw_wave = None
-        raw_wave = (form.get("footer_bg_sinewave_wave") or "").strip()
-        if raw_wave:
-            try:
-                import json as _json_local
-                parsed_wave = _json_local.loads(raw_wave)
-                if isinstance(parsed_wave, dict):
-                    sw_wave = parsed_wave
-            except (ValueError, TypeError):
-                sw_wave = None
-        # Solid and Gradient each have their own first color input. A
-        # Solid color stays empty (the theme's footer color) until the
-        # admin picks one, flagged by `footer_bg_color_custom`.
-        _style = (form.get("footer_bg_style") or "").strip()
-        if _style == "gradient":
-            _color = form.get("footer_bg_gradient_start") or form.get("footer_bg_color")
-        elif "footer_bg_color_custom" in form and form.get("footer_bg_color_custom") != "1":
-            _color = ""
-        else:
-            _color = form.get("footer_bg_color")
-        bg = _normalize_footer_bg({
-            "style":            form.get("footer_bg_style"),
-            "color":            _color,
-            "color_2":          form.get("footer_bg_color_2"),
-            "gradient_angle":   form.get("footer_bg_gradient_angle"),
-            "hue":              form.get("footer_bg_hue"),
-            "hue_2":            form.get("footer_bg_hue_2"),
-            "blur":             form.get("footer_bg_blur"),
-            "opacity":          form.get("footer_bg_opacity"),
-            "randomize":        form.get("footer_bg_randomize") == "1",
-            "sinewave_colors":  sw_list,
-            "sinewave_wave":    sw_wave,
-            "sinewave_randomize_colors": form.get("footer_bg_sinewave_randomize_colors") == "1",
-            "sinewave_randomize_wave":   form.get("footer_bg_sinewave_randomize_wave") == "1",
-            "particle_enabled": form.get("footer_bg_particle_enabled") == "1",
-            "particle_effect":  form.get("footer_bg_particle_effect"),
-            "particle_speed":   form.get("footer_bg_particle_speed"),
-            "particle_size":    form.get("footer_bg_particle_size"),
-        })
-    else:
-        bg = existing.get("bg") or _normalize_footer_bg(None)
+    # ── Background: set on Design → Footer (parse_footer_bg); kept
+    #    as saved unless this post carries the background controls. ──
+    bg = parse_footer_bg(form) or existing.get("bg") or _normalize_footer_bg(None)
 
     return {
         "brand": brand,

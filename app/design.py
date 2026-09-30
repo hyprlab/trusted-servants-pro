@@ -978,6 +978,36 @@ DESIGN_FIELDS = [
     {"key": "card_secondary_hover_transform", "kind": "scale", "scale": "transform",
      "group": "Card styles", "label": "Secondary card — hover transform"},
 ]
+# Dark footer colors (Design → Footer). The same defaults in every theme:
+# they are the values frontend.css hard-coded before they were settings,
+# and only the Classic and Recovery Blue footers read them (the other
+# themes paint their footer in themes/<key>.css).
+FOOTER_DARK_DEFAULTS = {
+    "color_footer_dark_bg":         "#0b1026",
+    "color_footer_dark_line":       "#1f2a44",
+    "color_footer_dark_text":       "#f1f5f9",
+    "color_footer_dark_muted":      "#94a3b8",
+    "color_footer_dark_chip":       "#131a33",
+    "color_footer_dark_chip_hover": "#7aa3ff",
+}
+for _defaults in THEME_DEFAULTS.values():
+    for _k, _v in FOOTER_DARK_DEFAULTS.items():
+        _defaults.setdefault(_k, _v)
+
+DESIGN_FIELDS += [
+    {"key": "color_footer_dark_bg", "kind": "color", "group": "Footer", "label": "Background",
+     "help": "Behind a dark footer when its background style doesn't paint one (a Solid style with no color picked)."},
+    {"key": "color_footer_dark_line", "kind": "color", "group": "Footer", "label": "Lines",
+     "help": "The top border and the rules between rows."},
+    {"key": "color_footer_dark_text", "kind": "color", "group": "Footer", "label": "Text on a light page",
+     "help": "Text and links of the always-dark footer while the rest of the page is light."},
+    {"key": "color_footer_dark_muted", "kind": "color", "group": "Footer", "label": "Text on a dark page",
+     "help": "Links, tagline and copyright when the whole page is in dark mode; kept quiet against the dark page."},
+    {"key": "color_footer_dark_chip", "kind": "color", "group": "Footer", "label": "Social icon",
+     "help": "The circle behind each social icon."},
+    {"key": "color_footer_dark_chip_hover", "kind": "color", "group": "Footer", "label": "Social icon on hover"},
+]
+
 DESIGN_FIELDS_BY_KEY = {f["key"]: f for f in DESIGN_FIELDS}
 
 # Map "scale" name → the actual scale dict.
@@ -1189,7 +1219,8 @@ def design_css_vars(site):
                 "color_card_secondary_bg", "color_card_secondary_bg_dark",
                 "color_card_secondary_border", "color_card_secondary_border_dark",
                 "color_card_primary_hover_border",
-                "color_card_secondary_hover_border"):
+                "color_card_secondary_hover_border",
+                *FOOTER_DARK_DEFAULTS):
         parts.append("--fe-{}: {};".format(key.replace("_", "-"), chosen[key]))
 
     # Auto-derived dark-mode variants for chrome links that sit on dark

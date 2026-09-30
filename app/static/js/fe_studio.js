@@ -68,6 +68,10 @@
     document.addEventListener('click', function (e) {
       var g = e.target.closest('[data-studio-goto]');
       if (!g) return;
+      // A control inside the element (a pill's remove button) keeps its
+      // own job.
+      var ctl = e.target.closest('button, a, input, select, label');
+      if (ctl && ctl !== g && g.contains(ctl)) return;
       var root = document.querySelector('[data-studio]');
       if (root && root._studioShow) { e.preventDefault(); root._studioShow(g.getAttribute('data-studio-goto'), true); }
     });

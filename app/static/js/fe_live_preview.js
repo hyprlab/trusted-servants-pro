@@ -137,9 +137,10 @@
     sources.forEach(function (fn) {
       try { var x = fn(); if (x && x.action) forms.push(x); } catch (_) {}
     });
+    // Keep the reader's place across re-renders, once a page has shown.
     try {
       var doc = this.frame.contentDocument;
-      if (doc && doc.scrollingElement) this.scrollY = doc.scrollingElement.scrollTop;
+      if (this.loaded && doc && doc.scrollingElement) this.scrollY = doc.scrollingElement.scrollTop;
     } catch (_) { /* not loaded yet */ }
     this.root.classList.add('is-loading');
     this.setStatus('Updating…');
@@ -173,6 +174,8 @@
   };
 
   Preview.prototype.onLoad = function () {
+    if (!this.frame.srcdoc) return;  // the initial blank frame
+    this.loaded = true;
     this.root.classList.remove('is-loading');
     this.setStatus('');
     this.applyMode();
@@ -182,13 +185,19 @@
     d.addEventListener('submit', function (e) { e.preventDefault(); }, true);
     var focus = this.root.getAttribute('data-lp-focus');
     var se = d.scrollingElement || d.documentElement;
-    if (this.scrollY !== null) {
-      se.scrollTop = this.scrollY;
-    } else if (focus) {
-      var el = d.querySelector(focus);
-      if (el) se.scrollTop = Math.max(0, el.getBoundingClientRect().top + se.scrollTop - 12);
-    }
     this.fit();
+    var self = this;
+    var place = function () {
+      if (self.scrollY !== null) {
+        se.scrollTop = self.scrollY;
+      } else if (focus) {
+        var el = d.querySelector(focus);
+        if (el) se.scrollTop = Math.max(0, el.getBoundingClientRect().top + se.scrollTop - 12);
+      }
+    };
+    place();
+    // Images and fonts can move things after load; settle once more.
+    setTimeout(place, 350);
   };
 
   // Render at a real viewport width and scale it down to the column.
@@ -228,6 +237,7 @@
       if (!el || !el._lp) return;
       el.setAttribute('data-lp-path', path);
       el._lp.scrollY = null;
+      el._lp.loaded = false;
       el._lp.render();
     }
   };

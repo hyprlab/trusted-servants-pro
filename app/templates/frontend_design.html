@@ -218,7 +218,7 @@
     </div>
     <input type="range" class="ds-range" name="{{ name }}" value="{{ value }}"
            min="{{ lo }}" max="{{ hi }}" step="{{ step }}" aria-label="{{ label }}">
-    <div class="ds-ticks ds-ticks--ends" aria-hidden="true"><span>{{ lo }}{{ '%' if fmt in ('pct', 'percent') else (' ms' if fmt == 'ms' else 'px') }}</span><span>{{ hi }}{{ '%' if fmt in ('pct', 'percent') else (' ms' if fmt == 'ms' else 'px') }}</span></div>
+    <div class="ds-ticks ds-ticks--ends" aria-hidden="true"><span>{{ lo }}{{ '%' if fmt in ('pct', 'percent') else (' ms' if fmt == 'ms' else ('vh' if fmt == 'vh' else 'px')) }}</span><span>{{ hi }}{{ '%' if fmt in ('pct', 'percent') else (' ms' if fmt == 'ms' else ('vh' if fmt == 'vh' else 'px')) }}</span></div>
     {{ na_note(kinds) }}
   </div>
 {% endmacro %}
@@ -285,6 +285,7 @@
   ('links',   'Links',   'link'),
   ('header',  'Header',  'panel-top'),
   ('megamenu', 'Mega menu', 'menu'),
+  ('footer',  'Footer',  'panel-bottom'),
   ('layout',  'Layout',  'layout-grid'),
   ('cards',   'Cards',   'square'),
   ('buttons', 'Buttons', 'mouse-pointer-click'),
@@ -300,6 +301,7 @@
      settings too. #}
   <input type="hidden" name="mega_appearance" value="1">
   <input type="hidden" name="header_appearance" value="1">
+  <input type="hidden" name="footer_appearance" value="1">
 
   <section class="card ds-studio" data-ds-studio data-no-collapse>
     <div class="card-head ds-studio-head">
@@ -341,6 +343,9 @@
            this form's unsaved values applied. #}
         <div class="ds-live" data-ds-live-for="header" hidden>
           {{ live_preview(url_for('frontend.index'), '.ds-form', height=340, title='Header, live') }}
+        </div>
+        <div class="ds-live" data-ds-live-for="footer" hidden>
+          {{ live_preview(url_for('frontend.index'), '.ds-form', focus='footer.fe-footer, footer', height=460, title='Footer, live') }}
         </div>
       </div>
 
@@ -488,6 +493,49 @@
                       'Stagger speed', 'ms', _rb, requires='frontend_megamenu_animate_mobile') }}
             {{ prange('frontend_megamenu_panel_fade_mobile_ms', site.frontend_megamenu_panel_fade_mobile_ms if site.frontend_megamenu_panel_fade_mobile_ms is not none else 180, 0, 1500, 20,
                       'Fade speed', 'ms', _colored) }}
+          {% endcall %}
+        </div>
+
+        {# ── Footer: its surface (always dark or following the page, the
+           background style and particles), size, and the colors of a
+           dark footer. Previewed live from the real footer. #}
+        {% set _bg = footer_content(site).bg %}
+        {% set _fmode = site.frontend_footer_bg_mode or 'dark' %}
+        <div class="ds-panel" role="tabpanel" id="ds-panel-footer" aria-labelledby="ds-tab-footer" data-ds-panel="footer" hidden>
+          <p class="ds-note ds-note--panel">What goes in the footer, and its layout, are on the <a href="{{ url_for('main.frontend_footer') }}">Footer</a> page.{% if not footer_surface_follows %} The <b>{{ theme_name }}</b> theme paints its own footer, so the background and dark colors below aren't used; size and text size still apply.{% endif %}</p>
+          {% call group('Surface', 'square') %}
+            <div class="ds-row{% if not footer_surface_follows %} is-na{% endif %}">
+              <span class="ds-label">Color scheme {% call chip('Color scheme') %}Always dark keeps the footer dark on a light page too. Follow the page makes it light or dark with the rest of the site.{% endcall %}</span>
+              <div class="ds-seg-btns" role="radiogroup" aria-label="Footer color scheme">
+                <label><input type="radio" name="frontend_footer_bg_mode" value="dark" {% if _fmode == 'dark' %}checked{% endif %}>{{ icon('moon') }}<span>Always dark</span></label>
+                <label><input type="radio" name="frontend_footer_bg_mode" value="light" {% if _fmode == 'light' %}checked{% endif %}>{{ icon('sun') }}<span>Follow the page</span></label>
+              </div>
+            </div>
+            <div class="fbg{% if not footer_surface_follows %} is-na{% endif %}" data-footer-bg-editor>
+              {% include "_footer_bg_controls.html" %}
+            </div>
+          {% endcall %}
+          {% call group('Size', 'maximize') %}
+            <div class="ds-row">
+              {{ width_control('frontend_footer_width_mode', site.frontend_footer_width_mode,
+                               'frontend_footer_max_width', site.frontend_footer_max_width,
+                               'frontend_footer_padding_pct', site.frontend_footer_padding_pct,
+                               site_px, label='Width') }}
+            </div>
+            {{ prange('frontend_footer_min_height_vh', site.frontend_footer_min_height_vh or 0, 0, 100, 5,
+                      'Minimum height', 'vh', ['all'], help='0 fits the footer to its content. In vh, a share of the screen height.') }}
+            {{ prange('frontend_footer_font_scale', site.frontend_footer_font_scale or 100, 50, 200, 5,
+                      'Text size', 'percent', ['all'], help='100% is the normal size. Phones cap it lower so large sizes still fit.') }}
+          {% endcall %}
+          {% call group('Dark footer colors', 'droplet') %}
+            <div class="ds-row-wrap{% if not footer_surface_follows %} is-na{% endif %}">
+              <p class="ds-note">A light footer (Follow the page, light mode) uses the site's text colors from the Colors tab.</p>
+              {{ color_row('color_footer_dark_bg', 'Background') }}
+              {{ color_row('color_footer_dark_line', 'Lines') }}
+              {{ color_row('color_footer_dark_text', 'Text on a light page') }}
+              {{ color_row('color_footer_dark_muted', 'Text on a dark page') }}
+              {{ color_pair('Social icons', 'color_footer_dark_chip', 'color_footer_dark_chip_hover', ('Rest', 'Hover'), ('', 'mouse-pointer-click')) }}
+            </div>
           {% endcall %}
         </div>
 
@@ -798,4 +846,5 @@
 } | tojson }}</script>
 <script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/design_studio.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/footer_bg_controls.js', v=app_build_id) }}"></script>
 {% endblock %}

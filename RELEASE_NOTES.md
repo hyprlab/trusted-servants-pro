@@ -47,6 +47,11 @@ release notes expanded by default and the changelog collapsed.
 - Branding (formerly Branding & SEO) has tabs for Name and logo, Icons, and Search and sharing, each beside a preview of where it shows: the browser tab and header, a phone home screen, a search result and a chat link preview. The previews follow your edits and newly chosen images before you save.
 - The logo image is set on Branding. It used to be on the Header page; its size is on Design → Header.
 - The site description is always sent to search engines. Before, turning off link previews also dropped the description, leaving only the homepage tagline. Link previews now use the site address from Settings for their links and image when it is set, so a site behind a proxy no longer shares its internal address.
+- The Footer page shows the real footer in a live preview above tabs for Layout, Brand, Link columns, Secondary links, Social icons, Locations, Contact and Copyright. Each content editor is a tab instead of a pop-up, and a tab the current layout doesn't show is marked off, with a note saying its content is kept.
+- Choosing a built-in footer layout (Classic, Minimal, Stacked, Mega) lists what it shows. "Customize this layout" makes an editable copy to rearrange; the built-in one stays available. Before, dragging a block in a built-in layout silently replaced it with a generic custom footer.
+- The footer's look moved to a Footer tab on the Design page: always dark or following the page, the background style and particles, width, minimum height and text size, and new settings for the dark footer's colors (background, lines, text and social icons), which were fixed before. Its preview is the real footer. On themes that paint their own footer the background and colors are marked as unused.
+- Footer social icons are chosen with the icon picker instead of typing an icon name, and secondary links can open in a new tab. The icon picker for footer locations now opens; it was missing from the Footer page.
+- The Footer page no longer fails to open when a built-in footer layout is active.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

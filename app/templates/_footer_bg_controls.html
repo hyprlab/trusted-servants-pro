@@ -1,0 +1,199 @@
+{# Footer background controls: style (Frosty, Solid, Gradient, Sinewave),
+   each style's settings, and the particle overlay. Rendered on Design →
+   Footer inside [data-footer-bg-editor]; footer_bg_controls.js drives it,
+   and blocks.parse_footer_bg() reads what it posts. Expects `_bg`, the
+   normalized footer background dict. #}
+{% from "_help_chip.html" import chip, hrow %}
+<input type="hidden" name="footer_bg_section_present" value="1">
+    {# Style picker — segmented radios (same shape as the hero admin's
+       background-style segment). #}
+    <div class="nav-megalink-field fe-footer-bg-style-row">
+      <span class="nav-megalink-field-lbl">Style</span>
+      <div class="nav-megalink-seg">
+        {% for _k, _lbl in [('frosty','Frosty'),('solid','Solid'),('gradient','Gradient'),('sinewave','Sinewave')] %}
+        <label class="nav-megalink-seg-opt">
+          <input type="radio" name="footer_bg_style" value="{{ _k }}"
+                 data-bg-style-radio {% if _bg.style == _k %}checked{% endif %}>
+          <span>{{ _lbl }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# Per-style panels — only the panel matching the selected style is
+       visible. The hidden panels keep their values so switching back
+       restores the saved settings. #}
+    <div class="hero-bg-panels fe-footer-bg-panels">
+
+      {# Frosty pane #}
+      <div class="hero-bg-panel" data-bg-panel="frosty"{% if _bg.style != 'frosty' %} hidden{% endif %}>
+        <p class="muted smaller">Soft moving blobs of color. Set their hues, blur and strength.</p>
+        <div class="hero-bg-grid">
+          <div class="nav-megalink-field hero-slider-field">
+            <span class="nav-megalink-field-lbl">Primary hue <output data-slider-out>{{ _bg.hue }}</output>°</span>
+            <input type="range" name="footer_bg_hue" min="0" max="360" step="5"
+                   value="{{ _bg.hue }}" data-slider-input data-bg-live="hue">
+          </div>
+          <div class="nav-megalink-field hero-slider-field">
+            <span class="nav-megalink-field-lbl">Accent hue <output data-slider-out>{{ _bg.hue_2 }}</output>°</span>
+            <input type="range" name="footer_bg_hue_2" min="0" max="360" step="5"
+                   value="{{ _bg.hue_2 }}" data-slider-input data-bg-live="hue_2">
+          </div>
+          <div class="nav-megalink-field hero-slider-field">
+            <span class="nav-megalink-field-lbl">Blur <output data-slider-out>{{ _bg.blur }}</output>px</span>
+            <input type="range" name="footer_bg_blur" min="0" max="200" step="5"
+                   value="{{ _bg.blur }}" data-slider-input data-bg-live="blur">
+          </div>
+          <div class="nav-megalink-field hero-slider-field">
+            <span class="nav-megalink-field-lbl">Intensity <output data-slider-out>{{ _bg.opacity }}</output>%</span>
+            <input type="range" name="footer_bg_opacity" min="0" max="100" step="5"
+                   value="{{ _bg.opacity }}" data-slider-input data-bg-live="opacity">
+          </div>
+        </div>
+        <div class="fbg-switch">
+          <label class="mode-toggle">
+            <input type="checkbox" name="footer_bg_randomize" value="1" {% if _bg.randomize %}checked{% endif %}>
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+          </label>
+          <span class="fbg-switch-label">New hues and blob positions on every page load {% call chip() %}Each page view picks new hues, so it never looks the same twice.{% endcall %}</span>
+        </div>
+      </div>
+
+      {# Solid pane #}
+      <div class="hero-bg-panel" data-bg-panel="solid"{% if _bg.style != 'solid' %} hidden{% endif %}>
+        <p class="muted smaller">One flat color behind the footer. Until you pick one, the theme's footer color shows.</p>
+        <div class="nav-megalink-field">
+          <span class="nav-megalink-field-lbl">Background color</span>
+          {# An empty stored color means the theme's footer color. The
+             picker needs some value to show, so `footer_bg_color_custom`
+             records whether the admin actually picked one; until then
+             the save keeps the color empty. #}
+          <input type="hidden" name="footer_bg_color_custom" value="{{ '1' if _bg.color else '' }}" data-bg-color-custom>
+          <input type="color" class="nav-megalink-color-input"
+                 name="footer_bg_color" value="{{ _bg.color or '#0b1026' }}"
+                 data-bg-live="color">
+        </div>
+      </div>
+
+      {# Gradient pane #}
+      <div class="hero-bg-panel" data-bg-panel="gradient"{% if _bg.style != 'gradient' %} hidden{% endif %}>
+        <p class="muted smaller">A two-color gradient at the angle you choose.</p>
+        <div class="hero-bg-grid">
+          <div class="nav-megalink-field">
+            <span class="nav-megalink-field-lbl">Start color</span>
+            <input type="color" class="nav-megalink-color-input"
+                   name="footer_bg_gradient_start" value="{{ _bg.color or '#0b1026' }}"
+                   data-bg-live="color">
+          </div>
+          <div class="nav-megalink-field">
+            <span class="nav-megalink-field-lbl">End color</span>
+            <input type="color" class="nav-megalink-color-input"
+                   name="footer_bg_color_2" value="{{ _bg.color_2 or '#1f2a44' }}"
+                   data-bg-live="color_2">
+          </div>
+          <div class="nav-megalink-field hero-slider-field">
+            <span class="nav-megalink-field-lbl">Angle <output data-slider-out>{{ _bg.gradient_angle or 180 }}</output>°</span>
+            <input type="range" name="footer_bg_gradient_angle" min="0" max="360" step="5"
+                   value="{{ _bg.gradient_angle or 180 }}" data-slider-input data-bg-live="gradient_angle">
+          </div>
+        </div>
+      </div>
+
+      {# Sinewave pane — 4 colour pickers + Random colors / Random
+         wave / Reset buttons + a "randomise on every page load" toggle.
+         Dark/Follow mode auto-mutes the palette via loginFxUtils so the
+         gradient never reads as neon over a dark surface. #}
+      {% set _sw_defaults = ['#16c2ba', '#1883d5', '#5a1ce5', '#0a3eb5'] %}
+      {% set _sw = _bg.sinewave_colors or [] %}
+      <div class="hero-bg-panel" data-bg-panel="sinewave"{% if _bg.style != 'sinewave' %} hidden{% endif %}>
+        <p class="muted smaller">A flowing multicolor wave. Pick up to four colors; they are toned down automatically when the footer is dark.</p>
+        <div class="hero-bg-grid">
+          {% for i in range(1, 5) %}
+          <div class="nav-megalink-field">
+            <span class="nav-megalink-field-lbl">Color {{ i }}</span>
+            <input type="color" class="nav-megalink-color-input"
+                   name="footer_bg_sinewave_c{{ i }}"
+                   value="{{ _sw[i-1] if _sw|length >= i else _sw_defaults[i-1] }}"
+                   data-sinewave-input>
+          </div>
+          {% endfor %}
+        </div>
+
+        {# Hidden input carrying the JSON-serialised wave shape so the
+           parser can persist it. Empty string = use the canonical wave.
+           Updated by the Randomize / Reset buttons in JS below.
+
+           `forceescape` because `tojson` returns markup that leaves `"`
+           unescaped (it targets <script> bodies, not attributes): in a
+           double-quoted attribute the value would otherwise end at the
+           first key's quote, posting a bare `{` and dropping the saved
+           wave. Same fix as the dynbg trigger's modes/knobs inputs. #}
+        <input type="hidden" name="footer_bg_sinewave_wave"
+               value="{{ (_bg.sinewave_wave | tojson | forceescape) if _bg.sinewave_wave else '' }}"
+               data-sinewave-wave-input>
+
+        <div class="fe-footer-sw-actions">
+          <button type="button" class="btn btn-sm" data-sinewave-randomize>
+            {{ icon('shuffle') }} <span>Random colors</span>
+          </button>
+          <button type="button" class="btn btn-sm" data-sinewave-randomize-wave>
+            {{ icon('waves') }} <span>Random wave</span>
+          </button>
+          <button type="button" class="btn btn-sm" data-sinewave-reset>
+            {{ icon('rotate-ccw') }} <span>Reset</span>
+          </button>
+        </div>
+
+        <div class="fbg-switch">
+          <label class="mode-toggle">
+            <input type="checkbox" name="footer_bg_sinewave_randomize_colors" value="1"
+                   {% if _bg.sinewave_randomize_colors %}checked{% endif %}
+                   data-sinewave-randomize-colors-toggle>
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+          </label>
+          <span class="fbg-switch-label">New colors on every page load {% call chip() %}Each page view picks new colors. The colors above are used when this is off.{% endcall %}</span>
+        </div>
+        <div class="fbg-switch">
+          <label class="mode-toggle">
+            <input type="checkbox" name="footer_bg_sinewave_randomize_wave" value="1"
+                   {% if _bg.sinewave_randomize_wave %}checked{% endif %}
+                   data-sinewave-randomize-wave-toggle>
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+          </label>
+          <span class="fbg-switch-label">New wave shape on every page load {% call chip() %}Each page view draws a new wave shape. The saved shape is used when this is off.{% endcall %}</span>
+        </div>
+      </div>
+
+    </div>
+
+    {# Particle overlay — applies on top of any style. The toggle
+       switch reveals the effect / speed / size controls when on; same
+       mode-toggle pattern used elsewhere in the admin. #}
+    <div class="fe-footer-bg-particles">
+      <div class="fbg-switch">
+          <label class="mode-toggle">
+            <input type="checkbox" name="footer_bg_particle_enabled" value="1"
+                 {% if _bg.particle_enabled %}checked{% endif %}
+                 data-bg-particle-toggle data-bg-live="particle_enabled">
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+          </label>
+          <span class="fbg-switch-label">Particles on top {% call chip() %}Animated particles (stars, snow, bubbles and more) over the background.{% endcall %}</span>
+        </div>
+      <div class="fe-footer-bg-particles-fields"{% if not _bg.particle_enabled %} hidden{% endif %} data-bg-particle-fields>
+        <label>Effect
+          <select name="footer_bg_particle_effect" data-bg-live="particle_effect">
+            {% for v in ['network','stars','fireflies','bubbles','snow','waves','orbits','rain'] %}
+            <option value="{{ v }}"{% if _bg.particle_effect == v %} selected{% endif %}>{{ v|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label><span class="field-label-row">Speed <span class="muted smaller">(%)</span></span>
+          <input type="number" name="footer_bg_particle_speed" min="10" max="400" step="10"
+                 value="{{ _bg.particle_speed }}" data-bg-live="particle_speed">
+        </label>
+        <label><span class="field-label-row">Size <span class="muted smaller">(%)</span></span>
+          <input type="number" name="footer_bg_particle_size" min="10" max="400" step="10"
+                 value="{{ _bg.particle_size }}" data-bg-live="particle_size">
+        </label>
+      </div>
+    </div>

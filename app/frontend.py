@@ -118,20 +118,29 @@ HEADER_TEMPLATES = [
     },
 ]
 
-# Each prebuilt footer's "shape" expressed as a synthetic block list, used
-# only by the layout-picker modal to render the stacked colour-chip preview
-# next to each card. The actual render still goes through the Jinja file
-# named in the corresponding FOOTER_TEMPLATES entry — these chips are pure
-# decoration so the picker modal can show what each prebuilt looks like
-# at-a-glance.
-_FOOTER_PREBUILT_PREVIEWS = {
-    "classic":      [{"type": "brand"}, {"type": "link_columns"}, {"type": "copyright"},
-                     {"type": "secondary_nav"}, {"type": "social_row"}],
-    "minimal":      [{"type": "copyright"}, {"type": "secondary_nav"}],
-    "stacked":      [{"type": "brand"}, {"type": "link_columns"}, {"type": "social_row"},
-                     {"type": "copyright"}],
-    "mega":         [{"type": "brand"}, {"type": "link_columns"}, {"type": "link_columns"},
-                     {"type": "copyright"}, {"type": "secondary_nav"}],
+# The blocks each prebuilt footer renders, in reading order, taken from
+# its Jinja file. The Footer admin marks content these layouts don't
+# show, and the layout picker's chips draw from it.
+FOOTER_PREBUILT_BLOCKS = {
+    "classic": ["brand", "link_columns", "copyright", "secondary_nav", "social_row"],
+    "minimal": ["copyright", "secondary_nav"],
+    "stacked": ["brand", "link_columns", "social_row", "secondary_nav", "copyright"],
+    "mega":    ["brand", "social_row", "link_columns", "copyright", "secondary_nav"],
+}
+_FOOTER_PREBUILT_PREVIEWS = {k: [{"type": t} for t in v] for k, v in FOOTER_PREBUILT_BLOCKS.items()}
+
+# A prebuilt's arrangement as custom-layout rows, the starting point when
+# the admin asks to customize it. An approximation: the prebuilt files
+# add their own alignment and spacing, which the custom renderer doesn't.
+def _r(*cols):
+    return {"type": "row", "cols": len(cols), "columns": [[{"type": t} for t in c] for c in cols]}
+
+
+FOOTER_PREBUILT_ROWS = {
+    "classic": [_r(["brand"], ["link_columns"], ["copyright"]), _r(["secondary_nav"], ["social_row"])],
+    "minimal": [_r(["copyright"], ["secondary_nav"])],
+    "stacked": [_r(["brand"]), _r(["link_columns"]), _r(["social_row"]), _r(["secondary_nav"]), _r(["copyright"])],
+    "mega":    [_r(["brand", "social_row"], ["link_columns"]), _r(["copyright"], ["secondary_nav"])],
 }
 
 
@@ -321,6 +330,11 @@ THEME_DEFAULT_MODE = {t["key"]: t["default_mode"] for t in THEMES if t.get("defa
 # Which light/dark modes draw the utility bar in its admin-chosen colors.
 # The other themes paint it themselves (themes/<key>.css), so Design →
 # Header marks the colors as unused there.
+# Themes whose footer shows the Design → Footer background and colors.
+# The others paint the footer themselves (themes/<key>.css, with
+# !important), so the admin marks those settings as unused there.
+FOOTER_SURFACE_THEMES = {"classic", "recovery-blue"}
+
 UTILITY_BAR_COLOR_MODES = {
     "classic": ("light", "dark"),
     "recovery-blue": ("light", "dark"),
@@ -1318,7 +1332,6 @@ def _frontend_context(site):
         "frontend_contact_heading": (site.frontend_contact_heading if site else None)
             or "Need Help Right Now?",
         "frontend_contact_body": (site.frontend_contact_body if site else None) or "",
-        "frontend_footer_text": (site.frontend_footer_text if site else None) or "",
     }
 
 
