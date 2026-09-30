@@ -77,6 +77,17 @@ release notes expanded by default and the changelog collapsed.
 - The Redirects page lists your redirects first and adds or edits them in a pop-up. Renamed items show their old and current addresses, with the right address for announcements; only the old one can be edited.
 - The admin search finds the frontend sections by their current names.
 - Deleting the page the cookie banner links as its privacy policy now removes the link, and Privacy & cookies says when the linked page was deleted.
+- The Header and Footer pages show the preview on the left and their settings in a column on the right, as the Design page does. Every other Web Frontend page with a preview now has the same arrangement.
+- The Header page switches between Menu, Utility bar and Alert bar with one control. Menu items, mega menu blocks and utility bar items are compact rows that open one at a time to edit; a menu item is edited in place instead of in a pop-up, and a mega menu column adds blocks from one menu that says what each block is. Utility bar containers are now called groups, and the item a phone starts on is chosen from a list.
+- The Footer page lists its parts (layout, brand, link columns and the rest) and says which ones the current layout shows. A part the layout doesn't show can be added to the footer from that part, so link columns can show in any footer.
+- The footer's copyright line is built from choices: the © sign, this year or a range of years, the site name or another name, and an ending such as All rights reserved. Writing the whole line by hand is still possible.
+- Previews show only what the page is about: the Header preview shows the header, the Footer preview the footer, a form's preview the form at its full height, and page template, page and 404 previews the page content without the header and footer.
+- The page editor and the popup editor show their settings above the block builder.
+- On the Overview, staging sync sits in the site status card.
+- A pop-up whose form is saved, such as Customize on the Overview, no longer opens again after the page reloads.
+- The current section in the Web Frontend menu is highlighted in the brand color.
+- Web Frontend pages no longer flash while loading: the tab you last had open shows from the start, previews keep their space, and a hidden app sidebar no longer slides out and back.
+- Footer → Meeting locations shows each checkbox to the left of the location's name.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

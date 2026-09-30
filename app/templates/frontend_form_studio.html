@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
-{% from "_live_preview.html" import live_preview %}
+{% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
 {% from "_dynbg_picker.html" import dynbg_trigger with context %}
 {# One settings page for every public form, built-in or custom, in the
    same tabs: Fields, Page, Delivery, Look, Spam, Sharing, Inbox. A tab
@@ -234,7 +234,7 @@
 
     <div class="st-preview">
       {% if fs.public_path %}
-      {{ live_preview(fs.public_path, '#fs-form', height=640, width=1200, title='Form page preview',
+      {{ live_preview(fs.public_path, '#fs-form', height=640, width=760, title='Form preview', only=LP_FORM, fit=True, pad=24,
                       note="While the form is off its page shows as not found, here too." if not fs.enabled else '') }}
       {% endif %}
     </div>

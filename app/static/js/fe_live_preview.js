@@ -6,7 +6,12 @@
 //        data-lp-path="/meetings"                 public page to show
 //        data-lp-forms="#a, #b"                   forms whose values apply
 //        data-lp-focus="footer"                   optional: scroll to this
-//        data-lp-width="1280">                    desktop render width
+//        data-lp-width="1280"                     desktop render width
+//        data-lp-only=".fe-footer"                optional: show only these
+//        data-lp-fit>                             optional: height follows them
+//
+// With data-lp-only the frame hides everything else on the page before it
+// paints; with data-lp-fit the stage grows or shrinks to what is left.
 //
 // Any input in a watched form re-renders after a short pause. The server
 // runs each form through its own save route inside a transaction it rolls
@@ -32,6 +37,46 @@
       if (typeof v === 'string') pairs.push([k, v]);
     });
     return pairs;
+  }
+
+  // Runs inside the preview frame, before first paint: keep only the
+  // elements matching ``sel`` (and the elements that contain them), hide
+  // everything around them and drop the spacing of their containers.
+  function isolate(sel, pad) {
+    var found = Array.prototype.slice.call(document.querySelectorAll(sel));
+    var keep = found.filter(function (el) {
+      return !found.some(function (o) { return o !== el && o.contains(el); });
+    });
+    if (!keep.length) return;
+    var chain = new Set();
+    keep.forEach(function (el) {
+      for (var n = el; n && n !== document.body && n !== document.documentElement; n = n.parentElement) chain.add(n);
+    });
+    chain.forEach(function (n) {
+      var p = n.parentElement;
+      if (!p) return;
+      Array.prototype.forEach.call(p.children, function (c) {
+        if (!chain.has(c) && !/^(SCRIPT|STYLE|LINK|TEMPLATE|NOSCRIPT)$/.test(c.tagName)) {
+          c.style.setProperty('display', 'none', 'important');
+        }
+      });
+      if (keep.indexOf(n) === -1) {
+        ['padding', 'margin', 'min-height', 'border'].forEach(function (k) {
+          n.style.setProperty(k, '0', 'important');
+        });
+        n.style.setProperty('display', 'block', 'important');
+      }
+    });
+    // With space around them (a form), center what is shown.
+    if (pad) keep.forEach(function (el) {
+      el.style.setProperty('margin-left', 'auto', 'important');
+      el.style.setProperty('margin-right', 'auto', 'important');
+    });
+    var b = document.body.style;
+    b.setProperty('margin', '0', 'important');
+    b.setProperty('min-height', '0', 'important');
+    b.setProperty('padding', (pad || 0) + 'px', 'important');
+    document.documentElement.setAttribute('data-lp-only', '');
   }
 
   function Preview(root) {
@@ -178,6 +223,12 @@
       if (seq !== self.seq) return;
       // Links open in a new tab so the preview stays on the page it shows.
       html = html.replace(/<head([^>]*)>/i, '<head$1><base target="_blank">');
+      var only = self.root.getAttribute('data-lp-only');
+      if (only) {
+        var call = '<script>(' + isolate.toString() + ')(' + JSON.stringify(only) + ',' +
+          (parseInt(self.root.getAttribute('data-lp-pad') || '0', 10) || 0) + ');<\/script>';
+        html = /<\/body>/i.test(html) ? html.replace(/<\/body>(?![\s\S]*<\/body>)/i, call + '</body>') : html + call;
+      }
       self.frame.srcdoc = html;
     }).catch(function () {
       if (seq !== self.seq) return;
@@ -206,8 +257,20 @@
     d.addEventListener('submit', function (e) { e.preventDefault(); }, true);
     var focus = this.root.getAttribute('data-lp-focus');
     var se = d.scrollingElement || d.documentElement;
-    this.fit();
     var self = this;
+    if (this.root.hasAttribute('data-lp-fit')) {
+      var measure = function () { self.contentH = self.measure(d); self.fit(); };
+      measure();
+      setTimeout(measure, 350);
+      if (d.fonts && d.fonts.ready) d.fonts.ready.then(measure);
+      var RO = d.defaultView && d.defaultView.ResizeObserver;
+      if (RO) {
+        var ro = new RO(function () { measure(); });
+        d.querySelectorAll(this.root.getAttribute('data-lp-only') || 'body').forEach(function (el) { ro.observe(el); });
+      }
+      return;
+    }
+    this.fit();
     var place = function () {
       if (self.scrollY !== null) {
         se.scrollTop = self.scrollY;
@@ -221,16 +284,52 @@
     setTimeout(place, 350);
   };
 
+  // The bottom edge of what is showing: the kept elements and anything
+  // inside them that is visible, such as an open mega menu panel.
+  Preview.prototype.measure = function (d) {
+    var sel = this.root.getAttribute('data-lp-only') || 'body';
+    var win = d.defaultView;
+    var top = (d.scrollingElement || d.documentElement).scrollTop;
+    var max = 0;
+    var pad = parseInt(this.root.getAttribute('data-lp-pad') || '0', 10) || 0;
+    d.querySelectorAll(sel).forEach(function (el) {
+      var all = [el].concat(Array.prototype.slice.call(el.querySelectorAll('*')));
+      all.forEach(function (n) {
+        var r = n.getBoundingClientRect();
+        if (!r.height || !r.width) return;
+        // Closed panels are usually see-through or hidden on an ancestor.
+        if (n.checkVisibility) {
+          if (!n.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return;
+        } else {
+          var cs = win.getComputedStyle(n);
+          if (cs.visibility === 'hidden' || cs.opacity === '0') return;
+        }
+        max = Math.max(max, r.bottom + top);
+      });
+    });
+    return Math.ceil(max + pad);
+  };
+
   // Render at a real viewport width and scale it down to the column.
+  // A fitted preview keeps a realistic viewport height (so vh units hold)
+  // and crops the stage to the content.
   Preview.prototype.fit = function () {
     if (!this.stage) return;
-    var w = this.device === 'phone' ? 390 : parseInt(this.root.getAttribute('data-lp-width') || '1280', 10);
+    var phone = this.device === 'phone';
+    var w = phone ? 390 : parseInt(this.root.getAttribute('data-lp-width') || '1280', 10);
     var avail = this.stage.clientWidth || w;
     var scale = Math.min(1, avail / w);
     var h = parseInt(this.root.getAttribute('data-lp-height') || '640', 10);
     this.frame.style.width = w + 'px';
-    this.frame.style.height = Math.round(h / scale) + 'px';
     this.frame.style.transform = 'scale(' + scale + ')';
+    if (this.root.hasAttribute('data-lp-fit')) {
+      var content = this.contentH || h / scale;
+      var view = phone ? 844 : 900;
+      this.frame.style.height = Math.max(view, content) + 'px';
+      this.stage.style.height = Math.max(40, Math.round(content * scale)) + 'px';
+      return;
+    }
+    this.frame.style.height = Math.round(h / scale) + 'px';
     this.stage.style.height = h + 'px';
   };
 

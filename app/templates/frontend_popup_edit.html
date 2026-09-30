@@ -67,29 +67,6 @@
       </p>
     </section>
 
-    {# ── Content: the page-builder structure card + draggable pills ──
-       Same drag-and-drop interface as content pages. The floating
-       "Add block" palette (blue FAB, bottom-right) drops new blocks;
-       clicking a pill opens the BlockEditor modal focused on it. Driven
-       by page_structure.js, which keys off the shared element IDs below
-       (#page-blocks-json / #page-editor-root / #page-layout-edit-modal). #}
-    <section class="card fe-page-structure">
-      <div class="card-head">
-        <h2>Content {% call chip('Content') %}Drag pills to rearrange. Drag from the “Add block” palette
-          (bottom-right) to drop in new blocks. Click any pill to edit its content.{% endcall %}</h2>
-      </div>
-      {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
-                             _PAGE_BLOCK_LABELS, _editable,
-                             block_previews, block_payloads) }}
-    </section>
-
-    {# Self-hiding "Unplaced blocks" bin — only appears if removing a
-       container leaves its children unplaced (drag them back in). #}
-    {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
-                              _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
-
-    {{ structure_block_palette(popup_block_catalog) }}
-
     {# ── Popup settings form ────────────────────────────────────────
        The hidden #page-blocks-json input lives here so a save round-trips
        both the block content (written by page_structure.js / the modal
@@ -228,6 +205,30 @@
 
       {# The yellow save bar saves the popup. #}
     </form>
+
+    {# ── Content: the page-builder structure card + draggable pills ──
+       Same drag-and-drop interface as content pages. The floating
+       "Add block" palette (blue FAB, bottom-right) drops new blocks;
+       clicking a pill opens the BlockEditor modal focused on it. Driven
+       by page_structure.js, which keys off the shared element IDs below
+       (#page-blocks-json / #page-editor-root / #page-layout-edit-modal). #}
+    <section class="card fe-page-structure">
+      <div class="card-head">
+        <h2>Content {% call chip('Content') %}Drag pills to rearrange. Drag from the “Add block” palette
+          (bottom-right) to drop in new blocks. Click any pill to edit its content.{% endcall %}</h2>
+      </div>
+      {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
+                             _PAGE_BLOCK_LABELS, _editable,
+                             block_previews, block_payloads) }}
+    </section>
+
+    {# Self-hiding "Unplaced blocks" bin — only appears if removing a
+       container leaves its children unplaced (drag them back in). #}
+    {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
+                              _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
+
+    {{ structure_block_palette(popup_block_catalog) }}
+
   </div>
 </div>
 

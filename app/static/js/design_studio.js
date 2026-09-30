@@ -768,6 +768,9 @@
 
   showMode(state.mode);
   showTab(state.tab);
+  // The pre-paint style from base.html has done its job.
+  var pre = document.getElementById('tsp-studio-preload');
+  if (pre) pre.remove();
   if (fromHash) studio.scrollIntoView({ block: 'start' });
 })();
 

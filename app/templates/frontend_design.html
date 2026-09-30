@@ -3,7 +3,7 @@
 {% from "_frontend_template_picker.html" import template_picker %}
 {% from "_dynbg_picker.html" import dynbg_trigger with context %}
 {% from "_width_control.html" import width_control %}
-{% from "_live_preview.html" import live_preview %}
+{% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% set _def = ds.defaults %}
 {% set _ovr = ds.overrides %}
@@ -342,10 +342,10 @@
         {# Header and footer are previewed from the real public page, with
            this form's unsaved values applied. #}
         <div class="ds-live" data-ds-live-for="header" hidden>
-          {{ live_preview(url_for('frontend.index'), '.ds-form', height=340, title='Header, live') }}
+          {{ live_preview(url_for('frontend.index'), '.ds-form', height=160, title='Header, live', only=LP_HEADER, fit=True) }}
         </div>
         <div class="ds-live" data-ds-live-for="footer" hidden>
-          {{ live_preview(url_for('frontend.index'), '.ds-form', focus='footer.fe-footer, footer', height=460, title='Footer, live') }}
+          {{ live_preview(url_for('frontend.index'), '.ds-form', height=320, title='Footer, live', only=LP_FOOTER, fit=True) }}
         </div>
       </div>
 

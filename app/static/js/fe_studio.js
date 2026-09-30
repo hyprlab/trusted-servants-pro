@@ -41,6 +41,7 @@
         }
       });
       panels.forEach(function (p) { p.hidden = p.getAttribute('data-studio-panel') !== name; });
+      root.querySelectorAll('[data-studio-pane]').forEach(function (p) { p.hidden = p.getAttribute('data-studio-pane') !== name; });
       root.setAttribute('data-studio-open', name);
       store(key, name);
       if (fromUser && history.replaceState) history.replaceState(null, '', '#' + name);
@@ -60,6 +61,14 @@
     var hash = (location.hash || '').slice(1);
     show(hash || stored(key) || tabs[0].getAttribute('data-studio-tab'), false);
     root._studioShow = show;
+    // A link to #tab on the same page opens that tab.
+    window.addEventListener('hashchange', function () {
+      var h = (location.hash || '').slice(1);
+      if (h && tabs.some(function (t) { return t.getAttribute('data-studio-tab') === h; })) show(h, false);
+    });
+    // The pre-paint style from base.html has done its job.
+    var pre = document.getElementById('tsp-studio-preload');
+    if (pre) pre.remove();
   }
 
   function init() {

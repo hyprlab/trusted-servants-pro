@@ -1,56 +1,66 @@
 {% set _kind = link.kind or 'link' %}
-<li id="nav-megalink-{{ link.id }}" class="nav-megalink nav-megalink-{{ _kind }}"
-    data-item-id="{{ link.id }}" data-block-kind="{{ _kind }}" draggable="true">
-  {# One row per block: handle, kind, the text fields, a More toggle for
-     the less-used options (their summary shows which are set) and
-     delete. #}
+<li id="nav-megalink-{{ link.id }}" class="nav-megalink nav-megalink-{{ _kind }} ol-row"
+    data-item-id="{{ link.id }}" data-block-kind="{{ _kind }}" draggable="true"
+    data-ol-row data-ol-key="mb-{{ link.id }}">
+  {# A compact row (kind, text, link, what else is set); clicking it opens
+     the block's fields below (static/js/fe_rows.js). #}
   {% set _has_more = _kind not in ('title', 'section', 'search') %}
   {% set _set = [] %}
   {% if link.icon_before or link.icon_after %}{% set _ = _set.append('icon') %}{% endif %}
   {% if link.link_size_pct %}{% set _ = _set.append(link.link_size_pct ~ '%') %}{% endif %}
   {% if link.override_color %}{% set _ = _set.append('color') %}{% endif %}
   {% if link.open_in_new_tab %}{% set _ = _set.append('new tab') %}{% endif %}
-  {% if link.form_trigger %}{% set _ = _set.append('opens form') %}{% endif %}
-  <div class="nav-megalink-top">
-    <span class="drag-handle nav-megalink-drag" title="Drag to reorder">{{ icon('grip-vertical') }}</span>
-    <span class="nav-megalink-kind chip">{{ {'link': 'Link', 'title': 'Title', 'button': 'Button', 'section': 'Section', 'search': 'Search', 'admin_login': 'Sign in'}.get(_kind, _kind) }}</span>
-    <span class="nav-megalink-top-fields">
-      {% if _kind in ('title', 'section') %}
-        <input type="text" data-block-field="label" value="{{ link.label }}" aria-label="{{ 'Heading' if _kind == 'section' else 'Title' }}"
-               placeholder="{% if _kind == 'section' %}Group heading{% else %}Title text{% endif %}" required>
-      {% elif _kind == 'search' %}
-        <input type="text" data-block-field="label" value="{{ link.label }}" aria-label="Search placeholder"
-               placeholder="Placeholder text in the empty search bar" required>
-      {% elif _kind == 'admin_login' %}
-        {# Label and URL follow the visitor: Login when signed out, Return
-           to dashboard when signed in. Kept as hidden fields so the bulk
-           save posts the same shape for every block. #}
-        <span class="muted small nav-megalink-auto">Shows <b>Login</b> or <b>Return to dashboard</b></span>
-        <input type="hidden" data-block-field="label" value="{{ link.label or 'Login' }}">
-        <input type="hidden" data-block-field="url" value="">
-      {% else %}
-        <input type="text" data-block-field="label" value="{{ link.label }}" placeholder="Text" aria-label="Text" required>
-        <input type="text" data-block-field="url" value="{{ link.url or '' }}" placeholder="/page or https://…" aria-label="Link">
-      {% endif %}
-    </span>
-    {% if _has_more %}
-    <button type="button" class="nav-megalink-more-btn" data-megalink-more aria-expanded="false"
-            title="Icons, size, color, new tab and form">
-      <span class="nav-megalink-more-sum" data-megalink-sum>{{ _set|join(' · ') }}</span>{{ icon('chevron-down') }}
+  {% if link.form_trigger %}{% set _ = _set.append('opens a form') %}{% endif %}
+  {% set _kinds = {'link': ('Link', 'link'), 'title': ('Title', 'heading'), 'button': ('Button', 'mouse-pointer-click'),
+                   'section': ('Section', 'align-left'), 'search': ('Search', 'search'), 'admin_login': ('Sign in', 'log-in')} %}
+  {% set _k = _kinds.get(_kind, (_kind, 'square')) %}
+  <div class="ol-head">
+    <span class="drag-handle ol-grip" title="Drag to reorder">{{ icon('grip-vertical') }}</span>
+    <button type="button" class="ol-toggle" data-ol-toggle aria-expanded="false" title="{{ _k[0] }}: click to edit">
+      <span class="ol-glyph" title="{{ _k[0] }}">{{ icon(_k[1]) }}</span>
+      <span class="ol-text">
+        {% if _kind == 'admin_login' %}
+        <b>Login, or Return to dashboard</b>
+        {% elif _kind == 'search' %}
+        <b>Search bar</b><small data-ol-sum='[data-block-field="label"]' data-ol-empty="No placeholder">{{ link.label }}</small>
+        {% else %}
+        <b data-ol-sum='[data-block-field="label"]' data-ol-empty="{{ 'Untitled heading' if _kind in ('title', 'section') else 'No text yet' }}">{{ link.label }}</b>
+        {% if _kind in ('link', 'button') %}<small data-ol-sum='[data-block-field="url"]' data-ol-empty="No link">{{ link.url or '' }}</small>{% endif %}
+        {% endif %}
+      </span>
+      {% if _set %}<span class="ol-flags">{{ _set|join(' · ') }}</span>{% endif %}
+      <span class="ol-chev">{{ icon('chevron-down') }}</span>
     </button>
-    {% endif %}
     <form method="post" action="{{ url_for('main.frontend_nav_link_delete', lid=link.id) }}"
           onsubmit="return confirm('Delete this block?');" class="nav-megalink-del-form"
           data-delete-block-form data-target-item="#nav-megalink-{{ link.id }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="icon-btn nav-megalink-del" title="Delete block" aria-label="Delete block">{{ icon('trash') }}</button>
+      <button class="icon-btn ol-del" title="Delete block" aria-label="Delete block">{{ icon('trash') }}</button>
     </form>
   </div>
+  <div class="ol-body" data-ol-body hidden>
+    {% if _kind in ('title', 'section') %}
+      <label class="st-field"><span>{{ 'Heading' if _kind == 'section' else 'Title' }}</span>
+        <input type="text" data-block-field="label" value="{{ link.label }}"
+               placeholder="{% if _kind == 'section' %}Group heading{% else %}Title text{% endif %}" required></label>
+    {% elif _kind == 'search' %}
+      <label class="st-field"><span>Placeholder</span>
+        <input type="text" data-block-field="label" value="{{ link.label }}" placeholder="Search the site" required></label>
+    {% elif _kind == 'admin_login' %}
+      <p class="muted small">Shows <b>Login</b> to visitors and <b>Return to dashboard</b> to anyone signed in, with a matching link.</p>
+      <input type="hidden" data-block-field="label" value="{{ link.label or 'Login' }}">
+      <input type="hidden" data-block-field="url" value="">
+    {% else %}
+      <label class="st-field"><span>Text</span>
+        <input type="text" data-block-field="label" value="{{ link.label }}" placeholder="Text" required></label>
+      <label class="st-field"><span>Link</span>
+        <input type="text" data-block-field="url" value="{{ link.url or '' }}" placeholder="/page or https://…"></label>
+    {% endif %}
   <div class="nav-megalink-form">
     {% if _kind == 'search' %}
-      <p class="muted smaller nav-megalink-note">A search bar in the panel. Typing in it opens the site search with the words entered.</p>
+      <p class="muted smaller nav-megalink-note">Typing in it opens the site search with the words entered.</p>
     {% elif _has_more %}
-      <div class="nav-megalink-row nav-megalink-row-icons" data-megalink-more-panel hidden>
+      <div class="nav-megalink-row nav-megalink-row-icons">
         <div class="nav-megalink-field nav-megalink-icon-field{% if link.icon_before %} has-icon{% endif %}" data-icon-field>
           <span class="nav-megalink-field-lbl">Icon before</span>
           <div class="icon-picker-trigger-wrap">
@@ -168,9 +178,9 @@
         {% if _kind != 'admin_login' %}
         {% set _forms = (form_registry_all if form_registry_all is defined else []) | selectattr('has_modal') | list %}
         <div class="nav-megalink-field nav-megalink-field-form-trigger">
-          <span class="nav-megalink-field-lbl">Triggers form</span>
+          <span class="nav-megalink-field-lbl">Opens a form</span>
           <select data-block-field="form_trigger">
-            <option value="">— None —</option>
+            <option value="">None: follow the link</option>
             {% for f in _forms %}
             <option value="{{ f.key }}"
                     {% if link.form_trigger == f.key %}selected{% endif %}>
@@ -182,5 +192,6 @@
         {% endif %}
       </div>
     {% endif %}
+  </div>
   </div>
 </li>

@@ -3,7 +3,7 @@
 {% from "_frontend_template_picker.html" import template_picker %}
 {% from "_frontend_layout_picker.html" import layout_picker %}
 {% from "_width_control.html" import width_control %}
-{% from "_live_preview.html" import live_preview %}
+{% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
 {% from "_frontend_structure_card.html" import structure_card, structure_page_tree, structure_orphans_card, structure_block_palette %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% block heading %}{{ 'Edit page' if page else 'New page' }}{% endblock %}
@@ -140,46 +140,6 @@
       </form>
     </div>
     {% endif %}
-
-    {# ── Active layout structure ────────────────────────────────────
-       Shown for both existing AND new pages. New pages start with an
-       empty structure card + palette so the admin can drag blocks in
-       before the first save (the form's hidden `blocks_json` input
-       carries the dragged structure into `frontend_page_save`). Each
-       pill opens the BlockEditor modal scrolled to that block; the
-       top-right "Change layout" button opens the layout PICKER (the
-       same modal the top-bar Layout pill uses) so the admin can
-       switch layouts or build a custom one. #}
-    {# Pill names and icons come from the palette's own catalog, so a
-       block added there is named correctly here too. #}
-    {% set _PAGE_BLOCK_LABELS = {'separator': ('Divider', 'minus'), 'hero': ('Hero', 'image'),
-                                 'meetings': ('Meetings', 'calendar-clock'), 'events': ('Events', 'calendar')} %}
-    {% for _c in page_block_catalog %}{% set _ = _PAGE_BLOCK_LABELS.update({_c.key: (_c.name, _c.icon or 'square')}) %}{% endfor %}
-    {% set _editable = ['paragraph','heading','image','icon','button','container',
-                        'video','code','callout','list','toc_sidebar',
-                        'hero','meetings','events'] %}
-    {% call structure_card('Active layout', active_layout=active_layout,
-                            builder_modal_id='page-layout-builder-modal',
-                            picker_modal_id='page-layout-modal',
-                            is_customized=active_layout_customized,
-                            help_text='Drag pills to rearrange. Drag from the “Add blocks” palette below to drop in new blocks. Click any pill to edit its content. Use “Change layout” to pick a different layout or switch to free-form custom.') %}
-      {% if active_layout_tree %}
-      {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
-                              _PAGE_BLOCK_LABELS, _editable,
-                              block_previews, block_payloads) }}
-      {% else %}
-      <p class="muted">This page has no blocks yet. Open the floating palette in the lower-right corner to drag in blocks, or pick a layout via “Edit layout”.</p>
-      <div class="fe-page-structure-rows" data-be-tree data-be-zone="root">
-        <div class="fe-page-structure-root-empty muted small" data-be-root-empty>
-          Drop a Container or Two-panel here to add a new row, or drag any block to start.
-        </div>
-      </div>
-      {% endif %}
-    {% endcall %}
-
-    {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
-                               _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
-    {{ structure_block_palette(page_block_catalog) }}
 
     {# ── Page settings + content forms ─────────────────────────────
        Single form, multiple cards. The BlockEditor lives inside the
@@ -550,7 +510,7 @@
           <div class="st-preview">
             {% if page %}
             {{ live_preview(url_for('frontend.page_preview', page_id=page.id), '#page-edit-form', height=700, width=1280,
-                            title='Page preview', overrides={'save_action': 'publish'}, watch=True) }}
+                            title='Page preview', overrides={'save_action': 'publish'}, watch=True, only=LP_MAIN) }}
             {% else %}
             <p class="muted small">The preview appears once the page is saved.</p>
             {% endif %}
@@ -561,6 +521,47 @@
       {# No Save button here: the yellow save bar is the one way to save a
          draft or publish (its Publish/Save Draft buttons set save_action). #}
     </form>
+
+    {# ── Active layout structure ────────────────────────────────────
+       Shown for both existing AND new pages. New pages start with an
+       empty structure card + palette so the admin can drag blocks in
+       before the first save (the form's hidden `blocks_json` input
+       carries the dragged structure into `frontend_page_save`). Each
+       pill opens the BlockEditor modal scrolled to that block; the
+       top-right "Change layout" button opens the layout PICKER (the
+       same modal the top-bar Layout pill uses) so the admin can
+       switch layouts or build a custom one. #}
+    {# Pill names and icons come from the palette's own catalog, so a
+       block added there is named correctly here too. #}
+    {% set _PAGE_BLOCK_LABELS = {'separator': ('Divider', 'minus'), 'hero': ('Hero', 'image'),
+                                 'meetings': ('Meetings', 'calendar-clock'), 'events': ('Events', 'calendar')} %}
+    {% for _c in page_block_catalog %}{% set _ = _PAGE_BLOCK_LABELS.update({_c.key: (_c.name, _c.icon or 'square')}) %}{% endfor %}
+    {% set _editable = ['paragraph','heading','image','icon','button','container',
+                        'video','code','callout','list','toc_sidebar',
+                        'hero','meetings','events'] %}
+    {% call structure_card('Active layout', active_layout=active_layout,
+                            builder_modal_id='page-layout-builder-modal',
+                            picker_modal_id='page-layout-modal',
+                            is_customized=active_layout_customized,
+                            help_text='Drag pills to rearrange. Drag from the “Add blocks” palette below to drop in new blocks. Click any pill to edit its content. Use “Change layout” to pick a different layout or switch to free-form custom.') %}
+      {% if active_layout_tree %}
+      {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
+                              _PAGE_BLOCK_LABELS, _editable,
+                              block_previews, block_payloads) }}
+      {% else %}
+      <p class="muted">This page has no blocks yet. Open the floating palette in the lower-right corner to drag in blocks, or pick a layout via “Edit layout”.</p>
+      <div class="fe-page-structure-rows" data-be-tree data-be-zone="root">
+        <div class="fe-page-structure-root-empty muted small" data-be-root-empty>
+          Drop a Container or Two-panel here to add a new row, or drag any block to start.
+        </div>
+      </div>
+      {% endif %}
+    {% endcall %}
+
+    {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
+                               _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
+    {{ structure_block_palette(page_block_catalog) }}
+
   </div>
 </div>
 

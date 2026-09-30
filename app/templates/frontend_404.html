@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
-{% from "_live_preview.html" import live_preview %}
+{% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
 {% block heading %}404 page{% endblock %}
 {% block heading_help %}What visitors see when an address on the public site leads nowhere. Addresses that moved are better sent on with a redirect (Site → Redirects); Watchtower lists the missing addresses visitors hit most.{% endblock %}
 {% block top_actions %}
@@ -68,7 +68,7 @@
       </div>
     </div>
     <div class="st-preview">
-      {{ live_preview('/this-page-does-not-exist', '#nf-form', height=560, width=1280, title='404 preview') }}
+      {{ live_preview('/this-page-does-not-exist', '#nf-form', height=560, width=1280, title='404 preview', only=LP_MAIN) }}
     </div>
   </div>
 </section>

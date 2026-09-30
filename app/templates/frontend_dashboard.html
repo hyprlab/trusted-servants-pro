@@ -16,7 +16,9 @@
        public, and the site-wide switches that change what every visitor
        sees, each linking to where it is set. #}
     {% set _mode = (site.frontend_default_theme or 'system') if site else 'system' %}
-    <section class="card fe-status-strip" data-no-collapse aria-label="Site status">
+    {% set _sync_on = fe_sync_peer and fe_sync_peer.self_role == 'staging' and fe_sync_peer.token_enc and fe_sync_peer.base_url %}
+    <section class="card fe-status-card" data-no-collapse aria-label="Site status">
+    <div class="fe-status-strip">
       <div class="fe-ss-item fe-ss-public">
         <form method="post" action="{{ url_for('main.frontend_toggle') }}" data-fe-auto-submit>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -55,13 +57,13 @@
           <div class="fe-ss-value">{% if site and site.media_cache_enabled %}Images {% if site.media_cache_static_assets %}and files {% endif %}cached{% elif site and site.media_cache_static_assets %}Files cached{% else %}Off{% endif %}</div>
         </div>
       </a>
-    </section>
+    </div>
 
-    {# ── Staging sync: one-click Pull/Push to the paired Live site, only
-       on a Staging install with a token and Live URL configured. Reuses
-       the AJAX frontend-sync routes (see app.js). #}
-    {% if fe_sync_peer and fe_sync_peer.self_role == 'staging' and fe_sync_peer.token_enc and fe_sync_peer.base_url %}
-    <section class="card fe-status-sync dash-sync" data-no-collapse data-dash-sync
+    {# ── Staging sync, in the same card: one-click Pull/Push to the
+       paired Live site, only on a Staging install with a token and Live
+       URL configured. Reuses the AJAX frontend-sync routes (see app.js). #}
+    {% if _sync_on %}
+    <div class="fe-status-sync dash-sync" data-dash-sync
          data-ping-url="{{ url_for('main.frontend_sync_test') }}"
          data-pull-url="{{ url_for('main.frontend_sync_pull') }}"
          data-push-url="{{ url_for('main.frontend_sync_push') }}"
@@ -96,8 +98,9 @@
         {% if fe_sync_peer.last_pushed_at %}Pushed {{ fe_sync_peer.last_pushed_at.strftime('%Y-%m-%d %H:%M') }} UTC.{% endif %}
       </p>
       <p class="dash-sync-msg" data-dash-sync-msg hidden></p>
-    </section>
+    </div>
     {% endif %}
+    </section>
 
     <div class="dash-grid"
          data-dashboard-reorder

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
 {% from "_row_menu.html" import row_menu %}
-{% from "_live_preview.html" import live_preview %}
+{% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
 {% block heading %}Header{% endblock %}
 {% block heading_help %}What the public site's header holds: the menu with its mega menus, the utility bar and the alert bar. How it looks (colors, height, width, logo size) is on Design → Header, and the logo image is on Branding.{% endblock %}
 {% block top_actions %}
@@ -24,42 +24,30 @@
     <h2>Header {% call chip('Header') %}Changes show in the preview straight away and are saved with the yellow Save button. Adding, removing and reordering menu items and mega menu blocks saves at once.{% endcall %}</h2>
   </div>
 
-  <div class="st-body st-body--top">
+  <div class="st-body st-body--split">
     <div class="st-preview">
       {{ live_preview((url_for('frontend.index') ~ ('?__mm=' ~ mm_item.id if mm_item else '')),
-                      '#hdr-utility-form, #hdr-alert-form', height=(460 if mm_item else 280),
-                      title='Header preview') }}
-    </div>
-
-    <div class="ds-tabs-wrap">
-      <nav class="ds-tabs" role="tablist" aria-label="Header parts">
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="menu">{{ icon('menu') }}<span>Menu</span><span class="ds-tab-count">{{ nav_items|length }}</span></button>
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="utility">{{ icon('panel-top') }}<span>Utility bar</span></button>
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="alert">{{ icon('megaphone') }}<span>Alert bar</span>{% if site and site.header_alert_enabled %}<span class="ds-tab-count" title="Showing">On</span>{% endif %}</button>
-      </nav>
+                      '#hdr-utility-form, #hdr-alert-form, .hdr-item-form', height=(420 if mm_item else 130),
+                      title='Header preview', only=LP_HEADER, fit=True) }}
     </div>
 
     <div class="st-controls">
+      <nav class="st-seg" role="tablist" aria-label="Header parts">
+        <button type="button" role="tab" data-studio-tab="menu">{{ icon('menu') }}<span>Menu</span></button>
+        <button type="button" role="tab" data-studio-tab="utility">{{ icon('panel-top') }}<span>Utility bar</span></button>
+        <button type="button" role="tab" data-studio-tab="alert">{{ icon('megaphone') }}<span>Alert bar</span>{% if site and site.header_alert_enabled %}<i class="st-seg-dot" title="Showing"></i>{% endif %}</button>
+      </nav>
 
       {# ── Menu: the top-level items, or one item's mega menu. ── #}
       <div class="st-panel" data-studio-panel="menu">
         {% if mm_item %}
           <div class="hdr-mm-head">
-            <a class="btn btn-sm" href="{{ url_for('main.frontend_header') }}#menu">{{ icon('arrow-left') }} All menu items</a>
-            <div>
-              <h3>Mega menu: {{ mm_item.label or mm_item.line1 or 'Untitled' }}</h3>
-              <p class="muted small">Up to 3 columns side by side. Start a column with a Title block to give it a heading. Text edits save with the yellow button; adding, removing and dragging save at once. The preview holds the panel open.</p>
-            </div>
-            {% if mm_item.columns|length < 3 %}
-            <form method="post" action="{{ url_for('main.frontend_nav_column_new', nid=mm_item.id) }}"
-                  class="hdr-mm-addcol" data-add-column-form data-target="#megamenu-editor" data-fe-skip-save-bar>
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-primary">{{ icon('plus') }} Add column</button>
-            </form>
-            {% endif %}
+            <a class="ol-back" href="{{ url_for('main.frontend_header') }}#menu">{{ icon('arrow-left') }} Menu</a>
+            <h3>{{ mm_item.label or ((mm_item.line1 or '') ~ ' ' ~ (mm_item.line2 or '')) or 'Untitled' }}: mega menu</h3>
+            <p class="muted small">Up to 3 columns side by side. Click a block to edit it. Text edits save with the yellow button; adding, removing and dragging save at once.</p>
           </div>
           {% if not mm_item.has_megamenu %}
-          <p class="st-na">{{ icon('alert-triangle') }}This item's Mega menu switch is off, so the panel doesn't show on the site. Turn it on from the item's Edit.</p>
+          <p class="st-na">{{ icon('alert-triangle') }}This item's Mega menu switch is off, so the panel doesn't show on the site. Turn it on in the item's settings.</p>
           {% endif %}
           <div id="megamenu-editor" class="nav-megamenu-editor file-list-sortable"
                data-reorder-url="{{ url_for('main.frontend_nav_columns_reorder', nid=mm_item.id) }}"
@@ -70,54 +58,63 @@
             {% endfor %}
           </div>
           {% if not mm_item.columns %}<p class="muted hdr-empty">No columns yet. Add one to start.</p>{% endif %}
+          {% if mm_item.columns|length < 3 %}
+          <form method="post" action="{{ url_for('main.frontend_nav_column_new', nid=mm_item.id) }}"
+                class="hdr-mm-addcol" data-add-column-form data-target="#megamenu-editor" data-fe-skip-save-bar>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="ol-add-wide">{{ icon('plus') }} Add a column</button>
+          </form>
+          {% endif %}
         {% else %}
-          <div class="hdr-menu-head">
-            <p class="muted small">The links across the header, in order. Drag to reorder; the order saves when you drop.</p>
-            <button type="button" class="btn btn-sm btn-primary" data-open-modal="nav-item-new-modal">{{ icon('plus') }} Add menu item</button>
-          </div>
+          <p class="st-panel-intro">The links across the header, in order. Click one to edit it; drag by the handle to reorder, which saves at once.</p>
           {% if nav_items %}
-          <ul class="hdr-menu-list file-list-sortable" id="nav-items-sortable"
+          <ul class="ol-list hdr-menu-list file-list-sortable" id="nav-items-sortable"
               data-reorder-url="{{ url_for('main.frontend_nav_item_reorder') }}" data-reorder-toast="Menu order">
             {% for ni in nav_items %}
-            <li class="hdr-menu-item" data-item-id="{{ ni.id }}" draggable="true">
-              <span class="drag-handle" title="Drag to reorder">{{ icon('grip-vertical') }}</span>
-              <div class="hdr-menu-main">
-                <b>{% if ni.style == 'two-line' %}{{ ni.line1 or '' }} {{ ni.line2 or '' }}{% else %}{{ ni.label or 'Untitled' }}{% endif %}</b>
-                <span class="muted small">{{ {'text': 'Text link', 'button': 'Button', 'button-rounded': 'Button, rounded', 'two-line': 'Two lines'}.get(ni.style, ni.style) }}{% if ni.url %} · {{ ni.url }}{% endif %}{% if ni.form_trigger %} · opens a form{% endif %}</span>
+            {% set _shape_icon = {'text': 'link', 'button': 'mouse-pointer-click', 'button-rounded': 'mouse-pointer-click', 'two-line': 'align-left'}.get(ni.style, 'link') %}
+            <li class="ol-row hdr-menu-item" data-item-id="{{ ni.id }}" draggable="true" data-ol-row data-ol-key="nav-{{ ni.id }}">
+              <div class="ol-head">
+                <span class="drag-handle ol-grip" title="Drag to reorder">{{ icon('grip-vertical') }}</span>
+                <button type="button" class="ol-toggle" data-ol-toggle aria-expanded="false">
+                  <span class="ol-glyph">{{ icon('layout-grid' if ni.has_megamenu else _shape_icon) }}</span>
+                  <span class="ol-text">
+                    <b data-ol-sum='[name="label"], [name="line1"], [name="line2"]' data-ol-empty="Untitled">{% if ni.style == 'two-line' %}{{ ni.line1 or '' }} {{ ni.line2 or '' }}{% else %}{{ ni.label or 'Untitled' }}{% endif %}</b>
+                    <small>{{ {'text': 'Text link', 'button': 'Button', 'button-rounded': 'Button', 'two-line': 'Two lines'}.get(ni.style, ni.style) }}{% if ni.has_megamenu %} · mega menu, {{ ni.columns|length }} column{{ '' if ni.columns|length == 1 else 's' }}{% elif ni.url %} · {{ ni.url }}{% endif %}{% if ni.form_trigger %} · opens a form{% endif %}</small>
+                  </span>
+                  <span class="ol-chev">{{ icon('chevron-down') }}</span>
+                </button>
               </div>
-              {% if ni.has_megamenu %}
-              <a class="btn btn-sm" href="{{ url_for('main.frontend_header', item=ni.id) }}#menu">
-                {{ icon('layout-grid') }} Mega menu <span class="muted">{{ ni.columns|length }} col · {{ ni.columns|map(attribute='links')|map('length')|sum }}</span>
-              </a>
-              {% endif %}
-              {% call row_menu() %}
-                <button type="button" class="row-menu-item" data-open-modal="nav-item-edit-{{ ni.id }}">{{ icon('pencil') }}<span>Edit</span></button>
-                {% if ni.has_megamenu %}
-                <a class="row-menu-item" href="{{ url_for('main.frontend_header', item=ni.id) }}#menu">{{ icon('layout-grid') }}<span>Edit mega menu</span></a>
-                {% endif %}
-                <div class="row-menu-sep" role="separator"></div>
-                <form method="post" action="{{ url_for('main.frontend_nav_item_delete', nid=ni.id) }}"
-                      onsubmit="return confirm('Delete this menu item{% if ni.has_megamenu %} and its mega menu{% endif %}?');">
+              <div class="ol-body" data-ol-body hidden>
+                <form class="form hdr-item-form" method="post" action="{{ url_for('main.frontend_nav_item_edit', nid=ni.id) }}" data-nav-item-form>
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+                  {% set _item = ni %}{% include "_nav_item_fields.html" %}
                 </form>
-              {% endcall %}
+                <div class="ol-actions">
+                  {% if ni.has_megamenu %}
+                  <a class="btn btn-sm btn-primary" href="{{ url_for('main.frontend_header', item=ni.id) }}#menu">{{ icon('layout-grid') }} Edit the mega menu</a>
+                  {% endif %}
+                  <form method="post" action="{{ url_for('main.frontend_nav_item_delete', nid=ni.id) }}" data-fe-skip-save-bar
+                        onsubmit="return confirm('Delete this menu item{% if ni.has_megamenu %} and its mega menu{% endif %}?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm ol-danger">{{ icon('trash') }} Delete</button>
+                  </form>
+                </div>
+              </div>
             </li>
             {% endfor %}
           </ul>
           {% else %}
           <p class="muted hdr-empty">No menu items yet. Until you add some, the header shows Meetings, About and Help.</p>
           {% endif %}
-          <p class="muted small hdr-foot">Mega menu colors, corners, text sizes and animation: <a href="{{ url_for('main.frontend_design') }}#megamenu">Design → Mega menu</a>. Menu link colors: <a href="{{ url_for('main.frontend_design') }}#header">Design → Header</a>.</p>
+          <div class="hdr-add"><button type="button" class="ol-add-wide" data-open-modal="nav-item-new-modal">{{ icon('plus') }} Add a menu item</button></div>
+          <p class="muted small hdr-foot">Colors: <a href="{{ url_for('main.frontend_design') }}#header">Design → Header</a>. Mega menu colors, corners and text sizes: <a href="{{ url_for('main.frontend_design') }}#megamenu">Design → Mega menu</a>.</p>
         {% endif %}
       </div>
 
       {# ── Utility bar ── #}
       <div class="st-panel" data-studio-panel="utility" hidden>
-        <p class="st-panel-intro">A slim row in the header for short text, secondary links and buttons. Group related items in a container so they stay together and swipe as one on a phone. Colors: <a href="{{ url_for('main.frontend_design') }}#header">Design → Header</a>.</p>
-        <div class="ds-group">
-          {% include "_frontend_utility_bar_admin.html" %}
-        </div>
+        <p class="st-panel-intro">A slim row above the header for short text, links and buttons. Put items that belong together in a group so they stay together and swipe as one on a phone. Colors: <a href="{{ url_for('main.frontend_design') }}#header">Design → Header</a>.</p>
+        {% include "_frontend_utility_bar_admin.html" %}
       </div>
 
       {# ── Alert bar ── #}
@@ -201,6 +198,7 @@
 
 <script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/fe_rows.js', v=app_build_id) }}"></script>
 <script>
 (function () {
   // Menu item modal: Shape plus Corners write the one `style` field the
@@ -222,18 +220,6 @@
       if (e.target.matches('[data-nav-shape], [data-nav-corners]')) apply();
     });
     apply();
-  });
-
-  // Mega menu link rows: the More button shows the less-used options.
-  document.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-megalink-more]');
-    if (!b) return;
-    var li = b.closest('.nav-megalink');
-    var panel = li && li.querySelector('[data-megalink-more-panel]');
-    if (!panel) return;
-    panel.hidden = !panel.hidden;
-    b.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
-    li.classList.toggle('is-open', !panel.hidden);
   });
 
   // The live preview shows unsaved mega menu text too, and refreshes when

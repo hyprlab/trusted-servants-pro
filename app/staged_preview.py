@@ -55,6 +55,7 @@ PREVIEWABLE = {
     "main.frontend_branding_save",
     "main.frontend_cookie_compliance_save",
     "main.frontend_nav_megamenu_save_all",
+    "main.frontend_nav_item_edit",
 }
 
 # Fields that would delete a stored file if a save ran with them.

@@ -48,6 +48,14 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - Redirects page rebuilt list-first with add/edit modals; renamed-item rows resolve their current URL (`_history_entity_url`) and `new_slug` is read-only.
 - Admin search registry labels match the current subnav.
 
+- Live previews take `only` (selector list), `fit` and `pad`: the frame hides everything but the matched parts before first paint and, with `fit`, sizes the stage to them (`LP_HEADER`, `LP_FOOTER`, `LP_MAIN`, `LP_FORM` in `_live_preview.html`). The stage reserves its height server-side.
+- `.st-body--split` (preview 60%, settings 40%) for Header and Footer; `.st-body--side` now puts the preview on the left too.
+- `static/js/fe_rows.js`: compact rows that open to edit (`data-ol-row`, `data-ol-toggle`, `data-ol-body`, `data-ol-sum`), used by menu items, mega menu blocks and utility bar items; menu item forms are inline (`.hdr-item-form`) and `frontend_nav_item_edit` is previewable.
+- Footer page: a `home` panel lists the parts with their status; `fs_missing` offers the palette add (custom layouts) or Customize (built-in). Copyright builder writes the same `footer_copyright` string.
+- `base.html` pre-paint: a style for the remembered studio tab (`tsp-studio-preload`, removed by `fe_studio.js` / `design_studio.js`), panes marked `data-studio-pane`, and `html.tsp-preload` disabling sidebar transitions until load. Footer and design-token picker styles moved from end-of-body `<style>` blocks into `app.css`.
+- `fe_studio.js` follows `hashchange`. The modal reopen memory forgets a modal whose form submits for real.
+- Page and popup editors render their settings form before the structure card.
+
 ### Fixed
 
 - `frontend_page_delete` clears `cookie_compliance_policy_page_id` when it points at the deleted page.

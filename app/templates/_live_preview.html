@@ -9,14 +9,24 @@
      overlays  keep the cookie banner and popups (hidden by default)
      overrides  {field: value} set on every posted form, e.g. the page
                 editor previews as if publishing (save_action=publish)
+     only   selector list: show just these parts of the page
+     fit    the preview's height follows those parts (height is then the
+            first guess, reserved before the preview loads)
+     pad    space around the parts shown, in page pixels
 #}
-{% macro live_preview(path, forms, focus='', height=560, title='Preview', width=1280, note='', id='', overlays=False, overrides=None, watch=False) %}
+{# The parts of the public page each kind of preview shows. #}
+{% set LP_HEADER = '.fe-utility-bar, #fe-header, .fe-megamenu, .fe-alertbar-header' %}
+{% set LP_FOOTER = 'footer.fe-footer' %}
+{% set LP_MAIN = '#fe-page' %}
+{% set LP_FORM = '#fe-page .fe-contact-card, #fe-page .fe-custom-form-wrap, #fe-page form.fe-submission-form' %}
+{% macro live_preview(path, forms, focus='', height=560, title='Preview', width=1280, note='', id='', overlays=False, overrides=None, watch=False, only='', fit=False, pad=0) %}
 <div class="lp" data-live-preview{% if id %} id="{{ id }}"{% endif %}
      data-lp-url="{{ url_for('main.frontend_staged_preview') }}"
      data-lp-path="{{ path }}" data-lp-forms="{{ forms }}"
      data-lp-height="{{ height }}" data-lp-width="{{ width }}"
      {% if focus %}data-lp-focus="{{ focus }}"{% endif %}{% if overlays %} data-lp-overlays{% endif %}
      {% if watch %}data-lp-watch{% endif %}
+     {% if only %}data-lp-only="{{ only }}"{% endif %}{% if fit %} data-lp-fit{% endif %}{% if pad %} data-lp-pad="{{ pad }}"{% endif %}
      {% if overrides %}data-lp-overrides="{{ overrides|tojson|forceescape }}"{% endif %}>
   <div class="lp-bar">
     <span class="lp-title">{{ title }}</span>
@@ -34,7 +44,8 @@
       <a class="btn btn-sm" href="{{ path }}" target="_blank" rel="noopener" title="Open the saved page in a new tab">{{ icon('external-link') }}</a>
     </div>
   </div>
-  <div class="lp-stage" data-lp-stage>
+  {# Height reserved up front so the page doesn't jump when it loads. #}
+  <div class="lp-stage" data-lp-stage style="height: {{ height }}px">
     <iframe title="{{ title }}" loading="eager"></iframe>
   </div>
   <p class="lp-note muted smaller">{% if note %}{{ note }} {% endif %}Shows unsaved changes; nothing is saved until you save.</p>

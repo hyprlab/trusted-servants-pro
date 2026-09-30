@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
-{% from "_live_preview.html" import live_preview %}
+{% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
 {% from "_width_control.html" import width_control %}
 {% from "_dynbg_picker.html" import dynbg_trigger with context %}
 {% import "_tpl_extras.html" as extras with context %}
@@ -120,7 +120,7 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="st-panel" data-studio-panel="appearance" hidden>
             <p class="st-na" data-tp-switched hidden>{{ icon('info') }}<span>These settings will be saved for the newly chosen layout.</span></p>
-            <p class="muted small tp-intro" data-tp-unsupported{% if not unsupported %} hidden{% endif %}>This layout doesn't use: {{ unsupported|join(', ') }}. Those come from the Design page here.</p>
+            <p class="st-note" data-tp-unsupported{% if not unsupported %} hidden{% endif %}>{{ icon('info') }}<span data-tp-unsupported-text>This layout doesn't use its own {{ unsupported|join(', ') }}; it takes them from the <a href="{{ url_for('main.frontend_design') }}">Design</a> page.</span></p>
 
             <div class="ds-group st-group-body" data-tp-feature="dynbg">
               <h3 class="ds-group-title">{{ icon('sparkles') }}Dynamic background</h3>
@@ -208,7 +208,7 @@
 
       <div class="st-preview">
         {% if preview_path %}
-        {{ live_preview(preview_path, '#tp-main, #tp-look', height=680, width=1280, title='Page preview') }}
+        {{ live_preview(preview_path, '#tp-main, #tp-look', height=680, width=1280, title='Page preview', only=LP_MAIN) }}
         {% else %}
         <p class="muted small tp-nopreview">There is nothing published of this kind to preview yet. Once there is, it shows here.</p>
         {% endif %}
@@ -245,7 +245,10 @@
       .map(function (k) { return LABELS[k]; });
     var note = look.querySelector('[data-tp-unsupported]');
     note.hidden = !missing.length;
-    if (missing.length) note.textContent = "This layout doesn't use: " + missing.join(', ') + '. Those come from the Design page here.';
+    var txt = note.querySelector('[data-tp-unsupported-text]');
+    if (missing.length && txt) {
+      txt.firstChild.textContent = "This layout doesn't use its own " + missing.join(', ') + '; it takes them from the ';
+    }
   }
   if (Object.keys(SUPPORT).length) applySupport(SUPPORT[initial] || []);
   else applySupport({{ support|list|tojson }});

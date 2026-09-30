@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
-{% from "_live_preview.html" import live_preview %}
+{% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
 {% set _f = footer_content(site) %}
 {% block heading %}Footer{% endblock %}
 {% block heading_help %}What the public site's footer holds and how it is laid out. How it looks (background, color scheme, width, text size) is on Design → Footer.{% endblock %}
@@ -58,28 +58,63 @@
 
 <section class="card st-studio" data-studio="footer" data-no-collapse>
   <div class="card-head">
-    <h2>Footer {% call chip('Footer') %}Edits show in the preview straight away and are saved with the yellow Save button. Each tab edits one kind of content; a tab marked off isn't shown by the current layout, and its content is kept.{% endcall %}</h2>
+    <h2>Footer {% call chip('Footer') %}Edits show in the preview straight away and are saved with the yellow Save button. A part marked Not shown isn't in the current layout; what you enter in it is kept.{% endcall %}</h2>
   </div>
-  <div class="st-body st-body--top">
-    <div class="st-preview">
-      {{ live_preview(url_for('frontend.index'), '#footer-form', focus='footer.fe-footer, footer', height=380, title='Footer preview') }}
+  {% set _fs_sections = [
+    ('layout', 'Layout', 'layout-grid', active_name),
+    ('brand', 'Brand', 'star', 'Logo and tagline'),
+    ('link_columns', 'Link columns', 'columns', (_f.columns|length) ~ ' column' ~ ('' if _f.columns|length == 1 else 's') ~ ' of links'),
+    ('secondary_nav', 'Secondary links', 'list', 'Small links such as privacy and terms'),
+    ('social_row', 'Social icons', 'share', (_f.social|length ~ ' icon' ~ ('' if _f.social|length == 1 else 's')) if _f.social else 'Round icon links'),
+    ('meeting_locations', 'Meeting locations', 'map-pin', 'Addresses of in-person meetings'),
+    ('contact_section', 'Contact', 'mail', 'Panes of contact details'),
+    ('copyright', 'Copyright', 'type', 'The copyright line'),
+  ] %}
+  {% set _fs_names = {} %}{% for k, n, i2, d in _fs_sections %}{% set _ = _fs_names.update({k: n}) %}{% endfor %}
+  {% macro fs_back(key) -%}
+    <div class="fs-back">
+      <button type="button" class="ol-back" data-studio-goto="home">{{ icon('arrow-left') }} Footer</button>
+      <h3>{{ _fs_names[key] }}</h3>
     </div>
-    <div class="ds-tabs-wrap">
-      <nav class="ds-tabs" role="tablist" aria-label="Footer parts">
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="layout">{{ icon('layout-grid') }}<span>Layout</span>{% if 'layout' != 'layout' and 'layout' not in used_types %}<span class="ds-tab-count fe-tab-na" title="Not in this layout">off</span>{% endif %}</button>
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="brand">{{ icon('star') }}<span>Brand</span>{% if 'brand' != 'layout' and 'brand' not in used_types %}<span class="ds-tab-count fe-tab-na" title="Not in this layout">off</span>{% endif %}</button>
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="link_columns">{{ icon('columns') }}<span>Link columns</span>{% if 'link_columns' != 'layout' and 'link_columns' not in used_types %}<span class="ds-tab-count fe-tab-na" title="Not in this layout">off</span>{% endif %}</button>
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="secondary_nav">{{ icon('list') }}<span>Secondary links</span>{% if 'secondary_nav' != 'layout' and 'secondary_nav' not in used_types %}<span class="ds-tab-count fe-tab-na" title="Not in this layout">off</span>{% endif %}</button>
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="social_row">{{ icon('share') }}<span>Social icons</span>{% if 'social_row' != 'layout' and 'social_row' not in used_types %}<span class="ds-tab-count fe-tab-na" title="Not in this layout">off</span>{% endif %}</button>
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="meeting_locations">{{ icon('map-pin') }}<span>Locations</span>{% if 'meeting_locations' != 'layout' and 'meeting_locations' not in used_types %}<span class="ds-tab-count fe-tab-na" title="Not in this layout">off</span>{% endif %}</button>
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="contact_section">{{ icon('mail') }}<span>Contact</span>{% if 'contact_section' != 'layout' and 'contact_section' not in used_types %}<span class="ds-tab-count fe-tab-na" title="Not in this layout">off</span>{% endif %}</button>
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="copyright">{{ icon('type') }}<span>Copyright</span>{% if 'copyright' != 'layout' and 'copyright' not in used_types %}<span class="ds-tab-count fe-tab-na" title="Not in this layout">off</span>{% endif %}</button>
-      </nav>
+  {%- endmacro %}
+  {# A section the current layout doesn't show: say so, and offer to add
+     it (a custom layout) or to make an editable copy (a built-in one). #}
+  {% macro fs_missing(key) -%}
+    {% if key not in used_types %}
+    <div class="st-na fs-missing" data-fs-missing="{{ key }}">
+      {{ icon('alert-triangle') }}<span>The layout “{{ active_name }}” doesn't show {{ _fs_names[key]|lower }} yet. What you enter here is kept.</span>
+      {% if is_custom %}
+      <button type="button" class="btn btn-sm btn-primary" data-footer-palette-tile data-type="{{ key }}">{{ icon('plus') }} Show it in the footer</button>
+      {% else %}
+      <button type="submit" class="btn btn-sm" formaction="{{ url_for('main.frontend_footer_customize') }}">{{ icon('copy') }} Customize the layout to add it</button>
+      {% endif %}
+    </div>
+    {% endif %}
+  {%- endmacro %}
+  <div class="st-body st-body--split">
+    <div class="st-preview">
+      {{ live_preview(url_for('frontend.index'), '#footer-form', height=320, title='Footer preview', only=LP_FOOTER, fit=True) }}
     </div>
     <div class="st-controls">
+      <button type="button" data-studio-tab="home" hidden></button>
+      <div class="st-panel" data-studio-panel="home">
+        <p class="st-panel-intro">Pick a part of the footer to edit it. How it looks is on <a href="{{ url_for('main.frontend_design') }}#footer">Design → Footer</a>.</p>
+        <div class="fs-list">
+          {% for key, name, ic, desc in _fs_sections %}
+          {% set _shown = key == 'layout' or key in used_types %}
+          <button type="button" class="fs-item" data-studio-tab="{{ key }}">
+            <span class="ol-glyph">{{ icon(ic) }}</span>
+            <span class="ol-text"><b>{{ name }}</b><small>{{ desc }}</small></span>
+            {% if key != 'layout' %}<span class="fs-state{% if _shown %} is-on{% endif %}" data-fs-status="{{ key }}">{{ 'Shown' if _shown else 'Not shown' }}</span>{% endif %}
+            <span class="ol-chev fs-chev">{{ icon('chevron-right') }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
 
       {# ── Layout: which layout, and for a custom one its rows. ── #}
-      <div class="st-panel" data-studio-panel="layout">
+      <div class="st-panel" data-studio-panel="layout" hidden>
+        {{ fs_back('layout') }}
         <div class="ds-group">
           <h3 class="ds-group-title">{{ icon('layout-grid') }}Layout</h3>
           <div class="fe-flayouts" role="radiogroup" aria-label="Footer layout">
@@ -163,7 +198,8 @@
      stored brand values persist untouched in the JSON column so a later
      layout switch reveals the editor with the saved values intact. #}
   <div class="st-panel" data-studio-panel="brand" hidden>
-    {% if 'brand' not in used_types %}<p class="st-na">{{ icon('alert-triangle') }}The {{ active_name }} footer doesn't show brand. It is kept and shows again in a layout that has it{% if is_custom %}; add the Brand block on the Layout tab to show it here{% endif %}.</p>{% endif %}
+    {{ fs_back('brand') }}
+    {{ fs_missing('brand') }}
     <div class="ds-group st-group-body fe-footer-editor">
       <div class="fe-footer-editor-body">
         <input type="hidden" name="footer_brand_present" value="1">
@@ -239,7 +275,8 @@
 
   {# ── Link columns ── #}
   <div class="st-panel" data-studio-panel="link_columns" hidden>
-    {% if 'link_columns' not in used_types %}<p class="st-na">{{ icon('alert-triangle') }}The {{ active_name }} footer doesn't show link columns. It is kept and shows again in a layout that has it{% if is_custom %}; add the Link columns block on the Layout tab to show it here{% endif %}.</p>{% endif %}
+    {{ fs_back('link_columns') }}
+    {{ fs_missing('link_columns') }}
     <div class="ds-group st-group-body fe-footer-editor fe-footer-cols-editor"
          data-footer-cols-editor data-cols-max="6" data-links-max="12">
       <input type="hidden" name="footer_cols_section_present" value="1">
@@ -329,7 +366,8 @@
 
   {# ── Social row ── #}
   <div class="st-panel" data-studio-panel="social_row" hidden>
-    {% if 'social_row' not in used_types %}<p class="st-na">{{ icon('alert-triangle') }}The {{ active_name }} footer doesn't show social icons. It is kept and shows again in a layout that has it{% if is_custom %}; add the Social icons block on the Layout tab to show it here{% endif %}.</p>{% endif %}
+    {{ fs_back('social_row') }}
+    {{ fs_missing('social_row') }}
     <div class="ds-group st-group-body fe-footer-editor fe-footer-social-editor"
          data-footer-social-editor data-social-max="10">
       <input type="hidden" name="footer_social_section_present" value="1">
@@ -384,7 +422,8 @@
 
   {# ── Secondary nav ── #}
   <div class="st-panel" data-studio-panel="secondary_nav" hidden>
-    {% if 'secondary_nav' not in used_types %}<p class="st-na">{{ icon('alert-triangle') }}The {{ active_name }} footer doesn't show secondary links. It is kept and shows again in a layout that has it{% if is_custom %}; add the Secondary links block on the Layout tab to show it here{% endif %}.</p>{% endif %}
+    {{ fs_back('secondary_nav') }}
+    {{ fs_missing('secondary_nav') }}
     <div class="ds-group st-group-body fe-footer-editor fe-footer-secnav-editor"
          data-footer-secnav-editor data-secnav-max="8">
       <input type="hidden" name="footer_secnav_section_present" value="1">
@@ -431,7 +470,8 @@
   {# ── Meeting locations (Recovery Blue block content) ── #}
   {% set _ml = _f.meeting_locations %}
   <div class="st-panel" data-studio-panel="meeting_locations" hidden>
-    {% if 'meeting_locations' not in used_types %}<p class="st-na">{{ icon('alert-triangle') }}The {{ active_name }} footer doesn't show meeting locations. It is kept and shows again in a layout that has it{% if is_custom %}; add the Meeting locations block on the Layout tab to show it here{% endif %}.</p>{% endif %}
+    {{ fs_back('meeting_locations') }}
+    {{ fs_missing('meeting_locations') }}
     <div class="ds-group st-group-body fe-footer-editor fe-footer-loc-editor"
          data-footer-loc-editor data-loc-max="12">
       <input type="hidden" name="footer_loc_section_present" value="1">
@@ -605,7 +645,8 @@
   {# ── Contact section panes (Recovery Blue block content) ── #}
   {% set _cs = _f.contact_section %}
   <div class="st-panel" data-studio-panel="contact_section" hidden>
-    {% if 'contact_section' not in used_types %}<p class="st-na">{{ icon('alert-triangle') }}The {{ active_name }} footer doesn't show contact section. It is kept and shows again in a layout that has it{% if is_custom %}; add the Contact section block on the Layout tab to show it here{% endif %}.</p>{% endif %}
+    {{ fs_back('contact_section') }}
+    {{ fs_missing('contact_section') }}
     <div class="ds-group st-group-body fe-footer-editor fe-footer-contact-editor"
          data-footer-contact-editor data-contact-max="4">
       <input type="hidden" name="footer_contact_section_present" value="1">
@@ -641,16 +682,56 @@
 
   {# ── Copyright ── #}
   <div class="st-panel" data-studio-panel="copyright" hidden>
-    {% if 'copyright' not in used_types %}<p class="st-na">{{ icon('alert-triangle') }}The {{ active_name }} footer doesn't show copyright. It is kept and shows again in a layout that has it{% if is_custom %}; add the Copyright block on the Layout tab to show it here{% endif %}.</p>{% endif %}
-    <div class="ds-group st-group-body fe-footer-editor">
+    {{ fs_back('copyright') }}
+    {{ fs_missing('copyright') }}
+    {% set _site_name = (site.frontend_title if site else '') or 'Trusted Servants' %}
+    <div class="ds-group st-group-body fe-footer-editor cr-builder" data-cr-builder
+         data-site-name="{{ _site_name }}" data-year="{{ now_year() if now_year is defined else 2026 }}">
       <input type="hidden" name="footer_copyright_present" value="1">
-      <div class="fe-footer-editor-body">
-        <p class="muted smaller"><code>{year}</code> becomes the current year and <code>{site_name}</code> the site name. Basic HTML is allowed. Left blank, the default line is used.</p>
-        <label>Copyright text
-          <input type="text" name="footer_copyright" value="{{ _f.copyright or '' }}"
-                 placeholder="© {year} {site_name}. All rights reserved.">
+      <div class="cr-preview" aria-live="polite"><span class="muted smaller">Shows as</span><p data-cr-preview></p></div>
+
+      <div class="cr-parts" data-cr-parts>
+        <label class="mode-toggle pop-switch"><input type="checkbox" data-cr-symbol checked><span class="mode-track"><span class="mode-thumb"></span></span><span>Start with the © sign</span></label>
+
+        <div class="st-field"><span>Year</span>
+          <div class="ds-seg-btns cr-seg" role="radiogroup" aria-label="Year">
+            <label><input type="radio" name="_cr_year" value="now" data-cr-year checked><span>This year</span></label>
+            <label><input type="radio" name="_cr_year" value="range" data-cr-year><span>From a year to now</span></label>
+            <label><input type="radio" name="_cr_year" value="none" data-cr-year><span>No year</span></label>
+          </div>
+          <label class="cr-inline" data-cr-range hidden>Starting in
+            <input type="number" min="1900" max="2100" step="1" data-cr-start placeholder="2019">
+          </label>
+          <small class="muted">This year updates by itself every January.</small>
+        </div>
+
+        <div class="st-field"><span>Name</span>
+          <div class="ds-seg-btns cr-seg" role="radiogroup" aria-label="Name">
+            <label><input type="radio" name="_cr_name" value="site" data-cr-namemode checked><span>The site name</span></label>
+            <label><input type="radio" name="_cr_name" value="custom" data-cr-namemode><span>Another name</span></label>
+          </div>
+          <small class="muted" data-cr-sitename-note>{{ _site_name }}, from <a href="{{ url_for('main.frontend_branding') }}">Branding</a>.</small>
+          <input type="text" data-cr-name placeholder="Our intergroup's full name" hidden>
+        </div>
+
+        <label class="st-field"><span>After the name</span>
+          <input type="text" data-cr-ending list="cr-endings" placeholder="All rights reserved.">
+          <datalist id="cr-endings">
+            <option value="All rights reserved."></option>
+            <option value="Some rights reserved."></option>
+          </datalist>
+          <small class="muted">Optional. Leave it empty to end with the name.</small>
         </label>
       </div>
+
+      <details class="cr-own" data-cr-own>
+        <summary>Write the whole line myself</summary>
+        <label class="st-field"><span>Copyright line</span>
+          <input type="text" name="footer_copyright" value="{{ _f.copyright or '' }}" data-cr-raw
+                 placeholder="© {year} {site_name}. All rights reserved.">
+          <small class="muted"><code>{year}</code> becomes this year and <code>{site_name}</code> the site name. Left empty, the footer uses © {year} {site_name}. All rights reserved. Bold, italic and links are allowed as HTML.</small>
+        </label>
+      </details>
     </div>
   </div>
 
@@ -712,6 +793,117 @@
     slider.addEventListener('input', apply);
     apply();
   }
+})();
+
+// The section list says which parts the layout shows; adding a block from
+// a section's "Show it in the footer" updates it straight away.
+(function () {
+  var json = document.getElementById('footer-layout-json');
+  var rows = document.querySelector('[data-footer-rows]');
+  if (!json || !rows) return;
+  json.addEventListener('input', function () {
+    var used = {};
+    rows.querySelectorAll('.fe-page-structure-block[data-type]').forEach(function (p) { used[p.dataset.type] = true; });
+    document.querySelectorAll('[data-fs-status]').forEach(function (el) {
+      var on = !!used[el.getAttribute('data-fs-status')];
+      el.classList.toggle('is-on', on);
+      el.textContent = on ? 'Shown' : 'Not shown';
+    });
+    document.querySelectorAll('[data-fs-missing]').forEach(function (el) {
+      el.hidden = !!used[el.getAttribute('data-fs-missing')];
+    });
+  });
+})();
+
+// Copyright builder: the sign, the year, the name and an ending make the
+// one `footer_copyright` line. A line the builder can't read back (HTML,
+// a fixed year) opens in "Write the whole line myself" instead.
+(function () {
+  var root = document.querySelector('[data-cr-builder]');
+  if (!root) return;
+  var raw = root.querySelector('[data-cr-raw]');
+  var own = root.querySelector('[data-cr-own]');
+  var parts = root.querySelector('[data-cr-parts]');
+  var sym = root.querySelector('[data-cr-symbol]');
+  var start = root.querySelector('[data-cr-start]');
+  var range = root.querySelector('[data-cr-range]');
+  var name = root.querySelector('[data-cr-name]');
+  var ending = root.querySelector('[data-cr-ending]');
+  var note = root.querySelector('[data-cr-sitename-note]');
+  var preview = root.querySelector('[data-cr-preview]');
+  var siteName = root.getAttribute('data-site-name') || '';
+  var year = root.getAttribute('data-year') || String(new Date().getFullYear());
+  var DEFAULT = '© {year} {site_name}. All rights reserved.';
+
+  function radio(sel) { return (root.querySelector(sel + ':checked') || {}).value; }
+  function setRadio(sel, v) { root.querySelectorAll(sel).forEach(function (r) { r.checked = r.value === v; }); }
+
+  // Read a stored line into the builder; false when it doesn't fit.
+  function parse(text) {
+    text = (text || '').trim() || DEFAULT;
+    if (/[<>]/.test(text)) return false;
+    var m = text.match(/^(©|&copy;|\(c\))?\s*(?:(\d{4})\s*[–-]\s*)?(\{year\})?\s*(.*)$/i);
+    if (!m) return false;
+    if (m[2] && !m[3]) return false;
+    var rest = m[4] || '';
+    if (/\{year\}/.test(rest) || /^\d{4}\b/.test(rest)) return false;
+    var nm = rest, end = '';
+    var cut = rest.search(/\.\s+\S/);
+    if (cut !== -1) { nm = rest.slice(0, cut); end = rest.slice(cut + 1).trim(); }
+    else if (/\.$/.test(rest)) { nm = rest.slice(0, -1); }
+    nm = nm.trim();
+    sym.checked = !!m[1];
+    setRadio('[data-cr-year]', m[3] ? (m[2] ? 'range' : 'now') : 'none');
+    start.value = m[2] || '';
+    if (nm === '{site_name}' || !nm) { setRadio('[data-cr-namemode]', 'site'); name.value = ''; }
+    else if (/\{site_name\}/.test(nm)) return false;
+    else { setRadio('[data-cr-namemode]', 'custom'); name.value = nm; }
+    ending.value = end;
+    return true;
+  }
+
+  function build() {
+    var bits = [];
+    if (sym.checked) bits.push('©');
+    var y = radio('[data-cr-year]');
+    if (y === 'now') bits.push('{year}');
+    else if (y === 'range') bits.push(((start.value || '').trim() ? start.value.trim() + '–' : '') + '{year}');
+    var nm = radio('[data-cr-namemode]') === 'custom' ? (name.value || '').trim() : '{site_name}';
+    var end = (ending.value || '').trim();
+    if (nm) bits.push(nm + (end ? '.' : ''));
+    if (end) bits.push(end);
+    return bits.join(' ').replace(/\.\./g, '.');
+  }
+
+  function show(text) {
+    var t = (text || '').trim() || DEFAULT;
+    preview.textContent = t.split('{site_name}').join(siteName).split('{year}').join(year);
+  }
+
+  function sync() {
+    range.hidden = radio('[data-cr-year]') !== 'range';
+    var custom = radio('[data-cr-namemode]') === 'custom';
+    name.hidden = !custom;
+    note.hidden = custom;
+  }
+
+  function fromParts() {
+    sync();
+    raw.value = build();
+    raw.dispatchEvent(new Event('input', { bubbles: true }));
+    show(raw.value);
+  }
+
+  var fits = parse(raw.value);
+  sync();
+  show(raw.value);
+  if (!fits) { own.open = true; parts.classList.add('is-na'); }
+  own.addEventListener('toggle', function () { parts.classList.toggle('is-na', own.open); });
+  parts.addEventListener('input', function (e) { if (e.target !== raw) fromParts(); });
+  parts.addEventListener('change', function (e) { if (e.target !== raw) fromParts(); });
+  raw.addEventListener('input', function (e) {
+    if (e.isTrusted) { show(raw.value); if (!own.open) return; parse(raw.value); sync(); }
+  });
 })();
 
 // Columns + links editor
@@ -978,28 +1170,4 @@
 <script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
 
-<style>
-  .fe-footer-builder-bar {
-    display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; align-items: center;
-    margin-top: 1rem; padding-top: 1rem;
-    border-top: 1px solid var(--border, rgba(0,0,0,.08));
-  }
-  .fe-footer-builder-addrow, .fe-footer-builder-palette {
-    display: flex; flex-wrap: wrap; gap: .4rem; align-items: center;
-  }
-  .fe-footer-palette-tile {
-    display: inline-flex; align-items: center; gap: .4rem;
-    padding: 5px 11px; border-radius: 8px;
-    border: 1px solid var(--border, rgba(0,0,0,.12));
-    background: var(--panel-2, rgba(0,0,0,.03)); color: var(--text);
-    cursor: pointer; font-size: var(--fs-xs);
-    transition: background .12s, border-color .12s;
-  }
-  .fe-footer-palette-tile:hover {
-    background: var(--panel, #fff);
-    border-color: color-mix(in srgb, var(--brand, #0b5cff) 45%, var(--border));
-  }
-  .fe-footer-palette-tile .fe-page-structure-block-icon .icon { width: 15px; height: 15px; }
-  .fe-page-structure-block.is-drag-ghost { opacity: .45; }
-</style>
 {% endblock %}

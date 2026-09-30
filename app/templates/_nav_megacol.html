@@ -1,35 +1,45 @@
+{# One mega menu column on the Header page: its blocks as compact rows
+   (_nav_megalink.html) and an Add block menu. The column's name is its
+   first Title block, when it has one. #}
+{% set _first_title = (col.links | selectattr('kind', 'equalto', 'title') | list | first) %}
 <article id="nav-megacol-{{ col.id }}" class="nav-megacol" data-item-id="{{ col.id }}" draggable="true">
   <div class="nav-megacol-head">
     <span class="drag-handle" title="Drag to reorder column">{{ icon('grip-vertical') }}</span>
-    <span class="nav-megacol-label muted smaller"></span>
+    <span class="nav-megacol-label"></span>
+    {% if _first_title and _first_title.label %}<span class="nav-megacol-name muted small">{{ _first_title.label }}</span>{% endif %}
     <form method="post" action="{{ url_for('main.frontend_nav_column_delete', cid=col.id) }}"
           onsubmit="return confirm('Delete this column and all its links?');"
           class="nav-megacol-del-form" data-delete-column-form data-target-item="#nav-megacol-{{ col.id }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-sm btn-danger" title="Delete column">{{ icon('trash') }}</button>
+      <button class="icon-btn ol-del" title="Delete column" aria-label="Delete column">{{ icon('trash') }}</button>
     </form>
   </div>
 
-  <ul id="nav-megacol-links-{{ col.id }}" class="nav-megacol-links file-list-sortable"
+  <ul id="nav-megacol-links-{{ col.id }}" class="nav-megacol-links ol-list file-list-sortable"
       data-reorder-url="{{ url_for('main.frontend_nav_links_reorder', cid=col.id) }}"
       data-reorder-toast="Block order">
     {% for link in col.links %}
       {% include "_nav_megalink.html" %}
     {% endfor %}
   </ul>
+  {% if not col.links %}<p class="muted small nav-megacol-empty">No blocks yet. Start with a Title to give the column a heading.</p>{% endif %}
 
-  <div class="nav-megacol-add-row">
-    {% for _k, _lbl in [('link','+ Link'), ('title','+ Title'),
-                        ('button','+ Button'), ('section','+ Section'),
-                        ('search','+ Search'),
-                        ('admin_login','+ Admin login')] %}
-    <form method="post" action="{{ url_for('main.frontend_nav_link_new', cid=col.id) }}"
-          class="nav-megacol-addlink-form"
-          data-add-block-target="#nav-megacol-links-{{ col.id }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="kind" value="{{ _k }}">
-      <button class="btn btn-sm">{{ _lbl }}</button>
-    </form>
-    {% endfor %}
-  </div>
+  <details class="ol-add">
+    <summary class="btn btn-sm">{{ icon('plus') }} Add block</summary>
+    <div class="ol-add-menu">
+      {% for _k, _lbl, _ic, _d in [('link', 'Link', 'link', 'Text that goes to a page'),
+                                   ('title', 'Title', 'heading', 'A large heading for the column'),
+                                   ('section', 'Section', 'align-left', 'A small heading over a group of links'),
+                                   ('button', 'Button', 'mouse-pointer-click', 'A link drawn as a button'),
+                                   ('search', 'Search', 'search', 'A search bar'),
+                                   ('admin_login', 'Sign in', 'log-in', 'Login, or Return to dashboard')] %}
+      <form method="post" action="{{ url_for('main.frontend_nav_link_new', cid=col.id) }}"
+            class="nav-megacol-addlink-form" data-add-block-target="#nav-megacol-links-{{ col.id }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="kind" value="{{ _k }}">
+        <button class="ol-add-item">{{ icon(_ic) }}<span><b>{{ _lbl }}</b><small>{{ _d }}</small></span></button>
+      </form>
+      {% endfor %}
+    </div>
+  </details>
 </article>

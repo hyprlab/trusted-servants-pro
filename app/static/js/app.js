@@ -2769,9 +2769,15 @@
       if (!node) throw new Error("empty html");
       target.appendChild(node);
       if (typeof target.__tspBindItem === "function") target.__tspBindItem(node);
+      const menu = form.closest("details");
+      if (menu) menu.open = false;
+      const empty = target.parentElement && target.parentElement.querySelector(".nav-megacol-empty");
+      if (empty) empty.remove();
+      // A compact row (fe_rows.js) opens straight to its fields.
+      if (window.FeRows && node.hasAttribute("data-ol-row")) { window.FeRows.init(target); window.FeRows.open(node); }
       node.scrollIntoView({ behavior: "smooth", block: "nearest" });
       const labelInput = node.querySelector('input[data-block-field="label"]');
-      if (labelInput) { labelInput.focus(); labelInput.select(); }
+      if (labelInput && !labelInput.disabled && labelInput.offsetParent) { labelInput.focus(); labelInput.select(); }
     } catch (_) {
       toast("Could not add block — retry", "error");
     } finally {
@@ -7985,6 +7991,16 @@
               modalSrc: trig.dataset.modalSrc || "", ts: Date.now() });
     }
   }, true);
+
+  // A modal's own form posting for real (not intercepted by a script)
+  // finishes that modal: the page it lands on shouldn't open it again.
+  // Bubble phase on window, so handlers that take the submit over have
+  // already called preventDefault.
+  window.addEventListener("submit", function (e) {
+    if (e.defaultPrevented) return;
+    var f = e.target;
+    if (f && f.closest && f.closest(".modal")) write(null);
+  });
 
   // Forget it once the last modal closes.
   if (window.MutationObserver) {

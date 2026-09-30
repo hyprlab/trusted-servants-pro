@@ -30,6 +30,14 @@
 {% if site and site.apple_touch_icon_name %}<meta name="apple-mobile-web-app-title" content="{{ site.apple_touch_icon_name }}">{% endif %}
 <script>
   (function(){
+    // No transitions until the page has loaded: a browser that settles
+    // styles late would otherwise animate the hidden sidebar in and out.
+    document.documentElement.classList.add('tsp-preload');
+    window.addEventListener('load', function () {
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        document.documentElement.classList.remove('tsp-preload');
+      }); });
+    });
     var t = null;
     try { t = localStorage.getItem('tsp-theme'); } catch(e){}
     if (t) document.documentElement.setAttribute('data-theme', t);
@@ -45,6 +53,43 @@
       if (sessionStorage.getItem('tsp-login-fade') === '1') {
         sessionStorage.removeItem('tsp-login-fade');
         document.documentElement.classList.add('login-fade-in');
+      }
+    } catch(e){}
+    // Studio tabs (fe_studio.js, design_studio.js) remember the open tab.
+    // Show that tab from the first paint rather than flashing the first
+    // one (or every panel) until the scripts at the end of the page run.
+    // The scripts remove this style once they take over.
+    try {
+      var h = (location.hash || '').slice(1).replace(/[^a-zA-Z0-9_-]/g, '');
+      var css = '';
+      var one = function (scope, attr, v) {
+        var css = scope + ':has([' + attr + '="' + v + '"]) [' + attr + ']:not([' + attr + '="' + v + '"]){display:none!important}' +
+                  scope + ' [' + attr + '="' + v + '"][hidden]{display:block!important}';
+        // Per-tab preview panes follow their tab (data-studio-pane).
+        if (attr === 'data-studio-panel') {
+          css += scope + ':has([' + attr + '="' + v + '"]) [data-studio-pane]:not([data-studio-pane="' + v + '"]){display:none!important}' +
+                 scope + ' [data-studio-pane="' + v + '"][hidden]{display:flex!important}';
+        }
+        return css;
+      };
+      if (h) css += one('[data-studio]', 'data-studio-panel', h);
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i) || '';
+        if (k.indexOf('fe-studio-tab:') !== 0) continue;
+        var name = k.slice(14).replace(/[^a-zA-Z0-9_-]/g, '');
+        var v = (localStorage.getItem(k) || '').replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!name || !v) continue;
+        var scope = '[data-studio="' + name + '"]' + (h ? ':not(:has([data-studio-panel="' + h + '"]))' : '');
+        css += one(scope, 'data-studio-panel', v);
+      }
+      var ds = (localStorage.getItem('ds-tab') || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (h) css += one('.ds-studio', 'data-ds-panel', h);
+      if (ds) css += one('.ds-studio' + (h ? ':not(:has([data-ds-panel="' + h + '"]))' : ''), 'data-ds-panel', ds);
+      if (css) {
+        var st = document.createElement('style');
+        st.id = 'tsp-studio-preload';
+        st.textContent = css;
+        (document.head || document.documentElement).appendChild(st);
       }
     } catch(e){}
     // Collapsed sidebar sections — hide them via an injected stylesheet

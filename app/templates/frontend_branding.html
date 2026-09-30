@@ -108,7 +108,7 @@
 
     {# Previews of where each setting shows. #}
     <div class="st-preview br-previews">
-      <div class="br-pv" data-br-pv="identity">
+      <div class="br-pv" data-br-pv="identity" data-studio-pane="identity">
         <div class="lp-title">Browser tab and header</div>
         <div class="br-tab">
           <img data-br-fav src="{{ url_for('public.site_frontend_favicon') if _has_fav else url_for('static', filename='img/favicon.png') }}" alt="">
@@ -121,7 +121,7 @@
           <span class="br-hdr-links"><i></i><i></i><i></i></span>
         </div>
       </div>
-      <div class="br-pv" data-br-pv="icons">
+      <div class="br-pv" data-br-pv="icons" data-studio-pane="icons" hidden>
         <div class="lp-title">Home screen</div>
         <div class="br-phone">
           <div class="br-app"><img data-br-ati src="{{ _ati_src }}" alt=""><span data-br-ati-label>{{ (site.frontend_apple_touch_icon_name if site else '') or _name or 'Home' }}</span></div>
@@ -129,7 +129,7 @@
           <div class="br-app br-app--ghost"><i></i><span></span></div>
         </div>
       </div>
-      <div class="br-pv" data-br-pv="sharing">
+      <div class="br-pv" data-br-pv="sharing" data-studio-pane="sharing" hidden>
         <div class="lp-title">Search result</div>
         <div class="br-serp">
           <span class="br-serp-host">{{ _host }}</span>
