@@ -9,7 +9,12 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
-- The card previews under Design → Card styles now follow the admin theme: in a dark theme they show the dark-mode card colors and text, so the sample text is readable in both.
+- The Design page has a new layout: a live preview on the left and the settings beside it, in tabs for Colors, Text, Links, Layout, Cards and Buttons. Settings are grouped by the element they change, so everything for a card, a button or a link is in one place.
+- Each tab's preview shows its elements at rest and on hover, in light or dark mode. It starts in the admin theme's mode, and clicking part of it jumps to the settings that drive it.
+- Scales such as border width, shadow and corner radius are sliders, on/off settings are switches, and light and dark (or rest and hover) colors sit side by side. A dot marks each changed setting, and its reset button returns it to the theme's value.
+- In dark mode the preview shows what the public site really does: fixed button colors, and header links in the dark body text color. A note says so where it applies.
+- The "Dots" underline for links and buttons now draws a dotted underline. Before, it drew no line at all.
+- "Default section spacing" is no longer on the Design page: nothing on the public site used it. Page spacing is set on each page.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

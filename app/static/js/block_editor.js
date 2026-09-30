@@ -4215,7 +4215,7 @@
       // Opts the container into the site-wide Primary or Secondary
       // card design tokens. When set, the container picks up the
       // matching bg + border + shadow + hover lift centrally from
-      // Design → Card styles, so every container with the same
+      // Design → Cards, so every container with the same
       // setting updates together when the admin tweaks the tokens.
       // "None" leaves the per-container inline styles alone (admins
       // can still hand-tune bg / border / shadow on this same block).
@@ -4232,7 +4232,7 @@
           d.card_style = v || '';
           notifyChange();
         }),
-        'Linking to a card token makes this container inherit the matching primary or secondary card visuals from Design → Card styles. Any per-container bg / border / shadow you set below still applies on top, so you can tweak this single container without losing the shared baseline.'));
+        'Linking to a card token makes this container inherit the matching primary or secondary card visuals from Design → Cards. Any per-container bg / border / shadow you set below still applies on top, so you can tweak this single container without losing the shared baseline.'));
       cardStylePanel.appendChild(cardStyleBody);
       wrap.appendChild(cardStylePanel);
 

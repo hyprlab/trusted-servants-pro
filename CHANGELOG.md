@@ -6,9 +6,19 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- Design page rebuilt: `frontend_design.html` with `static/js/design_studio.js` and `static/css/design_preview.css`. Tabbed controls beside a sticky preview cloned from a `<template>` into a shadow root, so admin theme rules (neobrutal borders, link and heading styles) can't reach it. Controls are grouped by element: link and nav colors under Links, card colors, card radius and `card_shadow` under Cards, container settings under Layout. The card colors no longer render twice with a mirror sync.
+- Scale tokens use stepped sliders labelled from the new `design.SCALE_UI`; on/off tokens use switches; decoration and case use segmented controls; CSS lengths get a slider plus a text box. The form contract is unchanged (`design_<key>`, plus `design_<key>_enabled` for colors), and an unedited form posts the saved overrides exactly.
+- `design.design_studio_data()` gives the page the theme defaults, the valid saved overrides, the scales and `SHADOW_SCALE_COMPONENTS`; the preview composes shadows and the mega-menu `dark_variant` in JS the same way the emitter does.
+- The dark preview mirrors `frontend.css`: fixed dark button colors, `.fe-th-nav-link` in `--fe-dm-text`, and mega-menu links through `dark_variant`.
+- `section_gap` has no control: `--fe-section-gap` is emitted but no stylesheet reads it. A saved value is carried through a hidden input.
+- Default appearance is a compact segmented control, saved through the save bar.
+
 ### Fixed
 
-- Card styles preview in a dark admin theme (`dark`, `neobrutal-dark`, `cyberpunk`) painted the light card colors with the admin's light text. It now resolves the `_dark` background and border tokens and `color_text_dark` there (`color_text` and `color_text_soft` in light themes), stamps them as `--fe-card-preview-text` / `--fe-card-preview-muted`, and repaints when the admin theme changes.
+- The Design page preview in a dark admin theme (`dark`, `neobrutal-dark`, `cyberpunk`) painted light card colors under the admin's light text. The preview now has a Light/Dark switch that starts from the admin theme, and it uses the site's own text tokens.
+- A `dotted` link, mega-menu or button decoration was emitted as `text-decoration: dotted`, which sets only the line style and draws no line. `design.text_decoration()` now emits `underline dotted`.
 
 ## [2.20.2] — 2026-09-30
 

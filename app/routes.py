@@ -10850,8 +10850,9 @@ def frontend_design():
     """Site-wide design tokens (colors, spacing, buttons, links, text).
     Theme provides defaults; this page lets the admin override any
     subset. Empty inputs fall through to the theme default."""
+    from .design import design_studio_data
     s = _get_site_setting()
-    return render_template("frontend_design.html", site=s)
+    return render_template("frontend_design.html", site=s, ds=design_studio_data(s))
 
 
 @bp.route("/frontend/design/save", methods=["POST"])

@@ -826,7 +826,7 @@
      "Secondary" in the container's settings panel; here we add the
      matching CSS class. The class applies the site-wide design-token
      defaults (bg + border + shadow + hover lift). When set, the
-     container becomes a card surface that tracks Design → Card styles
+     container becomes a card surface that tracks Design → Cards
      centrally. #}
   {% set _cardcls = (d.get('card_style') or '').strip().lower() %}
   {% if _cardcls not in ('primary', 'secondary') %}{% set _cardcls = '' %}{% endif %}

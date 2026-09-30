@@ -864,7 +864,8 @@ DESIGN_FIELDS = [
     {"key": "card_radius", "kind": "scale", "scale": "radius",
      "group": "Layout", "label": "Card radius"},
     {"key": "card_shadow", "kind": "scale", "scale": "shadow",
-     "group": "Layout", "label": "Card shadow"},
+     "group": "Layout", "label": "Card shadow",
+     "help": "Shadow on panels that use neither card style, such as the event poster's ticket and the actions panel on a meeting page."},
 
     # ----- Buttons -----
     {"key": "color_btn_primary_bg",     "kind": "color",
@@ -978,7 +979,6 @@ DESIGN_FIELDS = [
      "group": "Card styles", "label": "Secondary card — hover transform"},
 ]
 DESIGN_FIELDS_BY_KEY = {f["key"]: f for f in DESIGN_FIELDS}
-DESIGN_GROUPS = ["Colors", "Layout", "Card styles", "Buttons", "Links", "Text"]
 
 # Map "scale" name → the actual scale dict.
 SCALES = {"spacing": SPACING_SCALE, "radius": RADIUS_SCALE, "shadow": SHADOW_SCALE,
@@ -1093,6 +1093,52 @@ def parse_design_form(form):
         if coerced is not None:
             out[f["key"]] = coerced
     return out
+
+
+# ----- Design page presentation ---------------------------------------
+# Slider stops for the admin Design page, per scale: (key, tick label
+# under the track, readout beside the label). Keys must match the scale
+# dicts above; "weight" covers WEIGHT_KEYS.
+SCALE_UI = {
+    "border_width": [("0", "0", "None"), ("1", "1", "1px"), ("2", "2", "2px"),
+                     ("3", "3", "3px"), ("4", "4", "4px")],
+    "shadow": [("none", "None", "None"), ("sm", "S", "Small"), ("md", "M", "Medium"),
+               ("lg", "L", "Large"), ("xl", "XL", "Extra large")],
+    "radius": [("none", "0", "Square"), ("sm", "4", "4px"), ("md", "8", "8px"),
+               ("lg", "16", "16px"), ("pill", "Pill", "Pill")],
+    "transition": [("none", "Off", "Instant"), ("fast", "Fast", "Fast, 120ms"),
+                   ("normal", "Normal", "Normal, 200ms"), ("slow", "Slow", "Slow, 320ms")],
+    "transform": [("none", "None", "No lift"), ("lift-sm", "1px", "Lifts 1px"),
+                  ("lift-md", "2px", "Lifts 2px"), ("lift-lg", "4px", "Lifts 4px")],
+    "weight": [("400", "400", "Regular"), ("500", "500", "Medium"), ("600", "600", "Semibold"),
+               ("700", "700", "Bold"), ("800", "800", "Extra bold")],
+}
+
+
+def design_studio_data(site):
+    """Everything the admin Design page needs: the active theme's
+    defaults, the valid saved overrides, and the scales and shadow parts
+    its live preview resolves tokens through."""
+    theme = (site.frontend_theme if site else None) or "classic"
+    defaults = THEME_DEFAULTS.get(theme) or THEME_DEFAULTS["classic"]
+    raw = (site.frontend_design_json if site else None) or ""
+    try:
+        saved = json.loads(raw) if raw else {}
+    except (ValueError, TypeError):
+        saved = {}
+    overrides = {}
+    for key, val in (saved or {}).items():
+        f = DESIGN_FIELDS_BY_KEY.get(key)
+        coerced = _coerce(f, val) if f else None
+        if coerced is not None:
+            overrides[key] = coerced
+    return {
+        "defaults": defaults,
+        "overrides": overrides,
+        "scales": SCALES,
+        "scale_ui": SCALE_UI,
+        "shadow_parts": SHADOW_SCALE_COMPONENTS,
+    }
 
 
 def text_decoration(key):
