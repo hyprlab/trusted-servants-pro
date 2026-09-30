@@ -312,6 +312,11 @@
         <p class="muted smaller">A single flat colour behind the footer.</p>
         <div class="nav-megalink-field">
           <span class="nav-megalink-field-lbl">Background colour</span>
+          {# An empty stored color means the theme's footer color. The
+             picker needs some value to show, so `footer_bg_color_custom`
+             records whether the admin actually picked one; until then
+             the save keeps the color empty. #}
+          <input type="hidden" name="footer_bg_color_custom" value="{{ '1' if _bg.color else '' }}" data-bg-color-custom>
           <input type="color" class="nav-megalink-color-input"
                  name="footer_bg_color" value="{{ _bg.color or '#0b1026' }}"
                  data-bg-live="color">
@@ -325,7 +330,7 @@
           <div class="nav-megalink-field">
             <span class="nav-megalink-field-lbl">Start colour</span>
             <input type="color" class="nav-megalink-color-input"
-                   name="footer_bg_color" value="{{ _bg.color or '#0b1026' }}"
+                   name="footer_bg_gradient_start" value="{{ _bg.color or '#0b1026' }}"
                    data-bg-live="color">
           </div>
           <div class="nav-megalink-field">
@@ -1160,7 +1165,8 @@
     sec.classList.add('fe-footer-bg-' + s);
     // Solid / gradient inline background. Clear every long-hand bg
     // prop so the sinewave-applied background-image doesn't linger.
-    const c1 = val('footer_bg_color', '#0b1026');
+    const c1 = s === 'gradient' ? val('footer_bg_gradient_start', '#0b1026')
+                                : val('footer_bg_color', '#0b1026');
     const c2 = val('footer_bg_color_2', '#1f2a44');
     const ang = val('footer_bg_gradient_angle', '180');
     sec.style.background = '';
@@ -1188,7 +1194,13 @@
   }
 
   // Fire applyAll() on every relevant field change.
-  editor.addEventListener('input', applyAll);
+  editor.addEventListener('input', function (e) {
+    if (e.target && e.target.name === 'footer_bg_color') {
+      const flag = editor.querySelector('[data-bg-color-custom]');
+      if (flag) flag.value = '1';
+    }
+    applyAll();
+  });
   editor.addEventListener('change', applyAll);
 
   // Bg-mode (dark/follow) toggles the .fe-footer-force-dark class on the

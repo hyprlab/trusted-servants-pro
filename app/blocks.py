@@ -1311,9 +1311,19 @@ def parse_footer(form, existing=None):
                     sw_wave = parsed_wave
             except (ValueError, TypeError):
                 sw_wave = None
+        # Solid and Gradient each have their own first color input. A
+        # Solid color stays empty (the theme's footer color) until the
+        # admin picks one, flagged by `footer_bg_color_custom`.
+        _style = (form.get("footer_bg_style") or "").strip()
+        if _style == "gradient":
+            _color = form.get("footer_bg_gradient_start") or form.get("footer_bg_color")
+        elif "footer_bg_color_custom" in form and form.get("footer_bg_color_custom") != "1":
+            _color = ""
+        else:
+            _color = form.get("footer_bg_color")
         bg = _normalize_footer_bg({
             "style":            form.get("footer_bg_style"),
-            "color":            form.get("footer_bg_color"),
+            "color":            _color,
             "color_2":          form.get("footer_bg_color_2"),
             "gradient_angle":   form.get("footer_bg_gradient_angle"),
             "hue":              form.get("footer_bg_hue"),

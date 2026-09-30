@@ -29,6 +29,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The template-picker pill showed the theme key (`recovery-blue`): the name lookup set a variable inside a Jinja `for` loop, which does not leave the loop. It now uses a `namespace`.
 - `frontend_form_contact` wrote `contact_form_show_phone` and `contact_form_subject_required` from inputs the page no longer has, so every save set both False. `frontend_form_story` blanked the eleven legacy `story_form_*` wording columns the same way. Both writes are gone. `story_submission_submit` takes "email required" from the builder's `submitter_email` block (`_story_email_required`), falling back to the column, matching the public form.
 - `frontend_meetings_list_template_save` rewrote `frontend_meetings_list_protips_json` and `_sidebar_links_json` on every post, including the layout grid's, which carries neither. The sections now carry `protips_section` / `sidebar_links_section` markers and are only rewritten when present.
+- The footer background's Solid and Gradient panes both posted `footer_bg_color`, so `parse_footer` read the Solid picker for the gradient start. The gradient start is now `footer_bg_gradient_start`. The Solid picker showed `#0b1026` for an empty color and saved it on any footer save; a `footer_bg_color_custom` flag now keeps the color empty until it is picked.
 
 ## [2.20.2] — 2026-09-30
 
