@@ -35,6 +35,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `headers/classic.html` hard-coded its links and never read `nav_items`, so Navigation, the mega menu editor and Design → Mega menu had no effect on the Classic theme, and its mega menu panels rendered with no trigger. It now renders `nav_items` with the same `data-megamenu` wiring as `themed.html`, falling back to the fixed links when there are none.
 - `base.html` kept the app sidebar on every `main.frontend_form*` and `main.frontend_custom_form*` endpoint, which caught the form settings pages as well as the inbox. The exception now covers only the inbox routes (`main.frontend_form_submission*` other than `main.frontend_form_submission` itself).
 - `_normalize_redirect_pair` rejects sources under `/tspro`, `/static` and `/pub`, and the `before_request` redirect lookup skips `/tspro` as well as the asset prefixes, so a stored rule can't lock the admin out.
+- `contact.html` and `recovery_contacts.html` fall back to `aurora-blobs` when no key is stored, so clearing the picker could never remove it. `frontend_template_settings_save` now stores `none` for those two kinds when the picker posts blank, and the templates treat it as no backdrop.
 
 ## [2.20.2] — 2026-09-30
 

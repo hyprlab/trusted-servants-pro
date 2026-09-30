@@ -11635,6 +11635,10 @@ def frontend_template_settings_save(kind, key):
     dyn_key = _dynbg.normalize(request.form.get("bg_dynamic_key"))
     if dyn_key:
         leaf["bg_dynamic_key"] = dyn_key
+    elif kind in ("contact", "recovery_contacts") and "bg_dynamic_key" in request.form:
+        # These two pages default to the aurora-blobs backdrop when no key
+        # is stored, so "no dynamic background" needs its own value.
+        leaf["bg_dynamic_key"] = "none"
     # Overlay + custom-colour config — round-trips through the same
     # encode_config gate the per-surface columns use, so a tampered
     # POST can only land on known overlay keys / valid hex colours /
