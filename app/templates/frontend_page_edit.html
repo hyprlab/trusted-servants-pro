@@ -20,7 +20,6 @@
                   url_for('main.frontend_custom_layout_save'),
                   kind='page') }}
 {% endif %}
-<a class="btn" href="{{ url_for('main.frontend_pages') }}">← All pages</a>
 {% if page %}
 <button type="button" class="btn" id="page-history-btn"
         data-history-url="{{ url_for('main.frontend_page_revisions', page_id=page.id) }}"
@@ -124,8 +123,7 @@
         <div class="card-head st-pick-head">
           {{ item_picker('Homepage' if _is_homepage else 'Page', page.title if page else 'New page', picker_groups,
                          code=('/' if _is_homepage else '/' ~ page.slug) if page else '', aria='Choose a page',
-                         actions=[{'href': url_for('main.frontend_pages'), 'label': 'All pages', 'icon': 'list'},
-                                  {'href': url_for('main.frontend_pages') ~ '#new', 'label': 'New page', 'icon': 'plus'}]) }}
+                         actions=[{'modal': 'new-page-modal', 'label': 'New page', 'icon': 'plus'}]) }}
           {% if page %}
           <div class="st-actions">
             {% if _is_homepage %}
@@ -142,6 +140,7 @@
               {% endfor %}
             </div>
             <button type="submit" form="fe-make-homepage" class="btn btn-sm" title="Show this page at the site's root address">{{ icon('home') }} Make homepage</button>
+            <button type="submit" form="fe-delete-page" class="btn btn-sm ol-danger" title="Delete this page">{{ icon('trash') }} Delete</button>
             {% endif %}
             {% call chip('Page') %}The preview shows the page with every unsaved change, blocks included. Save a draft or publish with the yellow bar.{% endcall %}
           </div>
@@ -495,6 +494,11 @@
          draft or publish (its Publish/Save Draft buttons set save_action). #}
     </form>
     {% if page and not _is_homepage %}
+    {# "Delete" in the card head submits this. #}
+    <form method="post" action="{{ url_for('main.frontend_page_delete', page_id=page.id) }}" id="fe-delete-page" hidden
+          onsubmit="return confirm('Delete “{{ page.title|e }}”? Its address will show the 404 page.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    </form>
     {# "Make homepage" in the card head submits this. #}
     <form method="post" action="{{ url_for('main.frontend_page_set_homepage', page_id=page.id) }}" id="fe-make-homepage" hidden
           onsubmit="return confirm('Make “{{ page.title|e }}” the homepage? It will show at the site\'s root address, and the current homepage becomes a regular page.');">
@@ -1599,4 +1603,5 @@ window.tspBlogTags = [
 </script>
 <script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+{% include "_new_page_modal.html" %}
 {% endblock %}

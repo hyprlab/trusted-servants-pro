@@ -62,7 +62,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `fe_live_preview.js` double-buffers: each render loads into a hidden iframe that replaces the shown one after load, isolation, sizing and fonts.
 - `?__mm=` previews add `body.fe-mm-instant`, which finishes mega menu transitions and animations at once.
 
-- `_item_picker.html` (`item_picker` macro) for selector card heads, used by Page templates, the page and popup editors and the form pages; routes pass `_picker_pages`, `_picker_popups` and `fs.picker` (`_picker_forms`). The Pages and Popups lists open their New dialog on `#new`.
+- `_item_picker.html` (`item_picker` macro) for selector card heads, used by Page templates, the page and popup editors and the form pages; routes pass `_picker_pages`, `_picker_popups` and `fs.picker` (`_picker_forms`). Picker actions can open a dialog (`modal`).
+- `frontend_pages`, `frontend_popups` and `frontend_forms` redirect to the editor of the last item edited (session `fe_last_page`, `fe_last_popup`, `fe_last_form`) or the first; `frontend_section_empty.html` covers no pages or popups. New page and New popup dialogs moved to `_new_page_modal.html` and `_new_popup_modal.html`.
+- Staged previews follow up to four redirects within the site; isolation skips matches that aren't rendered.
 
 ### Fixed
 
@@ -87,6 +89,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `_normalise_module_form_slug` passed a blank value to `_slugify_form_title`, which returns `form`, so clearing a built-in form's address saved `/form`.
 
 ### Removed
+- `frontend_pages.html`, `frontend_popups.html` and `frontend_forms.html`, and the routes only they used: `frontend_pages_bulk`, `frontend_page_rename`, `frontend_popup_status`.
 - The `/frontend/header-save`, `/frontend/header-template` and `/frontend/megamenu-template` routes, which nothing used.
 - The unused `frontend/footers/recovery-blue.html` (not in `FOOTER_TEMPLATES`), the `frontend_footer_text` context value only it read, the `/frontend/footer-template` route and the footer page's own second save bar.
 - The unused `frontend_form_submission_import_to_story` route and the `_default_*_form_blocks` / `_resolve_module_form_fields` helpers.

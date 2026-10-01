@@ -9301,12 +9301,12 @@ def frontend_fonts_icons():
 @bp.route("/frontend/forms")
 @admin_required
 def frontend_forms():
-    """Every public form in one table, built-in and custom
-    (forms_overview.form_rows): its address, on/off switch, what waits
-    in its inbox, and links to its settings and inbox."""
+    """Forms opens the settings of the form last edited here, else the
+    first form; the selector menu moves between forms."""
     from .forms_overview import form_rows
-    s = _get_site_setting()
-    return render_template("frontend_forms.html", site=s, rows=form_rows(s))
+    rows = form_rows(_get_site_setting())
+    row = next((r for r in rows if r["key"] == session.get("fe_last_form")), None) or (rows[0] if rows else None)
+    return redirect(row["settings_url"] if row else url_for("main.frontend_dashboard"))
 
 
 # Routes/slugs we refuse to let a CustomForm claim. Mirrors the same
@@ -10240,8 +10240,9 @@ def _picker_forms(current_key):
     from .forms_overview import form_rows
     rows = form_rows(_get_site_setting())
     def item(r):
+        waiting = f" · {r['count']} {r.get('count_label') or 'new'}" if r.get("count") else ""
         return {"href": r["settings_url"], "label": r["name"],
-                "sub": (r.get("public_url") or "") + ("" if r["enabled"] else " · off"),
+                "sub": (r.get("public_url") or "") + ("" if r["enabled"] else " · off") + waiting,
                 "active": r["key"] == current_key, "off": not r["enabled"]}
     return [("Built in", [item(r) for r in rows if not r["custom"]]),
             ("Your forms", [item(r) for r in rows if r["custom"]])]
@@ -10269,7 +10270,9 @@ def _form_studio_ctx(key, cf=None):
             inbox_url=row.get("inbox_url"), inbox_label="Open the inbox",
             inbox_about="Submissions to this form are kept in its own inbox, where they can be read, archived, deleted and exported.",
             count=row.get("count", 0), count_label="new",
-            links=[], picker=_picker_forms(f"custom-{cf.id}"))
+            links=[], picker=_picker_forms(f"custom-{cf.id}"),
+            delete_url=url_for("main.frontend_custom_form_delete", form_id=cf.id))
+        session["fe_last_form"] = f"custom-{cf.id}"
         return fs
     meta = dict(_BUILTIN_FORM_STUDIO[key])
     row = rows.get(key, {})
@@ -10323,6 +10326,7 @@ def _form_studio_ctx(key, cf=None):
                       "href": url_for("main.frontend_header", item=nl.column.nav_item_id) + "#menu"})
     fs["links"] = links
     fs["picker"] = _picker_forms(key)
+    session["fe_last_form"] = key
     return fs
 
 
@@ -12619,12 +12623,21 @@ def frontend_theme_save():
 @bp.route("/frontend/pages")
 @admin_required
 def frontend_pages():
+    """Pages opens the page editor on the page last edited here, else the
+    first page (the homepage has its own menu entry); the editor's
+    selector menu moves between pages. With no pages yet, an empty
+    screen offers New page."""
     from .models import Page
     s = _get_site_setting()
-    pages = Page.query.order_by(Page.title.asc()).all()
-    page_layouts = _page_layouts_for_picker()
-    return render_template("frontend_pages.html", site=s, pages=pages,
-                           page_layouts=page_layouts)
+    hp = s.homepage_page_id
+    last = db.session.get(Page, session.get("fe_last_page") or 0)
+    if not last or last.id == hp:
+        last = (Page.query.filter(Page.id != (hp or 0)).order_by(Page.title.asc()).first()
+                or (db.session.get(Page, hp) if hp else None))
+    if last:
+        return redirect(url_for("main.frontend_page_edit", page_id=last.id))
+    return render_template("frontend_section_empty.html", site=s, kind="page",
+                           page_layouts=_page_layouts_for_picker())
 
 
 # Block catalog for the page-layout drag-and-drop builder. Lists every
@@ -13382,6 +13395,8 @@ def frontend_page_edit(page_id):
     # Per-page FAQ modal — same flash-prevention pattern (empty items
     # list server-side, JS clones template on pill click).
     faq_modal_vals = _faq_block_modal_proxy({})
+    if page and page.id != s.homepage_page_id:
+        session["fe_last_page"] = page.id
     return render_template("frontend_page_edit.html", site=s, page=page,
                            picker_groups=_picker_pages(page.id if page else None),
                            blocks_json=page.blocks_json or "[]",
@@ -14449,96 +14464,6 @@ def frontend_page_discard_draft(page_id):
     return redirect(url_for("main.frontend_page_edit", page_id=page.id))
 
 
-@bp.route("/frontend/pages/<int:page_id>/rename", methods=["POST"])
-@admin_required
-def frontend_page_rename(page_id):
-    """Rename a page from the Pages list without opening the editor.
-
-    Accepts `title` plus an optional `slug` (blank re-derives it from
-    the title). When the slug actually moves and `create_redirect` is
-    ticked, a `UrlRedirect` row is minted from the old public path to
-    the new one so inbound links don't start 404ing — the same table
-    the Redirects admin manages, matched by the `before_request` hook
-    in `create_app`.
-
-    Two ordering details matter:
-
-    * A redirect whose source is the page's NEW path would shadow the
-      page entirely (the redirect hook runs before routing), so any
-      such row is dropped. This is what makes renaming A→B→A work:
-      the second rename reclaims `/A` from the redirect the first one
-      left behind.
-    * A pending draft carries its own `title`/`slug` in `draft_json`.
-      Left alone, publishing that draft would silently revert the
-      rename, so the stashed snapshot is patched to match.
-    """
-    import json as _json
-    from .models import Page
-    page = Page.query.get_or_404(page_id)
-    title = (request.form.get("title") or "").strip()[:200]
-    if not title:
-        flash("Page title required", "danger")
-        return redirect(_safe_referrer() or url_for("main.frontend_pages"))
-
-    old_slug = page.slug
-    raw_slug = (request.form.get("slug") or "").strip()
-    new_slug = _unique_page_slug(_slugify_page(raw_slug or title),
-                                 exclude_id=page.id)
-    slug_changed = (new_slug != old_slug)
-
-    page.title = title
-    page.slug = new_slug
-
-    # Keep a stashed draft in step with the live row so publishing it
-    # later doesn't roll the rename back.
-    if page.draft_json:
-        try:
-            draft = _json.loads(page.draft_json)
-        except (ValueError, TypeError):
-            draft = None
-        if isinstance(draft, dict):
-            draft["title"] = title
-            draft["slug"] = new_slug
-            page.draft_json = _json.dumps(draft)
-
-    notes = []
-    if slug_changed:
-        # The homepage is served at `/`, so its slug isn't a public URL
-        # and there's nothing to redirect from.
-        s = _get_site_setting()
-        is_homepage = bool(s and s.homepage_page_id == page.id)
-        new_path = f"/{new_slug}"
-
-        # Reclaim the new path from any redirect pointing away from it —
-        # otherwise the renamed page is unreachable.
-        shadow = UrlRedirect.query.filter(
-            UrlRedirect.source_path.in_([new_path, new_path + "/"])).all()
-        for row in shadow:
-            db.session.delete(row)
-        if shadow:
-            notes.append(f"removed a redirect that would have shadowed {new_path}")
-
-        if request.form.get("create_redirect") == "1" and not is_homepage:
-            old_path = f"/{old_slug}"
-            existing = UrlRedirect.query.filter(
-                UrlRedirect.source_path == old_path).first()
-            if existing:
-                existing.target_path = new_path
-                notes.append(f"updated the existing redirect from {old_path}")
-            else:
-                db.session.add(UrlRedirect(source_path=old_path,
-                                           target_path=new_path))
-                notes.append(f"added a 301 from {old_path}")
-
-    _record_page_revision(page, "rename", _page_snapshot_from_row(page))
-    db.session.commit()
-    msg = f"Renamed to “{title}”"
-    if slug_changed:
-        msg += f" — now served at /{new_slug}"
-    if notes:
-        msg += " (" + "; ".join(notes) + ")"
-    flash(msg, "success")
-    return redirect(_safe_referrer() or url_for("main.frontend_pages"))
 @bp.route("/frontend/pages/<int:page_id>/delete", methods=["POST"])
 @admin_required
 def frontend_page_delete(page_id):
@@ -14621,41 +14546,6 @@ def frontend_page_set_homepage(page_id):
                     or url_for("main.frontend_page_edit", page_id=page.id))
 
 
-@bp.route("/frontend/pages/bulk", methods=["POST"])
-@admin_required
-def frontend_pages_bulk():
-    """Bulk-status action invoked from the Pages list checkboxes. Posts
-    a list of `page_ids` plus a `status`; applies the same draft /
-    published / private flip to every selected row in one commit."""
-    from .models import Page
-    status = (request.form.get("status") or "").strip().lower()
-    if status not in ("draft", "published", "private"):
-        flash("Unknown bulk status", "danger")
-        return redirect(url_for("main.frontend_pages"))
-    raw_ids = request.form.getlist("page_ids")
-    page_ids = []
-    for raw in raw_ids:
-        try:
-            page_ids.append(int(raw))
-        except (TypeError, ValueError):
-            continue
-    if not page_ids:
-        flash("Select at least one page first", "warning")
-        return redirect(url_for("main.frontend_pages"))
-    rows = Page.query.filter(Page.id.in_(page_ids)).all()
-    hp_id = _get_site_setting().homepage_page_id
-    if status != "published" and any(r.id == hp_id for r in rows):
-        # The homepage is always public; leave it out.
-        rows = [r for r in rows if r.id != hp_id]
-        flash("The homepage stays public; the other pages were changed.", "info")
-    for row in rows:
-        _apply_page_status(row, status)
-    db.session.commit()
-    flash(f"{len(rows)} page{'s' if len(rows) != 1 else ''} marked {status}",
-          "success")
-    return redirect(url_for("main.frontend_pages"))
-
-
 # ── Popups ──────────────────────────────────────────────────────────
 # Site-wide modal popups, authored with the same page-builder block
 # editor and triggered from ``#name`` anchor selectors on the public
@@ -14713,10 +14603,15 @@ def _popup_unique_name(name, exclude_id=None):
 @bp.route("/frontend/popups")
 @admin_required
 def frontend_popups():
+    """Popups opens the popup editor on the popup last edited here, else
+    the first; with none yet, an empty screen offers New popup."""
     from .models import Popup
     s = _get_site_setting()
-    popups = Popup.query.order_by(Popup.title.asc()).all()
-    return render_template("frontend_popups.html", site=s, popups=popups)
+    last = (db.session.get(Popup, session.get("fe_last_popup") or 0)
+            or Popup.query.order_by(Popup.title.asc()).first())
+    if last:
+        return redirect(url_for("main.frontend_popup_edit", popup_id=last.id))
+    return render_template("frontend_section_empty.html", site=s, kind="popup")
 
 
 @bp.route("/frontend/popups/create", methods=["POST"])
@@ -14766,6 +14661,7 @@ def frontend_popup_edit(popup_id):
         block_previews[bid] = _block_preview(b)
         block_payloads[bid] = b
     popup_catalog = [c for c in _PAGE_BLOCK_CATALOG if c["key"] in _POPUP_PALETTE_KEYS]
+    session["fe_last_popup"] = popup.id
     return render_template("frontend_popup_edit.html", site=s, popup=popup,
                            picker_groups=_picker_popups(popup.id),
                            blocks_json=popup.blocks_json or "[]",
@@ -14883,23 +14779,6 @@ def frontend_popup_save():
     db.session.commit()
     flash(f"Popup “{title}” saved", "success")
     return redirect(url_for("main.frontend_popup_edit", popup_id=popup.id))
-
-
-@bp.route("/frontend/popups/<int:popup_id>/status", methods=["POST"])
-@admin_required
-def frontend_popup_status(popup_id):
-    """Quick enable/disable toggle from the list / editor without a full
-    form round-trip."""
-    from .models import Popup
-    popup = Popup.query.get_or_404(popup_id)
-    status = (request.form.get("status") or "").strip().lower()
-    if status not in ("enabled", "disabled"):
-        flash("Unknown status", "danger")
-        return redirect(_safe_referrer() or url_for("main.frontend_popups"))
-    popup.is_enabled = status == "enabled"
-    db.session.commit()
-    return redirect(_safe_referrer()
-                    or url_for("main.frontend_popup_edit", popup_id=popup.id))
 
 
 @bp.route("/frontend/popups/<int:popup_id>/delete", methods=["POST"])

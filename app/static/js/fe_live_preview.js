@@ -44,6 +44,9 @@
   // everything around them and drop the spacing of their containers.
   function isolate(sel, pad) {
     var found = Array.prototype.slice.call(document.querySelectorAll(sel));
+    // Only what the page really shows: a hidden dialog's form is skipped
+    // (showing its containers below would bring it into view).
+    found = found.filter(function (el) { return el.getClientRects().length > 0; });
     var keep = found.filter(function (el) {
       return !found.some(function (o) { return o !== el && o.contains(el); });
     });

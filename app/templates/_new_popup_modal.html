@@ -1,0 +1,57 @@
+{# The New popup dialog, opened from the popup editor's selector menu (or
+   the empty Popups screen). #}
+{% from "_help_chip.html" import chip, hrow %}
+<div class="modal" id="new-popup-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <form class="form" method="post" action="{{ url_for('main.frontend_popup_create') }}"
+          data-fe-skip-save-bar id="new-popup-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-head">
+        <h2>New popup</h2>
+        <button type="button" class="icon-btn" data-close>{{ icon('x') }}</button>
+      </div>
+      <div class="modal-body">
+        <label>Popup name
+          <input type="text" name="title" required maxlength="200"
+                 placeholder="e.g. Newsletter signup" autocomplete="off"
+                 data-popup-title-src>
+        </label>
+        <label>{% call hrow('Trigger handle') %}Opens from any link to
+            <code data-popup-handle-preview>#newsletter-signup</code>. Leave blank to
+            auto-generate from the name.{% endcall %}
+          <span class="fe-popup-handle-field">
+            <span class="fe-popup-handle-hash">#</span>
+            <input type="text" name="name" maxlength="120"
+                   placeholder="newsletter-signup" autocomplete="off"
+                   pattern="[A-Za-z0-9\- ]*" data-popup-handle>
+          </span>
+        </label>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Create popup</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  // New-popup modal — live-preview the trigger handle as the admin
+  // types, and default the handle from the name when left blank.
+  (function () {
+    var titleEl = document.querySelector('[data-popup-title-src]');
+    var handleEl = document.querySelector('[data-popup-handle]');
+    var previewEl = document.querySelector('[data-popup-handle-preview]');
+    if (!titleEl || !handleEl || !previewEl) return;
+    function slugify(s) {
+      return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    }
+    function refresh() {
+      var raw = handleEl.value.trim() || titleEl.value.trim();
+      previewEl.textContent = '#' + (slugify(raw) || 'popup');
+    }
+    titleEl.addEventListener('input', refresh);
+    handleEl.addEventListener('input', refresh);
+    refresh();
+  })();
+</script>

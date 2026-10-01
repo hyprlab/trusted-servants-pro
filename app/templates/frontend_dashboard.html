@@ -159,7 +159,7 @@
       {% if widget_key == 'fe-pages' and current_user.fe_dash_show_pages %}
         {% call dash_widget(key='fe-pages', title='Pages',
                              head_icon='file-text',
-                             view_all_url=url_for('main.frontend_pages'),
+                             view_all_url=url_for('main.frontend_pages'), view_all_label='Open Pages',
                              badge_count=page_counts.unpublished_changes,
                              badge_title='Pages with unpublished changes') %}
           <p class="fe-dw-counts muted small">
@@ -187,7 +187,7 @@
         {% set _waiting = form_rows | sum(attribute='count') %}
         {% call dash_widget(key='fe-forms', title='Forms',
                              head_icon='send',
-                             view_all_url=url_for('main.frontend_forms'),
+                             view_all_url=url_for('main.frontend_forms'), view_all_label='Open Forms',
                              badge_count=_waiting, badge_title='Submissions waiting') %}
           <ul class="list">
             {% for f in form_rows %}

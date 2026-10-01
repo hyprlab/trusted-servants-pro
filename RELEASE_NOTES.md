@@ -94,7 +94,8 @@ release notes expanded by default and the changelog collapsed.
 - Previews no longer flash the page unstyled while they load: a new preview replaces the old one only once it is ready. A mega menu held open in the Header preview no longer replays its opening animation.
 - Section headings in Web Frontend cards are larger, and Rollback snapshots on the Overview matches the Pull and Push buttons.
 - Admin pages no longer flash unstyled text and links before their styles load, which happened in Firefox-based browsers on pages with a live preview.
-- The page editor, the popup editor and each form's page head their card with a menu like Page templates': it names what you are editing and lists every page, popup or form to switch to, with All and New at the bottom. The page's status, Make homepage and the popup's address moved into that card, replacing the separate title card.
+- Pages, Popups and Forms work like Page templates: each opens straight into its editor (on the item you last edited), and a menu at the top of the card names what you are editing and lists every page, popup or form to switch to, with New at the bottom. Delete, a page's status and Make homepage sit beside that menu. The separate list screens are gone, and with them the bulk status change and the quick rename on the Pages list; a page's title and address are edited on its Page tab.
+- Form previews show custom forms and the Recovery Contacts form correctly, and a form whose page has its own address previews that page instead of saying it redirects.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

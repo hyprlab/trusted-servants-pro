@@ -6,9 +6,10 @@
      groups   [(group label, [{href, label, sub, active, off}])]; empty
               groups are skipped
      code     shown beside the name, such as the page's address
-     actions  [{href, label, icon}] links under the list, or
+     actions  [{href, label, icon}] links under the list,
               {form, label, icon} to submit the form with that id (it
-              must sit outside any form the picker is in)
+              must sit outside any form the picker is in), or
+              {modal, label, icon} to open that dialog
 
    The menu closes on a click outside it or on Escape (script below,
    once per page). #}
@@ -41,6 +42,8 @@
       {% for a in actions %}
       {% if a.form %}
       <button type="submit" form="{{ a.form }}" class="tp-pick-action">{{ icon(a.icon or 'plus') }}<span>{{ a.label }}</span></button>
+      {% elif a.modal %}
+      <button type="button" data-open-modal="{{ a.modal }}" class="tp-pick-action">{{ icon(a.icon or 'plus') }}<span>{{ a.label }}</span></button>
       {% else %}
       <a class="tp-pick-action" href="{{ a.href }}">{{ icon(a.icon or 'list') }}<span>{{ a.label }}</span></a>
       {% endif %}
@@ -54,7 +57,10 @@
   if (window.__tpPickBound) return;
   window.__tpPickBound = true;
   document.addEventListener('click', function (e) {
-    document.querySelectorAll('[data-tp-pick][open]').forEach(function (d) { if (!d.contains(e.target)) d.open = false; });
+    document.querySelectorAll('[data-tp-pick][open]').forEach(function (d) {
+      // A click outside closes the menu, and so does one of its actions.
+      if (!d.contains(e.target) || e.target.closest('.tp-pick-action')) d.open = false;
+    });
   });
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;

@@ -18,7 +18,7 @@
 {% set LP_HEADER = '.fe-utility-bar, #fe-header, .fe-megamenu, .fe-alertbar-header' %}
 {% set LP_FOOTER = 'footer.fe-footer' %}
 {% set LP_MAIN = '#fe-page' %}
-{% set LP_FORM = '#fe-page .fe-contact-card, #fe-page .fe-custom-form-wrap, #fe-page form.fe-submission-form' %}
+{% set LP_FORM = '#fe-page .fe-contact-card, #fe-page .fe-submission-card, #fe-page .fe-custom-form-wrap, #fe-page form.fe-submission-form, #fe-page form.fe-custom-form' %}
 {% macro live_preview(path, forms, focus='', height=560, title='Preview', width=1280, note='', id='', overlays=False, overrides=None, watch=False, only='', fit=False, pad=0) %}
 <div class="lp" data-live-preview{% if id %} id="{{ id }}"{% endif %}
      data-lp-url="{{ url_for('main.frontend_staged_preview') }}"

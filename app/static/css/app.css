@@ -17814,7 +17814,7 @@ a.fe-ss-item:hover { background: var(--panel-2); text-decoration: none; }
 .fbg .fe-footer-bg-particles-fields[hidden] { display: none; }
 .fbg .nav-megalink-seg { display: flex; }
 
-/* ── Forms (frontend_forms.html, frontend_form_studio.html) ───────── */
+/* ── Forms (frontend_form_studio.html) ───────── */
 .inline-form { display: inline; margin: 0; }
 .fe-forms-tbl td { vertical-align: middle; }
 .fe-forms-name { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
@@ -18379,6 +18379,13 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .tp-pick-action .icon { width: 15px; height: 15px; }
 .ds-seg-btns > button.fe-page-edit-status-pill.active { background: var(--panel); color: var(--text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border); }
+
+/* Pages / Popups with nothing in them yet. */
+.fe-admin-main .fe-empty-section { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 48px 24px; }
+.fe-empty-section .ol-glyph { width: 44px; height: 44px; border-radius: 12px; }
+.fe-empty-section .ol-glyph .icon { width: 22px; height: 22px; }
+.fe-empty-section h2 { margin: 4px 0 0; font-size: var(--fs-lg); }
+.fe-empty-section p { margin: 0; max-width: 46ch; }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */

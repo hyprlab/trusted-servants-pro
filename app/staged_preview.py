@@ -123,9 +123,20 @@ def render_staged(path, forms, overlays=False):
             with ctx:
                 app.view_functions[endpoint](**args)
         target = urlsplit(path)
-        with app.test_request_context(target.path, query_string=target.query,
-                                      headers=headers):
-            resp = app.full_dispatch_request()
+        # Follow a few redirects within the site (a form whose page has
+        # its own address redirects from the default one).
+        for _hop in range(4):
+            with app.test_request_context(target.path, query_string=target.query,
+                                          headers=headers):
+                resp = app.full_dispatch_request()
+            loc = resp.headers.get("Location") or ""
+            if resp.status_code not in (301, 302, 303, 307, 308) or not loc:
+                break
+            nxt = urlsplit(loc)
+            if (nxt.netloc and nxt.netloc not in ("localhost", request.host)) or not nxt.path.startswith("/") \
+                    or nxt.path.startswith("/tspro"):
+                break
+            target = nxt
         if resp.status_code in (301, 302, 303, 307, 308):
             return ("<p style='font:14px system-ui;padding:24px'>This address "
                     "redirects to " + (resp.headers.get("Location") or "another page")
