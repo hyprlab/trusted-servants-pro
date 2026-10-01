@@ -68,8 +68,11 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 - `layout_picker` takes `show_trigger=False` to print only its dialogs; the page editor puts them after its form and opens them from a Layout field on the Page part.
 
+- `_layout_thumb.html` draws layout-card thumbnails from a layout's `blocks_json` (recursive over `container` children, `split` panels and grid containers); used by `layout_picker` and `_new_page_modal.html`.
+
 ### Fixed
 
+- The `page-marketing` preset stamped two empty containers; it now carries the hero, the three-column feature grid and the closing button its description lists (refreshed by `_seed_page_layouts`).
 - Firefox painted admin pages with a live preview before `app.css` applied. The preview `<iframe>` is now created by `fe_live_preview.js` instead of being in the markup, and `base.html` hides `<html>` (on the theme background) until `app.css` sets it visible, with a 3 s fallback.
 - `frontend_page_delete` clears `cookie_compliance_policy_page_id` when it points at the deleted page.
 - The Design page preview in a dark admin theme (`dark`, `neobrutal-dark`, `cyberpunk`) painted light card colors under the admin's light text. The preview now has a Light/Dark switch that starts from the admin theme, and it uses the site's own text tokens.

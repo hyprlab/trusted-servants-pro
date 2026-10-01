@@ -1,5 +1,6 @@
 {# The New page dialog, opened from the page editor's selector menu (or
    the empty Pages screen). Needs `page_layouts` in context. #}
+{% from "_layout_thumb.html" import layout_thumb, layout_thumb_custom %}
 {# ── New-page modal ────────────────────────────────────────────────
    Replaces the older flow (click → blank edit screen → save) with
    an in-place title + layout picker. Submitting POSTs to
@@ -26,11 +27,7 @@
           <label class="template-card template-card-custom-radio active"
                  data-layout-key="custom" data-layout-name="Custom">
             <input type="radio" name="layout_key" value="custom" checked>
-            <div class="template-card-preview template-card-preview-blocks template-card-preview-custom">
-              <span class="tcp-block tcp-block-custom"></span>
-              <span class="tcp-block tcp-block-custom"></span>
-              <span class="tcp-block tcp-block-custom"></span>
-            </div>
+            <div class="template-card-preview lt-wrap">{{ layout_thumb_custom() }}</div>
             <div class="template-card-info">
               <div class="template-card-name">Custom</div>
               <div class="template-card-desc muted small">No template — drag blocks onto the page yourself.</div>
@@ -40,11 +37,7 @@
           <label class="template-card{% if not l.is_prebuilt %} template-card-custom{% endif %}"
                  data-layout-key="{{ l.key }}" data-layout-name="{{ l.name }}">
             <input type="radio" name="layout_key" value="{{ l.key }}">
-            <div class="template-card-preview template-card-preview-blocks">
-              {% for b in (l.blocks_json|from_json)[:6] %}
-              <span class="tcp-block tcp-block-{{ b.type }}"></span>
-              {% endfor %}
-            </div>
+            <div class="template-card-preview lt-wrap">{{ layout_thumb(l.blocks_json|from_json if l.blocks_json else []) }}</div>
             <div class="template-card-info">
               <div class="template-card-name">{{ l.name }}
                 {% if l.is_prebuilt %}<span class="template-card-tag muted smaller">Preset</span>{% endif %}

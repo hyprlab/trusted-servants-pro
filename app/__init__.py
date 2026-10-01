@@ -2573,7 +2573,20 @@ def _seed_page_layouts(app):
             "key": "page-marketing",
             "name": "Marketing landing",
             "description": "Hero container with a heading + lead paragraph + CTA button, followed by a three-column feature container and a closing CTA.",
-            "blocks": ["container", "container", "button"],
+            # Built out to match the description: before, both containers
+            # were stamped empty.
+            "blocks": [
+                {"type": "container", "data": {"gap": "1rem"},
+                 "blocks": [{"type": "heading"}, {"type": "paragraph"}, {"type": "button"}]},
+                {"type": "container",
+                 "data": {"display": "grid", "grid_columns": "repeat(3, minmax(0, 1fr))", "gap": "1.5rem"},
+                 "blocks": [
+                     {"type": "container", "data": {"gap": "0.5rem"},
+                      "blocks": [{"type": "heading", "data": {"level": 3}}, {"type": "paragraph"}]}
+                     for _ in range(3)
+                 ]},
+                {"type": "button"},
+            ],
         },
         {
             "key": "page-faq",

@@ -18405,6 +18405,66 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .pe-layout-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: var(--fs-sm); min-width: 0; }
 .pe-layout-name .icon { width: 15px; height: 15px; color: var(--muted); flex: 0 0 auto; }
 
+/* ── Layout thumbnails (_layout_thumb.html): a miniature page per
+   layout card, drawn from its blocks. ── */
+.template-card-preview.lt-wrap { padding: 0; background: none; border: 0; height: auto; display: block; }
+.lt-page { --lt-ink: color-mix(in srgb, var(--text) 72%, transparent); --lt-line: color-mix(in srgb, var(--text) 16%, transparent);
+  --lt-tint: color-mix(in srgb, var(--brand) 9%, var(--panel)); position: relative; display: flex; flex-direction: column;
+  height: 158px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--panel);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+.lt-page::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 26px; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--panel)); }
+.lt-chrome { display: flex; gap: 4px; padding: 7px 9px; border-bottom: 1px solid var(--border); background: var(--panel-2); flex: 0 0 auto; }
+.lt-chrome i { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
+.lt-body { display: flex; flex-direction: column; gap: 7px; padding: 12px 16px; min-height: 0; }
+.lt-h1, .lt-h2 { display: block; border-radius: 3px; background: var(--lt-ink); flex: 0 0 auto; }
+.lt-h1 { height: 9px; width: 58%; }
+.lt-h2 { height: 6px; width: 42%; }
+.lt-p { display: flex; flex-direction: column; gap: 3px; }
+.lt-p i { display: block; height: 3px; border-radius: 2px; background: var(--lt-line); }
+.lt-img { display: flex; align-items: center; justify-content: center; height: 40px; border-radius: 6px; flex: 0 0 auto;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 28%, var(--panel)), color-mix(in srgb, var(--brand) 10%, var(--panel)));
+  color: color-mix(in srgb, var(--brand) 70%, var(--panel)); }
+.lt-img .icon { width: 16px; height: 16px; }
+.lt-btn { display: block; width: 38px; height: 10px; border-radius: 999px; background: var(--brand); flex: 0 0 auto; }
+.lt-list { display: flex; flex-direction: column; gap: 4px; }
+.lt-list i { display: flex; align-items: center; gap: 5px; }
+.lt-list b { width: 4px; height: 4px; border-radius: 50%; background: var(--lt-ink); flex: 0 0 auto; }
+.lt-list s { display: block; height: 3px; border-radius: 2px; background: var(--lt-line); text-decoration: none; }
+.lt-toc { display: flex; flex-direction: column; gap: 4px; padding: 7px 8px; border-radius: 6px; background: var(--lt-tint);
+  border-left: 2px solid var(--brand); }
+.lt-toc em { display: block; height: 4px; width: 50%; border-radius: 2px; background: var(--lt-ink); }
+.lt-toc i { display: block; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--brand) 35%, transparent); }
+.lt-video { display: flex; align-items: center; justify-content: center; height: 40px; border-radius: 6px; background: #1e293b; flex: 0 0 auto; }
+.lt-video b { width: 0; height: 0; border-style: solid; border-width: 6px 0 6px 10px; border-color: transparent transparent transparent #fff; }
+.lt-callout { display: block; padding: 7px 8px; border-radius: 6px; background: var(--lt-tint); border-left: 2px solid var(--brand); }
+.lt-code { display: flex; flex-direction: column; gap: 3px; padding: 7px 8px; border-radius: 6px; background: #1e293b; }
+.lt-code i { display: block; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .35); }
+.lt-sep { display: block; height: 1px; background: var(--border); margin: 2px 0; }
+.lt-icon { display: block; width: 14px; height: 14px; border-radius: 50%; background: color-mix(in srgb, var(--brand) 30%, var(--panel)); }
+.lt-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 10px; border-radius: 7px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 22%, var(--panel)), color-mix(in srgb, var(--brand) 6%, var(--panel))); }
+.lt-hero .lt-p { width: 70%; align-items: center; }
+.lt-hero--slim { flex-direction: row; justify-content: space-between; padding: 9px 10px; }
+.lt-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.lt-cards > i { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 5px; border: 1px solid var(--border); background: var(--panel-2); }
+.lt-cards > i > b { display: block; height: 14px; border-radius: 3px; background: color-mix(in srgb, var(--brand) 18%, var(--panel)); }
+.lt-cols { display: grid; gap: 10px; align-items: center; }
+.lt-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.lt-box { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 7px; background: var(--panel-2); border: 1px solid var(--border); }
+.lt-cols--top { align-items: stretch; }
+.lt-col--card { padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-2); }
+.lt-col--card > .lt-box { padding: 0; border: 0; background: none; }
+.lt-box--empty { min-height: 26px; background: transparent; border: 1.5px dashed color-mix(in srgb, var(--text) 18%, transparent); }
+.lt-box--tall { min-height: 92px; }
+.lt-generic { display: block; height: 12px; border-radius: 3px; background: var(--lt-line); }
+.lt-body--custom { flex: 1; align-items: center; justify-content: center; gap: 6px; margin: 10px 14px 14px; padding: 0;
+  border: 1.5px dashed color-mix(in srgb, var(--brand) 45%, transparent); border-radius: 8px; color: var(--brand); }
+.lt-body--custom .icon { width: 20px; height: 20px; }
+.lt-body--custom em { font-style: normal; font-size: var(--fs-xs); font-weight: 600; }
+.lt-page--custom::after { display: none; }
+.template-card.active .lt-page { border-color: color-mix(in srgb, var(--brand) 40%, var(--border)); }
+
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
 html { visibility: visible; background: var(--bg); }

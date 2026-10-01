@@ -97,6 +97,8 @@ release notes expanded by default and the changelog collapsed.
 - Pages, Popups and Forms work like Page templates: each opens straight into its editor (on the item you last edited), and a menu at the top of the card names what you are editing and lists every page, popup or form to switch to, with New at the bottom. Delete, a page's status and Make homepage sit beside that menu. The separate list screens are gone, and with them the bulk status change and the quick rename on the Pages list; a page's title and address are edited on its Page tab.
 - Form previews show custom forms and the Recovery Contacts form correctly, and a form whose page has its own address previews that page instead of saying it redirects.
 - A page's layout is chosen on its Page part, under Title and Address, instead of in the bar at the top of the screen.
+- The layout cards in the Page layout and New page dialogs show a small drawing of each layout (headings, text, pictures, buttons, columns and the side contents list) instead of the same grey bars for every one.
+- The Marketing landing layout now builds what it describes: a hero with a heading, a lead paragraph and a button, three feature columns, and a closing button. Before, it added two empty sections. Pages that already use it are unchanged.
 
 ## 2.20.2 — 2026-09-30 (latest)
 
