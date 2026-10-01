@@ -66,6 +66,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `frontend_pages`, `frontend_popups` and `frontend_forms` redirect to the editor of the last item edited (session `fe_last_page`, `fe_last_popup`, `fe_last_form`) or the first; `frontend_section_empty.html` covers no pages or popups. New page and New popup dialogs moved to `_new_page_modal.html` and `_new_popup_modal.html`.
 - Staged previews follow up to four redirects within the site; isolation skips matches that aren't rendered.
 
+- `layout_picker` takes `show_trigger=False` to print only its dialogs; the page editor puts them after its form and opens them from a Layout field on the Page part.
+
 ### Fixed
 
 - Firefox painted admin pages with a live preview before `app.css` applied. The preview `<iframe>` is now created by `fe_live_preview.js` instead of being in the markup, and `base.html` hides `<html>` (on the theme background) until `app.css` sets it visible, with a 3 s fallback.

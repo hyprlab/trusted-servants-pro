@@ -10,18 +10,23 @@
      builder_modal_id — DOM id for the drag-drop builder modal
      blocks_catalog — list of {key, name, desc} block types the builder offers
      save_layout_url — endpoint the builder POSTs new layouts to (JSON)
+     show_trigger — False prints only the dialogs, for a page that puts its
+                    own button (data-open-modal="<modal_id>") elsewhere;
+                    the dialogs must then sit outside any other form
 #}
-{% macro layout_picker(layouts, active_key, action_url, radio_name, modal_id, builder_modal_id, blocks_catalog, save_layout_url, kind='homepage') -%}
+{% macro layout_picker(layouts, active_key, action_url, radio_name, modal_id, builder_modal_id, blocks_catalog, save_layout_url, kind='homepage', show_trigger=True) -%}
   {# Find the active layout's display name. {% set %} inside {% for %} is
      loop-scoped in Jinja, so we use a namespace object whose attribute
      mutations DO escape the loop. #}
   {%- set _state = namespace(name=active_key) -%}
   {%- for l in layouts if l.key == active_key %}{% set _state.name = l.name %}{% endfor -%}
+  {% if show_trigger %}
   <div class="fe-template-picker">
     <span class="fe-template-picker-label muted smaller">Layout:</span>
     <span class="fe-template-picker-active">{{ _state.name }}</span>
     <button type="button" class="btn btn-sm" data-open-modal="{{ modal_id }}">Change</button>
   </div>
+  {% endif %}
 
   <div class="modal fe-template-picker-modal fe-layout-picker-modal" id="{{ modal_id }}" aria-hidden="true">
     <div class="modal-backdrop" data-close></div>

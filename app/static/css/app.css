@@ -18396,6 +18396,15 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 /* Studio cards: a rule between the heading and the preview and settings. */
 .fe-admin-main .card.st-studio > .card-head { border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 0; }
 
+/* Page editor → Page: the layout field. */
+.pe-layout-field { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pe-layout-row .btn { padding: 0 12px; min-height: 32px; display: inline-flex; align-items: center; }
+.pe-layout-label { font-size: var(--fs-base); font-weight: 600; }
+.pe-layout-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 12px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+.pe-layout-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: var(--fs-sm); min-width: 0; }
+.pe-layout-name .icon { width: 15px; height: 15px; color: var(--muted); flex: 0 0 auto; }
+
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
 html { visibility: visible; background: var(--bg); }

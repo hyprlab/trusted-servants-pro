@@ -12,15 +12,6 @@
 
 {% block top_actions %}
 {% if page %}
-{{ layout_picker(page_layouts, active_layout_key,
-                  url_for('main.frontend_page_layout_save', page_id=page.id),
-                  "layout_key",
-                  "page-layout-modal", "page-layout-builder-modal",
-                  page_block_catalog,
-                  url_for('main.frontend_custom_layout_save'),
-                  kind='page') }}
-{% endif %}
-{% if page %}
 <button type="button" class="btn" id="page-history-btn"
         data-history-url="{{ url_for('main.frontend_page_revisions', page_id=page.id) }}"
         data-restore-url-template="{{ url_for('main.frontend_page_revision_restore', page_id=page.id, rev_id=0) }}"
@@ -166,6 +157,18 @@
                      placeholder="From the title">
               <small class="muted">The page lives at <code>/&lt;address&gt;</code>: letters, numbers and hyphens. When a published page's address changes, the old one redirects to the new one.</small>
             </label>
+            {% if page %}
+            {%- set _lname = namespace(v='Custom' if active_layout_key == 'custom' else active_layout_key) -%}
+            {%- for l in page_layouts if l.key == active_layout_key %}{% set _lname.v = l.name %}{% endfor -%}
+            <div class="pe-layout-field">
+              <span class="pe-layout-label">Layout</span>
+              <div class="pe-layout-row">
+                <span class="pe-layout-name">{{ icon('layout-grid') }}{{ _lname.v }}</span>
+                <button type="button" class="btn" data-open-modal="page-layout-modal">Change layout</button>
+              </div>
+              <small class="muted">The starting arrangement of the page's blocks. Picking another one rearranges them{% if page.is_published %}, in the draft until you publish{% endif %}. Custom leaves the arrangement to you.</small>
+            </div>
+            {% endif %}
             {%- set _form_status = 'draft' if (page is not none and not page.is_published)
                                     else ('private' if (page is not none and page.is_private)
                                     else 'published') -%}
@@ -1603,5 +1606,15 @@ window.tspBlogTags = [
 </script>
 <script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+{# Layout dialogs; their button is the Layout field on the Page part. #}
+{% if page %}
+{{ layout_picker(page_layouts, active_layout_key,
+                  url_for('main.frontend_page_layout_save', page_id=page.id),
+                  "layout_key",
+                  "page-layout-modal", "page-layout-builder-modal",
+                  page_block_catalog,
+                  url_for('main.frontend_custom_layout_save'),
+                  kind='page', show_trigger=False) }}
+{% endif %}
 {% include "_new_page_modal.html" %}
 {% endblock %}
