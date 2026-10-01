@@ -101,6 +101,7 @@ release notes expanded by default and the changelog collapsed.
 - The Marketing landing layout now builds what it describes: a hero with a heading, a lead paragraph and a button, three feature columns, and a closing button. Before, it added two empty sections. Pages that already use it are unchanged.
 - The blocks for a page or popup are listed beside its structure, grouped as Layout, Content and From the site, with a search box, instead of in a floating Add block button over the whole screen. Click a block to add it at the end, or drag it into place. The list stays in view while the structure scrolls.
 - The popup editor's preview no longer shows the cookie banner over the popup.
+- In the page and popup structure, each container's name and its Settings, Duplicate and Remove buttons sit on one line above its contents, so nested containers keep their width; columns stack when they would be too narrow to read, and a block's buttons appear over it on hover. The block list can be folded to a narrow strip to give the structure more room, and stays folded until opened again.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

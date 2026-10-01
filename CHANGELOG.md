@@ -73,6 +73,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `structure_block_palette` renders a docked, grouped, searchable library (`.fe-block-library`) inside the structure card (`structure_card(..., library=catalog)`, or a `.fe-structure-split` on the popup editor) instead of the floating FAB panel. `page_structure.js` adds blocks through one `insertBlock(type, zone, clientY)` for drops and clicks; a click appends to the root zone.
 - Live previews accept `overlays='popups'`, which keeps popups and hides the cookie banner (the popup editor).
 
+- Structure rows (`.fe-page-structure-row--split`) are inline-size containers with a one-line head and icon-only actions; container queries stack 3- and 4-column rows under 640px and all rows under 440px. Pill actions are absolutely positioned. The block library folds (`.is-lib-folded`, localStorage `fe-block-library-folded`).
+
 ### Fixed
 
 - The `page-marketing` preset stamped two empty containers; it now carries the hero, the three-column feature grid and the closing button its description lists (refreshed by `_seed_page_layouts`).

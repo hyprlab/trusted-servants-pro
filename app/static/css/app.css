@@ -18505,6 +18505,96 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   .fe-block-library { position: static; max-height: none; }
 }
 
+/* ── Page / popup structure: every container gets a one-line head (its
+   name, what it is, and icon buttons) over its columns, so nested
+   containers keep their width for the blocks inside. Columns stack
+   when the container is narrow. ── */
+.fe-page-structure .fe-page-structure-row--split { grid-template-columns: minmax(0, 1fr) !important; gap: 8px; padding: 10px 12px;
+  container-type: inline-size; }
+.fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label {
+  flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 4px; min-width: 0; }
+.fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-label-input {
+  flex: 1 1 auto; width: auto; min-width: 3em; margin: 0; }
+.fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .muted.smaller {
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 4px; }
+.fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-action {
+  flex: 0 0 auto; width: 28px; height: 28px; padding: 0; margin: 0; justify-content: center; align-self: center; }
+.fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-action > span {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.fe-page-structure .fe-page-structure-row--split .fe-page-structure-col { padding: 8px; }
+.fe-page-structure .fe-page-structure-block { min-width: 0; }
+.fe-page-structure .fe-page-structure-block-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@container (max-width: 520px) {
+  .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .muted.smaller { display: none; }
+}
+@container (max-width: 440px) {
+  .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-cols { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+/* The block library folds to a narrow strip. */
+.fe-structure-split.is-lib-folded { grid-template-columns: minmax(0, 1fr) 46px; }
+.fe-block-library-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fe-block-library-fold .icon { width: 16px; height: 16px; }
+.fe-block-library-rail { display: none; }
+.is-lib-folded .fe-block-library > :not(.fe-block-library-rail):not(script) { display: none; }
+.is-lib-folded .fe-block-library-rail { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;
+  padding: 12px 0; border: 0; background: transparent; color: var(--brand); font: inherit; font-size: var(--fs-xs);
+  font-weight: 700; cursor: pointer; }
+.is-lib-folded .fe-block-library-rail span { writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: .04em; }
+.is-lib-folded .fe-block-library-rail .icon { width: 18px; height: 18px; }
+.is-lib-folded .fe-block-library-rail:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
+@media (max-width: 1100px) { .fe-structure-split.is-lib-folded { grid-template-columns: minmax(0, 1fr); } }
+
+/* Containers laid out in a row inside a flex-row container: an explicit
+   flexible width (their size containment means they can't size to their
+   content), wrapping when the row runs out of room. */
+.fe-page-structure .fe-page-structure-block-list--flex-row,
+.fe-page-structure .fe-page-structure-block-list--flex-row-reverse { flex-wrap: wrap; }
+.fe-page-structure .fe-page-structure-block-list--flex-row > .fe-page-structure-row,
+.fe-page-structure .fe-page-structure-block-list--flex-row-reverse > .fe-page-structure-row { flex: 1 1 240px; min-width: 0; }
+.fe-block-library-fold { flex: 0 0 auto; width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+/* Block pills: the Edit hint and the duplicate / remove buttons float
+   over the right end on hover instead of reserving room, so the name
+   keeps the pill's full width in narrow columns. */
+.fe-page-structure .fe-page-structure-block { padding-right: 10px; }
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint,
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate,
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove {
+  position: absolute; top: 50%; transform: translateY(-50%); margin: 0; pointer-events: none; }
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove { right: 6px; background: var(--panel); }
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate { right: 32px; background: var(--panel); }
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint { right: 60px; background: var(--panel); color: var(--brand); }
+.fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-duplicate,
+.fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-remove,
+.fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-duplicate,
+.fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-remove { pointer-events: auto; }
+/* Narrow pills keep just the buttons. */
+@container (max-width: 300px) {
+  .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint { display: none; }
+}
+
+/* Columns stack once each would be narrower than about 200px, and a
+   narrow container puts its name on its own line above its buttons. */
+@container (max-width: 640px) {
+  .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-cols--3,
+  .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-cols--4 { grid-template-columns: minmax(0, 1fr) !important; }
+}
+@container (max-width: 260px) {
+  .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label { flex-wrap: wrap; }
+  .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-label-input { flex-basis: 100%; }
+}
+
+.fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-duplicate,
+.fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-remove,
+.fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-duplicate,
+.fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-remove { color: var(--text); background: var(--panel);
+  box-shadow: 0 0 0 1px var(--border); }
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate:hover { background: var(--brand); color: #fff; }
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove:hover { background: var(--danger); color: #fff; }
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate .icon,
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove .icon { width: 13px; height: 13px; }
+
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
 html { visibility: visible; background: var(--bg); }

@@ -414,8 +414,16 @@
 {%- set _known = [] -%}{%- for g, ks in _BLOCK_GROUPS %}{% set _ = _known.extend(ks) %}{% endfor -%}
 {%- set _groups = _BLOCK_GROUPS + [('Other', catalog | map(attribute='key') | reject('in', _known) | list)] -%}
 <aside class="fe-block-library" data-fe-block-library aria-label="Blocks">
+  {# Folded: a narrow strip that opens the library again. #}
+  <button type="button" class="fe-block-library-rail" data-fe-block-library-toggle aria-expanded="false" title="Show the blocks">
+    {{ icon('plus') }}<span>Add a block</span>
+  </button>
   <div class="fe-block-library-head">
-    <h3>{{ icon('plus') }}Add a block</h3>
+    <div class="fe-block-library-title">
+      <h3>{{ icon('plus') }}Add a block</h3>
+      <button type="button" class="icon-btn fe-block-library-fold" data-fe-block-library-toggle aria-expanded="true"
+              title="Hide the blocks to give the structure more room">{{ icon('chevron-right') }}</button>
+    </div>
     <label class="fe-block-search">{{ icon('search') }}
       <input type="search" placeholder="Find a block" data-fe-block-search aria-label="Find a block" autocomplete="off">
     </label>
@@ -443,4 +451,25 @@
     <p class="muted small fe-block-none" data-fe-block-none hidden>No block matches.</p>
   </div>
 </aside>
+<script>
+// Fold the block library to a strip and back; remembered per browser.
+(function () {
+  var lib = document.currentScript.previousElementSibling;
+  var split = lib && lib.closest('.fe-structure-split');
+  if (!split) return;
+  var KEY = 'fe-block-library-folded';
+  function set(folded, save) {
+    split.classList.toggle('is-lib-folded', folded);
+    lib.querySelectorAll('[data-fe-block-library-toggle]').forEach(function (b) {
+      b.setAttribute('aria-expanded', b.classList.contains('fe-block-library-rail') ? String(!folded) : String(!folded));
+    });
+    if (save) { try { localStorage.setItem(KEY, folded ? '1' : ''); } catch (_) {} }
+  }
+  try { set(localStorage.getItem(KEY) === '1', false); } catch (_) {}
+  lib.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-fe-block-library-toggle]')) return;
+    set(!split.classList.contains('is-lib-folded'), true);
+  });
+})();
+</script>
 {% endmacro %}
