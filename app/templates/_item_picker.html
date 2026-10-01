@@ -1,0 +1,65 @@
+{# A card heading that is also a menu: the item being edited, and every
+   other one to jump to. Used by Page templates, the page and popup
+   editors and the form pages.
+
+   item_picker(eyebrow, name, groups, code='', actions=[], aria='Choose')
+     groups   [(group label, [{href, label, sub, active, off}])]; empty
+              groups are skipped
+     code     shown beside the name, such as the page's address
+     actions  [{href, label, icon}] links under the list, or
+              {form, label, icon} to submit the form with that id (it
+              must sit outside any form the picker is in)
+
+   The menu closes on a click outside it or on Escape (script below,
+   once per page). #}
+{% macro item_picker(eyebrow, name, groups, code='', actions=[], aria='Choose') %}
+<details class="tp-pick" data-tp-pick>
+  <summary class="tp-pick-btn" aria-label="{{ aria }}">
+    <span class="tp-pick-text">
+      <span class="tp-pick-eyebrow">{{ eyebrow }}</span>
+      <span class="tp-pick-name"><b>{{ name }}</b>{% if code %} <code class="fs-url">{{ code }}</code>{% endif %}</span>
+    </span>
+    {{ icon('chevron-down') }}
+  </summary>
+  <div class="tp-pick-menu" role="menu">
+    <div class="tp-pick-groups">
+      {% for group, items in groups if items %}
+      <div class="tp-group">
+        {% if group %}<div class="tp-group-label">{{ group }}</div>{% endif %}
+        {% for it in items %}
+        <a role="menuitem" class="tp-item{% if it.active %} is-active{% endif %}{% if it.off %} is-off{% endif %}"
+           href="{{ it.href }}"{% if it.active %} aria-current="page"{% endif %}>
+          <span>{{ it.label }}</span>
+          {% if it.sub %}<span class="tp-item-sub">{{ it.sub }}</span>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if actions %}
+    <div class="tp-pick-actions">
+      {% for a in actions %}
+      {% if a.form %}
+      <button type="submit" form="{{ a.form }}" class="tp-pick-action">{{ icon(a.icon or 'plus') }}<span>{{ a.label }}</span></button>
+      {% else %}
+      <a class="tp-pick-action" href="{{ a.href }}">{{ icon(a.icon or 'list') }}<span>{{ a.label }}</span></a>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</details>
+<script>
+(function () {
+  if (window.__tpPickBound) return;
+  window.__tpPickBound = true;
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('[data-tp-pick][open]').forEach(function (d) { if (!d.contains(e.target)) d.open = false; });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('[data-tp-pick][open]').forEach(function (d) { d.open = false; d.querySelector('summary').focus(); });
+  });
+})();
+</script>
+{% endmacro %}

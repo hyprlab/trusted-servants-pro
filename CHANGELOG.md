@@ -62,6 +62,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `fe_live_preview.js` double-buffers: each render loads into a hidden iframe that replaces the shown one after load, isolation, sizing and fonts.
 - `?__mm=` previews add `body.fe-mm-instant`, which finishes mega menu transitions and animations at once.
 
+- `_item_picker.html` (`item_picker` macro) for selector card heads, used by Page templates, the page and popup editors and the form pages; routes pass `_picker_pages`, `_picker_popups` and `fs.picker` (`_picker_forms`). The Pages and Popups lists open their New dialog on `#new`.
+
 ### Fixed
 
 - Firefox painted admin pages with a live preview before `app.css` applied. The preview `<iframe>` is now created by `fe_live_preview.js` instead of being in the markup, and `base.html` hides `<html>` (on the theme background) until `app.css` sets it visible, with a 3 s fallback.

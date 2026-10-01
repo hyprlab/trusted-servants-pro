@@ -2,6 +2,7 @@
 {% from "_help_chip.html" import chip, hrow %}
 {% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
 {% from "_dynbg_picker.html" import dynbg_trigger with context %}
+{% from "_item_picker.html" import item_picker %}
 {# One settings page for every public form, built-in or custom, in the
    same tabs: Fields, Page, Delivery, Look, Spam, Sharing, Inbox. A tab
    that doesn't apply to this form says why instead of disappearing.
@@ -46,10 +47,11 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
 <section class="card st-studio" data-studio="form-{{ fs.key }}" data-no-collapse>
-  <div class="card-head">
-    <h2>{{ fs.name }}</h2>
+  <div class="card-head st-pick-head">
+    {{ item_picker('Form', fs.name, fs.picker, code=fs.public_path or '', aria='Choose a form',
+                   actions=[{'href': url_for('main.frontend_forms'), 'label': 'All forms', 'icon': 'list'},
+                            {'form': 'fs-new-form', 'label': 'New form', 'icon': 'plus'}]) }}
     <div class="st-actions">
-      {% if fs.public_path %}<code class="fs-url">{{ fs.public_path }}</code>{% endif %}
       <label class="mode-toggle fs-live">
         <input type="checkbox" name="{{ fs.enabled_field }}" value="1" {% if fs.enabled %}checked{% endif %}>
         <span class="mode-track"><span class="mode-thumb"></span></span>
@@ -238,6 +240,10 @@
     </div>
   </div>
 </section>
+</form>
+{# "New form" in the selector submits this (it can't sit inside #fs-form). #}
+<form method="post" action="{{ url_for('main.frontend_custom_form_new') }}" id="fs-new-form" hidden>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </form>
 
   </div>

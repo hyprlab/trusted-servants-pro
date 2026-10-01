@@ -10207,6 +10207,46 @@ _BUILTIN_FORM_STUDIO = {
 }
 
 
+def _picker_pages(current_id):
+    """Every page for the page editor's selector: the homepage, then
+    published, private and draft pages (_item_picker.html)."""
+    s = _get_site_setting()
+    hp = s.homepage_page_id
+    def item(p):
+        return {"href": url_for("main.frontend_page_edit", page_id=p.id), "label": p.title or "Untitled",
+                "sub": "/" if p.id == hp else "/" + (p.slug or ""), "active": p.id == current_id, "off": False}
+    pages = Page.query.order_by(Page.title.asc()).all()
+    rest = [p for p in pages if p.id != hp]
+    return [
+        ("Homepage", [item(p) for p in pages if p.id == hp]),
+        ("Published", [item(p) for p in rest if p.is_published and not p.is_private]),
+        ("Private", [item(p) for p in rest if p.is_published and p.is_private]),
+        ("Drafts", [item(p) for p in rest if not p.is_published]),
+    ]
+
+
+def _picker_popups(current_id):
+    """Every popup for the popup editor's selector."""
+    from .models import Popup
+    return [("", [{"href": url_for("main.frontend_popup_edit", popup_id=p.id), "label": p.title or "Untitled",
+                   "sub": "#" + (p.name or "") + ("" if p.is_enabled else " · off"),
+                   "active": p.id == current_id, "off": not p.is_enabled}
+                  for p in Popup.query.order_by(Popup.title.asc()).all()])]
+
+
+def _picker_forms(current_key):
+    """Every form for a form page's selector: built in, then your own.
+    ``current_key`` is a built-in key or ``custom-<id>``."""
+    from .forms_overview import form_rows
+    rows = form_rows(_get_site_setting())
+    def item(r):
+        return {"href": r["settings_url"], "label": r["name"],
+                "sub": (r.get("public_url") or "") + ("" if r["enabled"] else " · off"),
+                "active": r["key"] == current_key, "off": not r["enabled"]}
+    return [("Built in", [item(r) for r in rows if not r["custom"]]),
+            ("Your forms", [item(r) for r in rows if r["custom"]])]
+
+
 def _form_studio_ctx(key, cf=None):
     from markupsafe import escape
     from .forms_overview import form_rows
@@ -10229,7 +10269,7 @@ def _form_studio_ctx(key, cf=None):
             inbox_url=row.get("inbox_url"), inbox_label="Open the inbox",
             inbox_about="Submissions to this form are kept in its own inbox, where they can be read, archived, deleted and exported.",
             count=row.get("count", 0), count_label="new",
-            links=[])
+            links=[], picker=_picker_forms(f"custom-{cf.id}"))
         return fs
     meta = dict(_BUILTIN_FORM_STUDIO[key])
     row = rows.get(key, {})
@@ -10282,6 +10322,7 @@ def _form_studio_ctx(key, cf=None):
         links.append({"label": nl.label or "Link", "where": "mega menu",
                       "href": url_for("main.frontend_header", item=nl.column.nav_item_id) + "#menu"})
     fs["links"] = links
+    fs["picker"] = _picker_forms(key)
     return fs
 
 
@@ -13342,6 +13383,7 @@ def frontend_page_edit(page_id):
     # list server-side, JS clones template on pill click).
     faq_modal_vals = _faq_block_modal_proxy({})
     return render_template("frontend_page_edit.html", site=s, page=page,
+                           picker_groups=_picker_pages(page.id if page else None),
                            blocks_json=page.blocks_json or "[]",
                            page_layouts=layouts,
                            active_layout=active_layout,
@@ -14725,6 +14767,7 @@ def frontend_popup_edit(popup_id):
         block_payloads[bid] = b
     popup_catalog = [c for c in _PAGE_BLOCK_CATALOG if c["key"] in _POPUP_PALETTE_KEYS]
     return render_template("frontend_popup_edit.html", site=s, popup=popup,
+                           picker_groups=_picker_popups(popup.id),
                            blocks_json=popup.blocks_json or "[]",
                            popup_allowed_block_types=_POPUP_ALLOWED_BLOCK_TYPES,
                            popup_block_catalog=popup_catalog,

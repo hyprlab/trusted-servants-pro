@@ -410,4 +410,15 @@
     slugInput.addEventListener('input', sync);
   })();
 </script>
+<script>
+// A link to #new (the editors' selector menus) opens the New dialog.
+(function () {
+  if (location.hash !== '#new') return;
+  history.replaceState(null, '', location.pathname + location.search);
+  window.addEventListener('load', function () {
+    var b = document.querySelector('[data-open-modal="new-page-modal"]');
+    if (b) b.click();
+  });
+})();
+</script>
 {% endblock %}

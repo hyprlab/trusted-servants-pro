@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
+{% from "_item_picker.html" import item_picker %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% from "_frontend_layout_picker.html" import layout_picker %}
 {% from "_width_control.html" import width_control %}
@@ -60,62 +61,8 @@
   {% include "_frontend_subnav.html" %}
   <div class="fe-admin-main">
 
-    {# Page-title banner above the first card so the admin always sees
-       which page they're editing. New pages have no title yet, so this
-       is gated on `page`. #}
-    {% if page %}
-    {%- set _page_status = 'draft' if not page.is_published else ('private' if page.is_private else 'published') -%}
-    {%- set _is_homepage = (site and site.homepage_page_id == page.id) -%}
-    <div class="fe-page-edit-title-banner">
-      <div class="fe-page-edit-title-banner-eyebrow muted smaller">
-        {% if _is_homepage %}Editing homepage{% else %}Editing page{% endif %}
-      </div>
-      <h1 class="fe-page-edit-title-banner-title">{{ page.title }}</h1>
-      <div class="fe-page-edit-title-banner-meta muted smaller">
-        {% if _is_homepage %}<code>/</code>{% else %}<code>/{{ page.slug }}</code>{% endif %}
-        {% if _is_homepage %}
-          · <span class="chip chip-homepage" title="This page renders at the public `/` root">
-              {{ icon('home') }} Homepage
-            </span>
-        {% endif %}
-        {% if _page_status == 'draft' %} · <span class="post-chip post-chip-draft">Draft</span>{% endif %}
-        {% if _page_status == 'private' %} · <span class="post-chip post-chip-private">Private</span>{% endif %}
-        {% if _page_status == 'published' %} · <span class="post-chip post-chip-online">Published</span>{% endif %}
-        {% if not _is_homepage %}
-          · <form method="post"
-                  action="{{ url_for('main.frontend_page_set_homepage', page_id=page.id) }}"
-                  class="fe-page-edit-make-homepage"
-                  onsubmit="return confirm('Make “{{ page.title|e }}” the homepage? It will render at the public `/` root, and the previous homepage becomes a regular page.');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm" title="Designate this page as the public homepage">
-                {{ icon('home') }} Make homepage
-              </button>
-            </form>
-        {% endif %}
-      </div>
-      {# Quick-action pills — clicking a pill selects the matching
-         visibility radio in the page-settings form below and triggers
-         the standard save-bar (it picks up the radio's `change` event
-         and shows "Unsaved changes"). Nothing is committed until the
-         admin clicks the save bar's Save button — same round-trip as
-         editing any other field. #}
-      {% if _is_homepage %}
-      <p class="muted small fe-page-edit-status-locked">{{ icon('lock') }} The homepage is always public. To take it down, make another page the homepage first.</p>
-      {% else %}
-      <div class="fe-page-edit-status-actions" data-fe-page-status-actions
-           data-current-status="{{ _page_status }}">
-        {% for key, label in [('draft', 'Draft'), ('published', 'Publish'), ('private', 'Make Private')] %}
-        <button type="button"
-                class="btn btn-sm fe-page-edit-status-pill{% if _page_status == key %} active{% endif %}"
-                data-fe-page-status="{{ key }}"
-                aria-pressed="{{ 'true' if _page_status == key else 'false' }}">
-          {{ label }}{% if _page_status == key %} ✓{% endif %}
-        </button>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-    {% endif %}
+    {%- set _page_status = ('draft' if not page.is_published else ('private' if page.is_private else 'published')) if page else 'draft' -%}
+    {%- set _is_homepage = page and site and site.homepage_page_id == page.id -%}
 
     {# ── Pending-draft banner ───────────────────────────────────────
        Surfaces when the page has a stashed `draft_json` and the edit
@@ -172,7 +119,35 @@
          stays scannable while collapsing three previously-separate
          cards into one. #}
       <section class="card st-studio fe-page-settings-card" data-studio="page-settings" data-no-collapse>
-        <div class="card-head"><h2>Page settings {% call chip('Page settings') %}The preview shows the page with every unsaved change, blocks included. Save a draft or publish with the yellow bar.{% endcall %}</h2></div>
+        {# The page being edited and every other one to jump to
+           (_item_picker.html), with its status beside it. #}
+        <div class="card-head st-pick-head">
+          {{ item_picker('Homepage' if _is_homepage else 'Page', page.title if page else 'New page', picker_groups,
+                         code=('/' if _is_homepage else '/' ~ page.slug) if page else '', aria='Choose a page',
+                         actions=[{'href': url_for('main.frontend_pages'), 'label': 'All pages', 'icon': 'list'},
+                                  {'href': url_for('main.frontend_pages') ~ '#new', 'label': 'New page', 'icon': 'plus'}]) }}
+          {% if page %}
+          <div class="st-actions">
+            {% if _is_homepage %}
+            <span class="post-chip post-chip-online">Published</span>
+            {% else %}
+            {# Clicking one selects the matching visibility on the Page
+               part below and shows the save bar; nothing is committed
+               until Save. #}
+            <div class="ds-seg-btns fe-page-edit-status-actions" data-fe-page-status-actions role="group" aria-label="Status"
+                 data-current-status="{{ _page_status }}">
+              {% for key, label in [('draft', 'Draft'), ('published', 'Published'), ('private', 'Private')] %}
+              <button type="button" class="fe-page-edit-status-pill{% if _page_status == key %} active{% endif %}"
+                      data-fe-page-status="{{ key }}" aria-pressed="{{ 'true' if _page_status == key else 'false' }}">{{ label }}</button>
+              {% endfor %}
+            </div>
+            <button type="submit" form="fe-make-homepage" class="btn btn-sm" title="Show this page at the site's root address">{{ icon('home') }} Make homepage</button>
+            {% endif %}
+            {% call chip('Page') %}The preview shows the page with every unsaved change, blocks included. Save a draft or publish with the yellow bar.{% endcall %}
+          </div>
+          {% if _is_homepage %}<p class="muted small st-pick-about">{{ icon('lock') }} The homepage is always public and shows at <code>/</code>. To take it down, make another page the homepage first.</p>{% endif %}
+          {% endif %}
+        </div>
         <div class="st-body st-body--split">
           <div class="st-controls">
             <nav class="st-seg" role="tablist" aria-label="Page settings">
@@ -519,6 +494,13 @@
       {# No Save button here: the yellow save bar is the one way to save a
          draft or publish (its Publish/Save Draft buttons set save_action). #}
     </form>
+    {% if page and not _is_homepage %}
+    {# "Make homepage" in the card head submits this. #}
+    <form method="post" action="{{ url_for('main.frontend_page_set_homepage', page_id=page.id) }}" id="fe-make-homepage" hidden
+          onsubmit="return confirm('Make “{{ page.title|e }}” the homepage? It will show at the site\'s root address, and the current homepage becomes a regular page.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    </form>
+    {% endif %}
 
     {# ── Active layout structure ────────────────────────────────────
        Shown for both existing AND new pages. New pages start with an
