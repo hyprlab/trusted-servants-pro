@@ -41,7 +41,7 @@
   {%- set _meta = _block_labels.get(t, (t, 'square')) -%}
   {%- set _editable = t in _editable_types -%}
   <div class="fe-page-structure-block fe-page-structure-block--{{ t }} is-clickable is-draggable"
-       data-type="{{ t }}"{% if _editable %} data-studio-goto="{{ t }}"{% endif %}
+       data-type="{{ t }}"{% if _editable %} data-ol-goto="ft-{{ t }}"{% endif %}
        title="{{ _meta[0] }}">
     <span class="fe-page-structure-block-icon">{{ icon(_meta[1]) }}</span>
     <span class="fe-page-structure-block-name">{{ _meta[0] }}</span>
@@ -71,10 +71,24 @@
     ('copyright', 'Copyright', 'type', 'The copyright line'),
   ] %}
   {% set _fs_names = {} %}{% for k, n, i2, d in _fs_sections %}{% set _ = _fs_names.update({k: n}) %}{% endfor %}
-  {% macro fs_back(key) -%}
-    <div class="fs-back">
-      <button type="button" class="ol-back" data-studio-goto="home">{{ icon('arrow-left') }} Footer</button>
-      <h3>{{ _fs_names[key] }}</h3>
+  {% set _fs_meta = {} %}{% for k, n, i2, d in _fs_sections %}{% set _ = _fs_meta.update({k: (n, i2, d)}) %}{% endfor %}
+  {# One part of the footer: a row that opens in place to its editor
+     (static/js/fe_rows.js), like the Header page's rows. #}
+  {% macro fs_part(key) -%}
+    {% set _m = _fs_meta[key] %}
+    {% set _shown = key == 'layout' or key in used_types %}
+    <div class="ol-row fs-part" data-ol-row data-ol-key="ft-{{ key }}" id="ft-part-{{ key }}">
+      <div class="ol-head">
+        <button type="button" class="ol-toggle" data-ol-toggle aria-expanded="false">
+          <span class="ol-glyph">{{ icon(_m[1]) }}</span>
+          <span class="ol-text"><b>{{ _m[0] }}</b><small>{{ _m[2] }}</small></span>
+          {% if key != 'layout' %}<span class="fs-state{% if _shown %} is-on{% endif %}" data-fs-status="{{ key }}">{{ 'Shown' if _shown else 'Not shown' }}</span>{% endif %}
+          <span class="ol-chev">{{ icon('chevron-down') }}</span>
+        </button>
+      </div>
+      <div class="ol-body fs-body" data-ol-body hidden>
+        {{ caller() }}
+      </div>
     </div>
   {%- endmacro %}
   {# A section the current layout doesn't show: say so, and offer to add
@@ -96,25 +110,11 @@
       {{ live_preview(url_for('frontend.index'), '#footer-form', height=320, title='Footer preview', only=LP_FOOTER, fit=True) }}
     </div>
     <div class="st-controls">
-      <button type="button" data-studio-tab="home" hidden></button>
-      <div class="st-panel" data-studio-panel="home">
-        <p class="st-panel-intro">Pick a part of the footer to edit it. How it looks is on <a href="{{ url_for('main.frontend_design') }}#footer">Design → Footer</a>.</p>
-        <div class="fs-list">
-          {% for key, name, ic, desc in _fs_sections %}
-          {% set _shown = key == 'layout' or key in used_types %}
-          <button type="button" class="fs-item" data-studio-tab="{{ key }}">
-            <span class="ol-glyph">{{ icon(ic) }}</span>
-            <span class="ol-text"><b>{{ name }}</b><small>{{ desc }}</small></span>
-            {% if key != 'layout' %}<span class="fs-state{% if _shown %} is-on{% endif %}" data-fs-status="{{ key }}">{{ 'Shown' if _shown else 'Not shown' }}</span>{% endif %}
-            <span class="ol-chev fs-chev">{{ icon('chevron-right') }}</span>
-          </button>
-          {% endfor %}
-        </div>
-      </div>
+      <p class="st-panel-intro">Pick a part of the footer to edit its content. How it looks is on <a href="{{ url_for('main.frontend_design') }}#footer">Design → Footer</a>.</p>
+      <div class="ol-list fs-list">
 
       {# ── Layout: which layout, and for a custom one its rows. ── #}
-      <div class="st-panel" data-studio-panel="layout" hidden>
-        {{ fs_back('layout') }}
+      {% call fs_part('layout') %}
         <div class="ds-group">
           <h3 class="ds-group-title">{{ icon('layout-grid') }}Layout</h3>
           <div class="fe-flayouts" role="radiogroup" aria-label="Footer layout">
@@ -132,7 +132,7 @@
 
         {% if is_custom %}
         <div class="ds-group fe-page-structure">
-          <h3 class="ds-group-title">{{ icon('columns') }}Rows and blocks {% call chip('Rows and blocks') %}Drag blocks between rows and columns. Click a block to edit its content in its tab. Adding or removing a block here only changes this layout; the content is kept.{% endcall %}</h3>
+          <h3 class="ds-group-title">{{ icon('columns') }}Rows and blocks {% call chip('Rows and blocks') %}Drag blocks between rows and columns. Click a block to open its part of the footer. Adding or removing a block here only changes this layout; the content is kept.{% endcall %}</h3>
           <input type="hidden" name="footer_layout_json" id="footer-layout-json">
           <div class="fe-page-structure-rows" data-footer-rows>
             <div class="fe-page-structure-root-empty muted small" data-footer-empty hidden>
@@ -191,14 +191,13 @@
           <button type="submit" class="btn btn-primary btn-sm" formaction="{{ url_for('main.frontend_footer_customize') }}">{{ icon('copy') }} Customize this layout</button>
         </div>
         {% endif %}
-      </div>
+      {% endcall %}{# /fs_part #}
 
   {# ── Brand block ── only render when the active layout uses it. The
      card's content still posts to the form when shown; when hidden the
      stored brand values persist untouched in the JSON column so a later
      layout switch reveals the editor with the saved values intact. #}
-  <div class="st-panel" data-studio-panel="brand" hidden>
-    {{ fs_back('brand') }}
+  {% call fs_part('brand') %}
     {{ fs_missing('brand') }}
     <div class="ds-group st-group-body fe-footer-editor">
       <div class="fe-footer-editor-body">
@@ -271,11 +270,10 @@
         </label>
       </div>
     </div>
-  </div>
+  {% endcall %}{# /fs_part #}
 
   {# ── Link columns ── #}
-  <div class="st-panel" data-studio-panel="link_columns" hidden>
-    {{ fs_back('link_columns') }}
+  {% call fs_part('link_columns') %}
     {{ fs_missing('link_columns') }}
     <div class="ds-group st-group-body fe-footer-editor fe-footer-cols-editor"
          data-footer-cols-editor data-cols-max="6" data-links-max="12">
@@ -362,11 +360,10 @@
     </template>
       </div>
     </div>
-  </div>
+  {% endcall %}{# /fs_part #}
 
   {# ── Social row ── #}
-  <div class="st-panel" data-studio-panel="social_row" hidden>
-    {{ fs_back('social_row') }}
+  {% call fs_part('social_row') %}
     {{ fs_missing('social_row') }}
     <div class="ds-group st-group-body fe-footer-editor fe-footer-social-editor"
          data-footer-social-editor data-social-max="10">
@@ -418,11 +415,10 @@
     </template>
       </div>
     </div>
-  </div>
+  {% endcall %}{# /fs_part #}
 
   {# ── Secondary nav ── #}
-  <div class="st-panel" data-studio-panel="secondary_nav" hidden>
-    {{ fs_back('secondary_nav') }}
+  {% call fs_part('secondary_nav') %}
     {{ fs_missing('secondary_nav') }}
     <div class="ds-group st-group-body fe-footer-editor fe-footer-secnav-editor"
          data-footer-secnav-editor data-secnav-max="8">
@@ -465,12 +461,11 @@
     </template>
       </div>
     </div>
-  </div>
+  {% endcall %}{# /fs_part #}
 
   {# ── Meeting locations (Recovery Blue block content) ── #}
   {% set _ml = _f.meeting_locations %}
-  <div class="st-panel" data-studio-panel="meeting_locations" hidden>
-    {{ fs_back('meeting_locations') }}
+  {% call fs_part('meeting_locations') %}
     {{ fs_missing('meeting_locations') }}
     <div class="ds-group st-group-body fe-footer-editor fe-footer-loc-editor"
          data-footer-loc-editor data-loc-max="12">
@@ -640,12 +635,11 @@
     </template>
       </div>
     </div>
-  </div>
+  {% endcall %}{# /fs_part #}
 
   {# ── Contact section panes (Recovery Blue block content) ── #}
   {% set _cs = _f.contact_section %}
-  <div class="st-panel" data-studio-panel="contact_section" hidden>
-    {{ fs_back('contact_section') }}
+  {% call fs_part('contact_section') %}
     {{ fs_missing('contact_section') }}
     <div class="ds-group st-group-body fe-footer-editor fe-footer-contact-editor"
          data-footer-contact-editor data-contact-max="4">
@@ -678,11 +672,10 @@
     </template>
       </div>
     </div>
-  </div>
+  {% endcall %}{# /fs_part #}
 
   {# ── Copyright ── #}
-  <div class="st-panel" data-studio-panel="copyright" hidden>
-    {{ fs_back('copyright') }}
+  {% call fs_part('copyright') %}
     {{ fs_missing('copyright') }}
     {% set _site_name = (site.frontend_title if site else '') or 'Trusted Servants' %}
     <div class="ds-group st-group-body fe-footer-editor cr-builder" data-cr-builder
@@ -733,7 +726,8 @@
         </label>
       </details>
     </div>
-  </div>
+  {% endcall %}{# /fs_part #}
+      </div>
 
 
     </div>
@@ -1169,5 +1163,6 @@
 <script src="{{ url_for('static', filename='js/footer_builder.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/fe_rows.js', v=app_build_id) }}"></script>
 
 {% endblock %}

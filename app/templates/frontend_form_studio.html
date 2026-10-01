@@ -58,18 +58,16 @@
       {% call chip('On or off') %}Off: the form's page answers "not found" and menu links to it hide. Its settings and submissions are kept.{% endcall %}
     </div>
   </div>
-  <div class="ds-tabs-wrap">
-    <nav class="ds-tabs" role="tablist" aria-label="Form settings">
-      {% for k, lbl, ic in [('fields', 'Fields', 'list'), ('page', 'Page', 'file-text'), ('delivery', 'Delivery', 'mail'),
-                            ('look', 'Look', 'sliders'), ('spam', 'Spam', 'shield'), ('sharing', 'Sharing', 'share'),
-                            ('inbox', 'Inbox', 'inbox')] %}
-      <button type="button" role="tab" class="ds-tab" data-studio-tab="{{ k }}">{{ icon(ic) }}<span>{{ lbl }}</span>{% if k == 'inbox' and fs.count %}<span class="ds-tab-count">{{ fs.count }}</span>{% endif %}</button>
-      {% endfor %}
-    </nav>
-  </div>
 
-  <div class="st-body st-body--side">
+  <div class="st-body st-body--split">
     <div class="st-controls">
+      <nav class="st-seg" role="tablist" aria-label="Form settings">
+        {% for k, lbl, ic in [('fields', 'Fields', 'list'), ('page', 'Page', 'file-text'), ('delivery', 'Delivery', 'mail'),
+        ('look', 'Look', 'sliders'), ('spam', 'Spam', 'shield'), ('sharing', 'Sharing', 'share'),
+        ('inbox', 'Inbox', 'inbox')] %}
+        <button type="button" role="tab" data-studio-tab="{{ k }}">{{ icon(ic) }}<span>{{ lbl }}</span>{% if k == 'inbox' and fs.count %}<span class="ds-tab-count">{{ fs.count }}</span>{% endif %}</button>
+        {% endfor %}
+      </nav>
 
       {# ── Fields ── #}
       <div class="st-panel" data-studio-panel="fields">

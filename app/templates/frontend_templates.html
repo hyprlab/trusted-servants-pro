@@ -14,39 +14,43 @@
 <div class="fe-admin-layout">
   {% include "_frontend_subnav.html" %}
   <div class="fe-admin-main">
-<div class="tp-layout">
-
-  {# ── Every page template, grouped by part of the site ── #}
-  <nav class="tp-rail card" aria-label="Page templates" data-no-collapse>
-    {% for group, items in rail %}
-    <div class="tp-group">
-      <div class="tp-group-label">{{ group }}</div>
-      {% for it in items %}
-      <a class="tp-item{% if it.key == kind %} is-active{% endif %}{% if it.off %} is-off{% endif %}"
-         href="{{ url_for('main.frontend_templates', kind=it.key) }}"{% if it.key == kind %} aria-current="page"{% endif %}>
-        <span>{{ it.label }}</span>
-        <span class="tp-item-sub">{% if it.off %}Module off{% elif it.layout %}{{ it.layout }}{% endif %}</span>
-      </a>
-      {% endfor %}
-    </div>
-    {% endfor %}
-  </nav>
-
   <section class="card st-studio tp-studio" data-studio="tpl-{{ kind }}" data-no-collapse>
-    <div class="card-head">
-      <h2>{{ meta.label }}{% if meta.path %} <code class="fs-url">{{ meta.path }}</code>{% endif %}</h2>
+    <div class="card-head tp-head">
+      {# Which template to edit: a popover of every generated page,
+         grouped by part of the site. #}
+      <details class="tp-pick" data-tp-pick>
+        <summary class="tp-pick-btn" aria-label="Choose a page template">
+          <span class="tp-pick-text">
+            <span class="tp-pick-eyebrow">Page template</span>
+            <span class="tp-pick-name"><b>{{ meta.label }}</b>{% if meta.path %} <code class="fs-url">{{ meta.path }}</code>{% endif %}</span>
+          </span>
+          {{ icon('chevron-down') }}
+        </summary>
+        <div class="tp-pick-menu" role="menu">
+          {% for group, items in rail %}
+          <div class="tp-group">
+            <div class="tp-group-label">{{ group }}</div>
+            {% for it in items %}
+            <a role="menuitem" class="tp-item{% if it.key == kind %} is-active{% endif %}{% if it.off %} is-off{% endif %}"
+               href="{{ url_for('main.frontend_templates', kind=it.key) }}"{% if it.key == kind %} aria-current="page"{% endif %}>
+              <span>{{ it.label }}</span>
+              <span class="tp-item-sub">{% if it.off %}Module off{% elif it.layout %}{{ it.layout }}{% endif %}</span>
+            </a>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+      </details>
       {% if meta.get('about') %}<p class="muted small tp-about">{{ meta.about }}</p>{% endif %}
     </div>
-    <div class="ds-tabs-wrap">
-      <nav class="ds-tabs" role="tablist" aria-label="Template settings">
-        {% if _has_layouts %}<button type="button" role="tab" class="ds-tab" data-studio-tab="layout">{{ icon('layout-grid') }}<span>Layout</span><span class="ds-tab-count">{{ catalog|length }}</span></button>{% endif %}
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="appearance">{{ icon('sliders') }}<span>Appearance</span></button>
-        <button type="button" role="tab" class="ds-tab" data-studio-tab="page">{{ icon('file-text') }}<span>Page</span></button>
-      </nav>
-    </div>
 
-    <div class="st-body st-body--side">
+    <div class="st-body st-body--split">
       <div class="st-controls">
+        <nav class="st-seg" role="tablist" aria-label="Template settings">
+          {% if _has_layouts %}<button type="button" role="tab" data-studio-tab="layout">{{ icon('layout-grid') }}<span>Layout</span><span class="ds-tab-count">{{ catalog|length }}</span></button>{% endif %}
+          <button type="button" role="tab" data-studio-tab="appearance">{{ icon('sliders') }}<span>Appearance</span></button>
+          <button type="button" role="tab" data-studio-tab="page">{{ icon('file-text') }}<span>Page</span></button>
+        </nav>
 
         {# Layout and Page post together to the kind's own save route. #}
         <form class="form" method="post" action="{{ url_for(meta.save) }}" id="tp-main">
@@ -216,7 +220,7 @@
     </div>
   </section>
 
-</div>
+
   </div>
 </div>
 
@@ -304,4 +308,13 @@
 </script>
 <script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+<script>
+// Template picker: closes on a click outside it or on Escape.
+(function () {
+  var pick = document.querySelector('[data-tp-pick]');
+  if (!pick) return;
+  document.addEventListener('click', function (e) { if (pick.open && !pick.contains(e.target)) pick.open = false; });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && pick.open) { pick.open = false; pick.querySelector('summary').focus(); } });
+})();
+</script>
 {% endblock %}

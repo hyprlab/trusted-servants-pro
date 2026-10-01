@@ -139,7 +139,6 @@
     });
     var rb = this.root.querySelector('[data-lp-refresh]');
     if (rb) rb.addEventListener('click', function () { self.render(); });
-    this.frame.addEventListener('load', function () { self.onLoad(); });
     if (window.ResizeObserver) {
       new ResizeObserver(function () { self.fit(); }).observe(this.root);
     } else {
@@ -229,12 +228,50 @@
           (parseInt(self.root.getAttribute('data-lp-pad') || '0', 10) || 0) + ');<\/script>';
         html = /<\/body>/i.test(html) ? html.replace(/<\/body>(?![\s\S]*<\/body>)/i, call + '</body>') : html + call;
       }
-      self.frame.srcdoc = html;
+      self.swapIn(html, seq);
     }).catch(function () {
       if (seq !== self.seq) return;
       self.root.classList.remove('is-loading');
       self.setStatus('Preview unavailable');
     });
+  };
+
+  // Each render loads into a second, hidden frame; it replaces the shown
+  // one only once it has loaded, been cut down to its part and sized, so
+  // the half-built page (unstyled, full size) is never seen.
+  Preview.prototype.swapIn = function (html, seq) {
+    var self = this;
+    var next = document.createElement('iframe');
+    next.title = this.frame.title;
+    next.setAttribute('loading', 'eager');
+    next.setAttribute('aria-hidden', 'true');
+    next.style.visibility = 'hidden';
+    next.style.width = this.frame.style.width;
+    next.style.height = this.frame.style.height;
+    next.style.transform = this.frame.style.transform;
+    next.addEventListener('load', function () {
+      if (!next.srcdoc) return;
+      if (seq !== self.seq) { next.remove(); return; }
+      var old = self.frame;
+      self.frame = next;
+      self.onLoad();
+      var show = function () {
+        if (next.style.visibility !== 'hidden') return;
+        next.style.visibility = '';
+        next.removeAttribute('aria-hidden');
+        if (old && old !== next) old.remove();
+      };
+      // Let web fonts settle first, but never wait long.
+      var d = next.contentDocument;
+      if (d && d.fonts && d.fonts.ready) {
+        d.fonts.ready.then(function () { requestAnimationFrame(show); });
+        setTimeout(show, 400);
+      } else {
+        requestAnimationFrame(show);
+      }
+    });
+    this.stage.appendChild(next);
+    next.srcdoc = html;
   };
 
   Preview.prototype.applyMode = function () {

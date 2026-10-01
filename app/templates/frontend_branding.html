@@ -38,16 +38,14 @@
   <div class="card-head">
     <h2>Branding {% call chip('Branding') %}Saved with the yellow Save button. The previews on the right follow your edits, including a newly chosen image, before you save.{% endcall %}</h2>
   </div>
-  <div class="ds-tabs-wrap">
-    <nav class="ds-tabs" role="tablist" aria-label="Branding">
-      <button type="button" role="tab" class="ds-tab" data-studio-tab="identity">{{ icon('star') }}<span>Name and logo</span></button>
-      <button type="button" role="tab" class="ds-tab" data-studio-tab="icons">{{ icon('image') }}<span>Icons</span></button>
-      <button type="button" role="tab" class="ds-tab" data-studio-tab="sharing">{{ icon('share') }}<span>Search and sharing</span></button>
-    </nav>
-  </div>
 
-  <div class="st-body st-body--side">
+  <div class="st-body st-body--split">
     <div class="st-controls">
+      <nav class="st-seg" role="tablist" aria-label="Branding">
+        <button type="button" role="tab" data-studio-tab="identity">{{ icon('star') }}<span>Name and logo</span></button>
+        <button type="button" role="tab" data-studio-tab="icons">{{ icon('image') }}<span>Icons</span></button>
+        <button type="button" role="tab" data-studio-tab="sharing">{{ icon('share') }}<span>Sharing</span></button>
+      </nav>
 
       <div class="st-panel" data-studio-panel="identity">
         <div class="ds-group st-group-body">

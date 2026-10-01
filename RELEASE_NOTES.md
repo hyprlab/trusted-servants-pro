@@ -88,6 +88,11 @@ release notes expanded by default and the changelog collapsed.
 - The current section in the Web Frontend menu is highlighted in the brand color.
 - Web Frontend pages no longer flash while loading: the tab you last had open shows from the start, previews keep their space, and a hidden app sidebar no longer slides out and back.
 - Footer → Meeting locations shows each checkbox to the left of the location's name.
+- Every Web Frontend page with a preview now works like the Header page: the preview on the left, the settings on the right, and their parts chosen with a segmented control instead of tabs. This includes Branding, forms, Page templates, pages, popups, the 404 page and Privacy & cookies.
+- Page templates no longer has a list down the left: the template being edited is chosen from a menu at the top of its card.
+- The Footer page's parts open in place, like the Header page's rows, instead of on a separate screen with a back arrow. Clicking a block in the footer layout opens its part.
+- Previews no longer flash the page unstyled while they load: a new preview replaces the old one only once it is ready. A mega menu held open in the Header preview no longer replays its opening animation.
+- Section headings in Web Frontend cards are larger, and Rollback snapshots on the Overview matches the Pull and Push buttons.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

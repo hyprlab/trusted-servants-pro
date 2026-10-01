@@ -56,6 +56,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `fe_studio.js` follows `hashchange`. The modal reopen memory forgets a modal whose form submits for real.
 - Page and popup editors render their settings form before the structure card.
 
+- All studios use `.st-body--split` with an `.st-seg` segmented control (a wrapping grid) inside the settings column; the `.ds-tabs` strips are gone from Web Frontend studios.
+- Page templates: the left rail is replaced by a `details` picker (`.tp-pick`) in the card head.
+- Footer parts render through `fs_part` (a `fe_rows.js` row) instead of `fe_studio` panels; `data-ol-goto` opens a row by key.
+- `fe_live_preview.js` double-buffers: each render loads into a hidden iframe that replaces the shown one after load, isolation, sizing and fonts.
+- `?__mm=` previews add `body.fe-mm-instant`, which finishes mega menu transitions and animations at once.
+
 ### Fixed
 
 - `frontend_page_delete` clears `cookie_compliance_policy_page_id` when it points at the deleted page.

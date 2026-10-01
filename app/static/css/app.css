@@ -18313,3 +18313,50 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   .st-body--side > .st-controls { border-left: 0; border-bottom-left-radius: var(--radius); }
 }
 .st-studio textarea { font-family: inherit; }
+.lp-stage iframe:not([srcdoc]) { visibility: hidden; }
+
+/* Web Frontend: section card headings one step larger. */
+.fe-admin-main .card-head h2 { font-size: var(--fs-lg); }
+
+/* Footer parts open in place: the editor fills the row. */
+.fs-part > .fs-body { padding: 0; gap: 0; }
+.fs-part > .fs-body > .ds-group { border-bottom: 0; }
+.fs-part > .fs-body > .st-na { margin: 12px 14px 0; }
+.fs-part > .fs-body .ds-group { padding-left: 14px; padding-right: 14px; }
+.fs-part.is-open { scroll-margin-top: calc(var(--topbar-h, 56px) + 12px); }
+
+/* Split studios: the preview is always the left column, whatever the
+   markup order. */
+.st-body--split > .st-preview { order: 0; }
+.st-body--split > .st-controls { order: 1; }
+.st-body--split > .st-preview .lp { min-width: 0; }
+
+/* Segmented control: as many equal parts as fit a row, wrapping when a
+   page has more (a form's seven). */
+.st-seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); }
+.st-seg button { white-space: normal; line-height: 1.2; text-align: center; min-height: 34px; }
+.st-seg .ds-tab-count { font-size: var(--fs-2xs); font-weight: 700; padding: 0 6px; border-radius: 999px; line-height: 16px;
+  background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand); }
+.st-seg button[aria-selected="true"] .ds-tab-count { background: rgba(255, 255, 255, .25); color: #fff; }
+
+/* Page templates: the template picker in the card head. */
+.tp-head { position: relative; }
+.tp-pick { position: relative; }
+.tp-pick > summary { list-style: none; }
+.tp-pick > summary::-webkit-details-marker { display: none; }
+.tp-pick-btn { display: inline-flex; align-items: center; gap: 12px; padding: 8px 12px 8px 14px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--panel); cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+.tp-pick-btn:hover, .tp-pick[open] > .tp-pick-btn { border-color: color-mix(in srgb, var(--brand) 50%, var(--border)); }
+.tp-pick[open] > .tp-pick-btn { box-shadow: 0 0 0 3px var(--brand-soft); }
+.tp-pick-btn > .icon { width: 16px; height: 16px; color: var(--muted); transition: transform .15s; }
+.tp-pick[open] > .tp-pick-btn > .icon { transform: rotate(180deg); }
+.tp-pick-text { display: flex; flex-direction: column; line-height: 1.25; }
+.tp-pick-eyebrow { font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.tp-pick-name { font-size: var(--fs-lg); display: inline-flex; align-items: baseline; gap: 8px; }
+.tp-pick-name .fs-url { font-size: var(--fs-sm); }
+.tp-pick-menu { position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: min(560px, 90vw); max-height: min(70vh, 640px);
+  overflow: auto; padding: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .18); columns: 2 220px; column-gap: 10px; }
+.tp-pick-menu .tp-group { break-inside: avoid; margin: 0 0 10px; }
+.tp-pick-menu .tp-group + .tp-group { margin-top: 0; }
+.tp-studio .card-head.tp-head { flex-direction: column; align-items: flex-start; gap: 8px; }

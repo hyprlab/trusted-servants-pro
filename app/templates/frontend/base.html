@@ -496,8 +496,10 @@
       document.addEventListener('keydown', e => { if (e.key === 'Escape') close(true); });
       // The Header admin's live preview asks for one panel open
       // (?__mm=<nav item id>) so a mega menu can be seen while editing.
+      // It opens at once, without the opening animation, so each refresh
+      // of the preview doesn't replay it.
       const forced = document.body.getAttribute('data-fe-open-megamenu');
-      if (forced) open(forced);
+      if (forced) { document.body.classList.add('fe-mm-instant'); open(forced); }
     })();
 
     // Frontend light/dark toggle. Applies to <html>, persists to localStorage.

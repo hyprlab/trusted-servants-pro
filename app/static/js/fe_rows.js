@@ -99,6 +99,19 @@
     e.preventDefault();
     setOpen(row, !row.classList.contains('is-open'));
   });
+  // Any element with data-ol-goto="key" opens the row with that key (a
+  // footer layout block opens its part). Controls inside it keep their job.
+  document.addEventListener('click', function (e) {
+    var g = e.target.closest('[data-ol-goto]');
+    if (!g) return;
+    var ctl = e.target.closest('button, a, input, select, label');
+    if (ctl && ctl !== g && g.contains(ctl)) return;
+    var row = document.querySelector('[data-ol-row][data-ol-key="' + g.getAttribute('data-ol-goto') + '"]');
+    if (!row) return;
+    e.preventDefault();
+    setOpen(row, true);
+    row.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
   function onEdit(e) {
     var row = e.target.closest && e.target.closest('[data-ol-row]');
     while (row) {

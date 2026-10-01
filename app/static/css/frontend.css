@@ -12428,3 +12428,9 @@ html[data-theme="dark"] body[data-fe-theme="recovery-blue"] .fe-utility-bar[data
 html[data-theme="dark"] .fe-alertbar[data-ab-dark] {
   background: var(--ab-bg-dark) !important; color: var(--ab-fg-dark) !important;
 }
+
+/* The Header admin's preview holds a mega menu open (?__mm=): no opening
+   animation there. */
+body.fe-mm-instant .fe-megamenu, body.fe-mm-instant .fe-megamenu *,
+body.fe-mm-instant .fe-megamenu-backdrop { transition-duration: 0s !important; transition-delay: 0s !important;
+  animation-duration: 0s !important; animation-delay: 0s !important; }

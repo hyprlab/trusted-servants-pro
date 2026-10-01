@@ -173,16 +173,14 @@
          cards into one. #}
       <section class="card st-studio fe-page-settings-card" data-studio="page-settings" data-no-collapse>
         <div class="card-head"><h2>Page settings {% call chip('Page settings') %}The preview shows the page with every unsaved change, blocks included. Save a draft or publish with the yellow bar.{% endcall %}</h2></div>
-        <div class="ds-tabs-wrap">
-          <nav class="ds-tabs" role="tablist" aria-label="Page settings">
-            <button type="button" role="tab" class="ds-tab" data-studio-tab="page">{{ icon('file-text') }}<span>Page</span></button>
-            <button type="button" role="tab" class="ds-tab" data-studio-tab="layout">{{ icon('maximize') }}<span>Width and spacing</span></button>
-            <button type="button" role="tab" class="ds-tab" data-studio-tab="background">{{ icon('droplet') }}<span>Background</span></button>
-            <button type="button" role="tab" class="ds-tab" data-studio-tab="sharing">{{ icon('share') }}<span>Search and sharing</span></button>
-          </nav>
-        </div>
-        <div class="st-body st-body--side">
+        <div class="st-body st-body--split">
           <div class="st-controls">
+            <nav class="st-seg" role="tablist" aria-label="Page settings">
+              <button type="button" role="tab" data-studio-tab="page">{{ icon('file-text') }}<span>Page</span></button>
+              <button type="button" role="tab" data-studio-tab="layout">{{ icon('maximize') }}<span>Width</span></button>
+              <button type="button" role="tab" data-studio-tab="background">{{ icon('droplet') }}<span>Background</span></button>
+              <button type="button" role="tab" data-studio-tab="sharing">{{ icon('share') }}<span>Sharing</span></button>
+            </nav>
             <div class="st-panel" data-studio-panel="page">
         <div class="fe-page-settings-section">
           <div class="form-grid">

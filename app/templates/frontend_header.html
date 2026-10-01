@@ -235,7 +235,14 @@
     var refresh = function () { document.dispatchEvent(new Event('lp:refresh')); };
     editor.addEventListener('input', refresh);
     editor.addEventListener('change', refresh);
-    new MutationObserver(refresh).observe(editor, { childList: true, subtree: true });
+    // Only blocks and columns coming or going count, not summary text.
+    new MutationObserver(function (recs) {
+      var hit = recs.some(function (r) {
+        return Array.prototype.slice.call(r.addedNodes).concat(Array.prototype.slice.call(r.removedNodes))
+          .some(function (n) { return n.nodeType === 1 && n.matches('.nav-megalink, .nav-megacol'); });
+      });
+      if (hit) refresh();
+    }).observe(editor, { childList: true, subtree: true });
   }
 })();
 </script>

@@ -85,16 +85,14 @@
       {% endmacro %}
       <section class="card st-studio fe-page-settings-card" data-studio="popup" data-no-collapse>
         <div class="card-head"><h2>Popup settings {% call chip('Popup settings') %}The preview shows the popup open over a page, with unsaved changes. Save with the yellow bar.{% endcall %}</h2></div>
-        <div class="ds-tabs-wrap">
-          <nav class="ds-tabs" role="tablist" aria-label="Popup settings">
-            <button type="button" role="tab" class="ds-tab" data-studio-tab="popup">{{ icon('message-square') }}<span>Popup</span></button>
-            <button type="button" role="tab" class="ds-tab" data-studio-tab="box">{{ icon('square') }}<span>Box</span></button>
-            <button type="button" role="tab" class="ds-tab" data-studio-tab="backdrop">{{ icon('layers') }}<span>Backdrop</span></button>
-            <button type="button" role="tab" class="ds-tab" data-studio-tab="behavior">{{ icon('mouse-pointer-click') }}<span>Opening and closing</span></button>
-          </nav>
-        </div>
-        <div class="st-body st-body--side">
+        <div class="st-body st-body--split">
           <div class="st-controls">
+            <nav class="st-seg" role="tablist" aria-label="Popup settings">
+              <button type="button" role="tab" data-studio-tab="popup">{{ icon('message-square') }}<span>Popup</span></button>
+              <button type="button" role="tab" data-studio-tab="box">{{ icon('square') }}<span>Box</span></button>
+              <button type="button" role="tab" data-studio-tab="backdrop">{{ icon('layers') }}<span>Backdrop</span></button>
+              <button type="button" role="tab" data-studio-tab="behavior">{{ icon('mouse-pointer-click') }}<span>Open and close</span></button>
+            </nav>
             <div class="st-panel" data-studio-panel="popup">
               <div class="ds-group st-group-body">
                 <label class="st-field"><span>Name</span>
