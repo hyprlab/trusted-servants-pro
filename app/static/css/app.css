@@ -1271,7 +1271,6 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 }
 .ds-stage-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .ds-stage-title { font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: var(--fs-2xs); }
-.ds-stage-hint { margin: 10px 0 0; }
 
 .ds-controls {
   min-width: 0; align-self: stretch;
@@ -17745,7 +17744,6 @@ a.fe-ss-item:hover { background: var(--panel-2); text-decoration: none; }
 
 /* Design page: the Header and Footer tabs preview the real page. */
 .ds-studio.is-live-stage .ds-stage-host,
-.ds-studio.is-live-stage .ds-stage-hint,
 .ds-studio.is-live-stage .ds-stage-bar { display: none; }
 .ds-live[hidden] { display: none; }
 .ds-row .wc { width: 100%; }
