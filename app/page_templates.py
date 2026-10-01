@@ -83,7 +83,7 @@ KINDS = {
                        field="frontend_site_index_template", save="main.frontend_site_index_template_save",
                        heading="frontend_site_index", extras="site_index", heading_default="Site index",
                        about="A generated table of contents of the public site."),
-    "submission_form": dict(label="Forms", path="/submissionform", catalog="SUBMISSION_FORM_TEMPLATES",
+    "submission_form": dict(label="Submission form", path="/submissionform", catalog="SUBMISSION_FORM_TEMPLATES",
                             field="frontend_submission_form_template",
                             save="main.frontend_submission_form_template_save", width="frontend_submission_form",
                             about="The page around the Announcements/Events form, the Story form and every custom form. Their wording is set on each form."),

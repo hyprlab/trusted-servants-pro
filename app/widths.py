@@ -64,7 +64,7 @@ TEMPLATE_WIDTH_FIELDS = [
     ("Blog list", "frontend_blog_list"),
     ("Blog post", "frontend_blog_post"),
     ("Fellowships list", "frontend_fellowships_list"),
-    ("Forms", "frontend_submission_form"),
+    ("Submission form", "frontend_submission_form"),
     ("Contact page", "contact_form"),
     ("Recovery Contacts page", "recovery_contacts"),
 ]

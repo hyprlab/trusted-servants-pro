@@ -74,6 +74,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - Live previews accept `overlays='popups'`, which keeps popups and hides the cookie banner (the popup editor).
 
 - Structure rows (`.fe-page-structure-row--split`) are inline-size containers with a one-line head and icon-only actions; container queries stack 3- and 4-column rows under 640px and all rows under 440px. Pill actions are absolutely positioned. The block library folds (`.is-lib-folded`, localStorage `fe-block-library-folded`).
+- The `submission_form` page template kind (`page_templates.KINDS`), its `widths.py` entry and the form studios' `template_label` / `template_name` read Submission form instead of Forms.
 
 ### Fixed
 

@@ -10164,7 +10164,7 @@ _BUILTIN_FORM_STUDIO = {
         success_default="Thank you: your submission was received and will be reviewed before publishing.",
         heading_default="Submit an event or announcement",
         subheading_default="Fill out the form below and an admin will review your submission before publishing it.",
-        template_anchor="submission_form", template_label="Forms", template_name="Forms",
+        template_anchor="submission_form", template_label="Submission form", template_name="Submission form",
         template_shared="the Story form and every custom form",
         about="Visitors send events and announcements; each waits for review on Announcements & Events."),
     "story": dict(
@@ -10176,7 +10176,7 @@ _BUILTIN_FORM_STUDIO = {
         success_field="story_form_success_message",
         success_default="Thank you for sharing your story. It will be reviewed before it is published.",
         heading_default="Share your story", subheading_default="",
-        template_anchor="submission_form", template_label="Forms", template_name="Forms",
+        template_anchor="submission_form", template_label="Submission form", template_name="Submission form",
         template_shared="the Announcements/Events form and every custom form",
         about="Visitors send recovery stories; each waits as a draft on Stories."),
     "contact": dict(
@@ -10264,7 +10264,7 @@ def _form_studio_ctx(key, cf=None):
             to_note="Leave blank to only keep submissions in the inbox, with no email.",
             fields=_load_form_fields(cf), field_types=list(_CUSTOM_FORM_FIELD_TYPE_ORDER),
             fb_mode="custom", fields_note="",
-            template_anchor="submission_form", template_label="Forms", template_name="Forms",
+            template_anchor="submission_form", template_label="Submission form", template_name="Submission form",
             template_shared="every form except Contact and Recovery Contacts",
             about="A form of your own. Its answers are kept in its inbox and, if you like, emailed.",
             inbox_url=row.get("inbox_url"), inbox_label="Open the inbox",
