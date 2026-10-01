@@ -8085,7 +8085,7 @@ def frontend_staged_preview():
     from .staged_preview import render_staged
     payload = request.get_json(silent=True) or {}
     html = render_staged(str(payload.get("path") or "/"), payload.get("forms") or [],
-                         overlays=bool(payload.get("overlays")))
+                         overlays=("popups" if payload.get("overlays") == "popups" else bool(payload.get("overlays"))))
     from flask import make_response
     resp = make_response(html)
     resp.headers["Content-Type"] = "text/html; charset=utf-8"
@@ -12682,7 +12682,7 @@ _PAGE_BLOCK_CATALOG = [
      "icon": "video",
      "desc": "HTML5 video with optional poster."},
     {"key": "lottie",    "name": "Lottie animation",
-     "icon": "play-circle",
+     "icon": "sparkles",
      "desc": "Embed a Bodymovin / Lottie JSON animation. Loops, autoplays, and scales to its column."},
     {"key": "intergroup_member", "name": "Intergroup Member",
      "icon": "users",

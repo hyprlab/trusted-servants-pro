@@ -179,7 +179,7 @@
           </div>
           <div class="st-preview">
             {{ live_preview(url_for('frontend.popup_preview', popup_id=popup.id), '#popup-edit-form', height=640, width=1280,
-                            title='Popup preview', overlays=True, watch=True) }}
+                            title='Popup preview', overlays='popups', watch=True) }}
           </div>
         </div>
       </section>
@@ -188,19 +188,23 @@
     </form>
 
     {# ── Content: the page-builder structure card + draggable pills ──
-       Same drag-and-drop interface as content pages. The floating
-       "Add block" palette (blue FAB, bottom-right) drops new blocks;
-       clicking a pill opens the BlockEditor modal focused on it. Driven
+       Same drag-and-drop interface as content pages, with the block
+       library docked beside the tree; clicking a pill opens the
+       BlockEditor modal focused on it. Driven
        by page_structure.js, which keys off the shared element IDs below
        (#page-blocks-json / #page-editor-root / #page-layout-edit-modal). #}
     <section class="card fe-page-structure">
       <div class="card-head">
-        <h2>Content {% call chip('Content') %}Drag pills to rearrange. Drag from the “Add block” palette
-          (bottom-right) to drop in new blocks. Click any pill to edit its content.{% endcall %}</h2>
+        <h2>Content {% call chip('Content') %}Click a block to edit it, and drag it to move it. Add blocks from the list beside the structure: click one to add it at the end, or drag it into place.{% endcall %}</h2>
       </div>
+      <div class="fe-structure-split">
+        <div class="fe-structure-main">
       {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
                              _PAGE_BLOCK_LABELS, _editable,
                              block_previews, block_payloads) }}
+        </div>
+        {{ structure_block_palette(popup_block_catalog) }}
+      </div>
     </section>
 
     {# Self-hiding "Unplaced blocks" bin — only appears if removing a
@@ -208,7 +212,6 @@
     {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
                               _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
 
-    {{ structure_block_palette(popup_block_catalog) }}
 
   </div>
 </div>

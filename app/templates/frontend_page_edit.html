@@ -529,14 +529,14 @@
     {% call structure_card('Active layout', active_layout=active_layout,
                             builder_modal_id='page-layout-builder-modal',
                             picker_modal_id='page-layout-modal',
-                            is_customized=active_layout_customized,
-                            help_text='Drag pills to rearrange. Drag from the “Add blocks” palette below to drop in new blocks. Click any pill to edit its content. Use “Change layout” to pick a different layout or switch to free-form custom.') %}
+                            is_customized=active_layout_customized, library=page_block_catalog,
+                            help_text='Click a block to edit it, and drag it to move it. Add blocks from the list beside the structure: click one to add it at the end, or drag it into place.') %}
       {% if active_layout_tree %}
       {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
                               _PAGE_BLOCK_LABELS, _editable,
                               block_previews, block_payloads) }}
       {% else %}
-      <p class="muted">This page has no blocks yet. Open the floating palette in the lower-right corner to drag in blocks, or pick a layout via “Edit layout”.</p>
+      <p class="muted">This page has no blocks yet. Add some from the list beside this, or pick a layout on the Page part of the settings above.</p>
       <div class="fe-page-structure-rows" data-be-tree data-be-zone="root">
         <div class="fe-page-structure-root-empty muted small" data-be-root-empty>
           Drop a Container or Two-panel here to add a new row, or drag any block to start.
@@ -547,7 +547,6 @@
 
     {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
                                _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
-    {{ structure_block_palette(page_block_catalog) }}
 
   </div>
 </div>

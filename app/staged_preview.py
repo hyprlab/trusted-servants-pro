@@ -81,6 +81,8 @@ _HIDE_OVERLAYS = ("<style>.tsp-cc-banner,.fe-popup{display:none!important}"
                   "body{overflow:auto!important}</style>")
 
 
+_HIDE_BANNER = "<style>.tsp-cc-banner{display:none!important}</style>"
+
 # With overlays the preview shows what a first-time visitor sees: the
 # frame reads no cookies (so the admin's own banner answer doesn't hide
 # it) and writes none (so clicking in the preview answers nothing).
@@ -144,6 +146,9 @@ def render_staged(path, forms, overlays=False):
         html = resp.get_data(as_text=True)
         if not overlays:
             html = html.replace("</head>", _HIDE_OVERLAYS + "</head>", 1)
+        elif overlays == "popups":
+            # The popup editor: its popup shows, the cookie banner doesn't.
+            html = html.replace("</head>", _HIDE_BANNER + "</head>", 1)
         else:
             html = html.replace("<head>", "<head>" + _FRESH_VISITOR, 1)
         return html

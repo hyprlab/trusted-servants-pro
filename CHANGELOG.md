@@ -70,6 +70,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 - `_layout_thumb.html` draws layout-card thumbnails from a layout's `blocks_json` (recursive over `container` children, `split` panels and grid containers); used by `layout_picker` and `_new_page_modal.html`.
 
+- `structure_block_palette` renders a docked, grouped, searchable library (`.fe-block-library`) inside the structure card (`structure_card(..., library=catalog)`, or a `.fe-structure-split` on the popup editor) instead of the floating FAB panel. `page_structure.js` adds blocks through one `insertBlock(type, zone, clientY)` for drops and clicks; a click appends to the root zone.
+- Live previews accept `overlays='popups'`, which keeps popups and hides the cookie banner (the popup editor).
+
 ### Fixed
 
 - The `page-marketing` preset stamped two empty containers; it now carries the hero, the three-column feature grid and the closing button its description lists (refreshed by `_seed_page_layouts`).

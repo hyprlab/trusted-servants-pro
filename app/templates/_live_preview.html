@@ -6,7 +6,8 @@
      path   public page to show, e.g. '/meetings'
      forms  CSS selector list of the forms whose values apply
      focus  optional selector inside the page to scroll to (e.g. 'footer')
-     overlays  keep the cookie banner and popups (hidden by default)
+     overlays  keep the cookie banner and popups (hidden by default);
+               'popups' keeps popups only
      overrides  {field: value} set on every posted form, e.g. the page
                 editor previews as if publishing (save_action=publish)
      only   selector list: show just these parts of the page
@@ -24,7 +25,7 @@
      data-lp-url="{{ url_for('main.frontend_staged_preview') }}"
      data-lp-path="{{ path }}" data-lp-forms="{{ forms }}"
      data-lp-height="{{ height }}" data-lp-width="{{ width }}"
-     {% if focus %}data-lp-focus="{{ focus }}"{% endif %}{% if overlays %} data-lp-overlays{% endif %}
+     {% if focus %}data-lp-focus="{{ focus }}"{% endif %}{% if overlays %} data-lp-overlays="{{ 'popups' if overlays == 'popups' else 'all' }}"{% endif %}
      {% if watch %}data-lp-watch{% endif %}
      {% if only %}data-lp-only="{{ only }}"{% endif %}{% if fit %} data-lp-fit{% endif %}{% if pad %} data-lp-pad="{{ pad }}"{% endif %}
      {% if overrides %}data-lp-overrides="{{ overrides|tojson|forceescape }}"{% endif %}>

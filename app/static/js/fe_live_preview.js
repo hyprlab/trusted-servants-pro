@@ -219,7 +219,7 @@
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
       body: JSON.stringify({ path: this.root.getAttribute('data-lp-path') || '/', forms: forms,
-                             overlays: this.root.hasAttribute('data-lp-overlays') })
+                             overlays: this.root.getAttribute('data-lp-overlays') || false })
     }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.text();

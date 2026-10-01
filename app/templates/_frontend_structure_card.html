@@ -145,7 +145,7 @@
    directly (legacy footer behaviour). #}
 {% macro structure_card(title, active_layout=None, builder_modal_id=None,
                          help_text=None, picker_modal_id=None,
-                         is_customized=False) %}
+                         is_customized=False, library=None) %}
 <section class="card fe-page-structure">
   <div class="card-head">
     <h2>{{ title }}{% if active_layout %} — <span class="muted">{{ active_layout.name }}</span>{% if is_customized %} <span class="fe-page-customized-tag" title="The page's structure has been edited away from this layout's defaults — added/removed/rearranged blocks, or items in the Unplaced bin.">(Customized)</span>{% endif %}{% endif %} {% call chip() %}{{ help_text or 'Click any block to edit its content.' }}{% if not active_layout %} Reorder + restructure isn't available — this layout's shape is fixed. Switch to a custom layout via the Layout picker to drag blocks around.{% endif %}{% endcall %}</h2>
@@ -165,7 +165,14 @@
     </button>
     {% endif %}
   </div>
+  {% if library %}
+  <div class="fe-structure-split">
+    <div class="fe-structure-main">{{ caller() }}</div>
+    {{ structure_block_palette(library) }}
+  </div>
+  {% else %}
   {{ caller() }}
+  {% endif %}
 </section>
 {% endmacro %}
 
@@ -392,44 +399,48 @@
        blocks without reopening; click-outside dismiss is suppressed
        while a drag is in flight.
 #}
+{# The block library, docked in the structure card beside the tree it
+   adds to (structure_card(..., library=catalog), or placed by hand in a
+   `.fe-structure-split`). Click a block to add it at the end of the
+   page, or drag it to a spot in the tree; the search box filters it.
+   Tiles keep `data-be-palette` / `.fe-page-palette-tile`, which
+   page_structure.js reads. #}
+{% set _BLOCK_GROUPS = [
+  ('Layout', ['split', 'split3', 'container', 'separator', 'toc_sidebar']),
+  ('Content', ['heading', 'paragraph', 'image', 'icon', 'button', 'list', 'callout', 'video', 'code', 'lottie']),
+  ('From the site', ['hero', 'meetings', 'events', 'features', 'faq', 'library', 'intergroup_member', 'intergroup_member_roster']),
+] %}
 {% macro structure_block_palette(catalog) %}
-<div class="fe-page-palette-floating" data-fe-palette-floating>
-  <button type="button" class="fe-page-palette-fab"
-          data-fe-palette-toggle
-          aria-expanded="false"
-          aria-controls="fe-page-palette-panel"
-          aria-label="Open block palette">
-    <span class="fe-page-palette-fab-icon" aria-hidden="true">{{ icon('plus') }}</span>
-    <span class="fe-page-palette-fab-label">Add block</span>
-  </button>
-  <section class="fe-page-palette-panel"
-           id="fe-page-palette-panel"
-           role="dialog"
-           aria-label="Block palette"
-           aria-hidden="true">
-    <header class="fe-page-palette-panel-head">
-      <div class="fe-page-palette-panel-title">
-        <span class="fe-page-palette-panel-icon" aria-hidden="true">{{ icon('grip-vertical') }}</span>
-        <h3>Add blocks</h3>
+{%- set _known = [] -%}{%- for g, ks in _BLOCK_GROUPS %}{% set _ = _known.extend(ks) %}{% endfor -%}
+{%- set _groups = _BLOCK_GROUPS + [('Other', catalog | map(attribute='key') | reject('in', _known) | list)] -%}
+<aside class="fe-block-library" data-fe-block-library aria-label="Blocks">
+  <div class="fe-block-library-head">
+    <h3>{{ icon('plus') }}Add a block</h3>
+    <label class="fe-block-search">{{ icon('search') }}
+      <input type="search" placeholder="Find a block" data-fe-block-search aria-label="Find a block" autocomplete="off">
+    </label>
+    <p class="muted smaller">Click to add at the end, or drag onto the structure to place it.</p>
+  </div>
+  <div class="fe-block-library-body" data-be-palette>
+    {% for group, keys in _groups %}
+    {% set _tiles = catalog | selectattr('key', 'in', keys) | list %}
+    {% if _tiles %}
+    <div class="fe-block-group" data-fe-block-group>
+      <div class="fe-block-group-label">{{ group }}</div>
+      <div class="fe-block-grid">
+        {% for entry in _tiles %}
+        <button type="button" class="fe-page-palette-tile" draggable="true"
+                data-be-block-type="{{ entry.key }}" data-be-block-name="{{ entry.name }}"
+                data-fe-block-text="{{ (entry.name ~ ' ' ~ (entry.desc or ''))|lower }}" title="{{ entry.desc }}">
+          <span class="fe-page-palette-icon">{{ icon(entry.icon or 'square') }}</span>
+          <span class="fe-page-palette-name">{{ entry.name }}</span>
+        </button>
+        {% endfor %}
       </div>
-      <button type="button" class="icon-btn fe-page-palette-close"
-              data-fe-palette-toggle
-              aria-label="Close block palette">{{ icon('x') }}</button>
-    </header>
-    <p class="muted smaller fe-page-palette-hint">
-      Drag any tile into the structure tree to add a new block. Drop into a column cell or between existing pills.
-    </p>
-    <div class="fe-page-palette-grid" data-be-palette>
-      {% for entry in catalog %}
-      <div class="fe-page-palette-tile" draggable="true"
-           data-be-block-type="{{ entry.key }}"
-           data-be-block-name="{{ entry.name }}"
-           title="{{ entry.desc }}">
-        <span class="fe-page-palette-icon">{{ icon(entry.icon or 'square') }}</span>
-        <span class="fe-page-palette-name">{{ entry.name }}</span>
-      </div>
-      {% endfor %}
     </div>
-  </section>
-</div>
+    {% endif %}
+    {% endfor %}
+    <p class="muted small fe-block-none" data-fe-block-none hidden>No block matches.</p>
+  </div>
+</aside>
 {% endmacro %}

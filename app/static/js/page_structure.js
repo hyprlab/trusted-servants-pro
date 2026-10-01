@@ -1733,58 +1733,11 @@
   // Uses HTML5 drag-and-drop (palette tiles can't reasonably be
   // Sortable items because they're not in any zone). On drop into a
   // Sortable zone, we mint a new block payload and call syncState.
-  // ── Floating palette toggle ────────────────────────────────────
-  // The palette lives in `[data-fe-palette-floating]` as a fixed-
-  // position card with a FAB → panel collapse/expand. Clicking the
-  // FAB or the close × flips the `is-open` class on the wrapper; CSS
-  // animates the FAB out + the panel in. Clicks outside the wrapper
-  // dismiss the panel as well — but only when no drag is in flight,
-  // so dropping a tile into a structure zone doesn't immediately
-  // collapse the palette before the next drop.
+  // ── Block library (docked in the structure card) ───────────────
+  // Tiles drag onto the tree like before, and a click adds the block at
+  // the end of the page. `_palDragging` stops the click that some
+  // browsers fire after a drag from adding a second block.
   let _palDragging = false;
-  const palWrap = document.querySelector('[data-fe-palette-floating]');
-  if (palWrap) {
-    palWrap.addEventListener('click', e => {
-      const toggle = e.target.closest('[data-fe-palette-toggle]');
-      if (!toggle) return;
-      e.preventDefault();
-      const open = !palWrap.classList.contains('is-open');
-      palWrap.classList.toggle('is-open', open);
-      const fab = palWrap.querySelector('.fe-page-palette-fab');
-      const panel = palWrap.querySelector('.fe-page-palette-panel');
-      if (fab) fab.setAttribute('aria-expanded', open ? 'true' : 'false');
-      if (panel) panel.setAttribute('aria-hidden', open ? 'false' : 'true');
-    });
-    // Click-outside dismiss. Skipped while a tile is mid-drag so the
-    // palette stays open until the drop completes (drop targets live
-    // outside the palette wrapper and would otherwise count as
-    // "outside" clicks during the implicit dragend tick).
-    document.addEventListener('click', e => {
-      if (!palWrap.classList.contains('is-open')) return;
-      if (_palDragging) return;
-      if (palWrap.contains(e.target)) return;
-      palWrap.classList.remove('is-open');
-      const fab = palWrap.querySelector('.fe-page-palette-fab');
-      const panel = palWrap.querySelector('.fe-page-palette-panel');
-      if (fab) fab.setAttribute('aria-expanded', 'false');
-      if (panel) panel.setAttribute('aria-hidden', 'true');
-    });
-    // Escape key collapses an open palette — matches the modal-style
-    // dismiss admins expect from any floating overlay.
-    document.addEventListener('keydown', e => {
-      if (e.key !== 'Escape') return;
-      if (!palWrap.classList.contains('is-open')) return;
-      palWrap.classList.remove('is-open');
-      const fab = palWrap.querySelector('.fe-page-palette-fab');
-      const panel = palWrap.querySelector('.fe-page-palette-panel');
-      if (fab) {
-        fab.setAttribute('aria-expanded', 'false');
-        fab.focus();
-      }
-      if (panel) panel.setAttribute('aria-hidden', 'true');
-    });
-  }
-
   if (palette) {
     palette.querySelectorAll('.fe-page-palette-tile').forEach(tile => {
       tile.addEventListener('dragstart', e => {
@@ -1803,6 +1756,38 @@
       });
     });
   }
+  if (palette) {
+    // A click adds the block at the end of the page and shows it.
+    palette.addEventListener('click', e => {
+      const tile = e.target.closest('.fe-page-palette-tile');
+      if (!tile || _palDragging) return;
+      const root = document.querySelector('[data-be-zone="root"]');
+      if (!root) return;
+      const added = insertBlock(tile.dataset.beBlockType, root, Infinity);
+      if (!added) return;
+      added.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      added.classList.add('is-just-added');
+      setTimeout(() => added.classList.remove('is-just-added'), 1600);
+    });
+    // The search box narrows the tiles; groups with none left hide.
+    const search = document.querySelector('[data-fe-block-search]');
+    if (search) search.addEventListener('input', () => {
+      const q = search.value.trim().toLowerCase();
+      let any = false;
+      palette.querySelectorAll('[data-fe-block-group]').forEach(g => {
+        let shown = 0;
+        g.querySelectorAll('.fe-page-palette-tile').forEach(t => {
+          const hit = !q || (t.dataset.feBlockText || '').includes(q);
+          t.hidden = !hit;
+          if (hit) shown++;
+        });
+        g.hidden = !shown;
+        if (shown) any = true;
+      });
+      const none = palette.querySelector('[data-fe-block-none]');
+      if (none) none.hidden = any;
+    });
+  }
   // Listen on every zone for palette drops. Sortable's own drag
   // handlers run for pill→pill moves; HTML5 drop lands here only
   // when the source carries our custom mime type.
@@ -1818,15 +1803,13 @@
     const zone = e.target.closest('[data-be-zone]');
     if (zone) zone.classList.remove('is-drop-target');
   });
-  document.addEventListener('drop', e => {
-    const zone = e.target.closest('[data-be-zone]');
-    if (!zone) return;
-    const type = e.dataTransfer.getData('application/x-fe-page-block');
-    if (!type) return;
-    e.preventDefault();
-    zone.classList.remove('is-drop-target');
+  // Add a block of `type` to `zone` (a [data-be-zone]), placed by the
+  // pointer's height `clientY` where the zone orders by position. Returns
+  // the new row or pill, or null for an unknown type.
+  function insertBlock(type, zone, clientY) {
     const factory = BLANK_DATA[type];
-    if (!factory) return;
+    if (!factory) return null;
+    let added = null;
 
     // Build the block payload. Splits aren't a first-class block on
     // pages — they materialise as a multi-column grid container with
@@ -1867,9 +1850,10 @@
       const existingRows = Array.from(zone.querySelectorAll(':scope > .fe-page-structure-row'));
       const after = existingRows.find(r => {
         const rect = r.getBoundingClientRect();
-        return e.clientY < rect.top + rect.height / 2;
+        return clientY < rect.top + rect.height / 2;
       });
       if (after) zone.insertBefore(row, after); else zone.appendChild(row);
+      added = row;
       const empty = zone.querySelector('[data-be-root-empty]');
       if (empty) empty.remove();
       bindZones();
@@ -1886,17 +1870,30 @@
                             || c.classList.contains('fe-page-structure-row')));
       const after = siblings.find(r => {
         const rect = r.getBoundingClientRect();
-        return e.clientY < rect.top + rect.height / 2;
+        return clientY < rect.top + rect.height / 2;
       });
       if (after) zone.insertBefore(row, after); else zone.appendChild(row);
+      added = row;
       bindZones();
     } else {
       // Leaf drop (paragraph, heading, image, button, list, etc.)
       // into any inner zone — create a flat pill.
       const pill = makePillEl(payload.type, payload);
       zone.appendChild(pill);
+      added = pill;
     }
     syncStateFromDom();
+    return added;
+  }
+
+  document.addEventListener('drop', e => {
+    const zone = e.target.closest('[data-be-zone]');
+    if (!zone) return;
+    const type = e.dataTransfer.getData('application/x-fe-page-block');
+    if (!type) return;
+    e.preventDefault();
+    zone.classList.remove('is-drop-target');
+    insertBlock(type, zone, e.clientY);
   });
 
   // ── Initial state push ──────────────────────────────────────────

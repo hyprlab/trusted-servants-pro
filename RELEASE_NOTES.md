@@ -99,6 +99,8 @@ release notes expanded by default and the changelog collapsed.
 - A page's layout is chosen on its Page part, under Title and Address, instead of in the bar at the top of the screen.
 - The layout cards in the Page layout and New page dialogs show a small drawing of each layout (headings, text, pictures, buttons, columns and the side contents list) instead of the same grey bars for every one.
 - The Marketing landing layout now builds what it describes: a hero with a heading, a lead paragraph and a button, three feature columns, and a closing button. Before, it added two empty sections. Pages that already use it are unchanged.
+- The blocks for a page or popup are listed beside its structure, grouped as Layout, Content and From the site, with a search box, instead of in a floating Add block button over the whole screen. Click a block to add it at the end, or drag it into place. The list stays in view while the structure scrolls.
+- The popup editor's preview no longer shows the cookie banner over the popup.
 
 ## 2.20.2 — 2026-09-30 (latest)
 
