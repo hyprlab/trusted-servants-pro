@@ -18391,6 +18391,9 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .st-pick-head .st-actions > .btn { padding: 0 12px; min-height: 34px; display: inline-flex; align-items: center; gap: 6px; }
 .st-pick-head .st-actions > .btn .icon { width: 15px; height: 15px; }
 
+/* Studio cards: a rule between the heading and the preview and settings. */
+.fe-admin-main .st-studio > .card-head { border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
 html { visibility: visible; background: var(--bg); }
