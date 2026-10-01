@@ -139,8 +139,8 @@
                       data-fe-page-status="{{ key }}" aria-pressed="{{ 'true' if _page_status == key else 'false' }}">{{ label }}</button>
               {% endfor %}
             </div>
-            <button type="submit" form="fe-make-homepage" class="btn btn-sm" title="Show this page at the site's root address">{{ icon('home') }} Make homepage</button>
-            <button type="submit" form="fe-delete-page" class="btn btn-sm ol-danger" title="Delete this page">{{ icon('trash') }} Delete</button>
+            <button type="submit" form="fe-make-homepage" class="btn" title="Show this page at the site's root address">{{ icon('home') }} Make homepage</button>
+            <button type="submit" form="fe-delete-page" class="btn ol-danger" title="Delete this page">{{ icon('trash') }} Delete</button>
             {% endif %}
             {% call chip('Page') %}The preview shows the page with every unsaved change, blocks included. Save a draft or publish with the yellow bar.{% endcall %}
           </div>

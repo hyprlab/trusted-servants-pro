@@ -63,7 +63,7 @@
                          actions=[{'modal': 'new-popup-modal', 'label': 'New popup', 'icon': 'plus'}]) }}
           <div class="st-actions">
             {% if popup.is_enabled %}<span class="post-chip post-chip-online">On</span>{% else %}<span class="post-chip post-chip-draft">Off</span>{% endif %}
-            <button type="submit" form="fe-delete-popup" class="btn btn-sm ol-danger" title="Delete this popup">{{ icon('trash') }} Delete</button>
+            <button type="submit" form="fe-delete-popup" class="btn ol-danger" title="Delete this popup">{{ icon('trash') }} Delete</button>
             {% call chip('Popup') %}The preview shows the popup open over a page, with unsaved changes. Save with the yellow bar.{% endcall %}
           </div>
           <p class="muted small st-pick-about">Opens from any link to <code>#{{ popup.name }}</code>, such as <code>&lt;a href="#{{ popup.name }}"&gt;Sign up&lt;/a&gt;</code> or a menu link set to <code>#{{ popup.name }}</code>, from any element with <code>data-popup="{{ popup.name }}"</code>, and from an address ending in <code>#{{ popup.name }}</code>.</p>

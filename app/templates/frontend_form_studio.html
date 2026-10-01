@@ -55,7 +55,7 @@
         <span class="mode-track"><span class="mode-thumb"></span></span>
         <span>{{ 'On' if fs.enabled else 'Off' }}</span>
       </label>
-      {% if fs.is_custom %}<button type="submit" form="fs-delete-form" class="btn btn-sm ol-danger" title="Delete this form and its submissions">{{ icon('trash') }} Delete</button>{% endif %}
+      {% if fs.is_custom %}<button type="submit" form="fs-delete-form" class="btn ol-danger" title="Delete this form and its submissions">{{ icon('trash') }} Delete</button>{% endif %}
       {% call chip('On or off') %}Off: the form's page answers "not found" and menu links to it hide. Its settings and submissions are kept.{% endcall %}
     </div>
   </div>
