@@ -45,9 +45,9 @@
     </div>
   </div>
   {# Height reserved up front so the page doesn't jump when it loads. #}
-  <div class="lp-stage" data-lp-stage style="height: {{ height }}px">
-    <iframe title="{{ title }}" loading="eager"></iframe>
-  </div>
+  {# The frame is made by fe_live_preview.js: an empty <iframe> in the
+     markup lets Firefox lay the page out before its stylesheet loads. #}
+  <div class="lp-stage" data-lp-stage data-lp-title="{{ title }}" style="height: {{ height }}px"></div>
   <p class="lp-note muted smaller">{% if note %}{{ note }} {% endif %}Shows unsaved changes; nothing is saved until you save.</p>
 </div>
 {% endmacro %}

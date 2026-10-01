@@ -93,6 +93,7 @@ release notes expanded by default and the changelog collapsed.
 - The Footer page's parts open in place, like the Header page's rows, instead of on a separate screen with a back arrow. Clicking a block in the footer layout opens its part.
 - Previews no longer flash the page unstyled while they load: a new preview replaces the old one only once it is ready. A mega menu held open in the Header preview no longer replays its opening animation.
 - Section headings in Web Frontend cards are larger, and Rollback snapshots on the Overview matches the Pull and Push buttons.
+- Admin pages no longer flash unstyled text and links before their styles load, which happened in Firefox-based browsers on pages with a live preview.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

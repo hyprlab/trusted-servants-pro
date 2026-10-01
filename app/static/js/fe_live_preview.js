@@ -81,8 +81,10 @@
 
   function Preview(root) {
     this.root = root;
-    this.frame = root.querySelector('iframe');
     this.stage = root.querySelector('[data-lp-stage]');
+    // A stand-in until the first render swaps a real frame in.
+    this.frame = root.querySelector('iframe') || document.createElement('iframe');
+    this.frame.title = (this.stage && this.stage.getAttribute('data-lp-title')) || 'Preview';
     this.status = root.querySelector('[data-lp-status]');
     this.mode = root.getAttribute('data-lp-mode') || (
       document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');

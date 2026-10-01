@@ -33,6 +33,7 @@
     // No transitions until the page has loaded: a browser that settles
     // styles late would otherwise animate the hidden sidebar in and out.
     document.documentElement.classList.add('tsp-preload');
+    setTimeout(function () { document.documentElement.style.visibility = 'visible'; }, 3000);
     window.addEventListener('load', function () {
       requestAnimationFrame(function () { requestAnimationFrame(function () {
         document.documentElement.classList.remove('tsp-preload');
@@ -118,6 +119,18 @@
     } catch(e){}
   })();
 </script>
+{# Until app.css has applied (its last rule makes <html> visible again),
+   show only the theme's background: a browser that paints before the
+   stylesheet arrives (Firefox can) would otherwise flash the bare page.
+   The script above reveals it after 3 s whatever happens. #}
+<style id="tsp-unstyled-guard">
+  html { visibility: hidden; background: #f6f7fb; }
+  html[data-theme="dark"] { background: #0f1117; }
+  html[data-theme="neobrutal-light"] { background: #fef9c3; }
+  html[data-theme="neobrutal-dark"] { background: #18181b; }
+  html[data-theme="solarpunk"] { background: #f5f7e8; }
+  html[data-theme="cyberpunk"] { background: #05050a; }
+</style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css', v=app_build_id) }}">
 {# dynbg recipe library — shared with the frontend. Loaded here too so the
    dynamic-background picker modal's live preview + thumbnails render in the
