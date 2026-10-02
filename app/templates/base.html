@@ -1131,7 +1131,7 @@
           <li class="special-page-row special-page-row-with-children">
             <div class="special-page-info">
               <div class="u-name">Intergroup module</div>
-              <p class="muted small">Show or hide the <b>Intergroup</b> sidebar subsection. When on, the section surfaces the {{ site.ig_page_title or 'Intergroup' }} Email page (toggled separately below) plus shortcuts to the <i>Intergroup Minutes</i> and <i>Intergroup Documents</i> libraries (when those libraries exist). Editing Documents &amp; Minutes is gated to admins and the new <b>Intergroup Member</b> role; Email Accounts stays admin-only.</p>
+              <p class="muted small">Show or hide the <b>Intergroup</b> sidebar subsection. When on, the section surfaces the Email Accounts page (toggled separately below) plus shortcuts to the <i>Intergroup Minutes</i> and <i>Intergroup Documents</i> libraries (when those libraries exist). Editing Documents &amp; Minutes is gated to admins and the new <b>Intergroup Member</b> role; Email Accounts stays admin-only.</p>
             </div>
             {{ module_role_picker('intergroup_module', site.intergroup_module_required_role if site else 'viewer') }}
             <form method="post" action="{{ url_for('main.intergroup_module_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1148,7 +1148,7 @@
               <li class="special-page-subrow" title="{{ _ig_perm_tooltip }}">
                 <div class="special-page-info">
                   <div class="u-name">
-                    {{ site.ig_page_title or 'Intergroup' }} Email Accounts
+                    Email Accounts
                     <span class="perm-info-badge" tabindex="0"
                           title="{{ _ig_perm_tooltip }}"
                           aria-label="{{ _ig_perm_tooltip }}">Admin &amp; Intergroup Member only</span>
@@ -1158,7 +1158,7 @@
                 {{ module_role_picker('intergroup', site.intergroup_required_role if site else 'viewer') }}
                 <form method="post" action="{{ url_for('main.intergroup_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <label class="mode-toggle" title="Enable {{ site.ig_page_title or 'Intergroup' }} Email Accounts">
+                  <label class="mode-toggle" title="Show Email Accounts in the Intergroup section">
                     <input type="checkbox" name="intergroup_enabled" value="1"
                            onchange="this.form.submit()"
                            {% if site and site.intergroup_enabled %}checked{% endif %}>
