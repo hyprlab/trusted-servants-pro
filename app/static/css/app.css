@@ -5629,7 +5629,13 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
   .settings-tab:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
 }
 .settings-tab:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
-.settings-tab.active { color: var(--brand); background: var(--brand-soft); }
+.settings-tab.active { color: var(--access, var(--brand)); background: var(--brand-soft); }
+/* Same as the main sidebar's current page: bold, with a bar on the left
+   (inside the list's 10px side padding, so its clip doesn't cut it). */
+.settings-tab { position: relative; }
+.settings-tab.active { font-weight: 700; }
+.settings-tab.active::before { content: ""; position: absolute; left: -4px; top: 8px; bottom: 8px;
+  width: 3px; border-radius: 2px; background: var(--brand); }
 .settings-main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex;
   flex-direction: column; position: relative; }
 .settings-main-head { gap: 8px; min-height: 61px; box-sizing: border-box; }
@@ -7892,6 +7898,8 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .settings-nav-group:first-child { padding-top: 10px; }
   .settings-tab,
   .settings-tab.active { padding: 13px 12px; font-size: var(--fs-md); color: var(--text); background: none; }
+  .settings-tab.active { font-weight: 600; }
+  .settings-tab.active::before { display: none; }
   .settings-tab-icon,
   .settings-tab-chev { color: var(--muted); }
   .settings-tab-icon .icon { width: 20px; height: 20px; }
