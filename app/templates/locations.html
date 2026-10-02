@@ -13,41 +13,39 @@
     </div>
   </div>
   {% if locations %}
-  <table class="tbl locations-tbl">
-    <thead><tr><th>Name</th><th>Type</th><th>Address</th><th></th></tr></thead>
-    <tbody>
-      {% for l in locations %}
-      <tr>
-        <td data-label="Name">{{ l.name }}</td>
-        <td data-label="Type">{{ 'Online' if l.location_type == 'online' else 'In-Person' }}</td>
-        <td data-label="Address">
-          {% if l.location_type == 'in_person' %}
-            {% for line in l.address_lines() %}<div>{{ line }}</div>{% endfor %}
-            {% if l.maps_url %}<a href="{{ l.maps_url|safe_url }}" target="_blank" rel="noopener" class="smaller">Open in Maps</a>{% endif %}
-          {% else %}
-            <span class="muted smaller">—</span>
-          {% endif %}
-        </td>
-        <td class="locations-actions">
-          <div class="row-actions">
-            {% call row_menu() %}
-              <button type="button" class="row-menu-item" data-open-modal="location-edit-{{ l.id }}">
-                {{ icon('pencil') }}<span>Edit</span></button>
-              <div class="row-menu-sep" role="separator"></div>
-              <form method="post" action="{{ url_for('main.location_delete', lid=l.id) }}"
-                    onsubmit="return confirm('Delete this location?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-                <button class="row-menu-item row-menu-item-danger" title="Delete location">
-                  {{ icon('trash') }}<span>Delete</span></button>
-              </form>
-            {% endcall %}
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {# One row per venue: its kind, name and address, and its actions. #}
+  <ul class="glist">
+    {% for l in locations %}
+    {% set _online = l.location_type == 'online' %}
+    <li class="glist-row">
+      <span class="glist-icon" aria-hidden="true">{{ icon('video' if _online else 'map-pin') }}</span>
+      <div class="glist-main">
+        <div class="glist-title"><b>{{ l.name }}</b>
+          <span class="badge badge-muted">{{ 'Online' if _online else 'In person' }}</span></div>
+        {% if not _online %}
+        <div class="glist-meta">
+          <span>{{ l.address_lines()|join(', ') }}</span>
+          {% if l.maps_url %}<a href="{{ l.maps_url|safe_url }}" target="_blank" rel="noopener">Open in Maps {{ icon('external-link') }}</a>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="glist-actions">
+        {% call row_menu() %}
+          <button type="button" class="row-menu-item" data-open-modal="location-edit-{{ l.id }}">
+            {{ icon('pencil') }}<span>Edit</span></button>
+          <div class="row-menu-sep" role="separator"></div>
+          <form method="post" action="{{ url_for('main.location_delete', lid=l.id) }}"
+                onsubmit="return confirm('Delete this location?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+            <button class="row-menu-item row-menu-item-danger" title="Delete location">
+              {{ icon('trash') }}<span>Delete</span></button>
+          </form>
+        {% endcall %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
   {% else %}
   <p class="muted">No locations yet.</p>
   {% endif %}
@@ -68,42 +66,42 @@
   <form method="post" action="{{ url_for('main.officers_save') }}" class="form officers-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-    <table class="tbl officers-tbl">
-      <thead>
-        <tr>
-          <th class="officer-col-pos">Position</th>
-          <th class="officer-col-name">Name</th>
-          <th class="officer-col-phone">Phone</th>
-          <th class="officer-col-email">Email</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody data-officers-rows>
+    {# One editable row per officer: a grid with headings above the
+       columns in a wide pane, and small labels on each field when the
+       rows wrap in a narrow one. #}
+    <div class="erows officers-rows" data-officers-rows>
+      <div class="erow-head" aria-hidden="true"><span>Position</span><span>Name</span><span>Phone</span><span>Email</span><span></span></div>
         {% for o in officers %}
-        <tr class="officer-row">
-          <td data-label="Position"><input type="hidden" name="officer_id" value="{{ o.id }}">
-              <input type="text" name="officer_role" value="{{ o.role }}" placeholder="e.g. Chair" required></td>
-          <td data-label="Name"><input type="text" name="officer_name" value="{{ o.name or '' }}" placeholder="e.g. Chris C."></td>
-          <td data-label="Phone"><input type="tel" name="officer_phone" value="{{ o.phone or '' }}" placeholder="e.g. 202-555-0118"></td>
-          <td data-label="Email"><input type="email" name="officer_email" value="{{ o.email or '' }}" placeholder="e.g. chair@dccma.com"></td>
-          <td class="officer-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-officer-remove aria-label="Remove this officer" title="Remove this officer">{{ icon('trash') }}</button></td>
-        </tr>
+        <div class="erow officer-row">
+          <input type="hidden" name="officer_id" value="{{ o.id }}">
+          <label class="erow-field erow-pos"><span class="erow-label">Position</span>
+            <input type="text" name="officer_role" value="{{ o.role or '' }}" placeholder="e.g. Chair" required></label>
+          <label class="erow-field erow-name"><span class="erow-label">Name</span>
+            <input type="text" name="officer_name" value="{{ o.name or '' }}" placeholder="e.g. Chris C."></label>
+          <label class="erow-field erow-phone"><span class="erow-label">Phone</span>
+            <input type="tel" name="officer_phone" value="{{ o.phone or '' }}" placeholder="e.g. 202-555-0118"></label>
+          <label class="erow-field erow-email"><span class="erow-label">Email</span>
+            <input type="email" name="officer_email" value="{{ o.email or '' }}" placeholder="e.g. chair@dccma.com"></label>
+          <button type="button" class="erow-remove" data-officer-remove aria-label="Remove this officer" title="Remove this officer">{{ icon('trash') }}</button>
+        </div>
         {% endfor %}
-        {# Hidden template row — cloned by the +Add button. The server
-           strips fully-blank rows on save, so a stray empty row is a
-           no-op rather than a corrupt record. #}
-        <tr class="officer-row officer-row-template" hidden data-officers-template>
-          <td data-label="Position"><input type="hidden" name="officer_id" value="">
-              <input type="text" name="officer_role" placeholder="e.g. Chair"></td>
-          <td data-label="Name"><input type="text" name="officer_name" placeholder="e.g. Chris C."></td>
-          <td data-label="Phone"><input type="tel" name="officer_phone" placeholder="e.g. 202-555-0118"></td>
-          <td data-label="Email"><input type="email" name="officer_email" placeholder="e.g. chair@dccma.com"></td>
-          <td class="officer-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-officer-remove aria-label="Remove this officer" title="Remove this officer">{{ icon('trash') }}</button></td>
-        </tr>
-      </tbody>
-    </table>
+        {# Hidden template row, cloned by Add officer. The server drops
+           fully blank rows on save, so a stray empty one is a no-op. #}
+        <div class="erow officer-row officer-row-template" hidden data-officers-template>
+          <input type="hidden" name="officer_id" value="">
+          <label class="erow-field erow-pos"><span class="erow-label">Position</span>
+            <input type="text" name="officer_role" value="" placeholder="e.g. Chair"></label>
+          <label class="erow-field erow-name"><span class="erow-label">Name</span>
+            <input type="text" name="officer_name" value="" placeholder="e.g. Chris C."></label>
+          <label class="erow-field erow-phone"><span class="erow-label">Phone</span>
+            <input type="tel" name="officer_phone" value="" placeholder="e.g. 202-555-0118"></label>
+          <label class="erow-field erow-email"><span class="erow-label">Email</span>
+            <input type="email" name="officer_email" value="" placeholder="e.g. chair@dccma.com"></label>
+          <button type="button" class="erow-remove" data-officer-remove aria-label="Remove this officer" title="Remove this officer">{{ icon('trash') }}</button>
+        </div>
+    </div>
     <div class="officers-actions">
-      <button type="button" class="btn btn-sm" data-officers-add>+ Add officer</button>
+      <button type="button" class="btn btn-sm" data-officers-add>{{ icon('plus') }} Add officer</button>
       <button type="submit" class="btn btn-primary">Save officers</button>
     </div>
   </form>
@@ -133,7 +131,7 @@
   rows.addEventListener('click', e => {
     const btn = e.target.closest('[data-officer-remove]');
     if (!btn) return;
-    const row = btn.closest('tr.officer-row');
+    const row = btn.closest('.officer-row');
     if (row && !row.hasAttribute('data-officers-template')) row.remove();
   });
 })();
@@ -157,79 +155,59 @@
   <form method="post" action="{{ url_for('main.fellowships_save') }}" class="form fellowships-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-    <table class="tbl fellowships-tbl">
-      <thead>
-        <tr>
-          <th class="fellowship-col-name">Name</th>
-          <th class="fellowship-col-virtual">Virtual</th>
-          <th class="fellowship-col-country">Country</th>
-          <th class="fellowship-col-region">State / Province / Region</th>
-          <th class="fellowship-col-url">Website</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody data-fellowships-rows>
+    <div class="erows fellowships-rows" data-fellowships-rows>
+      <div class="erow-head" aria-hidden="true"><span>Name</span><span>Virtual</span><span>Country</span><span>State / Province / Region</span><span>Website</span><span></span></div>
         {% for f in fellowships %}
-        <tr class="fellowship-row{% if f.is_virtual %} is-virtual{% endif %}" data-fellowship-row>
-          <td data-label="Name">
-            <input type="hidden" name="fellowship_id" value="{{ f.id }}">
-            <input type="text" name="fellowship_name" value="{{ f.name or '' }}" placeholder="e.g. Crystal Meth Anonymous" required>
-          </td>
-          <td class="fellowship-cell-virtual" data-label="Virtual">
-            {# Hidden input is the one that actually submits the row's
-               virtual flag — exactly one value per row, so the server-
-               side zip(ids, names, virtuals) stays aligned regardless
-               of how many rows are checked. The visible checkbox is a
-               pure UI element kept in sync via JS. #}
-            <input type="hidden" name="fellowship_is_virtual"
-                   value="{{ '1' if f.is_virtual else '0' }}"
-                   data-fellowship-virtual-state>
-            <label class="mode-toggle fellowship-virtual-toggle"
-                   title="On = virtual / online-only (country + region ignored). Off = regional.">
-              <input type="checkbox" data-fellowship-virtual {% if f.is_virtual %}checked{% endif %}>
-              <span class="mode-track"><span class="mode-thumb"></span></span>
-            </label>
-          </td>
-          <td class="fellowship-cell-region-field" data-label="Country"{% if f.is_virtual %} hidden{% endif %}>
-            <input type="text" name="fellowship_country" value="{{ f.country or '' }}" placeholder="e.g. United States">
-          </td>
-          <td class="fellowship-cell-region-field" data-label="State / Province / Region"{% if f.is_virtual %} hidden{% endif %}>
-            <input type="text" name="fellowship_state_region" value="{{ f.state_region or '' }}" placeholder="e.g. California">
-          </td>
-          <td data-label="Website">
-            <input type="url" name="fellowship_url" value="{{ f.url or '' }}" placeholder="https://example.org">
-          </td>
-          <td class="fellowship-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship" title="Remove this fellowship">{{ icon('trash') }}</button></td>
-        </tr>
+        <div class="erow fellowship-row{% if f.is_virtual %} is-virtual{% endif %}" data-fellowship-row>
+          <input type="hidden" name="fellowship_id" value="{{ f.id }}">
+          {# Exactly one virtual value per row (this hidden input) keeps the
+             server's parallel arrays aligned; the switch mirrors it. #}
+          <input type="hidden" name="fellowship_is_virtual" value="{{ '1' if f.is_virtual else '0' }}" data-fellowship-virtual-state>
+          <label class="erow-field erow-name"><span class="erow-label">Name</span>
+            <input type="text" name="fellowship_name" value="{{ f.name or '' }}" placeholder="e.g. Crystal Meth Anonymous" required></label>
+          <label class="mode-toggle fellowship-virtual-toggle erow-virtual"
+                 title="On: virtual, online only (country and region are ignored). Off: regional.">
+            <input type="checkbox" data-fellowship-virtual {% if f.is_virtual %}checked{% endif %}>
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+            <span class="erow-label erow-label--inline">Virtual</span>
+          </label>
+          <div class="erow-geo fellowship-cell-region-field"{% if f.is_virtual %} hidden{% endif %}>
+            <label class="erow-field erow-country"><span class="erow-label">Country</span>
+              <input type="text" name="fellowship_country" value="{{ f.country or '' }}" placeholder="e.g. United States"></label>
+            <label class="erow-field erow-region"><span class="erow-label">State / Province / Region</span>
+              <input type="text" name="fellowship_state_region" value="{{ f.state_region or '' }}" placeholder="e.g. California"></label>
+          </div>
+          <label class="erow-field erow-url"><span class="erow-label">Website</span>
+            <input type="url" name="fellowship_url" value="{{ f.url or '' }}" placeholder="https://example.org"></label>
+          <button type="button" class="erow-remove" data-fellowship-remove aria-label="Remove this fellowship" title="Remove this fellowship">{{ icon('trash') }}</button>
+        </div>
         {% endfor %}
-        <tr class="fellowship-row fellowship-row-template" hidden data-fellowships-template data-fellowship-row>
-          <td data-label="Name">
-            <input type="hidden" name="fellowship_id" value="">
-            <input type="text" name="fellowship_name" placeholder="e.g. Crystal Meth Anonymous">
-          </td>
-          <td class="fellowship-cell-virtual" data-label="Virtual">
-            <input type="hidden" name="fellowship_is_virtual" value="0"
-                   data-fellowship-virtual-state>
-            <label class="mode-toggle fellowship-virtual-toggle">
-              <input type="checkbox" data-fellowship-virtual>
-              <span class="mode-track"><span class="mode-thumb"></span></span>
-            </label>
-          </td>
-          <td class="fellowship-cell-region-field" data-label="Country">
-            <input type="text" name="fellowship_country" placeholder="e.g. United States">
-          </td>
-          <td class="fellowship-cell-region-field" data-label="State / Province / Region">
-            <input type="text" name="fellowship_state_region" placeholder="e.g. California">
-          </td>
-          <td data-label="Website">
-            <input type="url" name="fellowship_url" placeholder="https://example.org">
-          </td>
-          <td class="fellowship-remove-cell"><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship" title="Remove this fellowship">{{ icon('trash') }}</button></td>
-        </tr>
-      </tbody>
-    </table>
+        <div class="erow fellowship-row fellowship-row-template" hidden data-fellowships-template data-fellowship-row>
+          <input type="hidden" name="fellowship_id" value="">
+          {# Exactly one virtual value per row (this hidden input) keeps the
+             server's parallel arrays aligned; the switch mirrors it. #}
+          <input type="hidden" name="fellowship_is_virtual" value="0" data-fellowship-virtual-state>
+          <label class="erow-field erow-name"><span class="erow-label">Name</span>
+            <input type="text" name="fellowship_name" value="" placeholder="e.g. Crystal Meth Anonymous"></label>
+          <label class="mode-toggle fellowship-virtual-toggle erow-virtual"
+                 title="On: virtual, online only (country and region are ignored). Off: regional.">
+            <input type="checkbox" data-fellowship-virtual >
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+            <span class="erow-label erow-label--inline">Virtual</span>
+          </label>
+          <div class="erow-geo fellowship-cell-region-field">
+            <label class="erow-field erow-country"><span class="erow-label">Country</span>
+              <input type="text" name="fellowship_country" value="" placeholder="e.g. United States"></label>
+            <label class="erow-field erow-region"><span class="erow-label">State / Province / Region</span>
+              <input type="text" name="fellowship_state_region" value="" placeholder="e.g. California"></label>
+          </div>
+          <label class="erow-field erow-url"><span class="erow-label">Website</span>
+            <input type="url" name="fellowship_url" value="" placeholder="https://example.org"></label>
+          <button type="button" class="erow-remove" data-fellowship-remove aria-label="Remove this fellowship" title="Remove this fellowship">{{ icon('trash') }}</button>
+        </div>
+    </div>
     <div class="fellowships-actions">
-      <button type="button" class="btn btn-sm" data-fellowships-add>+ Add fellowship</button>
+      <button type="button" class="btn btn-sm" data-fellowships-add>{{ icon('plus') }} Add fellowship</button>
       <button type="submit" class="btn btn-primary">Save fellowships</button>
     </div>
   </form>
@@ -279,13 +257,13 @@
   rows.addEventListener('click', e => {
     const btn = e.target.closest('[data-fellowship-remove]');
     if (!btn) return;
-    const row = btn.closest('tr.fellowship-row');
+    const row = btn.closest('.fellowship-row');
     if (row && !row.hasAttribute('data-fellowships-template')) row.remove();
   });
 
   rows.addEventListener('change', e => {
     if (!e.target.matches('[data-fellowship-virtual]')) return;
-    const row = e.target.closest('tr.fellowship-row');
+    const row = e.target.closest('.fellowship-row');
     if (row) syncRow(row);
   });
 })();

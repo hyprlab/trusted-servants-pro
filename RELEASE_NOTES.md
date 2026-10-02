@@ -116,6 +116,7 @@ release notes expanded by default and the changelog collapsed.
 - Turning a module off in Settings switches the page behind Settings to the Dashboard, wherever you were, and Settings stays open. It no longer reports "Save failed: HTTP 404" when you were on one of that module's pages. Turning Web Frontend on or off updates the Web and View buttons in the sidebar without reloading the page.
 - Settings → Users lists each user on one row that fits any width, with no sideways scrolling: their initial, name, username and badges (You, Locked, Disabled, 2FA or 2FA pending), then email and phone, with the role menu and an Actions menu at the end. In a narrow window the role menu moves under the name. A Sort menu beside the filter replaces the sortable column headings. Reset password is in the Actions menu, and the Self-reset and Two-factor switches are in the Edit dialog with Disable account.
 - After clearing a selection on Settings → Users, the bar with Delete selected now hides instead of showing "0 selected".
+- Settings → Global fits any width without sideways scrolling. Locations are a list: an icon for in person or online, the name, the address on one line with Open in Maps, and an Actions menu. Intergroup Officers and the Fellowships Index are rows of fields under column headings; in a narrow window each row becomes a small labelled card, two fields to a line. Removing a row is a quiet trash icon instead of a red button, and a virtual fellowship's website stays in its column instead of moving under Country.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

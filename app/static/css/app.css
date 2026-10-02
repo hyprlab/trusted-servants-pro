@@ -3614,20 +3614,6 @@ button.chip { font-family: inherit; }
    default <form> block-level layout so the button sits inline with
    the rest of the meta row's chips. */
 .fe-page-edit-make-homepage { display: inline; margin: 0; padding: 0; }
-/* Officers / Fellowships editors are tables of text inputs. A bare
-   <input> carries a browser-default intrinsic width (~20 characters,
-   which is ~211px at this table's type size) and that becomes the
-   column's min-content — four of them side by side put a ~1060px floor
-   under the table, so it spilled past its card on anything narrower
-   than a large desktop. Letting each input fill its column instead
-   makes the columns shrinkable; the cell `min-width: 0` stops the
-   input's own intrinsic size from re-imposing the floor. */
-.officers-tbl input[type="text"],
-.officers-tbl input[type="tel"],
-.officers-tbl input[type="email"],
-.fellowships-tbl input[type="text"],
-.fellowships-tbl input[type="url"] { width: 100%; min-width: 0; }
-.officers-tbl td, .fellowships-tbl td { min-width: 0; }
 
 /* Intergroup library detail toolbar: search + sort + category filter
    pills sit above the file list. Wraps on narrow screens. */
@@ -7785,83 +7771,7 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .zoom-accounts-tbl td.zoom-accounts-actions .row-actions { justify-content: flex-start; flex-wrap: wrap; }
   .zoom-accounts-tbl td.zoom-accounts-actions .row-actions .btn { flex: 1 1 auto; }
 
-  .locations-tbl { overflow-x: visible; }
-  .locations-tbl thead { display: none; }
-  .locations-tbl tbody, .locations-tbl tr { display: block; }
-  .locations-tbl tr { padding: 12px 0; border-bottom: 2px solid var(--border); }
-  .locations-tbl td { display: block; border: none; padding: 4px 0; white-space: normal; }
-  .locations-tbl td[data-label]::before { content: attr(data-label); display: block;
-    font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); text-transform: uppercase;
-    letter-spacing: 0.04em; margin-bottom: 2px; }
-  .locations-tbl td.locations-actions { padding-top: 10px; }
-  .locations-tbl td.locations-actions .row-actions { justify-content: flex-start; }
-  .locations-tbl td.locations-actions .row-actions .btn { flex: 1 1 auto; }
   .loc-csz-row { grid-template-columns: 1fr 1fr 1fr; }
-
-  .fellowships-tbl { overflow-x: visible; }
-  .fellowships-tbl thead { display: none; }
-  .fellowships-tbl tbody { display: block; }
-  /* Same grid treatment as the Officers table below — remove button
-     bottom-aligned to the Name input, not to its label. */
-  .fellowships-tbl tr { display: grid;
-    grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px;
-    padding: 12px 0; border-bottom: 2px solid var(--border); }
-  .fellowships-tbl td { grid-column: 1; }
-  .fellowships-tbl td { display: block; border: none; padding: 4px 0; white-space: normal; }
-  /* display:block above would defeat the [hidden] attribute — keep the
-     clone-template row and the Virtual rows' country/region cells gone. */
-  .fellowships-tbl tr[hidden], .fellowships-tbl td[hidden] { display: none; }
-  .fellowships-tbl td[data-label]::before { content: attr(data-label); display: block;
-    font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); text-transform: uppercase;
-    letter-spacing: 0.04em; margin-bottom: 2px; }
-  /* One declared field height across both stacked tables, shared by the
-     remove button, so bottom-aligning them lines their centres up
-     exactly instead of "near enough". 1rem also stops iOS zooming the
-     page in when a field takes focus (it does that under 16px). */
-  .fellowships-tbl, .officers-tbl { --stack-field-h: 40px; }
-  .fellowships-tbl input[type="text"], .fellowships-tbl input[type="url"],
-  .officers-tbl input[type="text"], .officers-tbl input[type="tel"],
-  .officers-tbl input[type="email"] {
-    width: 100%; font-size: var(--fs-base); height: var(--stack-field-h); }
-  .fellowships-tbl .fellowship-remove-cell .btn,
-  .officers-tbl .officer-remove-cell .btn {
-    height: var(--stack-field-h); }
-  /* Remove button pins to the card's top-right, matching the Officers
-     table above, instead of sitting full-width at the bottom of the
-     stack. Name is the row's identity, so it's the cell that pads
-     clear of the button. */
-  .fellowships-tbl td.fellowship-remove-cell { grid-column: 2; grid-row: 1;
-    align-self: end; width: auto; padding: 0 0 4px; }
-
-  /* Intergroup Officers (Settings → Global) — same stacked-card
-     treatment as the Fellowships table directly above. As a grid of
-     four text inputs it is unreadable squeezed into a phone's width:
-     each field becomes a full-width labelled row and the remove button
-     pins to the card's top-right. `tr[hidden]` must keep winning over
-     `display: block` or the JS clone-template row would render. */
-  .officers-tbl { display: block; overflow-x: visible; }
-  .officers-tbl thead { display: none; }
-  .officers-tbl tbody { display: block; }
-  /* Grid, not absolute positioning: the remove button shares grid row 1
-     with the first field and is bottom-aligned to it, so it lines up
-     with the INPUT rather than floating level with the field's little
-     uppercase label. Grid derives that position from the cell itself,
-     so it stays correct if the label's size or the row padding ever
-     changes. */
-  .officers-tbl tr { display: grid;
-    grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px;
-    padding: 12px 0 14px; border-bottom: 2px solid var(--border); }
-  .officers-tbl td { grid-column: 1; }
-  .officers-tbl tr[hidden], .officers-tbl td[hidden] { display: none; }
-  .officers-tbl td { display: block; border: none; padding: 4px 0;
-    white-space: normal; }
-  .officers-tbl td[data-label]::before {
-    content: attr(data-label); display: block;
-    font-size: var(--fs-2xs); font-weight: 600; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
-
-  .officers-tbl td.officer-remove-cell { grid-column: 2; grid-row: 1;
-    align-self: end; width: auto; padding: 0 0 4px; }
 
   /* .tbl.wt-* (not bare .wt-*-table): the shared watchtower td rule
      further down the sheet sets padding + border-top at equal
@@ -18465,6 +18375,81 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   .ulist-role { max-width: none; }
   .users-sort { flex: 1 1 100%; }
   .users-sort select { width: 100%; }
+}
+
+/* Settings → Global (locations.html). Locations: one row per venue
+   (.glist). Officers and Fellowships: editable rows on a grid (.erows),
+   with column headings in a wide pane; in a narrow one each row wraps
+   into a small card with a label on every field. Nothing scrolls
+   sideways. */
+.glist { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.glist-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; }
+.glist-row + .glist-row { border-top: 1px solid var(--border); }
+.glist-icon { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--access, var(--brand)); }
+.glist-icon .icon { width: 18px; height: 18px; }
+.glist-main { min-width: 0; }
+.glist-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.glist-title b { font-weight: 650; }
+.glist-title .badge { margin: 0; }
+.glist-meta { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 2px; font-size: var(--fs-sm); color: var(--muted); }
+.glist-meta a { display: inline-flex; align-items: center; gap: 4px; }
+.glist-meta a .icon { width: 12px; height: 12px; }
+.glist-actions { display: flex; justify-content: flex-end; }
+
+.erows { display: flex; flex-direction: column; gap: 6px; }
+.erow, .erow-head { display: grid; gap: 8px; align-items: center; }
+.erow[hidden], .erow > [hidden] { display: none; }
+.erow-head { padding: 0 4px; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted); }
+.erow { padding: 4px; border-radius: 10px; }
+.erow:focus-within { background: var(--panel-2); }
+/* contain: an input's natural width (about 20 characters) would
+   otherwise size the switch's content-width column it spans into. */
+.erow-field { display: block; min-width: 0; margin: 0; contain: inline-size; }
+.form .erow-field { gap: 0; }
+.erow-field input { width: 100%; min-width: 0; }
+.erow-label { display: none; font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); margin: 0 0 3px; }
+.erow-remove { grid-area: rm; width: 34px; height: 34px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; justify-self: end; }
+.erow-remove:hover { background: color-mix(in srgb, #dc2626 12%, transparent); color: #dc2626; }
+.erow-remove:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.erow-remove .icon { width: 16px; height: 16px; }
+.erow-pos { grid-area: pos; } .erow-name { grid-area: name; } .erow-phone { grid-area: phone; }
+.erow-email { grid-area: email; } .erow-country { grid-area: country; } .erow-region { grid-area: region; }
+.erow-url { grid-area: url; } .erow-virtual { grid-area: virtual; }
+/* Country and region share one box, hidden whole for a virtual
+   fellowship, so they always split its width evenly. */
+.erow-geo { grid-area: geo; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: inherit; min-width: 0; }
+.erow-geo > .erow-field { grid-area: auto; }
+.officers-rows .erow, .officers-rows .erow-head {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr) 34px;
+  grid-template-areas: "pos name phone email rm"; }
+.fellowships-rows .erow, .fellowships-rows .erow-head {
+  grid-template-columns: minmax(0, 1.3fr) 64px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr) 34px;
+  grid-template-areas: "name virtual geo geo url rm"; }
+.fellowship-virtual-toggle { margin: 0; justify-self: start; gap: 8px; }
+.fellowship-virtual-toggle .erow-label--inline { display: none; margin: 0; font-size: var(--fs-sm); font-weight: 500; color: var(--text); }
+.officers-actions, .fellowships-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-top: 14px; }
+/* Narrow: each row is a small card, two fields a line, labelled. */
+@media (max-width: 760px) {
+  .erow-head { display: none; }
+  .erows { gap: 10px; }
+  .erow { padding: 10px 12px 12px; border: 1px solid var(--border); background: var(--panel); gap: 8px 10px; align-items: end; }
+  .erow:focus-within { background: var(--panel); border-color: color-mix(in srgb, var(--brand) 40%, var(--border)); }
+  .erow-label { display: block; }
+  .fellowship-virtual-toggle .erow-label--inline { display: inline; }
+  .officers-rows .erow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px;
+    grid-template-areas: "pos name rm" "phone email email"; }
+  .fellowships-rows .erow { grid-template-columns: minmax(0, 1fr) max-content 34px;
+    grid-template-areas: "name virtual rm" "geo geo geo" "url url url"; }
+  .fellowship-virtual-toggle { align-self: center; padding-top: 16px; }
+}
+/* Phone: one field a line, but the switch still beside the name. */
+@media (max-width: 420px) {
+  .officers-rows .erow { grid-template-columns: minmax(0, 1fr) 34px;
+    grid-template-areas: "pos rm" "name name" "phone phone" "email email"; }
+  .erow-geo { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides
