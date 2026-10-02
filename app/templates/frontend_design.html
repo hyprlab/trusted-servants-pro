@@ -313,20 +313,6 @@
       </div>
     </div>
 
-    {# The strip scrolls sideways without a scrollbar when the tabs don't
-       fit; data-fade-start / data-fade-end (set by design_studio.js) fade
-       whichever edge has tabs out of view. #}
-    <div class="ds-tabs-wrap" data-ds-tabs-wrap>
-    <nav class="ds-tabs" role="tablist" aria-label="Token groups">
-      {% for t in _tabs %}
-      <button type="button" role="tab" class="ds-tab" id="ds-tab-{{ t[0] }}" data-ds-tab="{{ t[0] }}"
-              aria-controls="ds-panel-{{ t[0] }}" aria-selected="{{ 'true' if loop.first else 'false' }}">
-        {{ icon(t[2]) }}<span>{{ t[1] }}</span><span class="ds-tab-count" hidden></span>
-      </button>
-      {% endfor %}
-    </nav>
-    </div>
-
     <div class="ds-body">
       {# ── Preview stage ────────────────────────────────────────────── #}
       <div class="ds-stage">
@@ -350,6 +336,14 @@
 
       {# ── Controls ─────────────────────────────────────────────────── #}
       <div class="ds-controls">
+        <nav class="st-seg ds-seg" role="tablist" aria-label="Token groups">
+          {% for t in _tabs %}
+          <button type="button" role="tab" id="ds-tab-{{ t[0] }}" data-ds-tab="{{ t[0] }}"
+                  aria-controls="ds-panel-{{ t[0] }}" aria-selected="{{ 'true' if loop.first else 'false' }}">
+            {{ icon(t[2]) }}<span>{{ t[1] }}</span><span class="ds-tab-count" hidden></span>
+          </button>
+          {% endfor %}
+        </nav>
 
         <div class="ds-panel" role="tabpanel" id="ds-panel-colors" aria-labelledby="ds-tab-colors" data-ds-panel="colors">
           {% call group('Brand', 'sparkles') %}

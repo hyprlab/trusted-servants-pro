@@ -330,32 +330,6 @@
     });
   });
 
-  // Tab strip: fade the edge that has tabs out of view, let a vertical
-  // wheel scroll it sideways, and keep the selected tab in view.
-  var tabsWrap = studio.querySelector('[data-ds-tabs-wrap]');
-  var tabStrip = tabsWrap && tabsWrap.querySelector('.ds-tabs');
-  function fadeTabs() {
-    if (!tabStrip) return;
-    var max = tabStrip.scrollWidth - tabStrip.clientWidth;
-    tabsWrap.toggleAttribute('data-fade-start', tabStrip.scrollLeft > 1);
-    tabsWrap.toggleAttribute('data-fade-end', tabStrip.scrollLeft < max - 1);
-  }
-  if (tabStrip) {
-    tabStrip.addEventListener('scroll', fadeTabs, { passive: true });
-    tabStrip.addEventListener('wheel', function (e) {
-      if (tabStrip.scrollWidth <= tabStrip.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      e.preventDefault();
-      tabStrip.scrollLeft += e.deltaY;
-    }, { passive: false });
-    if (window.ResizeObserver) new ResizeObserver(fadeTabs).observe(tabStrip);
-    tabs.forEach(function (t) {
-      t.addEventListener('click', function () {
-        t.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-      });
-    });
-    fadeTabs();
-  }
-
   function showKind(panel, kind) {
     state.kind[panel] = kind; store('ds-kind-' + panel, kind);
     var p = studio.querySelector('[data-ds-panel="' + panel + '"]');

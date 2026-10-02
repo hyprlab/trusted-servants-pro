@@ -106,6 +106,7 @@ release notes expanded by default and the changelog collapsed.
 - The menus for choosing a page template, page, popup or form show each group in its own box under a shaded heading, with one line per entry: its name on the left and its layout, address or status on the right.
 - The Footer page's settings have a Layout and Options switch above them, like the Header page: Layout chooses the footer layout and arranges its rows and blocks, Options holds the footer's parts (brand, link columns, social icons and the rest). Clicking a block on the Layout side opens its part under Options.
 - Branding's Name and logo tab previews the site's real header instead of a drawing of one. A newly chosen logo, a removed logo and a changed site name show in it before you save.
+- The Design page's Design tokens card is laid out like the Header page: the preview on the left, the settings on the right, and Colors, Text, Links, Header, Mega menu, Footer, Layout, Cards and Buttons chosen with a segmented control at the top of the settings instead of a tab strip across the card.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

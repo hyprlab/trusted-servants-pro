@@ -1223,39 +1223,6 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 .fe-admin-main .ds-studio-head { padding: 18px 22px 12px; flex-wrap: wrap; }
 .ds-studio-actions { display: flex; gap: 8px; margin-left: auto; }
 
-/* Tab strip: scrolls sideways with no scrollbar in either direction. The
-   base line is painted as a background (not a border) so the active
-   tab's underline can sit on it without overflowing the strip. */
-.ds-tabs-wrap { position: relative; }
-.ds-tabs {
-  display: flex; gap: 2px; padding: 0 14px;
-  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
-  scroll-padding-inline: 56px;
-  scrollbar-width: none; -ms-overflow-style: none;
-  background: linear-gradient(to top, var(--border) 1px, transparent 1px);
-}
-.ds-tabs::-webkit-scrollbar { display: none; }
-/* Edge fades: shown only on a side with tabs scrolled out of view. They
-   stop 1px short of the bottom so the base line stays solid. */
-.ds-tabs-wrap::before, .ds-tabs-wrap::after {
-  content: ""; position: absolute; top: 0; bottom: 1px; width: 56px; z-index: 1;
-  pointer-events: none; opacity: 0; transition: opacity 180ms ease;
-}
-.ds-tabs-wrap::before { left: 0; background: linear-gradient(to right, var(--panel) 15%, transparent); }
-.ds-tabs-wrap::after { right: 0; background: linear-gradient(to left, var(--panel) 15%, transparent); }
-.ds-tabs-wrap[data-fade-start]::before, .ds-tabs-wrap[data-fade-end]::after { opacity: 1; }
-.ds-tab {
-  display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
-  padding: 11px 12px 10px;
-  border: 0; border-bottom: 2px solid transparent; background: none;
-  font: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--muted);
-  cursor: pointer; white-space: nowrap;
-}
-.ds-tab:hover { color: var(--text); }
-.ds-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--brand); }
-.ds-tab[aria-selected="true"] .icon { color: var(--brand); }
-.ds-tab .icon { width: 16px; height: 16px; }
-.ds-tab:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: 6px; }
 .ds-tab-count[hidden] { display: none; }
 .ds-tab-count {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
@@ -18603,6 +18570,26 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .tp-pick-menu .tp-item > span:first-child { flex: 1 1 auto; min-width: 0; }
 .tp-pick-menu .tp-item-sub { flex: 0 1 auto; min-width: 0; max-width: 55%; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tp-pick-menu .tp-item.is-active .tp-item-sub { color: var(--brand); }
+
+/* Design page: the same 60/40 split as the other studios, its groups
+   chosen with a segmented control at the top of the settings column. */
+.ds-body { grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr); }
+.ds-stage { padding: 16px 20px 20px; }
+.fe-admin-main .card.ds-studio > .card-head.ds-studio-head { border-bottom: 1px solid var(--border); padding-bottom: 16px; margin: 0; }
+.ds-seg { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.ds-seg button { position: relative; flex-direction: column; gap: 3px; padding: 7px 4px 6px; font-size: var(--fs-xs); }
+.ds-seg button .icon { width: 16px; height: 16px; }
+.ds-seg button .ds-tab-count { position: absolute; top: 3px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center; }
+.ds-seg button .ds-tab-count[hidden] { display: none; }
+@container (max-width: 520px) { .ds-seg button span:not(.ds-tab-count) { display: inline; } }
+@container (max-width: 900px) {
+  .ds-body { grid-template-columns: minmax(0, 1fr); }
+  .ds-stage { position: static; }
+  .ds-controls { border-left: 0; border-top: 1px solid var(--border); border-bottom-left-radius: var(--radius); }
+  .ds-seg { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+}
+@container (max-width: 660px) { .ds-seg { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
