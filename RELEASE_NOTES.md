@@ -110,7 +110,7 @@ release notes expanded by default and the changelog collapsed.
 - The Design page's Design tokens card is laid out like the Header page: the preview on the left, the settings on the right, and Colors, Text, Links, Header, Mega menu, Footer, Layout, Cards and Buttons chosen with a segmented control at the top of the settings instead of a tab strip across the card.
 - That control is a single row that scrolls sideways (with a mouse wheel too) instead of wrapping onto a second line; the edge with more groups past it fades out, and the open group is kept in view, including when clicking part of the preview opens another group.
 - Every Web Frontend page's segmented control works the same way: it fills its column when its parts fit, and scrolls sideways with faded edges when they don't (a form's seven parts, or any of them in a narrow window), keeping its names instead of dropping to icons.
-- Turning a module off in Settings takes you to the Dashboard, wherever you were. It no longer reports "Save failed: HTTP 404" when you were on one of that module's pages.
+- Turning a module off in Settings switches the page behind Settings to the Dashboard, wherever you were, and Settings stays open. It no longer reports "Save failed: HTTP 404" when you were on one of that module's pages. Turning Web Frontend on or off updates the Web and View buttons in the sidebar without reloading the page.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

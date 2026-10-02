@@ -26,14 +26,13 @@
 
 <script>
 (function(){
-  // Single-shot init guard: if a previous include already wired the
-  // widget on this page, exit so we don't stack multiple polling
-  // timers (would result in 2× refresh rate per timer).
-  if (window.__tspOnlineWidgetInit) return;
-  window.__tspOnlineWidgetInit = true;
-
+  // Single-shot init guard, on the widget itself: if a previous include
+  // already wired it, exit so we don't stack polling timers (2x the
+  // refresh rate). The page behind Settings can be replaced with one
+  // that has the widget again (tspSwapPage), which runs this anew.
   const wrap = document.getElementById('user-log-online');
-  if (!wrap) return;
+  if (!wrap || wrap._tspOnlineInit) return;
+  wrap._tspOnlineInit = true;
   const url = wrap.dataset.endpoint;
   const listEl = document.getElementById('online-list');
   const countEl = document.getElementById('online-count');
@@ -151,8 +150,9 @@
     });
   }
 
+  // Stop once the widget has been replaced along with its page.
+  const timers = [setInterval(refresh, 5000), setInterval(tickAgo, 1000)];
+  timers.push(setInterval(() => { if (!wrap.isConnected) timers.forEach(clearInterval); }, 5000));
   refresh();
-  setInterval(refresh, 5000);
-  setInterval(tickAgo, 1000);
 })();
 </script>

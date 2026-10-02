@@ -279,7 +279,18 @@
       }
     });
   }
-  document.querySelectorAll("[data-open-modal]").forEach(el => {
+  // Page setup that must run again when the page behind an open modal is
+  // replaced (tspSwapPage, below): each runs once now and again on the
+  // new content. Bindings mark their element so none is bound twice.
+  const pageSetups = [];
+  function onEachPage(fn) { pageSetups.push(fn); fn(); }
+  window.tspRunPageSetups = () => pageSetups.forEach(fn => {
+    try { fn(); } catch (err) { console.error(err); }
+  });
+
+  onEachPage(() => document.querySelectorAll("[data-open-modal]").forEach(el => {
+    if (el._tspOpener) return;
+    el._tspOpener = true;
     el.addEventListener("click", (e) => {
       // Allow data-settings-tab="<key>" alongside data-open-modal to
       // deep-link a specific tab inside the settings modal — e.g. the
@@ -305,7 +316,7 @@
         if (tabBtn) tabBtn.click();
       }
     });
-  });
+  }));
 
   // Live character counter for summary textareas on library-item
   // forms. Counts down from the textarea's `maxlength` (500) so the
@@ -633,10 +644,13 @@
       }
     });
   });
-  document.querySelectorAll(".modal").forEach(m => {
-    m.querySelectorAll("[data-close]").forEach(el =>
-      el.addEventListener("click", () => closeModal(m)));
-  });
+  onEachPage(() => document.querySelectorAll(".modal").forEach(m => {
+    m.querySelectorAll("[data-close]").forEach(el => {
+      if (el._tspCloser) return;
+      el._tspCloser = true;
+      el.addEventListener("click", () => closeModal(m));
+    });
+  }));
   document.addEventListener("keydown", e => {
     if (e.key === "Escape") {
       document.querySelectorAll(".modal.open").forEach(closeModal);
@@ -781,6 +795,70 @@
       return data;
     }
 
+    // Replace the page behind Settings with another (the Dashboard after
+    // a module is turned off) and leave Settings open: the heading, its
+    // actions, messages and content, the sidebar's pinned buttons, the
+    // tab title and the address. The page's app.js setups then run again
+    // (tspRunPageSetups). Scripts inside the new content are not run, so
+    // this suits pages whose behavior lives in app.js, as the Dashboard's
+    // does.
+    function swapParts(doc, sels) {
+      sels.forEach(sel => {
+        const now = document.querySelector(sel), next = doc.querySelector(sel);
+        if (now && next) now.replaceWith(document.importNode(next, true));
+      });
+    }
+    // The Dashboard button and the Web / View / Watchtower cluster follow
+    // the modules that are on (and which page is open).
+    function swapPinned(doc) {
+      swapParts(doc, [".sidebar > .sidebar-dash-btn"]);
+      const now = document.querySelector(".sidebar > .sidebar-quicknav");
+      const next = doc.querySelector(".sidebar > .sidebar-quicknav");
+      if (now && next) now.replaceWith(document.importNode(next, true));
+      else if (now) now.remove();
+      else if (next) {
+        const dash = document.querySelector(".sidebar > .sidebar-dash-btn");
+        if (dash) dash.after(document.importNode(next, true));
+      }
+    }
+    async function fetchPage(url) {
+      const r = await fetch(url, { credentials: "same-origin" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return { url: r.url, doc: new DOMParser().parseFromString(await r.text(), "text/html") };
+    }
+    let swapped = false;
+    async function swapPage(url) {
+      const { url: landed, doc } = await fetchPage(url);
+      swapParts(doc, [".topbar > h1", ".topbar > .top-actions",
+                      "main.content > .flashes", "main.content > section.page"]);
+      swapPinned(doc);
+      document.title = doc.title;
+      document.body.classList.toggle("fe-admin-autohide", doc.body.classList.contains("fe-admin-autohide"));
+      document.querySelector(".sidebar")?.classList.remove("open");
+      if (landed !== location.href) history.pushState(null, "", landed);
+      swapped = true;
+      (document.scrollingElement || document.documentElement).scrollTop = 0;
+      runScripts(document.querySelector("main.content > section.page"));
+      window.tspRunPageSetups();
+    }
+    // Scripts in swapped-in content don't run on their own: run each
+    // inline one, and load each external one this document hasn't yet.
+    function runScripts(root) {
+      if (!root) return;
+      const loaded = new Set(Array.from(document.scripts)
+        .filter(sc => sc.src && !root.contains(sc)).map(sc => sc.src));
+      root.querySelectorAll("script").forEach(old => {
+        if (old.src && loaded.has(old.src)) return;
+        const sc = document.createElement("script");
+        Array.from(old.attributes).forEach(a => sc.setAttribute(a.name, a.value));
+        if (!old.src) sc.textContent = old.textContent;
+        old.replaceWith(sc);
+      });
+    }
+    // Back or Forward after a swap: the address changed without its page,
+    // so load the page it names.
+    window.addEventListener("popstate", () => { if (swapped) window.location.reload(); });
+
     // Email transport toggle: the <select> is the SMTP-vs-relay switch.
     // Show only the field group for the chosen transport — relay fields
     // in relay mode, the SMTP host/port/auth fields otherwise.
@@ -911,26 +989,29 @@
             }
           }
           const data = await submitSettingsForm(f);
-          // If the endpoint returned JSON with a `message`, surface it
-          // verbatim. ``ok: false`` is treated as a soft error and
-          // shown via the danger toast even though the HTTP status
-          // is 200 — matches the pattern used by email-test, where
-          // an SMTP failure isn't an HTTP failure.
-          // A module turned off: its pages are gone, so go to the
-          // Dashboard, which is always on (and reload it if already
-          // there, so its widgets follow).
+          // A module turned off: its pages are gone, so the page behind
+          // Settings becomes the Dashboard, which is always on (fetched
+          // afresh if it is already there, so its widgets follow).
+          // Settings stays open.
+          // Otherwise, if the endpoint returned JSON with a `message`,
+          // surface it verbatim. ``ok: false`` is treated as a soft
+          // error and shown via the danger toast even though the HTTP
+          // status is 200 — matches the pattern used by email-test,
+          // where an SMTP failure isn't an HTTP failure.
           const moduleOff = f.matches(".special-page-toggle-form") &&
             !f.querySelector('input[type="checkbox"]:checked');
           if (moduleOff || (data && data.pageGone)) {
-            showSettingsToast("Saved. Going to the Dashboard.");
-            setTimeout(() => { window.location.href = "/tspro/"; }, 900);
+            showSettingsToast("Saved. The Dashboard is open behind Settings.");
+            swapPage("/tspro/").catch(() => { window.location.href = "/tspro/"; });
           } else if (data && typeof data.message === "string") {
             showSettingsToast(data.message, data.ok === false ? "danger" : "success");
           } else {
             showSettingsToast(isTestForm ? "Test sent" : "Saved");
           }
-          if (f.dataset.reloadOnSave === "1" && !moduleOff && !(data && data.pageGone)) {
-            setTimeout(() => window.location.reload(), 400);
+          // A module turned on: this page stays; the pinned buttons
+          // (Web, View) follow.
+          if (f.matches(".special-page-toggle-form") && !moduleOff && !(data && data.pageGone)) {
+            fetchPage(window.location.href).then(({ doc }) => swapPinned(doc)).catch(() => {});
           }
         } catch (err) {
           showSettingsToast(
@@ -2391,9 +2472,10 @@
   // dragstart snapshots the original order; dragend compares to the
   // current DOM order and only fires the POST when they actually
   // differ, so a click-and-cancel doesn't write a redundant row.
-  (function initDashboardReorder(){
+  onEachPage(function initDashboardReorder(){
     const grid = document.querySelector("[data-dashboard-reorder]");
-    if (!grid) return;
+    if (!grid || grid._tspReorder) return;
+    grid._tspReorder = true;
     const url = grid.dataset.orderUrl;
     let dragging = null;
     let originalOrder = null;
@@ -2461,7 +2543,7 @@
         w.classList.remove("drag-over");
       });
     });
-  })();
+  });
 
   // Dashboard masonry layout. Companion to the CSS-Grid setup in
   // `.dash-grid` (app.css). The grid uses fine 8px row tracks plus
@@ -2485,9 +2567,10 @@
   //     as users sign in/out; visitor-metrics sparkline animates in)
   //   * after a drag/drop reorder commits (wired in the reorder block
   //     above via window.__tspDashLayout).
-  (function initDashboardMasonry(){
+  onEachPage(function initDashboardMasonry(){
     const grid = document.querySelector(".dash-grid");
-    if (!grid) return;
+    if (!grid || grid._tspMasonry) return;
+    grid._tspMasonry = true;
     if (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) {
       // Single-column layout — CSS handles spacing via normal row-gap.
       // Still expose the layout function so the resize handler can
@@ -2540,12 +2623,13 @@
       });
       grid.querySelectorAll(".dash-widget").forEach(w => ro.observe(w));
     }
-  })();
+  });
 
   // Server metrics widget
-  (function initServerMetrics(){
+  onEachPage(function initServerMetrics(){
     const widget = document.getElementById("server-metrics-widget");
-    if (!widget) return;
+    if (!widget || widget._tspMetrics) return;
+    widget._tspMetrics = true;
     if (!widget.querySelector(".server-metrics-column")) return;
     const endpoint = widget.dataset.endpoint;
     const MAX_SAMPLES = 60;
@@ -2611,6 +2695,8 @@
     }
 
     async function tick() {
+      // Replaced along with the page: stop polling for it.
+      if (!widget.isConnected) { clearInterval(h); return; }
       try {
         const r = await fetch(endpoint, { credentials: "same-origin", headers: { "X-Requested-With": "fetch" }});
         if (!r.ok) return;
@@ -2638,14 +2724,15 @@
       } catch (_) {}
     }
 
-    tick();
     const h = setInterval(tick, 5000);
+    tick();
     window.addEventListener("beforeunload", () => clearInterval(h));
-  })();
+  });
 
-  (function initOnlineUsers(){
+  onEachPage(function initOnlineUsers(){
     const tile = document.getElementById("online-users-tile");
-    if (!tile) return;
+    if (!tile || tile._tspOnline) return;
+    tile._tspOnline = true;
     const endpoint = tile.dataset.endpoint;
     const countEl = tile.querySelector('[data-field="online_count"]');
     const labelEl = tile.querySelector('[data-field="online_label"]');
@@ -2659,6 +2746,7 @@
     }
 
     async function tick() {
+      if (!tile.isConnected) { clearInterval(h); return; }
       try {
         const r = await fetch(endpoint, { credentials: "same-origin", headers: { "X-Requested-With": "fetch" }});
         if (!r.ok) return;
@@ -2669,7 +2757,7 @@
 
     const h = setInterval(tick, 30000);
     window.addEventListener("beforeunload", () => clearInterval(h));
-  })();
+  });
 })();
 
 // ── LIVE ATTENTION CHIPS ────────────────────────────────────────────────────
@@ -2686,8 +2774,10 @@
   // Ask for the dashboard-only chips (failed backups, forms attention) only
   // while the dashboard grid is on screen, so every other page's poll stays
   // cheap.
-  const onDashboard = !!document.querySelector(".dash-widget[data-widget-key]");
-  const endpoint = "/tspro/_live/counts" + (onDashboard ? "?dash=1" : "");
+  // Checked on every poll: the page behind a modal can become the
+  // dashboard (tspSwapPage).
+  const endpoint = () => "/tspro/_live/counts" +
+    (document.querySelector(".dash-widget[data-widget-key]") ? "?dash=1" : "");
 
   function setChip(el, n) {
     el.textContent = n;
@@ -2715,7 +2805,7 @@
   async function tick() {
     if (document.hidden) return;
     try {
-      const r = await fetch(endpoint, {
+      const r = await fetch(endpoint(), {
         credentials: "same-origin",
         headers: { "X-Requested-With": "fetch" },
       });
