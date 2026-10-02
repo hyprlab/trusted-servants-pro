@@ -94,7 +94,7 @@
         <div class="erow officer-row{% if _pic %} is-locked{% endif %}"{% if _pic %} data-pic-officer title="Set on the Public Information Chair card below"{% endif %}>
           <input type="hidden" name="officer_id" value="{{ o.id }}">
           <label class="erow-field erow-pos"><span class="erow-label">Position</span>
-            <input type="text" name="officer_role" value="{{ o.role or '' }}" placeholder="e.g. Chair" required{{ _ro }}></label>
+            <input type="text" name="officer_role" value="{{ o.role or '' }}" placeholder="e.g. Chair" required{{ _ro }}{% if _pic %} data-pic-mirror="pic_title" data-pic-default="Public Information Chair"{% endif %}></label>
           <label class="erow-field erow-name"><span class="erow-label">Name</span>
             <input type="text" name="officer_name" value="{{ o.name or '' }}" placeholder="{{ 'Not set' if _pic else 'e.g. Chris C.' }}"{{ _ro }}{% if _pic %} data-pic-mirror="pic_name"{% endif %}></label>
           <label class="erow-field erow-phone"><span class="erow-label">Phone</span>
@@ -235,11 +235,16 @@ function wireRowSort(rows, templateSel) {
 <section class="card data-card">
   <div class="data-card-head">
     {{ icon('phone') }}
-    <span>Public Information Chair {% call chip('Public Information Chair') %}Contact information shown on the dashboard for members who need help.{% endcall %}</span>
+    <span>Public Information Chair {% call chip('Public Information Chair') %}Contact information shown on the dashboard for members who need help, and in the Intergroup Officers list above. The title is what your fellowship calls the position.{% endcall %}</span>
   </div>
   <form class="form pic-form" method="post" action="{{ url_for('main.pic_save') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+    <label class="pic-title-field">Title
+      <input type="text" name="pic_title" maxlength="200" value="{{ (site.pic_title if site else '') or '' }}"
+             placeholder="Public Information Chair">
+      <small class="muted">Left blank, it's Public Information Chair. Shown as the position in Intergroup Officers.</small>
+    </label>
     <div class="pic-form-row">
       <label>Name<input type="text" name="pic_name" value="{{ (site.pic_name if site else '') or '' }}"></label>
       <label>Email<input type="email" name="pic_email" value="{{ (site.pic_email if site else '') or '' }}"></label>
@@ -257,7 +262,9 @@ function wireRowSort(rows, templateSel) {
   card.addEventListener('input', e => {
     const name = e.target.name;
     if (!name) return;
-    document.querySelectorAll('[data-pic-mirror="' + name + '"]').forEach(f => { f.value = e.target.value; });
+    document.querySelectorAll('[data-pic-mirror="' + name + '"]').forEach(f => {
+      f.value = e.target.value.trim() || f.dataset.picDefault || e.target.value;
+    });
   });
 })();
 </script>

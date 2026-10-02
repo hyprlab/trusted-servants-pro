@@ -1678,6 +1678,7 @@ def _migrate_sqlite(app):
                          ("pic_name", "VARCHAR(200)"),
                          ("pic_email", "VARCHAR(255)"),
                          ("pic_phone", "VARCHAR(64)"),
+                         ("pic_title", "VARCHAR(200)"),
                          ("zoom_tech_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("zoom_tech_title", "VARCHAR(120)"),
                          ("zoom_tech_content", "TEXT"),
@@ -2068,6 +2069,10 @@ def _migrate_sqlite(app):
             add("backup_target", col, ddl)
         for col, ddl in (("asset_files_json", "TEXT"),):
             add("custom_font", col, ddl)
+        # The officer that mirrors the Public Information Chair card. Set on
+        # the existing "Public Information Chair" row the first time the
+        # Global page or a save looks for it (routes._pic_officer).
+        add("intergroup_officer", "is_pic", "BOOLEAN NOT NULL DEFAULT 0")
         for col, ddl in (("is_draft", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("slug", "VARCHAR(255)"),
                          ("is_pending_review", "BOOLEAN NOT NULL DEFAULT 0"),

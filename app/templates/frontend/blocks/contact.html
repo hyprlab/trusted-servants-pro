@@ -7,7 +7,7 @@
     {% endif %}
     {% if site and site.pic_name %}
     <div class="fe-contact-card">
-      <div class="fe-contact-role">Public Information Chair</div>
+      <div class="fe-contact-role">{{ site.pic_role_label }}</div>
       <div class="fe-contact-name">{{ site.pic_name }}</div>
       <div class="fe-contact-lines">
         {% if site.pic_phone %}<a href="tel:{{ site.pic_phone }}">{{ site.pic_phone }}</a>{% endif %}

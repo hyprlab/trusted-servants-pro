@@ -2547,10 +2547,10 @@ def locations():
         return redirect(url_for("main.index"))
     from .models import IntergroupOfficer, Fellowship
     items = Location.query.order_by(Location.name).all()
-    # The Public Information Chair is always on the officers list.
-    if _pic_officer() is None:
-        _sync_pic_officer()
-        db.session.commit()
+    # The Public Information Chair is always on the officers list, as its
+    # card says (a no-op write when it already matches).
+    _sync_pic_officer()
+    db.session.commit()
     officers = (IntergroupOfficer.query
                 .order_by(IntergroupOfficer.sort_order, IntergroupOfficer.id)
                 .all())
@@ -2563,17 +2563,26 @@ def locations():
 
 
 # The officer that mirrors Settings → Global's Public Information Chair
-# card: always on the officers list, with the card's name, phone and
-# email, and never deleted from there. Found by its position name.
+# card: always on the officers list, under the card's title and with its
+# name, phone and email, and never deleted from there. Marked is_pic;
+# before that flag existed it was the row titled Public Information Chair,
+# which is adopted the first time it's looked for.
 PIC_OFFICER_ROLE = "Public Information Chair"
 
 
 def _pic_officer(create=False):
     from .models import IntergroupOfficer
-    o = next((x for x in IntergroupOfficer.query.order_by(IntergroupOfficer.sort_order, IntergroupOfficer.id)
-              if (x.role or "").strip().lower() == PIC_OFFICER_ROLE.lower()), None)
+    o = (IntergroupOfficer.query.filter_by(is_pic=True)
+         .order_by(IntergroupOfficer.sort_order, IntergroupOfficer.id).first())
+    if o is None:
+        s = _get_site_setting()
+        titles = {PIC_OFFICER_ROLE.lower(), (s.pic_role_label if s else PIC_OFFICER_ROLE).lower()}
+        o = next((x for x in IntergroupOfficer.query.order_by(IntergroupOfficer.sort_order, IntergroupOfficer.id)
+                  if (x.role or "").strip().lower() in titles), None)
+        if o is not None:
+            o.is_pic = True
     if o is None and create:
-        o = IntergroupOfficer(role=PIC_OFFICER_ROLE, sort_order=0)
+        o = IntergroupOfficer(role=PIC_OFFICER_ROLE, sort_order=0, is_pic=True)
         db.session.add(o)
     return o
 
@@ -2583,7 +2592,7 @@ def _sync_pic_officer():
     adding the row if it's missing. The caller commits."""
     s = _get_site_setting()
     o = _pic_officer(create=True)
-    o.role = PIC_OFFICER_ROLE
+    o.role = s.pic_role_label if s else PIC_OFFICER_ROLE
     o.name = (s.pic_name if s else None) or None
     o.phone = (s.pic_phone if s else None) or None
     o.email = (s.pic_email if s else None) or None
@@ -8020,6 +8029,8 @@ def pic_save():
     s.pic_name = request.form.get("pic_name", "").strip() or None
     s.pic_email = request.form.get("pic_email", "").strip() or None
     s.pic_phone = request.form.get("pic_phone", "").strip() or None
+    if "pic_title" in request.form:
+        s.pic_title = request.form.get("pic_title", "").strip()[:200] or None
     _sync_pic_officer()
     db.session.commit()
     flash("Public Information Chair updated", "success")

@@ -2333,7 +2333,7 @@
       </div>
       {% if site and (site.pic_name or site.pic_email or site.pic_phone) %}
       <hr class="settings-sep">
-      <p class="muted small">Reach out to our Public Information Chair for questions, concerns, or guidance.</p>
+      <p class="muted small">Reach out to our {{ site.pic_role_label }} for questions, concerns, or guidance.</p>
       <div class="pic-contact">
         {% if site.pic_name %}
         <div class="pic-row"><span class="pic-icon">{{ icon('user') }}</span>{{ site.pic_name }}</div>

@@ -7609,6 +7609,8 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 .users-new-card .users-new-row label { min-width: 0; }
 .pic-form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: end; }
 .pic-form-row label { min-width: 0; }
+.pic-title-field { max-width: 480px; }
+.pic-title-field small { font-weight: 400; }
 @media (max-width: 720px) { .pic-form-row { grid-template-columns: 1fr; } }
 .users-new-card .form-actions { justify-content: flex-end; margin-top: 4px; }
 /* Create-user password generator. The field and its Show / Copy

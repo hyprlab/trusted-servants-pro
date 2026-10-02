@@ -736,6 +736,15 @@ class SiteSetting(db.Model):
     pic_name = db.Column(db.String(200))
     pic_email = db.Column(db.String(255))
     pic_phone = db.Column(db.String(64))
+    # What the fellowship calls this position ("Public Information and
+    # Communications Chair"); empty means Public Information Chair.
+    pic_title = db.Column(db.String(200))
+
+    @property
+    def pic_role_label(self):
+        """The Public Information Chair's title as this fellowship uses it."""
+        return (self.pic_title or "").strip() or "Public Information Chair"
+
     zoom_tech_enabled = db.Column(db.Boolean, nullable=False, default=False)
     zoom_tech_title = db.Column(db.String(120))
     zoom_tech_content = db.Column(db.Text)
@@ -1537,6 +1546,9 @@ class IntergroupOfficer(db.Model):
     phone = db.Column(db.String(64))
     email = db.Column(db.String(255))
     sort_order = db.Column(db.Integer, nullable=False, default=0)
+    # The one row that mirrors the Public Information Chair card (its
+    # title, name, phone and email); kept in step by routes._sync_pic_officer.
+    is_pic = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
