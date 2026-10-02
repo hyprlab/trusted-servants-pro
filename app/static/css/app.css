@@ -7890,10 +7890,6 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   grid-row-end: span 40; }
 .dash-widget > .card, .dash-widget > .stats { margin: 0; }
 .dash-widget-wide { grid-column: 1 / -1; }
-.dash-widget[draggable="true"] { transition: opacity 120ms ease; }
-.dash-widget.dragging { opacity: 0.4; }
-.dash-widget.drag-over > .card,
-.dash-widget.drag-over > .stats { outline: 2px dashed var(--brand); outline-offset: 4px; }
 
 /* Drag handle — an always-visible pill at the start of each widget's
    title row. The pill background plus full opacity make it a
@@ -18448,6 +18444,25 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .dash-grid .dash-widget:hover .dash-drag-handle,
 .dash-grid .dash-widget:focus-within .dash-drag-handle { opacity: 1; }
 .dash-grid .dash-drag-handle:hover { background: none; color: var(--text); }
+.dash-grid .dash-drag-handle { cursor: grab; border-radius: 4px; touch-action: none; font: inherit; line-height: 0; }
+.dash-grid .dash-drag-handle:focus-visible { opacity: 1; outline: 2px solid var(--brand); outline-offset: 1px; }
+/* No hover on touch screens: the grip, the touch drag handle, always shows. */
+@media (hover: none) { .dash-grid .dash-drag-handle { opacity: 1; } }
+
+/* Dragging (app.js initDashboardReorder): the widget lifts and follows
+   the pointer, a dashed placeholder keeps its spot, the rest slide. */
+.dash-grid .dash-widget-head, .dash-grid .user-log-online > .card-head { cursor: grab; }
+.dash-grid .dash-widget-head :is(a, button, .heading-help),
+.dash-grid .user-log-online > .card-head :is(a, button) { cursor: pointer; }
+body.dash-dragging, body.dash-dragging * { cursor: grabbing !important; user-select: none; }
+.dash-widget.is-lifted { z-index: 1000; pointer-events: none; }
+.dash-widget.is-lifted > .card { transform: scale(1.015) rotate(-.4deg);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, .22), 0 3px 8px rgba(15, 23, 42, .10);
+  transition: transform 160ms ease, box-shadow 160ms ease; }
+.dash-widget.is-landing > .card { transform: none; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+.dash-placeholder { border: 2px dashed color-mix(in srgb, var(--brand) 45%, var(--border)); border-radius: 14px;
+  background: color-mix(in srgb, var(--brand) 6%, transparent); box-sizing: border-box; }
+@media (prefers-reduced-motion: reduce) { .dash-widget.is-lifted > .card { transform: none; transition: none; } }
 
 /* Rows */
 .dash-grid .list { margin: 0 -8px; }

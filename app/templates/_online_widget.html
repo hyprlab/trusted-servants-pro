@@ -11,7 +11,7 @@
          data-endpoint="{{ url_for('main.api_online_users') }}">
   <div class="card-head">
     <h2>
-      {% if online_dash_handle %}<span class="dash-drag-handle dash-drag-handle--in-head" aria-hidden="true">{{ icon('grip-vertical') }}</span>{% endif %}
+      {% if online_dash_handle %}<button type="button" class="dash-drag-handle" aria-label="Move this widget (arrow keys)" title="Drag to move, or use the arrow keys">{{ icon('grip-vertical') }}</button>{% endif %}
       <span class="online-pulse" aria-hidden="true"></span>
       {{ icon('users') }}
       Currently online

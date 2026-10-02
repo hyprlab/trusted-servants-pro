@@ -129,6 +129,7 @@ release notes expanded by default and the changelog collapsed.
 - For admins the top card is the server at a glance: CPU, memory, disk, load, uptime and who's online in one row of equal tiles, with "Signed in as Admin" linking to what your role allows. Other roles see their role with a short list of what it lets them do.
 - Widget names are shorter and match the Customize window: Meetings, Recent files, Website visitors, Join the email list, What's new, Backups, Access requests (now with Locked accounts beneath it), Recently deleted. What's new opens the full notes from its head link instead of a large button.
 - The Join the email list form no longer runs past the edge of its card at tablet widths.
+- Rearranging the Dashboard is smooth. Drag a widget by its heading (or its grip): it lifts and follows the pointer, a dashed space opens where it will land, and the other widgets slide out of the way instead of jumping and overlapping. Letting go settles it into place, and Escape puts it back. The space opens nearest to where the widget is, in either column. A focused grip moves its widget one place with the arrow keys.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

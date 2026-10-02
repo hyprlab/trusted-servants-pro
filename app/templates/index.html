@@ -25,10 +25,10 @@
       lets them do (they don't operate the server). The full breakdown is
       Settings → Your Access. -#}
   {% set _role_name = current_user.role.replace('_', ' ')|capitalize %}
-  <div class="dash-widget dash-widget-wide" data-widget-key="server-metrics" {% if can_reorder %}draggable="true"{% endif %}>
+  <div class="dash-widget dash-widget-wide" data-widget-key="server-metrics">
     <section class="card data-card server-metrics{% if not _has_server %} server-metrics-role-only{% endif %}" id="server-metrics-widget" data-endpoint="{{ url_for('main.api_server_metrics') }}">
       <div class="data-card-head dash-widget-head">
-        {% if can_reorder %}<span class="dash-drag-handle" aria-hidden="true">{{ icon('grip-vertical') }}</span>{% endif %}
+        {% if can_reorder %}<button type="button" class="dash-drag-handle" aria-label="Move this widget (arrow keys)" title="Drag to move, or use the arrow keys">{{ icon('grip-vertical') }}</button>{% endif %}
         <span class="data-card-head-icon" aria-hidden="true">{{ icon('server' if _has_server else 'user') }}</span>
         <span class="dash-widget-title">{% if _has_server %}Server{% else %}Your role: {{ _role_name }}{% endif %}</span>
         {% if _has_server %}<span class="dash-glance-os" data-field="os">—</span>{% endif %}
@@ -138,7 +138,7 @@
   {% endif %}
 
   {% if widget_key == 'currently-online' and current_user.is_admin() and current_user.dash_show_currently_online %}
-  <div class="dash-widget" data-widget-key="currently-online" {% if can_reorder %}draggable="true"{% endif %}>
+  <div class="dash-widget" data-widget-key="currently-online">
     {# Render the drag handle inline inside the widget's own card-head
        (see _online_widget.html). The flag keeps it dashboard-only — the
        same partial is reused standalone on the Watchtower Access page,

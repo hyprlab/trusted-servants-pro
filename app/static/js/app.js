@@ -2480,89 +2480,183 @@
     });
   });
 
-  // Dashboard widget drag-and-drop reorder.
-  //
-  // Save signal lives on ``dragend`` (always fires) rather than
-  // ``drop`` (only fires when the cursor is over a valid drop target
-  // on release). Releasing in the gap between widgets, between the
-  // last widget and the modal, or just outside the grid would
-  // otherwise silently drop the save while leaving the widget
-  // visually in its new spot — refresh would snap it back. Same fix
-  // pattern as the library-reorder save in 1.7.16.
-  //
-  // dragstart snapshots the original order; dragend compares to the
-  // current DOM order and only fires the POST when they actually
-  // differ, so a click-and-cancel doesn't write a redundant row.
+  // Dashboard reorder. Drag a widget by its head (any spot that isn't a
+  // link or button) or by its grip: the card lifts and follows the
+  // pointer, a dashed placeholder holds its place, and the others slide
+  // to make room (the masonry re-packs at once and each card animates
+  // from where it was). Dropping glides the card into the placeholder;
+  // Escape puts it back. With the grip focused, the arrow keys move the
+  // widget one place. The order is saved when it changes.
   onEachPage(function initDashboardReorder(){
     const grid = document.querySelector("[data-dashboard-reorder]");
     if (!grid || grid._tspReorder) return;
     grid._tspReorder = true;
     const url = grid.dataset.orderUrl;
-    let dragging = null;
-    let originalOrder = null;
+    const HEADS = ".dash-widget-head, .user-log-online > .card-head";
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const widgets = () => Array.from(grid.querySelectorAll(":scope > .dash-widget"));
+    const order = () => Array.from(grid.querySelectorAll(":scope > .dash-widget[data-widget-key]")).map(x => x.dataset.widgetKey);
+    const relayout = () => { if (typeof window.__tspDashLayout === "function") window.__tspDashLayout(); };
 
-    function currentOrder() {
-      return Array.from(grid.querySelectorAll(".dash-widget[data-widget-key]"))
-        .map(x => x.dataset.widgetKey);
-    }
-
-    async function commit() {
-      if (!url) return;
-      const order = currentOrder();
-      if (originalOrder && order.join("|") === originalOrder.join("|")) return;
+    async function commit(before) {
+      const now = order();
+      if (!url || now.join("|") === before.join("|")) return;
       try {
         await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
           credentials: "same-origin",
-          body: JSON.stringify({ order }),
+          body: JSON.stringify({ order: now }),
         });
       } catch (_) {}
     }
 
-    grid.querySelectorAll('.dash-widget[draggable="true"]').forEach(w => {
-      w.addEventListener("dragstart", (e) => {
-        if (e.target.closest("a, button, input, textarea, label, select, canvas")) {
-          if (!e.target.classList.contains("dash-drag-handle")) {
-            e.preventDefault();
-            return;
-          }
-        }
-        dragging = w;
-        originalOrder = currentOrder();
-        w.classList.add("dragging");
-        e.dataTransfer.effectAllowed = "move";
-        try { e.dataTransfer.setData("text/plain", w.dataset.widgetKey || ""); } catch(_) {}
+    // Move cards with a FLIP animation: note where each is, change the
+    // DOM, re-pack, then slide each from its old spot to its new one.
+    function animated(change, skip) {
+      const before = new Map();
+      widgets().forEach(el => { if (el !== skip) before.set(el, el.getBoundingClientRect()); });
+      change();
+      relayout();
+      if (reduced) return;
+      widgets().forEach(el => {
+        const a = before.get(el);
+        if (!a || el === skip) return;
+        const b = el.getBoundingClientRect();
+        const dx = a.left - b.left, dy = a.top - b.top;
+        if (!dx && !dy) return;
+        el.style.transition = "none";
+        el.style.transform = "translate(" + dx + "px," + dy + "px)";
+        el.getBoundingClientRect();
+        el.style.transition = "transform 220ms cubic-bezier(.2,.8,.2,1)";
+        el.style.transform = "";
+        el.addEventListener("transitionend", function done() {
+          el.style.transition = ""; el.removeEventListener("transitionend", done);
+        });
       });
-      w.addEventListener("dragend", () => {
-        w.classList.remove("dragging");
-        grid.querySelectorAll(".dash-widget.drag-over").forEach(x => x.classList.remove("drag-over"));
-        dragging = null;
-        commit();
-        originalOrder = null;
-        // Reorder may have changed which widget is now at which
-        // column position — recompute spans so the masonry repacks
-        // cleanly around the new arrangement.
-        if (typeof window.__tspDashLayout === "function") window.__tspDashLayout();
+    }
+
+    let drag = null;
+    function begin(e) {
+      const w = drag.w, r = w.getBoundingClientRect();
+      drag.started = true;
+      drag.before = order();
+      drag.offX = drag.x0 - r.left;
+      drag.offY = drag.y0 - r.top;
+      drag.home = w.nextElementSibling;
+      const ph = document.createElement("div");
+      ph.className = "dash-widget dash-placeholder" + (w.classList.contains("dash-widget-wide") ? " dash-widget-wide" : "");
+      ph.style.height = r.height + "px";
+      ph.style.gridRowEnd = w.style.gridRowEnd;
+      drag.ph = ph;
+      grid.insertBefore(ph, w);
+      Object.assign(w.style, { position: "fixed", left: r.left + "px", top: r.top + "px",
+                               width: r.width + "px", height: r.height + "px", margin: "0" });
+      w.classList.add("is-lifted");
+      document.body.classList.add("dash-dragging");
+      relayout();
+    }
+    function moveTo(e) {
+      const w = drag.w;
+      w.style.left = (e.clientX - drag.offX) + "px";
+      w.style.top = (e.clientY - drag.offY) + "px";
+      // Scroll when near the top or bottom of the window.
+      const edge = 60;
+      if (e.clientY < edge) window.scrollBy(0, -12);
+      else if (e.clientY > window.innerHeight - edge) window.scrollBy(0, 12);
+      // Where the slot goes: the masonry packs widgets into whichever gap
+      // fits, so "after the card under the pointer" can land in the other
+      // column. Instead, try the placeholder at each place in the order
+      // (no paint happens in between), keep the one whose slot sits
+      // nearest the lifted card, and slide everything there. At most
+      // every 90ms, and only once the card has moved a little.
+      const now = performance.now();
+      const lr = w.getBoundingClientRect();
+      const cx = lr.left + lr.width / 2, cy = lr.top + lr.height / 2;
+      if (now - (drag.lastTry || 0) < 90 || Math.hypot(cx - (drag.lastX || 0), cy - (drag.lastY || 0)) < 12) return;
+      drag.lastTry = now; drag.lastX = cx; drag.lastY = cy;
+      const ph = drag.ph;
+      const others = widgets().filter(el => el !== ph && el !== w);
+      const start = ph.nextElementSibling;
+      const dist = () => {
+        const r = ph.getBoundingClientRect();
+        return Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy);
+      };
+      let best = start, bestD = dist();
+      others.concat([null]).forEach(ref => {
+        if (ref === start) return;
+        grid.insertBefore(ph, ref);
+        const d = dist();
+        if (d < bestD - 4) { best = ref; bestD = d; }
       });
-      w.addEventListener("dragover", (e) => {
-        if (!dragging || dragging === w) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        const rect = w.getBoundingClientRect();
-        const after = (e.clientY - rect.top) > rect.height / 2;
-        w.classList.add("drag-over");
-        if (after) grid.insertBefore(dragging, w.nextSibling);
-        else grid.insertBefore(dragging, w);
-      });
-      w.addEventListener("dragleave", () => w.classList.remove("drag-over"));
-      // ``drop`` no longer commits — left in place only to swallow the
-      // default browser navigation that some browsers fire on drop
-      // events when not preventDefault'd.
-      w.addEventListener("drop", (e) => {
-        e.preventDefault();
-        w.classList.remove("drag-over");
-      });
+      grid.insertBefore(ph, start);
+      if (best !== start) animated(() => grid.insertBefore(ph, best), w);
+    }
+    function settle(cancel) {
+      const d = drag; drag = null;
+      if (!d || !d.started) return;
+      const w = d.w, ph = d.ph;
+      if (cancel) {
+        animated(() => { if (d.home && d.home.parentElement === grid) grid.insertBefore(ph, d.home); else grid.appendChild(ph); }, w);
+      }
+      const target = ph.getBoundingClientRect();
+      const land = () => {
+        w.classList.remove("is-lifted", "is-landing");
+        ["position", "left", "top", "width", "height", "margin", "transition"].forEach(k => { w.style[k] = ""; });
+        grid.insertBefore(w, ph);
+        ph.remove();
+        document.body.classList.remove("dash-dragging");
+        relayout();
+        if (!cancel) commit(d.before);
+      };
+      if (reduced) { land(); return; }
+      w.classList.add("is-landing");
+      w.style.transition = "left 180ms ease, top 180ms ease";
+      w.style.left = target.left + "px";
+      w.style.top = target.top + "px";
+      setTimeout(land, 190);
+    }
+
+    grid.addEventListener("pointerdown", e => {
+      if (e.button !== 0 || drag) return;
+      const grip = e.target.closest(".dash-drag-handle");
+      const head = e.target.closest(HEADS);
+      if (!grip && !head) return;
+      // Touch drags only from the grip, so swiping a head still scrolls.
+      if (!grip && e.pointerType === "touch") return;
+      if (!grip && e.target.closest("a, button, input, select, textarea, label, .heading-help")) return;
+      const w = e.target.closest(".dash-widget");
+      if (!w || w.parentElement !== grid) return;
+      e.preventDefault();
+      drag = { w, x0: e.clientX, y0: e.clientY, started: false };
+    });
+    window.addEventListener("pointermove", e => {
+      if (!drag) return;
+      if (!drag.started) {
+        if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6) return;
+        begin(e);
+      }
+      moveTo(e);
+    });
+    window.addEventListener("pointerup", () => settle(false));
+    window.addEventListener("pointercancel", () => settle(true));
+    window.addEventListener("keydown", e => { if (e.key === "Escape" && drag && drag.started) settle(true); });
+
+    // Keyboard: arrow keys on a grip move its widget one place.
+    grid.addEventListener("keydown", e => {
+      const grip = e.target.closest(".dash-drag-handle");
+      if (!grip) return;
+      const back = e.key === "ArrowUp" || e.key === "ArrowLeft";
+      const fwd = e.key === "ArrowDown" || e.key === "ArrowRight";
+      if (!back && !fwd) return;
+      e.preventDefault();
+      const w = grip.closest(".dash-widget");
+      const before = order();
+      const sib = back ? w.previousElementSibling : w.nextElementSibling;
+      if (!sib || !sib.classList.contains("dash-widget")) return;
+      animated(() => grid.insertBefore(w, back ? sib : sib.nextElementSibling));
+      grip.focus();
+      commit(before);
     });
   });
 

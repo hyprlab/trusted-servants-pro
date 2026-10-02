@@ -36,8 +36,7 @@
    reliably — Jinja's `{% set %}` inside a block doesn't always
    propagate into macros imported `with context` from outside the
    block. The macro is dashboard-only and every dashboard widget is
-   meant to be reorderable, so the draggable attribute and the handle
-   render unconditionally. #}
+   meant to be reorderable, so the grip renders unconditionally. #}
 {# The drag handle now sits inline inside the data-card-head, to the
    left of the leading title icon. The whole row uses the standard
    .data-card-head chrome so widgets read in the same visual language
@@ -50,11 +49,10 @@
                      badge_count=0, badge_title='', badge_key=None, wide=False,
                      help='', view_all_tab=None) %}
 <div class="dash-widget{% if wide %} dash-widget-wide{% endif %}"
-     data-widget-key="{{ key }}"
-     draggable="true">
+     data-widget-key="{{ key }}">
   <section class="card data-card">
     <div class="data-card-head dash-widget-head">
-      <span class="dash-drag-handle" aria-hidden="true">{{ icon('grip-vertical') }}</span>
+      <button type="button" class="dash-drag-handle" aria-label="Move this widget (arrow keys)" title="Drag to move, or use the arrow keys">{{ icon('grip-vertical') }}</button>
       {% if head_icon %}<span class="data-card-head-icon" aria-hidden="true">{{ icon(head_icon) }}</span>{% endif %}
       <span class="dash-widget-title">
         {{ title }}
