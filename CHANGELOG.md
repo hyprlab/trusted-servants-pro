@@ -83,6 +83,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `.sidebar nav a.active`: weight 650 and a 3px brand bar (`::before`); `.sidebar nav` reaches 6px left (negative margin, matching padding) so its sideways clip doesn't cut the bar. `.settings-tab.active` gets the same bar and weight on desktop (not in the phone list view).
 - Sidebar top (`base.html`): `.sidebar-dash-btn`, `.sidebar-quicknav` (Web / View / Watchtower), `.sidebar-notif-btn` and `.sidebar-search-btn` are replaced by one `.side-top` group of `.side-item` rows sharing the nav links' metrics and active style; the public-site link is `.side-item-end` inside Web Frontend's `.side-item-row`, with `.side-live-dot`. Hooks are unchanged (`data-open-search`, `data-notifications-trigger`, `data-live-chip`, `data-live-chip-group`). `tspSwapPage` swaps `.side-top` whole.
 - Sidebar: the brand, `.side-top` and `#sidebar-nav` share one scroll container, `#sidebar-scroll` (scroll memory and the live nav refresh now track it); the nav no longer scrolls on its own. `_sidebar_nav.html` gives every link a `.nav-icon` (`_nav_icons` by key, with prefixes for Intergroup libraries, forms and external links) and a `.nav-label`; links are flex rows. Action rows drop their leading "+ " for the plus icon.
+- `build_sidebar` labels the `main` section "Main", so it renders with a collapsible divider like the others; the first section's divider drops its top rule under `.side-top`.
 
 ### Fixed
 

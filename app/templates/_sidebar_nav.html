@@ -4,11 +4,10 @@
    for visibility + ordering is app/sidebar.py — this template just
    loops the result.
 
-   Labelled sections (Intergroup / External / Admin) render as
-   collapsible groups: the divider becomes a button that toggles a
-   wrapper around the section's items. The first section ("main")
-   has no label and so is never collapsible. Collapsed/expanded
-   state is persisted per-section in localStorage by app.js. #}
+   Every section (Main / Forms / Intergroup / External / Admin) renders
+   as a collapsible group: the divider is a button that toggles a
+   wrapper around the section's items. Collapsed/expanded state is
+   persisted per-section in localStorage by app.js. #}
 {% set _sidebar = sidebar_data(site, nav_links) %}
 {# Each entry's icon, by key or key prefix (libraries, forms and links
    are numbered); anything new falls back to a plain page. #}

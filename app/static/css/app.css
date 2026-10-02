@@ -3037,6 +3037,9 @@ button.sidebar-section-toggle:focus-visible { outline: 2px solid var(--brand); o
 button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
   transform: rotate(-90deg);
 }
+/* The first section's heading sits right under the rows at the top,
+   which already end in a rule. */
+#sidebar-nav > .sidebar-section-toggle:first-child { border-top: 0; margin-top: 2px; padding-top: 2px; }
 .sidebar-section-items { display: flex; flex-direction: column; gap: 2px; }
 .sidebar-section-items[hidden] { display: none; }
 .sidebar-footer { flex: 0 0 auto; padding-top: 14px; border-top: 1px solid var(--border);

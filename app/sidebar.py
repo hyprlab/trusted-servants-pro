@@ -542,7 +542,7 @@ def build_sidebar(site, user, current_endpoint, nav_links, url_for):
     intergroup_items = _build_intergroup_items(site, user, current_endpoint, url_for)
     forms_items = _build_forms_items(site, user, current_endpoint, url_for)
     sections = [
-        ("main",       None,         main_items),
+        ("main",       "Main",       main_items),
         ("forms",      "Forms",      forms_items),
         ("intergroup", "Intergroup", intergroup_items),
         ("external",   "External",   external_items),
