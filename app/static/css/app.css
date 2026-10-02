@@ -18570,6 +18570,9 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .tp-pick-menu .tp-item > span:first-child { flex: 1 1 auto; min-width: 0; }
 .tp-pick-menu .tp-item-sub { flex: 0 1 auto; min-width: 0; max-width: 55%; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tp-pick-menu .tp-item.is-active .tp-item-sub { color: var(--brand); }
+/* The New … row under the groups: the same space above its rule as
+   between the groups (a column's last margin doesn't count). */
+.tp-pick-menu .tp-pick-actions { margin-top: 12px; padding-top: 10px; }
 
 /* Design page: the same 60/40 split as the other studios, its groups
    chosen with a segmented control at the top of the settings column. */
