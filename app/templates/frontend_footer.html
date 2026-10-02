@@ -61,7 +61,6 @@
     <h2>Footer {% call chip('Footer') %}Edits show in the preview straight away and are saved with the yellow Save button. A part marked Not shown isn't in the current layout; what you enter in it is kept.{% endcall %}</h2>
   </div>
   {% set _fs_sections = [
-    ('layout', 'Layout', 'layout-grid', active_name),
     ('brand', 'Brand', 'star', 'Logo and tagline'),
     ('link_columns', 'Link columns', 'columns', (_f.columns|length) ~ ' column' ~ ('' if _f.columns|length == 1 else 's') ~ ' of links'),
     ('secondary_nav', 'Secondary links', 'list', 'Small links such as privacy and terms'),
@@ -76,13 +75,13 @@
      (static/js/fe_rows.js), like the Header page's rows. #}
   {% macro fs_part(key) -%}
     {% set _m = _fs_meta[key] %}
-    {% set _shown = key == 'layout' or key in used_types %}
+    {% set _shown = key in used_types %}
     <div class="ol-row fs-part" data-ol-row data-ol-key="ft-{{ key }}" id="ft-part-{{ key }}">
       <div class="ol-head">
         <button type="button" class="ol-toggle" data-ol-toggle aria-expanded="false">
           <span class="ol-glyph">{{ icon(_m[1]) }}</span>
           <span class="ol-text"><b>{{ _m[0] }}</b><small>{{ _m[2] }}</small></span>
-          {% if key != 'layout' %}<span class="fs-state{% if _shown %} is-on{% endif %}" data-fs-status="{{ key }}">{{ 'Shown' if _shown else 'Not shown' }}</span>{% endif %}
+          <span class="fs-state{% if _shown %} is-on{% endif %}" data-fs-status="{{ key }}">{{ 'Shown' if _shown else 'Not shown' }}</span>
           <span class="ol-chev">{{ icon('chevron-down') }}</span>
         </button>
       </div>
@@ -110,13 +109,15 @@
       {{ live_preview(url_for('frontend.index'), '#footer-form', height=320, title='Footer preview', only=LP_FOOTER, fit=True) }}
     </div>
     <div class="st-controls">
-      <p class="st-panel-intro">Pick a part of the footer to edit its content. How it looks is on <a href="{{ url_for('main.frontend_design') }}#footer">Design → Footer</a>.</p>
-      <div class="ol-list fs-list">
+      <nav class="st-seg" role="tablist" aria-label="Footer settings">
+        <button type="button" role="tab" data-studio-tab="layout">{{ icon('layout-grid') }}<span>Layout</span></button>
+        <button type="button" role="tab" data-studio-tab="options">{{ icon('sliders') }}<span>Options</span></button>
+      </nav>
 
       {# ── Layout: which layout, and for a custom one its rows. ── #}
-      {% call fs_part('layout') %}
+      <div class="st-panel" data-studio-panel="layout">
         <div class="ds-group">
-          <h3 class="ds-group-title">{{ icon('layout-grid') }}Layout</h3>
+          <h3 class="ds-group-title">{{ icon('layout-grid') }}Footer layout</h3>
           <div class="fe-flayouts" role="radiogroup" aria-label="Footer layout">
             {% for l in footer_layouts %}
             {% set _blocks = (l.blocks_json|from_json) if l.blocks_json else [] %}
@@ -191,7 +192,12 @@
           <button type="submit" class="btn btn-primary btn-sm" formaction="{{ url_for('main.frontend_footer_customize') }}">{{ icon('copy') }} Customize this layout</button>
         </div>
         {% endif %}
-      {% endcall %}{# /fs_part #}
+      </div>
+
+      {# ── Options: each part of the footer's content. ── #}
+      <div class="st-panel" data-studio-panel="options" hidden>
+      <p class="st-panel-intro">Pick a part of the footer to edit its content. How it looks is on <a href="{{ url_for('main.frontend_design') }}#footer">Design → Footer</a>.</p>
+      <div class="ol-list fs-list">
 
   {# ── Brand block ── only render when the active layout uses it. The
      card's content still posts to the form when shown; when hidden the
@@ -728,7 +734,7 @@
     </div>
   {% endcall %}{# /fs_part #}
       </div>
-
+      </div>
 
     </div>
   </div>

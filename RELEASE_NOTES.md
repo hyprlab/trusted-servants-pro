@@ -104,6 +104,7 @@ release notes expanded by default and the changelog collapsed.
 - In the page and popup structure, each container's name and its Settings, Duplicate and Remove buttons sit on one line above its contents, so nested containers keep their width; columns stack when they would be too narrow to read, and a block's buttons appear over it on hover. The block list can be folded to a narrow strip to give the structure more room, and stays folded until opened again.
 - The page template shared by the Announcements/Events form, the Story form and custom forms is named Submission form in Page templates and Design → Layout, instead of Forms.
 - The menus for choosing a page template, page, popup or form show each group in its own box under a shaded heading, with one line per entry: its name on the left and its layout, address or status on the right.
+- The Footer page's settings have a Layout and Options switch above them, like the Header page: Layout chooses the footer layout and arranges its rows and blocks, Options holds the footer's parts (brand, link columns, social icons and the rest). Clicking a block on the Layout side opens its part under Options.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

@@ -109,6 +109,11 @@
     var row = document.querySelector('[data-ol-row][data-ol-key="' + g.getAttribute('data-ol-goto') + '"]');
     if (!row) return;
     e.preventDefault();
+    // A row on another studio tab (the footer's Layout pills open parts
+    // on Options): show that tab first.
+    var panel = row.closest('[data-studio-panel]');
+    var studio = panel && panel.closest('[data-studio]');
+    if (panel && panel.hidden && studio && studio._studioShow) studio._studioShow(panel.getAttribute('data-studio-panel'), true);
     setOpen(row, true);
     row.scrollIntoView({ block: 'start', behavior: 'smooth' });
   });
