@@ -916,15 +916,20 @@
           // shown via the danger toast even though the HTTP status
           // is 200 — matches the pattern used by email-test, where
           // an SMTP failure isn't an HTTP failure.
-          if (data && data.pageGone) {
-            showSettingsToast("Saved. This page is no longer available, so you're going to the dashboard.");
-            setTimeout(() => { window.location.href = "/tspro/"; }, 1200);
+          // A module turned off: its pages are gone, so go to the
+          // Dashboard, which is always on (and reload it if already
+          // there, so its widgets follow).
+          const moduleOff = f.matches(".special-page-toggle-form") &&
+            !f.querySelector('input[type="checkbox"]:checked');
+          if (moduleOff || (data && data.pageGone)) {
+            showSettingsToast("Saved. Going to the Dashboard.");
+            setTimeout(() => { window.location.href = "/tspro/"; }, 900);
           } else if (data && typeof data.message === "string") {
             showSettingsToast(data.message, data.ok === false ? "danger" : "success");
           } else {
             showSettingsToast(isTestForm ? "Test sent" : "Saved");
           }
-          if (f.dataset.reloadOnSave === "1" && !(data && data.pageGone)) {
+          if (f.dataset.reloadOnSave === "1" && !moduleOff && !(data && data.pageGone)) {
             setTimeout(() => window.location.reload(), 400);
           }
         } catch (err) {
