@@ -1,6 +1,6 @@
 {% from "_help_chip.html" import chip, hrow %}
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light"{% if current_user.is_authenticated and current_user.theme_pref %} data-theme-pref="{{ current_user.theme_pref }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -39,9 +39,21 @@
         document.documentElement.classList.remove('tsp-preload');
       }); });
     });
-    var t = null;
-    try { t = localStorage.getItem('tsp-theme'); } catch(e){}
-    if (t) document.documentElement.setAttribute('data-theme', t);
+    // Light or dark before the first paint: the account's choice
+    // (data-theme-pref); signed out, or not chosen yet, what this browser
+    // last used (older theme names map to light or dark), else the
+    // device. app.js keeps it in step after that.
+    (function () {
+      var root = document.documentElement, pref = root.getAttribute('data-theme-pref'), t = null;
+      if (!pref) {
+        try { t = localStorage.getItem('tsp-theme'); } catch (e) {}
+        pref = !t ? 'system' : (t === 'system' || t === 'light' || t === 'dark') ? t
+             : (/dark|cyberpunk/.test(t) ? 'dark' : 'light');
+      }
+      var dark = pref === 'dark' || (pref === 'system' && window.matchMedia &&
+                 window.matchMedia('(prefers-color-scheme: dark)').matches);
+      root.setAttribute('data-theme', dark ? 'dark' : 'light');
+    })();
     // Visitor-metrics + Watchtower pages render both Unique-visitors
     // and Hits versions of every count; set the mode class on <html>
     // before paint so the inactive side never flashes.
@@ -126,10 +138,6 @@
 <style id="tsp-unstyled-guard">
   html { visibility: hidden; background: #f6f7fb; }
   html[data-theme="dark"] { background: #0f1117; }
-  html[data-theme="neobrutal-light"] { background: #fef9c3; }
-  html[data-theme="neobrutal-dark"] { background: #18181b; }
-  html[data-theme="solarpunk"] { background: #f5f7e8; }
-  html[data-theme="cyberpunk"] { background: #05050a; }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css', v=app_build_id) }}">
 {# dynbg recipe library — shared with the frontend. Loaded here too so the
@@ -418,29 +426,16 @@
     <div class="settings-body">
       <div class="settings-pane active" data-pane="appearance">
 
-        {# ── Theme picker (visible to everyone) ──────────────────── #}
+        {# ── Light or dark (everyone, saved to their account) ─────── #}
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('sun') }}
-            <span>Theme {% call chip('Theme') %}Choose how the admin portal looks for your account. The setting is per-user, not global.{% endcall %}</span>
+            <span>Appearance {% call chip('Appearance') %}How the portal looks for your account, on any device you sign in from. Follow system matches your device's light or dark setting and switches with it. The sun and moon button at the foot of the sidebar switches too.{% endcall %}</span>
           </div>
-          <div class="theme-picker" role="radiogroup" aria-label="Theme">
-            {% for t in [
-              ('light', 'Light', '#f6f7fb', '#ffffff', '#5b6ef4'),
-              ('dark', 'Dark', '#0f1117', '#171923', '#7d8dff'),
-              ('neobrutal-light', 'Neobrutal Light', '#fef9c3', '#ffffff', '#ec4899'),
-              ('neobrutal-dark', 'Neobrutal Dark', '#18181b', '#27272a', '#f472b6'),
-              ('cyberpunk', 'Cyberpunk', '#05050a', '#0f0a1f', '#ff2bd6'),
-              ('solarpunk', 'Solarpunk', '#f5f7e8', '#ffffff', '#1e9e6a'),
-            ] %}
-            <button type="button" class="theme-swatch" data-theme-value="{{ t[0] }}" role="radio" aria-checked="false">
-              <span class="swatch-preview" style="background: {{ t[2] }};">
-                <span class="sw-panel" style="background: {{ t[3] }};"></span>
-                <span class="sw-accent" style="background: {{ t[4] }};"></span>
-              </span>
-              <span class="swatch-label">{{ t[1] }}</span>
-            </button>
-            {% endfor %}
+          <div class="ds-seg-btns theme-mode" role="radiogroup" aria-label="Light or dark">
+            <button type="button" role="radio" aria-checked="false" data-theme-pref-value="system">{{ icon('monitor') }}Follow system</button>
+            <button type="button" role="radio" aria-checked="false" data-theme-pref-value="light">{{ icon('sun') }}Light</button>
+            <button type="button" role="radio" aria-checked="false" data-theme-pref-value="dark">{{ icon('moon') }}Dark</button>
           </div>
         </section>
 

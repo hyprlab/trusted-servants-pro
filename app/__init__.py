@@ -2033,7 +2033,9 @@ def _migrate_sqlite(app):
                          ("mfa_recovery_codes_json", "TEXT"),
                          # Master "2FA on for this account" switch, distinct
                          # from mfa_enabled (enrolment complete).
-                         ("mfa_required", "BOOLEAN NOT NULL DEFAULT 0")):
+                         ("mfa_required", "BOOLEAN NOT NULL DEFAULT 0"),
+                         # Admin look: system / light / dark (empty: not yet chosen).
+                         ("theme_pref", "VARCHAR(8)")):
             add("user", col, ddl)
         # 2.14.0 shipped before mfa_required existed and gated the login
         # challenge on mfa_enabled alone. Under the new master-gate model

@@ -75,6 +75,9 @@ class User(UserMixin, db.Model):
     # welcome emails, the Trusted Servants list pre-fill, and the
     # admin Users table.
     name = db.Column(db.String(120))
+    # Admin look: "system" (follow the device), "light" or "dark". Empty
+    # until first chosen; the browser's earlier choice is carried over then.
+    theme_pref = db.Column(db.String(8))
     # Optional contact number captured at user creation. Prefilled from
     # the matching access-request row when the admin clicks Create User
     # from the Access Requests page; editable on the Users panel later.

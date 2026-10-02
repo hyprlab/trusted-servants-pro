@@ -18,48 +18,62 @@
 })();
 
 (function () {
+  // ── Light or dark ──
+  // Each account chooses Follow system, Light or Dark (Settings →
+  // Appearance, or the sidebar's sun/moon button); it's saved to the
+  // account (/tspro/account/theme) and kept in localStorage for the
+  // signed-out pages. The <head> script has already applied it.
   const root = document.documentElement;
-  const THEME_MODE = {
-    "light": "light", "dark": "dark",
-    "neobrutal-light": "light", "neobrutal-dark": "dark",
-    "cyberpunk": "dark", "solarpunk": "light",
+  const darkQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  const PREFS = ["system", "light", "dark"];
+  const fromBrowser = () => {
+    let t = null;
+    try { t = localStorage.getItem("tsp-theme"); } catch (_) {}
+    if (!t) return "system";
+    if (PREFS.includes(t)) return t;
+    return /dark|cyberpunk/.test(t) ? "dark" : "light";  // the old theme names
   };
-  const stored = localStorage.getItem("tsp-theme");
-  if (stored && THEME_MODE[stored]) root.setAttribute("data-theme", stored);
-
-  function syncThemePicker() {
-    const cur = root.getAttribute("data-theme") || "light";
-    document.querySelectorAll(".theme-swatch").forEach(el => {
-      el.setAttribute("aria-checked", el.dataset.themeValue === cur ? "true" : "false");
+  let themePref = root.dataset.themePref || fromBrowser();
+  const resolveTheme = p => (p === "dark" || (p === "system" && darkQuery && darkQuery.matches)) ? "dark" : "light";
+  function applyTheme() {
+    root.setAttribute("data-theme", resolveTheme(themePref));
+    document.querySelectorAll("[data-theme-pref-value]").forEach(b => {
+      b.setAttribute("aria-checked", b.dataset.themePrefValue === themePref ? "true" : "false");
     });
   }
-  function setTheme(next, {remember = true} = {}) {
-    if (!THEME_MODE[next]) next = "light";
-    root.setAttribute("data-theme", next);
-    localStorage.setItem("tsp-theme", next);
-    if (remember) localStorage.setItem("tsp-theme-last-" + THEME_MODE[next], next);
-    syncThemePicker();
+  function saveTheme(p) {
+    if (!PREFS.includes(p)) return;
+    themePref = p;
+    root.dataset.themePref = p;
+    try { localStorage.setItem("tsp-theme", p); } catch (_) {}
+    applyTheme();
+    if (window.tspUser && window.tspUser.role) {
+      fetch("/tspro/account/theme", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
+        body: JSON.stringify({ pref: p }),
+      }).catch(() => {});
+    }
   }
-  const THEME_PAIR = {
-    "light": "dark", "dark": "light",
-    "neobrutal-light": "neobrutal-dark", "neobrutal-dark": "neobrutal-light",
-    "solarpunk": "cyberpunk", "cyberpunk": "solarpunk",
-  };
-  function toggleLightDark() {
-    const cur = root.getAttribute("data-theme") || "light";
-    setTheme(THEME_PAIR[cur] || "dark");
+  if (darkQuery) {
+    const onDevice = () => { if (themePref === "system") applyTheme(); };
+    if (darkQuery.addEventListener) darkQuery.addEventListener("change", onDevice);
+    else if (darkQuery.addListener) darkQuery.addListener(onDevice);
   }
-  const sidebarToggle = document.getElementById("theme-toggle");
-  if (sidebarToggle) sidebarToggle.addEventListener("click", toggleLightDark);
-  document.querySelectorAll(".theme-swatch").forEach(el => {
-    el.addEventListener("click", () => setTheme(el.dataset.themeValue));
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-theme-pref-value]");
+    if (b) saveTheme(b.dataset.themePrefValue);
   });
-  // Seed "last" memory from current theme on first load
-  const curInit = root.getAttribute("data-theme") || "light";
-  const curMode = THEME_MODE[curInit] || "light";
-  if (!localStorage.getItem("tsp-theme-last-" + curMode))
-    localStorage.setItem("tsp-theme-last-" + curMode, curInit);
-  syncThemePicker();
+  const sidebarToggle = document.getElementById("theme-toggle");
+  if (sidebarToggle) sidebarToggle.addEventListener("click", () => {
+    saveTheme(root.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+  // Signed in but never chosen on the account: keep what this browser
+  // had (an old theme becomes light or dark) by saving it once.
+  if (!root.dataset.themePref && window.tspUser && window.tspUser.role) {
+    try { if (localStorage.getItem("tsp-theme")) saveTheme(themePref); } catch (_) {}
+  }
+  applyTheme();
 
   const menu = document.getElementById("menu-toggle");
   const side = document.querySelector(".sidebar");

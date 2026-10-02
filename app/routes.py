@@ -8022,6 +8022,22 @@ def public_file(filename):
     return resp
 
 
+THEME_PREFS = ("system", "light", "dark")
+
+
+@bp.route("/account/theme", methods=["POST"])
+@login_required
+def account_theme_save():
+    """Save the signed-in user's admin look: system, light or dark."""
+    data = request.get_json(silent=True) or request.form
+    pref = (data.get("pref") or "").strip().lower()
+    if pref not in THEME_PREFS:
+        return jsonify(ok=False, error="Unknown theme"), 400
+    current_user.theme_pref = pref
+    db.session.commit()
+    return jsonify(ok=True, pref=pref)
+
+
 @bp.route("/settings/pic-save", methods=["POST"])
 @admin_required
 def pic_save():
@@ -18176,8 +18192,8 @@ WIZARD_STEPS = [
      "desc": "Shown to members in the Need Help popup. Leave blank if your group doesn't have one yet."},
     {"n": 3, "key": "smtp", "title": "Email (SMTP)",
      "desc": "Used for sending access-request notifications and test emails."},
-    {"n": 4, "key": "theme", "title": "Pick a theme",
-     "desc": "Choose the look you want. Themes are saved per-user in your browser."},
+    {"n": 4, "key": "theme", "title": "Light or dark",
+     "desc": "How the portal looks for your account. Follow system matches your device. You can change it later in Settings → Appearance."},
     {"n": 5, "key": "branding", "title": "Branding",
      "desc": "Optional sidebar footer logo shown throughout the portal."},
     {"n": 6, "key": "turnstile", "title": "Login bot protection",

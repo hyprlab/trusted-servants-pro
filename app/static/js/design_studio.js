@@ -287,8 +287,7 @@
     tab: stored('ds-tab') || 'colors',
     kind: { cards: stored('ds-kind-cards') || 'primary', buttons: stored('ds-kind-buttons') || 'primary' },
     mode: stored('ds-mode') ||
-      (['dark', 'neobrutal-dark', 'cyberpunk'].indexOf(
-        document.documentElement.getAttribute('data-theme')) !== -1 ? 'dark' : 'light'),
+      (document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'),
   };
   // A link such as Design#megamenu opens that tab.
   var hashTab = (window.location.hash || '').slice(1);

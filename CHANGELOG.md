@@ -16,6 +16,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `_confirm_modal.html` and `window.tspConfirm({title, message, confirmLabel})` (`app.js`): an in-app confirmation dialog that resolves true or false. A form with `data-confirm` (plus optional `data-confirm-title`, `data-confirm-label`) asks before submitting, in place of a native `confirm()`. Settings → Global uses it for location deletes and officer / fellowship row removal.
 - Settings → Global sorting: `.erow-head` and `[data-glist-sort]` hold `.erow-sort` buttons (`wireSort` / `wireRowSort` in `locations.html`); officer and fellowship rows are reordered in the form, so a save stores the sorted order (`sort_order` follows the posted order).
 - `SiteSetting.pic_title` (`pic_role_label` falls back to "Public Information Chair") and `IntergroupOfficer.is_pic`, both added by `_migrate_sqlite`. `pic_save` stores the title; `_sync_pic_officer` writes it as the officer's position. `_pic_officer` finds the `is_pic` row, and adopts the existing row titled Public Information Chair (or the current title) on first use. The help modal, `frontend/contact.html` and `frontend/blocks/contact.html` show `pic_role_label`.
+- `User.theme_pref` (`system` / `light` / `dark`, empty until chosen; added by `_migrate_sqlite`) and `POST /tspro/account/theme` (`account_theme_save`). `base.html` and `setup.html` carry it as `data-theme-pref` and resolve `data-theme` before paint (falling back to the browser's `tsp-theme`, with old theme names mapped to light or dark, then `prefers-color-scheme`); `app.js` follows device changes under `system`, saves from `[data-theme-pref-value]` controls and `#theme-toggle`, and migrates a browser's old choice to the account once.
 
 ### Changed
 
@@ -130,6 +131,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The unused `frontend/footers/recovery-blue.html` (not in `FOOTER_TEMPLATES`), the `frontend_footer_text` context value only it read, the `/frontend/footer-template` route and the footer page's own second save bar.
 - The unused `frontend_form_submission_import_to_story` route and the `_default_*_form_blocks` / `_resolve_module_form_fields` helpers.
 - The site index "Sort order" setting from the admin: no layout read it. Contact and Recovery Contacts page copy is no longer on Page templates (it is on their forms).
+- The Neobrutal Light, Neobrutal Dark, Cyberpunk and Solarpunk admin themes: their `[data-theme]` tokens and rules in `app.css`, the `.theme-picker` swatches in Settings → Appearance and the setup wizard, and their unstyled-page guard backgrounds. Web Frontend themes are unaffected.
 
 ## [2.20.2] — 2026-09-30
 
