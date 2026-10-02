@@ -18456,12 +18456,16 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
   border-radius: 10px; background: var(--panel-2); color: var(--text); font: inherit; font-size: var(--fs-sm); }
 .fb-search input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); background: var(--panel); }
 .fb-count { font-size: var(--fs-sm); white-space: nowrap; }
-.fb-sort { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
-.fb-sort-select { margin: 0; }
-.fb-sort-select select { min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--panel); color: var(--text); font: inherit; font-size: var(--fs-sm); }
-.fb-dir { min-height: 34px; width: 34px; padding: 0; justify-content: center; }
-.fb-dir .icon { width: 15px; height: 15px; }
+/* Sorting: the list's column headings, or this row (the grid; the list
+   on a phone). Links styled like the Global page's sort headings. */
+.fb-sortbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-left: auto; }
+.fb-sortbar--list { display: none; }
+.fb-sortbar-label { font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); }
+.fb-sort-link { text-decoration: none; }
+.fb-sort-link:hover { text-decoration: none; }
+.fb-tbl th .fb-sort-link { font-size: inherit; letter-spacing: inherit; }
+.fb-tbl th.fb-num .fb-sort-link { justify-content: flex-end; }
+@media (max-width: 760px) { .fb-sortbar--list { display: flex; margin-left: 0; } }
 .fb-view > a { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 6px;
   font-size: var(--fs-sm); font-weight: 600; line-height: 1.2; color: var(--muted); text-decoration: none; white-space: nowrap; }
 .fb-view > a:hover { color: var(--text); text-decoration: none; }

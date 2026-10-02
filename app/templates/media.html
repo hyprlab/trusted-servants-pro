@@ -46,6 +46,25 @@
   {%- if n < 1024 %}{{ n }} B{% elif n < 1048576 %}{{ (n / 1024)|round|int }} KB{% else %}{{ '%.1f'|format(n / 1048576) }} MB{% endif -%}
 {%- endmacro %}
 {% macro _when(m) -%}{{ m.created_at|fmt_site_local('%b %-d, %Y') if m.created_at else '' }}{%- endmacro %}
+{# Sorting: click a column (or, in the grid, a Sort by button) to sort by
+   it; click it again to reverse. A new column starts A to Z for text and
+   largest / newest first for size and upload date. #}
+{% set SORT_FIRST_DIR = {'name': 'asc', 'type': 'asc', 'by': 'asc', 'size': 'desc', 'uploaded': 'desc'} %}
+{% macro _sort_url(key) -%}
+  {{ url_for('main.media_list', view=view, sort=key,
+             dir=(('asc' if direction == 'desc' else 'desc') if sort == key else SORT_FIRST_DIR[key]),
+             q=q, picker=_pkr, embed=_emb) }}
+{%- endmacro %}
+{% macro _sort_link(key, label, cls='') -%}
+  {%- set _on = sort == key -%}
+  <a class="erow-sort fb-sort-link{{ ' ' ~ cls if cls }}" href="{{ _sort_url(key) }}"
+     {% if _on %}data-dir="{{ direction }}" aria-current="true"{% endif %}
+     title="{% if _on %}Sorted by {{ label|lower }}: click to reverse{% else %}Sort by {{ label|lower }}{% endif %}">{{ label }}</a>
+{%- endmacro %}
+{% macro _sort_th(key, label, cls='') -%}
+  {%- set _on = sort == key -%}
+  <th class="{{ cls }}"{% if _on %} aria-sort="{{ 'ascending' if direction == 'asc' else 'descending' }}"{% endif %}>{{ _sort_link(key, label) }}</th>
+{%- endmacro %}
 {# A file's actions: Copy link, Download, Rename and Delete (Delete asks
    first). Rename and Delete show for editors and grey out when this
    file isn't theirs to change; viewers see Copy and Download only. #}
@@ -99,18 +118,11 @@
       <input type="search" name="q" value="{{ q }}" placeholder="Search by filename" aria-label="Search by filename">
     </form>
     <span class="fb-count muted">{% if pagination %}{{ pagination.total }}{% else %}{{ items|length }}{% endif %} file{{ '' if (pagination.total if pagination else items|length) == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}</span>
-    <div class="fb-sort">
-      <label class="fb-sort-select">
-        <span class="sr-only">Sort by</span>
-        <select onchange="window.location=this.value" aria-label="Sort by">
-          {% for k, lbl in [('uploaded','Newest'),('name','Name'),('type','Type'),('size','Size')] %}
-          <option value="{{ url_for('main.media_list', view=view, sort=k, dir=direction, q=q, picker=_pkr, embed=_emb) }}" {% if sort==k %}selected{% endif %}>{{ 'Uploaded' if k == 'uploaded' else lbl }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <a class="btn btn-sm fb-dir" title="{{ 'Descending' if direction == 'desc' else 'Ascending' }}: switch"
-         aria-label="Sort {{ 'ascending' if direction == 'desc' else 'descending' }}"
-         href="{{ url_for('main.media_list', view=view, sort=sort, dir=('desc' if direction=='asc' else 'asc'), q=q, picker=_pkr, embed=_emb) }}">{{ icon('arrow-down' if direction == 'desc' else 'arrow-up') }}</a>
+    {# The grid has no column headings, and a phone hides the list's:
+       these do their job there. #}
+    <div class="fb-sortbar{{ ' fb-sortbar--list' if view != 'grid' }}" role="group" aria-label="Sort files">
+      <span class="fb-sortbar-label">Sort by</span>
+      {{ _sort_link('name', 'Name') }}{{ _sort_link('type', 'Type') }}{{ _sort_link('size', 'Size') }}{{ _sort_link('uploaded', 'Uploaded') }}{{ _sort_link('by', 'By') }}
     </div>
     <div class="ds-seg-btns fb-view" role="group" aria-label="View">
       <a href="{{ url_for('main.media_list', view='list', sort=sort, dir=direction, q=q, picker=_pkr, embed=_emb) }}"
@@ -166,7 +178,7 @@
   {% else %}
   <table class="tbl media-tbl fb-tbl">
     <thead>
-      <tr><th class="fb-thumb-col"><span class="sr-only">Preview</span></th><th>Name</th><th class="fb-col">Type</th><th class="fb-col fb-num">Size</th><th class="fb-col">Uploaded</th><th class="fb-col fb-col-wide">By</th><th><span class="sr-only">Actions</span></th></tr>
+      <tr><th class="fb-thumb-col"><span class="sr-only">Preview</span></th>{{ _sort_th('name', 'Name') }}{{ _sort_th('type', 'Type', 'fb-col') }}{{ _sort_th('size', 'Size', 'fb-col fb-num') }}{{ _sort_th('uploaded', 'Uploaded', 'fb-col') }}{{ _sort_th('by', 'By', 'fb-col fb-col-wide') }}<th><span class="sr-only">Actions</span></th></tr>
     </thead>
     <tbody>
       {% for m in items %}

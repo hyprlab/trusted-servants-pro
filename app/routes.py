@@ -16575,11 +16575,18 @@ def media_list():
             else_="zzz",
         )
         order_cols = [type_case, name_col, MediaItem.id]
+    elif sort == "by":
+        # Who uploaded it; files with no recorded uploader go last
+        # whichever way the list runs.
+        query = query.outerjoin(User, MediaItem.uploaded_by == User.id)
+        order_cols = [func.lower(User.username), name_col, MediaItem.id]
     else:  # uploaded (created_at)
         order_cols = [MediaItem.created_at, MediaItem.id]
 
     if direction == "desc":
         order_cols = [c.desc() for c in order_cols]
+    if sort == "by":
+        order_cols = [case((User.username.is_(None), 1), else_=0)] + order_cols
     query = query.order_by(*order_cols)
 
     total = query.count()

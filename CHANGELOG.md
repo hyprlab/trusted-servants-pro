@@ -100,6 +100,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `.topbar` uses `var(--shadow)`.
 - `meeting_detail.html`: the Zoom card carries `.zoom-card--brand`, a pale blue background (`--zc-bg`, with a dark-mode value) and matching dividers, with white chips and OTP panel; buttons are the defaults. The Google Meet and Teams cards are unchanged.
 - `media.html`: a single `.fb-toolbar` (search, count, sort, `.fb-view` segmented List / Grid) replaces the top-bar view and sort controls and the picker's copy of them; list rows (`.fb-tbl`) gain an Uploaded column and `_size()` formatting, with columns folding into `.fb-sub--narrow` under 760px; grid cards (`.fb-card`) show name, size and date with a compact `row_menu` (new `compact` option, icon-only). File actions share an `_actions` macro, and delete uses `data-confirm`. Thumbnails fall back to the type icon on image load errors (`.is-broken`). Adds a global `.sr-only` utility. The old phone `.media-tbl` rules are removed.
+- File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
 
