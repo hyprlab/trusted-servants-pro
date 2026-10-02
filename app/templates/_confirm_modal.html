@@ -1,0 +1,22 @@
+{# The confirmation shown before anything is deleted (app.js tspConfirm).
+   A form with data-confirm="<message>" asks here before it submits;
+   data-confirm-title and data-confirm-label set the heading and the
+   button (default "Delete"). Scripts call window.tspConfirm({title,
+   message, confirmLabel}), which resolves true or false. #}
+<div class="modal confirm-modal" id="tsp-confirm" aria-hidden="true">
+  <div class="modal-backdrop" data-confirm-cancel></div>
+  <div class="modal-panel" role="alertdialog" aria-modal="true"
+       aria-labelledby="tsp-confirm-title" aria-describedby="tsp-confirm-msg">
+    <div class="modal-body confirm-body">
+      <span class="confirm-icon" aria-hidden="true">{{ icon('trash-2') }}</span>
+      <div class="confirm-text">
+        <h2 id="tsp-confirm-title">Delete this?</h2>
+        <p id="tsp-confirm-msg"></p>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-confirm-cancel>Cancel</button>
+      <button type="button" class="btn btn-danger" data-confirm-ok>Delete</button>
+    </div>
+  </div>
+</div>

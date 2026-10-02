@@ -8371,3 +8371,67 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
+
+// ── Delete confirmation (_confirm_modal.html) ──────────────────────
+// window.tspConfirm({title, message, confirmLabel}) shows the dialog
+// and resolves true (confirmed) or false. A form carrying
+// data-confirm="<message>" asks first and submits only once confirmed
+// (data-confirm-title / data-confirm-label set the heading and button).
+(function () {
+  const modal = document.getElementById("tsp-confirm");
+  if (!modal) return;
+  const title = modal.querySelector("#tsp-confirm-title");
+  const msg = modal.querySelector("#tsp-confirm-msg");
+  const ok = modal.querySelector("[data-confirm-ok]");
+  let settle = null, lastFocus = null;
+
+  function close(result) {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+    if (!document.querySelector(".modal.open")) document.body.style.overflow = "";
+    const done = settle; settle = null;
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (_) {} }
+    if (done) done(result);
+  }
+  window.tspConfirm = function (opts) {
+    opts = opts || {};
+    if (settle) close(false);
+    title.textContent = opts.title || "Delete this?";
+    msg.textContent = opts.message || "This can't be undone.";
+    ok.textContent = opts.confirmLabel || "Delete";
+    lastFocus = document.activeElement;
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    setTimeout(() => ok.focus(), 30);
+    return new Promise(resolve => { settle = resolve; });
+  };
+  ok.addEventListener("click", () => close(true));
+  modal.querySelectorAll("[data-confirm-cancel]").forEach(el => el.addEventListener("click", () => close(false)));
+  // Escape cancels this dialog only, not a modal open beneath it.
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && modal.classList.contains("open")) {
+      e.stopImmediatePropagation();
+      close(false);
+    }
+  }, true);
+
+  document.addEventListener("submit", e => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || !f.hasAttribute("data-confirm")) return;
+    if (f._tspConfirmed) { f._tspConfirmed = false; return; }
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const submitter = e.submitter || null;
+    window.tspConfirm({
+      title: f.dataset.confirmTitle,
+      message: f.dataset.confirm,
+      confirmLabel: f.dataset.confirmLabel,
+    }).then(yes => {
+      if (!yes) return;
+      f._tspConfirmed = true;
+      if (f.requestSubmit) f.requestSubmit(submitter && submitter.form === f ? submitter : undefined);
+      else f.submit();
+    });
+  }, true);
+})();

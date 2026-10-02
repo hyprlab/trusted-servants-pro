@@ -18400,8 +18400,22 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .erows { display: flex; flex-direction: column; gap: 6px; }
 .erow, .erow-head { display: grid; gap: 8px; align-items: center; }
 .erow[hidden], .erow > [hidden] { display: none; }
-.erow-head { padding: 0 4px; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--muted); }
+.erow-head { padding: 0 4px; }
+/* Column headings that sort their list (and the locations' Sort by
+   row): click to sort, again to reverse; the arrow shows which way. */
+.erow-sort { display: inline-flex; align-items: center; gap: 4px; justify-self: start; padding: 2px 0; border: 0;
+  background: none; font: inherit; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted); text-align: left; cursor: pointer; }
+.erow-sort:hover, .erow-sort[data-dir] { color: var(--text); }
+.erow-sort:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 3px; }
+.erow-sort::after { content: "\2195"; letter-spacing: 0; font-size: 1.15em; opacity: .35; }
+.erow-sort[data-dir="asc"]::after { content: "\2191"; opacity: 1; color: var(--access, var(--brand)); }
+.erow-sort[data-dir="desc"]::after { content: "\2193"; opacity: 1; color: var(--access, var(--brand)); }
+.glist-sort { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 0 0 10px; padding: 0 4px; }
+.glist-sort-label, .erow-head-label { font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); }
+.erow-order-note { align-self: center; margin-right: auto; font-size: var(--fs-sm); color: #b45309; font-weight: 600; }
+[data-theme="dark"] .erow-order-note, [data-theme="neobrutal-dark"] .erow-order-note,
+[data-theme="cyberpunk"] .erow-order-note { color: #fbbf24; }
 .erow { padding: 4px; border-radius: 10px; }
 .erow:focus-within { background: var(--panel-2); }
 /* contain: an input's natural width (about 20 characters) would
@@ -18430,10 +18444,15 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   grid-template-areas: "name virtual geo geo url rm"; }
 .fellowship-virtual-toggle { margin: 0; justify-self: start; gap: 8px; }
 .fellowship-virtual-toggle .erow-label--inline { display: none; margin: 0; font-size: var(--fs-sm); font-weight: 500; color: var(--text); }
-.officers-actions, .fellowships-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-top: 14px; }
+.officers-actions, .fellowships-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 14px; }
+.officers-actions > button[type=submit], .fellowships-actions > button[type=submit] { margin-left: auto; }
 /* Narrow: each row is a small card, two fields a line, labelled. */
 @media (max-width: 760px) {
-  .erow-head { display: none; }
+  /* The headings become a Sort by row. */
+  .erow-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+  .erow-head::before { content: "Sort by"; font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); }
+  .erow-head > span:empty { display: none; }
+  .erow-head > .erow-geo { display: contents; }
   .erows { gap: 10px; }
   .erow { padding: 10px 12px 12px; border: 1px solid var(--border); background: var(--panel); gap: 8px 10px; align-items: end; }
   .erow:focus-within { background: var(--panel); border-color: color-mix(in srgb, var(--brand) 40%, var(--border)); }
@@ -18451,6 +18470,22 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
     grid-template-areas: "pos rm" "name name" "phone phone" "email email"; }
   .erow-geo { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Delete confirmation (_confirm_modal.html): a compact alert, the red
+   icon beside the question, Cancel and the red action at the foot. */
+.confirm-modal { z-index: 200; }
+/* By ID: a small card at every width, not the full-screen sheet other
+   admin dialogs become on a phone. */
+#tsp-confirm .modal-panel { width: min(440px, calc(100% - 32px)); max-width: 440px; height: auto; max-height: 90vh;
+  margin: 18vh auto 0; border: 1px solid var(--border); border-radius: 14px; }
+.confirm-body { flex-direction: row; gap: 14px; align-items: flex-start; padding: 22px 22px 18px; }
+.confirm-icon { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  background: color-mix(in srgb, #dc2626 12%, transparent); color: #dc2626; }
+.confirm-icon .icon { width: 20px; height: 20px; }
+.confirm-text { min-width: 0; }
+.confirm-text h2 { margin: 2px 0 6px; font-size: var(--fs-lg); line-height: 1.3; }
+.confirm-text p { margin: 0; color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; }
+.confirm-modal .modal-foot { border-top: 0; padding-top: 0; }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */

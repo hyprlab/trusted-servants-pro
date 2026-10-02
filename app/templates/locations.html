@@ -14,10 +14,17 @@
   </div>
   {% if locations %}
   {# One row per venue: its kind, name and address, and its actions. #}
-  <ul class="glist">
+  <div class="glist-sort" role="group" aria-label="Sort locations" data-glist-sort>
+    <span class="glist-sort-label">Sort by</span>
+    <button type="button" class="erow-sort" data-sort="name">Name</button>
+    <button type="button" class="erow-sort" data-sort="type">Type</button>
+    <button type="button" class="erow-sort" data-sort="address">Address</button>
+  </div>
+  <ul class="glist" data-glist>
     {% for l in locations %}
     {% set _online = l.location_type == 'online' %}
-    <li class="glist-row">
+    <li class="glist-row" data-sort-name="{{ l.name|lower }}" data-sort-type="{{ 'online' if _online else 'in person' }}"
+        data-sort-address="{{ (l.address_lines()|join(', ') if not _online else '')|lower }}">
       <span class="glist-icon" aria-hidden="true">{{ icon('video' if _online else 'map-pin') }}</span>
       <div class="glist-main">
         <div class="glist-title"><b>{{ l.name }}</b>
@@ -35,7 +42,8 @@
             {{ icon('pencil') }}<span>Edit</span></button>
           <div class="row-menu-sep" role="separator"></div>
           <form method="post" action="{{ url_for('main.location_delete', lid=l.id) }}"
-                onsubmit="return confirm('Delete this location?');">
+                data-confirm-title="Delete this location?"
+                data-confirm="“{{ l.name }}” will be removed from the list of locations. This can't be undone.">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
             <button class="row-menu-item row-menu-item-danger" title="Delete location">
@@ -70,7 +78,13 @@
        columns in a wide pane, and small labels on each field when the
        rows wrap in a narrow one. #}
     <div class="erows officers-rows" data-officers-rows>
-      <div class="erow-head" aria-hidden="true"><span>Position</span><span>Name</span><span>Phone</span><span>Email</span><span></span></div>
+      <div class="erow-head" role="group" aria-label="Sort officers">
+        <button type="button" class="erow-sort" data-sort="officer_role">Position</button>
+        <button type="button" class="erow-sort" data-sort="officer_name">Name</button>
+        <button type="button" class="erow-sort" data-sort="officer_phone">Phone</button>
+        <button type="button" class="erow-sort" data-sort="officer_email">Email</button>
+        <span></span>
+      </div>
         {% for o in officers %}
         <div class="erow officer-row">
           <input type="hidden" name="officer_id" value="{{ o.id }}">
@@ -102,10 +116,72 @@
     </div>
     <div class="officers-actions">
       <button type="button" class="btn btn-sm" data-officers-add>{{ icon('plus') }} Add officer</button>
+      <span class="erow-order-note" data-order-note hidden>New order. Save to keep it.</span>
       <button type="submit" class="btn btn-primary">Save officers</button>
     </div>
   </form>
 </section>
+
+<script>
+// Shared by the three lists on this page.
+// confirmRemove: a row with anything in it asks first (an untouched new
+// row just goes); it leaves the list now and from the saved data when
+// its form is saved.
+function confirmRemove(row, title, parts, what) {
+  const filled = Array.from(row.querySelectorAll('input:not([type=hidden]):not([type=checkbox])')).some(i => i.value.trim());
+  if (!filled || !window.tspConfirm) { row.remove(); return; }
+  const label = parts.map(p => (p || '').trim()).filter(Boolean).join(', ');
+  window.tspConfirm({
+    title: title,
+    message: (label ? '“' + label + '” will be removed' : 'This row will be removed') + ' when you save ' + what + '.',
+    confirmLabel: 'Remove',
+  }).then(yes => { if (yes) row.remove(); });
+}
+// Sort buttons: click to sort by that column, again to reverse. Empty
+// values go last either way. ``valueOf(item, key)`` reads an item's
+// value; ``after`` runs once the items are back in place.
+function wireSort(bar, items, place, valueOf, after) {
+  bar.addEventListener('click', e => {
+    const b = e.target.closest('[data-sort]');
+    if (!b) return;
+    const dir = b.dataset.dir === 'asc' ? 'desc' : 'asc';
+    bar.querySelectorAll('[data-sort]').forEach(x => { delete x.dataset.dir; x.removeAttribute('aria-pressed'); });
+    b.dataset.dir = dir;
+    b.setAttribute('aria-pressed', 'true');
+    const sign = dir === 'asc' ? 1 : -1;
+    const sorted = items().sort((x, y) => {
+      const a = valueOf(x, b.dataset.sort), c = valueOf(y, b.dataset.sort);
+      if (a === c) return 0;
+      if (!a) return 1;
+      if (!c) return -1;
+      return a.localeCompare(c, undefined, { numeric: true, sensitivity: 'base' }) * sign;
+    });
+    sorted.forEach(place);
+    if (after) after();
+  });
+}
+(function () {
+  const list = document.querySelector('[data-glist]');
+  const bar = document.querySelector('[data-glist-sort]');
+  if (!list || !bar) return;
+  wireSort(bar, () => Array.from(list.children), li => list.appendChild(li),
+           (li, key) => li.getAttribute('data-sort-' + key) || '');
+})();
+// Officers and fellowships: the order on screen is the order saved.
+function wireRowSort(rows, templateSel) {
+  const head = rows.querySelector('.erow-head');
+  const note = rows.closest('form').querySelector('[data-order-note]');
+  const template = rows.querySelector(templateSel);
+  wireSort(head, () => Array.from(rows.querySelectorAll('.erow')).filter(r => r !== template),
+    r => rows.insertBefore(r, template),
+    (r, key) => {
+      if (key === 'virtual') { const cb = r.querySelector('[data-fellowship-virtual]'); return cb && cb.checked ? '1' : '0'; }
+      const f = r.querySelector('[name="' + key + '"]');
+      return f ? f.value.trim() : '';
+    },
+    () => { if (note) note.hidden = false; });
+}
+</script>
 
 <script>
 (function () {
@@ -128,11 +204,15 @@
     const first = clone.querySelector('input[name="officer_role"]');
     if (first) first.focus();
   });
+  wireRowSort(rows, '[data-officers-template]');
   rows.addEventListener('click', e => {
     const btn = e.target.closest('[data-officer-remove]');
     if (!btn) return;
     const row = btn.closest('.officer-row');
-    if (row && !row.hasAttribute('data-officers-template')) row.remove();
+    if (!row || row.hasAttribute('data-officers-template')) return;
+    confirmRemove(row, 'Remove this officer?',
+      [row.querySelector('[name="officer_role"]').value, row.querySelector('[name="officer_name"]').value],
+      'the officers');
   });
 })();
 </script>
@@ -156,7 +236,16 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
     <div class="erows fellowships-rows" data-fellowships-rows>
-      <div class="erow-head" aria-hidden="true"><span>Name</span><span>Virtual</span><span>Country</span><span>State / Province / Region</span><span>Website</span><span></span></div>
+      <div class="erow-head" role="group" aria-label="Sort fellowships">
+        <button type="button" class="erow-sort" data-sort="fellowship_name">Name</button>
+        <button type="button" class="erow-sort" data-sort="virtual">Virtual</button>
+        <span class="erow-geo">
+          <button type="button" class="erow-sort" data-sort="fellowship_country">Country</button>
+          <button type="button" class="erow-sort" data-sort="fellowship_state_region">State / Province / Region</button>
+        </span>
+        <button type="button" class="erow-sort" data-sort="fellowship_url">Website</button>
+        <span></span>
+      </div>
         {% for f in fellowships %}
         <div class="erow fellowship-row{% if f.is_virtual %} is-virtual{% endif %}" data-fellowship-row>
           <input type="hidden" name="fellowship_id" value="{{ f.id }}">
@@ -208,6 +297,7 @@
     </div>
     <div class="fellowships-actions">
       <button type="button" class="btn btn-sm" data-fellowships-add>{{ icon('plus') }} Add fellowship</button>
+      <span class="erow-order-note" data-order-note hidden>New order. Save to keep it.</span>
       <button type="submit" class="btn btn-primary">Save fellowships</button>
     </div>
   </form>
@@ -254,11 +344,14 @@
     if (first) first.focus();
   });
 
+  wireRowSort(rows, '[data-fellowships-template]');
   rows.addEventListener('click', e => {
     const btn = e.target.closest('[data-fellowship-remove]');
     if (!btn) return;
     const row = btn.closest('.fellowship-row');
-    if (row && !row.hasAttribute('data-fellowships-template')) row.remove();
+    if (!row || row.hasAttribute('data-fellowships-template')) return;
+    confirmRemove(row, 'Remove this fellowship?',
+      [row.querySelector('[name="fellowship_name"]').value], 'the fellowships');
   });
 
   rows.addEventListener('change', e => {

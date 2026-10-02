@@ -2678,6 +2678,7 @@
    login page too), so guard on is_authenticated before calling
    can_edit() — current_user is Anonymous there. #}
 {% if current_user.is_authenticated and current_user.can_edit() %}{% include "_notifications_modal.html" %}{% endif %}
+{% include "_confirm_modal.html" %}
 <script src="{{ url_for('static', filename='js/app.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/tour.js', v=app_build_id) }}"></script>
 

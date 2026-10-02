@@ -117,6 +117,8 @@ release notes expanded by default and the changelog collapsed.
 - Settings → Users lists each user on one row that fits any width, with no sideways scrolling: their initial, name, username and badges (You, Locked, Disabled, 2FA or 2FA pending), then email and phone, with the role menu and an Actions menu at the end. In a narrow window the role menu moves under the name. A Sort menu beside the filter replaces the sortable column headings. Reset password is in the Actions menu, and the Self-reset and Two-factor switches are in the Edit dialog with Disable account.
 - After clearing a selection on Settings → Users, the bar with Delete selected now hides instead of showing "0 selected".
 - Settings → Global fits any width without sideways scrolling. Locations are a list: an icon for in person or online, the name, the address on one line with Open in Maps, and an Actions menu. Intergroup Officers and the Fellowships Index are rows of fields under column headings; in a narrow window each row becomes a small labelled card, two fields to a line. Removing a row is a quiet trash icon instead of a red button, and a virtual fellowship's website stays in its column instead of moving under Country.
+- Every list on Settings → Global can be sorted by any of its columns: click a heading to sort, again to reverse (in a narrow window the headings become a Sort by row). Locations sort by name, type or address. Sorting officers or fellowships also sets the order they are saved in; a note says so until you save.
+- Deleting a location, or removing an officer or fellowship, now asks first in a confirmation dialog that names what will go. Cancel or Escape keeps it. A new row with nothing typed in it is removed without asking.
 
 ## 2.20.2 — 2026-09-30 (latest)
 
