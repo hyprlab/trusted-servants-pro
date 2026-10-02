@@ -4119,35 +4119,7 @@ button.chip { font-family: inherit; }
 .tbl input, .tbl select { padding: 6px 8px; font-size: var(--fs-xs); }
 .nowrap { white-space: nowrap; }
 
-/* Users table actions cell — Edit / Unlock / Delete buttons.
-   Flex layout lives on an inner wrapper so the <td> itself stays a
-   normal table-cell; making the td a flex container breaks the
-   table's row-height contract and causes its bottom border to land
-   above the sibling cells'.
-
-   The buttons stack vertically and the cell hugs its content
-   (width: 1%) so this right-most column stays narrow — with all the
-   other columns (username/name/email/phone/role/password) the table
-   can get wide enough to overflow the settings modal, which would
-   otherwise push Edit/Delete off the right edge where they can't be
-   reached. */
-.tbl td.users-actions { vertical-align: middle; width: 1%; white-space: nowrap; }
-.tbl td.users-actions .users-actions-row {
-  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
-}
-.tbl td.users-actions form { display: flex; margin: 0; }
-.tbl td.users-actions .users-actions-row > .btn,
-.tbl td.users-actions .users-actions-row > form .btn { width: 100%; }
-
-/* Safety net for the users table: with every column present it can be
-   wider than the settings modal on smaller laptops. Let it scroll
-   horizontally inside its card rather than spill past the modal edge
-   (which clips the right-most Edit/Delete column out of reach). On
-   mobile the table collapses to a block stack, so the scroll is moot
-   there. */
-.users-tbl-scroll { max-width: 100%; overflow-x: auto; }
-
-/* Users list: filter + bulk toolbar, sortable headers, checkbox column. */
+/* Users list: filter, sort and bulk toolbar; the row checkbox. */
 .users-toolbar {
   display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
   margin: 0 0 .85rem;
@@ -4163,18 +4135,13 @@ button.chip { font-family: inherit; }
   padding: .35rem .5rem; border: 1px solid var(--border); border-radius: 8px;
   background: var(--brand-soft);
 }
+.users-bulkbar[hidden] { display: none; }
 .users-bulkbar-count { font-size: var(--fs-sm); font-weight: 600; }
 .users-count { margin-left: .4rem; }
 
-.users-th-check, .users-td-check { width: 1%; white-space: nowrap; text-align: center; }
 .users-check-wrap { display: inline-flex; align-items: center; cursor: pointer; margin: 0; }
 .users-check-wrap input { width: 16px; height: 16px; cursor: pointer; }
 
-.users-th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
-.users-th-sort:hover { color: var(--brand); }
-.users-th-sort::after { content: "\2195"; opacity: .3; margin-left: .35rem; font-size: .85em; }
-.users-th-sort.sort-asc::after  { content: "\2191"; opacity: .9; }
-.users-th-sort.sort-desc::after { content: "\2193"; opacity: .9; }
 
 .reading-body {
   white-space: pre-wrap; font-family: Georgia, "Times New Roman", serif;
@@ -4535,8 +4502,6 @@ button.chip { font-family: inherit; }
    handles input hiding via width:0/height:0 (NOT pointer-events:none,
    which would break the click that toggles the checkbox via the
    surrounding label). */
-.users-reset-allow-toggle { margin-top: 8px; font-size: var(--fs-2xs); color: var(--muted); }
-.users-reset-allow-label { white-space: nowrap; }
 
 /* Recent Deletions dashboard widget — a touch tighter than Recent
    Files since each row carries a parent-label sub-line. */
@@ -5086,7 +5051,6 @@ html.login-fade-in body { animation: login-page-fade-in 650ms ease-out both; }
 
 /* Static text inside the All Users table — same vertical rhythm as
    the inputs they replaced so adjacent cells line up. */
-.users-cell-text { display: inline-block; padding: 6px 0; }
 
 /* Edit-user modal — two-column field grid that collapses to one on
    narrow viewports; toggles stack underneath as full-width rows. */
@@ -7956,27 +7920,6 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
 @media (max-width: 480px) {
   .loc-csz-row { grid-template-columns: 1fr; }
 
-  .users-tbl { overflow-x: visible; }
-  .users-tbl thead { display: none; }
-  .users-tbl tbody, .users-tbl tr { display: block; }
-  .users-tbl tr { padding: 12px 0; border-bottom: 2px solid var(--border); }
-  .users-tbl td { display: block; border: none; padding: 4px 0; }
-  .users-tbl td[data-label]::before { content: attr(data-label); display: block;
-    font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); text-transform: uppercase;
-    letter-spacing: 0.04em; margin-bottom: 2px; }
-  .users-tbl td select,
-  .users-tbl td input { width: 100%; box-sizing: border-box; }
-  /* Keep the row checkbox a checkbox (not a full-width bar) in card mode. */
-  .users-tbl td.users-td-check { padding: 2px 0 6px; }
-  .users-tbl td.users-td-check input { width: 16px; height: 16px; }
-  /* In card mode the actions cell is full-width, so restore the
-     side-by-side Edit | Delete row (the desktop base stacks them in a
-     narrow column) and undo the desktop width:1%/nowrap clamp. */
-  .users-tbl td.users-actions { padding-top: 10px; width: auto; white-space: normal; }
-  .users-tbl td.users-actions .users-actions-row { display: flex; flex-direction: row; gap: 8px; }
-  .users-tbl td.users-actions .users-actions-row > .btn,
-  .users-tbl td.users-actions .users-actions-row > form { flex: 1 1 0; }
-  .users-tbl td.users-actions .users-actions-row > form .btn { width: 100%; }
 
   .media-tbl { overflow-x: visible; }
   .media-tbl thead { display: none; }
@@ -17410,9 +17353,6 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 .mfa-off-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
 /* Users tab: stack the Self-reset + Two-factor toggles in the cell */
-.users-mfa-toggle { margin-top: 8px; }
-.users-mfa-enrolled { color: #16a34a; font-weight: 700; }
-.users-mfa-pending { filter: grayscale(0.2); }
 
 /* Login-time setup wizard (reuses the login split) */
 .mfa-wizard-qr-wrap { display: inline-block; margin: 12px 0; padding: 10px;
@@ -18479,6 +18419,52 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   .ds-body { grid-template-columns: minmax(0, 1fr); }
   .ds-stage { position: static; }
   .ds-controls { border-left: 0; border-top: 1px solid var(--border); border-bottom-left-radius: var(--radius); }
+}
+
+/* Settings → Users: one row per user (users.html .ulist). Who they are
+   on the left (avatar, name, @username, badges, then email and phone),
+   their role and an actions menu on the right. In a narrow pane the
+   role and menu wrap under the name; nothing scrolls sideways. */
+.users-toolbar { gap: 10px; }
+.users-selectall { padding: 0 2px 0 4px; }
+.users-sort select, .ulist-role select { padding: 7px 10px; min-height: 36px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text); font: inherit; font-size: var(--fs-sm); }
+.users-sort select:focus, .ulist-role select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.ulist { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.ulist-row { display: grid; align-items: center; gap: 4px 12px; padding: 12px 14px;
+  grid-template-columns: 20px 36px minmax(0, 1fr) minmax(130px, 170px) auto;
+  grid-template-areas: "check avatar main role actions"; }
+.ulist-row + .ulist-row { border-top: 1px solid var(--border); }
+.ulist-row[hidden] { display: none; }
+.ulist-row.is-dirty { box-shadow: inset 3px 0 0 #f59e0b; }
+.ulist-check { grid-area: check; display: flex; justify-content: center; }
+.ulist-avatar { grid-area: avatar; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--access, var(--brand)); font-weight: 700; font-size: var(--fs-sm); }
+.user-disabled-row .ulist-avatar { background: var(--panel-2); color: var(--muted); }
+.ulist-main { grid-area: main; min-width: 0; }
+.ulist-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; line-height: 1.35; }
+.ulist-name b, .ulist-handle, .ulist-meta > span { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ulist-name b { font-weight: 650; }
+.ulist-handle { color: var(--muted); font-size: var(--fs-sm); }
+.ulist-name .badge { margin: 0; }
+.ulist-meta { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 2px; font-size: var(--fs-sm); color: var(--muted); }
+.ulist-role { grid-area: role; margin: 0; min-width: 0; }
+.ulist-role select { width: 100%; min-height: 36px; }
+.ulist-actions { grid-area: actions; display: flex; justify-content: flex-end; }
+.ulist-empty { margin: 12px 2px 0; }
+/* Narrow: role and actions on a second line under the name. */
+@media (max-width: 700px) {
+  .ulist-row { grid-template-columns: 20px 36px minmax(0, 1fr) auto;
+    grid-template-areas: "check avatar main actions" ". . role role"; }
+  .ulist-role { max-width: 240px; margin-top: 6px; }
+}
+@media (max-width: 420px) {
+  .ulist-row { grid-template-columns: 20px minmax(0, 1fr) auto; padding: 12px 10px;
+    grid-template-areas: "check main actions" ". role role"; }
+  .ulist-avatar { display: none; }
+  .ulist-role { max-width: none; }
+  .users-sort { flex: 1 1 100%; }
+  .users-sort select { width: 100%; }
 }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides

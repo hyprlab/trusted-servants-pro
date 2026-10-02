@@ -114,6 +114,8 @@ release notes expanded by default and the changelog collapsed.
 - That control is a single row that scrolls sideways (with a mouse wheel too) instead of wrapping onto a second line; the edge with more groups past it fades out, and the open group is kept in view, including when clicking part of the preview opens another group.
 - Every Web Frontend page's segmented control works the same way: it fills its column when its parts fit, and scrolls sideways with faded edges when they don't (a form's seven parts, or any of them in a narrow window), keeping its names instead of dropping to icons.
 - Turning a module off in Settings switches the page behind Settings to the Dashboard, wherever you were, and Settings stays open. It no longer reports "Save failed: HTTP 404" when you were on one of that module's pages. Turning Web Frontend on or off updates the Web and View buttons in the sidebar without reloading the page.
+- Settings → Users lists each user on one row that fits any width, with no sideways scrolling: their initial, name, username and badges (You, Locked, Disabled, 2FA or 2FA pending), then email and phone, with the role menu and an Actions menu at the end. In a narrow window the role menu moves under the name. A Sort menu beside the filter replaces the sortable column headings. Reset password is in the Actions menu, and the Self-reset and Two-factor switches are in the Edit dialog with Disable account.
+- After clearing a selection on Settings → Users, the bar with Delete selected now hides instead of showing "0 selected".
 
 ## 2.20.2 — 2026-09-30 (latest)
 
