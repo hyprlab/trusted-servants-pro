@@ -79,7 +79,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `frontend_footer.html`: the controls column is two studio panels, `layout` (layout choice and rows, formerly the Layout row) and `options` (the `fs_part` rows). `fe_rows.js` `data-ol-goto` shows a row's hidden studio panel before opening it.
 - Branding: the identity pane is a header live preview (`LP_HEADER`). `frontend_branding_save` is in `PREVIEWABLE`; `render_staged` sets `g.staged_preview`, and the route then reads the preview-only `preview_logo` field (`none` drops the logo, `new` stands one in). `fe_live_preview.js` fires `lp:load` with the frame's document before showing it; Branding swaps in the chosen file's object URL there.
 - Design page: the `.ds-tabs` strip (and its scroll fades in `design_studio.js`) is replaced by an `.st-seg.ds-seg` control at the top of `.ds-controls`; `.ds-body` uses the studios' 3fr/2fr split and the card head gets the studios' rule.
-- `.st-seg-scroll` / `[data-seg-scroll]` (`app.js`): a segmented control that scrolls on one row, with edge fades as a mask driven by registered `--seg-fade-l` / `--seg-fade-r` properties, wheel-to-sideways scrolling and the selected part kept in view. Used by the Design page.
+- `.st-seg-scroll` / `[data-seg-scroll]` (`app.js`): a segmented control that scrolls on one row, with edge fades as a mask driven by registered `--seg-fade-l` / `--seg-fade-r` properties, wheel-to-sideways scrolling and the selected part kept in view (a MutationObserver on `aria-selected`, so jumps made from script scroll it too). Used by the Design page.
 
 ### Fixed
 

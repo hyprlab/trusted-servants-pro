@@ -8255,9 +8255,13 @@
       e.preventDefault();
       strip.scrollLeft += e.deltaY;
     }, { passive: false });
-    strip.addEventListener('click', function (e) {
-      if (e.target.closest('[role="tab"]')) setTimeout(function () { reveal('smooth'); }, 0);
-    });
+    // However the part changes (a click on it, or a jump from elsewhere
+    // on the page such as a preview's color swatch), slide it into view.
+    if (window.MutationObserver) {
+      new MutationObserver(function (recs) {
+        if (recs.some(function (r) { return r.target.getAttribute('aria-selected') === 'true'; })) reveal('smooth');
+      }).observe(strip, { attributes: true, attributeFilter: ['aria-selected'], subtree: true });
+    }
     if (window.ResizeObserver) new ResizeObserver(fade).observe(strip);
     reveal('auto');
     fade();
