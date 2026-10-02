@@ -8,7 +8,7 @@ import uuid
 from functools import wraps
 from flask import (Blueprint, render_template, redirect, url_for, request,
                    flash, send_from_directory, abort, current_app, jsonify, session,
-                   get_flashed_messages)
+                   get_flashed_messages, g)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
@@ -11194,6 +11194,14 @@ def frontend_branding_save():
         s.frontend_apple_touch_icon_filename = stored
         if old and old != stored:
             _cleanup_retired_asset(old)
+    # In a live preview the file fields never arrive: preview_logo says
+    # whether a logo was removed or a new one chosen, so the header is
+    # drawn with or without one (the page puts the chosen image in).
+    if g.get("staged_preview"):
+        if request.form.get("preview_logo") == "none":
+            s.frontend_logo_filename = None
+        elif request.form.get("preview_logo") == "new" and not s.frontend_logo_filename:
+            s.frontend_logo_filename = "preview"
     db.session.commit()
     flash("Branding saved", "success")
     return redirect(url_for("main.frontend_branding"))

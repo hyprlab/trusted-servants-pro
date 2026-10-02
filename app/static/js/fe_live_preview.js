@@ -295,6 +295,9 @@
     this.applyMode();
     var d = this.frame.contentDocument;
     if (!d) return;
+    // Before it shows: the page may adjust the frame (Branding puts in a
+    // logo chosen but not yet uploaded).
+    this.root.dispatchEvent(new CustomEvent('lp:load', { bubbles: true, detail: { doc: d } }));
     // The preview is for looking; forms inside it must not submit.
     d.addEventListener('submit', function (e) { e.preventDefault(); }, true);
     var focus = this.root.getAttribute('data-lp-focus');

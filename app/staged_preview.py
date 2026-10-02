@@ -14,7 +14,7 @@ remove-this-file checkboxes are dropped before a save runs.
 """
 from urllib.parse import urlsplit
 
-from flask import abort, current_app, request
+from flask import abort, current_app, g, request
 from werkzeug.datastructures import MultiDict
 
 from .models import db
@@ -26,6 +26,7 @@ PREVIEWABLE = {
     "main.frontend_header_alert_save",
     "main.frontend_utility_bar_save",
     "main.frontend_footer_save",
+    "main.frontend_branding_save",
     "main.frontend_template_settings_save",
     "main.frontend_meeting_template_save",
     "main.frontend_events_list_template_save",
@@ -123,6 +124,9 @@ def render_staged(path, forms, overlays=False):
                                                data=_safe_fields(form.get("fields")),
                                                headers=headers)
             with ctx:
+                # A save route can tell it is being previewed (Branding
+                # shows a chosen or removed logo without touching files).
+                g.staged_preview = True
                 app.view_functions[endpoint](**args)
         target = urlsplit(path)
         # Follow a few redirects within the site (a form whose page has

@@ -105,6 +105,7 @@ release notes expanded by default and the changelog collapsed.
 - The page template shared by the Announcements/Events form, the Story form and custom forms is named Submission form in Page templates and Design → Layout, instead of Forms.
 - The menus for choosing a page template, page, popup or form show each group in its own box under a shaded heading, with one line per entry: its name on the left and its layout, address or status on the right.
 - The Footer page's settings have a Layout and Options switch above them, like the Header page: Layout chooses the footer layout and arranges its rows and blocks, Options holds the footer's parts (brand, link columns, social icons and the rest). Clicking a block on the Layout side opens its part under Options.
+- Branding's Name and logo tab previews the site's real header instead of a drawing of one. A newly chosen logo, a removed logo and a changed site name show in it before you save.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

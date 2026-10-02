@@ -77,6 +77,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The `submission_form` page template kind (`page_templates.KINDS`), its `widths.py` entry and the form studios' `template_label` / `template_name` read Submission form instead of Forms.
 - `_item_picker.html` menus: groups are bordered boxes with a ruled, tinted heading; entries are single rows with the sub text right-aligned and truncated (full text in `title`).
 - `frontend_footer.html`: the controls column is two studio panels, `layout` (layout choice and rows, formerly the Layout row) and `options` (the `fs_part` rows). `fe_rows.js` `data-ol-goto` shows a row's hidden studio panel before opening it.
+- Branding: the identity pane is a header live preview (`LP_HEADER`). `frontend_branding_save` is in `PREVIEWABLE`; `render_staged` sets `g.staged_preview`, and the route then reads the preview-only `preview_logo` field (`none` drops the logo, `new` stands one in). `fe_live_preview.js` fires `lp:load` with the frame's document before showing it; Branding swaps in the chosen file's object URL there.
 
 ### Fixed
 

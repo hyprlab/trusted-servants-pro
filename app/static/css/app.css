@@ -17759,16 +17759,11 @@ a.fe-ss-item:hover { background: var(--panel-2); text-decoration: none; }
 .br-pv { display: flex; flex-direction: column; gap: 10px; }
 .br-pv[hidden] { display: none; }
 .br-tab { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; max-width: 280px;
-  padding: 8px 12px; border-radius: 10px 10px 0 0; background: var(--panel); border: 1px solid var(--border);
-  border-bottom: 0; font-size: var(--fs-sm); }
+  padding: 8px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border);
+  font-size: var(--fs-sm); margin-bottom: 8px; }
 .br-tab img { width: 16px; height: 16px; object-fit: contain; }
 .br-tab span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .br-tab-x { color: var(--muted); margin-left: 8px; }
-.br-hdr { display: flex; align-items: center; gap: 16px; padding: 14px 18px; margin-top: -10px; min-height: 60px;
-  background: #fff; color: #0f172a; border: 1px solid var(--border); border-radius: 0 10px 10px 10px; }
-.br-hdr img { max-height: 48px; object-fit: contain; }
-.br-hdr-links { margin-left: auto; display: flex; gap: 10px; }
-.br-hdr-links i { width: 48px; height: 8px; border-radius: 4px; background: #cbd5e1; }
 .br-phone { display: flex; gap: 22px; padding: 26px; border-radius: 22px; align-self: flex-start;
   background: linear-gradient(160deg, #6d8bd6, #b18ad8); }
 .br-app { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 64px; }

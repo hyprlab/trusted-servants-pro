@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
+{% from "_live_preview.html" import live_preview, LP_HEADER %}
 {% block heading %}Branding{% endblock %}
 {% block heading_help %}The public site's name, logo and icons, and how it appears in search results and in link previews on chat apps and social media. The admin portal's own name and icons are under Settings → Appearance.{% endblock %}
 {% block top_actions %}
@@ -33,10 +34,12 @@
 
 <form class="form br-form" method="post" action="{{ url_for('main.frontend_branding_save') }}" enctype="multipart/form-data" id="br-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {# Read only by the live preview: "new" or "none" when a logo is chosen or removed. #}
+  <input type="hidden" name="preview_logo" value="" data-br-preview-logo>
 
 <section class="card st-studio" data-studio="branding" data-no-collapse>
   <div class="card-head">
-    <h2>Branding {% call chip('Branding') %}Saved with the yellow Save button. The previews on the right follow your edits, including a newly chosen image, before you save.{% endcall %}</h2>
+    <h2>Branding {% call chip('Branding') %}Saved with the yellow Save button. The previews follow your edits, including a newly chosen image, before you save. The header is the real one from the public site.{% endcall %}</h2>
   </div>
 
   <div class="st-body st-body--split">
@@ -107,17 +110,12 @@
     {# Previews of where each setting shows. #}
     <div class="st-preview br-previews">
       <div class="br-pv" data-br-pv="identity" data-studio-pane="identity">
-        <div class="lp-title">Browser tab and header</div>
+        <div class="lp-title">Browser tab</div>
         <div class="br-tab">
           <img data-br-fav src="{{ url_for('public.site_frontend_favicon') if _has_fav else url_for('static', filename='img/favicon.png') }}" alt="">
           <span data-br-tabname>{{ _name or 'Site name' }}</span><span class="br-tab-x">×</span>
         </div>
-        <div class="br-hdr">
-          {% set _logo_src = url_for('public.site_frontend_logo') if _has_logo else '' %}
-          <img data-br-logo src="{{ _logo_src }}" alt="" style="width: {{ (site.frontend_logo_width if site else 40) or 40 }}px"{% if not _has_logo %} hidden{% endif %}>
-          <b data-br-logoname{% if _has_logo %} hidden{% endif %}>{{ _name or 'Site name' }}</b>
-          <span class="br-hdr-links"><i></i><i></i><i></i></span>
-        </div>
+        {{ live_preview(url_for('frontend.index'), '#br-form', height=130, title='Header', only=LP_HEADER, fit=True) }}
       </div>
       <div class="br-pv" data-br-pv="icons" data-studio-pane="icons" hidden>
         <div class="lp-title">Home screen</div>
@@ -164,7 +162,6 @@
   function sync() {
     var n = name.value.trim() || 'Site name';
     text('[data-br-tabname]', n);
-    text('[data-br-logoname]', n);
     text('[data-br-serp-title]', n);
     text('[data-br-card-title]', ogTitle.value.trim() || n);
     text('[data-br-ati-label]', atiName.value.trim() || n);
@@ -176,22 +173,39 @@
   }
   form.addEventListener('input', sync);
   form.addEventListener('change', sync);
-  // A chosen file shows in its preview at once; "Remove" hides it.
-  var targets = { frontend_logo: '[data-br-logo]', frontend_favicon: '[data-br-fav]',
+  // A chosen file shows in its preview at once; "Remove" hides it. The
+  // header preview is the real page: it is told whether a logo is chosen
+  // or removed, and the chosen image is put into it as it loads.
+  var targets = { frontend_favicon: '[data-br-fav]',
                   frontend_apple_touch_icon: '[data-br-ati]', og_image: '[data-br-og-img]' };
+  var logoInput = $('[data-br-input="frontend_logo"]'), logoClear = $('[data-br-clear="frontend_logo"]');
+  var logoMark = $('[data-br-preview-logo]'), logoUrl = null;
+  function syncLogo() {
+    var f = logoInput && logoInput.files && logoInput.files[0];
+    if (logoUrl) { URL.revokeObjectURL(logoUrl); logoUrl = null; }
+    if (f) logoUrl = URL.createObjectURL(f);
+    logoMark.value = (logoClear && logoClear.checked) ? 'none' : (f ? 'new' : '');
+  }
+  if (logoInput) logoInput.addEventListener('change', syncLogo);
+  if (logoClear) logoClear.addEventListener('change', syncLogo);
+  var logoPath = {{ url_for('public.site_frontend_logo')|tojson }}.split('?')[0];
+  document.addEventListener('lp:load', function (e) {
+    if (!logoUrl || logoMark.value !== 'new') return;
+    e.detail.doc.querySelectorAll('img').forEach(function (img) {
+      if ((img.getAttribute('src') || '').split('?')[0] === logoPath) img.src = logoUrl;
+    });
+  });
   form.querySelectorAll('[data-br-input]').forEach(function (inp) {
     inp.addEventListener('change', function () {
       var f = inp.files && inp.files[0], img = $(targets[inp.name]);
       if (!f || !img) return;
       img.src = URL.createObjectURL(f); img.hidden = false;
-      if (inp.name === 'frontend_logo') $('[data-br-logoname]').hidden = true;
     });
   });
   form.querySelectorAll('[data-br-clear]').forEach(function (cb) {
     cb.addEventListener('change', function () {
       var key = cb.getAttribute('data-br-clear'), img = $(targets[key]);
-      if (key === 'frontend_logo') { img.hidden = cb.checked; $('[data-br-logoname]').hidden = !cb.checked; }
-      if (key === 'og_image') img.hidden = cb.checked;
+      if (key === 'og_image' && img) img.hidden = cb.checked;
     });
   });
   // The preview column shows the part for the open tab.
@@ -203,5 +217,6 @@
   sync();
 })();
 </script>
+<script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
 {% endblock %}
