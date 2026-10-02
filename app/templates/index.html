@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
-{% from "_dash_widget.html" import dash_widget with context %}
+{% from "_dash_widget.html" import dash_widget, dash_empty with context %}
 {% block heading %}Dashboard{% endblock %}
 {% block heading_help %}Your home view — see upcoming meetings, recent activity, and quick links to the areas of the portal you use most.{% endblock %}
 {% block top_actions %}
@@ -20,107 +20,83 @@
 {% for widget_key in dashboard_order %}
 
   {% if widget_key == 'server-metrics' and current_user.dash_show_server_metrics %}
+  {#- Admins: the server at a glance, one strip of equal tiles, with a
+      line saying who's signed in. Everyone else: their role and what it
+      lets them do (they don't operate the server). The full breakdown is
+      Settings → Your Access. -#}
+  {% set _role_name = current_user.role.replace('_', ' ')|capitalize %}
   <div class="dash-widget dash-widget-wide" data-widget-key="server-metrics" {% if can_reorder %}draggable="true"{% endif %}>
-    {# Role-only styling applies to viewers AND editors — both see the
-       role panel without the server metrics column. The right column
-       (CPU / memory / disk / network) is reserved for the operator
-       roles whose ``_has_server`` flag is set at the top of this file. #}
     <section class="card data-card server-metrics{% if not _has_server %} server-metrics-role-only{% endif %}" id="server-metrics-widget" data-endpoint="{{ url_for('main.api_server_metrics') }}">
-      <div class="server-metrics-body">
-        <div class="role-panel">
-          <div class="role-panel-head">
-            {% if can_reorder %}<span class="dash-drag-handle dash-drag-handle--in-head" aria-hidden="true">{{ icon('grip-vertical') }}</span>{% endif %}
-            <div class="role-panel-titles">
-              <div class="role-panel-label">Your role</div>
-              <div class="role-panel-name">{{ current_user.role.replace('_', ' ')|capitalize }}</div>
-            </div>
-          </div>
-          <ul class="role-caps">
-            {# Positive capabilities only — restrictions live in
-               Settings → Your Access so the dashboard widget stays
-               focused on what the user can do. #}
-            {% if current_user.is_admin() %}
-            <li>Full access to every feature in the portal</li>
-            <li>Manage users, access requests &amp; modules</li>
-            <li>Edit all content: meetings, libraries, the Web Frontend, and Intergroup Email Accounts</li>
-            <li>Configure site settings, security &amp; data import/export</li>
-            {% elif current_user.role == 'intergroup_member' %}
-            <li>Inherits Editor role permissions</li>
-            <li>Edit access to Intergroup-flagged libraries</li>
-            <li>Create &amp; edit meetings, libraries, readings, files</li>
-            <li>May edit or delete any library file regardless of uploader</li>
-            <li>Upload &amp; manage media; view Zoom accounts</li>
-            {% elif current_user.role == 'editor' %}
-            <li>Edit existing meetings, locations, schedules, Zoom accounts</li>
-            <li>Add files to existing libraries; reorder readings inside them</li>
-            <li>May edit or delete library files whose uploader was another Editor</li>
-            <li>Upload, edit &amp; delete files attached to meetings (any uploader)</li>
-            {% else %}
-            <li>Read-only access across the portal</li>
-            <li>View meetings, libraries, readings &amp; uploaded files</li>
-            <li>View Zoom accounts &amp; the calendar</li>
-            <li>Customize your dashboard widgets &amp; their order</li>
-            {% endif %}
-            <li class="role-caps-link"><a href="#" data-open-modal="settings-modal" data-settings-tab="your-access">See full access details →</a></li>
-          </ul>
-        </div>
-        {# Server widget is admin-only. Everyone else sees the Your
-           role panel alone — they don't operate the server, so the
-           live CPU / memory / disk metrics aren't relevant. #}
-        {% if _has_server %}
-        <div class="server-metrics-column">
-          <div class="card-head">
-            <h2>Server</h2>
-            <span class="muted smaller server-metrics-os" data-field="os">—</span>
-          </div>
-          <div class="server-metrics-grid{% if current_user.is_admin() %} server-metrics-grid-6{% endif %}">
-            <div class="metric-tile">
-              <div class="metric-label">CPU</div>
-              <div class="metric-value"><span data-field="cpu_percent">—</span><span class="metric-unit">%</span></div>
-              <canvas class="metric-spark" data-series="cpu" width="240" height="40"></canvas>
-            </div>
-            <div class="metric-tile">
-              <div class="metric-label">Memory</div>
-              <div class="metric-value"><span data-field="memory_percent">—</span><span class="metric-unit">%</span></div>
-              <div class="metric-sub muted smaller" data-field="memory_detail">—</div>
-              <canvas class="metric-spark" data-series="mem" width="240" height="40"></canvas>
-            </div>
-            <div class="metric-tile" id="disk-metric-tile">
-              <div class="metric-label">Disk</div>
-              <div class="metric-value"><span data-field="disk_percent">—</span><span class="metric-unit">%</span></div>
-              <div class="metric-sub muted smaller" data-field="disk_detail">—</div>
-              <canvas class="metric-spark" data-series="disk" width="240" height="40"></canvas>
-            </div>
-            <div class="metric-tile metric-tile-text">
-              <div class="metric-label">Load Avg</div>
-              <div class="metric-value metric-value-sm" data-field="load_avg">—</div>
-              <div class="metric-sub muted smaller">1m / 5m / 15m</div>
-            </div>
-            <div class="metric-tile metric-tile-text">
-              <div class="metric-label">Uptime</div>
-              <div class="metric-value metric-value-sm" data-field="uptime">—</div>
-              <div class="metric-sub muted smaller" data-field="cpu_count">—</div>
-            </div>
-            {% if current_user.is_admin() %}
-            <a class="metric-tile metric-tile-text metric-tile-link" id="online-users-tile"
-                 href="{{ url_for('main.watchtower_access') }}"
-                 data-endpoint="{{ url_for('main.api_online_users') }}"
-                 title="{% for u in online_users %}{{ u.username }} ({{ u.role }}){% if not loop.last %}, {% endif %}{% endfor %}">
-              <div class="metric-label">Online</div>
-              <div class="metric-value" data-field="online_count">{{ online_count }}</div>
-              <div class="metric-sub muted smaller" data-field="online_label">{% if online_count == 1 %}user · last 5 min{% else %}users · last 5 min{% endif %}</div>
-            </a>
-            {% endif %}
-          </div>
-        </div>
-        {% endif %}
+      <div class="data-card-head dash-widget-head">
+        {% if can_reorder %}<span class="dash-drag-handle" aria-hidden="true">{{ icon('grip-vertical') }}</span>{% endif %}
+        <span class="data-card-head-icon" aria-hidden="true">{{ icon('server' if _has_server else 'user') }}</span>
+        <span class="dash-widget-title">{% if _has_server %}Server{% else %}Your role: {{ _role_name }}{% endif %}</span>
+        {% if _has_server %}<span class="dash-glance-os" data-field="os">—</span>{% endif %}
+        <a href="#" class="link dash-widget-viewall" data-open-modal="settings-modal" data-settings-tab="your-access">{% if _has_server %}Signed in as {{ _role_name }}{% else %}What you can do{% endif %} {{ icon('chevron-right') }}</a>
       </div>
+      {% if _has_server %}
+      <div class="server-metrics-column dash-stats dash-stats--6">
+        <div class="dash-stat">
+          <div class="dash-stat-label">CPU</div>
+          <div class="dash-stat-value"><span data-field="cpu_percent">—</span><span class="dash-stat-unit">%</span></div>
+          <canvas class="metric-spark" data-series="cpu" width="240" height="32"></canvas>
+        </div>
+        <div class="dash-stat">
+          <div class="dash-stat-label">Memory</div>
+          <div class="dash-stat-value"><span data-field="memory_percent">—</span><span class="dash-stat-unit">%</span></div>
+          <div class="dash-stat-sub" data-field="memory_detail">—</div>
+          <canvas class="metric-spark" data-series="mem" width="240" height="32"></canvas>
+        </div>
+        <div class="dash-stat" id="disk-metric-tile">
+          <div class="dash-stat-label">Disk</div>
+          <div class="dash-stat-value"><span data-field="disk_percent">—</span><span class="dash-stat-unit">%</span></div>
+          <div class="dash-stat-sub" data-field="disk_detail">—</div>
+          <canvas class="metric-spark" data-series="disk" width="240" height="32"></canvas>
+        </div>
+        <div class="dash-stat">
+          <div class="dash-stat-label">Load</div>
+          <div class="dash-stat-value" data-field="load_1">—</div>
+          <div class="dash-stat-sub" data-field="load_rest">5m — · 15m —</div>
+        </div>
+        <div class="dash-stat">
+          <div class="dash-stat-label">Uptime</div>
+          <div class="dash-stat-value" data-field="uptime">—</div>
+          <div class="dash-stat-sub" data-field="cpu_count">—</div>
+        </div>
+        <a class="dash-stat dash-stat--link" id="online-users-tile"
+           href="{{ url_for('main.watchtower_access') }}"
+           data-endpoint="{{ url_for('main.api_online_users') }}"
+           title="{% for u in online_users %}{{ u.username }} ({{ u.role }}){% if not loop.last %}, {% endif %}{% endfor %}">
+          <div class="dash-stat-label">Online</div>
+          <div class="dash-stat-value" data-field="online_count">{{ online_count }}</div>
+          <div class="dash-stat-sub" data-field="online_label">{% if online_count == 1 %}user · last 5 min{% else %}users · last 5 min{% endif %}</div>
+        </a>
+      </div>
+      {% else %}
+      <ul class="dash-role-caps">
+        {% if current_user.role == 'intergroup_member' %}
+        <li>Everything an Editor can do</li>
+        <li>Edit Intergroup libraries, and any library file whoever uploaded it</li>
+        <li>Create and edit meetings, libraries, readings and files</li>
+        <li>Upload and manage media; view Zoom accounts</li>
+        {% elif current_user.role == 'editor' %}
+        <li>Edit meetings, locations, schedules and Zoom accounts</li>
+        <li>Add files to libraries and reorder their readings</li>
+        <li>Edit or delete library files other Editors uploaded</li>
+        <li>Upload, edit and delete files attached to meetings</li>
+        {% else %}
+        <li>View meetings, libraries, readings and files</li>
+        <li>View Zoom accounts and the calendar</li>
+        <li>Arrange your own dashboard</li>
+        {% endif %}
+      </ul>
+      {% endif %}
     </section>
   </div>
   {% endif %}
 
   {% if widget_key == 'meetings' and current_user.dash_show_meetings %}
-    {% call dash_widget(key='meetings', title='Recent Meetings',
+    {% call dash_widget(key='meetings', title='Meetings',
                          head_icon='calendar',
                          view_all_url=url_for('main.meetings')) %}
       {% if meetings %}
@@ -129,7 +105,7 @@
         <li><a href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}"><span>{{ m.name }}</span><span class="muted">{% if m.schedules %}{{ m.schedules[0].day_name[:3] }} {{ m.schedules[0].start_time }}{% endif %}</span></a></li>
         {% endfor %}
       </ul>
-      {% else %}<p class="muted smaller">No meetings yet.</p>{% endif %}
+      {% else %}{{ dash_empty('No meetings yet.', 'calendar') }}{% endif %}
     {% endcall %}
   {% endif %}
 
@@ -143,12 +119,12 @@
         <li><a href="{{ url_for('main.library_detail', slug=l.public_slug) }}"><span>{{ l.name }}</span><span class="muted">{{ l.items.count() }} files</span></a></li>
         {% endfor %}
       </ul>
-      {% else %}<p class="muted smaller">No libraries yet.</p>{% endif %}
+      {% else %}{{ dash_empty('No libraries yet.', 'book-open') }}{% endif %}
     {% endcall %}
   {% endif %}
 
   {% if widget_key == 'files' and current_user.dash_show_files %}
-    {% call dash_widget(key='files', title='Recent Files',
+    {% call dash_widget(key='files', title='Recent files',
                          head_icon='file-text',
                          view_all_url=url_for('main.media_list')) %}
       {% if recent_files %}
@@ -157,7 +133,7 @@
         <li><a href="{{ url_for('public.public_file', filename=f.original_filename) }}" target="_blank"><span>{{ f.original_filename }}</span><span class="muted">{{ f.created_at.strftime('%b %d') }}</span></a></li>
         {% endfor %}
       </ul>
-      {% else %}<p class="muted smaller">No files uploaded yet.</p>{% endif %}
+      {% else %}{{ dash_empty('No files uploaded yet.', 'file-text') }}{% endif %}
     {% endcall %}
   {% endif %}
 
@@ -177,23 +153,23 @@
        the operator into the merged Watchtower Visitors tab. Headline
        numbers also switched from hits to unique visitors — the more
        useful number for "how many real people". #}
-    {% call dash_widget(key='visitor-metrics', title='Frontend Visitor Metrics',
+    {% call dash_widget(key='visitor-metrics', title='Website visitors',
                          head_icon='bar-chart',
                          view_all_url=url_for('main.watchtower_visitors'),
-                         view_all_label='Open metrics') %}
+                         view_all_label='Details') %}
       <div class="vm-widget-card">
-        <div class="vm-widget-stats">
-          <div class="vm-widget-stat vm-widget-stat-accent">
-            <div class="vm-widget-stat-label">Visitors today</div>
-            <div class="vm-widget-stat-value">{% if visitor_summary %}{{ '{:,}'.format(visitor_summary.uniques_today) }}{% else %}—{% endif %}</div>
+        <div class="dash-stats dash-stats--3">
+          <div class="dash-stat">
+            <div class="dash-stat-label">Today</div>
+            <div class="dash-stat-value">{% if visitor_summary %}{{ '{:,}'.format(visitor_summary.uniques_today) }}{% else %}—{% endif %}</div>
           </div>
-          <div class="vm-widget-stat">
-            <div class="vm-widget-stat-label">Visitors · 7d</div>
-            <div class="vm-widget-stat-value">{% if visitor_summary %}{{ '{:,}'.format(visitor_summary.uniques_7d) }}{% else %}—{% endif %}</div>
+          <div class="dash-stat">
+            <div class="dash-stat-label">7 days</div>
+            <div class="dash-stat-value">{% if visitor_summary %}{{ '{:,}'.format(visitor_summary.uniques_7d) }}{% else %}—{% endif %}</div>
           </div>
-          <div class="vm-widget-stat">
-            <div class="vm-widget-stat-label">Visitors · 30d</div>
-            <div class="vm-widget-stat-value">{% if visitor_summary %}{{ '{:,}'.format(visitor_summary.uniques_30d) }}{% else %}—{% endif %}</div>
+          <div class="dash-stat">
+            <div class="dash-stat-label">30 days</div>
+            <div class="dash-stat-value">{% if visitor_summary %}{{ '{:,}'.format(visitor_summary.uniques_30d) }}{% else %}—{% endif %}</div>
           </div>
         </div>
         {% if visitor_sparkline and visitor_sparkline|sum > 0 %}
@@ -237,7 +213,7 @@
                 stroke-linejoin="round" stroke-linecap="round"/>
         </svg>
         {% else %}
-        <div class="vm-widget-spark-empty">No visits yet — once the public site sees real traffic, the chart will populate.</div>
+        {{ dash_empty('No visits yet. The chart fills in once the public site has traffic.', 'activity') }}
         {% endif %}
       </div>
     {% endcall %}
@@ -253,7 +229,7 @@
   {% if widget_key == 'trusted-servants' and trusted_servants_enabled
         and current_user.dash_show_trusted_servants %}
     {% call dash_widget(key='trusted-servants',
-                         title='Join the Trusted Servants list',
+                         title='Join the email list',
                          head_icon='user-plus',
                          help='Add your name, phone, and preferred email so admins can reach you with quick fellowship-business updates. We only contact you with announcements that go to the whole list.') %}
       <form class="form ts-widget-form" method="post" autocomplete="off"
@@ -287,8 +263,8 @@
      full release-notes list. Shown to every role. #}
   {% if widget_key == 'release-notes' and current_user.dash_show_release_notes %}
     {%- set _rn = app_release_notes() -%}
-    {% call dash_widget(key='release-notes', title="What's New",
-                         head_icon='sparkles') %}
+    {% call dash_widget(key='release-notes', title="What's new",
+                         head_icon='sparkles', view_all_label='All notes', view_all_tab='about') %}
       {% if _rn %}
       {%- set _latest = _rn[0] -%}
       <div class="dash-relnotes">
@@ -317,31 +293,24 @@
           </ul>
         </div>
         {% endif %}
-        <a href="#" class="btn btn-primary btn-sm dash-relnotes-cta"
-           data-open-modal="settings-modal" data-settings-tab="about">
-          {{ icon('book-open') }} View all release notes {{ icon('arrow-right') }}
-        </a>
       </div>
       {% else %}
-      <p class="muted smaller">No release notes yet.</p>
+      {{ dash_empty('No release notes yet.', 'sparkles') }}
       {% endif %}
     {% endcall %}
   {% endif %}
 
   {% if widget_key == 'backups' and current_user.is_admin() and current_user.dash_show_backups %}
     {% set _has_failed = backup_summary and backup_summary.failed > 0 %}
-    {% call dash_widget(key='backups', title='Off-site Backups',
+    {% call dash_widget(key='backups', title='Backups',
                          head_icon='cloud-upload',
                          badge_count=(backup_summary.failed if _has_failed else 0),
                          badge_key='backups_failed',
                          badge_title='Targets currently failing') %}
       {% if not backup_summary or backup_summary.total == 0 %}
-      <p class="muted smaller">No off-site backups configured yet.</p>
-      <div class="dash-backups-foot">
-        <button type="button" class="btn btn-sm btn-primary" data-open-modal="backup-wizard-modal">
-          {{ icon('plus') }} Set up your first backup
-        </button>
-      </div>
+      {% call dash_empty('No off-site backups yet.', 'cloud-upload') %}
+        <button type="button" class="btn btn-sm" data-open-modal="backup-wizard-modal">{{ icon('plus') }} Set up</button>
+      {% endcall %}
       {% else %}
       <button type="button" class="dash-backups-card" data-open-modal="backups-modal"
               title="Open backup manager">
@@ -402,10 +371,9 @@
   {% endif %}
 
   {% if widget_key == 'deletions' and current_user.is_admin() and current_user.dash_show_deletions %}
-    {% call dash_widget(key='deletions', title='Recent Deletions',
+    {% call dash_widget(key='deletions', title='Recently deleted',
                          head_icon='trash-2',
-                         view_all_url=url_for('main.watchtower_deletes'),
-                         view_all_label='Open Watchtower · Deletes') %}
+                         view_all_url=url_for('main.watchtower_deletes')) %}
       {% if recent_deletions %}
       <ul class="list dash-deletions-list">
         {% for d in recent_deletions %}
@@ -420,7 +388,7 @@
         {% endfor %}
       </ul>
       <div class="dash-deletions-foot muted smaller">Files are restorable for 30 days.</div>
-      {% else %}<p class="muted smaller">Nothing in the recycle bin.</p>{% endif %}
+      {% else %}{{ dash_empty('Nothing in the recycle bin.', 'trash-2') }}{% endif %}
     {% endcall %}
   {% endif %}
 
@@ -428,7 +396,7 @@
     {% call dash_widget(key='forms', title='Forms',
                          head_icon='inbox',
                          view_all_url=url_for('main.frontend_forms'),
-                         view_all_label='Manage forms',
+                         view_all_label='Manage',
                          badge_count=forms_widget_attention,
                          badge_key='forms_attention',
                          badge_title='Submissions needing review') %}
@@ -455,52 +423,42 @@
         </li>
         {% endfor %}
       </ul>
-      {% else %}<p class="muted smaller">No forms configured.</p>{% endif %}
+      {% else %}{{ dash_empty('No forms set up.', 'inbox') }}{% endif %}
     {% endcall %}
   {% endif %}
 
   {% if widget_key == 'access-requests' and current_user.is_admin() and current_user.dash_show_access_requests %}
-  <div class="dash-widget" data-widget-key="access-requests" {% if can_reorder %}draggable="true"{% endif %}>
-    <section class="card data-card access-requests-card">
-      <div class="access-requests-block">
-        <h2 class="ar-title">{% if can_reorder %}<span class="dash-drag-handle dash-drag-handle--in-head" aria-hidden="true">{{ icon('grip-vertical') }}</span>{% endif %}{{ icon('user-plus') }} Access Requests
-          <span class="nav-badge" data-live-chip="pending_access" {% if not pending_access_count %}hidden{% endif %}>{{ pending_access_count or 0 }}</span>
-        </h2>
-        {% if access_requests %}
-        <ul class="list">
-          {% for r in access_requests %}
-          <li><a href="{{ url_for('main.watchtower_requests') }}"><span>{{ r.name }}</span><span class="muted">{{ r.created_at.strftime('%b %d') }}</span></a></li>
-          {% endfor %}
-        </ul>
-        {% else %}<p class="muted smaller">No pending requests.</p>{% endif %}
-        <div class="access-requests-foot">
-          <a href="{{ url_for('main.watchtower_requests') }}" class="btn btn-sm">View all requests</a>
-        </div>
-      </div>
-
-      <div class="locked-accounts-block">
-        <h3 class="locked-accounts-title">Locked Accounts
-          <span class="nav-badge nav-badge-warn" data-live-chip="locked_accounts" {% if not locked_accounts %}hidden{% endif %}>{{ locked_accounts|length }}</span>
-        </h3>
-        {% if locked_accounts %}
-        <ul class="list locked-accounts-list">
-          {% for a in locked_accounts %}
-          <li>
-            <span class="locked-accounts-name">{{ a.username }}</span>
-            <span class="muted smaller">auto-unlocks in ~{{ a.expires_in_minutes }} min</span>
-            <form method="post" action="{{ url_for('auth.users_unlock', uid=a.id) }}" class="locked-accounts-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm" title="Clear lockout for {{ a.username }}">Unlock</button>
-            </form>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="muted smaller locked-accounts-empty">No accounts currently locked out.</p>
-        {% endif %}
-      </div>
-    </section>
-  </div>
+    {% call dash_widget(key='access-requests', title='Access requests',
+                         head_icon='user-plus',
+                         view_all_url=url_for('main.watchtower_requests'),
+                         badge_count=pending_access_count or 0,
+                         badge_key='pending_access',
+                         badge_title='Pending access requests') %}
+      {% if access_requests %}
+      <ul class="list">
+        {% for r in access_requests %}
+        <li><a href="{{ url_for('main.watchtower_requests') }}"><span>{{ r.name }}</span><span class="muted">{{ r.created_at.strftime('%b %d') }}</span></a></li>
+        {% endfor %}
+      </ul>
+      {% else %}{{ dash_empty('No pending requests.', 'user-plus') }}{% endif %}
+      <h3 class="dash-subhead">Locked accounts
+        <span class="nav-badge nav-badge-warn" data-live-chip="locked_accounts" {% if not locked_accounts %}hidden{% endif %}>{{ locked_accounts|length }}</span>
+      </h3>
+      {% if locked_accounts %}
+      <ul class="list locked-accounts-list">
+        {% for a in locked_accounts %}
+        <li>
+          <span class="locked-accounts-name">{{ a.username }}</span>
+          <span class="muted smaller">unlocks in about {{ a.expires_in_minutes }} min</span>
+          <form method="post" action="{{ url_for('auth.users_unlock', uid=a.id) }}" class="locked-accounts-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm" title="Clear lockout for {{ a.username }}">Unlock</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}{{ dash_empty('No accounts are locked out.', 'lock') }}{% endif %}
+    {% endcall %}
   {% endif %}
 
 {% endfor %}
@@ -519,14 +477,14 @@
         <p class="muted small">Toggle widgets here, or drag any widget on the dashboard to reorder it — changes are saved automatically. These preferences are saved to your account.</p>
         <ul class="special-pages-list">
           {% for key, label, desc in [
-            ('dash_show_meetings', 'Recent Meetings', 'List of the most recent meetings.'),
+            ('dash_show_meetings', 'Meetings', 'List of the most recent meetings.'),
             ('dash_show_libraries', 'Libraries', 'List of libraries with file counts.'),
-            ('dash_show_files', 'Recent Files', 'Most recently uploaded files from the file browser.'),
-            ('dash_show_server_metrics', 'Your Role' + (' and Server Stats' if _has_server else ''),
-              'Your account role and capabilities' + (' alongside CPU, memory, load average, uptime, and host OS.' if _has_server else '.')),
-            ('dash_show_trusted_servants', 'Trusted Servants sign-up',
+            ('dash_show_files', 'Recent files', 'Most recently uploaded files from the file browser.'),
+            ('dash_show_server_metrics', ('Server' if _has_server else 'Your role'),
+              ('CPU, memory, disk, load, uptime and how many people are signed in.' if _has_server else 'Your account role and what it lets you do.')),
+            ('dash_show_trusted_servants', 'Join the email list',
               'Sign-up form for the trusted-servants contact list. Hides itself automatically once you have joined the list — uncheck here to hide it earlier.'),
-            ('dash_show_release_notes', "What's New",
+            ('dash_show_release_notes', "What's new",
               'The latest release note plus a button to open the full release-notes history under Settings → About.'),
           ] %}
           <li class="special-page-row">
@@ -542,7 +500,7 @@
           {% if current_user.is_admin() %}
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Access Requests &amp; Locked Accounts {% call chip() %}Pending access-request submissions and any accounts currently locked out from too many failed logins.{% endcall %}</div>
+              <div class="u-name">Access requests {% call chip() %}Pending access-request submissions and any accounts currently locked out from too many failed logins.{% endcall %}</div>
             </div>
             <label class="mode-toggle" title="Show Access Requests &amp; Locked Accounts">
               <input type="checkbox" name="dash_show_access_requests" value="1" {% if current_user.dash_show_access_requests %}checked{% endif %}>
@@ -560,7 +518,7 @@
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Currently Online {% call chip() %}Live view of every signed-in user and the page they're on right now. Refreshes every 5 seconds.{% endcall %}</div>
+              <div class="u-name">Currently online {% call chip() %}Live view of every signed-in user and the page they're on right now. Refreshes every 5 seconds.{% endcall %}</div>
             </div>
             <label class="mode-toggle" title="Show Currently Online">
               <input type="checkbox" name="dash_show_currently_online" value="1" {% if current_user.dash_show_currently_online %}checked{% endif %}>
@@ -569,16 +527,16 @@
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Recent Deletions {% call chip() %}Most recent files in the Delete Log recycle bin — restorable for 30 days.{% endcall %}</div>
+              <div class="u-name">Recently deleted {% call chip() %}Most recent files in the Delete Log recycle bin — restorable for 30 days.{% endcall %}</div>
             </div>
-            <label class="mode-toggle" title="Show Recent Deletions">
+            <label class="mode-toggle" title="Show Recently deleted">
               <input type="checkbox" name="dash_show_deletions" value="1" {% if current_user.dash_show_deletions %}checked{% endif %}>
               <span class="mode-track"><span class="mode-thumb"></span></span>
             </label>
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Visitor Metrics {% call chip() %}Public-frontend traffic summary with a 14-day sparkline and a link to the full metrics page. Signed-in users are excluded from the counts.{% endcall %}</div>
+              <div class="u-name">Website visitors {% call chip() %}Public-frontend traffic summary with a 14-day sparkline and a link to the full metrics page. Signed-in users are excluded from the counts.{% endcall %}</div>
             </div>
             <label class="mode-toggle" title="Show Visitor Metrics">
               <input type="checkbox" name="dash_show_visitor_metrics" value="1" {% if current_user.dash_show_visitor_metrics %}checked{% endif %}>
@@ -587,9 +545,9 @@
           </li>
           <li class="special-page-row">
             <div class="special-page-info">
-              <div class="u-name">Off-site Backups {% call chip() %}Status of configured off-site backup targets — healthy / failing counts, last successful run, next scheduled run, and recent activity. Clicks open the backup manager.{% endcall %}</div>
+              <div class="u-name">Backups {% call chip() %}Status of configured off-site backup targets — healthy / failing counts, last successful run, next scheduled run, and recent activity. Clicks open the backup manager.{% endcall %}</div>
             </div>
-            <label class="mode-toggle" title="Show Off-site Backups">
+            <label class="mode-toggle" title="Show Backups">
               <input type="checkbox" name="dash_show_backups" value="1" {% if current_user.dash_show_backups %}checked{% endif %}>
               <span class="mode-track"><span class="mode-thumb"></span></span>
             </label>

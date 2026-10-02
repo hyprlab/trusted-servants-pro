@@ -48,7 +48,7 @@
 {% macro dash_widget(key, title, head_icon=None,
                      view_all_url=None, view_all_label='View all',
                      badge_count=0, badge_title='', badge_key=None, wide=False,
-                     help='') %}
+                     help='', view_all_tab=None) %}
 <div class="dash-widget{% if wide %} dash-widget-wide{% endif %}"
      data-widget-key="{{ key }}"
      draggable="true">
@@ -75,11 +75,26 @@
             above plus Watchtower / Notifications in base.html. -#}
         {%- elif badge_count %} <span class="nav-badge"{% if badge_title %} title="{{ badge_title }}"{% endif %}>{{ badge_count }}</span>{% endif -%}
       </span>
-      {% if view_all_url %}
-      <a href="{{ view_all_url }}" class="link dash-widget-viewall">{{ view_all_label }} {{ icon('arrow-right') }}</a>
+      {#- view_all_tab opens that Settings tab instead of a page. -#}
+      {% if view_all_tab %}
+      <a href="#" class="link dash-widget-viewall" data-open-modal="settings-modal" data-settings-tab="{{ view_all_tab }}">{{ view_all_label }} {{ icon('chevron-right') }}</a>
+      {% elif view_all_url %}
+      <a href="{{ view_all_url }}" class="link dash-widget-viewall">{{ view_all_label }} {{ icon('chevron-right') }}</a>
       {% endif %}
     </div>
     {{ caller() }}
   </section>
 </div>
 {% endmacro %}
+
+{# A widget with nothing to show: one quiet line with its icon, and, as
+   the call body when there's a next step, a small action.
+     {% call dash_empty('No meetings yet.', 'calendar') %}{% endcall %} #}
+{% macro dash_empty(text, empty_icon='inbox') -%}
+<div class="dash-empty">
+  <span class="dash-empty-icon" aria-hidden="true">{{ icon(empty_icon) }}</span>
+  <span class="dash-empty-text">{{ text }}</span>
+  {%- set _act = caller() if caller else '' -%}
+  {%- if _act|trim %}<span class="dash-empty-action">{{ _act }}</span>{% endif %}
+</div>
+{%- endmacro %}

@@ -3350,30 +3350,13 @@ a.card.meeting-card { font-weight: 500; }
 .stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; box-shadow: var(--shadow); }
 .stat-v { font-size: var(--fs-xl); font-weight: 700; }
 .stat-l { color: var(--muted); font-size: var(--fs-xs); margin-top: 2px; }
-.role-caps { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.role-caps li { position: relative; padding-left: 18px; font-size: var(--fs-xs); line-height: 1.35; color: var(--text); }
-.role-caps li::before { content: "✓"; position: absolute; left: 0; top: 0; color: var(--brand); font-weight: 700; }
 /* Footer "See full access details" link — render without the green
    check so it reads as a separate affordance from the capability
    bullets, with a small top-margin to detach it visually. */
 .role-caps li.role-caps-link { padding-left: 0; margin-top: 6px; font-size: var(--fs-2xs); }
-.role-caps li.role-caps-link::before { content: none; }
-.role-caps li.role-caps-link a { color: var(--brand); text-decoration: none; font-weight: 600; }
-.role-caps li.role-caps-link a:hover { text-decoration: underline; }
 
 /* Combined role + server-metrics widget layout */
-.server-metrics-body { display: grid; grid-template-columns: minmax(200px, 1fr) 2fr; gap: 24px; align-items: start; }
-.server-metrics-role-only .server-metrics-body { grid-template-columns: 1fr; }
-.server-metrics-role-only .role-panel { padding-right: 0; border-right: 0; }
-.role-panel { display: flex; flex-direction: column; padding-right: 24px; border-right: 1px solid var(--border); }
-.role-panel-label { font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-.role-panel-name { font-size: var(--fs-xl); font-weight: 700; color: var(--text); margin-top: 2px; line-height: 1.2; }
-.role-panel .role-caps { margin-top: 12px; }
 .server-metrics-column { min-width: 0; }
-@media (max-width: 900px) {
-  .server-metrics-body { grid-template-columns: 1fr; gap: 18px; }
-  .role-panel { padding-right: 0; padding-bottom: 18px; border-right: 0; border-bottom: 1px solid var(--border); }
-}
 
 /* ===== Content mode toggle (Upload / Paste) on reading forms ===== */
 .content-mode-toggle { display: flex; align-self: flex-start; margin: 2px 0 4px;
@@ -4992,33 +4975,11 @@ html.login-fade-in body { animation: login-page-fade-in 650ms ease-out both; }
 [data-theme="cyberpunk"] .badge-warning { background: #78350f; color: #fef3c7; border-color: #d97706; }
 .user-locked-badge { margin-left: 8px; }
 
-.access-requests-card { display: grid; grid-template-columns: 1fr 1fr; gap: 0;
-  align-items: stretch; }
-.access-requests-card > .access-requests-block,
-.access-requests-card > .locked-accounts-block { min-width: 0; }
-.access-requests-card > .access-requests-block { padding-right: 18px; }
-.access-requests-card > .locked-accounts-block { padding-left: 18px;
-  border-left: 1px solid var(--border); }
-.access-requests-card .ar-title,
-.access-requests-card .locked-accounts-title {
-  font-size: var(--fs-base); font-weight: 700; margin: 0 0 12px; color: var(--text);
-  display: flex; align-items: center; gap: 6px; line-height: 1.3; }
-.access-requests-block .list { margin: 0; }
-.access-requests-foot { display: flex; justify-content: flex-start; margin-top: 12px; }
-@media (max-width: 720px) {
-  .access-requests-card { grid-template-columns: 1fr; }
-  .access-requests-card > .access-requests-block { padding-right: 0; }
-  .access-requests-card > .locked-accounts-block {
-    padding-left: 0; border-left: 0;
-    padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border);
-  }
-}
 .locked-accounts-list li { display: flex; align-items: center; gap: 10px;
   padding: 6px 0; border-bottom: 1px solid var(--border); }
 .locked-accounts-list li:last-child { border-bottom: none; }
 .locked-accounts-name { font-weight: 500; }
 .locked-accounts-form { margin-left: auto; }
-.locked-accounts-empty { margin: 4px 0 0; }
 /* .nav-badge-warn lives after the base .nav-badge (below) so its colour
    wins by source order — same pattern as .nav-badge-danger. */
 
@@ -7985,7 +7946,6 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
    vertically centred, matching the [handle][title] layout of every
    other widget head. */
 .role-panel-head { display: flex; align-items: center; gap: .6rem; }
-.role-panel-titles { min-width: 0; }
 
 /* Macro-driven widgets put the drag handle inline inside the
    .data-card-head flex row (followed by the title icon and label).
@@ -8177,10 +8137,6 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   color: var(--muted);
   white-space: nowrap;
 }
-.dash-relnotes-cta {
-  align-self: flex-end;
-}
-.dash-relnotes-cta .icon { width: 15px; height: 15px; }
 @media (max-width: 480px) {
   .dash-relnotes-history-date { display: none; }
 }
@@ -8193,47 +8149,12 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
 }
 
 .server-metrics .card-head { align-items: baseline; }
-.server-metrics-os { text-align: right; }
-.server-metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 4px; }
-.server-metrics-grid-5 { grid-template-columns: repeat(5, 1fr); }
-.server-metrics-grid-6 { grid-template-columns: repeat(6, 1fr); }
 /* Disk tile turns amber when the volume crosses the low-space threshold
    (same 85% the admin banner / notification use), so the dashboard reads
    as a live monitor at a glance. Class is toggled from JS off real data. */
 .metric-tile-alert { border-color: var(--warn, #d97706);
   background: color-mix(in srgb, var(--warn, #d97706) 10%, var(--panel-2)); }
-.metric-tile-alert .metric-value { color: var(--warn, #d97706); }
-.metric-tile { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px;
-  border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); min-width: 0; }
-a.metric-tile-link { text-decoration: none; color: inherit; cursor: pointer;
-  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease; }
-a.metric-tile-link:hover { border-color: var(--brand);
-  background: color-mix(in srgb, var(--brand) 8%, var(--panel-2)); }
-a.metric-tile-link:active { transform: translateY(1px); }
-a.metric-tile-link .metric-value { color: var(--brand); }
-.metric-label { font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.12em;
-  text-transform: uppercase; color: var(--muted); }
-.metric-value { font-size: var(--fs-2xl); font-weight: 700; color: var(--text); line-height: 1.1;
-  display: flex; align-items: baseline; gap: 2px; }
-.metric-value-sm { font-size: var(--fs-lg); font-weight: 600; }
-.metric-unit { font-size: var(--fs-sm); font-weight: 500; color: var(--muted); margin-left: 2px; }
-.metric-sub { margin-top: 2px; }
 .metric-spark { width: 100%; height: 40px; margin-top: 6px; display: block; }
-.metric-tile-text { justify-content: center; }
-@media (max-width: 960px) {
-  .server-metrics-grid-5,
-  .server-metrics-grid-6 { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 720px) {
-  .server-metrics-grid,
-  .server-metrics-grid-5,
-  .server-metrics-grid-6 { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 520px) {
-  .server-metrics-grid,
-  .server-metrics-grid-5,
-  .server-metrics-grid-6 { grid-template-columns: 1fr; }
-}
 
 /* ===== First-run setup wizard ===== */
 body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
@@ -13883,31 +13804,11 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 
 /* Dashboard widget — Visitor Metrics card */
 .vm-widget-card { display: flex; flex-direction: column; gap: 12px; }
-.vm-widget-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.vm-widget-stat {
-  padding: 10px 12px; border-radius: 10px; background: var(--panel-2);
-  border: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px;
-  min-width: 0;
-}
-.vm-widget-stat-label {
-  font-size: var(--fs-3xs); font-weight: 700; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--muted);
-}
-.vm-widget-stat-value {
-  font-size: var(--fs-lg); font-weight: 700; color: var(--text); line-height: 1.15;
-  font-variant-numeric: tabular-nums;
-}
-.vm-widget-stat-accent { background:
-  linear-gradient(135deg, color-mix(in srgb, var(--brand) 16%, var(--panel-2)), var(--panel-2)); }
-.vm-widget-stat-accent .vm-widget-stat-value { color: var(--brand); }
 .vm-widget-spark {
   width: 100%; height: 56px; display: block;
   border: 1px solid var(--border); border-radius: 10px;
   background: linear-gradient(180deg, var(--panel-2), var(--panel));
   padding: 4px;
-}
-.vm-widget-spark-empty {
-  padding: 16px; text-align: center; color: var(--muted); font-size: var(--fs-xs);
 }
 
 /* ── Blog post body block editor (.pbe-*) ─────────────────────────
@@ -18500,6 +18401,125 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
    fields (and the Remove stored … checkbox) like the rest of the form.
    app.js shows a group by clearing its inline display. */
 #relayFields, #smtpFields { display: flex; flex-direction: column; gap: inherit; }
+
+/* ── Dashboard: one look for every widget (index.html, _dash_widget.html).
+   Head: grip (on hover), icon tile, title, count, one short link on the
+   right. Body: rows that highlight on hover, stat tiles of one size, and
+   a quiet dashed box when there's nothing to show. ── */
+.dash-grid { column-gap: 20px; }
+.dash-grid .card.data-card { padding: 18px 20px; border-radius: 14px; border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04); container-type: inline-size; }
+
+/* Head */
+.dash-grid .dash-widget-head,
+.dash-grid .user-log-online > .card-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px;
+  margin: 0 0 14px; padding: 0; border: 0; min-height: 30px; }
+.dash-grid .dash-widget-head .data-card-head-icon { width: 30px; height: 30px; border-radius: 8px; justify-content: center;
+  background: var(--brand-soft); color: var(--access, var(--brand)); }
+.dash-grid .dash-widget-head .data-card-head-icon .icon { width: 16px; height: 16px; color: inherit; }
+.dash-grid .dash-widget-title { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
+  font-size: var(--fs-md); font-weight: 650; color: var(--text); }
+.dash-grid .dash-widget-title .nav-badge { margin: 0; }
+.dash-grid .dash-widget-viewall { margin-left: auto; display: inline-flex; align-items: center; gap: 2px;
+  color: var(--muted); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; text-decoration: none; }
+.dash-grid .dash-widget-viewall:hover { color: var(--access, var(--brand)); text-decoration: none; }
+.dash-grid .dash-widget-viewall .icon { width: 15px; height: 15px; vertical-align: 0; }
+.dash-glance-os { margin-left: auto; color: var(--muted); font-size: var(--fs-sm); white-space: nowrap; }
+.dash-glance-os + .dash-widget-viewall { margin-left: 14px; padding-left: 14px; border-left: 1px solid var(--border); }
+@container (max-width: 520px) {
+  .dash-glance-os { display: none; }
+  .dash-glance-os + .dash-widget-viewall { margin-left: auto; padding-left: 0; border-left: 0; }
+}
+/* The email-list form's two fields share a row; let them shrink with
+   the card instead of pushing past it. */
+.dash-grid .ts-widget-row > label { min-width: 0; }
+.dash-grid .ts-widget-row input { width: 100%; min-width: 0; }
+/* Currently online builds its own head: match it. */
+.dash-grid .user-log-online > .card-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0;
+  font-size: var(--fs-md); font-weight: 650; }
+.dash-grid .user-log-online > .card-head h2 > .icon { width: 30px; height: 30px; padding: 7px; border-radius: 8px;
+  background: var(--brand-soft); color: var(--access, var(--brand)); }
+.dash-grid .user-log-online > .card-head > .muted { margin-left: auto; }
+
+/* Grip: the whole card drags; the grip only shows it can. */
+.dash-grid .dash-drag-handle { position: absolute; left: 3px; top: 25px; padding: 2px; border: 0; background: none;
+  color: var(--muted); opacity: 0; transition: opacity 150ms ease; }
+.dash-grid .dash-drag-handle .icon { width: 14px; height: 14px; color: inherit; }
+.dash-grid .dash-widget:hover .dash-drag-handle,
+.dash-grid .dash-widget:focus-within .dash-drag-handle { opacity: 1; }
+.dash-grid .dash-drag-handle:hover { background: none; color: var(--text); }
+
+/* Rows */
+.dash-grid .list { margin: 0 -8px; }
+.dash-grid .list li { border-bottom: 0; }
+.dash-grid .list li + li { border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.dash-grid .list li a { gap: 12px; padding: 9px 8px; border-radius: 8px; font-weight: 500; }
+.dash-grid .list li a:hover { background: var(--panel-2); color: var(--text); }
+.dash-grid .list li a > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-grid .list li a > .muted { flex: 0 0 auto; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.dash-grid .dash-deletions-list li a > span:first-child { white-space: normal; }
+.dash-grid .locked-accounts-list li { display: flex; align-items: center; gap: 10px; padding: 8px; }
+.dash-grid .locked-accounts-list .locked-accounts-name { font-weight: 600; }
+.dash-grid .locked-accounts-list .locked-accounts-form { margin: 0 0 0 auto; }
+.dash-grid .dash-forms-list { margin: 0 -8px; }
+.dash-grid .dash-forms-row + .dash-forms-row { border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.dash-grid .dash-forms-link { padding: 9px 8px; border-radius: 8px; }
+.dash-grid .dash-forms-link:hover { background: var(--panel-2); }
+.dash-grid .dash-forms-link:hover .dash-forms-name { text-decoration: none; }
+.dash-grid .dash-deletions-foot { border-top: 0; padding: 10px 0 0; margin: 0; }
+.dash-subhead { display: flex; align-items: center; gap: 8px; margin: 18px 0 8px; font-size: var(--fs-2xs); font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.dash-subhead .nav-badge { margin: 0; letter-spacing: 0; }
+
+/* Nothing to show */
+.dash-empty { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px dashed var(--border);
+  border-radius: 10px; color: var(--muted); font-size: var(--fs-sm); line-height: 1.4; }
+.dash-empty-icon { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--panel-2); }
+.dash-empty-icon .icon { width: 16px; height: 16px; }
+.dash-empty-text { flex: 1 1 auto; min-width: 0; }
+.dash-empty-action { flex: 0 0 auto; }
+
+/* Stat tiles: the server strip, website visitors and backups */
+.dash-stats { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+.dash-stats--6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.dash-stats--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@container (max-width: 760px) { .dash-stats--6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container (max-width: 420px) { .dash-stats--6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.dash-stat, .dash-grid .dash-backups-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); color: inherit; text-decoration: none; }
+.dash-stat-label, .dash-grid .dash-backups-stat-label { font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted); }
+.dash-stat-value, .dash-grid .dash-backups-stat-value { display: flex; align-items: baseline; gap: 2px; min-width: 0;
+  font-size: var(--fs-xl); font-weight: 700; line-height: 1.2; color: var(--text); font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-stat-unit { font-size: var(--fs-sm); font-weight: 500; color: var(--muted); }
+.dash-stat-sub { font-size: var(--fs-2xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-stat .metric-spark { width: 100%; height: 28px; margin-top: auto; padding-top: 6px; display: block; }
+a.dash-stat--link { transition: border-color 140ms ease, background 140ms ease; }
+a.dash-stat--link:hover { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, var(--panel-2)); text-decoration: none; }
+a.dash-stat--link .dash-stat-value { color: var(--access, var(--brand)); }
+.dash-stat.metric-tile-alert { border-color: #d97706; background: color-mix(in srgb, #d97706 10%, var(--panel-2)); }
+.dash-stat.metric-tile-alert .dash-stat-value { color: #d97706; }
+.dash-grid .vm-widget-spark { height: 56px; border: 0; padding: 0; background: none; }
+.dash-grid .dash-backups-stat-accent .dash-backups-stat-value { color: var(--access, var(--brand)); }
+.dash-grid .dash-backups-stat-bad { border-color: #dc2626; }
+.dash-grid .dash-backups-stat-bad .dash-backups-stat-value { color: #dc2626; }
+
+/* Your role (not admins) */
+.dash-role-caps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px 24px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); font-size: var(--fs-sm); }
+.dash-role-caps li { position: relative; padding-left: 22px; line-height: 1.45; }
+.dash-role-caps li::before { content: ""; position: absolute; left: 2px; top: .45em; width: 10px; height: 5px;
+  border: solid var(--access, var(--brand)); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+
+/* What's new: the latest release, then the earlier ones as rows. */
+.dash-grid .dash-relnotes { gap: 14px; padding-top: 0; }
+.dash-grid .dash-relnotes-latest { border: 0; padding: 0; background: none; border-radius: 0; }
+.dash-grid .dash-relnotes-ver { font-size: var(--fs-md); font-weight: 700; }
+.dash-grid .dash-relnotes-pill { background: var(--brand-soft); color: var(--access, var(--brand)); }
+.dash-grid .dash-relnotes-body { max-height: 7.6em; color: var(--muted); }
+.dash-grid .dash-relnotes-history-label { margin: 0 0 4px; }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */

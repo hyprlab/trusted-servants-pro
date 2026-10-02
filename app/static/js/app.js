@@ -2736,7 +2736,8 @@
         setField("disk_detail", fmtBytes(d.disk_used) + " / " + fmtBytes(d.disk_total));
         const diskTile = document.getElementById("disk-metric-tile");
         if (diskTile) diskTile.classList.toggle("metric-tile-alert", (d.disk_percent || 0) >= DISK_ALERT_PCT);
-        setField("load_avg", d.load_avg.map(n => n.toFixed(2)).join(" · "));
+        setField("load_1", d.load_avg[0].toFixed(2));
+        setField("load_rest", "5m " + d.load_avg[1].toFixed(2) + " · 15m " + d.load_avg[2].toFixed(2));
         setField("uptime", fmtUptime(d.uptime_seconds));
         setField("cpu_count", d.cpu_count + " core" + (d.cpu_count === 1 ? "" : "s") + " · " + d.hostname);
         widget.querySelectorAll(".metric-spark").forEach(c => {
