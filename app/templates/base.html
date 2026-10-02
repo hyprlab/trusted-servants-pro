@@ -163,6 +163,9 @@
 {% if not embed %}
 <div class="layout">
   <aside class="sidebar">
+    {# Everything but the footer scrolls together: the brand, the rows at
+       the top and the nav (app.js remembers the offset per tab). #}
+    <div class="sidebar-scroll" id="sidebar-scroll">
     <div class="brand">
       <img class="brand-logo" src="{{ url_for('static', filename='img/logo.svg') }}" alt="">
       <div>
@@ -257,6 +260,7 @@
     <nav id="sidebar-nav">
       {% include "_sidebar_nav.html" %}
     </nav>
+    </div>
     <div class="sidebar-footer">
       {% set _flogo = (site.footer_logo_filename if site else None) %}
       {% set _furl = (site.footer_logo_url if site else None) or '' %}

@@ -1052,15 +1052,16 @@
         }).then(r => r.ok ? r.text() : Promise.reject(r))
           .then(html => {
             const nav = document.getElementById("sidebar-nav");
-            // Replacing innerHTML resets scrollTop — keep the admin's
-            // place across the live-badge refresh (see
+            const scroller = document.getElementById("sidebar-scroll") || nav;
+            // Replacing the nav's content can move the sidebar's
+            // scroll — keep the admin's place across the refresh (see
             // initSidebarScrollMemory).
-            const keepScroll = nav ? nav.scrollTop : 0;
+            const keepScroll = scroller ? scroller.scrollTop : 0;
             if (nav) nav.innerHTML = html;
             applySidebarSectionState();
-            if (nav) {
-              const max = nav.scrollHeight - nav.clientHeight;
-              if (max > 0) nav.scrollTop = Math.min(keepScroll, max);
+            if (scroller) {
+              const max = scroller.scrollHeight - scroller.clientHeight;
+              if (max > 0) scroller.scrollTop = Math.min(keepScroll, max);
             }
           }),
         refreshManual ? fetch("/tspro/_sidebar/order-manual", {
@@ -7985,7 +7986,8 @@
 })();
 
 /* ── Sidebar scroll memory ──────────────────────────────────────────
-   #sidebar-nav is its own scroll container and every admin navigation
+   #sidebar-scroll (brand, top rows and nav) is its own scroll
+   container and every admin navigation
    is a full page load, so the nav snapped back to the top on each one
    — anyone working in a section near the bottom had to re-scroll after
    every click. Persist the offset per tab (sessionStorage, so a new tab
@@ -7996,7 +7998,7 @@
    path calls save()/restore() around the swap via the hook below. */
 (function initSidebarScrollMemory() {
   var KEY = "tsp-sidebar-scroll";
-  function nav() { return document.getElementById("sidebar-nav"); }
+  function nav() { return document.getElementById("sidebar-scroll"); }
 
   function save() {
     var n = nav();
@@ -8019,7 +8021,7 @@
 
   var pending = false;
   document.addEventListener("scroll", function (e) {
-    if (!e.target || e.target.id !== "sidebar-nav") return;
+    if (!e.target || e.target.id !== "sidebar-scroll") return;
     if (pending) return;
     pending = true;
     requestAnimationFrame(function () { pending = false; save(); });

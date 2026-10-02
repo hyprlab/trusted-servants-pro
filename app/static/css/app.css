@@ -296,18 +296,17 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
      2 below (and reset to column 1 in the single-column mobile / autohide
      states where the sidebar goes off-canvas). */
   position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh; z-index: 25;
-  /* Three-zone layout: brand stays pinned at top, the nav middle
-     scrolls when its content overflows, and the footer is pinned at
-     the bottom. flex-shrink: 0 on brand + footer keeps them out of
-     the squeeze; min-height: 0 on the scrolling nav lets the flex
-     child shrink below its intrinsic content height (without it
-     overflow-y has nothing to clip against). */
+  /* Two zones: everything above the footer (brand, the rows at the
+     top, the nav) scrolls together in .sidebar-scroll, and the footer
+     is pinned at the bottom. min-height: 0 on the scroll area lets the
+     flex child shrink below its content height (without it overflow-y
+     has nothing to clip against). */
 }
 .sidebar > .brand { flex: 0 0 auto; }
 /* Hide the scrollbar visually but keep the scroll functionality. The
    sidebar's middle still scrolls via mouse wheel / trackpad / keyboard;
    we just suppress the gutter so the nav reads as a clean column. */
-.sidebar > nav { flex: 1 1 auto; min-height: 0; overflow-y: auto;
+.sidebar > .sidebar-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto;
   /* Lock horizontal axis. Without an explicit `overflow-x`, the CSS
      spec promotes it to `auto` once the Y axis is non-visible —
      letting any inner element that exceeds the sidebar's width turn
@@ -316,7 +315,11 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
      pan even if some descendant manages to overflow. */
   overflow-x: hidden; touch-action: pan-y;
   scrollbar-width: none; -ms-overflow-style: none; }
-.sidebar > nav::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.sidebar > .sidebar-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+/* The scroll area clips sideways, so it reaches 6px past the sidebar's
+   padding on each side to hold the current page's bar (and the rows'
+   edges) while the rows stay where they were. */
+.sidebar > .sidebar-scroll { margin: 0 -6px; padding: 0 6px; }
 .brand { display: flex; gap: 12px; align-items: flex-start; padding: 4px 6px 18px; }
 .brand-mark {
   width: 36px; height: 36px; border-radius: 10px;
@@ -348,10 +351,15 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
 .sidebar nav a:hover { background: var(--panel-2); text-decoration: none; }
 .sidebar nav a.active { background: var(--brand-soft); color: var(--access); }
 /* The active page as in the Web Frontend menu: bold, with a bar on its
-   left. The list clips sideways (it scrolls), so it reaches 6px further
-   left to hold the bar while the links stay where they were. */
-.sidebar nav { margin-left: -6px; padding-left: 6px; }
-.sidebar nav a { position: relative; }
+   left (held by .sidebar-scroll's side padding). Each link is a row
+   like the ones above the nav: icon, label, then any count at the end. */
+.sidebar nav a { position: relative; display: flex; align-items: center; gap: 10px; }
+.sidebar nav a .nav-icon { display: inline-flex; flex: 0 0 auto; color: var(--muted); transition: color 120ms ease; }
+.sidebar nav a .nav-icon .icon { width: 18px; height: 18px; display: block; }
+.sidebar nav a:hover .nav-icon { color: var(--text); }
+.sidebar nav a.active .nav-icon { color: var(--access, var(--brand)); }
+.sidebar nav a .nav-label { flex: 1 1 auto; min-width: 0; }
+.sidebar nav a .nav-badge { flex: 0 0 auto; margin-left: 0; }
 .sidebar nav a.active { font-weight: 650; }
 .sidebar nav a.active::before { content: ""; position: absolute; left: -4px; top: 8px; bottom: 8px;
   width: 3px; border-radius: 2px; background: var(--brand); }
