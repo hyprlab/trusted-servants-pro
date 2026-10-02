@@ -3,38 +3,9 @@
 {% block heading %}File Browser{% endblock %}
 {% block heading_help %}Upload, browse, and manage images, documents, and other files used throughout the portal.{% endblock %}
 {% block top_actions %}
-  {% set _pkr = '1' if picker else None %}
-  {% set _emb = '1' if (picker or request.args.get('embed') == '1') else None %}
-  <div class="view-controls">
-    <div class="view-toggle" role="group" aria-label="View mode">
-      <a class="btn btn-sm{% if view != 'grid' %} active{% endif %}"
-         href="{{ url_for('main.media_list', view='list', sort=sort, dir=direction, q=q, picker=_pkr, embed=_emb) }}"
-         title="List view" aria-pressed="{{ 'true' if view != 'grid' else 'false' }}">
-        {{ icon('list') }} <span class="view-toggle-label">List</span>
-      </a>
-      <a class="btn btn-sm{% if view == 'grid' %} active{% endif %}"
-         href="{{ url_for('main.media_list', view='grid', sort=sort, dir=direction, q=q, picker=_pkr, embed=_emb) }}"
-         title="Thumbnail grid" aria-pressed="{{ 'true' if view == 'grid' else 'false' }}">
-        {{ icon('layout-grid') }} <span class="view-toggle-label">Grid</span>
-      </a>
-    </div>
-    <label class="sort-select">
-      <span class="muted smaller">Sort</span>
-      <select onchange="window.location=this.value">
-        <option value="{{ url_for('main.media_list', view=view, sort='name', dir=direction, q=q, picker=_pkr, embed=_emb) }}" {% if sort=='name' %}selected{% endif %}>Name</option>
-        <option value="{{ url_for('main.media_list', view=view, sort='type', dir=direction, q=q, picker=_pkr, embed=_emb) }}" {% if sort=='type' %}selected{% endif %}>Type</option>
-        <option value="{{ url_for('main.media_list', view=view, sort='size', dir=direction, q=q, picker=_pkr, embed=_emb) }}" {% if sort=='size' %}selected{% endif %}>Size</option>
-        <option value="{{ url_for('main.media_list', view=view, sort='uploaded', dir=direction, q=q, picker=_pkr, embed=_emb) }}" {% if sort=='uploaded' %}selected{% endif %}>Uploaded</option>
-      </select>
-    </label>
-    <a class="btn btn-sm sort-dir" title="Toggle sort direction"
-       href="{{ url_for('main.media_list', view=view, sort=sort, dir=('desc' if direction=='asc' else 'asc'), q=q, picker=_pkr, embed=_emb) }}">
-      {{ '↓' if direction == 'desc' else '↑' }}
-    </a>
-  </div>
   {% if current_user.can_edit() and not picker %}
-  <label class="btn btn-primary" for="media-upload-input">+ Upload</label>
-  <input type="file" id="media-upload-input" style="display:none" multiple>
+  <label class="btn btn-primary" for="media-upload-input">{{ icon('upload') }} Upload</label>
+  <input type="file" id="media-upload-input" hidden multiple>
   {% endif %}
 {% endblock %}
 {% block content %}
@@ -53,78 +24,124 @@
   <button type="button" class="btn btn-primary" data-multi-done>Add items</button>
 </div>
 {% endif %}
-{# A media row is "previewable" if it's an image (any ext we render
-   inline) or a PDF. We compute this in Python so both views share the
-   same definition + the lightbox JS can iterate items in DOM order. #}
+{% set _pkr = '1' if picker else None %}
+{% set _emb = '1' if (picker or request.args.get('embed') == '1') else None %}
 {% set IMG_EXTS = ('jpg','jpeg','png','gif','webp','svg','bmp','avif') %}
+{# A file's picture: its image (falling back to the type icon if it fails
+   to load), or for other types an icon with the extension. #}
 {% macro _thumb_for(m, t) %}
+  {% set _ic = {'pdf':'file-text','doc':'file-text','xls':'file-text','ppt':'file-text','vid':'video','aud':'music','file':'file'}.get(t, 'file') %}
   {% if t == 'img' %}
     <img class="media-thumb-img" loading="lazy" alt=""
-         src="{{ url_for('public.public_file', filename=m.original_filename) }}">
-  {% else %}
-    {% set _ic = {'pdf':'file-text','doc':'file-text','xls':'file-text','ppt':'file-text','vid':'image','aud':'image','file':'file'}.get(t, 'file') %}
-    <span class="media-thumb-fallback ftype-{{ t }}" aria-hidden="true">
-      {{ icon(_ic) }}
-      <span class="media-thumb-ext">{{ t|upper }}</span>
-    </span>
+         src="{{ url_for('public.public_file', filename=m.original_filename) }}"
+         onerror="this.parentNode.classList.add('is-broken')">
   {% endif %}
+  <span class="media-thumb-fallback ftype-{{ t }}" aria-hidden="true">
+    {{ icon('image' if t == 'img' else _ic) }}
+    <span class="media-thumb-ext">{{ (m.original_filename.rsplit('.', 1)[-1] if m.original_filename and '.' in m.original_filename else t)|upper }}</span>
+  </span>
 {% endmacro %}
-<section class="card">
-  {% set _pkr = '1' if picker else None %}
-  {% set _emb = '1' if (picker or request.args.get('embed') == '1') else None %}
-  <form method="get" action="{{ url_for('main.media_list') }}" class="media-search">
-    {% if picker %}<input type="hidden" name="picker" value="1">{% endif %}
-    {% if picker %}<input type="hidden" name="embed" value="1">{% endif %}
-    <input type="hidden" name="view" value="{{ view }}">
-    <input type="hidden" name="sort" value="{{ sort }}">
-    <input type="hidden" name="dir" value="{{ direction }}">
-    <input name="q" value="{{ q }}" placeholder="Search filename…" autofocus>
-    <button class="btn btn-sm">Search</button>
-  </form>
+{% macro _size(n) -%}
+  {%- set n = n or 0 -%}
+  {%- if n < 1024 %}{{ n }} B{% elif n < 1048576 %}{{ (n / 1024)|round|int }} KB{% else %}{{ '%.1f'|format(n / 1048576) }} MB{% endif -%}
+{%- endmacro %}
+{% macro _when(m) -%}{{ m.created_at|fmt_site_local('%b %-d, %Y') if m.created_at else '' }}{%- endmacro %}
+{# A file's actions: Copy link, Download, Rename and Delete (Delete asks
+   first). Rename and Delete show for editors and grey out when this
+   file isn't theirs to change; viewers see Copy and Download only. #}
+{% macro _actions(m, pub, compact=False) %}
+  {% call row_menu('Actions for ' ~ m.original_filename, compact=compact) %}
+    <button type="button" class="row-menu-item btn-copy" data-copy-url="{{ pub }}">
+      {{ icon('link') }}<span>Copy link</span></button>
+    <a class="row-menu-item" href="{{ url_for('main.media_download', mid=m.id) }}">
+      {{ icon('download') }}<span>Download</span></a>
+    {% if current_user.can_edit() %}
+      {% if current_user.can_rename_media(m) %}
+      <button type="button" class="row-menu-item media-rename">
+        {{ icon('pencil') }}<span>Rename</span></button>
+      {% else %}
+      <button type="button" class="row-menu-item btn-perm-disabled" disabled
+              title="You don't have permission to rename this file. Editors can only rename files uploaded by another Editor; this one was uploaded by an admin or Intergroup Member, or its uploader is unknown.">
+        {{ icon('pencil') }}<span>Rename</span></button>
+      {% endif %}
+      <div class="row-menu-sep" role="separator"></div>
+      {% if current_user.is_admin() %}
+      <form method="post" action="{{ url_for('main.media_delete', mid=m.id) }}"
+            data-confirm-title="Delete this file?"
+            data-confirm="“{{ m.original_filename }}” will be deleted from the file browser. Pages and meetings that link to it will lose it.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+      </form>
+      {% else %}
+      <button type="button" class="row-menu-item row-menu-item-danger btn-perm-disabled" disabled
+              title="Only admins can delete files here.">
+        {{ icon('trash') }}<span>Delete</span></button>
+      {% endif %}
+    {% endif %}
+  {% endcall %}
+{% endmacro %}
+{% macro _picker_actions(m, pub) %}
+  <button type="button" class="btn btn-sm media-preview" data-media-preview
+          data-pub-url="{{ pub }}" data-download-url="{{ url_for('main.media_download', mid=m.id) }}"
+          data-filename="{{ m.original_filename }}">Preview</button>
+  <button type="button" class="btn btn-sm btn-primary media-select">Select</button>
+{% endmacro %}
+
+<section class="card fb">
+  {# One toolbar for every mode: search, how many, sort and the view. #}
+  <div class="fb-toolbar">
+    <form method="get" action="{{ url_for('main.media_list') }}" class="fb-search" role="search">
+      {% if picker %}<input type="hidden" name="picker" value="1"><input type="hidden" name="embed" value="1">{% endif %}
+      <input type="hidden" name="view" value="{{ view }}">
+      <input type="hidden" name="sort" value="{{ sort }}">
+      <input type="hidden" name="dir" value="{{ direction }}">
+      {{ icon('search') }}
+      <input type="search" name="q" value="{{ q }}" placeholder="Search by filename" aria-label="Search by filename">
+    </form>
+    <span class="fb-count muted">{% if pagination %}{{ pagination.total }}{% else %}{{ items|length }}{% endif %} file{{ '' if (pagination.total if pagination else items|length) == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}</span>
+    <div class="fb-sort">
+      <label class="fb-sort-select">
+        <span class="sr-only">Sort by</span>
+        <select onchange="window.location=this.value" aria-label="Sort by">
+          {% for k, lbl in [('uploaded','Newest'),('name','Name'),('type','Type'),('size','Size')] %}
+          <option value="{{ url_for('main.media_list', view=view, sort=k, dir=direction, q=q, picker=_pkr, embed=_emb) }}" {% if sort==k %}selected{% endif %}>{{ 'Uploaded' if k == 'uploaded' else lbl }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <a class="btn btn-sm fb-dir" title="{{ 'Descending' if direction == 'desc' else 'Ascending' }}: switch"
+         aria-label="Sort {{ 'ascending' if direction == 'desc' else 'descending' }}"
+         href="{{ url_for('main.media_list', view=view, sort=sort, dir=('desc' if direction=='asc' else 'asc'), q=q, picker=_pkr, embed=_emb) }}">{{ icon('arrow-down' if direction == 'desc' else 'arrow-up') }}</a>
+    </div>
+    <div class="ds-seg-btns fb-view" role="group" aria-label="View">
+      <a href="{{ url_for('main.media_list', view='list', sort=sort, dir=direction, q=q, picker=_pkr, embed=_emb) }}"
+         aria-checked="{{ 'true' if view != 'grid' else 'false' }}" role="radio" title="List">{{ icon('list') }}<span>List</span></a>
+      <a href="{{ url_for('main.media_list', view='grid', sort=sort, dir=direction, q=q, picker=_pkr, embed=_emb) }}"
+         aria-checked="{{ 'true' if view == 'grid' else 'false' }}" role="radio" title="Grid">{{ icon('layout-grid') }}<span>Grid</span></a>
+    </div>
+  </div>
 
   {% if picker and current_user.can_edit() %}
   <div class="picker-upload">
-    <label class="btn btn-sm btn-primary" for="media-upload-input">+ Upload new</label>
-    <input type="file" id="media-upload-input" style="display:none">
+    <label class="btn btn-sm btn-primary" for="media-upload-input">{{ icon('upload') }} Upload new</label>
+    <input type="file" id="media-upload-input" hidden>
     <span class="muted small">Uploads appear at the top.</span>
   </div>
   {% endif %}
 
-  {% if picker %}
-  <div class="view-controls picker-controls">
-    <div class="view-toggle" role="group" aria-label="View mode">
-      <a class="btn btn-sm{% if view != 'grid' %} active{% endif %}"
-         href="{{ url_for('main.media_list', view='list', sort=sort, dir=direction, q=q, picker=_pkr, embed=_emb) }}"
-         title="List view">{{ icon('list') }} <span class="view-toggle-label">List</span></a>
-      <a class="btn btn-sm{% if view == 'grid' %} active{% endif %}"
-         href="{{ url_for('main.media_list', view='grid', sort=sort, dir=direction, q=q, picker=_pkr, embed=_emb) }}"
-         title="Thumbnail grid">{{ icon('layout-grid') }} <span class="view-toggle-label">Grid</span></a>
-    </div>
-    <label class="sort-select">
-      <span class="muted smaller">Sort</span>
-      <select onchange="window.location=this.value">
-        <option value="{{ url_for('main.media_list', view=view, sort='name', dir=direction, q=q, picker=_pkr, embed=_emb) }}" {% if sort=='name' %}selected{% endif %}>Name</option>
-        <option value="{{ url_for('main.media_list', view=view, sort='type', dir=direction, q=q, picker=_pkr, embed=_emb) }}" {% if sort=='type' %}selected{% endif %}>Type</option>
-        <option value="{{ url_for('main.media_list', view=view, sort='size', dir=direction, q=q, picker=_pkr, embed=_emb) }}" {% if sort=='size' %}selected{% endif %}>Size</option>
-        <option value="{{ url_for('main.media_list', view=view, sort='uploaded', dir=direction, q=q, picker=_pkr, embed=_emb) }}" {% if sort=='uploaded' %}selected{% endif %}>Uploaded</option>
-      </select>
-    </label>
-    <a class="btn btn-sm sort-dir" title="Toggle sort direction"
-       href="{{ url_for('main.media_list', view=view, sort=sort, dir=('desc' if direction=='asc' else 'asc'), q=q, picker=_pkr, embed=_emb) }}">
-      {{ '↓' if direction == 'desc' else '↑' }}
-    </a>
-  </div>
-  {% endif %}
-
   {% if not items %}
-  <p class="muted">No media {% if q %}matching "{{ q }}"{% endif %}.</p>
+  <div class="fb-empty">
+    <span class="fb-empty-icon" aria-hidden="true">{{ icon('folder') }}</span>
+    <p>{% if q %}No files match “{{ q }}”.{% else %}No files yet.{% endif %}</p>
+    {% if q %}<a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, picker=_pkr, embed=_emb) }}">Clear search</a>
+    {% elif current_user.can_edit() %}<label class="btn btn-sm btn-primary" for="media-upload-input">{{ icon('upload') }} Upload a file</label>{% endif %}
+  </div>
   {% elif view == 'grid' %}
-  <div class="media-grid">
+  <div class="media-grid fb-grid">
     {% for m in items %}
     {% set t = media_type(m.original_filename) %}
     {% set _pub = url_for('public.public_file', filename=m.original_filename) %}
     {% set _previewable = (t == 'img') or (m.original_filename and m.original_filename.lower().endswith('.pdf')) %}
-    <article class="media-card" data-media-id="{{ m.id }}" data-stored="{{ m.stored_filename }}"
+    <article class="media-card fb-card" data-media-id="{{ m.id }}" data-stored="{{ m.stored_filename }}"
              data-original="{{ m.original_filename }}"
              data-pub-url="{{ _pub }}"
              data-download-url="{{ url_for('main.media_download', mid=m.id) }}"
@@ -132,48 +149,24 @@
              data-media-type="{{ t }}">
       <button type="button" class="media-thumb-btn{% if _previewable %} is-previewable{% endif %}"
               {% if _previewable %}data-open-lightbox{% endif %}
-              title="{{ 'Preview' if _previewable else 'Open file' }} — {{ m.original_filename }}">
+              title="{{ 'Preview' if _previewable else 'Open' }} {{ m.original_filename }}">
         {{ _thumb_for(m, t) }}
       </button>
-      <div class="media-card-meta">
-        <a class="media-card-name" href="{{ _pub }}" target="_blank" title="{{ m.original_filename }}">{{ m.original_filename }}</a>
-        <div class="media-card-sub muted small">
-          <span class="ftype ftype-{{ t }} ftype-sm">{{ t|upper }}</span>
-          <span>{{ (m.size_bytes or 0) // 1024 }} KB</span>
+      <div class="fb-card-body">
+        <div class="fb-card-text">
+          <a class="media-name fb-name" href="{{ _pub }}" target="_blank" title="{{ m.original_filename }}">{{ m.original_filename }}</a>
+          <div class="fb-sub">{{ _size(m.size_bytes) }}<span aria-hidden="true"> · </span>{{ _when(m) }}</div>
         </div>
+        {% if not picker %}{{ _actions(m, _pub, compact=True) }}{% endif %}
       </div>
-      <div class="media-card-actions">
-        {% if picker %}
-        <button type="button" class="btn btn-sm media-preview"
-                data-media-preview
-                data-pub-url="{{ _pub }}"
-                data-download-url="{{ url_for('main.media_download', mid=m.id) }}"
-                data-filename="{{ m.original_filename }}">Preview</button>
-        <button type="button" class="btn btn-sm btn-primary media-select">Select</button>
-        {% else %}
-        <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ _pub }}">Copy</button>
-        <a class="btn btn-sm" href="{{ url_for('main.media_download', mid=m.id) }}" title="Download">{{ icon('download') }}</a>
-        {% if current_user.can_edit() %}
-          {% if current_user.can_rename_media(m) %}
-          <button type="button" class="btn btn-sm media-rename">Rename</button>
-          {% endif %}
-          {% if current_user.is_admin() %}
-          <form method="post" action="{{ url_for('main.media_delete', mid=m.id) }}"
-                onsubmit="return confirm('Delete this file from the library?');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-sm btn-danger" title="Delete file">{{ icon('trash') }}</button>
-          </form>
-          {% endif %}
-        {% endif %}
-        {% endif %}
-      </div>
+      {% if picker %}<div class="fb-card-pick">{{ _picker_actions(m, _pub) }}</div>{% endif %}
     </article>
     {% endfor %}
   </div>
   {% else %}
-  <table class="tbl media-tbl">
+  <table class="tbl media-tbl fb-tbl">
     <thead>
-      <tr><th class="media-thumb-col"></th><th>Name</th><th>Type</th><th>Size</th><th class="hide-sm">Uploaded by</th><th></th></tr>
+      <tr><th class="fb-thumb-col"><span class="sr-only">Preview</span></th><th>Name</th><th class="fb-col">Type</th><th class="fb-col fb-num">Size</th><th class="fb-col">Uploaded</th><th class="fb-col fb-col-wide">By</th><th><span class="sr-only">Actions</span></th></tr>
     </thead>
     <tbody>
       {% for m in items %}
@@ -185,61 +178,24 @@
           data-download-url="{{ url_for('main.media_download', mid=m.id) }}"
           {% if _previewable %}data-previewable="1"{% endif %}
           data-media-type="{{ t }}">
-        <td class="media-thumb-cell">
+        <td class="fb-thumb-cell">
           <button type="button" class="media-thumb-btn media-thumb-btn-sm{% if _previewable %} is-previewable{% endif %}"
                   {% if _previewable %}data-open-lightbox{% endif %}
-                  title="{{ 'Preview' if _previewable else 'Open file' }} — {{ m.original_filename }}">
+                  title="{{ 'Preview' if _previewable else 'Open' }} {{ m.original_filename }}">
             {{ _thumb_for(m, t) }}
           </button>
         </td>
-        <td class="media-name-cell"><a href="{{ _pub }}" target="_blank">{{ m.original_filename }}</a></td>
-        <td><span class="ftype ftype-{{ t }} ftype-sm">{{ t|upper }}</span></td>
-        <td class="muted">{{ (m.size_bytes or 0) // 1024 }} KB</td>
-        <td class="muted hide-sm">{{ m.uploader.username if m.uploader else '—' }}</td>
+        <td class="media-name-cell">
+          <a class="media-name fb-name" href="{{ _pub }}" target="_blank" title="{{ m.original_filename }}">{{ m.original_filename }}</a>
+          {# On a phone the columns fold into this line. #}
+          <div class="fb-sub fb-sub--narrow">{{ t|upper }} · {{ _size(m.size_bytes) }} · {{ _when(m) }}</div>
+        </td>
+        <td class="fb-col"><span class="ftype ftype-{{ t }} ftype-sm">{{ t|upper }}</span></td>
+        <td class="fb-col fb-num muted">{{ _size(m.size_bytes) }}</td>
+        <td class="fb-col muted">{{ _when(m) }}</td>
+        <td class="fb-col fb-col-wide muted">{{ m.uploader.username if m.uploader else '—' }}</td>
         <td class="row-actions">
-          {% if picker %}
-          <button type="button" class="btn btn-sm media-preview"
-                  data-media-preview
-                  data-pub-url="{{ _pub }}"
-                  data-download-url="{{ url_for('main.media_download', mid=m.id) }}"
-                  data-filename="{{ m.original_filename }}">Preview</button>
-          <button type="button" class="btn btn-sm btn-primary media-select">Select</button>
-          {% else %}
-          {% call row_menu() %}
-            <button type="button" class="row-menu-item btn-copy" data-copy-url="{{ _pub }}">
-              {{ icon('link') }}<span>Copy Link</span></button>
-            <a class="row-menu-item" href="{{ url_for('main.media_download', mid=m.id) }}">
-              {{ icon('download') }}<span>Download</span></a>
-            {# Rename + Delete render for every editor-tier role (so
-               Editors / Intergroup Members can see the items and the
-               roles they unlock for them); each greys out individually
-               when the per-row gate denies the action. Viewers (who
-               fail ``can_edit``) keep seeing nothing. #}
-            {% if current_user.can_edit() %}
-              {% if current_user.can_rename_media(m) %}
-              <button type="button" class="row-menu-item media-rename">
-                {{ icon('pencil') }}<span>Rename</span></button>
-              {% else %}
-              <button type="button" class="row-menu-item btn-perm-disabled" disabled
-                      title="You don't have permission to rename this file. Editors can only rename files uploaded by another Editor — this one was uploaded by an admin / Intergroup Member, or its uploader is unknown (legacy upload).">
-                {{ icon('pencil') }}<span>Rename</span></button>
-              {% endif %}
-              <div class="row-menu-sep" role="separator"></div>
-              {% if current_user.is_admin() %}
-              <form method="post" action="{{ url_for('main.media_delete', mid=m.id) }}"
-                    onsubmit="return confirm('Delete this file from the library?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="row-menu-item row-menu-item-danger" title="Delete file">
-                  {{ icon('trash') }}<span>Delete</span></button>
-              </form>
-              {% else %}
-              <button type="button" class="row-menu-item row-menu-item-danger btn-perm-disabled" disabled
-                      title="You don't have permission to delete files from the file browser. Only admins can permanently remove files here.">
-                {{ icon('trash') }}<span>Delete</span></button>
-              {% endif %}
-            {% endif %}
-          {% endcall %}
-          {% endif %}
+          {% if picker %}{{ _picker_actions(m, _pub) }}{% else %}{{ _actions(m, _pub, compact=True) }}{% endif %}
         </td>
       </tr>
       {% endfor %}
@@ -248,24 +204,22 @@
   {% endif %}
 
   {% if pagination and pagination.pages > 1 %}
-  {% set _pgr_pkr = '1' if picker else None %}
-  {% set _pgr_emb = '1' if (picker or request.args.get('embed') == '1') else None %}
   <nav class="media-pagination" aria-label="File browser pages">
     <div class="media-pagination-info muted small">
       Showing {{ pagination.start }}–{{ pagination.end }} of {{ pagination.total }}
     </div>
     <div class="media-pagination-controls">
       {% if pagination.has_prev %}
-        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=1, picker=_pgr_pkr, embed=_pgr_emb) }}" aria-label="First page" title="First">«</a>
-        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=pagination.page - 1, picker=_pgr_pkr, embed=_pgr_emb) }}" aria-label="Previous page">{{ icon('chevron-left') }} Prev</a>
+        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=1, picker=_pkr, embed=_emb) }}" aria-label="First page" title="First">«</a>
+        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=pagination.page - 1, picker=_pkr, embed=_emb) }}" aria-label="Previous page">{{ icon('chevron-left') }} Prev</a>
       {% else %}
         <span class="btn btn-sm btn-perm-disabled" aria-disabled="true">«</span>
         <span class="btn btn-sm btn-perm-disabled" aria-disabled="true">{{ icon('chevron-left') }} Prev</span>
       {% endif %}
       <span class="media-pagination-page">Page {{ pagination.page }} of {{ pagination.pages }}</span>
       {% if pagination.has_next %}
-        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=pagination.page + 1, picker=_pgr_pkr, embed=_pgr_emb) }}" aria-label="Next page">Next {{ icon('chevron-right') }}</a>
-        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=pagination.pages, picker=_pgr_pkr, embed=_pgr_emb) }}" aria-label="Last page" title="Last">»</a>
+        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=pagination.page + 1, picker=_pkr, embed=_emb) }}" aria-label="Next page">Next {{ icon('chevron-right') }}</a>
+        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=pagination.pages, picker=_pkr, embed=_emb) }}" aria-label="Last page" title="Last">»</a>
       {% else %}
         <span class="btn btn-sm btn-perm-disabled" aria-disabled="true">Next {{ icon('chevron-right') }}</span>
         <span class="btn btn-sm btn-perm-disabled" aria-disabled="true">»</span>

@@ -29,11 +29,13 @@
    The panel is `position: fixed` and placed by app.js on open (see the
    `initRowMenus` IIFE) so it can't be clipped by the table's or card's
    overflow — the same approach the design-token popover uses. #}
-{% macro row_menu(label='Actions') -%}
-<div class="row-menu" data-row-menu>
+{#- compact=True: an icon-only "…" trigger (label becomes its name), for
+    tight spots such as a file card. -#}
+{% macro row_menu(label='Actions', compact=False) -%}
+<div class="row-menu{% if compact %} row-menu--compact{% endif %}" data-row-menu>
   <button type="button" class="btn btn-sm row-menu-btn" data-row-menu-btn
-          aria-haspopup="menu" aria-expanded="false" title="{{ label }}">
-    <span>{{ label }}</span>{{ icon('chevron-down', 'row-menu-caret') }}
+          aria-haspopup="menu" aria-expanded="false" title="{{ label }}"{% if compact %} aria-label="{{ label }}"{% endif %}>
+    {% if compact %}{{ icon('more-horizontal') }}{% else %}<span>{{ label }}</span>{{ icon('chevron-down', 'row-menu-caret') }}{% endif %}
   </button>
   <div class="row-menu-panel" data-row-menu-panel role="menu" hidden>
     {{ caller() }}
