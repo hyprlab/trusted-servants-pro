@@ -124,6 +124,7 @@ release notes expanded by default and the changelog collapsed.
 - The Public Information Chair is always on the Intergroup Officers list, greyed out with a lock: its name, phone and email come from the Public Information Chair card (they change in the list as you type in the card), and it can't be removed. It can still be moved by sorting.
 - The Public Information Chair card has a Title field for what your fellowship calls the position, such as Public Information and Communications Chair. It becomes the position in Intergroup Officers (updating as you type) and is used in the Need help window, the Contact page and the Contact section block. Left blank, it's Public Information Chair.
 - In Settings → Modules, the Intergroup switch for the email page reads Email Accounts instead of repeating "Email" ("Intergroup Email Email Accounts"), and the module's description no longer says "Email Email page".
+- In Settings → Domain / Email, the relay and SMTP fields are spaced like the rest of the form; the Remove stored API key and Remove stored password checkboxes no longer touch the field above them.
 
 ## 2.20.2 — 2026-09-30 (latest)
 
