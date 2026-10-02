@@ -18442,6 +18442,35 @@ body.embed .card:not(.data-card) { background: var(--panel); border: 1px solid v
   box-shadow: var(--shadow); padding: 18px 20px; margin: 0 0 16px; }
 body.embed .card:not(.data-card):last-child { padding-bottom: 18px; margin-bottom: 0; border-bottom: 1px solid var(--border); }
 
+/* Meeting page: the Zoom card in Zoom blue (a deeper, muted blue in dark
+   mode) with white text, light chips and white buttons with blue text.
+   Scoped up to win over the embedded-page card rules. */
+.zoom-card--brand { --zc-bg: #295bf6; --zc-fg: #fff; --zc-muted: rgba(255, 255, 255, .78);
+  --zc-line: rgba(255, 255, 255, .24); --zc-chip: rgba(255, 255, 255, .14); --zc-chip-line: rgba(255, 255, 255, .32);
+  --zc-btn: #fff; --zc-btn-fg: #295bf6; --zc-btn-hover: #e9efff; }
+[data-theme="dark"] .zoom-card--brand { --zc-bg: #1c3373; --zc-muted: rgba(255, 255, 255, .72);
+  --zc-line: rgba(255, 255, 255, .16); --zc-chip: rgba(255, 255, 255, .08); --zc-chip-line: rgba(255, 255, 255, .22);
+  --zc-btn: #e8eeff; --zc-btn-fg: #1f4fd8; --zc-btn-hover: #fff; }
+html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg); color: var(--zc-fg);
+  border: 1px solid var(--zc-bg); }
+.zoom-card--brand .detail-label, .zoom-card--brand .zoom-section-head,
+.zoom-card--brand .zoom-info dt { color: var(--zc-fg) !important; }
+.zoom-card--brand .zoom-info dt:not(.zoom-section-head) { color: var(--zc-muted) !important; }
+.zoom-card--brand .muted, .zoom-card--brand .zoom-guide-hint, .zoom-card--brand .otp-manual-label,
+.zoom-card--brand .otp-inline-meta { color: var(--zc-muted); }
+.zoom-card--brand .detail-section-divider, .zoom-card--brand .zoom-section-head { border-top-color: var(--zc-line); }
+.zoom-card--brand .copy-btn { background: var(--zc-chip); border-color: var(--zc-chip-line); color: var(--zc-fg); }
+.zoom-card--brand .copy-btn:hover { border-color: var(--zc-fg); color: var(--zc-fg); background: rgba(255, 255, 255, .22); }
+.zoom-card--brand .copy-btn.otp-inline-code { background: none; border-color: transparent; color: var(--zc-fg); }
+.zoom-card--brand .zg-card { background: rgba(255, 255, 255, .08); border-color: var(--zc-line); }
+.zoom-card--brand .btn { background: var(--zc-btn); color: var(--zc-btn-fg); border-color: var(--zc-btn); box-shadow: none; }
+.zoom-card--brand .btn:hover { background: var(--zc-btn-hover); border-color: var(--zc-btn-hover); color: var(--zc-btn-fg); }
+.zoom-card--brand .btn .icon { color: currentColor; }
+.zoom-card--brand .zoom-guide-btn { box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
+.zoom-card--brand .help-btn, .zoom-card--brand .help-btn .icon { color: var(--zc-muted); }
+.zoom-card--brand .otp-inline-error { color: #fecaca; }
+.zoom-card--brand a:not(.btn) { color: var(--zc-fg); text-decoration: underline; }
+
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
 html { visibility: visible; background: var(--bg); }

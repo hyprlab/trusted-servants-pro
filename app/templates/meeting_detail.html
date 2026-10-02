@@ -116,7 +116,7 @@
        in-person meetings with no Zoom data it simply stays blank. #}
     <div class="detail-block zoom-col">
       {% if meeting.zoom_enabled and (meeting.zoom_meeting_id or meeting.zoom_passcode or meeting.zoom_account or meeting.zoom_link) %}
-      <section class="card data-card zoom-card">
+      <section class="card data-card zoom-card zoom-card--brand">
       {% if meeting.meeting_type != 'in_person' and (meeting.zoom_link or meeting.zoom_meeting_id or meeting.zoom_account) %}
       <div class="zoom-guide-launch">
         <button type="button" class="btn btn-primary zoom-guide-btn" data-open-modal="zoom-guide-modal">

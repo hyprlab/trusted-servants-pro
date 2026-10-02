@@ -98,6 +98,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `--shadow` is now the Dashboard widget shadow in the light, dark and solarpunk themes, and a new `--shadow-hover` covers hover lifts; resting and hover card shadows that were hard-coded (block library, officer roster, page-builder blocks, Watchtower KPIs, backup hero, template and dynbg cards and others) use the tokens. Overlays (menus, dialogs, toasts, dragging) keep their own elevation.
 - Settings dialog (desktop): `.settings-main-head` is reduced to the floating close button (the title stays for screen readers), panes get top padding for it, `.settings-body`, `.settings-frame` and `body.embed` use `--bg`, and `.data-card` (and every `body.embed .card`) takes the Dashboard widget chrome, replacing the brand left border.
 - `.topbar` uses `var(--shadow)`.
+- `meeting_detail.html`: the Zoom card carries `.zoom-card--brand` (`--zc-*` variables, light and dark), restyling its text, chips, dividers, OTP panel and buttons; the Google Meet and Teams cards are unchanged.
 
 ### Fixed
 
