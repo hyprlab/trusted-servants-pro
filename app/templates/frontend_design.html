@@ -336,6 +336,7 @@
 
       {# ── Controls ─────────────────────────────────────────────────── #}
       <div class="ds-controls">
+        <div class="st-seg-scroll" data-seg-scroll>
         <nav class="st-seg ds-seg" role="tablist" aria-label="Token groups">
           {% for t in _tabs %}
           <button type="button" role="tab" id="ds-tab-{{ t[0] }}" data-ds-tab="{{ t[0] }}"
@@ -344,6 +345,7 @@
           </button>
           {% endfor %}
         </nav>
+        </div>
 
         <div class="ds-panel" role="tabpanel" id="ds-panel-colors" aria-labelledby="ds-tab-colors" data-ds-panel="colors">
           {% call group('Brand', 'sparkles') %}

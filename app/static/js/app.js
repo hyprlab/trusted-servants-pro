@@ -8229,3 +8229,42 @@
     });
   });
 })();
+
+// Segmented controls that scroll sideways ([data-seg-scroll] around the
+// .st-seg): fade the edge with parts out of view, let a vertical wheel
+// scroll it, and keep the chosen part in view.
+(function () {
+  function setup(wrap) {
+    var strip = wrap.querySelector('.st-seg');
+    if (!strip) return;
+    function fade() {
+      var max = strip.scrollWidth - strip.clientWidth;
+      wrap.toggleAttribute('data-fade-start', strip.scrollLeft > 1);
+      wrap.toggleAttribute('data-fade-end', strip.scrollLeft < max - 1);
+    }
+    function reveal(behavior) {
+      var on = strip.querySelector('[aria-selected="true"]');
+      if (!on) return;
+      var l = on.offsetLeft - strip.offsetLeft, r = l + on.offsetWidth, pad = 48;
+      if (l < strip.scrollLeft + pad) strip.scrollTo({ left: l - pad, behavior: behavior });
+      else if (r > strip.scrollLeft + strip.clientWidth - pad) strip.scrollTo({ left: r - strip.clientWidth + pad, behavior: behavior });
+    }
+    strip.addEventListener('scroll', fade, { passive: true });
+    strip.addEventListener('wheel', function (e) {
+      if (strip.scrollWidth <= strip.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      strip.scrollLeft += e.deltaY;
+    }, { passive: false });
+    strip.addEventListener('click', function (e) {
+      if (e.target.closest('[role="tab"]')) setTimeout(function () { reveal('smooth'); }, 0);
+    });
+    if (window.ResizeObserver) new ResizeObserver(fade).observe(strip);
+    reveal('auto');
+    fade();
+    // The page's own script may pick the remembered part after this runs.
+    window.addEventListener('load', function () { reveal('auto'); fade(); });
+  }
+  function init() { document.querySelectorAll('[data-seg-scroll]').forEach(setup); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();

@@ -18576,20 +18576,27 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .ds-body { grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr); }
 .ds-stage { padding: 16px 20px 20px; }
 .fe-admin-main .card.ds-studio > .card-head.ds-studio-head { border-bottom: 1px solid var(--border); padding-bottom: 16px; margin: 0; }
-.ds-seg { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.ds-seg button { position: relative; flex-direction: column; gap: 3px; padding: 7px 4px 6px; font-size: var(--fs-xs); }
-.ds-seg button .icon { width: 16px; height: 16px; }
-.ds-seg button .ds-tab-count { position: absolute; top: 3px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px;
-  display: inline-flex; align-items: center; justify-content: center; }
+/* A segmented control with more parts than fit: one row that scrolls
+   sideways (no scrollbar), the edge with parts out of view fading out.
+   The frame is on the wrapper so the fade doesn't eat the border. */
+@property --seg-fade-l { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --seg-fade-r { syntax: "<length>"; inherits: false; initial-value: 0px; }
+.st-seg-scroll { margin: 14px 18px 2px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; min-width: 0; }
+.st-seg-scroll > .st-seg { display: flex; margin: 0; border: 0; background: transparent; overflow-x: auto; overflow-y: hidden;
+  overscroll-behavior-x: contain; scrollbar-width: none; scroll-padding-inline: 48px;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--seg-fade-l), #000 calc(100% - var(--seg-fade-r)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--seg-fade-l), #000 calc(100% - var(--seg-fade-r)), transparent);
+  transition: --seg-fade-l .2s ease, --seg-fade-r .2s ease; }
+.st-seg-scroll > .st-seg::-webkit-scrollbar { display: none; }
+.st-seg-scroll[data-fade-start] > .st-seg { --seg-fade-l: 48px; }
+.st-seg-scroll[data-fade-end] > .st-seg { --seg-fade-r: 48px; }
+.st-seg-scroll > .st-seg > button { flex: 0 0 auto; white-space: nowrap; padding: 7px 12px; }
 .ds-seg button .ds-tab-count[hidden] { display: none; }
-@container (max-width: 520px) { .ds-seg button span:not(.ds-tab-count) { display: inline; } }
 @container (max-width: 900px) {
   .ds-body { grid-template-columns: minmax(0, 1fr); }
   .ds-stage { position: static; }
   .ds-controls { border-left: 0; border-top: 1px solid var(--border); border-bottom-left-radius: var(--radius); }
-  .ds-seg { grid-template-columns: repeat(9, minmax(0, 1fr)); }
 }
-@container (max-width: 660px) { .ds-seg { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
