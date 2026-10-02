@@ -808,18 +808,10 @@
         if (now && next) now.replaceWith(document.importNode(next, true));
       });
     }
-    // The Dashboard button and the Web / View / Watchtower cluster follow
-    // the modules that are on (and which page is open).
+    // The rows at the top of the sidebar (Dashboard, Watchtower, Web
+    // Frontend) follow the modules that are on and which page is open.
     function swapPinned(doc) {
-      swapParts(doc, [".sidebar > .sidebar-dash-btn"]);
-      const now = document.querySelector(".sidebar > .sidebar-quicknav");
-      const next = doc.querySelector(".sidebar > .sidebar-quicknav");
-      if (now && next) now.replaceWith(document.importNode(next, true));
-      else if (now) now.remove();
-      else if (next) {
-        const dash = document.querySelector(".sidebar > .sidebar-dash-btn");
-        if (dash) dash.after(document.importNode(next, true));
-      }
+      swapParts(doc, [".sidebar > .side-top"]);
     }
     async function fetchPage(url) {
       const r = await fetch(url, { credentials: "same-origin" });

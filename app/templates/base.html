@@ -170,98 +170,56 @@
         <div class="brand-sub">Pro</div>
       </div>
     </div>
-    {# Dashboard — pinned button (styled like the Notifications / Watchtower
-       buttons) rather than a regular nav link, so the home view always has
-       a fixed entry point at the top. Its catalog entry is hidden from the
-       nav list via _is_visible('dashboard') → False in app/sidebar.py. #}
-    <a class="sidebar-dash-btn{% if request.endpoint == 'main.index' %} is-active{% endif %}"
-       href="{{ url_for('main.index') }}" title="Dashboard — your home view">
-      <span class="sidebar-dash-icon" aria-hidden="true">{{ icon('home') }}</span>
-      <span class="sidebar-dash-label">Dashboard</span>
-    </a>
-    {# Sidebar quick-jump cluster — pinned buttons that replace their
-       regular sidebar links. Each button's gate matches the legacy
-       link's visibility predicate in app/sidebar.py so the user
-       always sees exactly one entry point for the corresponding
-       module / surface.
+    {# The top of the sidebar: the portal-wide places and tools, as rows
+       styled like the nav links below them (icon, label, a count or
+       status on the right), set off from the nav by a rule. Each row's
+       gate matches the legacy link's visibility in app/sidebar.py, so
+       there is exactly one way in to each.
 
-       The Web Frontend pair (admin panel + public-site preview)
-       renders only when the module is on AND the user can edit; the
-       live dot rides on the View button and reflects
-       `site.frontend_enabled` (the public-access toggle) so admins see
-       at a glance whether the site is live.
-       The Watchtower button below renders for every admin, with two
-       attention chips (pending access requests + locked accounts)
-       so they don't have to open the page just to check counts. #}
+       Web Frontend: admins (can_edit_frontend) get a link into its
+       admin panel; everyone else a non-clickable row. The round button
+       at its end opens the public site, with the live dot on it: admins
+       always (it serves a preview while the site is off), others only
+       when the site is live. Without that button the dot sits in the
+       row so the live state is never missing. Swapped whole by
+       tspSwapPage in app.js. #}
     {% set _can_fe = current_user.can_edit_frontend() %}
     {% set _fe_on = site and site.frontend_module_enabled %}
     {% set _fe_live = site and site.frontend_enabled %}
-    {# The Web button renders whenever the module is on. The live dot
-       hangs off the View button beside it — that's the one that opens
-       the public site, so the state it reports and the thing it opens
-       are the same. When there's no View button (a non-privileged user
-       with the site off) the dot falls back onto the Web indicator so
-       the live state is never simply missing.
-       Only admins (can_edit_frontend) get a working link into the admin
-       panel; everyone else sees a non-clickable indicator. The View
-       button opens the public site: admins always (it serves a preview
-       even while the public toggle is off), other signed-in users only
-       when the site is actually live (otherwise the public frontend
-       bounces them straight back to /tspro). Watchtower stays admin-only. #}
     {% set _show_view = _fe_on and (_can_fe or _fe_live) %}
-    {% set _has_quicknav = _fe_on or current_user.is_admin() %}
-    {% if _has_quicknav %}
-    <div class="sidebar-quicknav" role="group" aria-label="Quick navigation">
-      {% if _fe_on %}
-        {% if _can_fe %}
-        <a class="sidebar-quicknav-btn{% if not _show_view %} sidebar-quicknav-btn--full{% endif %}{% if request.endpoint and request.endpoint.startswith('main.frontend_') %} is-active{% endif %}"
-           href="{{ url_for('main.frontend_dashboard') }}"
-           title="Open the Web Frontend admin panel">
-          <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
-          <span class="sidebar-quicknav-label">Web</span>
-        </a>
-        {% else %}
-        {# Non-privileged: a non-clickable Web indicator (rendered as a
-           <span>, not a link). Keeps the live dot so the user can still
-           see whether the public site is live, but offers no way into the
-           admin panel they're not allowed to open. #}
-        <span class="sidebar-quicknav-btn is-disabled{% if not _show_view %} sidebar-quicknav-btn--full{% endif %}"
-              aria-disabled="true"
-              title="{{ 'Web Frontend is LIVE — managed by admins' if _fe_live else 'Web Frontend — managed by admins' }}">
-          <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
-          <span class="sidebar-quicknav-label">Web</span>
-          {# Fallback dot — only when no View button is rendered to carry it. #}
-          {% if not _show_view %}
-          <span class="sidebar-quicknav-status{% if _fe_live %} is-live{% endif %}"
-                aria-label="{{ 'Live' if _fe_live else 'Off' }}"></span>
-          {% endif %}
-        </span>
-        {% endif %}
-        {% if _show_view %}
-        <a class="sidebar-quicknav-btn"
-           href="{{ url_for('frontend.index') }}"
-           target="_blank" rel="noopener"
-           title="{{ 'Open the public frontend in a new tab — the site is LIVE, visible to everyone' if _fe_live else 'Open the public frontend in a new tab — the site is OFF, visible only to signed-in admins and frontend editors' }}">
-          <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('external-link') }}</span>
-          <span class="sidebar-quicknav-label">View</span>
-          <span class="sidebar-quicknav-status{% if _fe_live %} is-live{% endif %}"
-                aria-label="{{ 'Live' if _fe_live else 'Off' }}"></span>
-        </a>
-        {% endif %}
+    <div class="side-top" role="group" aria-label="Portal">
+      <a class="side-item{% if _ep == 'main.index' %} is-active{% endif %}" href="{{ url_for('main.index') }}"
+         {% if _ep == 'main.index' %}aria-current="page"{% endif %}>
+        <span class="side-item-icon" aria-hidden="true">{{ icon('home') }}</span>
+        <span class="side-item-label">Dashboard</span>
+      </a>
+      {# Opens the floating search; on narrow viewports its script first
+         hides the sidebar overlay so the search isn't covered by it. #}
+      <button type="button" class="side-item" data-open-search title="Search the portal (⌘K)">
+        <span class="side-item-icon" aria-hidden="true">{{ icon('search') }}</span>
+        <span class="side-item-label">Search</span>
+        <kbd class="side-item-kbd" aria-hidden="true">⌘K</kbd>
+      </button>
+      {# Editors and up: opens the notifications modal, with a live count
+         of uncleared items. #}
+      {% if current_user.can_edit() %}
+      <button type="button" class="side-item" data-open-modal="notifications-modal" data-notifications-trigger>
+        <span class="side-item-icon" aria-hidden="true">{{ icon('bell') }}</span>
+        <span class="side-item-label">Notifications</span>
+        <span class="nav-badge sidebar-notif-chip" data-notif-chip data-live-chip="notifications"
+              {% if not notifications_count %}hidden{% endif %}>{{ notifications_count or 0 }}</span>
+      </button>
       {% endif %}
       {% if current_user.is_admin() %}
+      {#- The chips always render (hidden at 0) so the /_live/counts poller
+          can reveal, update and hide each one, and the group, without a
+          reload. data-live-chip-group lists the keys it sums. -#}
       {%- set _watchtower_total = (pending_access_count or 0) + (locked_accounts_count or 0) + (recovery_contacts_abuse_count or 0) -%}
-      <a class="sidebar-quicknav-btn sidebar-quicknav-watchtower{% if request.endpoint and 'watchtower' in request.endpoint %} is-active{% endif %}"
-         href="{{ url_for('main.watchtower') }}"
-         title="Watchtower — security, access requests, deletions, and user activity">
-        <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('shield') }}</span>
-        <span class="sidebar-quicknav-label">Watchtower</span>
-        {#- Always render the chip group (hidden at 0) so the /_live/counts
-            poller can reveal/update/hide each chip — and the group wrapper —
-            without a page reload. data-live-chip-group lists the keys it
-            sums to decide its own visibility + aria-label. -#}
-        <span class="sidebar-quicknav-chips"
-              data-live-chip-group="recovery_contacts_abuse pending_access locked_accounts"
+      <a class="side-item{% if 'watchtower' in _ep %} is-active{% endif %}" href="{{ url_for('main.watchtower') }}"
+         title="Security, access requests, deletions and user activity">
+        <span class="side-item-icon" aria-hidden="true">{{ icon('shield') }}</span>
+        <span class="side-item-label">Watchtower</span>
+        <span class="side-item-chips" data-live-chip-group="recovery_contacts_abuse pending_access locked_accounts"
               aria-label="{{ _watchtower_total }} item{{ 's' if _watchtower_total != 1 else '' }} need attention"
               {% if not _watchtower_total %}hidden{% endif %}>
           <span class="nav-badge nav-badge-danger" data-live-chip="recovery_contacts_abuse" title="Flagged Recovery Contacts requests" {% if not recovery_contacts_abuse_count %}hidden{% endif %}>{{ recovery_contacts_abuse_count or 0 }}</span>
@@ -270,31 +228,32 @@
         </span>
       </a>
       {% endif %}
+      {% if _fe_on %}
+      <div class="side-item-row">
+        {% if _can_fe %}
+        <a class="side-item{% if _ep.startswith('main.frontend_') %} is-active{% endif %}" href="{{ url_for('main.frontend_dashboard') }}"
+           title="The public website's admin">
+          <span class="side-item-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
+          <span class="side-item-label">Web Frontend</span>
+        </a>
+        {% else %}
+        <span class="side-item is-static" title="{{ 'The public website is live; admins manage it' if _fe_live else 'The public website; admins manage it' }}">
+          <span class="side-item-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
+          <span class="side-item-label">Web Frontend</span>
+          {% if not _show_view %}<span class="side-live-dot{% if _fe_live %} is-live{% endif %}" aria-label="{{ 'Live' if _fe_live else 'Off' }}"></span>{% endif %}
+        </span>
+        {% endif %}
+        {% if _show_view %}
+        <a class="side-item-end" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener"
+           title="{{ 'Open the public site in a new tab. It is live, visible to everyone.' if _fe_live else 'Open the public site in a new tab. It is off, visible only to signed-in admins and frontend editors.' }}"
+           aria-label="Open the public site ({{ 'live' if _fe_live else 'off' }})">
+          <span class="side-live-dot{% if _fe_live %} is-live{% endif %}" aria-hidden="true"></span>
+          {{ icon('external-link') }}
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-
-    {# Notifications Center button. Shown to anyone who can act on the
-       attention sources (editors and up); opens the notifications modal
-       and carries a live count chip of uncleared items. #}
-    {% if current_user.can_edit() %}
-    <button type="button" class="sidebar-notif-btn" data-open-modal="notifications-modal"
-            data-notifications-trigger title="Notifications">
-      <span class="sidebar-notif-icon" aria-hidden="true">{{ icon('bell') }}</span>
-      <span class="sidebar-notif-label">Notifications</span>
-      <span class="nav-badge sidebar-notif-chip" data-notif-chip
-            data-live-chip="notifications"
-            {% if not notifications_count %}hidden{% endif %}>{{ notifications_count or 0 }}</span>
-    </button>
-    {% endif %}
-
-    {# Sidebar Search button. Opens the floating search modal; on
-       narrow viewports the JS first hides the sidebar overlay so the
-       modal isn't covered by it. #}
-    <button type="button" class="sidebar-search-btn" data-open-search title="Search the portal (⌘K)">
-      <span class="sidebar-search-icon" aria-hidden="true">{{ icon('search') }}</span>
-      <span class="sidebar-search-label">Search</span>
-      <kbd class="sidebar-search-kbd" aria-hidden="true">⌘K</kbd>
-    </button>
     <nav id="sidebar-nav">
       {% include "_sidebar_nav.html" %}
     </nav>
