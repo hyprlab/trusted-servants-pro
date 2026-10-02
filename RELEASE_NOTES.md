@@ -86,6 +86,7 @@ release notes expanded by default and the changelog collapsed.
 - On the Overview, staging sync sits in the site status card.
 - A pop-up whose form is saved, such as Customize on the Overview, no longer opens again after the page reloads.
 - The current section in the Web Frontend menu is highlighted in the brand color.
+- The main sidebar highlights the current page the same way: bold, tinted, with a bar in the brand color on its left.
 - Web Frontend pages no longer flash while loading: the tab you last had open shows from the start, previews keep their space, and a hidden app sidebar no longer slides out and back.
 - Footer → Meeting locations shows each checkbox to the left of the location's name.
 - Every Web Frontend page with a preview now works like the Header page: the preview on the left, the settings on the right, and their parts chosen with a segmented control instead of tabs. This includes Branding, forms, Page templates, pages, popups, the 404 page and Privacy & cookies.

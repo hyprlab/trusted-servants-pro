@@ -347,6 +347,14 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
 }
 .sidebar nav a:hover { background: var(--panel-2); text-decoration: none; }
 .sidebar nav a.active { background: var(--brand-soft); color: var(--access); }
+/* The active page as in the Web Frontend menu: bold, with a bar on its
+   left. The list clips sideways (it scrolls), so it reaches 6px further
+   left to hold the bar while the links stay where they were. */
+.sidebar nav { margin-left: -6px; padding-left: 6px; }
+.sidebar nav a { position: relative; }
+.sidebar nav a.active { font-weight: 650; }
+.sidebar nav a.active::before { content: ""; position: absolute; left: -4px; top: 8px; bottom: 8px;
+  width: 3px; border-radius: 2px; background: var(--brand); }
 .sidebar nav a.sidebar-child { padding-left: 28px; font-size: var(--fs-base); color: var(--muted); }
 .sidebar nav a.sidebar-child:hover { color: var(--text); }
 .sidebar nav a.sidebar-child.active { color: var(--access); }
