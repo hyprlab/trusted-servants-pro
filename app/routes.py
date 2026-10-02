@@ -2547,14 +2547,47 @@ def locations():
         return redirect(url_for("main.index"))
     from .models import IntergroupOfficer, Fellowship
     items = Location.query.order_by(Location.name).all()
+    # The Public Information Chair is always on the officers list.
+    if _pic_officer() is None:
+        _sync_pic_officer()
+        db.session.commit()
     officers = (IntergroupOfficer.query
                 .order_by(IntergroupOfficer.sort_order, IntergroupOfficer.id)
                 .all())
     fellowships = (Fellowship.query
                    .order_by(Fellowship.sort_order, Fellowship.id)
                    .all())
+    pic = _pic_officer()
     return render_template("locations.html", locations=items, officers=officers,
-                           fellowships=fellowships)
+                           fellowships=fellowships, pic_officer_id=pic.id if pic else None)
+
+
+# The officer that mirrors Settings → Global's Public Information Chair
+# card: always on the officers list, with the card's name, phone and
+# email, and never deleted from there. Found by its position name.
+PIC_OFFICER_ROLE = "Public Information Chair"
+
+
+def _pic_officer(create=False):
+    from .models import IntergroupOfficer
+    o = next((x for x in IntergroupOfficer.query.order_by(IntergroupOfficer.sort_order, IntergroupOfficer.id)
+              if (x.role or "").strip().lower() == PIC_OFFICER_ROLE.lower()), None)
+    if o is None and create:
+        o = IntergroupOfficer(role=PIC_OFFICER_ROLE, sort_order=0)
+        db.session.add(o)
+    return o
+
+
+def _sync_pic_officer():
+    """Copy the Public Information Chair card onto its officer row,
+    adding the row if it's missing. The caller commits."""
+    s = _get_site_setting()
+    o = _pic_officer(create=True)
+    o.role = PIC_OFFICER_ROLE
+    o.name = (s.pic_name if s else None) or None
+    o.phone = (s.pic_phone if s else None) or None
+    o.email = (s.pic_email if s else None) or None
+    return o
 
 
 @bp.route("/officers/save", methods=["POST"])
@@ -2576,7 +2609,8 @@ def officers_save():
     phones = request.form.getlist("officer_phone")
     emails = request.form.getlist("officer_email")
     existing = {o.id: o for o in IntergroupOfficer.query.all()}
-    seen = set()
+    pic = _pic_officer()
+    seen = {pic.id} if pic else set()
     for pos, (oid, role, name, phone, email) in enumerate(
         zip(ids, roles, names, phones, emails)
     ):
@@ -2587,6 +2621,11 @@ def officers_save():
         # Drop rows where every cell is blank — they're empty placeholder
         # rows the admin opened with "+ Add officer" but never filled in.
         if not role and not name and not phone and not email:
+            continue
+        if pic and oid == str(pic.id):
+            # Its details come from the Public Information Chair card;
+            # only its place in the list is taken from here.
+            pic.sort_order = pos
             continue
         if oid and oid.isdigit() and int(oid) in existing:
             o = existing[int(oid)]
@@ -2607,6 +2646,7 @@ def officers_save():
     for oid, o in existing.items():
         if oid not in seen:
             db.session.delete(o)
+    _sync_pic_officer()
     db.session.commit()
     flash("Intergroup officers updated", "success")
     return redirect(url_for("main.locations",
@@ -7980,6 +8020,7 @@ def pic_save():
     s.pic_name = request.form.get("pic_name", "").strip() or None
     s.pic_email = request.form.get("pic_email", "").strip() or None
     s.pic_phone = request.form.get("pic_phone", "").strip() or None
+    _sync_pic_officer()
     db.session.commit()
     flash("Public Information Chair updated", "success")
     return redirect(_safe_referrer() or url_for("main.index"))

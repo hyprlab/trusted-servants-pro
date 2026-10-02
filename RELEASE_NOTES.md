@@ -121,6 +121,7 @@ release notes expanded by default and the changelog collapsed.
 - Deleting a location, or removing an officer or fellowship, now asks first in a confirmation dialog that names what will go. Cancel or Escape keeps it. A new row with nothing typed in it is removed without asking.
 - In Settings, the yellow save bar sits at the foot of the section list and shows whenever any section has unsaved changes, counting how many. Its Save saves them all in the background and Settings stays open. This now includes Users (role changes) and Global (officers and fellowships, including a new sort order), which no longer have their own Save buttons or bar. On a phone the bar runs along the bottom of the open section.
 - The Public Information Chair card moved from Settings → Users to Settings → Global, under Intergroup Officers, and saves with the sidebar's save bar. It shows for admins only.
+- The Public Information Chair is always on the Intergroup Officers list, greyed out with a lock: its name, phone and email come from the Public Information Chair card (they change in the list as you type in the card), and it can't be removed. It can still be moved by sorting.
 - In Settings → Modules, the Intergroup switch for the email page reads Email Accounts instead of repeating "Email" ("Intergroup Email Email Accounts"), and the module's description no longer says "Email Email page".
 
 ## 2.20.2 — 2026-09-30 (latest)

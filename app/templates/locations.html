@@ -86,17 +86,27 @@
         <span></span>
       </div>
         {% for o in officers %}
-        <div class="erow officer-row">
+        {#- The Public Information Chair's row mirrors the card below it:
+            read-only here, kept in step as the card is typed in, and it
+            can't be removed (the server enforces both). -#}
+        {% set _pic = o.id == pic_officer_id %}
+        {% set _ro = ' readonly tabindex="-1" aria-readonly="true"'|safe if _pic else '' %}
+        <div class="erow officer-row{% if _pic %} is-locked{% endif %}"{% if _pic %} data-pic-officer title="Set on the Public Information Chair card below"{% endif %}>
           <input type="hidden" name="officer_id" value="{{ o.id }}">
           <label class="erow-field erow-pos"><span class="erow-label">Position</span>
-            <input type="text" name="officer_role" value="{{ o.role or '' }}" placeholder="e.g. Chair" required></label>
+            <input type="text" name="officer_role" value="{{ o.role or '' }}" placeholder="e.g. Chair" required{{ _ro }}></label>
           <label class="erow-field erow-name"><span class="erow-label">Name</span>
-            <input type="text" name="officer_name" value="{{ o.name or '' }}" placeholder="e.g. Chris C."></label>
+            <input type="text" name="officer_name" value="{{ o.name or '' }}" placeholder="{{ 'Not set' if _pic else 'e.g. Chris C.' }}"{{ _ro }}{% if _pic %} data-pic-mirror="pic_name"{% endif %}></label>
           <label class="erow-field erow-phone"><span class="erow-label">Phone</span>
-            <input type="tel" name="officer_phone" value="{{ o.phone or '' }}" placeholder="e.g. 202-555-0118"></label>
+            <input type="tel" name="officer_phone" value="{{ o.phone or '' }}" placeholder="{{ 'Not set' if _pic else 'e.g. 202-555-0118' }}"{{ _ro }}{% if _pic %} data-pic-mirror="pic_phone"{% endif %}></label>
           <label class="erow-field erow-email"><span class="erow-label">Email</span>
-            <input type="email" name="officer_email" value="{{ o.email or '' }}" placeholder="e.g. chair@dccma.com"></label>
+            <input type="email" name="officer_email" value="{{ o.email or '' }}" placeholder="{{ 'Not set' if _pic else 'e.g. chair@dccma.com' }}"{{ _ro }}{% if _pic %} data-pic-mirror="pic_email"{% endif %}></label>
+          {% if _pic %}
+          <span class="erow-remove erow-lock" role="img" aria-label="Required: set on the Public Information Chair card"
+                title="Required. Its details are set on the Public Information Chair card.">{{ icon('lock') }}</span>
+          {% else %}
           <button type="button" class="erow-remove" data-officer-remove aria-label="Remove this officer" title="Remove this officer">{{ icon('trash') }}</button>
+          {% endif %}
         </div>
         {% endfor %}
         {# Hidden template row, cloned by Add officer. The server drops
@@ -238,6 +248,19 @@ function wireRowSort(rows, templateSel) {
     <div class="form-actions"><button type="submit" class="btn btn-primary">Save</button></div>
   </form>
 </section>
+<script>
+// Typing in the card shows straight away in the Public Information
+// Chair's (read-only) row of the officers list.
+(function () {
+  const card = document.querySelector('.pic-form');
+  if (!card) return;
+  card.addEventListener('input', e => {
+    const name = e.target.name;
+    if (!name) return;
+    document.querySelectorAll('[data-pic-mirror="' + name + '"]').forEach(f => { f.value = e.target.value; });
+  });
+})();
+</script>
 {% endif %}
 
 {# ── Fellowships Index ───────────────────────────────────────────
