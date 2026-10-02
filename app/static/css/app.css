@@ -3039,7 +3039,7 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
   padding: 14px var(--content-px);
   background: var(--panel);
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow);
 }
 .topbar h1 { font-size: var(--fs-xl); font-weight: 700; flex: 1; display: flex; align-items: center; gap: 8px; }
 .heading-help { position: relative; display: inline-flex; font-size: var(--fs-sm); font-weight: 400; }

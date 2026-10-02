@@ -97,6 +97,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - Dashboard reorder (`initDashboardReorder`): pointer events instead of HTML5 drag and drop (`draggable` attributes removed). The widget is lifted (`position: fixed`, `.is-lifted`) above a `.dash-placeholder`; each move tries the placeholder at every index and keeps the slot nearest the card (masonry `dense` packing makes DOM-neighbour placement unpredictable), re-packs and FLIP-animates the others. Drop animates into the slot, Escape or `pointercancel` restores, and grips are buttons that move their widget with the arrow keys. Touch drags start only from the grip.
 - `--shadow` is now the Dashboard widget shadow in the light, dark and solarpunk themes, and a new `--shadow-hover` covers hover lifts; resting and hover card shadows that were hard-coded (block library, officer roster, page-builder blocks, Watchtower KPIs, backup hero, template and dynbg cards and others) use the tokens. Overlays (menus, dialogs, toasts, dragging) keep their own elevation.
 - Settings dialog (desktop): `.settings-main-head` is reduced to the floating close button (the title stays for screen readers), panes get top padding for it, `.settings-body`, `.settings-frame` and `body.embed` use `--bg`, and `.data-card` (and every `body.embed .card`) takes the Dashboard widget chrome, replacing the brand left border.
+- `.topbar` uses `var(--shadow)`.
 
 ### Fixed
 

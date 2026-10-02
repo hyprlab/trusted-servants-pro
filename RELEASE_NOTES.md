@@ -133,6 +133,7 @@ release notes expanded by default and the changelog collapsed.
 - Cards throughout the admin share one soft shadow, the one the Dashboard widgets use, and cards that lift when pointed at share one hover shadow. The Neobrutal and Cyberpunk themes keep their own.
 - The Settings window drops its header bar on larger screens, since the list on the left already shows where you are; the close button stays where it was, floating over the top corner. Each section sits on the light grey background with its cards styled like Dashboard widgets: white, with a thin border, rounded corners and an icon tile in the heading. This includes Users, Global and other pages shown inside Settings. On a phone the header stays, with its Back button.
 - The admin has two looks, light and dark; the Neobrutal, Cyberpunk and Solarpunk admin themes are gone (the public site's themes are unchanged). Settings → Appearance chooses Follow system, Light or Dark, saved to your account so it applies on every device you sign in from; Follow system switches along with your device. The sun and moon button in the sidebar switches too and is saved the same way. The first time you sign in after updating, the look you had in that browser carries over (a dark theme becomes Dark, the others Light). The setup wizard's theme step offers the same three choices.
+- The bar along the top of each admin page uses the same soft shadow as the cards, instead of a heavier one of its own.
 
 ## 2.20.2 — 2026-09-30 (latest)
 
