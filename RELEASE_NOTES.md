@@ -120,6 +120,7 @@ release notes expanded by default and the changelog collapsed.
 - Every list on Settings → Global can be sorted by any of its columns: click a heading to sort, again to reverse (in a narrow window the headings become a Sort by row). Locations sort by name, type or address. Sorting officers or fellowships also sets the order they are saved in; a note says so until you save.
 - Deleting a location, or removing an officer or fellowship, now asks first in a confirmation dialog that names what will go. Cancel or Escape keeps it. A new row with nothing typed in it is removed without asking.
 - In Settings, the yellow save bar sits at the foot of the section list and shows whenever any section has unsaved changes, counting how many. Its Save saves them all in the background and Settings stays open. This now includes Users (role changes) and Global (officers and fellowships, including a new sort order), which no longer have their own Save buttons or bar. On a phone the bar runs along the bottom of the open section.
+- The Public Information Chair card moved from Settings → Users to Settings → Global, under Intergroup Officers, and saves with the sidebar's save bar. It shows for admins only.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

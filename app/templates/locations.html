@@ -217,6 +217,29 @@ function wireRowSort(rows, templateSel) {
 })();
 </script>
 
+{# ── Public Information Chair ─────────────────────────────────────
+   The contact shown on the dashboard for members who need help.
+   Admin-only (its save route is), though the rest of Global is open to
+   frontend editors. #}
+{% if current_user.is_admin() %}
+<section class="card data-card">
+  <div class="data-card-head">
+    {{ icon('phone') }}
+    <span>Public Information Chair {% call chip('Public Information Chair') %}Contact information shown on the dashboard for members who need help.{% endcall %}</span>
+  </div>
+  <form class="form pic-form" method="post" action="{{ url_for('main.pic_save') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+    <div class="pic-form-row">
+      <label>Name<input type="text" name="pic_name" value="{{ (site.pic_name if site else '') or '' }}"></label>
+      <label>Email<input type="email" name="pic_email" value="{{ (site.pic_email if site else '') or '' }}"></label>
+      <label>Phone<input type="tel" name="pic_phone" value="{{ (site.pic_phone if site else '') or '' }}"></label>
+    </div>
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Save</button></div>
+  </form>
+</section>
+{% endif %}
+
 {# ── Fellowships Index ───────────────────────────────────────────
    Repeatable list of peer recovery fellowships shown on the public
    /fellowships page. Each row carries a name, a Virtual/Regional
@@ -363,15 +386,15 @@ function wireRowSort(rows, templateSel) {
 </script>
 
 <script>
-// Inside Settings, the officers and fellowships lists are saved by the
-// sidebar's yellow bar: their own Save buttons go, and any edit (typing,
+// Inside Settings, the officers, Public Information Chair and
+// fellowships forms are saved by the sidebar's yellow bar: their own Save buttons go, and any edit (typing,
 // a switch, adding, removing or sorting rows) is reported to the bar,
 // which saves each changed list in the background. On its own the page
 // keeps its buttons.
 document.addEventListener('DOMContentLoaded', () => {
   const pane = window.tspSettingsPane;
   if (!pane || !pane.attached) return;
-  const forms = Array.from(document.querySelectorAll('.officers-form, .fellowships-form'));
+  const forms = Array.from(document.querySelectorAll('.officers-form, .fellowships-form, .pic-form'));
   const dirty = new Set();
   async function save() {
     for (const f of Array.from(dirty)) {

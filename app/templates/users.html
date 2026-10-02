@@ -338,24 +338,7 @@
   </div>
 </div>
 
-<section class="card data-card">
-  <div class="data-card-head">
-    {{ icon('phone') }}
-    <span>Public Information Chair {% call chip('Public Information Chair') %}Contact information shown on the dashboard for members who need help.{% endcall %}</span>
-  </div>
-  <form class="form" method="post" action="{{ url_for('main.pic_save') }}" data-savebar-row data-row-label="Public Information Chair">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-    <div class="pic-form-row">
-      <label>Name<input type="text" name="pic_name" value="{{ (site.pic_name if site else '') or '' }}"></label>
-      <label>Email<input type="email" name="pic_email" value="{{ (site.pic_email if site else '') or '' }}"></label>
-      <label>Phone<input type="tel" name="pic_phone" value="{{ (site.pic_phone if site else '') or '' }}"></label>
-    </div>
-  </form>
-</section>
-
-{# Iframe-local save bar — every user-row form and the Public
-   Information Chair form route through here. Per-row Save buttons
+{# Iframe-local save bar — every user-row form routes through here. Per-row Save buttons
    were removed; the bar pops in the moment any tracked input
    changes and commits all dirty forms in one click via fetch. The
    parent settings-save-bar deliberately skips iframes so this lives
