@@ -400,6 +400,14 @@
         {% endif %}
         {% endfor %}
       </div>
+      {# Yellow save bar, at the foot of the section list: shown while any
+         pane has unsaved changes (the panes in iframes report theirs);
+         Save commits them all in the background. On a phone app.js moves
+         it to the foot of the open pane. #}
+      <div class="fe-save-bar settings-save-bar" id="settings-save-bar" hidden>
+        <span class="fe-save-bar-msg">Unsaved changes</span>
+        <button type="button" class="btn fe-save-bar-btn" id="settings-save-bar-btn">Save</button>
+      </div>
     </nav>
     <div class="settings-main">
     <div class="modal-head settings-main-head">
@@ -2304,13 +2312,6 @@
 
         </div>
       </div>
-    </div>
-    {# Yellow save bar — JS shows it whenever any tracked form inside the
-       settings modal becomes dirty. Click commits all dirty forms via the
-       same AJAX path the per-form save buttons used to use. #}
-    <div class="fe-save-bar settings-save-bar" id="settings-save-bar" hidden>
-      <span class="fe-save-bar-msg">Unsaved changes</span>
-      <button type="button" class="btn fe-save-bar-btn" id="settings-save-bar-btn">Save</button>
     </div>
     </div>
   </div>

@@ -362,6 +362,45 @@ function wireRowSort(rows, templateSel) {
 })();
 </script>
 
+<script>
+// Inside Settings, the officers and fellowships lists are saved by the
+// sidebar's yellow bar: their own Save buttons go, and any edit (typing,
+// a switch, adding, removing or sorting rows) is reported to the bar,
+// which saves each changed list in the background. On its own the page
+// keeps its buttons.
+document.addEventListener('DOMContentLoaded', () => {
+  const pane = window.tspSettingsPane;
+  if (!pane || !pane.attached) return;
+  const forms = Array.from(document.querySelectorAll('.officers-form, .fellowships-form'));
+  const dirty = new Set();
+  async function save() {
+    for (const f of Array.from(dirty)) {
+      const r = await fetch(f.action, {
+        method: 'POST', body: new FormData(f), credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'fetch' },
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      dirty.delete(f);
+    }
+    // Show the saved lists as the server now has them.
+    setTimeout(() => window.location.reload(), 400);
+  }
+  function mark(f) { dirty.add(f); pane.dirty('global', true, save); }
+  forms.forEach(f => {
+    const submit = f.querySelector('button[type="submit"]');
+    if (submit) submit.style.display = 'none';
+    f.addEventListener('input', () => mark(f));
+    f.addEventListener('change', () => mark(f));
+    // Enter in a field saves through the bar rather than reloading here.
+    f.addEventListener('submit', e => { e.preventDefault(); mark(f); });
+    const rows = f.querySelector('.erows');
+    if (rows && window.MutationObserver) {
+      new MutationObserver(() => mark(f)).observe(rows, { childList: true });
+    }
+  });
+});
+</script>
+
 {# New location modal #}
 <div class="modal" id="location-new-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>

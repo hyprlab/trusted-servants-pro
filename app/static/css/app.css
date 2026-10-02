@@ -6350,16 +6350,18 @@ html[data-theme="dark"] .view-toggle .btn.has-pending {
    Reuses the .fe-save-bar yellow styling/animation but anchors to the
    modal-panel (which is `position: relative; overflow: hidden`) instead of
    the viewport. Width fits content so the bar doesn't span the full modal. */
-.settings-save-bar {
-  position: absolute; left: 20px; bottom: 20px;
-  width: auto; max-width: calc(100% - 40px);
-  z-index: 11;
+/* On a desktop the bar is the foot of the sidebar (the section list),
+   under the sections: the message above a full-width Save. On a phone
+   app.js moves it into the open pane, along its bottom edge. */
+.settings-nav > .settings-save-bar, .settings-main > .settings-save-bar {
+  position: static; flex: 0 0 auto; width: auto; max-width: none; margin: 0 12px 12px; z-index: 11;
 }
-@media (max-width: 900px) {
-  .settings-save-bar {
-    left: 12px; right: 12px; bottom: 12px; width: auto; max-width: none;
-  }
-}
+.settings-nav > .settings-save-bar { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; }
+.settings-save-bar .fe-save-bar-msg { text-align: left; white-space: normal; }
+.settings-nav > .settings-save-bar .fe-save-bar-btn { width: 100%; justify-content: center; }
+.settings-nav > .settings-save-bar[hidden], .settings-main > .settings-save-bar[hidden] { display: none; }
+.settings-main > .settings-save-bar { position: absolute; left: 12px; right: 12px; bottom: 12px; margin: 0;
+  flex-direction: row; align-items: center; padding: 10px 12px; }
 /* JS marks the per-form save buttons (and their wrappers) with this class
    once the bar is wired so the bar becomes the only commit path. */
 #settings-modal .savebar-hidden { display: none !important; }

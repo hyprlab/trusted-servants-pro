@@ -973,11 +973,7 @@
             if (smtpForm && sbDirty.has(smtpForm)) {
               await submitSettingsForm(smtpForm);
               sbDirty.delete(smtpForm);
-              if (sbDirty.size === 0) {
-                if (sbBar) sbBar.hidden = true;
-              } else {
-                sbShow();
-              }
+              sbShow();
             }
           }
           const data = await submitSettingsForm(f);
@@ -1093,16 +1089,42 @@
     const sbBtn = document.getElementById("settings-save-bar-btn");
     const sbMsg = sbBar && sbBar.querySelector(".fe-save-bar-msg");
     const sbDirty = new Set();
+    // Panes that are pages of their own (Users, Global, in iframes)
+    // report unsaved changes here through window.tspSettingsHost, with
+    // the function that saves them: "<pane>:<key>" → save().
+    const sbPanes = new Map();
+    const sbCount = () => sbDirty.size + sbPanes.size;
+    function sbHide() {
+      if (sbBar) { sbBar.hidden = true; sbBar.classList.remove("is-leaving"); }
+    }
     function sbShow() {
       if (!sbBar || !sbMsg || !sbBtn) return;
+      if (!sbCount()) { sbHide(); return; }
       sbBar.hidden = false;
       sbBar.classList.remove("is-leaving");
-      sbMsg.textContent = sbDirty.size > 1
-        ? "Unsaved changes (" + sbDirty.size + " sections)"
+      sbMsg.textContent = sbCount() > 1
+        ? "Unsaved changes (" + sbCount() + " sections)"
         : "Unsaved changes";
       sbBtn.disabled = false;
       sbBtn.textContent = "Save";
     }
+    // The bar is the foot of the section list; on a phone, where the
+    // list and the open pane are separate screens, it moves to the pane.
+    if (sbBar && window.matchMedia) {
+      const phone = window.matchMedia("(max-width: 720px)");
+      const nav = settingsModal.querySelector(".settings-nav");
+      const main = settingsModal.querySelector(".settings-main");
+      const place = () => { const to = phone.matches ? main : nav; if (to && sbBar.parentElement !== to) to.appendChild(sbBar); };
+      place();
+      if (phone.addEventListener) phone.addEventListener("change", place);
+    }
+    window.tspSettingsHost = {
+      dirty(pane, key, on, save) {
+        const id = pane + ":" + key;
+        if (on) sbPanes.set(id, save); else sbPanes.delete(id);
+        sbShow();
+      },
+    };
     if (sbBar && sbBtn) {
 
       function sbTrackable(form) {
@@ -1120,10 +1142,9 @@
         sbMsg.textContent = "Saved";
         sbBar.classList.add("is-leaving");
         setTimeout(() => {
-          sbBar.hidden = true;
-          sbBar.classList.remove("is-leaving");
           sbBar.style.width = "";  // release the locked width set on click
           sbDirty.clear();
+          if (!sbCount()) sbHide(); else sbShow();
         }, 320);
       }
 
@@ -1143,7 +1164,7 @@
       });
 
       sbBtn.addEventListener("click", async () => {
-        if (!sbDirty.size) { sbBar.hidden = true; return; }
+        if (!sbCount()) { sbHide(); return; }
         // Pin the bar's current pixel width before changing the message
         // so it doesn't shrink leftward as text moves "Unsaved changes
         // (N sections)" → "Saving…" → "Saved". Width is released in
@@ -1153,9 +1174,16 @@
         sbBtn.textContent = "Saving…";
         sbMsg.textContent = "Saving…";
         const forms = [...sbDirty];
+        const panes = [...sbPanes.entries()];
         const failures = [];
         for (const f of forms) {
           try { await submitSettingsForm(f); }
+          catch (err) { failures.push(err); }
+        }
+        // Each pane saves its own changes in the background; one that
+        // saves drops out of the list (it reports again if edited).
+        for (const [id, save] of panes) {
+          try { await save(); sbPanes.delete(id); }
           catch (err) { failures.push(err); }
         }
         if (!failures.length) {
@@ -8434,4 +8462,35 @@
       else f.submit();
     });
   }, true);
+})();
+
+// ── Settings panes that are pages of their own (Users, Global) ─────
+// window.tspSettingsPane.dirty(key, on, save) tells the Settings save
+// bar, in the page around this iframe, that this pane has unsaved
+// changes and how to save them (save() resolves when saved, throws if
+// not). .attached is false when the page isn't inside Settings; it then
+// keeps its own save buttons.
+(function () {
+  let host = null, pane = "frame";
+  try {
+    if (window.frameElement && window.parent.tspSettingsHost) {
+      host = window.parent.tspSettingsHost;
+      const p = window.frameElement.closest("[data-pane]");
+      if (p) pane = p.dataset.pane;
+    }
+  } catch (_) {}
+  const reported = new Set();
+  window.tspSettingsPane = {
+    attached: !!host,
+    dirty(key, on, save) {
+      if (!host) return;
+      if (on) reported.add(key); else reported.delete(key);
+      host.dirty(pane, key, on, save);
+    },
+  };
+  // A reload (after saving, or a dialog's own post) takes back what this
+  // page reported: its unsaved edits go with it.
+  window.addEventListener("pagehide", () => {
+    if (host) reported.forEach(k => host.dirty(pane, k, false));
+  });
 })();
