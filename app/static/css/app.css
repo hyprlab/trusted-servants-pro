@@ -18593,6 +18593,22 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate .icon,
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove .icon { width: 13px; height: 13px; }
 
+/* Selector menus: each group is its own boxed section with a ruled
+   heading, and each entry is one line, its name on the left and its
+   detail (layout, address, status) on the right. */
+.tp-pick-menu { width: min(680px, 92vw); padding: 12px; }
+.tp-pick-groups { columns: 2 280px; column-gap: 12px; }
+.tp-pick-menu .tp-group { break-inside: avoid; margin: 0 0 12px; padding: 0 6px 6px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--panel); overflow: hidden; }
+.tp-pick-menu .tp-group-label { margin: 0 -6px 6px; padding: 9px 14px 8px; border-bottom: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); letter-spacing: .06em; }
+.tp-pick-menu .tp-item { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 8px; }
+.tp-pick-menu .tp-item:hover { background: var(--panel-2); }
+.tp-pick-menu .tp-item.is-active { background: var(--brand-soft); }
+.tp-pick-menu .tp-item > span:first-child { flex: 1 1 auto; min-width: 0; }
+.tp-pick-menu .tp-item-sub { flex: 0 1 auto; min-width: 0; max-width: 55%; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-pick-menu .tp-item.is-active .tp-item-sub { color: var(--brand); }
+
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
 html { visibility: visible; background: var(--bg); }

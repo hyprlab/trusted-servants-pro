@@ -31,7 +31,7 @@
         <a role="menuitem" class="tp-item{% if it.active %} is-active{% endif %}{% if it.off %} is-off{% endif %}"
            href="{{ it.href }}"{% if it.active %} aria-current="page"{% endif %}>
           <span>{{ it.label }}</span>
-          {% if it.sub %}<span class="tp-item-sub">{{ it.sub }}</span>{% endif %}
+          {% if it.sub %}<span class="tp-item-sub" title="{{ it.sub }}">{{ it.sub }}</span>{% endif %}
         </a>
         {% endfor %}
       </div>
