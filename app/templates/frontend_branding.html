@@ -44,11 +44,13 @@
 
   <div class="st-body st-body--split">
     <div class="st-controls">
-      <nav class="st-seg" role="tablist" aria-label="Branding">
-        <button type="button" role="tab" data-studio-tab="identity">{{ icon('star') }}<span>Name and logo</span></button>
-        <button type="button" role="tab" data-studio-tab="icons">{{ icon('image') }}<span>Icons</span></button>
-        <button type="button" role="tab" data-studio-tab="sharing">{{ icon('share') }}<span>Sharing</span></button>
-      </nav>
+      <div class="st-seg-scroll" data-seg-scroll>
+        <nav class="st-seg" role="tablist" aria-label="Branding">
+          <button type="button" role="tab" data-studio-tab="identity">{{ icon('star') }}<span>Name and logo</span></button>
+          <button type="button" role="tab" data-studio-tab="icons">{{ icon('image') }}<span>Icons</span></button>
+          <button type="button" role="tab" data-studio-tab="sharing">{{ icon('share') }}<span>Sharing</span></button>
+        </nav>
+      </div>
 
       <div class="st-panel" data-studio-panel="identity">
         <div class="ds-group st-group-body">

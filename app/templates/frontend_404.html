@@ -22,11 +22,13 @@
   </div>
   <div class="st-body st-body--split">
     <div class="st-controls">
-      <nav class="st-seg" role="tablist" aria-label="404 page">
-        <button type="button" role="tab" data-studio-tab="text">{{ icon('type') }}<span>Text</span></button>
-        <button type="button" role="tab" data-studio-tab="buttons">{{ icon('mouse-pointer-click') }}<span>Buttons</span></button>
-        <button type="button" role="tab" data-studio-tab="picture">{{ icon('image') }}<span>Picture</span></button>
-      </nav>
+      <div class="st-seg-scroll" data-seg-scroll>
+        <nav class="st-seg" role="tablist" aria-label="404 page">
+          <button type="button" role="tab" data-studio-tab="text">{{ icon('type') }}<span>Text</span></button>
+          <button type="button" role="tab" data-studio-tab="buttons">{{ icon('mouse-pointer-click') }}<span>Buttons</span></button>
+          <button type="button" role="tab" data-studio-tab="picture">{{ icon('image') }}<span>Picture</span></button>
+        </nav>
+      </div>
       <div class="st-panel" data-studio-panel="text">
         <div class="ds-group st-group-body">
           <label class="st-field"><span>Heading</span>

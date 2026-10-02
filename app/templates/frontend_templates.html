@@ -32,11 +32,13 @@
 
     <div class="st-body st-body--split">
       <div class="st-controls">
-        <nav class="st-seg" role="tablist" aria-label="Template settings">
-          {% if _has_layouts %}<button type="button" role="tab" data-studio-tab="layout">{{ icon('layout-grid') }}<span>Layout</span><span class="ds-tab-count">{{ catalog|length }}</span></button>{% endif %}
-          <button type="button" role="tab" data-studio-tab="appearance">{{ icon('sliders') }}<span>Appearance</span></button>
-          <button type="button" role="tab" data-studio-tab="page">{{ icon('file-text') }}<span>Page</span></button>
-        </nav>
+        <div class="st-seg-scroll" data-seg-scroll>
+          <nav class="st-seg" role="tablist" aria-label="Template settings">
+            {% if _has_layouts %}<button type="button" role="tab" data-studio-tab="layout">{{ icon('layout-grid') }}<span>Layout</span><span class="ds-tab-count">{{ catalog|length }}</span></button>{% endif %}
+            <button type="button" role="tab" data-studio-tab="appearance">{{ icon('sliders') }}<span>Appearance</span></button>
+            <button type="button" role="tab" data-studio-tab="page">{{ icon('file-text') }}<span>Page</span></button>
+          </nav>
+        </div>
 
         {# Layout and Page post together to the kind's own save route. #}
         <form class="form" method="post" action="{{ url_for(meta.save) }}" id="tp-main">

@@ -109,10 +109,12 @@
       {{ live_preview(url_for('frontend.index'), '#footer-form', height=320, title='Footer preview', only=LP_FOOTER, fit=True) }}
     </div>
     <div class="st-controls">
-      <nav class="st-seg" role="tablist" aria-label="Footer settings">
-        <button type="button" role="tab" data-studio-tab="layout">{{ icon('layout-grid') }}<span>Layout</span></button>
-        <button type="button" role="tab" data-studio-tab="options">{{ icon('sliders') }}<span>Options</span></button>
-      </nav>
+      <div class="st-seg-scroll" data-seg-scroll>
+        <nav class="st-seg" role="tablist" aria-label="Footer settings">
+          <button type="button" role="tab" data-studio-tab="layout">{{ icon('layout-grid') }}<span>Layout</span></button>
+          <button type="button" role="tab" data-studio-tab="options">{{ icon('sliders') }}<span>Options</span></button>
+        </nav>
+      </div>
 
       {# ── Layout: which layout, and for a custom one its rows. ── #}
       <div class="st-panel" data-studio-panel="layout">

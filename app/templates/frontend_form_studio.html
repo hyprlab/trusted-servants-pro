@@ -62,13 +62,15 @@
 
   <div class="st-body st-body--split">
     <div class="st-controls">
-      <nav class="st-seg" role="tablist" aria-label="Form settings">
-        {% for k, lbl, ic in [('fields', 'Fields', 'list'), ('page', 'Page', 'file-text'), ('delivery', 'Delivery', 'mail'),
-        ('look', 'Look', 'sliders'), ('spam', 'Spam', 'shield'), ('sharing', 'Sharing', 'share'),
-        ('inbox', 'Inbox', 'inbox')] %}
-        <button type="button" role="tab" data-studio-tab="{{ k }}">{{ icon(ic) }}<span>{{ lbl }}</span>{% if k == 'inbox' and fs.count %}<span class="ds-tab-count">{{ fs.count }}</span>{% endif %}</button>
-        {% endfor %}
-      </nav>
+      <div class="st-seg-scroll" data-seg-scroll>
+        <nav class="st-seg" role="tablist" aria-label="Form settings">
+          {% for k, lbl, ic in [('fields', 'Fields', 'list'), ('page', 'Page', 'file-text'), ('delivery', 'Delivery', 'mail'),
+          ('look', 'Look', 'sliders'), ('spam', 'Spam', 'shield'), ('sharing', 'Sharing', 'share'),
+          ('inbox', 'Inbox', 'inbox')] %}
+          <button type="button" role="tab" data-studio-tab="{{ k }}">{{ icon(ic) }}<span>{{ lbl }}</span>{% if k == 'inbox' and fs.count %}<span class="ds-tab-count">{{ fs.count }}</span>{% endif %}</button>
+          {% endfor %}
+        </nav>
+      </div>
 
       {# ── Fields ── #}
       <div class="st-panel" data-studio-panel="fields">

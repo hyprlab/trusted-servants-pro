@@ -108,6 +108,7 @@ release notes expanded by default and the changelog collapsed.
 - Branding's Name and logo tab previews the site's real header instead of a drawing of one. A newly chosen logo, a removed logo and a changed site name show in it before you save.
 - The Design page's Design tokens card is laid out like the Header page: the preview on the left, the settings on the right, and Colors, Text, Links, Header, Mega menu, Footer, Layout, Cards and Buttons chosen with a segmented control at the top of the settings instead of a tab strip across the card.
 - That control is a single row that scrolls sideways (with a mouse wheel too) instead of wrapping onto a second line; the edge with more groups past it fades out, and the open group is kept in view, including when clicking part of the preview opens another group.
+- Every Web Frontend page's segmented control works the same way: it fills its column when its parts fit, and scrolls sideways with faded edges when they don't (a form's seven parts, or any of them in a narrow window), keeping its names instead of dropping to icons.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

@@ -140,12 +140,14 @@
         </div>
         <div class="st-body st-body--split">
           <div class="st-controls">
-            <nav class="st-seg" role="tablist" aria-label="Page settings">
-              <button type="button" role="tab" data-studio-tab="page">{{ icon('file-text') }}<span>Page</span></button>
-              <button type="button" role="tab" data-studio-tab="layout">{{ icon('maximize') }}<span>Width</span></button>
-              <button type="button" role="tab" data-studio-tab="background">{{ icon('droplet') }}<span>Background</span></button>
-              <button type="button" role="tab" data-studio-tab="sharing">{{ icon('share') }}<span>Sharing</span></button>
-            </nav>
+            <div class="st-seg-scroll" data-seg-scroll>
+              <nav class="st-seg" role="tablist" aria-label="Page settings">
+                <button type="button" role="tab" data-studio-tab="page">{{ icon('file-text') }}<span>Page</span></button>
+                <button type="button" role="tab" data-studio-tab="layout">{{ icon('maximize') }}<span>Width</span></button>
+                <button type="button" role="tab" data-studio-tab="background">{{ icon('droplet') }}<span>Background</span></button>
+                <button type="button" role="tab" data-studio-tab="sharing">{{ icon('share') }}<span>Sharing</span></button>
+              </nav>
+            </div>
             <div class="st-panel" data-studio-panel="page">
         <div class="fe-page-settings-section">
           <div class="form-grid">

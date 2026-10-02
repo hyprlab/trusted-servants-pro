@@ -70,12 +70,14 @@
         </div>
         <div class="st-body st-body--split">
           <div class="st-controls">
-            <nav class="st-seg" role="tablist" aria-label="Popup settings">
-              <button type="button" role="tab" data-studio-tab="popup">{{ icon('message-square') }}<span>Popup</span></button>
-              <button type="button" role="tab" data-studio-tab="box">{{ icon('square') }}<span>Box</span></button>
-              <button type="button" role="tab" data-studio-tab="backdrop">{{ icon('layers') }}<span>Backdrop</span></button>
-              <button type="button" role="tab" data-studio-tab="behavior">{{ icon('mouse-pointer-click') }}<span>Open and close</span></button>
-            </nav>
+            <div class="st-seg-scroll" data-seg-scroll>
+              <nav class="st-seg" role="tablist" aria-label="Popup settings">
+                <button type="button" role="tab" data-studio-tab="popup">{{ icon('message-square') }}<span>Popup</span></button>
+                <button type="button" role="tab" data-studio-tab="box">{{ icon('square') }}<span>Box</span></button>
+                <button type="button" role="tab" data-studio-tab="backdrop">{{ icon('layers') }}<span>Backdrop</span></button>
+                <button type="button" role="tab" data-studio-tab="behavior">{{ icon('mouse-pointer-click') }}<span>Open and close</span></button>
+              </nav>
+            </div>
             <div class="st-panel" data-studio-panel="popup">
               <div class="ds-group st-group-body">
                 <label class="st-field"><span>Name</span>

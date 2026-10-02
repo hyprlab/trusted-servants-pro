@@ -32,11 +32,13 @@
     </div>
 
     <div class="st-controls">
-      <nav class="st-seg" role="tablist" aria-label="Header parts">
-        <button type="button" role="tab" data-studio-tab="menu">{{ icon('menu') }}<span>Menu</span></button>
-        <button type="button" role="tab" data-studio-tab="utility">{{ icon('panel-top') }}<span>Utility bar</span></button>
-        <button type="button" role="tab" data-studio-tab="alert">{{ icon('megaphone') }}<span>Alert bar</span>{% if site and site.header_alert_enabled %}<i class="st-seg-dot" title="Showing"></i>{% endif %}</button>
-      </nav>
+      <div class="st-seg-scroll" data-seg-scroll>
+        <nav class="st-seg" role="tablist" aria-label="Header parts">
+          <button type="button" role="tab" data-studio-tab="menu">{{ icon('menu') }}<span>Menu</span></button>
+          <button type="button" role="tab" data-studio-tab="utility">{{ icon('panel-top') }}<span>Utility bar</span></button>
+          <button type="button" role="tab" data-studio-tab="alert">{{ icon('megaphone') }}<span>Alert bar</span>{% if site and site.header_alert_enabled %}<i class="st-seg-dot" title="Showing"></i>{% endif %}</button>
+        </nav>
+      </div>
 
       {# ── Menu: the top-level items, or one item's mega menu. ── #}
       <div class="st-panel" data-studio-panel="menu">

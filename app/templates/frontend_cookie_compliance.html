@@ -29,11 +29,13 @@
   </div>
   <div class="st-body st-body--split">
     <div class="st-controls">
-      <nav class="st-seg" role="tablist" aria-label="Cookie banner">
-        <button type="button" role="tab" data-studio-tab="behavior">{{ icon('shield') }}<span>Behavior</span></button>
-        <button type="button" role="tab" data-studio-tab="banner">{{ icon('type') }}<span>Banner</span></button>
-        <button type="button" role="tab" data-studio-tab="policy">{{ icon('file-text') }}<span>Privacy policy</span></button>
-      </nav>
+      <div class="st-seg-scroll" data-seg-scroll>
+        <nav class="st-seg" role="tablist" aria-label="Cookie banner">
+          <button type="button" role="tab" data-studio-tab="behavior">{{ icon('shield') }}<span>Behavior</span></button>
+          <button type="button" role="tab" data-studio-tab="banner">{{ icon('type') }}<span>Banner</span></button>
+          <button type="button" role="tab" data-studio-tab="policy">{{ icon('file-text') }}<span>Privacy policy</span></button>
+        </nav>
+      </div>
 
       <div class="st-panel" data-studio-panel="behavior">
         <div class="ds-group st-group-body">
