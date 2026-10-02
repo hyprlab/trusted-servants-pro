@@ -764,6 +764,13 @@
         credentials: "same-origin",
         redirect: "follow",
       });
+      // The save went through and sent us back to this page, which the
+      // change has closed (a module turned off while on one of its
+      // pages): it saved, and the page to leave for is the dashboard.
+      if (!r.ok && r.redirected && r.status === 404) {
+        f.dispatchEvent(new CustomEvent("settings:saved", { bubbles: true, detail: null }));
+        return { pageGone: true };
+      }
       if (!r.ok) throw new Error("HTTP " + r.status);
       let data = null;
       const ct = r.headers.get("content-type") || "";
@@ -909,12 +916,15 @@
           // shown via the danger toast even though the HTTP status
           // is 200 — matches the pattern used by email-test, where
           // an SMTP failure isn't an HTTP failure.
-          if (data && typeof data.message === "string") {
+          if (data && data.pageGone) {
+            showSettingsToast("Saved. This page is no longer available, so you're going to the dashboard.");
+            setTimeout(() => { window.location.href = "/tspro/"; }, 1200);
+          } else if (data && typeof data.message === "string") {
             showSettingsToast(data.message, data.ok === false ? "danger" : "success");
           } else {
             showSettingsToast(isTestForm ? "Test sent" : "Saved");
           }
-          if (f.dataset.reloadOnSave === "1") {
+          if (f.dataset.reloadOnSave === "1" && !(data && data.pageGone)) {
             setTimeout(() => window.location.reload(), 400);
           }
         } catch (err) {

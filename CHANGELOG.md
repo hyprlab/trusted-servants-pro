@@ -104,6 +104,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `frontend/base.html` emitted `<meta name="description">` only inside the `frontend_og_enabled` branch. It is now emitted from the page or site description (falling back to `frontend_tagline`) regardless, and `og:url` / `og:image` are built from `SiteSetting.site_url` when set instead of the request host.
 - `_FOOTER_PREBUILT_BLOCK_TYPES` was referenced but never defined, so `frontend_footer` raised NameError whenever a prebuilt footer was active. It is now `frontend.FOOTER_PREBUILT_BLOCKS`, which also drives the picker previews (Stacked lacked secondary nav, Mega listed link columns twice and no social icons).
 - `_normalise_module_form_slug` passed a blank value to `_slugify_form_title`, which returns `form`, so clearing a built-in form's address saved `/form`.
+- Settings modal saves (`submitSettingsForm` in `app.js`): a save whose redirect lands on a 404 (the referrer page of a module just disabled) counts as saved and goes to `/tspro/` instead of throwing `HTTP 404`.
 
 ### Removed
 - `frontend_pages.html`, `frontend_popups.html` and `frontend_forms.html`, and the routes only they used: `frontend_pages_bulk`, `frontend_page_rename`, `frontend_popup_status`.
