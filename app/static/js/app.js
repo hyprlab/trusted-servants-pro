@@ -1001,7 +1001,7 @@
           const moduleOff = f.matches(".special-page-toggle-form") &&
             !f.querySelector('input[type="checkbox"]:checked');
           if (moduleOff || (data && data.pageGone)) {
-            showSettingsToast("Saved. The Dashboard is open behind Settings.");
+            showSettingsToast("Saved");
             swapPage("/tspro/").catch(() => { window.location.href = "/tspro/"; });
           } else if (data && typeof data.message === "string") {
             showSettingsToast(data.message, data.ok === false ? "danger" : "success");
