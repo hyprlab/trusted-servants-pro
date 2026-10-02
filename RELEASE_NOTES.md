@@ -130,6 +130,8 @@ release notes expanded by default and the changelog collapsed.
 - Widget names are shorter and match the Customize window: Meetings, Recent files, Website visitors, Join the email list, What's new, Backups, Access requests (now with Locked accounts beneath it), Recently deleted. What's new opens the full notes from its head link instead of a large button.
 - The Join the email list form no longer runs past the edge of its card at tablet widths.
 - Rearranging the Dashboard is smooth. Drag a widget by its heading (or its grip): it lifts and follows the pointer, a dashed space opens where it will land, and the other widgets slide out of the way instead of jumping and overlapping. Letting go settles it into place, and Escape puts it back. The space opens nearest to where the widget is, in either column. A focused grip moves its widget one place with the arrow keys.
+- Cards throughout the admin share one soft shadow, the one the Dashboard widgets use, and cards that lift when pointed at share one hover shadow. The Neobrutal and Cyberpunk themes keep their own.
+- The Settings window drops its header bar on larger screens, since the list on the left already shows where you are; the close button stays where it was, floating over the top corner. Each section sits on the light grey background with its cards styled like Dashboard widgets: white, with a thin border, rounded corners and an icon tile in the heading. This includes Users, Global and other pages shown inside Settings. On a phone the header stays, with its Back button.
 
 ## 2.20.2 — 2026-09-30 (latest)
 

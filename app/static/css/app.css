@@ -141,7 +141,9 @@
   --danger: #e5484d;
   --success: #30a46c;
   --warning: #f5a524;
-  --shadow: 0 1px 2px rgba(17,24,39,.04), 0 4px 14px rgba(17,24,39,.06);
+  /* Every card at rest (the Dashboard widgets' shadow), and lifted on hover. */
+  --shadow: 0 1px 2px rgba(15,23,42,.04);
+  --shadow-hover: 0 4px 12px rgba(15,23,42,.08);
   --radius: 12px;
   --sidebar-w: 248px;
   /* Web Frontend admin's secondary sidebar. Narrower than the main app
@@ -161,7 +163,8 @@
   --brand-soft: #1a2a55;
   --access: #3d7dff;
   --access-hover: #0b5cff;
-  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 18px rgba(0,0,0,.45);
+  --shadow: 0 1px 2px rgba(0,0,0,.3);
+  --shadow-hover: 0 4px 14px rgba(0,0,0,.4);
 }
 [data-theme="neobrutal-light"] {
   --bg: #fef9c3;
@@ -179,6 +182,7 @@
   --success: #16a34a;
   --warning: #eab308;
   --shadow: 4px 4px 0 0 #0a0a0a;
+  --shadow-hover: 6px 6px 0 0 #0a0a0a;
   --radius: 0px;
 }
 [data-theme="neobrutal-dark"] {
@@ -197,6 +201,7 @@
   --success: #4ade80;
   --warning: #facc15;
   --shadow: 4px 4px 0 0 #fafafa;
+  --shadow-hover: 6px 6px 0 0 #fafafa;
   --radius: 0px;
 }
 [data-theme="solarpunk"] {
@@ -214,7 +219,8 @@
   --danger: #c43a3a;
   --success: #2fa862;
   --warning: #e8a11b;
-  --shadow: 0 1px 2px rgba(30,58,30,.06), 0 4px 14px rgba(30,110,60,.12);
+  --shadow: 0 1px 2px rgba(30,58,30,.06);
+  --shadow-hover: 0 4px 14px rgba(30,110,60,.14);
   --radius: 14px;
 }
 [data-theme="cyberpunk"] {
@@ -233,6 +239,7 @@
   --success: #2bffb3;
   --warning: #ffe100;
   --shadow: 0 0 0 1px #ff2bd6, 0 0 18px rgba(255, 43, 214, .35);
+  --shadow-hover: 0 0 0 1px #ff2bd6, 0 0 26px rgba(255, 43, 214, .5);
   --radius: 4px;
 }
 
@@ -2072,7 +2079,7 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 .template-card-action-del:hover { background: #b91c1c; color: #fff; }
 .template-card-action-del .icon { color: #fff; }
 .template-card:hover { border-color: var(--access); transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08); }
+  box-shadow: var(--shadow-hover); }
 .template-card.active { border-color: var(--brand); background: var(--brand-soft); }
 /* Badge is rendered on every card so JS can flip the .active class without
    re-rendering; CSS keeps it hidden unless the card is the live selection. */
@@ -2488,7 +2495,7 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
 .utility-bar-container-items > .utility-bar-row {
   background: var(--panel, #fff);
   border-color: rgba(11, 92, 255, 0.20);
-  box-shadow: 0 1px 2px rgba(11, 92, 255, 0.06);
+  box-shadow: var(--shadow);
 }
 /* Containers nested inside a container's items list don't make sense —
    the JS gates against it, but if anything slips through, hide the
@@ -3880,7 +3887,7 @@ button.chip { font-family: inherit; }
 .media-card { display: flex; flex-direction: column; gap: 10px; padding: 10px;
   border: 1px solid var(--border); border-radius: 12px; background: var(--panel-2);
   transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
-.media-card:hover { border-color: var(--brand); box-shadow: 0 6px 16px rgba(0,0,0,0.10); }
+.media-card:hover { border-color: var(--brand); box-shadow: var(--shadow-hover); }
 /* Multi-select picker state — applies to both card and table-row
    hosts so the operator sees their running selection regardless of
    view mode. The Select button label flips to "Selected ✓" in JS;
@@ -7202,13 +7209,13 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
   background: var(--panel, #fff);
   border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow);
   overflow: hidden;
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 .block-library-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 12px 24px rgba(0,0,0,0.10);
+  box-shadow: var(--shadow-hover);
 }
 .block-library-card-thumb {
   aspect-ratio: 16 / 9;
@@ -7350,12 +7357,12 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
   background: var(--panel, #fff);
   border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow);
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 .block-officer-roster-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 12px 24px rgba(0,0,0,0.10);
+  box-shadow: var(--shadow-hover);
 }
 .block-officer-roster-card .block-officer-role {
   font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.06em;
@@ -8471,7 +8478,7 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--shadow);
 }
 .be-hero-button-head {
   display: flex; align-items: center; gap: 10px;
@@ -8855,7 +8862,7 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
 }
 .fe-tplgrid-card:hover {
   border-color: var(--access); transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-hover);
 }
 .fe-tplgrid-card.active { border-color: var(--brand); background: var(--brand-soft); }
 .fe-tplgrid-card input[type="radio"] { position: absolute; width: 0; height: 0; opacity: 0; }
@@ -11955,7 +11962,7 @@ input.be-container-color-text.is-invalid {
   background: var(--panel, #fff);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 10px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow);
 }
 .be-officer-roster-card.is-empty {
   font-style: italic; color: var(--muted);
@@ -12697,7 +12704,7 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 .fe-dynbg-picker-card:hover {
   border-color: var(--access);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-hover);
 }
 .fe-dynbg-picker-card.active {
   border-color: var(--access);
@@ -12827,7 +12834,7 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   border-color: var(--access);
   background: color-mix(in srgb, var(--access) 4%, var(--card));
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-hover);
 }
 .fe-dynbg-trigger:focus-visible {
   outline: 2px solid var(--access);
@@ -13524,7 +13531,7 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 .block-blog-card:hover {
   transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--accent, #2563eb) 30%, var(--border, #e5e7eb));
-  box-shadow: 0 12px 30px -12px rgba(15,23,42,.15);
+  box-shadow: var(--shadow-hover);
 }
 .block-blog-card.is-featured {
   box-shadow: inset 3px 0 0 var(--accent, #2563eb);
@@ -13561,7 +13568,7 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 }
 .block-blog-list-item:hover {
   border-color: color-mix(in srgb, var(--accent, #2563eb) 30%, var(--border, #e5e7eb));
-  box-shadow: 0 6px 18px -8px rgba(15,23,42,.15);
+  box-shadow: var(--shadow-hover);
 }
 .block-blog-list-link {
   display: grid; grid-template-columns: 180px 1fr; gap: 1rem;
@@ -13919,12 +13926,12 @@ body.pbe-is-palette-dragging .pbe-canvas {
   border-radius: 12px;
   background: var(--panel);
   border: 1px solid var(--border);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--shadow);
   transition: box-shadow 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 .pbe-block:hover {
   border-color: color-mix(in srgb, var(--brand, var(--access)) 35%, var(--border));
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-hover);
 }
 .pbe-block:focus-within {
   border-color: var(--brand, var(--access));
@@ -14422,7 +14429,7 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
   background: var(--bg, #ffffff);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--shadow);
   position: relative; overflow: hidden;
 }
 .wt-kpi-label { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em;
@@ -15207,7 +15214,7 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   background:
     linear-gradient(135deg, var(--brand-soft, rgba(37,99,235,.10)), transparent 70%),
     var(--panel, #fff);
-  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  box-shadow: var(--shadow);
 }
 .backup-edit-hero-icon {
   flex: 0 0 auto;
@@ -18404,7 +18411,7 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
    a quiet dashed box when there's nothing to show. ── */
 .dash-grid { column-gap: 20px; }
 .dash-grid .card.data-card { padding: 18px 20px; border-radius: 14px; border: 1px solid var(--border);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04); container-type: inline-size; }
+  box-shadow: var(--shadow); container-type: inline-size; }
 
 /* Head */
 .dash-grid .dash-widget-head,
@@ -18459,7 +18466,7 @@ body.dash-dragging, body.dash-dragging * { cursor: grabbing !important; user-sel
 .dash-widget.is-lifted > .card { transform: scale(1.015) rotate(-.4deg);
   box-shadow: 0 24px 48px rgba(15, 23, 42, .22), 0 3px 8px rgba(15, 23, 42, .10);
   transition: transform 160ms ease, box-shadow 160ms ease; }
-.dash-widget.is-landing > .card { transform: none; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+.dash-widget.is-landing > .card { transform: none; box-shadow: var(--shadow); }
 .dash-placeholder { border: 2px dashed color-mix(in srgb, var(--brand) 45%, var(--border)); border-radius: 14px;
   background: color-mix(in srgb, var(--brand) 6%, transparent); box-sizing: border-box; }
 @media (prefers-reduced-motion: reduce) { .dash-widget.is-lifted > .card { transform: none; transition: none; } }
@@ -18535,6 +18542,38 @@ a.dash-stat--link .dash-stat-value { color: var(--access, var(--brand)); }
 .dash-grid .dash-relnotes-pill { background: var(--brand-soft); color: var(--access, var(--brand)); }
 .dash-grid .dash-relnotes-body { max-height: 7.6em; color: var(--muted); }
 .dash-grid .dash-relnotes-history-label { margin: 0 0 4px; }
+
+/* ── Settings dialog: like the Dashboard. The section list already names
+   the open section, so on a desktop the header bar goes; its close
+   button floats where it was. The sections sit on the light grey page
+   background with their cards styled like Dashboard widgets (and so do
+   the sections that are pages of their own, in iframes). Phones keep
+   the header: it holds the Back button. ── */
+@media (min-width: 721px) {
+  #settings-modal .settings-main-head { position: absolute; top: 14px; right: 18px; z-index: 12;
+    min-height: 0; padding: 0; margin: 0; border: 0; background: none; }
+  #settings-modal .settings-main-head .settings-pane-title { position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  #settings-modal .settings-main-head [data-close] { background: var(--panel); border: 1px solid var(--border);
+    box-shadow: var(--shadow); }
+  /* Room for the close button above each section's first card. */
+  #settings-modal .settings-pane.active { padding-top: 60px; }
+  #settings-modal .settings-pane.active:has(> iframe.settings-frame),
+  #settings-modal .settings-pane.active:has(> .settings-frame) { padding-top: 46px; }
+}
+#settings-modal .settings-body, .settings-frame, body.embed { background: var(--bg); }
+#settings-modal .data-card, body.embed .card.data-card, body.embed .card.data-card:last-child {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: var(--shadow); padding: 18px 20px; }
+#settings-modal .data-card-head, body.embed .data-card-head { gap: 10px; font-size: var(--fs-md); font-weight: 650; margin: 0 0 14px; }
+#settings-modal .data-card-head > .icon, body.embed .data-card-head > .icon {
+  width: 30px; height: 30px; padding: 7px; border-radius: 8px; box-sizing: border-box;
+  background: var(--brand-soft); color: var(--access, var(--brand)); }
+/* The other cards in embedded pages (lists that used to sit flush on
+   white) become the same white cards on the grey. */
+body.embed .card:not(.data-card) { background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: var(--shadow); padding: 18px 20px; margin: 0 0 16px; }
+body.embed .card:not(.data-card):last-child { padding-bottom: 18px; margin-bottom: 0; border-bottom: 1px solid var(--border); }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
