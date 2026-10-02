@@ -18443,12 +18443,13 @@ body.embed .card:not(.data-card) { background: var(--panel); border: 1px solid v
 body.embed .card:not(.data-card):last-child { padding-bottom: 18px; margin-bottom: 0; border-bottom: 1px solid var(--border); }
 
 /* Meeting page: the Zoom card in Zoom blue (a deeper, muted blue in dark
-   mode) with white text, light chips and yellow buttons.
+   mode) with white text, light chips, and dark navy buttons (yellow in
+   dark mode).
    Scoped up to win over the embedded-page card rules. */
 .zoom-card--brand { --zc-bg: #295bf6; --zc-fg: #fff; --zc-muted: rgba(255, 255, 255, .78);
   --zc-line: rgba(255, 255, 255, .24); --zc-chip: rgba(255, 255, 255, .14); --zc-chip-line: rgba(255, 255, 255, .32);
-  /* Buttons: #f5c349 with dark navy text (blue on this yellow is too faint to read). */
-  --zc-btn: #f5c349; --zc-btn-fg: #102257; --zc-btn-hover: #ffd466; }
+  /* Buttons: dark navy with white text (dark mode: yellow, below). */
+  --zc-btn: #102257; --zc-btn-fg: #fff; --zc-btn-hover: #1a3478; }
 [data-theme="dark"] .zoom-card--brand { --zc-bg: #1c3373; --zc-muted: rgba(255, 255, 255, .72);
   --zc-line: rgba(255, 255, 255, .16); --zc-chip: rgba(255, 255, 255, .08); --zc-chip-line: rgba(255, 255, 255, .22);
   --zc-btn: #f5c349; --zc-btn-fg: #102257; --zc-btn-hover: #ffd466; }
