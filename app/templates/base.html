@@ -171,9 +171,7 @@
 {% if not embed %}
 <div class="layout">
   <aside class="sidebar">
-    {# Everything but the footer scrolls together: the brand, the rows at
-       the top and the nav (app.js remembers the offset per tab). #}
-    <div class="sidebar-scroll" id="sidebar-scroll">
+    {# The logo and app name stay put at the top. #}
     <div class="brand">
       <img class="brand-logo" src="{{ url_for('static', filename='img/logo.svg') }}" alt="">
       <div>
@@ -181,6 +179,9 @@
         <div class="brand-sub">Pro</div>
       </div>
     </div>
+    {# Between the brand and the footer, everything scrolls together: the
+       rows at the top and the nav (app.js remembers the offset per tab). #}
+    <div class="sidebar-scroll" id="sidebar-scroll">
     {# The top of the sidebar: the portal-wide places and tools, as rows
        styled like the nav links below them (icon, label, a count or
        status on the right), set off from the nav by a rule. Each row's

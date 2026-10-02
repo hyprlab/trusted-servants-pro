@@ -213,9 +213,9 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
      2 below (and reset to column 1 in the single-column mobile / autohide
      states where the sidebar goes off-canvas). */
   position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh; z-index: 25;
-  /* Two zones: everything above the footer (brand, the rows at the
-     top, the nav) scrolls together in .sidebar-scroll, and the footer
-     is pinned at the bottom. min-height: 0 on the scroll area lets the
+  /* Three zones: the brand pinned at the top, everything between it
+     and the footer (the rows at the top, the nav) scrolling together in
+     .sidebar-scroll, and the footer pinned at the bottom. min-height: 0 on the scroll area lets the
      flex child shrink below its content height (without it overflow-y
      has nothing to clip against). */
 }
