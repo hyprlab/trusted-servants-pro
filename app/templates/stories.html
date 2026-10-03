@@ -20,10 +20,7 @@
     </div>
   </div>
   <a class="btn" href="{{ url_for('main.frontend_form_story') }}">{{ icon('settings') }} Manage form</a>
-  <button type="button" class="btn btn-primary"
-          data-open-modal="story-edit-modal"
-          data-modal-src="{{ url_for('main.story_new', embed=1) }}"
-          data-modal-title="New story">+ New story</button>
+  <a class="btn btn-primary" href="{{ url_for('main.story_new') }}">+ New story</a>
 {% endblock %}
 {% block content %}
 {%- set _sortmap = {
@@ -112,10 +109,7 @@
           {% endif %}
         </td>
         <td>
-          <button type="button" class="posts-title posts-title-btn"
-                  data-open-modal="story-edit-modal"
-                  data-modal-src="{{ url_for('main.story_edit', sid=s.id, embed=1) }}"
-                  data-modal-title="Edit story">{{ s.title }}</button>
+          <a class="posts-title" href="{{ url_for('main.story_edit', sid=s.id) }}">{{ s.title }}</a>
           {% if s.summary %}<div class="muted small posts-summary">{{ s.summary[:140] }}{% if s.summary|length > 140 %}…{% endif %}</div>{% endif %}
           {% if s.is_pending_review and (s.submitter_name or s.submitter_email) %}
           <div class="muted smaller posts-submitter">
@@ -180,11 +174,8 @@
                       onclick="return confirm('Reject and delete this submission permanently? The submitter is not notified automatically.');">
                 {{ icon('x') }}<span>Reject</span></button>
               {% else %}
-              <button type="button" class="row-menu-item"
-                      data-open-modal="story-edit-modal"
-                      data-modal-src="{{ url_for('main.story_edit', sid=s.id, embed=1) }}"
-                      data-modal-title="Edit story">
-                {{ icon('pencil') }}<span>Edit</span></button>
+              <a class="row-menu-item" href="{{ url_for('main.story_edit', sid=s.id) }}">
+                {{ icon('pencil') }}<span>Edit</span></a>
               {% if s.is_draft %}
               <button type="submit" form="single-story-publish-{{ s.id }}-form" class="row-menu-item" title="Publish this draft">
                 {{ icon('send') }}<span>Publish</span></button>
@@ -260,44 +251,7 @@
 </section>
 {% endif %}
 
-{# Story edit modal — used for both creating new stories and editing
-   existing ones. The iframe `src` is set on first open from the
-   trigger's `data-modal-src` (per-row Edit buttons point at the
-   matching /tspro/stories/<id>?embed=1; the "+ New story" button
-   points at /tspro/stories/new?embed=1). On close the iframe is
-   reset to about:blank so the next open lands on a clean state. #}
-<div class="modal modal-lg" id="story-edit-modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <div class="modal-head">
-      <h2>Story</h2>
-      <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-    </div>
-    <iframe class="settings-frame" id="story-edit-frame"
-            src="about:blank"></iframe>
-  </div>
-</div>
-
 <style>
-  /* Mirror the WP-import modal's full-height treatment so the form has
-     room to render without the wrapper collapsing. */
-  #story-edit-modal .modal-panel { height: calc(100vh - 10vh); max-width: 1080px; }
-  #story-edit-frame { flex: 1 1 auto; width: 100%; height: 100%; min-height: 0; border: 0; background: var(--panel); }
-  /* The clickable title in the table is a button (so it can open a
-     modal) — strip the default browser button chrome so it still
-     reads as a hyperlink. */
-  .posts-title-btn {
-    background: none;
-    border: 0;
-    padding: 0;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-    text-align: left;
-    text-decoration: none;
-  }
-  .posts-title-btn:hover { text-decoration: underline; }
-
   /* Bulk-action toolbar + bar — same chrome as the Posts admin
      (defined locally there). Lifted here so the bulk-bar pill renders
      correctly on /tspro/stories. The 1rem bottom margin separates the

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
+{% from "_md_toolbar.html" import md_toolbar %}
+{% from "_featured_image_field.html" import featured_image_field %}
 {% set _is_new = post is none %}
 {% set _p = post %}
 {% block heading %}{{ 'New announcement / event' if _is_new else 'Edit announcement / event' }}{% endblock %}
@@ -90,7 +92,7 @@
   {% endif %}
   {% if _p %}
   <form method="post" action="{{ url_for('main.post_delete', pid=_p.id) }}" style="display:inline"
-        onsubmit="return confirm('Delete this post permanently? Featured image will be cleaned up.');">
+        data-confirm="This deletes the post and its images for good." data-confirm-title="Delete this post?">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-danger">Delete</button>
   </form>
@@ -122,7 +124,7 @@
       <button type="submit" name="target" value="publish" class="btn btn-primary">Approve &amp; Publish</button>
     </form>
     <form method="post" action="{{ url_for('main.post_delete', pid=_p.id) }}" style="display:inline"
-          onsubmit="return confirm('Reject and delete this submission? The submitter will not be notified.');">
+          data-confirm="The submission is deleted. The submitter is not told." data-confirm-title="Reject this submission?" data-confirm-label="Reject">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-danger">Reject</button>
     </form>
@@ -134,7 +136,7 @@
    the right, its parts switched with a segmented control (fe_studio.js):
    Publish (when, auto-archive, visibility, URL), Event (only while the
    post is tagged Event), Links and Images. #}
-<form id="post-edit-form" class="form post-form" method="post" action="{{ url_for('main.post_save') }}" enctype="multipart/form-data">
+<form id="post-edit-form" class="form post-form" method="post" action="{{ url_for('main.post_save') }}" enctype="multipart/form-data" data-content-editor>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if _p %}<input type="hidden" name="post_id" value="{{ _p.id }}">{% endif %}
 
@@ -186,27 +188,7 @@
         <div class="form-field-block">{% call hrow('Body') %}The full text of the post. <strong>Markdown and HTML are supported</strong> — headings, <code>**bold**</code>, lists, and links all render on the public page. The preview pane shows it as visitors will see it.{% endcall %}
           <div class="md-editor md-editor-live post-body-md" data-md-editor data-md-live="1"
                data-md-mode="block" data-md-event-tokens>
-            {# Formatting buttons (app.js initMdToolbars): each writes the
-               Markdown at the caret or around the selection. #}
-            <div class="md-toolbar" data-md-toolbar>
-              <div class="md-toolbar-tools" role="toolbar" aria-label="Formatting">
-                <button type="button" data-md-cmd="heading" title="Heading" aria-label="Heading">{{ icon('heading') }}</button>
-                <button type="button" data-md-cmd="bold" title="Bold (Ctrl+B)" aria-label="Bold">{{ icon('bold') }}</button>
-                <button type="button" data-md-cmd="italic" title="Italic (Ctrl+I)" aria-label="Italic">{{ icon('italic') }}</button>
-                <span class="md-toolbar-sep" aria-hidden="true"></span>
-                <button type="button" data-md-cmd="link" title="Link (Ctrl+K)" aria-label="Link">{{ icon('link') }}</button>
-                <button type="button" data-md-cmd="image" title="Image from the File Browser" aria-label="Image">{{ icon('image') }}</button>
-                <span class="md-toolbar-sep" aria-hidden="true"></span>
-                <button type="button" data-md-cmd="ul" title="Bulleted list" aria-label="Bulleted list">{{ icon('list') }}</button>
-                <button type="button" data-md-cmd="ol" title="Numbered list" aria-label="Numbered list">{{ icon('list-ordered') }}</button>
-                <button type="button" data-md-cmd="quote" title="Quote" aria-label="Quote">{{ icon('quote') }}</button>
-                <span class="md-toolbar-sep" aria-hidden="true"></span>
-                <button type="button" data-md-cmd="code" title="Code" aria-label="Code">{{ icon('code') }}</button>
-                <button type="button" data-md-cmd="hr" title="Divider line" aria-label="Divider line">{{ icon('minus') }}</button>
-              </div>
-              {# Heads the preview column when the panes sit side by side. #}
-              <span class="md-toolbar-label" aria-hidden="true">Preview</span>
-            </div>
+            {{ md_toolbar() }}
             <div class="md-editor-pane md-editor-pane-write active">
               <textarea name="body" rows="16" data-event-tag-target
                         placeholder="The full body of the post. Markdown and HTML supported.">{{ (_p.body_raw if _p else '') or '' }}</textarea>
@@ -600,50 +582,7 @@
         {%- set _gallery_count = _gallery|length -%}
         <div class="st-panel" data-studio-panel="images" hidden>
           <div class="ds-group st-group-body">
-            <div data-post-featured-image>
-              <h3 class="ds-group-title">{{ icon('image') }}Featured image {% call chip('Featured image') %}Leads the post on the public page and in link previews.{% endcall %}</h3>
-              <div class="og-image-row">
-                {# Both states — thumbnail + clear-pill, and the empty
-                   placeholder — are always in the DOM, with `hidden` picking
-                   which one shows. The save bar's AJAX save flips these after a
-                   round-trip (see syncFeatured at the foot of the page), so
-                   rendering only the branch that happened to be true at page
-                   load would leave it with nothing to reveal. #}
-                {%- set _has_featured = _p and _p.featured_image_filename -%}
-                <div class="og-image-preview" data-featured-preview>
-                  <img {% if _has_featured %}src="{{ url_for('public.post_featured_image', pid=_p.id) }}"{% endif %}
-                       alt="Featured image" data-featured-preview-img
-                       {% if not _has_featured %}hidden{% endif %}>
-                  <div class="og-image-empty muted small" data-featured-preview-empty
-                       {% if _has_featured %}hidden{% endif %}>No image uploaded yet.</div>
-                  {# Pill-style toggle — still a real checkbox (post_save reads
-                     ``clear_featured_image`` and the File-Browser JS unchecks
-                     it), just rendered as a chip that fills in red when armed. #}
-                  <label class="post-featured-clear" data-featured-clear
-                         {% if not _has_featured %}hidden{% endif %}>
-                    <input type="checkbox" name="clear_featured_image" value="1">
-                    <span>{{ icon('x') }} Remove current image</span>
-                  </label>
-                </div>
-                <div class="og-image-fields">
-                  <label>{% call hrow('Upload new image') %}PNG, JPG, or WebP. Replaces whatever featured image the post already has when you save.{% endcall %}
-                    <input type="file" name="featured_image" accept="image/png,image/jpeg,image/webp" data-featured-upload>
-                  </label>
-                  <label class="check og-image-webp">
-                    <input type="checkbox" name="convert_featured_to_webp" value="1">
-                    <span class="field-label-row">Auto convert to WebP {% call chip('Auto convert to WebP') %}Transcodes the upload to WebP on save — smaller files and faster public pages, at the cost of the original format.{% endcall %}</span>
-                  </label>
-                  <div class="og-image-actions">
-                    <button type="button" class="btn btn-sm" data-post-featured-picker>{{ icon('folder') }} Choose from File Browser</button>
-                  </div>
-                  {# Hidden input set by the File Browser modal. Resolved to a
-                     stored filename on the server side; cleared if the admin
-                     picks a different upload after browsing. #}
-                  <input type="hidden" name="featured_image_media_id" value="" data-featured-media-id>
-                  <div class="og-image-picked muted small" data-featured-picked-label hidden></div>
-                </div>
-              </div>
-            </div>
+            {{ featured_image_field(url_for('public.post_featured_image', pid=_p.id) if (_p and _p.featured_image_filename) else '') }}
           </div>
           <div class="ds-group st-group-body">
             <div data-post-gallery data-gallery-max="6" data-gallery-count="{{ _gallery_count }}">
@@ -946,59 +885,6 @@
     urlInput.classList.add('is-filled');
     setTimeout(function () { urlInput.classList.remove('is-filled'); }, 1200);
     say('Link built from: ' + q + ' — open it to confirm it lands where you expect. Save the post to keep it.', 'ok');
-  });
-})();
-</script>
-
-{# Live title → slug sync. Mirrors `_normalize_slug` in app/routes.py:
-   lowercase, non-alphanumeric runs collapse to a single `-`, leading
-   and trailing hyphens stripped, capped at 200 chars. Fires on every
-   `input` event from the title field, briefly highlights the slug
-   field so the editor sees the URL changing alongside the title.
-   Stops mirroring once the editor sets a custom slug (or the post
-   already has one), so a hand-picked URL survives further title edits
-   and a draft publishes with exactly that URL — matching the server's
-   "explicit slug wins on a draft" rule in `post_save`. #}
-<script>
-(function () {
-  const form = document.getElementById('post-edit-form');
-  if (!form) return;
-  const titleInput = form.querySelector('input[name="title"]');
-  const slugInput = form.querySelector('input[name="slug"]');
-  if (!titleInput || !slugInput) return;
-  function slugify(v) {
-    return String(v || '').toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 200);
-  }
-  // Once the editor takes control of the URL — either the post already
-  // carries a custom slug, or they type one here — stop mirroring the
-  // title so their chosen URL survives further title edits (and so a
-  // draft publishes with exactly the URL they set). Clearing the field
-  // hands control back: blank → resume deriving from the title.
-  let slugEdited = slugInput.value.trim() !== '';
-  slugInput.addEventListener('input', () => {
-    slugEdited = slugInput.value.trim() !== '';
-  });
-  let highlightTimer = null;
-  titleInput.addEventListener('input', () => {
-    if (slugEdited) return;
-    const next = slugify(titleInput.value);
-    if (slugInput.value === next) return;
-    slugInput.value = next;
-    // Reset + re-add the highlight class so consecutive keystrokes
-    // keep the animation visible instead of completing once on the
-    // first character. The forced reflow committing the class removal
-    // before re-adding is the cheapest cross-browser way to restart
-    // the CSS animation.
-    slugInput.classList.remove('slug-input-field--synced');
-    void slugInput.offsetWidth;
-    slugInput.classList.add('slug-input-field--synced');
-    if (highlightTimer) clearTimeout(highlightTimer);
-    highlightTimer = setTimeout(() => {
-      slugInput.classList.remove('slug-input-field--synced');
-    }, 1400);
   });
 })();
 </script>
@@ -1336,218 +1222,19 @@
 
    The bar's button is deliberately NOT a submit button: a routine save
    shouldn't cost the admin their scroll position halfway down a long
-   form. It POSTs the same form through fetch (``X-Requested-With:
-   fetch``, which ``post_save`` answers with JSON instead of a
-   redirect) and reconciles the handful of fields the server can
-   rewrite — see ``_post_save_payload``. The top-of-page buttons stay
-   native submits, because those DO navigate somewhere. #}
+   form. content_editor.js POSTs the same form through fetch, which
+   ``post_save`` answers with JSON (``_post_save_payload``), and
+   reconciles the fields the server can rewrite. The top-of-page
+   buttons stay native submits, because those DO navigate somewhere. #}
 {% if not _is_new %}
 <div id="post-edit-save-bar" class="fe-save-bar fe-save-bar-content" hidden
-     data-post-edit-save-bar>
+     data-post-edit-save-bar data-editor-save-bar>
   <span class="fe-save-bar-msg">Unsaved changes</span>
   <button type="button" class="btn fe-save-bar-btn"
           {% if _p and _p.is_draft %}data-save-action="draft"{% endif %}>
     {% if _p and _p.is_draft %}Save draft{% else %}Save post{% endif %}
   </button>
 </div>
-<script>
-(function () {
-  var form = document.getElementById('post-edit-form');
-  var bar = document.getElementById('post-edit-save-bar');
-  if (!form || !bar) return;
-  var msg = bar.querySelector('.fe-save-bar-msg');
-  var btn = bar.querySelector('.fe-save-bar-btn');
-  var idleLabel = btn ? btn.textContent.trim() : 'Save';
-  var dirty = false;
-  var toast = function (m, kind) { (window.tspShowToast || function () {})(m, kind); };
-
-  function show() {
-    if (dirty) return;
-    dirty = true;
-    bar.hidden = false;
-    bar.classList.remove('is-leaving');
-    if (msg) msg.textContent = 'Unsaved changes';
-    if (btn) { btn.disabled = false; btn.textContent = idleLabel; }
-  }
-
-  form.addEventListener('input', show);
-  form.addEventListener('change', show);
-
-  // Newly added rows (the Links multi-row editor) live in nodes
-  // that get appended after this script runs — observe the form
-  // so any insert/remove flips the bar dirty too.
-  if (window.MutationObserver) {
-    var mo = new MutationObserver(function (records) {
-      for (var i = 0; i < records.length; i++) {
-        var r = records[i];
-        var nodes = r.addedNodes.length ? r.addedNodes : r.removedNodes;
-        for (var j = 0; j < nodes.length; j++) {
-          var n = nodes[j];
-          if (n.nodeType === 1 && (
-              (n.matches && n.matches('input, select, textarea')) ||
-              (n.querySelector && n.querySelector('input, select, textarea')))) {
-            show();
-            return;
-          }
-        }
-      }
-    });
-    mo.observe(form, { childList: true, subtree: true });
-  }
-
-  // The top-of-page buttons (Publish, Move to Drafts) are still native
-  // submits that navigate away — keep flashing "Saving…" for those.
-  form.addEventListener('submit', function () {
-    if (msg) msg.textContent = 'Saving…';
-    if (btn) btn.disabled = true;
-  });
-
-  // ── Reconcile the page with what the server actually stored ──────
-  // Only the fields post_save can rewrite on its own. Everything else
-  // on screen is already exactly what we just sent.
-
-  function syncSlug(data) {
-    var input = form.querySelector('input[name="slug"]');
-    if (!input) return;
-    // Blank means "keep deriving from the title" — the effective URL
-    // moves to the placeholder, same as a freshly rendered page.
-    if (input.value !== data.slug_field) input.value = data.slug_field;
-    if (data.slug) input.placeholder = data.slug;
-  }
-
-  function syncFeatured(data) {
-    var section = form.querySelector('[data-post-featured-image]');
-    if (!section) return;
-    var img = section.querySelector('[data-featured-preview-img]');
-    var empty = section.querySelector('[data-featured-preview-empty]');
-    var clearBox = section.querySelector('input[name="clear_featured_image"]');
-    var upload = section.querySelector('[data-featured-upload]');
-    var mediaId = section.querySelector('[data-featured-media-id]');
-    var picked = section.querySelector('[data-featured-picked-label]');
-    if (img) {
-      if (data.featured_image) {
-        img.src = data.featured_image;
-        img.hidden = false;
-      } else {
-        img.removeAttribute('src');
-        img.hidden = true;
-      }
-      img.classList.remove('is-cleared');
-    }
-    if (empty) empty.hidden = !!data.featured_image;
-    var clearPill = section.querySelector('[data-featured-clear]');
-    if (clearPill) clearPill.hidden = !data.featured_image;
-    // The upload / pick / clear inputs have all been consumed by the
-    // save — leaving them armed would re-apply them on the next one.
-    if (clearBox) clearBox.checked = false;
-    if (upload) upload.value = '';
-    if (mediaId) mediaId.value = '';
-    if (picked) { picked.hidden = true; picked.textContent = ''; }
-  }
-
-  function syncGallery(data) {
-    var section = form.querySelector('[data-post-gallery]');
-    if (!section) return;
-    var list = section.querySelector('[data-gallery-list]');
-    var upload = section.querySelector('[data-gallery-upload]');
-    var picks = section.querySelector('[data-gallery-picks]');
-    if (list) {
-      // Rebuilt wholesale from the stored filenames: uploads land,
-      // removed tiles go, and the indices the thumbnail URLs are keyed
-      // on stay aligned with the row. Per-tile remove still works —
-      // that handler is delegated from the section, not the tiles.
-      list.textContent = '';
-      (data.gallery || []).forEach(function (item, i) {
-        var li = document.createElement('li');
-        li.className = 'post-gallery-tile';
-        li.setAttribute('data-gallery-tile', '');
-        var img = document.createElement('img');
-        img.src = item.url;
-        img.alt = 'Gallery image ' + (i + 1);
-        img.loading = 'lazy';
-        var hidden = document.createElement('input');
-        hidden.type = 'hidden';
-        hidden.name = 'gallery_existing';
-        hidden.value = item.name;
-        var rm = document.createElement('button');
-        rm.type = 'button';
-        rm.className = 'btn btn-sm btn-danger post-gallery-remove';
-        rm.setAttribute('data-gallery-remove', '');
-        rm.title = 'Remove from gallery';
-        rm.textContent = '×';
-        li.appendChild(img);
-        li.appendChild(hidden);
-        li.appendChild(rm);
-        list.appendChild(li);
-      });
-    }
-    if (upload) upload.value = '';
-    if (picks) picks.textContent = '';
-    // Re-run the section's own tally so the "(n / 6)" chip matches.
-    if (typeof section.__galleryRefresh === 'function') section.__galleryRefresh();
-  }
-
-  function settle() {
-    dirty = false;
-    if (msg) msg.textContent = 'Saved';
-    var finish = function () {
-      bar.hidden = true;
-      bar.classList.remove('is-leaving');
-      if (msg) msg.textContent = 'Unsaved changes';
-      if (btn) { btn.disabled = false; btn.textContent = idleLabel; }
-    };
-    bar.addEventListener('animationend', finish, { once: true });
-    bar.classList.add('is-leaving');
-    // Safety net for reduced-motion / background-tab cases where
-    // animationend never fires.
-    setTimeout(finish, 360);
-  }
-
-  function fail(message) {
-    if (msg) msg.textContent = 'Save failed — try again';
-    if (btn) { btn.disabled = false; btn.textContent = idleLabel; }
-    toast(message || 'Save failed — try again', 'error');
-  }
-
-  if (btn) btn.addEventListener('click', function () {
-    if (btn.disabled) return;
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-    if (msg) msg.textContent = 'Saving…';
-    var fd = new FormData(form);
-    // The button used to carry this as name/value on a submit; a plain
-    // button contributes nothing to FormData, so add it by hand.
-    if (btn.dataset.saveAction) fd.append('action', btn.dataset.saveAction);
-    // getAttribute, not `form.action`: HTMLFormElement is
-    // [LegacyOverrideBuiltIns], so the top-of-page Publish / Move to
-    // Drafts buttons — which are name="action" and associated with this
-    // form via their `form` attribute — shadow the action property and
-    // make `form.action` return a <button> instead of the URL.
-    fetch(form.getAttribute('action'), {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'X-Requested-With': 'fetch' },
-      body: fd
-    }).then(function (r) {
-      return r.json().catch(function () { return null; })
-        .then(function (data) { return { ok: r.ok, data: data }; });
-    }).then(function (res) {
-      var data = res.data;
-      (data && data.flashes || []).forEach(function (f) {
-        toast(f.message, (f.category === 'danger' || f.category === 'error') ? 'error' : '');
-      });
-      if (!res.ok || !data || !data.ok) {
-        fail(data && data.flashes && data.flashes.length ? null : 'Save failed — try again');
-        return;
-      }
-      if (data.redirect) { window.location.assign(data.redirect); return; }
-      syncSlug(data);
-      syncFeatured(data);
-      syncGallery(data);
-      settle();
-    }).catch(function () { fail(); });
-  });
-})();
-</script>
 {% endif %}
+<script src="{{ url_for('static', filename='js/content_editor.js', v=app_build_id) }}"></script>
 {% endblock %}

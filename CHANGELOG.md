@@ -7,6 +7,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- `static/js/content_editor.js`: the title-to-slug sync and the fetch save bar, shared by `post_edit.html`, `story_edit.html` and `blog_edit.html` (form `[data-content-editor]`, bar `[data-editor-save-bar]`). Widgets that build their own fields mark themselves `data-editor-own-changes` and report edits with an `editor:changed` event (`post_body_editor.js` does).
+- `_featured_image_field.html` (`featured_image_field(src, about)`) and `_md_toolbar.html` (`md_toolbar()`), used by all three editors.
+- `story_save` and `blog_save` answer `X-Requested-With: fetch` with JSON (`_editor_save_payload`, `_editor_save_failed`); featured images go through `_apply_featured_image` (upload, WebP conversion, File Browser pick).
 - Markdown toolbar (`[data-md-toolbar]` inside a `[data-md-editor]`, `initMdToolbars` in `app.js`), first used on the post body. Edits go through `execCommand("insertText")` so they join the undo stack, with a `setRangeText` fallback. Lists, headings and quotes add the blank lines Python-Markdown needs around them. The image button opens the File Browser picker in a new `md-image` mode and inserts `![alt](/pub/<file>)` via `window.tspMdInsertImage`.
 - `app/widths.py`: a `site` width mode beside `boxed` and `full`. `resolve_width()` draws `site` as boxed at the resolved `container_max_px`; public routes pass the resolved values and the header, footer, page, contact and Recovery Contacts templates use the `width_px` Jinja global, so templates still only know `boxed` and `full`. Save routes accept `site` (`WIDTH_MODES`), the page-level `*_width_mode` model defaults are now `site` (migrations still add `boxed`), and `_width_control.html` is the shared admin control. Design → Layout lists each surface's mode (`width_usage()`).
 - `forms_overview.form_rows()`: one row per built-in and custom form with its inbox URL and waiting count (pending posts, stories and Recovery Contacts, unread contact messages, unseen custom-form submissions). `forms_registry` entries gain `inbox_endpoint`.
@@ -20,6 +23,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `User.theme_pref` (`system` / `light` / `dark`, empty until chosen; added by `_migrate_sqlite`) and `POST /tspro/account/theme` (`account_theme_save`). `base.html` and `setup.html` carry it as `data-theme-pref` and resolve `data-theme` before paint (falling back to the browser's `tsp-theme`, with old theme names mapped to light or dark, then `prefers-color-scheme`); `app.js` follows device changes under `system`, saves from `[data-theme-pref-value]` controls and `#theme-toggle`, and migrates a browser's old choice to the account once.
 
 ### Changed
+- `story_edit.html` and `blog_edit.html` are `.st-studio.post-studio` cards (`data-studio="story"` / `"blog"`, driven by `fe_studio.js`) in the post editor's 60/40 layout. Top-of-page Publish / Move to Drafts submit the form with `action`. Delete forms in all three editors use `data-confirm`.
+- `_slug_history.html` takes a `slug_kind` ("story", "blog") and links the matching public path.
+- `.fe-save-bar-content` sizes to its contents.
 - Light admin `--bg` is `#f2f3f8` (was `#f6f7fb`), and so is the unstyled-page guard background in `base.html`.
 - The floating Settings close button (`#settings-modal .settings-main-head [data-close]`) is transparent at rest and takes its panel background, border and shadow on hover or keyboard focus.
 - Row-menu columns in `.tbl` tables carry an "Actions" heading (`th.th-actions`, or `th.posts-th-actions` on the post, story and blog lists), right-aligned over the menu.
@@ -109,6 +115,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
+- The blog editor included `_slug_history.html` with the blog post as a `post`, so it looked up announcement / event history under the blog post's id.
+- A File Browser pick for a featured image set its hidden field without an event, so the save bar didn't appear.
 - `.help-tooltip` resets `text-transform`, `letter-spacing`, `text-align` and `white-space`, so it no longer inherits an uppercase label's styling. The overview's `.fe-status-card` and its strip drop `overflow: hidden` while a help chip inside is open, so the tooltip isn't clipped.
 - `.tbl` row menus: the reveal rule used `tr:focus-within`, so a trigger focused by a mouse click stayed visible after the pointer left the row; it now uses `tr:has(:focus-visible)`.
 
@@ -138,6 +146,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `#relayFields` and `#smtpFields` were plain blocks inside the flex `.form`, so their fields had no gap; they are now flex columns inheriting the form's gap.
 
 ### Removed
+- The story edit modal: `story_modal_close.html`, `_story_embed` / `_story_embed_kwargs` and every `embed=1` story redirect, the `story-modal-close` message listener and `story-edit-frame` handling in `app.js`, and the stories list's modal markup and styles.
+- The blog editor's own featured-image picker (`blog-fi`, via `pbeOpenImageBrowser`) and sidebar card layout.
 - `frontend_pages.html`, `frontend_popups.html` and `frontend_forms.html`, and the routes only they used: `frontend_pages_bulk`, `frontend_page_rename`, `frontend_popup_status`.
 - The `/frontend/header-save`, `/frontend/header-template` and `/frontend/megamenu-template` routes, which nothing used.
 - The unused `frontend/footers/recovery-blue.html` (not in `FOOTER_TEMPLATES`), the `frontend_footer_text` context value only it read, the `/frontend/footer-template` route and the footer page's own second save bar.

@@ -2680,6 +2680,8 @@ body.fe-admin-autohide #footer-save-bar { left: var(--content-px, 28px); }
    flush against the sidebar gutter. */
 .fe-save-bar-content {
   left: calc(var(--sidebar-w, 248px) + 28px + 2rem);
+  /* Sized to its message and button, so "Unsaved changes" isn't cut off. */
+  width: auto;
 }
 @media (max-width: 900px) {
   /* On mobile the .fe-admin-layout collapses to one column and the main

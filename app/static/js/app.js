@@ -283,10 +283,9 @@
     // When the closed modal hosts a lazy-loaded iframe, blank it out so
     // the next open starts a clean wizard / form session — otherwise
     // the iframe would resume on whatever step it last landed on.
-    // Match by id (not by [data-src]) since the story modal repoints
-    // the iframe per-trigger via data-modal-src, not via data-src.
+    // Match by id, not by [data-src].
     m.querySelectorAll("iframe").forEach(f => {
-      if (f.id === "wp-import-frame" || f.id === "story-edit-frame"
+      if (f.id === "wp-import-frame"
           || f.id === "backup-wizard-frame" || f.id === "backups-frame"
           || f.id === "ts-import-frame") {
         f.src = "about:blank";
@@ -1505,22 +1504,6 @@
     }
   });
 
-  // Story modal iframe → parent: close the new/edit story modal and
-  // reload the stories list so saved/deleted rows reflect immediately.
-  // Sent by the story_edit.html Cancel button or the post-delete
-  // close stub. Accepts both the legacy "story-new-close" type and
-  // the canonical "story-modal-close" so older iframe loads keep
-  // working until the next refresh.
-  window.addEventListener("message", (e) => {
-    if (e.origin !== window.location.origin) return;
-    if (!e.data || (e.data.type !== "story-modal-close" && e.data.type !== "story-new-close")) return;
-    const m = document.getElementById("story-edit-modal");
-    if (m && m.classList.contains("open")) closeModal(m);
-    // Reload so the saved/deleted row reflects in the list. Defer one
-    // frame so the modal close animation can start before navigation.
-    setTimeout(() => { window.location.reload(); }, 50);
-  });
-
   // Live-update sidebar custom nav links when edited in Settings
   window.addEventListener("message", (e) => {
     if (e.origin !== window.location.origin) return;
@@ -1814,7 +1797,11 @@
       const section = document.querySelector("[data-post-featured-image]");
       if (section) {
         const hidden = section.querySelector("[data-featured-media-id]");
-        if (hidden) hidden.value = item.id;
+        if (hidden) {
+          hidden.value = item.id;
+          // A script-set value fires nothing; tell the page's save bar.
+          hidden.dispatchEvent(new Event("change", { bubbles: true }));
+        }
         // Clear any pending file-upload selection so the browser-picked
         // item is what actually gets saved (uploads otherwise win on
         // the server side).

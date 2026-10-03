@@ -18422,6 +18422,63 @@ def _post_save_payload(post):
     }
 
 
+def _editor_save_payload(slug, slug_field, image_endpoint=None, **image_args):
+    """The story and blog editors' save bar answer: the same keys as
+    ``_post_save_payload`` minus the gallery. The featured image URL (from
+    ``image_endpoint``, or None when there is no image) carries a ``v``
+    cache-buster, since its path is keyed on the row id alone."""
+    featured = None
+    if image_endpoint:
+        featured = url_for(image_endpoint, v=int(time.time()), **image_args)
+    return {
+        "ok": True,
+        "slug": slug,
+        "slug_field": slug_field or "",
+        "featured_image": featured,
+        "flashes": [{"category": c, "message": m}
+                    for c, m in get_flashed_messages(with_categories=True)],
+    }
+
+
+def _editor_save_failed():
+    """The save bar's answer to a refused save: the flashes, no row."""
+    return jsonify({
+        "ok": False,
+        "flashes": [{"category": c, "message": m}
+                    for c, m in get_flashed_messages(with_categories=True)],
+    }), 400
+
+
+def _apply_featured_image(row):
+    """Featured image fields shared by the story and blog editors (the
+    announcement / event editor does the same inline): remove, then a
+    fresh upload (optionally converted to WebP), else a File Browser
+    pick. A picked file is shared with the File Browser, so only the
+    image it replaces is retired."""
+    if request.form.get("clear_featured_image") == "1":
+        old = row.featured_image_filename
+        row.featured_image_filename = None
+        _cleanup_retired_asset(old)
+    uploaded = request.files.get("featured_image")
+    if uploaded and uploaded.filename:
+        if request.form.get("convert_featured_to_webp") == "1":
+            uploaded = _to_webp_upload(uploaded)
+        old = row.featured_image_filename
+        stored, _original = _save_upload(uploaded)
+        row.featured_image_filename = stored
+        if old and old != stored:
+            _cleanup_retired_asset(old)
+        return
+    picked_raw = (request.form.get("featured_image_media_id") or "").strip()
+    if picked_raw.isdigit():
+        m = db.session.get(MediaItem, int(picked_raw))
+        if m and m.stored_filename:
+            old = row.featured_image_filename
+            row.featured_image_filename = m.stored_filename
+            if old and old != m.stored_filename:
+                _cleanup_retired_asset(old)
+
+
 def _auto_archive_events():
     """Archive any active event whose end (or start, if no end) is
     before today AND any active announcement whose admin-set
@@ -19392,25 +19449,11 @@ def stories():
                            pending_count=pending_count)
 
 
-def _story_embed():
-    """True when the current request is rendering / submitting from
-    inside the new-story modal iframe. Carried via ``?embed=1`` on the
-    URL or ``embed=1`` in the form body."""
-    return (request.args.get("embed") == "1"
-            or request.form.get("embed") == "1")
-
-
-def _story_embed_kwargs():
-    """Spread into ``url_for(...)`` so post-save redirects keep the
-    iframe in chromeless mode."""
-    return {"embed": 1} if _story_embed() else {}
-
-
 @bp.route("/stories/new")
 @login_required
 def story_new():
     _require_stories_enabled()
-    return render_template("story_edit.html", story=None, embed=_story_embed())
+    return render_template("story_edit.html", story=None)
 
 
 @bp.route("/stories/<int:sid>")
@@ -19418,7 +19461,7 @@ def story_new():
 def story_edit(sid):
     _require_stories_enabled()
     story = db.session.get(Story, sid) or abort(404)
-    return render_template("story_edit.html", story=story, embed=_story_embed())
+    return render_template("story_edit.html", story=story)
 
 
 @bp.route("/stories/save", methods=["POST"])
@@ -19440,7 +19483,9 @@ def story_save():
     title = (request.form.get("title") or "").strip()[:255]
     if not title:
         flash("Title is required", "danger")
-        return redirect(_safe_referrer() or url_for("main.story_new", **_story_embed_kwargs()))
+        if _post_save_wants_json():
+            return _editor_save_failed()
+        return redirect(_safe_referrer() or url_for("main.story_new"))
     story.title = title
 
     explicit_slug = None
@@ -19467,17 +19512,7 @@ def story_save():
     if "published_at" in request.form:
         story.published_at = _parse_post_dt(request.form.get("published_at"))
 
-    if request.form.get("clear_featured_image") == "1":
-        old = story.featured_image_filename
-        story.featured_image_filename = None
-        _cleanup_retired_asset(old)
-    uploaded = request.files.get("featured_image")
-    if uploaded and uploaded.filename:
-        old = story.featured_image_filename
-        stored, _original = _save_upload(uploaded)
-        story.featured_image_filename = stored
-        if old and old != stored:
-            _cleanup_retired_asset(old)
+    _apply_featured_image(story)
 
     action = (request.form.get("action") or "").strip()
     if action == "draft":
@@ -19514,16 +19549,13 @@ def story_save():
                           else f"Updated story “{story.title}”"))
     if creating:
         flash(("Draft saved: " + story.title) if story.is_draft else ("Published: " + story.title), "success")
-        # In embed mode (iframe-hosted New-story modal), redirect into
-        # the edit screen so the admin can keep iterating without
-        # losing the modal context. The "Cancel" button (which becomes
-        # a Close button in embed mode) postMessages the parent to
-        # close + reload the stories list.
-        if _story_embed():
-            return redirect(url_for("main.story_edit", sid=story.id, embed=1))
         return redirect(url_for("main.stories", show=("drafts" if story.is_draft else "active")))
     flash("Story saved", "success")
-    return redirect(url_for("main.story_edit", sid=story.id, **_story_embed_kwargs()))
+    if _post_save_wants_json():
+        return jsonify(_editor_save_payload(
+            story.public_slug, story.slug,
+            "public.story_featured_image" if story.featured_image_filename else None, sid=story.id))
+    return redirect(url_for("main.story_edit", sid=story.id))
 
 
 @bp.route("/stories/<int:sid>/publish", methods=["POST"])
@@ -19534,8 +19566,6 @@ def story_publish(sid):
     story.is_draft = False
     db.session.commit()
     flash("Published", "success")
-    if _story_embed():
-        return redirect(url_for("main.story_edit", sid=sid, embed=1))
     return redirect(_safe_referrer() or url_for("main.stories"))
 
 
@@ -19547,8 +19577,6 @@ def story_unpublish(sid):
     story.is_draft = True
     db.session.commit()
     flash("Moved to drafts", "success")
-    if _story_embed():
-        return redirect(url_for("main.story_edit", sid=sid, embed=1))
     return redirect(_safe_referrer() or url_for("main.stories", show="drafts"))
 
 
@@ -19560,8 +19588,6 @@ def story_archive(sid):
     story.is_archived = True
     db.session.commit()
     flash("Archived", "success")
-    if _story_embed():
-        return redirect(url_for("main.story_edit", sid=sid, embed=1))
     return redirect(_safe_referrer() or url_for("main.stories"))
 
 
@@ -19573,8 +19599,6 @@ def story_unarchive(sid):
     story.is_archived = False
     db.session.commit()
     flash("Restored", "success")
-    if _story_embed():
-        return redirect(url_for("main.story_edit", sid=sid, embed=1))
     return redirect(_safe_referrer() or url_for("main.stories"))
 
 
@@ -19611,12 +19635,6 @@ def story_delete(sid):
     for s in body_inline_stored:
         _cleanup_retired_asset(s)
     flash("Story deleted", "success")
-    # When deleting from inside the new-story modal, render a tiny
-    # auto-close stub that postMessages the parent so the modal goes
-    # away and the underlying stories list refreshes (the deleted row
-    # disappears).
-    if _story_embed():
-        return render_template("story_modal_close.html", message="Story deleted")
     return redirect(url_for("main.stories"))
 
 
@@ -20223,6 +20241,8 @@ def blog_save():
     title = (request.form.get("title") or "").strip()[:255]
     if not title:
         flash("Title is required", "danger")
+        if _post_save_wants_json():
+            return _editor_save_failed()
         return redirect(_safe_referrer() or url_for("main.blog_new"))
     post.title = title
 
@@ -20270,35 +20290,7 @@ def blog_save():
         est_source = _blog_blocks_to_plain_text(post.body_blocks) or (post.body or "")
         post.reading_minutes = _estimate_reading_minutes(est_source)
 
-    if request.form.get("clear_featured_image") == "1":
-        old = post.featured_image_filename
-        post.featured_image_filename = None
-        _cleanup_retired_asset(old)
-    uploaded = request.files.get("featured_image")
-    if uploaded and uploaded.filename:
-        # Fresh upload — wins over any library pick on the same submit.
-        # The "Browse library" JS clears the file input on pick (and
-        # vice-versa) so a single save round-trip only carries one of
-        # the two, but if both happen to arrive together the upload
-        # is the more recent intent.
-        old = post.featured_image_filename
-        stored, _original = _save_upload(uploaded)
-        post.featured_image_filename = stored
-        if old and old != stored:
-            _cleanup_retired_asset(old)
-    else:
-        # Library pick — the writer clicked Browse, picked a tile,
-        # and the JS stamped the MediaItem id into the hidden field.
-        # Look up the row and reuse its already-stored filename so we
-        # don't duplicate the file on disk.
-        media_id_raw = (request.form.get("featured_image_media_id") or "").strip()
-        if media_id_raw.isdigit():
-            m = db.session.get(MediaItem, int(media_id_raw))
-            if m and m.stored_filename:
-                old = post.featured_image_filename
-                post.featured_image_filename = m.stored_filename
-                if old and old != m.stored_filename:
-                    _cleanup_retired_asset(old)
+    _apply_featured_image(post)
 
     # Category + tag relations — must flush the post first when creating
     # so the M2M tables have a real id to reference.
@@ -20334,6 +20326,10 @@ def blog_save():
         flash(("Draft saved: " + post.title) if post.is_draft else ("Published: " + post.title), "success")
         return redirect(url_for("main.blog_index", show=("drafts" if post.is_draft else "active")))
     flash("Post saved", "success")
+    if _post_save_wants_json():
+        return jsonify(_editor_save_payload(
+            post.public_slug, post.slug,
+            "public.blog_post_featured_image" if post.featured_image_filename else None, bid=post.id))
     return redirect(url_for("main.blog_edit", bid=post.id))
 
 
