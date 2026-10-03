@@ -277,7 +277,6 @@
       <a class="sidebar-footer-img-link" id="sidebar-footer-link" href="{{ _furl or '#' }}" target="_blank" rel="noopener"{% if not _flogo %} hidden{% endif %}>
         <img id="sidebar-footer-logo" src="{{ url_for('public.site_footer_logo') if _flogo else '' }}" alt=""{% if _fw %} style="width: {{ _fw }}px"{% endif %}>
       </a>
-      <div class="brand-version">v{{ app_version }}</div>
       <div class="user-chip">
         <div class="avatar">{{ current_user.username[:1].upper() }}</div>
         <div class="user-chip-name" title="{{ current_user.username }}">

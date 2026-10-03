@@ -136,6 +136,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The unused `frontend_form_submission_import_to_story` route and the `_default_*_form_blocks` / `_resolve_module_form_fields` helpers.
 - The site index "Sort order" setting from the admin: no layout read it. Contact and Recovery Contacts page copy is no longer on Page templates (it is on their forms).
 - The Neobrutal Light, Neobrutal Dark, Cyberpunk and Solarpunk admin themes: their `[data-theme]` tokens and rules in `app.css`, the `.theme-picker` swatches in Settings → Appearance and the setup wizard, and their unstyled-page guard backgrounds. Web Frontend themes are unaffected.
+- The `.brand-version` badge from the sidebar footer and its rule in `app.css`; the version stays in the About modal.
 
 ## [2.20.2] — 2026-09-30
 

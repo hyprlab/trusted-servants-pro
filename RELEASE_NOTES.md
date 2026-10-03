@@ -90,6 +90,7 @@ release notes expanded by default and the changelog collapsed.
 - The top of the main sidebar is a short list instead of a stack of boxed buttons: Dashboard, Search, Notifications, Watchtower and Web Frontend, each with an icon and styled like the links below it, with a line separating them from the rest of the menu. Counts and the ⌘K shortcut sit at the end of their rows, and Web Frontend has a small button at its end that opens the public site, carrying the green live dot.
 - Every entry in the main sidebar has an icon, with any count at the end of its row. The rows at the top no longer stay fixed: everything between the logo (which stays put) and the footer scrolls as one list, and keeps its place from page to page.
 - The first group of sidebar links (Meetings, Libraries, File Browser and the others) has a Main heading and collapses and expands like the Forms, Intergroup, External and Admin groups.
+- The version number is no longer shown at the bottom of the sidebar. It is still in the About window.
 - Web Frontend pages no longer flash while loading: the tab you last had open shows from the start, previews keep their space, and a hidden app sidebar no longer slides out and back.
 - Footer → Meeting locations shows each checkbox to the left of the location's name.
 - Every Web Frontend page with a preview now works like the Header page: the preview on the left, the settings on the right, and their parts chosen with a segmented control instead of tabs. This includes Branding, forms, Page templates, pages, popups, the 404 page and Privacy & cookies.
