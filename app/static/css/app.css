@@ -18372,7 +18372,11 @@ a.dash-stat--link .dash-stat-value { color: var(--access, var(--brand)); }
     min-height: 0; padding: 0; margin: 0; border: 0; background: none; }
   #settings-modal .settings-main-head .settings-pane-title { position: absolute; width: 1px; height: 1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  #settings-modal .settings-main-head [data-close] { background: var(--panel); border: 1px solid var(--border);
+  /* Bare until hovered or focused, then it takes its button face. */
+  #settings-modal .settings-main-head [data-close] { background: transparent; border: 1px solid transparent;
+    box-shadow: none; transition: background .12s ease, border-color .12s ease, box-shadow .12s ease; }
+  #settings-modal .settings-main-head [data-close]:hover,
+  #settings-modal .settings-main-head [data-close]:focus-visible { background: var(--panel); border-color: var(--border);
     box-shadow: var(--shadow); }
   /* Room for the close button above each section's first card. */
   #settings-modal .settings-pane.active { padding-top: 60px; }

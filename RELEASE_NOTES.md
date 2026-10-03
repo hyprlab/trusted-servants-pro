@@ -94,6 +94,7 @@ release notes expanded by default and the changelog collapsed.
 - The announcement and event editor is laid out like the Web Frontend pages: the type, title, summary and body on the left, and the post's settings on the right, chosen with a segmented control: Publish (posted-on date, auto-archive, visibility and web address), Event, Links and Images. The Event tab appears only while the post is tagged as an event, and opens when you tag it. Its settings are grouped into When, Where, Zoom and Contact, and the Zoom details show only for an online event. Public visibility is a three-way switch instead of a menu.
 - Admin pages use the full width of the screen. They were capped at about 1400 pixels, which left an empty band on the right of wide screens.
 - Tables whose rows show an Actions menu on hover (Meetings, Libraries, Announcements & Events, Stories, Blog, Email List, Recovery Contacts, Zoom Accounts, Redirects and access requests in Watchtower) have an Actions heading over that column.
+- The Settings window's close button is a plain × until you point at it, when its button outline appears.
 - The version number is no longer shown at the bottom of the sidebar. It is still in the About window.
 - The top of the sidebar shows the Trusted Servants Pro logo from the About window on its own, without the app name beside it.
 - Web Frontend pages no longer flash while loading: the tab you last had open shows from the start, previews keep their space, and a hidden app sidebar no longer slides out and back.
