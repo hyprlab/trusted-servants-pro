@@ -116,7 +116,12 @@
    in Settings, and carries the title. #}
 <div class="fb-pick{{ '' if picker else ' fb-pick--page' }}">
 <aside class="fb-side" aria-label="Find a file">
-  {% if picker %}<h1 class="fb-side-head">File Browser</h1>{% endif %}
+  {% set _total = pagination.total if pagination else items|length %}
+  {% set _noun = {'img': 'image', 'doc': 'document', 'vid': 'video', 'aud': 'audio file', 'other': 'other file'}.get(kind, 'file') %}
+  <div class="fb-side-top">
+    {% if picker %}<h1 class="fb-side-head">File Browser</h1>{% endif %}
+    <p class="fb-side-total" aria-live="polite">{{ _total }} {{ _noun }}{{ '' if _total == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}{% if mine %}, uploaded by you{% endif %}</p>
+  </div>
   {{ _search_form() }}
   {% if current_user.can_edit() %}
   <label class="btn btn-primary fb-side-upload" for="media-upload-input">{{ icon('upload') }} {{ 'Upload a file' if picker else 'Upload files' }}</label>
@@ -154,9 +159,8 @@
   </div>
 </aside>
 <div class="fb-pick-main">
-  {% set _total = pagination.total if pagination else items|length %}
-  {% set _noun = {'img': 'image', 'doc': 'document', 'vid': 'video', 'aud': 'audio file', 'other': 'other file'}.get(kind, 'file') %}
-  <p class="fb-pick-count muted">{{ _total }} {{ _noun }}{{ '' if _total == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}{% if mine %}, uploaded by you{% endif %}</p>
+{# The card is its own scroll area, sized to the window: the column
+   headings stay at its top while the files scroll under them. #}
 <section class="card fb">
   {% if not items %}
   <div class="fb-empty">

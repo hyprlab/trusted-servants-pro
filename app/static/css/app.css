@@ -18638,14 +18638,24 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .fb-pick { display: grid; grid-template-columns: 252px minmax(0, 1fr); align-items: start; }
 .fb-side { box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .fb-pick-main { min-width: 0; }
-.fb-pick-main > .card.fb { margin: 0; }
-.fb-pick-main > .fb-pick-count { min-height: 32px; display: flex; align-items: center; }
+.fb-pick-main > .card.fb { margin: 0; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.fb-side-top { display: flex; flex-direction: column; gap: 2px; padding: 0 4px; }
+.fb-side-total { margin: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
+/* The headings stay put while the files scroll under them. */
+.fb-tbl thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); padding-top: 16px;
+  box-shadow: inset 0 -1px 0 var(--border); }
+.fb-pick-main > .card.fb > .fb-grid { padding-top: 16px; }
+.fb-pick-main > .card.fb > .fb-empty { margin-top: 16px; }
 
-.fb-pick--page { gap: 20px; }
-.fb-pick--page .fb-side { position: sticky; top: calc(var(--topbar-h, 56px) + 16px);
-  max-height: calc(100vh - var(--topbar-h, 56px) - 32px); overflow-y: auto; padding: 14px;
+/* On the page, both the sidebar and the files card start just under the
+   top bar and end at the window's foot; only the card's files scroll. */
+.fb-pick--page { gap: 20px; --fb-h: calc(100vh - var(--topbar-h, 56px) - var(--content-px, 28px) - 20px); }
+.fb-pick--page .fb-side { position: sticky; top: calc(var(--topbar-h, 56px) + var(--content-px, 28px));
+  max-height: var(--fb-h); overflow-y: auto; padding: 14px;
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
-.fb-pick--page .fb-pick-main > .fb-pick-count { margin-top: -6px; }
+.fb-pick--page .fb-pick-main > .card.fb { height: var(--fb-h); box-sizing: border-box; }
+/* The page itself then has nothing left to scroll. */
+.content:has(.fb-pick--page) { padding-bottom: 20px; }
 
 body.embed:has(.fb-pick) { background: var(--bg); }
 body.embed .embed-content:has(.fb-pick) { padding: 0; }
@@ -18653,10 +18663,11 @@ body.embed .fb-pick { min-height: 100vh; }
 body.embed .fb-side { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 16px 14px 20px;
   background: var(--panel-2); border-right: 1px solid var(--border); }
 .fb-side-head { margin: 2px 4px 0; font-size: var(--fs-lg); font-weight: 700; line-height: 1.3; }
-body.embed .fb-pick-main { padding: 16px 20px 20px; }
-/* Leaves the corner to the modal's floating close button. */
-body.embed .fb-pick-main > .fb-pick-count { padding-right: 48px; }
-body.embed .fb-pick-main > .card.fb { border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 16px 18px; }
+/* The files card fills the pane, leaving a gutter on the right for the
+   modal's floating close button. */
+body.embed .fb-pick-main { padding: 16px 58px 16px 20px; }
+body.embed .fb-pick-main > .card.fb { height: calc(100vh - 32px); box-sizing: border-box; }
+body.embed .fb-pick-main > .card.fb { border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 0 18px 16px; }
 #media-picker-modal .modal-panel { height: 90vh; max-width: 1280px; }
 #media-picker-modal .modal-panel > .settings-frame { flex: 1 1 auto; height: auto; min-height: 0; }
 .media-picker-close { position: absolute; top: 12px; right: 14px; z-index: 2;
@@ -18693,11 +18704,13 @@ body.embed .fb-side .fb-search input { background: var(--panel); }
 .fb-side-sort .fb-sort-link[aria-current] { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); }
 .fb-side .fb-view { display: flex; }
 .fb-side .fb-view > a { flex: 1 1 0; justify-content: center; }
-.fb-pick-count { margin: 0 0 12px; font-size: var(--fs-sm); }
 @media (max-width: 760px) {
   .fb-pick { grid-template-columns: minmax(0, 1fr); }
   body.embed .fb-pick { min-height: 0; }
   .fb-pick--page .fb-side, body.embed .fb-side { position: static; height: auto; max-height: none; }
+  .fb-pick--page .fb-pick-main > .card.fb, body.embed .fb-pick-main > .card.fb { height: auto; overflow: visible; }
+  .fb-tbl thead th { position: static; }
+  body.embed .fb-pick-main { padding: 16px; }
   body.embed .fb-side { border-right: 0; border-bottom: 1px solid var(--border); }
   .fb-side-head { padding-right: 48px; }
 }
