@@ -1532,18 +1532,24 @@
   // dedicated preview area instead of the generic "set media_id on
   // form" path used by the library + meeting modals.
   let currentMediaMode = null;
+  // Point the shared picker frame at the File Browser for this kind of
+  // pick: single or multi-select, and any file or images only (the
+  // sidebar's Kind filter, which the writer can still change). Reopened
+  // for the same kind of pick, it keeps its place (search, page).
+  function pointPicker(multi, kind) {
+    const frame = document.getElementById("media-picker-frame");
+    if (!frame) return;
+    const key = (multi ? "multi" : "single") + ":" + (kind || "any");
+    if (frame.dataset.pickerKey === key && frame.getAttribute("src") !== "about:blank") return;
+    frame.dataset.pickerKey = key;
+    frame.src = "/tspro/files?picker=1&embed=1" + (multi ? "&multi=1" : "") + (kind ? "&kind=" + kind : "");
+  }
+
   document.querySelectorAll("[data-media-picker]").forEach(btn => {
     btn.addEventListener("click", () => {
       currentMediaTarget = btn.dataset.mediaPicker;
       currentMediaMode = "form";
-      const frame = document.getElementById("media-picker-frame");
-      // Force the iframe back to single-select mode in case the
-      // gallery picker (which uses ?multi=1) opened previously and
-      // left it on the multi-select URL.
-      const singleUrl = "/tspro/files?picker=1&embed=1";
-      if (frame && (frame.src === "about:blank" || frame.src.indexOf("multi=1") > -1)) {
-        frame.src = singleUrl;
-      }
+      pointPicker(false, "");
       openModal("media-picker-modal");
     });
   });
@@ -1555,11 +1561,7 @@
     btn.addEventListener("click", () => {
       currentMediaTarget = null;
       currentMediaMode = "post-featured";
-      const frame = document.getElementById("media-picker-frame");
-      const singleUrl = "/tspro/files?picker=1&embed=1";
-      if (frame && (frame.src === "about:blank" || frame.src.indexOf("multi=1") > -1)) {
-        frame.src = singleUrl;
-      }
+      pointPicker(false, "img");
       openModal("media-picker-modal");
     });
   });
@@ -1574,17 +1576,10 @@
     btn.addEventListener("click", () => {
       currentMediaTarget = null;
       currentMediaMode = "post-gallery";
-      const frame = document.getElementById("media-picker-frame");
-      // Gallery picker opens the file browser in multi-select mode
-      // so the operator can grab several images in one round-trip.
-      // ``multi=1`` toggles the bottom action bar inside the iframe
-      // and changes Select clicks to toggle-into-set instead of
-      // immediate post-back; the parent handles the batch message
-      // below by iterating the items array.
-      const multiUrl = "/tspro/files?picker=1&embed=1&multi=1";
-      if (frame && (frame.src === "about:blank" || frame.src.indexOf("multi=1") < 0)) {
-        frame.src = multiUrl;
-      }
+      // Multi-select, so several images come back in one go: the
+      // iframe shows a bottom bar and Select toggles items into a set,
+      // handed back as one batch message (handled below).
+      pointPicker(true, "img");
       openModal("media-picker-modal");
     });
   });
@@ -1596,11 +1591,7 @@
     currentMediaTarget = null;
     currentMediaMode = "md-image";
     currentMdTextarea = textarea;
-    const frame = document.getElementById("media-picker-frame");
-    const singleUrl = "/tspro/files?picker=1&embed=1";
-    if (frame && (frame.src === "about:blank" || frame.src.indexOf("multi=1") > -1)) {
-      frame.src = singleUrl;
-    }
+    pointPicker(false, "img");
     openModal("media-picker-modal");
   };
 

@@ -7,6 +7,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- `media_list` filters by `kind` (`MEDIA_KINDS`: img, doc, vid, aud, other, from one SQL `type_case` now shared with the type sort) and `mine=1` (uploaded by the signed-in user), and passes `kind_counts`. In picker mode `media.html` puts search, upload, kind, uploader, sort and view in an `.fb-side` sidebar; every link goes through `_fb_url`, so filters, search and multi-select survive sorting, view changes and paging. `pointPicker` in `app.js` opens image pickers (featured image, gallery, Markdown image) on `kind=img`.
 - `app/blog_convert.py`: `blocks_to_markdown` turns a blog post's block list into Markdown and counts what it simplifies (`describe_notes`); `block_breaks`, which the `markdown_block` filter now imports, keeps converted paragraphs reading as they did. `BlogPost.body_blocks_backup_json` (migrated in `_migrate_sqlite`) keeps the block version of a converted post.
 - Blog conversion routes: `POST /blog/convert-preview` (Markdown, rendered HTML and notes for the editor's current blocks), `blog_save` with `convert_to_markdown=1`, `POST /blog/<id>/restore-blocks`, and the `markdown` action in `blog_bulk`. `_blog_convert_modal.html` is the editor's preview and confirm.
 - `static/js/content_editor.js`: the title-to-slug sync and the fetch save bar, shared by `post_edit.html`, `story_edit.html` and `blog_edit.html` (form `[data-content-editor]`, bar `[data-editor-save-bar]`). Widgets that build their own fields mark themselves `data-editor-own-changes` and report edits with an `editor:changed` event (`post_body_editor.js` does).
@@ -120,6 +121,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
+- `.avif` files counted as images in the File Browser's type sort but showed as plain files (`_media_type`).
+- The File Browser's sort, view and page links dropped the multi-select picker mode.
 - The blog editor included `_slug_history.html` with the blog post as a `post`, so it looked up announcement / event history under the blog post's id.
 - A File Browser pick for a featured image set its hidden field without an event, so the save bar didn't appear.
 - `.help-tooltip` resets `text-transform`, `letter-spacing`, `text-align` and `white-space`, so it no longer inherits an uppercase label's styling. The overview's `.fe-status-card` and its strip drop `overflow: hidden` while a help chip inside is open, so the tooltip isn't clipped.

@@ -16331,6 +16331,17 @@ def _apply_file_upload(obj, uploaded, media_id):
             obj.stored_filename, obj.original_filename = m.stored_filename, m.original_filename
 
 
+# The File Browser's kind filter: each kind and the ``_media_type``
+# buckets it covers ("zzz" is the SQL bucket for any other extension).
+MEDIA_KINDS = {
+    "img": ("img",),
+    "doc": ("pdf", "doc", "xls", "ppt"),
+    "vid": ("vid",),
+    "aud": ("aud",),
+    "other": ("zzz",),
+}
+
+
 def _media_type(name):
     if not name: return "file"
     ext = name.rsplit(".",1)[-1].lower() if "." in name else ""
@@ -16338,7 +16349,7 @@ def _media_type(name):
     if ext in ("doc","docx","rtf","odt","txt","md"): return "doc"
     if ext in ("xls","xlsx","csv","ods"): return "xls"
     if ext in ("ppt","pptx","odp"): return "ppt"
-    if ext in ("jpg","jpeg","png","gif","webp","svg","bmp"): return "img"
+    if ext in ("jpg","jpeg","png","gif","webp","svg","bmp","avif"): return "img"
     if ext in ("mp4","mov","avi","mkv","webm"): return "vid"
     if ext in ("mp3","wav","m4a","ogg","flac"): return "aud"
     return "file"
@@ -16542,38 +16553,49 @@ def media_list():
 
     if q:
         query = query.filter(func.lower(MediaItem.original_filename).contains(q))
+    # Who uploaded it: anyone, or only the signed-in user.
+    mine = request.args.get("mine") == "1"
+    if mine:
+        query = query.filter(MediaItem.uploaded_by == current_user.id)
+
+    # Each file's type, bucketed by extension as ``_media_type`` does,
+    # in SQL so it can sort and filter. Files of any other extension
+    # are "zzz", which sorts them last.
+    name_col = func.lower(MediaItem.original_filename)
+
+    def _ext_in(*exts):
+        return or_(*[name_col.like("%." + e) for e in exts])
+    type_case = case(
+        (name_col.like("%.pdf"), "pdf"),
+        (_ext_in("doc", "docx", "rtf", "odt", "txt", "md"), "doc"),
+        (_ext_in("xls", "xlsx", "csv", "ods"), "xls"),
+        (_ext_in("ppt", "pptx", "odp"), "ppt"),
+        (_ext_in("jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "avif"), "img"),
+        (_ext_in("mp4", "mov", "avi", "mkv", "webm"), "vid"),
+        (_ext_in("mp3", "wav", "m4a", "ogg", "flac"), "aud"),
+        else_="zzz",
+    )
+    # The kind filter (the picker's sidebar): how many files of each
+    # kind match the search, then just the chosen kind.
+    kind = request.args.get("kind") or ""
+    if kind not in MEDIA_KINDS:
+        kind = ""
+    kind_counts = {k: 0 for k in MEDIA_KINDS}
+    for bucket, n in query.with_entities(type_case, func.count()).group_by(type_case).all():
+        for k, buckets in MEDIA_KINDS.items():
+            if bucket in buckets:
+                kind_counts[k] += n
+    kind_counts[""] = sum(kind_counts.values())
+    if kind:
+        query = query.filter(type_case.in_(MEDIA_KINDS[kind]))
 
     # Server-side sort + paginate so the route always returns at most
-    # MEDIA_PER_PAGE rows, regardless of how many files exist. The
-    # ``type`` sort buckets by extension via a CASE expression so the
-    # ordering matches the in-Python ``_media_type`` helper.
-    name_col = func.lower(MediaItem.original_filename)
+    # MEDIA_PER_PAGE rows, regardless of how many files exist.
     if sort == "name":
         order_cols = [name_col, MediaItem.id]
     elif sort == "size":
         order_cols = [MediaItem.size_bytes, MediaItem.id]
     elif sort == "type":
-        type_case = case(
-            (name_col.like("%.pdf"), "pdf"),
-            (or_(name_col.like("%.doc"), name_col.like("%.docx"),
-                 name_col.like("%.rtf"), name_col.like("%.odt"),
-                 name_col.like("%.txt"), name_col.like("%.md")), "doc"),
-            (or_(name_col.like("%.xls"), name_col.like("%.xlsx"),
-                 name_col.like("%.csv"), name_col.like("%.ods")), "xls"),
-            (or_(name_col.like("%.ppt"), name_col.like("%.pptx"),
-                 name_col.like("%.odp")), "ppt"),
-            (or_(name_col.like("%.jpg"), name_col.like("%.jpeg"),
-                 name_col.like("%.png"), name_col.like("%.gif"),
-                 name_col.like("%.webp"), name_col.like("%.svg"),
-                 name_col.like("%.bmp"), name_col.like("%.avif")), "img"),
-            (or_(name_col.like("%.mp4"), name_col.like("%.mov"),
-                 name_col.like("%.avi"), name_col.like("%.mkv"),
-                 name_col.like("%.webm")), "vid"),
-            (or_(name_col.like("%.mp3"), name_col.like("%.wav"),
-                 name_col.like("%.m4a"), name_col.like("%.ogg"),
-                 name_col.like("%.flac")), "aud"),
-            else_="zzz",
-        )
         order_cols = [type_case, name_col, MediaItem.id]
     elif sort == "by":
         # Who uploaded it; files with no recorded uploader go last
@@ -16607,7 +16629,8 @@ def media_list():
         render_template("media.html", items=items, q=q, picker=picker,
                         picker_multi=picker_multi, view=view,
                         sort=sort, direction=direction, media_type=_media_type,
-                        pagination=pagination))
+                        pagination=pagination, kind=kind, kind_counts=kind_counts,
+                        mine=mine))
     if not picker:
         resp.set_cookie("view-media", view, max_age=60*60*24*365, samesite="Lax")
         resp.set_cookie("view-media-sort", sort, max_age=60*60*24*365, samesite="Lax")

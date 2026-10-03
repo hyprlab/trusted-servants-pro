@@ -26,6 +26,15 @@
 {% endif %}
 {% set _pkr = '1' if picker else None %}
 {% set _emb = '1' if (picker or request.args.get('embed') == '1') else None %}
+{% set _multi = '1' if picker_multi else None %}
+{# Every link here keeps the page's settings (view, sort, search, kind,
+   mine, picker mode) and changes only what it passes in `over`. #}
+{% set _base = {'view': view, 'sort': sort, 'dir': direction, 'q': q or None,
+                'kind': kind or None, 'mine': '1' if mine else None,
+                'picker': _pkr, 'embed': _emb, 'multi': _multi} %}
+{% macro _fb_url(over={}) -%}
+  {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}{{ url_for('main.media_list', **_u) }}
+{%- endmacro %}
 {% set IMG_EXTS = ('jpg','jpeg','png','gif','webp','svg','bmp','avif') %}
 {# A file's picture: its image (falling back to the type icon if it fails
    to load), or for other types an icon with the extension. #}
@@ -51,9 +60,7 @@
    largest / newest first for size and upload date. #}
 {% set SORT_FIRST_DIR = {'name': 'asc', 'type': 'asc', 'by': 'asc', 'size': 'desc', 'uploaded': 'desc'} %}
 {% macro _sort_url(key) -%}
-  {{ url_for('main.media_list', view=view, sort=key,
-             dir=(('asc' if direction == 'desc' else 'desc') if sort == key else SORT_FIRST_DIR[key]),
-             q=q, picker=_pkr, embed=_emb) }}
+  {{ _fb_url({'sort': key, 'dir': (('asc' if direction == 'desc' else 'desc') if sort == key else SORT_FIRST_DIR[key]), 'page': None}) }}
 {%- endmacro %}
 {% macro _sort_link(key, label, cls='') -%}
   {%- set _on = sort == key -%}
@@ -99,6 +106,20 @@
     {% endif %}
   {% endcall %}
 {% endmacro %}
+{# Search by filename, keeping the page's other settings. #}
+{% macro _search_form() %}
+  <form method="get" action="{{ url_for('main.media_list') }}" class="fb-search" role="search">
+    {% if picker %}<input type="hidden" name="picker" value="1"><input type="hidden" name="embed" value="1">{% endif %}
+    {% if picker_multi %}<input type="hidden" name="multi" value="1">{% endif %}
+    {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+    {% if mine %}<input type="hidden" name="mine" value="1">{% endif %}
+    <input type="hidden" name="view" value="{{ view }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="dir" value="{{ direction }}">
+    {{ icon('search') }}
+    <input type="search" name="q" value="{{ q }}" placeholder="Search by filename" aria-label="Search by filename">
+  </form>
+{% endmacro %}
 {% macro _picker_actions(m, pub) %}
   <button type="button" class="btn btn-sm media-preview" data-media-preview
           data-pub-url="{{ pub }}" data-download-url="{{ url_for('main.media_download', mid=m.id) }}"
@@ -106,17 +127,61 @@
   <button type="button" class="btn btn-sm btn-primary media-select">Select</button>
 {% endmacro %}
 
+{% set FB_KINDS = [('', 'All files', 'folder'), ('img', 'Images', 'image'), ('doc', 'Documents', 'file-text'),
+                    ('vid', 'Video', 'video'), ('aud', 'Audio', 'music'), ('other', 'Other', 'file')] %}
+{# In the picker (the File Browser opened from another page to choose a
+   file) the finding tools sit in a sidebar: search, upload, the kind of
+   file, who uploaded it, sort and view. The page itself keeps them in
+   one toolbar above the files. #}
+<div class="{{ 'fb-pick' if picker }}">
+{% if picker %}
+<aside class="fb-side" aria-label="Find a file">
+  {{ _search_form() }}
+  {% if current_user.can_edit() %}
+  <label class="btn btn-primary fb-side-upload" for="media-upload-input">{{ icon('upload') }} Upload a file</label>
+  <input type="file" id="media-upload-input" hidden>
+  {% endif %}
+  <nav class="fb-side-group" aria-label="Kind of file">
+    <h3 class="fb-side-title">Kind</h3>
+    {% for key, label, ic in FB_KINDS %}
+    {% set _n = kind_counts.get(key, 0) %}
+    <a class="fb-side-link{{ ' is-empty' if not _n }}" href="{{ _fb_url({'kind': key or None, 'page': None}) }}"
+       {% if kind == key %}aria-current="true"{% endif %}>
+      {{ icon(ic) }}<span>{{ label }}</span><span class="fb-side-count">{{ _n }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+  <nav class="fb-side-group" aria-label="Uploaded by">
+    <h3 class="fb-side-title">Uploaded by</h3>
+    <a class="fb-side-link" href="{{ _fb_url({'mine': None, 'page': None}) }}" {% if not mine %}aria-current="true"{% endif %}>{{ icon('users') }}<span>Anyone</span></a>
+    <a class="fb-side-link" href="{{ _fb_url({'mine': '1', 'page': None}) }}" {% if mine %}aria-current="true"{% endif %}>{{ icon('user') }}<span>Me</span></a>
+  </nav>
+  <div class="fb-side-group" role="group" aria-label="Sort files">
+    <h3 class="fb-side-title">Sort by</h3>
+    <div class="fb-side-sort">
+      {{ _sort_link('name', 'Name') }}{{ _sort_link('type', 'Type') }}{{ _sort_link('size', 'Size') }}{{ _sort_link('uploaded', 'Uploaded') }}{{ _sort_link('by', 'By') }}
+    </div>
+  </div>
+  <div class="fb-side-group">
+    <h3 class="fb-side-title">View</h3>
+    <div class="ds-seg-btns fb-view" role="group" aria-label="View">
+      <a href="{{ _fb_url({'view': 'list'}) }}"
+         aria-checked="{{ 'true' if view != 'grid' else 'false' }}" role="radio" title="List">{{ icon('list') }}<span>List</span></a>
+      <a href="{{ _fb_url({'view': 'grid'}) }}"
+         aria-checked="{{ 'true' if view == 'grid' else 'false' }}" role="radio" title="Grid">{{ icon('layout-grid') }}<span>Grid</span></a>
+    </div>
+  </div>
+</aside>
+{% endif %}
 <section class="card fb">
+  {% if picker %}
+  {% set _total = pagination.total if pagination else items|length %}
+  {% set _noun = {'img': 'image', 'doc': 'document', 'vid': 'video', 'aud': 'audio file', 'other': 'other file'}.get(kind, 'file') %}
+  <p class="fb-pick-count muted">{{ _total }} {{ _noun }}{{ '' if _total == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}{% if mine %}, uploaded by you{% endif %}</p>
+  {% else %}
   {# One toolbar for every mode: search, how many, sort and the view. #}
   <div class="fb-toolbar">
-    <form method="get" action="{{ url_for('main.media_list') }}" class="fb-search" role="search">
-      {% if picker %}<input type="hidden" name="picker" value="1"><input type="hidden" name="embed" value="1">{% endif %}
-      <input type="hidden" name="view" value="{{ view }}">
-      <input type="hidden" name="sort" value="{{ sort }}">
-      <input type="hidden" name="dir" value="{{ direction }}">
-      {{ icon('search') }}
-      <input type="search" name="q" value="{{ q }}" placeholder="Search by filename" aria-label="Search by filename">
-    </form>
+    {{ _search_form() }}
     <span class="fb-count muted">{% if pagination %}{{ pagination.total }}{% else %}{{ items|length }}{% endif %} file{{ '' if (pagination.total if pagination else items|length) == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}</span>
     {# The grid has no column headings, and a phone hides the list's:
        these do their job there. #}
@@ -125,26 +190,20 @@
       {{ _sort_link('name', 'Name') }}{{ _sort_link('type', 'Type') }}{{ _sort_link('size', 'Size') }}{{ _sort_link('uploaded', 'Uploaded') }}{{ _sort_link('by', 'By') }}
     </div>
     <div class="ds-seg-btns fb-view" role="group" aria-label="View">
-      <a href="{{ url_for('main.media_list', view='list', sort=sort, dir=direction, q=q, picker=_pkr, embed=_emb) }}"
+      <a href="{{ _fb_url({'view': 'list'}) }}"
          aria-checked="{{ 'true' if view != 'grid' else 'false' }}" role="radio" title="List">{{ icon('list') }}<span>List</span></a>
-      <a href="{{ url_for('main.media_list', view='grid', sort=sort, dir=direction, q=q, picker=_pkr, embed=_emb) }}"
+      <a href="{{ _fb_url({'view': 'grid'}) }}"
          aria-checked="{{ 'true' if view == 'grid' else 'false' }}" role="radio" title="Grid">{{ icon('layout-grid') }}<span>Grid</span></a>
     </div>
   </div>
-
-  {% if picker and current_user.can_edit() %}
-  <div class="picker-upload">
-    <label class="btn btn-sm btn-primary" for="media-upload-input">{{ icon('upload') }} Upload new</label>
-    <input type="file" id="media-upload-input" hidden>
-    <span class="muted small">Uploads appear at the top.</span>
-  </div>
   {% endif %}
+
 
   {% if not items %}
   <div class="fb-empty">
     <span class="fb-empty-icon" aria-hidden="true">{{ icon('folder') }}</span>
-    <p>{% if q %}No files match “{{ q }}”.{% else %}No files yet.{% endif %}</p>
-    {% if q %}<a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, picker=_pkr, embed=_emb) }}">Clear search</a>
+    <p>{% if q %}No files match “{{ q }}”{% if kind or mine %} with these filters{% endif %}.{% elif kind or mine %}No files match these filters.{% else %}No files yet.{% endif %}</p>
+    {% if q or kind or mine %}<a class="btn btn-sm" href="{{ _fb_url({'q': None, 'kind': None, 'mine': None, 'page': None}) }}">Show all files</a>
     {% elif current_user.can_edit() %}<label class="btn btn-sm btn-primary" for="media-upload-input">{{ icon('upload') }} Upload a file</label>{% endif %}
   </div>
   {% elif view == 'grid' %}
@@ -222,16 +281,16 @@
     </div>
     <div class="media-pagination-controls">
       {% if pagination.has_prev %}
-        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=1, picker=_pkr, embed=_emb) }}" aria-label="First page" title="First">«</a>
-        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=pagination.page - 1, picker=_pkr, embed=_emb) }}" aria-label="Previous page">{{ icon('chevron-left') }} Prev</a>
+        <a class="btn btn-sm" href="{{ _fb_url({'page': 1}) }}" aria-label="First page" title="First">«</a>
+        <a class="btn btn-sm" href="{{ _fb_url({'page': pagination.page - 1}) }}" aria-label="Previous page">{{ icon('chevron-left') }} Prev</a>
       {% else %}
         <span class="btn btn-sm btn-perm-disabled" aria-disabled="true">«</span>
         <span class="btn btn-sm btn-perm-disabled" aria-disabled="true">{{ icon('chevron-left') }} Prev</span>
       {% endif %}
       <span class="media-pagination-page">Page {{ pagination.page }} of {{ pagination.pages }}</span>
       {% if pagination.has_next %}
-        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=pagination.page + 1, picker=_pkr, embed=_emb) }}" aria-label="Next page">Next {{ icon('chevron-right') }}</a>
-        <a class="btn btn-sm" href="{{ url_for('main.media_list', view=view, sort=sort, dir=direction, q=q, page=pagination.pages, picker=_pkr, embed=_emb) }}" aria-label="Last page" title="Last">»</a>
+        <a class="btn btn-sm" href="{{ _fb_url({'page': pagination.page + 1}) }}" aria-label="Next page">Next {{ icon('chevron-right') }}</a>
+        <a class="btn btn-sm" href="{{ _fb_url({'page': pagination.pages}) }}" aria-label="Last page" title="Last">»</a>
       {% else %}
         <span class="btn btn-sm btn-perm-disabled" aria-disabled="true">Next {{ icon('chevron-right') }}</span>
         <span class="btn btn-sm btn-perm-disabled" aria-disabled="true">»</span>
@@ -240,6 +299,7 @@
   </nav>
   {% endif %}
 </section>
+</div>
 
 <div class="modal file-lightbox" id="file-lightbox" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
