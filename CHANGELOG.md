@@ -26,6 +26,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `User.theme_pref` (`system` / `light` / `dark`, empty until chosen; added by `_migrate_sqlite`) and `POST /tspro/account/theme` (`account_theme_save`). `base.html` and `setup.html` carry it as `data-theme-pref` and resolve `data-theme` before paint (falling back to the browser's `tsp-theme`, with old theme names mapped to light or dark, then `prefers-color-scheme`); `app.js` follows device changes under `system`, saves from `[data-theme-pref-value]` controls and `#theme-toggle`, and migrates a browser's old choice to the account once.
 
 ### Changed
+- The blog list filter card became a `.list-filters` row (styled in `app.css`); `[data-auto-submit]` forms (`initAutoSubmitFilters` in `app.js`) submit when a menu changes or the search box is cleared.
 - `#media-picker-modal` has no `.modal-head`: the frame fills a 90vh panel and `.media-picker-close` floats over its corner. In picker mode the embed page drops its padding, the `.fb-side` sidebar runs the full height (sticky, titled "File Browser"), and the files sit in `.fb-pick-main` on `--bg`; the multi-select bar moved to the foot of the files so it sticks to the bottom.
 - `input[type="file"]::file-selector-button` (and `::-webkit-file-upload-button`) styled as `.btn-primary` across the admin.
 - `blog_edit.html` shows the Markdown editor (`md_toolbar`, live preview in `markdown` mode, as the public templates render `body`) unless the post has blocks; only then does it load `post_body_editor.js` and the block palette.

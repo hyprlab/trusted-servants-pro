@@ -8218,6 +8218,22 @@
   });
 })();
 
+/* ── Filter rows that apply at once ([data-auto-submit] forms, such as
+   the blog list's): a menu submits as soon as it changes, and clearing
+   the search box with its × submits too. Enter already submits. ── */
+(function initAutoSubmitFilters() {
+  document.addEventListener("change", function (e) {
+    var el = e.target;
+    if (!el || el.tagName !== "SELECT") return;
+    var form = el.form;
+    if (form && form.hasAttribute("data-auto-submit")) form.submit();
+  });
+  document.addEventListener("search", function (e) {
+    var el = e.target;
+    if (el && el.form && el.form.hasAttribute("data-auto-submit") && !el.value) el.form.submit();
+  }, true);
+})();
+
 (function initRowMenus() {
   var GAP = 6;          // px between trigger and panel
   var VIEWPORT_PAD = 8; // keep the panel this far from the viewport edge

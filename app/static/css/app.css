@@ -18691,6 +18691,27 @@ body.embed .fb-pick-main > .card.fb { border: 1px solid var(--border); border-ra
   .fb-side-head { padding-right: 48px; }
 }
 
+/* ── A list page's search and filters in one row (blog list): a search
+   box with its icon, then compact menus. [data-auto-submit] (app.js)
+   applies a menu as soon as it changes. ── */
+.list-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 16px; }
+.list-filters-search { position: relative; flex: 1 1 280px; min-width: 0; display: flex; margin: 0; }
+.list-filters-search > .icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
+.list-filters input[type="search"], .list-filters select {
+  height: 38px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 8px;
+  background-color: var(--panel); color: var(--text); font: inherit; font-size: var(--fs-sm); }
+.list-filters input[type="search"] { width: 100%; padding: 0 12px 0 36px; }
+.list-filters select { flex: 0 1 200px; min-width: 140px; padding: 0 34px 0 12px; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat; background-position: right 11px center; background-size: 14px 14px; }
+.list-filters input[type="search"]:focus, .list-filters select:focus {
+  outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.list-filters-clear { height: 38px; }
+.list-filters-clear .icon { width: 14px; height: 14px; }
+@media (max-width: 720px) { .list-filters select { flex: 1 1 140px; } }
+
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
 html { visibility: visible; background: var(--bg); }

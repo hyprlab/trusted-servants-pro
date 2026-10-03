@@ -23,50 +23,38 @@
 {% endblock %}
 {% block content %}
 
-<section class="card blog-filter-card">
-  <form method="get" action="{{ url_for('main.blog_index') }}" class="blog-filter-form">
-    <input type="hidden" name="show" value="{{ show }}">
-    <label class="blog-filter-field">
-      <span class="blog-filter-label">Search</span>
-      <input type="search" name="q" value="{{ q_text or '' }}" placeholder="Title, summary, author">
-    </label>
-    <label class="blog-filter-field">
-      <span class="blog-filter-label">Category</span>
-      <select name="category">
-        <option value="">All categories</option>
-        {% for c in categories %}
-        <option value="{{ c.id }}" {% if selected_cat == c.id|string %}selected{% endif %}>{{ c.name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label class="blog-filter-field">
-      <span class="blog-filter-label">Tag</span>
-      <select name="tag">
-        <option value="">All tags</option>
-        {% for t in tags %}
-        <option value="{{ t.id }}" {% if selected_tag == t.id|string %}selected{% endif %}>{{ t.name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label class="blog-filter-field">
-      <span class="blog-filter-label">Sort</span>
-      <select name="sort">
-        <option value="published_desc" {% if sort == 'published_desc' %}selected{% endif %}>Newest first</option>
-        <option value="published_asc" {% if sort == 'published_asc' %}selected{% endif %}>Oldest first</option>
-        <option value="updated_desc" {% if sort == 'updated_desc' %}selected{% endif %}>Recently edited</option>
-        <option value="title_asc" {% if sort == 'title_asc' %}selected{% endif %}>Title A→Z</option>
-        <option value="title_desc" {% if sort == 'title_desc' %}selected{% endif %}>Title Z→A</option>
-        <option value="author_asc" {% if sort == 'author_asc' %}selected{% endif %}>Author A→Z</option>
-      </select>
-    </label>
-    <div class="blog-filter-actions">
-      <button class="btn btn-sm btn-primary" type="submit">Apply</button>
-      {% if q_text or selected_cat or selected_tag or sort != 'published_desc' %}
-      <a class="btn btn-sm" href="{{ url_for('main.blog_index', show=show) }}">Clear</a>
-      {% endif %}
-    </div>
-  </form>
-</section>
+{# Search and filters in one row; a menu applies as soon as it changes,
+   the search when Enter is pressed. #}
+{% set _filtered = q_text or selected_cat or selected_tag or sort != 'published_desc' %}
+<form method="get" action="{{ url_for('main.blog_index') }}" class="list-filters" role="search" data-auto-submit>
+  <input type="hidden" name="show" value="{{ show }}">
+  <label class="list-filters-search">
+    {{ icon('search') }}
+    <input type="search" name="q" value="{{ q_text or '' }}" placeholder="Search titles, summaries and authors" aria-label="Search posts">
+  </label>
+  <select name="category" aria-label="Category">
+    <option value="">All categories</option>
+    {% for c in categories %}
+    <option value="{{ c.id }}" {% if selected_cat == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+    {% endfor %}
+  </select>
+  <select name="tag" aria-label="Tag">
+    <option value="">All tags</option>
+    {% for t in tags %}
+    <option value="{{ t.id }}" {% if selected_tag == t.id|string %}selected{% endif %}>#{{ t.name }}</option>
+    {% endfor %}
+  </select>
+  <select name="sort" aria-label="Sort">
+    <option value="published_desc" {% if sort == 'published_desc' %}selected{% endif %}>Newest first</option>
+    <option value="published_asc" {% if sort == 'published_asc' %}selected{% endif %}>Oldest first</option>
+    <option value="updated_desc" {% if sort == 'updated_desc' %}selected{% endif %}>Recently edited</option>
+    <option value="title_asc" {% if sort == 'title_asc' %}selected{% endif %}>Title, A to Z</option>
+    <option value="title_desc" {% if sort == 'title_desc' %}selected{% endif %}>Title, Z to A</option>
+    <option value="author_asc" {% if sort == 'author_asc' %}selected{% endif %}>Author, A to Z</option>
+  </select>
+  {% if _filtered %}<a class="btn list-filters-clear" href="{{ url_for('main.blog_index', show=show) }}">{{ icon('x') }} Clear</a>{% endif %}
+  <noscript><button class="btn btn-primary" type="submit">Apply</button></noscript>
+</form>
 
 {% if posts %}
 {# Bulk form lives standalone so the per-row action <form>s below can
@@ -279,16 +267,6 @@
 {% endif %}
 
 <style>
-  .blog-filter-card { padding: .9rem 1rem; }
-  .blog-filter-form {
-    display: flex; flex-wrap: wrap; gap: .9rem; align-items: end;
-  }
-  .blog-filter-field { display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1 1 160px; margin: 0; }
-  .blog-filter-label {
-    font-size: var(--fs-2xs); letter-spacing: .08em; text-transform: uppercase;
-    color: var(--muted); font-weight: 600;
-  }
-  .blog-filter-actions { display: flex; gap: .4rem; align-items: end; padding-bottom: 1px; }
   .blog-row-tax { display: flex; flex-wrap: wrap; gap: 4px; max-width: 360px; }
   .blog-cat-chip {
     background: color-mix(in srgb, var(--blog-cat-color, var(--accent)) 18%, transparent);
