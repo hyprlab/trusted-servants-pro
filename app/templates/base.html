@@ -136,7 +136,7 @@
    stylesheet arrives (Firefox can) would otherwise flash the bare page.
    The script above reveals it after 3 s whatever happens. #}
 <style id="tsp-unstyled-guard">
-  html { visibility: hidden; background: #f2f4f6; }
+  html { visibility: hidden; background: #f6f7fb; }
   html[data-theme="dark"] { background: #0f1117; }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css', v=app_build_id) }}">

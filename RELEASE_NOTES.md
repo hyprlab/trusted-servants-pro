@@ -97,7 +97,6 @@ release notes expanded by default and the changelog collapsed.
 - The Settings window's close button is a plain × until you point at it, when its button outline appears.
 - A table row's Actions button no longer stays showing after you click it and move away; it hides as soon as the pointer leaves the row, and still shows while you move through the row with the keyboard.
 - The help pop-up beside Public site on the Web Frontend overview opens over the staging sync row instead of being cut off behind it. Help pop-ups beside small all-caps labels now show their text in normal case.
-- In light mode the grey background behind the admin pages is a slightly cooler, more neutral grey.
 - The version number is no longer shown at the bottom of the sidebar. It is still in the About window.
 - The top of the sidebar shows the Trusted Servants Pro logo from the About window on its own, without the app name beside it.
 - Web Frontend pages no longer flash while loading: the tab you last had open shows from the start, previews keep their space, and a hidden app sidebar no longer slides out and back.
