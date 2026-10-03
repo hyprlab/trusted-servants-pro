@@ -100,6 +100,7 @@ release notes expanded by default and the changelog collapsed.
 - In light mode the highlight behind whatever the pointer is over (tabs in segmented controls, sidebar links, menu items, table rows) is a couple of shades darker, so it shows.
 - In segmented tab controls (the editors, Web Frontend pages and a meeting's Files card), the blue highlight slides over to the tab you choose instead of jumping.
 - In lists of files (a meeting's page and editor, and library pages), an item that opens another website ends with a link-out icon.
+- In dark mode, alert banners (such as a meeting's note for signed-in users) are a soft amber tint instead of a bright yellow block.
 - New meetings are created on the same page, and land on their editor once created, so files can be added straight away.
 - Renaming a meeting moves its editor to the new address without reloading, and a meeting can now be saved with no libraries ticked.
 - Blog posts are written in Markdown with the same editor, toolbar and live preview as stories and announcements. New posts start in Markdown, and posts that were already Markdown open in it.

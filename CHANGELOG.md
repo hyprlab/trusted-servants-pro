@@ -132,6 +132,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
+- `.alert-banner` had no dark-mode colors and showed light-mode yellow on the dark page; `[data-theme="dark"] .alert-banner` tints it instead.
 - A meeting saved with every library unticked kept its libraries: `library_ids` wasn't posted at all, so `_apply_library_selections` never ran. The editor always posts an empty `library_ids`.
 - `.avif` files counted as images in the File Browser's type sort but showed as plain files (`_media_type`).
 - The File Browser's sort, view and page links dropped the multi-select picker mode.

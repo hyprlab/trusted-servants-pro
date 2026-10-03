@@ -2832,6 +2832,14 @@ body.has-fe-save-bar .fe-admin-main .form-actions { display: none; }
   white-space: pre-wrap;
   font-weight: 500;
 }
+/* Dark mode: the same amber, as a tint on the dark page rather than a
+   bright yellow block. */
+[data-theme="dark"] .alert-banner {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.35);
+  border-left-color: #d97706;
+}
 .sidebar-nav-divider {
   margin: 10px 4px 4px; padding-top: 10px;
   border-top: 1px solid var(--border);
