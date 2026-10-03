@@ -19,7 +19,7 @@
     {% if redirects %}
     <div class="fe-tbl-scroll">
     <table class="tbl rd-tbl">
-      <thead><tr><th>Old address</th><th aria-hidden="true"></th><th>Goes to</th><th class="hide-sm">Added</th><th></th></tr></thead>
+      <thead><tr><th>Old address</th><th aria-hidden="true"></th><th>Goes to</th><th class="hide-sm">Added</th><th class="th-actions">Actions</th></tr></thead>
       <tbody>
         {% for r in redirects %}
         <tr data-redirect-row data-id="{{ r.id }}" data-source="{{ r.source_path }}" data-target="{{ r.target_path }}">
@@ -56,7 +56,7 @@
     {% if slug_history %}
     <div class="fe-tbl-scroll">
     <table class="tbl rd-tbl">
-      <thead><tr><th>Item</th><th>Old address</th><th aria-hidden="true"></th><th>Now at</th><th class="hide-sm">Renamed</th><th></th></tr></thead>
+      <thead><tr><th>Item</th><th>Old address</th><th aria-hidden="true"></th><th>Now at</th><th class="hide-sm">Renamed</th><th class="th-actions">Actions</th></tr></thead>
       <tbody>
         {% for h in slug_history %}
         {% set _ent = entity_lookup.get((h.entity_type, h.entity_id)) %}

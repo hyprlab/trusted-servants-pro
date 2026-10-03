@@ -21,7 +21,7 @@
     <div class="zoom-accounts-main">
       {% if accounts %}
       <table class="tbl zoom-accounts-tbl">
-        <thead><tr><th>Name</th><th>Username</th><th>Password</th><th>Notes</th><th>Assignments</th>{% if current_user.is_admin() %}<th></th>{% endif %}</tr></thead>
+        <thead><tr><th>Name</th><th>Username</th><th>Password</th><th>Notes</th><th>Assignments</th>{% if current_user.is_admin() %}<th class="th-actions">Actions</th>{% endif %}</tr></thead>
         <tbody>
         {% for a in accounts %}
           <tr>

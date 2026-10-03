@@ -5960,6 +5960,8 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
    `.row-menu` trigger is already inline-flex. */
 .tbl td.row-actions, td.row-actions { display: table-cell;
   text-align: right; vertical-align: middle; white-space: nowrap; }
+/* The heading over a column of row actions lines up with them. */
+.tbl th.th-actions, .tbl th.posts-th-actions { text-align: right; white-space: nowrap; }
 /* A view-toggle tab that has items waiting on it. Amber rather than the
    solid `.active` fill, so it reads as "there's something here" without
    competing with the tab you're actually on. */
