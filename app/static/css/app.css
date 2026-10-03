@@ -6034,8 +6034,10 @@ html[data-theme="dark"] .view-toggle .btn.has-pending {
      • `.is-open` — the menu is open, so the pointer has left the row.
      • coarse pointers — no hover state exists on touch at all. */
 .tbl tbody tr .row-menu-btn { opacity: 0; transition: opacity .12s ease; }
+/* Keyboard focus in the row shows it; a mouse click doesn't keep it
+   showing once the pointer leaves, though the button keeps focus. */
 .tbl tbody tr:hover .row-menu-btn,
-.tbl tbody tr:focus-within .row-menu-btn,
+.tbl tbody tr:has(:focus-visible) .row-menu-btn,
 .tbl tbody tr .row-menu.is-open .row-menu-btn { opacity: 1; }
 @media (hover: none) {
   .tbl tbody tr .row-menu-btn { opacity: 1; }

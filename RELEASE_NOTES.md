@@ -95,6 +95,7 @@ release notes expanded by default and the changelog collapsed.
 - Admin pages use the full width of the screen. They were capped at about 1400 pixels, which left an empty band on the right of wide screens.
 - Tables whose rows show an Actions menu on hover (Meetings, Libraries, Announcements & Events, Stories, Blog, Email List, Recovery Contacts, Zoom Accounts, Redirects and access requests in Watchtower) have an Actions heading over that column.
 - The Settings window's close button is a plain × until you point at it, when its button outline appears.
+- A table row's Actions button no longer stays showing after you click it and move away; it hides as soon as the pointer leaves the row, and still shows while you move through the row with the keyboard.
 - The version number is no longer shown at the bottom of the sidebar. It is still in the About window.
 - The top of the sidebar shows the Trusted Servants Pro logo from the About window on its own, without the app name beside it.
 - Web Frontend pages no longer flash while loading: the tab you last had open shows from the start, previews keep their space, and a hidden app sidebar no longer slides out and back.

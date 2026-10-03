@@ -107,6 +107,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
+- `.tbl` row menus: the reveal rule used `tr:focus-within`, so a trigger focused by a mouse click stayed visible after the pointer left the row; it now uses `tr:has(:focus-visible)`.
 
 - The `page-marketing` preset stamped two empty containers; it now carries the hero, the three-column feature grid and the closing button its description lists (refreshed by `_seed_page_layouts`).
 - Firefox painted admin pages with a live preview before `app.css` applied. The preview `<iframe>` is now created by `fe_live_preview.js` instead of being in the markup, and `base.html` hides `<html>` (on the theme background) until `app.css` sets it visible, with a 3 s fallback.
