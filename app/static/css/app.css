@@ -18567,12 +18567,11 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .md-toolbar-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--border); }
 
 /* Blog posts still in the block builder (blog_edit.html) offer the
-   conversion above the canvas; converted ones offer the way back. */
-.blog-convert-note { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 12px;
-  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2);
-  font-size: var(--fs-sm); }
-.blog-convert-note > .icon { width: 16px; height: 16px; flex: 0 0 auto; color: var(--brand); }
-.blog-convert-note > span { flex: 1 1 240px; min-width: 0; }
+   conversion at the top of the Publish tab; converted ones offer the
+   way back under the body. */
+.blog-convert-note p { margin: 0; }
+.blog-convert-note .btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
+.blog-convert-note .btn .icon { width: 14px; height: 14px; }
 .blog-convert-undo { margin: 8px 0 0; }
 .blog-convert-undo .link-btn { border: 0; background: none; padding: 0; font: inherit; color: var(--brand);
   font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }

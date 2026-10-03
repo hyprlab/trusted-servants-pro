@@ -85,11 +85,6 @@
            "Add block" pill drops blocks onto the canvas, and a block's
            handle drags it into place. `body_blocks_json` carries the
            blocks to `blog_save`. #}
-        <div class="blog-convert-note">
-          {{ icon('info') }}
-          <span>This post uses the block builder. Convert it to Markdown to write it like stories and announcements.</span>
-          <button type="button" class="btn btn-sm" data-blog-convert-open data-open-modal="blog-convert-modal">Convert to Markdown</button>
-        </div>
         <div class="form-field-block pbe-card">{% call hrow('Body') %}Add blocks with the floating <span class="pbe-pill-inline">{{ icon('plus') }} Add block</span> pill in the corner, or click a tile to add it at the end. Drag the <span class="pbe-handle-inline" aria-hidden="true">{{ icon('grip-vertical') }}</span> handle on a block to move it.{% endcall %}
           <input type="hidden" name="body_blocks_json" id="pbe-blocks-json"
                  value='{{ (_p.body_blocks_json if (_p and _p.body_blocks_json) else "") }}'>
@@ -147,6 +142,14 @@
         {# ── Publish: when it's posted, how long it reads, where it sits
            in lists, its URL. #}
         <div class="st-panel" data-studio-panel="publish">
+          {% if _blocks %}
+          {# Offered first while the post is still in the block builder. #}
+          <div class="ds-group st-group-body blog-convert-note">
+            <h3 class="ds-group-title">{{ icon('layout-grid') }}Block builder</h3>
+            <p class="muted small">This post uses the block builder. Convert it to Markdown to write it like stories and announcements. You can go back to the blocks afterwards.</p>
+            <button type="button" class="btn btn-sm" data-blog-convert-open data-open-modal="blog-convert-modal">{{ icon('file-text') }} Convert to Markdown</button>
+          </div>
+          {% endif %}
           <div class="ds-group st-group-body">
             <h3 class="ds-group-title">{{ icon('clock') }}Schedule</h3>
             <label>{% call hrow('Publish date') %}Shown on the post and used to order lists. Blank on publish means now.{% endcall %}
