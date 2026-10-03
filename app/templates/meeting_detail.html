@@ -6,7 +6,7 @@
 {% endblock %}
 {% block top_actions %}
   {% if current_user.can_edit() %}
-  <button type="button" class="btn" data-open-modal="meeting-edit-modal">Edit</button>
+  <a class="btn" href="{{ url_for('main.meeting_edit', slug=meeting.public_slug) }}">{{ icon('pencil') }} Edit</a>
   {% endif %}
   {# View on Frontend lives next to Edit so admins can jump straight to
      the public meeting-detail page in a new tab. Gated on
@@ -451,16 +451,6 @@
 </div>
 {% endif %}
 
-{% if current_user.can_edit() %}
-  {% with modal_id="meeting-edit-modal",
-          form_action=url_for('main.meeting_edit', slug=meeting.public_slug),
-          zoom_accounts=zoom_accounts,
-          locations=locations,
-          all_libraries=all_libraries,
-          submit_label="Save" %}
-    {% include "_meeting_modal.html" %}
-  {% endwith %}
-{% endif %}
 
 {# External links sits directly under Libraries on this backend page, so
    pull it to the front of the category order here (FILE_CATEGORIES stays

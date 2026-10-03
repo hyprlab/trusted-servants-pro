@@ -10,6 +10,17 @@
 //      so the page keeps its scroll position, then reconciles the few
 //      fields the server can rewrite: the slug, the featured image and
 //      (on announcements and events) the gallery.
+//
+// For a page with more to it (the meeting editor):
+//   · Fields of another form nested in this one (the meeting's file
+//     forms), and anything in a part marked data-editor-ignore, don't
+//     count as edits to this one.
+//   · form.__editorBeforeSave, if set, is a function returning a
+//     Promise that runs before the form posts; rejecting with an Error
+//     stops the save and shows its message.
+//   · The answer may carry form_action / page_url (the form posts there
+//     next, and the address bar follows), and every save fires
+//     "editor:saved" on the form with the answer as its detail.
 (function () {
   'use strict';
   var form = document.querySelector('form[data-content-editor]');
@@ -22,7 +33,9 @@
   // through title edits, so a draft publishes at exactly that URL;
   // clearing the field hands it back to the title.
   (function () {
-    var titleInput = form.querySelector('input[name="title"]');
+    // The field the URL follows: the title, or one marked
+    // data-slug-source (a meeting's name).
+    var titleInput = form.querySelector('[data-slug-source]') || form.querySelector('input[name="title"]');
     var slugInput = form.querySelector('input[name="slug"]');
     if (!titleInput || !slugInput) return;
     function slugify(v) {
@@ -74,8 +87,17 @@
     if (btn) { btn.disabled = false; btn.textContent = idleLabel; }
   }
 
-  form.addEventListener('input', show);
-  form.addEventListener('change', show);
+  // Fields owned by another form inside this one (posted on their own)
+  // aren't edits to this one.
+  // So are controls in a part marked data-editor-ignore (the meeting
+  // editor's Files tab, whose switches save on their own).
+  function onEdit(e) {
+    if (e.target && e.target.form && e.target.form !== form) return;
+    if (e.target && e.target.closest && e.target.closest('[data-editor-ignore]')) return;
+    show();
+  }
+  form.addEventListener('input', onEdit);
+  form.addEventListener('change', onEdit);
   // Script-built edits fire neither event: added link rows and
   // gallery tiles. A widget that builds its own fields and reports its
   // edits itself (the blog's block editor) is marked
@@ -85,6 +107,9 @@
       for (var i = 0; i < records.length; i++) {
         var r = records[i];
         if (r.target.closest && r.target.closest('[data-editor-own-changes]')) continue;
+        var owner = r.target.closest && r.target.closest('form');
+        if (owner && owner !== form) continue;
+        if (r.target.closest && r.target.closest('[data-editor-ignore]')) continue;
         var nodes = r.addedNodes.length ? r.addedNodes : r.removedNodes;
         for (var j = 0; j < nodes.length; j++) {
           var n = nodes[j];
@@ -218,17 +243,26 @@
     // A plain button adds nothing to FormData; the bar's own action
     // (keep it a draft) goes in by hand.
     if (btn.dataset.saveAction) fd.append('action', btn.dataset.saveAction);
-    // getAttribute, not form.action: the top-of-page buttons named
-    // "action" belong to this form and shadow that property.
-    fetch(form.getAttribute('action'), {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'X-Requested-With': 'fetch' },
-      body: fd
+    var before = typeof form.__editorBeforeSave === 'function'
+      ? Promise.resolve().then(form.__editorBeforeSave) : Promise.resolve();
+    before.then(function () {
+      // getAttribute, not form.action: the top-of-page buttons named
+      // "action" belong to this form and shadow that property.
+      return fetch(form.getAttribute('action'), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'fetch' },
+        body: fd
+      });
+    }, function (err) {
+      fail(err && err.message);
+      return null;
     }).then(function (r) {
+      if (!r) return { skip: true };
       return r.json().catch(function () { return null; })
         .then(function (data) { return { ok: r.ok, data: data }; });
     }).then(function (res) {
+      if (res.skip) return;
       var data = res.data;
       (data && data.flashes || []).forEach(function (f) {
         toast(f.message, (f.category === 'danger' || f.category === 'error') ? 'error' : '');
@@ -238,9 +272,14 @@
         return;
       }
       if (data.redirect) { window.location.assign(data.redirect); return; }
+      if (data.form_action) form.setAttribute('action', data.form_action);
+      if (data.page_url && history.replaceState && data.page_url !== location.pathname) {
+        history.replaceState(null, '', data.page_url + location.hash);
+      }
       syncSlug(data);
       syncFeatured(data);
       syncGallery(data);
+      form.dispatchEvent(new CustomEvent('editor:saved', { detail: data }));
       settle();
     }).catch(function () { fail(); });
   });

@@ -7,6 +7,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- `meeting_edit.html` and `static/js/meeting_editor.js`: the meeting editor page (`GET /meetings/new`, `GET /meetings/<slug>/edit`) in the `.post-studio` 60/40 layout with Meeting, Schedule, Online, Alerts, Libraries and Files tabs. The Files panel's own forms are rendered after the meeting form and moved into the settings column by script. `content_editor.js` gains `form.__editorBeforeSave` (scheduled changes sync before the meeting saves), an `editor:saved` event, `form_action` / `page_url` in the save answer, `[data-slug-source]`, and ignores edits owned by another form or inside `[data-editor-ignore]`.
 - `stories` takes `q` (title, summary or author, case-insensitive) and `featured=1`; `stories.html` gets the `.list-filters` row, and its column sort links carry both.
 - `media_list` filters by `kind` (`MEDIA_KINDS`: img, doc, vid, aud, other, from one SQL `type_case` now shared with the type sort) and `mine=1` (uploaded by the signed-in user), and passes `kind_counts`. In picker mode `media.html` puts search, upload, kind, uploader, sort and view in an `.fb-side` sidebar; every link goes through `_fb_url`, so filters, search and multi-select survive sorting, view changes and paging. `pointPicker` in `app.js` opens image pickers (featured image, gallery, Markdown image) on `kind=img`.
 - `app/blog_convert.py`: `blocks_to_markdown` turns a blog post's block list into Markdown and counts what it simplifies (`describe_notes`); `block_breaks`, which the `markdown_block` filter now imports, keeps converted paragraphs reading as they did. `BlogPost.body_blocks_backup_json` (migrated in `_migrate_sqlite`) keeps the block version of a converted post.
@@ -27,6 +28,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `User.theme_pref` (`system` / `light` / `dark`, empty until chosen; added by `_migrate_sqlite`) and `POST /tspro/account/theme` (`account_theme_save`). `base.html` and `setup.html` carry it as `data-theme-pref` and resolve `data-theme` before paint (falling back to the browser's `tsp-theme`, with old theme names mapped to light or dark, then `prefers-color-scheme`); `app.js` follows device changes under `system`, saves from `[data-theme-pref-value]` controls and `#theme-toggle`, and migrates a browser's old choice to the account once.
 
 ### Changed
+- `meeting_new` and `meeting_edit` take GET (the editor) as well as POST; `meeting_edit` answers the save bar with JSON (`_editor_save_payload` plus `form_action`, `page_url`, `logo`), and creating a meeting redirects to its editor. `file_new`, `file_edit` and `file_delete` return to the editor's Files tab when posted with `return_to=editor` (`_meeting_file_return`). The meetings list, its row menu and the meeting page link to the editor.
 - File Browser: the count moved into `.fb-side` (`.fb-side-total`); the files `.card.fb` is its own scroll area sized to the window (`--fb-h` on the page, `100vh` in the picker), with sticky `.fb-tbl thead th`. The page drops its bottom padding so it doesn't scroll as well.
 - `media.html` renders the `.fb-side` sidebar on the page as well (`.fb-pick--page`, a sticky card), replacing the `.fb-toolbar` row (search, count, `.fb-sortbar`, view) and the top-bar Upload; the embed-only pane rules are scoped to `body.embed`. Removed the `.fb-toolbar`, `.fb-count` and `.fb-sortbar` styles.
 - The blog list filter card became a `.list-filters` row (styled in `app.css`); `[data-auto-submit]` forms (`initAutoSubmitFilters` in `app.js`) submit when a menu changes or the search box is cleared.
@@ -126,6 +128,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
+- A meeting saved with every library unticked kept its libraries: `library_ids` wasn't posted at all, so `_apply_library_selections` never ran. The editor always posts an empty `library_ids`.
 - `.avif` files counted as images in the File Browser's type sort but showed as plain files (`_media_type`).
 - The File Browser's sort, view and page links dropped the multi-select picker mode.
 - The blog editor included `_slug_history.html` with the blog post as a `post`, so it looked up announcement / event history under the blog post's id.
@@ -159,6 +162,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `#relayFields` and `#smtpFields` were plain blocks inside the flex `.form`, so their fields had no gap; they are now flex columns inheriting the form's gap.
 
 ### Removed
+- The meeting create / edit modal (`_meeting_modal.html`), its `marked` preview, `.fe-modal-save-bar`, `.public-alert-expiry*`, `.otp-toggle`, `.md-editor-input`, `.schedule-change-form-row` and the extended-content fieldset styles, and the zoom-account, location and library lookups the meetings list and meeting page made only for it.
 - The story edit modal: `story_modal_close.html`, `_story_embed` / `_story_embed_kwargs` and every `embed=1` story redirect, the `story-modal-close` message listener and `story-edit-frame` handling in `app.js`, and the stories list's modal markup and styles.
 - The blog editor's own featured-image picker (`blog-fi`, via `pbeOpenImageBrowser`) and sidebar card layout.
 - `frontend_pages.html`, `frontend_popups.html` and `frontend_forms.html`, and the routes only they used: `frontend_pages_bulk`, `frontend_page_rename`, `frontend_popup_status`.

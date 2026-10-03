@@ -1713,19 +1713,9 @@ def meetings():
         items.sort(key=lambda m: m.name.lower())
     if direction == "desc":
         items.reverse()
-    zoom_accounts = ZoomAccount.query.order_by(ZoomAccount.name).all()
-    locations = Location.query.order_by(Location.name).all()
-    # Shadow the `all_libraries` Jinja global (which is registered as
-    # the underlying function, not its result) with a concrete list so
-    # the shared `_meeting_modal.html` partial's `{% for lib in
-    # all_libraries %}` loop works on this page too — matches the
-    # pattern the meeting-edit route already uses.
-    all_libraries = Library.query.order_by(Library.name).all()
     archived_count = Meeting.query.filter(Meeting.archived_at.isnot(None)).count()
     resp = current_app.make_response(
         render_template("meetings.html", meetings=items,
-                        zoom_accounts=zoom_accounts, locations=locations,
-                        all_libraries=all_libraries,
                         sort=sort, direction=direction, view=view,
                         show=show, archived_count=archived_count))
     resp.set_cookie("view-meetings", view, max_age=60*60*24*365, samesite="Lax")
@@ -2190,22 +2180,53 @@ def _apply_meeting_form(m, form, schedules, files=None):
         _record_slug_change("meeting", m.id, _prev_public_slug, m.public_slug)
 
 
-@bp.route("/meetings/new", methods=["POST"])
+def _meeting_file_return(m, category):
+    """Where a meeting file's add / edit / delete goes back to: the
+    meeting editor's Files tab when it came from there (its forms send
+    return_to=editor), otherwise the meeting's page at that category."""
+    if request.form.get("return_to") == "editor":
+        return url_for("main.meeting_edit", slug=m.public_slug) + "#files"
+    return url_for("main.meeting_detail", slug=m.public_slug) + f"#{category}"
+
+
+def _meeting_editor_context(meeting):
+    """What meeting_edit.html needs besides the meeting itself."""
+    return {
+        "meeting": meeting,
+        "zoom_accounts": ZoomAccount.query.order_by(ZoomAccount.name).all(),
+        "locations": Location.query.order_by(Location.name).all(),
+        "all_libraries": Library.query.order_by(Library.name).all(),
+    }
+
+
+@bp.route("/meetings/new", methods=["GET", "POST"])
 @meeting_admin_required
 def meeting_new():
+    """The meeting editor for a new meeting (meeting_edit.html). Creating
+    it lands on its own editor, where files can then be added."""
+    if request.method == "GET":
+        return render_template("meeting_edit.html", **_meeting_editor_context(None))
     schedules, err = _parse_schedule_form(request.form)
     if err:
         flash(err, "danger")
-        return redirect(url_for("main.meetings"))
-    m = Meeting(name=request.form["name"].strip())
+        return redirect(url_for("main.meeting_new"))
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash("Name is required", "danger")
+        return redirect(url_for("main.meeting_new"))
+    m = Meeting(name=name)
     _apply_meeting_form(m, request.form, schedules, request.files)
+    if "library_ids" in request.form:
+        db.session.add(m)
+        db.session.flush()
+        _apply_library_selections(m, request.form)
     db.session.add(m)
     db.session.commit()
     from . import activity
     activity.log("meeting.create", entity_type="meeting", entity_id=m.id,
                  summary=f"Created meeting “{m.name}”")
     flash("Meeting created", "success")
-    return redirect(url_for("main.meeting_detail", slug=m.public_slug))
+    return redirect(url_for("main.meeting_edit", slug=m.public_slug))
 
 
 def _resolve_meeting_by_slug(slug):
@@ -2263,8 +2284,6 @@ def meeting_detail(slug):
     _expire_meeting_alerts()
     _apply_meeting_schedule_changes()
     m = _resolve_meeting_by_slug(slug) or abort(404)
-    all_libraries = Library.query.order_by(Library.name).all()
-    zoom_accounts = ZoomAccount.query.order_by(ZoomAccount.name).all()
     locations = Location.query.order_by(Location.name).all()
     location_record, location_maps_url = _resolve_meeting_location(m, locations)
     # Site policy: every signed-in role may host — the host-account
@@ -2272,7 +2291,6 @@ def meeting_detail(slug):
     zoom_password = decrypt(m.zoom_account.password_enc) if m.zoom_account else ""
     otp_email = ZoomOtpEmail.query.first()
     return render_template("meeting_detail.html", meeting=m,
-                           all_libraries=all_libraries, zoom_accounts=zoom_accounts,
                            locations=locations, zoom_account_password=zoom_password,
                            location_record=location_record, location_maps_url=location_maps_url,
                            otp_email=otp_email)
@@ -2287,14 +2305,26 @@ def meeting_detail_legacy(mid):
     return redirect(url_for("main.meeting_detail", slug=m.public_slug), code=301)
 
 
-@bp.route("/meetings/<slug>/edit", methods=["POST"])
+@bp.route("/meetings/<slug>/edit", methods=["GET", "POST"])
 @editor_required
 def meeting_edit(slug):
+    """The meeting editor (meeting_edit.html). Its save bar posts here
+    through fetch and gets JSON back; a plain form post redirects."""
     m = _resolve_meeting_by_slug(slug) or abort(404)
+    if request.method == "GET":
+        return render_template("meeting_edit.html", **_meeting_editor_context(m))
+    wants_json = _post_save_wants_json()
+    if not (request.form.get("name") or "").strip():
+        flash("Name is required", "danger")
+        if wants_json:
+            return _editor_save_failed()
+        return redirect(url_for("main.meeting_edit", slug=m.public_slug))
     schedules, err = _parse_schedule_form(request.form, meeting_id=m.id)
     if err:
         flash(err, "danger")
-        return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
+        if wants_json:
+            return _editor_save_failed()
+        return redirect(url_for("main.meeting_edit", slug=m.public_slug))
     _apply_meeting_form(m, request.form, schedules, request.files)
     if "library_ids" in request.form:
         _apply_library_selections(m, request.form)
@@ -2302,8 +2332,17 @@ def meeting_edit(slug):
     from . import activity
     activity.log("meeting.update", entity_type="meeting", entity_id=m.id,
                  summary=f"Updated meeting “{m.name}”")
-    flash("Meeting updated", "success")
-    return redirect(url_for("main.meeting_detail", slug=m.public_slug))
+    flash("Meeting saved", "success")
+    if wants_json:
+        payload = _editor_save_payload(m.public_slug, m.slug)
+        # A new name or URL moves the editor: the next save posts to the
+        # new address, and the address bar follows.
+        payload["form_action"] = url_for("main.meeting_edit", slug=m.public_slug)
+        payload["page_url"] = payload["form_action"]
+        payload["logo"] = (url_for("main.meeting_logo", mid=m.id, v=int(time.time()))
+                           if m.logo_filename else None)
+        return jsonify(payload)
+    return redirect(url_for("main.meeting_edit", slug=m.public_slug))
 
 
 @bp.app_template_filter("serialize_schedule_change")
@@ -15177,7 +15216,7 @@ def file_new(slug):
         db.session.add(f)
         db.session.commit()
         flash("File added", "success")
-        return redirect(url_for("main.meeting_detail", slug=m.public_slug) + f"#{category}")
+        return redirect(_meeting_file_return(m, category))
     return render_template("file_form.html", meeting=m, category=category, file=None)
 
 
@@ -15199,7 +15238,7 @@ def file_edit(fid):
         _apply_file_upload(f, request.files.get("file"), request.form.get("media_id"))
         db.session.commit()
         flash("File updated", "success")
-        return redirect(url_for("main.meeting_detail", slug=f.meeting.public_slug) + f"#{f.category}")
+        return redirect(_meeting_file_return(f.meeting, f.category))
     return render_template("file_form.html", meeting=f.meeting, category=f.category, file=f)
 
 
@@ -15256,6 +15295,8 @@ def file_delete(fid):
     activity.log("file.delete", entity_type="meeting_file", entity_id=fid,
                  summary=f"Deleted meeting attachment “{title}” (recoverable for {trash.RETENTION_DAYS} days)")
     flash("File moved to the Delete Log — restorable for 30 days.", "success")
+    if request.form.get("return_to") == "editor":
+        return redirect(url_for("main.meeting_edit", slug=parent_slug) + "#files")
     return redirect(url_for("main.meeting_detail", slug=parent_slug) + f"#{cat}")
 
 

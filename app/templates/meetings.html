@@ -26,7 +26,7 @@
     </a>
   </div>
   {% if current_user.can_create_meetings() %}
-  <button type="button" class="btn btn-primary" data-open-modal="meeting-new-modal">+ New Meeting</button>
+  <a class="btn btn-primary" href="{{ url_for('main.meeting_new') }}">+ New Meeting</a>
   {% endif %}
 {% endblock %}
 {% block content %}
@@ -48,14 +48,15 @@
             {% else %}<span class="muted smaller">—</span>{% endfor %}
           </td>
           <td class="hide-sm">{{ m.libraries|length }}</td>
-          {# Editing a meeting happens in the modal on its detail page
-             (`meeting_edit` is POST-only), so Edit links there rather
-             than pretending to open a form from the list. Gates mirror
-             the detail page's own top-actions. #}
+          {# Gates mirror the detail page's own top actions. #}
           <td class="row-actions">
             {% call row_menu() %}
               <a class="row-menu-item" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">
-                {{ icon('pencil') }}<span>Open &amp; edit</span></a>
+                {{ icon('eye') }}<span>Open</span></a>
+              {% if current_user.can_edit() %}
+              <a class="row-menu-item" href="{{ url_for('main.meeting_edit', slug=m.public_slug) }}">
+                {{ icon('pencil') }}<span>Edit</span></a>
+              {% endif %}
               {% if current_user.is_admin() %}
                 {% if m.archived_at %}
                 <form method="post" action="{{ url_for('main.meeting_unarchive', slug=m.public_slug) }}">
@@ -124,14 +125,4 @@
 </div>
 {% endif %}
 
-{% if current_user.can_create_meetings() %}
-  {% with modal_id="meeting-new-modal",
-          form_action=url_for('main.meeting_new'),
-          meeting=None,
-          zoom_accounts=zoom_accounts,
-          locations=locations,
-          submit_label="Create" %}
-    {% include "_meeting_modal.html" %}
-  {% endwith %}
-{% endif %}
 {% endblock %}

@@ -1442,43 +1442,9 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   font: inherit;
 }
 
-/* Public-alert expiration controls inside the meeting edit modal.
-   Toggle row sits flush under the textarea; the datetime field
-   reveals beneath it with a small indent so the connection between
-   the switch and its input reads cleanly. */
-.public-alert-expiry { margin-top: .35rem; }
-.public-alert-expiry-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: .55rem;
-  margin: .15rem 0 .35rem;
-}
-.public-alert-expiry-field {
-  padding: .55rem .75rem;
-  border-left: 3px solid var(--border);
-  margin-left: .35rem;
-}
-.public-alert-expiry-input {
-  display: flex;
-  flex-direction: column;
-  gap: .25rem;
-  max-width: 280px;
-}
-.public-alert-expiry-input input {
-  font: inherit;
-}
-.public-alert-expiry-help {
-  margin: .35rem 0 0;
-  line-height: 1.4;
-}
-
-/* Scheduled meeting-schedule changes — pending future swap UI in
-   the meeting edit modal. List of queued changes plus a collapsible
-   form to queue a new one. */
-.schedule-change-fieldset .schedule-change-blurb {
-  margin: 0 0 .85rem;
-  line-height: 1.5;
-}
+/* Scheduled meeting-schedule changes in the meeting editor
+   (meeting_edit.html): the queued changes, then a collapsible form to
+   queue a new one. */
 .schedule-change-list {
   list-style: none;
   margin: 0 0 1rem;
@@ -1553,15 +1519,6 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   width: 16px; height: 16px;
 }
 .schedule-change-form { margin-top: .85rem; }
-.schedule-change-form-row {
-  display: grid;
-  grid-template-columns: minmax(180px, 220px) 1fr;
-  gap: .75rem;
-  margin-bottom: .85rem;
-}
-@media (max-width: 720px) {
-  .schedule-change-form-row { grid-template-columns: 1fr; }
-}
 
 /* Announcement auto-archive panel on the announcement / event edit
    page. Hidden entirely until the Announcement type is selected.
@@ -2727,28 +2684,6 @@ body #footer-save-bar.is-in-modal .fe-save-bar-btn.btn { flex: 0 0 auto; padding
   to   { opacity: 0; transform: translateY(28px); }
 }
 .fe-save-bar[hidden] { display: none !important; }
-/* In-modal variant — reuses the yellow chrome but unfixes the global
-   bar's `position: fixed; left: …; bottom: …` so it sits inline
-   inside the modal footer. Sized to its content (chip-style); placed
-   on the LEFT of the footer with Cancel pushed to the right via the
-   bar's `margin-right: auto`. Slides in from below on first appearance
-   via the same `fe-save-appear` keyframe. */
-.fe-modal-save-bar.fe-save-bar {
-  position: relative;
-  left: auto; right: auto; bottom: auto;
-  width: auto;
-  flex: 0 0 auto;
-  min-width: 0;
-  /* `order: -1` puts the bar before any other flex sibling regardless
-     of DOM position; `margin-right: auto` pushes the rest of the
-     footer (Cancel) to the right edge. */
-  order: -1;
-  margin-left: 0;
-  margin-right: auto;
-}
-.fe-modal-save-bar.fe-save-bar .fe-save-bar-msg {
-  flex: 0 0 auto;
-}
 .fe-save-bar-msg {
   font-weight: 700; font-size: var(--fs-sm);
   /* Single line, ellipsised if it'd wrap — prevents a 1→2 line flash
@@ -5183,8 +5118,6 @@ form[data-savebar-row].is-dirty {
 .day-row .day-field:disabled { opacity: .45; }
 .day-row .day-check, .form .day-row .day-check { margin: 0; display: inline-flex;
   flex-direction: row; align-items: center; gap: 10px; }
-.form .otp-toggle { display: inline-flex; flex-direction: row; align-items: center;
-  gap: 10px; font-size: var(--fs-sm); margin: 1rem 0; }
 .day-row .day-check .day-label { font-size: var(--fs-sm); }
 .day-row:not(.on) .day-check .day-label { color: var(--muted); }
 .chip-sm { padding: 1px 7px; font-size: var(--fs-2xs); margin-right: 3px; }
@@ -10689,7 +10622,6 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
   gap: 12px;
   margin-top: 4px;
 }
-.md-editor-input,
 .md-editor-preview {
   min-height: 180px;
   padding: 10px 12px;
@@ -10699,11 +10631,6 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
   font: inherit;
   line-height: 1.5;
   box-sizing: border-box;
-}
-.md-editor-input {
-  resize: vertical;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: var(--fs-sm);
 }
 .md-editor-preview {
   overflow: auto;
@@ -10785,19 +10712,9 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
   width: 80px; height: 36px; padding: 2px;
   border: 1px solid var(--border); border-radius: 6px;
 }
-/* Extended-content section in the meeting edit modal — toggle gates
-   the per-block editor below it; each block is a card with optional
-   title input + Markdown body textarea + trash button. Stacked
-   vertically; "Add block" appends a fresh row via the cloned
-   <template>. */
-.fe-meeting-extended-fieldset {
-  display: flex; flex-direction: column; gap: 10px;
-}
-.fe-meeting-extended-toggle {
-  align-self: flex-start;
-  display: flex; align-items: center; gap: 10px;
-  cursor: pointer;
-}
+/* Extended content in the meeting editor: each block is a card with
+   an optional title, a Markdown body and a remove button; "Add block"
+   appends one from the cloned <template>. */
 .fe-meeting-extended-editor {
   display: flex; flex-direction: column; gap: 10px;
   padding-top: 4px;
@@ -18735,6 +18652,36 @@ body.embed .fb-side .fb-search input { background: var(--panel); }
 .list-filters-clear { height: 38px; }
 .list-filters-clear .icon { width: 14px; height: 14px; }
 @media (max-width: 720px) { .list-filters select { flex: 1 1 140px; } }
+
+/* ── Meeting editor (meeting_edit.html): the studio's pieces that are
+   particular to meetings. ── */
+.post-studio fieldset.ds-group, .post-studio fieldset.meeting-extended { border: 0; margin: 0; min-width: 0; }
+.post-studio fieldset.meeting-extended { padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.post-studio [data-extended-editor][hidden], .post-studio .conf-fields[hidden] { display: none; }
+.meeting-type-seg { display: flex; }
+.meeting-type-seg > label { flex: 1 1 0; min-width: 0; }
+.meeting-logo-field { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.meeting-logo-field[hidden] { display: none; }
+.meeting-logo-preview { display: block; max-width: 160px; max-height: 120px; object-fit: contain; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--panel); padding: 6px; }
+.meeting-logo-preview[hidden] { display: none; }
+/* Days and times in the narrow settings column: the day, then start,
+   end and (online) opens sharing what's left. */
+.post-studio .day-row { grid-template-columns: 78px repeat(3, minmax(0, 1fr)); gap: 6px; }
+form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, minmax(0, 1fr)); }
+.post-studio .day-row .day-field { width: 100%; min-width: 0; box-sizing: border-box; padding: 7px 6px; }
+.post-studio .day-row .day-check { gap: 8px; }
+@media (max-width: 600px) {
+  .post-studio .day-row { grid-template-columns: 74px repeat(3, minmax(0, 1fr)); gap: 4px; }
+  form.hide-zoom .post-studio .day-row { grid-template-columns: 74px repeat(2, minmax(0, 1fr)); }
+  .post-studio .day-row .day-field { padding: 7px 4px; }
+  /* Room for the time itself; a tap still opens the phone's picker. */
+  .post-studio .day-row input[type="time"]::-webkit-calendar-picker-indicator { display: none; }
+}
+.post-studio .schedule-change-form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.meeting-files-panel .file-cat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.meeting-files-panel .file-cat-head .ds-group-title { margin: 0; }
+.meeting-files-panel .file-list { margin: 0; }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
