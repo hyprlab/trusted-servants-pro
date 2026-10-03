@@ -18687,7 +18687,7 @@ form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, min
 .mtg-sched-change > .icon { width: 16px; height: 16px; flex: 0 0 auto; color: var(--brand); margin-top: 2px; }
 
 .mtg-files .data-card-head .mtg-files-edit { margin-left: auto; }
-.mtg-files .st-seg { margin: 14px 0 8px; }
+.mtg-files .st-seg-scroll { margin: 14px 0 8px; }
 .mtg-count { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: 999px; font-size: var(--fs-2xs);
   line-height: 1.6; background: color-mix(in srgb, currentColor 14%, transparent); }
 .mtg-files-panel[hidden] { display: none; }
