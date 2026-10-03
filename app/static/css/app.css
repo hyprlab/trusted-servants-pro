@@ -898,12 +898,9 @@ html[data-theme="dark"] .perm-badge-viewer { background: rgba(100, 116, 139, 0.2
 
 
 /* ===== 404 page (admin) =====
-   The card itself stays a centered ~720px column. The .page body is
-   widened to the full content width via the :has() rule below so the
-   card auto-centers between the sidebar and the right edge of the
-   screen rather than the narrow normal content column. */
+   The card itself stays a centered ~720px column between the sidebar
+   and the right edge of the screen. */
 .admin-404 { text-align: center; padding: 3rem 2rem; max-width: 720px; margin: 2rem auto; }
-.page:has(.admin-404) { max-width: none; }
 .admin-404-art { max-width: 320px; margin: 0 auto 1rem; }
 .admin-404-title {
   font-family: var(--fe-font-heading, inherit);
@@ -2984,15 +2981,8 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
      Reset to column 1 in the single-column mobile / autohide states. */
   grid-column: 2;
 }
-/* The readable-width cap lives on the inner .page body, NOT on .content
-   itself. That way .content (and the sticky .topbar that bleeds to its
-   padding edges) spans the full grid column out to the right edge of
-   the viewport, while the page content stays capped + left-aligned.
-   The calc keeps the body's usable width identical to the old
-   max-width:1400px-on-.content (which included the 2× side padding). */
-.page { max-width: calc(1400px - 2 * var(--content-px)); }
-/* Full-bleed page bodies (frontend admin builder) opt out of the cap. */
-.page:has(.fe-admin-layout) { max-width: none; }
+/* Page bodies use the whole content column, out to the right edge of
+   the viewport, on every admin page. */
 /* Sticky page header — pinned to the top of the main content column on
    every backend page. Negative margins cancel the .content padding so
    the bar bleeds edge-to-edge (its own padding restores inner
