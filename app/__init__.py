@@ -818,6 +818,24 @@ def create_app():
 
     from .icons import icon as _icon
     app.jinja_env.globals["icon"] = _icon
+
+    def _is_offsite(url):
+        """True when a link leaves this site: an http(s) address on
+        another host. Lists of files mark those with a link-out icon."""
+        from urllib.parse import urlsplit
+        from flask import request
+        try:
+            parts = urlsplit((url or "").strip())
+        except ValueError:
+            return False
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            return False
+        try:
+            here = request.host.lower()
+        except RuntimeError:
+            here = ""
+        return parts.netloc.lower() != here
+    app.jinja_env.globals["is_offsite"] = _is_offsite
     from .fe_admin_nav import fe_subnav as _fe_subnav
     app.jinja_env.globals["fe_subnav"] = _fe_subnav
     from .widths import width_px as _width_px

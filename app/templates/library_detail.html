@@ -159,7 +159,7 @@
         <a href="#" data-reading-lightbox="{{ r.id }}" data-reading-title="{{ r.title }}">{{ r.title }}</a>
         <template data-reading-content="{{ r.id }}">{{ r.body|markdown }}</template>
         {% else %}
-        <a href="{% if r.stored_filename %}{{ url_for('public.public_file', filename=r.original_filename) }}{% elif r.url %}{{ r.url }}{% else %}{{ url_for('main.reading_view', rid=r.id) }}{% endif %}" target="_blank" rel="noopener">{{ r.title }}</a>
+        <a href="{% if r.stored_filename %}{{ url_for('public.public_file', filename=r.original_filename) }}{% elif r.url %}{{ r.url }}{% else %}{{ url_for('main.reading_view', rid=r.id) }}{% endif %}" target="_blank" rel="noopener">{{ r.title }}{% if is_offsite(r.url if not r.stored_filename else '') %}{{ icon('external-link', 'link-out') }}<span class="sr-only"> (opens another site)</span>{% endif %}</a>
         {% endif %}
         {% if r.original_filename %}<div class="muted smaller">{{ r.original_filename }}</div>{% endif %}
         {% if r.url %}<div class="muted smaller trunc">{{ r.url }}</div>{% endif %}

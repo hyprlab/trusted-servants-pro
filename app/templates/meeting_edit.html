@@ -444,7 +444,7 @@
       <li data-item-id="{{ f.id }}" draggable="true">
         <span class="drag-handle" aria-hidden="true">{{ icon('grip-vertical') }}</span>
         <div class="file-main">
-          <a href="{{ url_for('main.file_view', fid=f.id) }}" target="_blank" rel="noopener">{{ f.title }}</a>
+          <a href="{{ url_for('main.file_view', fid=f.id) }}" target="_blank" rel="noopener">{{ f.title }}{% if is_offsite(f.url if not f.stored_filename else '') %}{{ icon('external-link', 'link-out') }}<span class="sr-only"> (opens another site)</span>{% endif %}</a>
           {% if f.original_filename %}<div class="muted smaller">{{ f.original_filename }}</div>{% endif %}
         </div>
         <div class="row-actions">

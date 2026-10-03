@@ -18717,6 +18717,10 @@ form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, min
 .mtg-location .mtg-maps { margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; }
 .mtg-side .zoom-card { padding: 18px 20px; }
 
+/* A link that leaves the site ends with a small link-out icon (the
+   is_offsite template helper decides). */
+.icon.link-out { width: .8em; height: .8em; margin-left: .3em; vertical-align: -0.05em; opacity: .75; flex: 0 0 auto; }
+
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
 html { visibility: visible; background: var(--bg); }

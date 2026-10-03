@@ -99,6 +99,7 @@ release notes expanded by default and the changelog collapsed.
 - A meeting's page shows its public alert, if one is set, and when it ends. Archiving or deleting a meeting asks in a confirmation window.
 - In light mode the highlight behind whatever the pointer is over (tabs in segmented controls, sidebar links, menu items, table rows) is a couple of shades darker, so it shows.
 - In segmented tab controls (the editors, Web Frontend pages and a meeting's Files card), the blue highlight slides over to the tab you choose instead of jumping.
+- In lists of files (a meeting's page and editor, and library pages), an item that opens another website ends with a link-out icon.
 - New meetings are created on the same page, and land on their editor once created, so files can be added straight away.
 - Renaming a meeting moves its editor to the new address without reloading, and a meeting can now be saved with no libraries ticked.
 - Blog posts are written in Markdown with the same editor, toolbar and live preview as stories and announcements. New posts start in Markdown, and posts that were already Markdown open in it.
