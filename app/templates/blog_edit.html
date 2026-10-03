@@ -118,12 +118,6 @@
               <div class="md-editor-preview"><p class="muted smaller">Nothing to preview yet.</p></div>
             </div>
           </div>
-          {% if _p and _p.body_blocks_backup_json %}
-          <p class="blog-convert-undo muted small">
-            Converted from the block builder.
-            <button type="submit" form="blog-restore-blocks" class="link-btn">Go back to the block version</button>
-          </p>
-          {% endif %}
         </div>
         {% endif %}
       </div>
@@ -142,6 +136,15 @@
         {# ── Publish: when it's posted, how long it reads, where it sits
            in lists, its URL. #}
         <div class="st-panel" data-studio-panel="publish">
+          {% if _p and _p.body_blocks_backup_json and not _blocks %}
+          {# A converted post keeps its block version; the way back sits
+             where the conversion was offered. #}
+          <div class="ds-group st-group-body blog-convert-note">
+            <h3 class="ds-group-title">{{ icon('layout-grid') }}Block builder</h3>
+            <p class="muted small">This post was converted from the block builder, and its block version is kept. Going back to it drops changes made to the Markdown since.</p>
+            <button type="submit" form="blog-restore-blocks" class="btn">{{ icon('rotate-ccw') }} Go back to the block version</button>
+          </div>
+          {% endif %}
           {% if _blocks %}
           {# Offered first while the post is still in the block builder. #}
           <div class="ds-group st-group-body blog-convert-note">

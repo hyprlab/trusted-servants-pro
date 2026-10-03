@@ -18567,14 +18567,11 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .md-toolbar-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--border); }
 
 /* Blog posts still in the block builder (blog_edit.html) offer the
-   conversion at the top of the Publish tab; converted ones offer the
-   way back under the body. */
+   conversion at the top of the Post tab; converted ones offer the way
+   back in the same place. */
 .blog-convert-note p { margin: 0; }
 .blog-convert-note .btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
 .blog-convert-note .btn .icon { width: 15px; height: 15px; }
-.blog-convert-undo { margin: 8px 0 0; }
-.blog-convert-undo .link-btn { border: 0; background: none; padding: 0; font: inherit; color: var(--brand);
-  font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .blog-convert-panel { max-width: 760px; }
 .blog-convert-panel h3 { margin: 16px 0 6px; font-size: var(--fs-sm); }
 .blog-convert-notes ul { margin: 0; padding-left: 1.2em; font-size: var(--fs-sm); }
