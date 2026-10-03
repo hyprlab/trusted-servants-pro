@@ -18687,12 +18687,16 @@ form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, min
 .mtg-sched-change > .icon { width: 16px; height: 16px; flex: 0 0 auto; color: var(--brand); margin-top: 2px; }
 
 .mtg-files .data-card-head .mtg-files-edit { margin-left: auto; }
-.mtg-files .st-seg-scroll { margin: 14px 0 8px; }
+.mtg-files .st-seg-scroll { margin: 14px 0; }
+/* The tabs already separate the list from the heading: the first block
+   starts right below them, the same distance as above them. */
+.mtg-files-panel > .lib-block:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.mtg-files-panel > .file-list { margin-top: 0; }
 .mtg-count { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: 999px; font-size: var(--fs-2xs);
   line-height: 1.6; background: color-mix(in srgb, currentColor 14%, transparent); }
 .mtg-files-panel[hidden] { display: none; }
 .mtg-lib-title { margin: 14px 0 6px; font-size: var(--fs-base); }
-.mtg-files-panel .lib-block:first-child .mtg-lib-title { margin-top: 4px; }
+.mtg-files-panel .lib-block:first-child .mtg-lib-title { margin-top: 0; }
 .mtg-files .btn-copy { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .mtg-files .btn-copy .icon { width: 13px; height: 13px; }
 
