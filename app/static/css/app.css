@@ -18523,10 +18523,17 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .post-type-hint[hidden] { display: none; }
 .form .post-title-input { font-size: var(--fs-lg); font-weight: 600; padding: 10px 12px; }
 .post-studio-main .md-editor-live .md-editor-pane-write textarea { min-height: 340px; }
-/* The body's preview names itself, since it can sit under the editor. */
+/* One shell split into Write | Preview: no gap between the panes, and
+   the preview is the tinted pane itself rather than a box inside it.
+   It names itself, since it can sit under the editor. */
+.post-studio-main .md-editor-live { gap: 0; }
 .post-studio-main .md-editor-live .md-editor-pane-preview::before {
-  content: "Preview"; display: block; padding: 10px 16px 0;
+  content: "Preview"; display: block; padding: 12px 16px 0;
   font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.post-studio-main .md-editor-live .md-editor-preview {
+  border: 0; border-radius: 0; background: transparent; padding: 8px 16px 14px; }
+.form .post-studio-main .md-editor-live .md-editor-pane-write textarea {
+  border: 0; border-radius: 0; background: var(--panel); box-shadow: none; padding: 12px 16px; }
 @container (max-width: 760px) {
   .post-studio-main .md-editor-live { grid-template-columns: minmax(0, 1fr); }
   .post-studio-main .md-editor-live .md-editor-pane-write { border-right: 0; border-bottom: 1px solid var(--border); }
