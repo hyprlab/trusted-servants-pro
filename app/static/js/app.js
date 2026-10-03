@@ -1606,6 +1606,21 @@
     });
   });
 
+  // Markdown toolbar "Image" button: the same picker, single-select;
+  // the pick is written into the editor as ![name](/pub/file).
+  let currentMdTextarea = null;
+  window.tspMdPickImage = function (textarea) {
+    currentMediaTarget = null;
+    currentMediaMode = "md-image";
+    currentMdTextarea = textarea;
+    const frame = document.getElementById("media-picker-frame");
+    const singleUrl = "/tspro/files?picker=1&embed=1";
+    if (frame && (frame.src === "about:blank" || frame.src.indexOf("multi=1") > -1)) {
+      frame.src = singleUrl;
+    }
+    openModal("media-picker-modal");
+  };
+
   // Gallery — per-tile remove buttons + upload tally so the
   // 10-image cap is reflected live. Uploads count as soon as the
   // file picker dialog returns since the form submit hasn't yet
@@ -1774,6 +1789,17 @@
     }
     if (!e.data || e.data.type !== "media-selected") return;
     const item = e.data.item;
+    if (currentMediaMode === "md-image") {
+      const ta = currentMdTextarea;
+      currentMdTextarea = null;
+      const mi = document.getElementById("media-picker-modal");
+      if (mi) closeModal(mi);
+      currentMediaMode = null;
+      if (ta && item && item.original_filename && window.tspMdInsertImage) {
+        window.tspMdInsertImage(ta, item.original_filename);
+      }
+      return;
+    }
     if (currentMediaMode === "post-gallery") {
       const gallerySection = document.querySelector("[data-post-gallery]");
       if (gallerySection && typeof gallerySection.__galleryAddPicked === "function") {
@@ -8045,6 +8071,175 @@
    Delegated off the document so it covers rows the client-side column
    sort has re-ordered (the Pages list moves <tr> nodes around) and any
    table that adopts the macro later, without per-page wiring. */
+/* ── Markdown toolbar ([data-md-toolbar] inside a [data-md-editor]) ──
+   Each button writes Markdown into the editor's textarea at the caret
+   or around the selection; pressing it again on already-formatted text
+   takes the formatting off. Edits go through execCommand("insertText")
+   where the browser has it, so Ctrl+Z undoes them like typing, and they
+   fire "input", so the live preview and the save bar follow.
+   Ctrl/Cmd+B, I and K are bold, italic and link. */
+(function initMdToolbars() {
+  function areaFor(el) {
+    var ed = el.closest("[data-md-editor]");
+    return ed && ed.querySelector(".md-editor-pane-write textarea, textarea");
+  }
+
+  // Replace [start, end) with text, then select [selStart, selEnd).
+  function put(ta, start, end, text, selStart, selEnd) {
+    ta.focus();
+    ta.setSelectionRange(start, end);
+    var done = false;
+    try { done = document.execCommand("insertText", false, text); } catch (_) {}
+    if (!done || ta.value.slice(start, start + text.length) !== text) {
+      ta.setRangeText(text, start, end, "end");
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    ta.setSelectionRange(selStart, selEnd);
+  }
+
+  // Bold, italic and inline code: wrap the selection, or a placeholder.
+  function wrap(ta, mark, placeholder) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    // A double-click can take the space after a word; leave it outside.
+    while (e > s && /\s/.test(v[e - 1])) e--;
+    while (s < e && /\s/.test(v[s])) s++;
+    var sel = v.slice(s, e), n = mark.length;
+    if (sel && v.slice(s - n, s) === mark && v.slice(e, e + n) === mark) {
+      put(ta, s - n, e + n, sel, s - n, e - n);
+    } else if (sel.length > 2 * n && sel.slice(0, n) === mark && sel.slice(-n) === mark) {
+      var inner = sel.slice(n, -n);
+      put(ta, s, e, inner, s, s + inner.length);
+    } else if (sel) {
+      put(ta, s, e, mark + sel + mark, s + n, e + n);
+    } else {
+      put(ta, s, e, mark + placeholder + mark, s + n, s + n + placeholder.length);
+    }
+  }
+
+  // The whole lines the selection touches.
+  function lineRange(ta) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    if (e > s && v[e - 1] === "\n") e--;
+    var ls = v.lastIndexOf("\n", s - 1) + 1;
+    var le = v.indexOf("\n", e);
+    if (le < 0) le = v.length;
+    return [ls, le];
+  }
+
+  // Headings, lists and quotes: prefix every line, or take it off when
+  // every line already has it. Python-Markdown needs a blank line
+  // between a paragraph and a list, heading or quote, so one is added
+  // on either side where the neighbouring line has text.
+  var LINE = {
+    heading: { re: /^#{1,6} /, add: function () { return "## "; } },
+    ul: { re: /^[-*+] /, add: function () { return "- "; } },
+    ol: { re: /^\d+\. /, add: function (i) { return (i + 1) + ". "; } },
+    quote: { re: /^> ?/, add: function () { return "> "; } },
+  };
+  function prefixLines(ta, kind) {
+    var spec = LINE[kind], v = ta.value, r = lineRange(ta);
+    var lines = v.slice(r[0], r[1]).split("\n");
+    var filled = lines.filter(function (l) { return l.trim(); });
+    var off = filled.length && filled.every(function (l) { return spec.re.test(l); });
+    var i = 0;
+    var out = lines.map(function (l) {
+      if (off) return l.replace(spec.re, "");
+      if (!l.trim() && lines.length > 1) return l;
+      // Switching list type (or heading level) replaces the old marker.
+      var bare = l.replace(LINE.ul.re, "").replace(LINE.ol.re, "").replace(LINE.heading.re, "");
+      return spec.add(i++) + bare;
+    }).join("\n");
+    var before = "", after = "";
+    if (!off) {
+      var prev = v.slice(0, r[0]);
+      if (prev && !/\n\s*\n$/.test(prev) && prev.replace(/\n$/, "").split("\n").pop().trim()) before = prev.endsWith("\n") ? "\n" : "\n\n";
+      var next = v.slice(r[1]);
+      if (next && next.replace(/^\n/, "").split("\n")[0].trim() && !/^\n\s*\n/.test(next)) after = next.startsWith("\n") ? "\n" : "\n\n";
+    }
+    var text = before + out + after;
+    var a = r[0] + before.length, b = a + out.length;
+    if (lines.length === 1) a = b;   // one line: caret at its end
+    put(ta, r[0], r[1], text, a, b);
+  }
+
+  function link(ta) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    var sel = v.slice(s, e).trim();
+    if (/^(https?:\/\/|\/|mailto:)\S*$/.test(sel)) {
+      var t = "[link text](" + sel + ")";
+      put(ta, s, e, t, s + 1, s + 10);
+    } else if (sel) {
+      var u = "[" + sel + "](https://)";
+      put(ta, s, e, u, s + sel.length + 3, s + sel.length + 11);
+    } else {
+      var w = "[link text](https://)";
+      put(ta, s, e, w, s + 1, s + 10);
+    }
+  }
+
+  function code(ta) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    var sel = v.slice(s, e);
+    if (sel.indexOf("\n") < 0) { wrap(ta, "`", "code"); return; }
+    var lead = s && v[s - 1] !== "\n" ? "\n" : "";
+    var t = lead + "```\n" + sel.replace(/\n$/, "") + "\n```\n";
+    put(ta, s, e, t, s + lead.length + 4, s + lead.length + 4 + sel.replace(/\n$/, "").length);
+  }
+
+  // A block (divider, image) on lines of its own.
+  function block(ta, body) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    var prev = v.slice(0, s), next = v.slice(e);
+    var lead = !prev || /\n\n$/.test(prev) ? "" : (prev.endsWith("\n") ? "\n" : "\n\n");
+    var tail = /^\n\n/.test(next) ? "" : (next.startsWith("\n") ? "\n" : "\n\n");
+    var t = lead + body + tail;
+    put(ta, s, e, t, s + t.length, s + t.length);
+  }
+
+  window.tspMdInsertImage = function (ta, filename) {
+    var sel = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
+    var alt = (sel || filename.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ")).replace(/[\[\]]/g, "");
+    block(ta, "![" + alt + "](/pub/" + encodeURIComponent(filename) + ")");
+  };
+
+  function run(cmd, ta, btn) {
+    if (cmd === "bold") wrap(ta, "**", "bold text");
+    else if (cmd === "italic") wrap(ta, "_", "italic text");
+    else if (cmd === "code") code(ta);
+    else if (cmd === "link") link(ta);
+    else if (cmd === "hr") block(ta, "---");
+    else if (cmd === "image") {
+      if (window.tspMdPickImage) window.tspMdPickImage(ta);
+      else block(ta, "![description](https://)");
+    }
+    else if (LINE[cmd]) prefixLines(ta, cmd);
+  }
+
+  // mousedown keeps the textarea's selection from being lost to the
+  // button before the click runs.
+  document.addEventListener("mousedown", function (e) {
+    if (e.target.closest && e.target.closest("[data-md-toolbar] [data-md-cmd]")) e.preventDefault();
+  });
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("[data-md-toolbar] [data-md-cmd]");
+    if (!btn) return;
+    var ta = areaFor(btn);
+    if (ta) run(btn.getAttribute("data-md-cmd"), ta, btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+    var ta = e.target;
+    if (!ta || ta.tagName !== "TEXTAREA") return;
+    var ed = ta.closest("[data-md-editor]");
+    if (!ed || !ed.querySelector("[data-md-toolbar]")) return;
+    var k = (e.key || "").toLowerCase();
+    var cmd = k === "b" ? "bold" : k === "i" ? "italic" : k === "k" ? "link" : null;
+    if (!cmd) return;
+    e.preventDefault();
+    run(cmd, ta);
+  });
+})();
+
 (function initRowMenus() {
   var GAP = 6;          // px between trigger and panel
   var VIEWPORT_PAD = 8; // keep the panel this far from the viewport edge

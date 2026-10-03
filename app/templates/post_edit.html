@@ -186,6 +186,23 @@
         <div class="form-field-block">{% call hrow('Body') %}The full text of the post. <strong>Markdown and HTML are supported</strong> — headings, <code>**bold**</code>, lists, and links all render on the public page. The preview pane shows it as visitors will see it.{% endcall %}
           <div class="md-editor md-editor-live post-body-md" data-md-editor data-md-live="1"
                data-md-mode="block" data-md-event-tokens>
+            {# Formatting buttons (app.js initMdToolbars): each writes the
+               Markdown at the caret or around the selection. #}
+            <div class="md-toolbar" role="toolbar" aria-label="Formatting" data-md-toolbar>
+              <button type="button" data-md-cmd="heading" title="Heading" aria-label="Heading">{{ icon('heading') }}</button>
+              <button type="button" data-md-cmd="bold" title="Bold (Ctrl+B)" aria-label="Bold">{{ icon('bold') }}</button>
+              <button type="button" data-md-cmd="italic" title="Italic (Ctrl+I)" aria-label="Italic">{{ icon('italic') }}</button>
+              <span class="md-toolbar-sep" aria-hidden="true"></span>
+              <button type="button" data-md-cmd="link" title="Link (Ctrl+K)" aria-label="Link">{{ icon('link') }}</button>
+              <button type="button" data-md-cmd="image" title="Image from the File Browser" aria-label="Image">{{ icon('image') }}</button>
+              <span class="md-toolbar-sep" aria-hidden="true"></span>
+              <button type="button" data-md-cmd="ul" title="Bulleted list" aria-label="Bulleted list">{{ icon('list') }}</button>
+              <button type="button" data-md-cmd="ol" title="Numbered list" aria-label="Numbered list">{{ icon('list-ordered') }}</button>
+              <button type="button" data-md-cmd="quote" title="Quote" aria-label="Quote">{{ icon('quote') }}</button>
+              <span class="md-toolbar-sep" aria-hidden="true"></span>
+              <button type="button" data-md-cmd="code" title="Code" aria-label="Code">{{ icon('code') }}</button>
+              <button type="button" data-md-cmd="hr" title="Divider line" aria-label="Divider line">{{ icon('minus') }}</button>
+            </div>
             <div class="md-editor-pane md-editor-pane-write active">
               <textarea name="body" rows="16" data-event-tag-target
                         placeholder="The full body of the post. Markdown and HTML supported.">{{ (_p.body_raw if _p else '') or '' }}</textarea>
