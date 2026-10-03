@@ -107,6 +107,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
+- `.help-tooltip` resets `text-transform`, `letter-spacing`, `text-align` and `white-space`, so it no longer inherits an uppercase label's styling. The overview's `.fe-status-card` and its strip drop `overflow: hidden` while a help chip inside is open, so the tooltip isn't clipped.
 - `.tbl` row menus: the reveal rule used `tr:focus-within`, so a trigger focused by a mouse click stayed visible after the pointer left the row; it now uses `tr:has(:focus-visible)`.
 
 - The `page-marketing` preset stamped two empty containers; it now carries the hero, the three-column feature grid and the closing button its description lists (refreshed by `_seed_page_layouts`).

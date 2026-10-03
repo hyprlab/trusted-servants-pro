@@ -3033,6 +3033,9 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
   padding: 10px 12px; font-size: var(--fs-xs); font-weight: 400; line-height: 1.45;
   width: max-content; max-width: 360px; color: var(--text);
   box-shadow: 0 4px 16px rgba(0,0,0,.18);
+  /* Plain text wherever the chip sits: a small-caps label or a centered
+     heading mustn't restyle the explanation. */
+  text-transform: none; letter-spacing: normal; text-align: left; white-space: normal;
 }
 .heading-help.open .help-tooltip { display: block; }
 /* Inline field chip — the same control shrunk to sit beside a form
@@ -17481,8 +17484,11 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
     border-color: color-mix(in srgb, var(--brand) 55%, transparent);
   }
 
-/* Overview: site status and staging sync share one card. */
+/* Overview: site status and staging sync share one card. It clips to
+   its rounded corners, except while a help tooltip in it is open. */
 .fe-admin-main .fe-status-card { padding: 0; overflow: hidden; }
+.fe-admin-main .fe-status-card:has(.heading-help.open),
+.fe-admin-main .fe-status-card:has(.heading-help.open) .fe-status-strip { overflow: visible; }
 .fe-admin-main .fe-status-card .fe-status-strip { border-radius: 0; }
 .fe-admin-main .fe-status-card .fe-status-sync {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px 16px;
