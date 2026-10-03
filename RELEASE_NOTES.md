@@ -107,6 +107,7 @@ release notes expanded by default and the changelog collapsed.
 - The save bar on content pages no longer cuts off "Unsaved changes".
 - The button on file upload fields ("Choose File" or "Browse…", depending on the browser) is a standard blue button throughout the admin.
 - The File Browser window that opens from other pages (to choose an image or a file) is laid out like Settings, with no title bar: a full-height sidebar on the left holds search, Upload a file, the kind of file (Images, Documents, Video, Audio, Other, each with how many there are), who uploaded it (anyone or you), sort and view. Choosing an image opens it showing images only; switch to All files to see the rest. It keeps your search, filters and page while you use it.
+- The File Browser page has the same sidebar, as a card beside the files that stays in view as you scroll: search, Upload files, kind of file, who uploaded it, sort and view. The Upload button moved from the top bar into it.
 - The blog list's search and filters are one tidy row: a search box, then Category, Tag and Sort menus that apply as soon as you change them, with Clear when any is set. The Apply button is gone.
 - The Stories list has the same row: search titles, summaries and authors, show all stories or only featured ones, and sort (newest, oldest, recently edited, story date, title or author). Sorting by a column heading keeps the search and filter.
 - Admin pages use the full width of the screen. They were capped at about 1400 pixels, which left an empty band on the right of wide screens.

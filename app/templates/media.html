@@ -2,12 +2,7 @@
 {% from "_row_menu.html" import row_menu %}
 {% block heading %}File Browser{% endblock %}
 {% block heading_help %}Upload, browse, and manage images, documents, and other files used throughout the portal.{% endblock %}
-{% block top_actions %}
-  {% if current_user.can_edit() and not picker %}
-  <label class="btn btn-primary" for="media-upload-input">{{ icon('upload') }} Upload</label>
-  <input type="file" id="media-upload-input" hidden multiple>
-  {% endif %}
-{% endblock %}
+{% block top_actions %}{% endblock %}
 {% block content %}
 {% set _pkr = '1' if picker else None %}
 {% set _emb = '1' if (picker or request.args.get('embed') == '1') else None %}
@@ -114,18 +109,18 @@
 
 {% set FB_KINDS = [('', 'All files', 'folder'), ('img', 'Images', 'image'), ('doc', 'Documents', 'file-text'),
                     ('vid', 'Video', 'video'), ('aud', 'Audio', 'music'), ('other', 'Other', 'file')] %}
-{# In the picker (the File Browser opened from another page to choose a
-   file) the finding tools sit in a sidebar: search, upload, the kind of
-   file, who uploaded it, sort and view. The page itself keeps them in
-   one toolbar above the files. #}
-<div class="{{ 'fb-pick' if picker }}">
-{% if picker %}
+{# The finding tools sit in a sidebar beside the files: search, upload,
+   the kind of file, who uploaded it, sort and view. On the page it's a
+   card that stays in view; in the picker (the File Browser opened from
+   another page to choose a file) it runs the window's full height, as
+   in Settings, and carries the title. #}
+<div class="fb-pick{{ '' if picker else ' fb-pick--page' }}">
 <aside class="fb-side" aria-label="Find a file">
-  <h1 class="fb-side-head">File Browser</h1>
+  {% if picker %}<h1 class="fb-side-head">File Browser</h1>{% endif %}
   {{ _search_form() }}
   {% if current_user.can_edit() %}
-  <label class="btn btn-primary fb-side-upload" for="media-upload-input">{{ icon('upload') }} Upload a file</label>
-  <input type="file" id="media-upload-input" hidden>
+  <label class="btn btn-primary fb-side-upload" for="media-upload-input">{{ icon('upload') }} {{ 'Upload a file' if picker else 'Upload files' }}</label>
+  <input type="file" id="media-upload-input" hidden{% if not picker %} multiple{% endif %}>
   {% endif %}
   <nav class="fb-side-group" aria-label="Kind of file">
     <h3 class="fb-side-title">Kind</h3>
@@ -158,35 +153,11 @@
     </div>
   </div>
 </aside>
-{% endif %}
-{% if picker %}
 <div class="fb-pick-main">
   {% set _total = pagination.total if pagination else items|length %}
   {% set _noun = {'img': 'image', 'doc': 'document', 'vid': 'video', 'aud': 'audio file', 'other': 'other file'}.get(kind, 'file') %}
   <p class="fb-pick-count muted">{{ _total }} {{ _noun }}{{ '' if _total == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}{% if mine %}, uploaded by you{% endif %}</p>
-{% endif %}
 <section class="card fb">
-  {% if not picker %}
-  {# One toolbar for every mode: search, how many, sort and the view. #}
-  <div class="fb-toolbar">
-    {{ _search_form() }}
-    <span class="fb-count muted">{% if pagination %}{{ pagination.total }}{% else %}{{ items|length }}{% endif %} file{{ '' if (pagination.total if pagination else items|length) == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}</span>
-    {# The grid has no column headings, and a phone hides the list's:
-       these do their job there. #}
-    <div class="fb-sortbar{{ ' fb-sortbar--list' if view != 'grid' }}" role="group" aria-label="Sort files">
-      <span class="fb-sortbar-label">Sort by</span>
-      {{ _sort_link('name', 'Name') }}{{ _sort_link('type', 'Type') }}{{ _sort_link('size', 'Size') }}{{ _sort_link('uploaded', 'Uploaded') }}{{ _sort_link('by', 'By') }}
-    </div>
-    <div class="ds-seg-btns fb-view" role="group" aria-label="View">
-      <a href="{{ _fb_url({'view': 'list'}) }}"
-         aria-checked="{{ 'true' if view != 'grid' else 'false' }}" role="radio" title="List">{{ icon('list') }}<span>List</span></a>
-      <a href="{{ _fb_url({'view': 'grid'}) }}"
-         aria-checked="{{ 'true' if view == 'grid' else 'false' }}" role="radio" title="Grid">{{ icon('layout-grid') }}<span>Grid</span></a>
-    </div>
-  </div>
-  {% endif %}
-
-
   {% if not items %}
   <div class="fb-empty">
     <span class="fb-empty-icon" aria-hidden="true">{{ icon('folder') }}</span>
@@ -287,7 +258,6 @@
   </nav>
   {% endif %}
 </section>
-{% if picker %}
 {# Multi-select picker bar, only when the caller opened the picker with
    ``multi=1``: app.js turns Select into a toggle, and this bar keeps
    the running count and a Done button that posts one
@@ -303,7 +273,6 @@
 </div>
 {% endif %}
 </div>
-{% endif %}
 </div>
 
 <div class="modal file-lightbox" id="file-lightbox" aria-hidden="true">
