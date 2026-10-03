@@ -25,14 +25,16 @@
       <button class="btn">Restore</button>
     </form>
     {% else %}
-    <form method="post" action="{{ url_for('main.meeting_archive', slug=meeting.public_slug) }}" onsubmit="return confirm('Archive this meeting? It will be hidden from the main list but can be restored later.');" style="display:inline">
+    <form method="post" action="{{ url_for('main.meeting_archive', slug=meeting.public_slug) }}" style="display:inline"
+          data-confirm="It leaves the meetings list and the public site, and can be restored later." data-confirm-title="Archive this meeting?" data-confirm-label="Archive">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn">Archive</button>
     </form>
     {% endif %}
   {% endif %}
   {% if current_user.can_create_meetings() %}
-  <form method="post" action="{{ url_for('main.meeting_delete', slug=meeting.public_slug) }}" onsubmit="return confirm('Delete this meeting permanently?');" style="display:inline">
+  <form method="post" action="{{ url_for('main.meeting_delete', slug=meeting.public_slug) }}" style="display:inline"
+        data-confirm="The meeting, its schedule and its files are deleted for good." data-confirm-title="Delete this meeting?">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn-danger">Delete</button>
   </form>
@@ -40,81 +42,172 @@
   {% endif %}
 {% endblock %}
 {% block content %}
+{#- Two columns on a wide screen: the meeting itself on the left (about,
+    schedule, files); on the right, where and how to join it (online
+    platforms with the host's details, and the location), which stays
+    in view. On a narrow screen the joining details come first. -#}
+{% set _zoom_on = meeting.zoom_enabled and (meeting.zoom_meeting_id or meeting.zoom_passcode or meeting.zoom_account or meeting.zoom_link) %}
+{% set _gmeet_on = meeting.gmeet_enabled and (meeting.gmeet_meeting_id or meeting.gmeet_passcode or meeting.gmeet_link) %}
+{% set _teams_on = meeting.teams_enabled and (meeting.teams_meeting_id or meeting.teams_passcode or meeting.teams_link) %}
+{% set _has_side = _zoom_on or _gmeet_on or _teams_on or meeting.location %}
 
 {% if meeting.alert_message %}
 <div class="alert-banner" role="alert">{{ meeting.alert_message }}</div>
 {% endif %}
+{% if meeting.public_alert_message %}
+<div class="mtg-public-alert" role="note">
+  {{ icon('globe') }}
+  <div><strong>Showing on the public page:</strong> {{ meeting.public_alert_message }}
+    {% if meeting.public_alert_expires_at %}<span class="muted small">Until {{ meeting.public_alert_expires_at.strftime('%b %-d, %Y, %-I:%M %p') }}.</span>{% endif %}</div>
+</div>
+{% endif %}
 
-<section class="card meeting-info">
-  <div class="meeting-details-grid">
-    <div class="detail-block">
+<div class="mtg-layout{% if not _has_side %} mtg-layout--single{% endif %}">
+  <div class="mtg-main">
+    {% if meeting.logo_filename or meeting.description %}
+    <section class="card data-card mtg-about">
       {% if meeting.logo_filename %}
-      <img class="meeting-logo" src="{{ url_for('main.meeting_logo', mid=meeting.id) }}" alt="">
+      <img class="mtg-logo" src="{{ url_for('main.meeting_logo', mid=meeting.id) }}" alt="">
       {% endif %}
       {% if meeting.description %}
-      <div class="detail-label">Description</div>
       <div class="meeting-description clamp-5" data-clampable>
-        <div class="clamp-body">{{ meeting.description|safe_html }}</div>
-        <button type="button" class="clamp-toggle link" data-clamp-toggle hidden>Show more…</button>
+        <div class="clamp-body">{{ meeting.description|markdown_block }}</div>
+        <button type="button" class="clamp-toggle link" data-clamp-toggle hidden>Show more</button>
       </div>
       {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="card data-card mtg-schedule">
+      <div class="data-card-head">{{ icon('calendar-clock') }}<span>Schedule</span></div>
       {% if meeting.schedules %}
-      {% set show_zoom_cols = meeting.meeting_type != 'in_person' %}
-      <div class="zg-card schedule-card">
-      <div class="detail-label">Schedule</div>
-      <table class="schedule-table">
-        <thead>
-          <tr>
-            <th>Day</th><th>Start</th><th>End</th>
-            {% if show_zoom_cols %}<th>Opens</th>{% endif %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for s in meeting.schedules %}
-          <tr>
-            <td class="sched-day">{{ s.day_name }}</td>
-            <td class="sched-time">{{ s.start_time|fmt12h }}</td>
-            <td class="sched-time">{{ s.end_time|fmt12h }}</td>
-            {% if show_zoom_cols %}
-            <td class="muted">{{ (s.opens_time|fmt12h) if s.opens_time else '—' }}</td>
-            {% endif %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      </div>
-      {% endif %}
-
-      {% if meeting.location %}
-      {# Location resolved to a saved Location row in the route
-         (`location_record`, tolerant of minor name typos) so we can show
-         the full split address + an Open-in-Maps link. Custom locations
-         that don't match any saved Location fall back to the raw text. #}
-      <div class="zg-card location-card">
-      <div class="detail-label">Location</div>
-      {% if location_record %}
-        <div class="loc-block">
-          <div class="loc-name">{{ location_record.name }}</div>
-          {% for line in location_record.address_lines() %}
-            <div class="loc-line">{{ line }}</div>
-          {% endfor %}
-        </div>
+      {% set _opens = meeting.meeting_type != 'in_person' %}
+      <ul class="mtg-sched">
+        {% for s in meeting.schedules %}
+        <li class="mtg-sched-row{% if s.day_of_week == today_dow %} is-today{% endif %}">
+          <span class="mtg-sched-day">{{ s.day_name }}{% if s.day_of_week == today_dow %} <span class="mtg-today">Today</span>{% endif %}</span>
+          <span class="mtg-sched-time">{{ s.start_time|fmt12h }}<span class="muted"> to </span>{{ s.end_time|fmt12h }}</span>
+          {% if _opens %}<span class="mtg-sched-opens muted">{% if s.opens_time %}Opens {{ s.opens_time|fmt12h }}{% endif %}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
       {% else %}
-        <div class="loc-name">{{ meeting.location|safe_html }}</div>
+      <p class="muted small">No days set yet.{% if current_user.can_edit() %} <a href="{{ url_for('main.meeting_edit', slug=meeting.public_slug) }}#schedule">Add them</a>.{% endif %}</p>
       {% endif %}
-      {% if meeting.location_notes %}
-      <div class="loc-notes muted small">{{ meeting.location_notes }}</div>
-      {% endif %}
-      {% if location_maps_url %}
-      <a class="btn btn-sm zg-maps-link" href="{{ location_maps_url|safe_url }}" target="_blank" rel="noopener">{{ icon('map-pin') }}<span>Open in Maps</span></a>
-      {% endif %}
+      {% set _changes = meeting.schedule_changes|list %}
+      {% if _changes %}
+      <div class="mtg-sched-changes">
+        {% for c in _changes %}
+        {% set chg = c|serialize_schedule_change %}
+        <div class="mtg-sched-change">
+          {{ icon('clock') }}
+          <div>
+            <strong>Changes {{ c.effective_date.strftime('%a, %b %-d, %Y') }}</strong>{% if chg.note %}<span class="muted">: {{ chg.note }}</span>{% endif %}
+            <div class="muted small">
+              {% for e in chg.entries %}{{ DAYS_OF_WEEK[e.day][:3] }} {{ e.start_time|fmt12h }}{% if e.end_time %} to {{ e.end_time|fmt12h }}{% endif %}{% if not loop.last %} · {% endif %}{% else %}No days: the schedule clears.{% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
       </div>
       {% endif %}
-    </div>
+    </section>
 
-    {# Always render the right column so the 50/50 grid is preserved — for
-       in-person meetings with no Zoom data it simply stays blank. #}
-    <div class="detail-block zoom-col">
+    {#- Files: the libraries and each category with files, switched with a
+        segmented control (fe_studio.js; a #libraries or #<category>
+        link opens that part). External links come right after the
+        libraries here. -#}
+    {% set ORDERED_CATS = ['external_links'] + (FILE_CATEGORIES|reject('equalto','external_links')|list) %}
+    {% set _cats = [] %}
+    {% for cat in ORDERED_CATS %}{% set _n = meeting.files.filter_by(category=cat).count() %}{% if _n %}{% set _ = _cats.append((cat, _n)) %}{% endif %}{% endfor %}
+    {% if meeting.libraries or _cats %}
+    <section class="card data-card mtg-files" data-studio="meeting-files" data-no-collapse>
+      <div class="data-card-head">{{ icon('folder') }}<span>Files</span>
+        {% if current_user.can_edit() %}<a class="btn btn-sm mtg-files-edit" href="{{ url_for('main.meeting_edit', slug=meeting.public_slug) }}#files">{{ icon('pencil') }} Manage</a>{% endif %}
+      </div>
+      <div class="st-seg-scroll" data-seg-scroll>
+        <nav class="st-seg mtg-files-seg" role="tablist" aria-label="Files">
+          {% if meeting.libraries %}<button type="button" role="tab" data-studio-tab="libraries">{{ icon('book-open') }}<span>Libraries</span><span class="mtg-count">{{ meeting.libraries|length }}</span></button>{% endif %}
+          {% for cat, n in _cats %}
+          <button type="button" role="tab" data-studio-tab="{{ cat }}"><span>{{ CATEGORY_LABELS[cat] }}</span><span class="mtg-count">{{ n }}</span></button>
+          {% endfor %}
+        </nav>
+      </div>
+
+      {% if meeting.libraries %}
+      <div class="st-panel mtg-files-panel" data-studio-panel="libraries">
+        {% set libs_all = meeting.libraries|list %}
+        {% set libs_first = libs_all|selectattr('name','equalto','Readings')|list %}
+        {% set libs_last = libs_all|selectattr('name','equalto','Meditation Videos')|list %}
+        {% set libs_mid = libs_all|rejectattr('name','equalto','Readings')|rejectattr('name','equalto','Meditation Videos')|list %}
+        {% for lib in libs_first + libs_mid + libs_last %}
+        <div class="lib-block">
+          <h3 class="mtg-lib-title"><a href="{{ url_for('main.library_detail', slug=lib.public_slug) }}">{{ lib.name }}</a></h3>
+          {% set rs = meeting.visible_library_items(lib) %}
+          {% if rs %}
+          <ul class="file-list">
+            {% for r in rs %}
+            <li>
+              {% if r.thumbnail_filename %}
+              <img class="reading-thumb" src="{{ url_for('main.reading_thumbnail', rid=r.id) }}" alt="">
+              {% else %}
+              {% set ft = r|file_type %}
+              <span class="ftype ftype-{{ ft }}" aria-label="{{ ft }}">{{ ft|upper }}</span>
+              {% endif %}
+              <div class="file-main">
+                <a href="{% if r.stored_filename %}{{ url_for('public.public_file', filename=r.original_filename) }}{% elif r.url %}{{ r.url }}{% else %}{{ url_for('main.reading_view', rid=r.id) }}{% endif %}" target="_blank">{{ r.title }}</a>
+                {% if r.original_filename %}<div class="muted smaller">{{ r.original_filename }}</div>{% endif %}
+                {% if r.url %}<div class="muted smaller trunc">{{ r.url }}</div>{% endif %}
+              </div>
+              <div class="row-actions">
+                {% if r.stored_filename %}
+                <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ url_for('public.public_file', filename=r.original_filename) }}">{{ icon('link') }} Copy link</button>
+                {% elif r.url %}
+                <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ r.url }}">{{ icon('link') }} Copy link</button>
+                {% endif %}
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}<p class="muted small">No files.</p>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% for cat, n in _cats %}
+      <div class="st-panel mtg-files-panel" data-studio-panel="{{ cat }}" hidden>
+        <ul class="file-list">
+          {% for f in meeting.files_by_category(cat) %}
+          <li>
+            {% set ft = f|file_type %}
+            <span class="ftype ftype-{{ ft }}" aria-label="{{ ft }}">{{ ft|upper }}</span>
+            <div class="file-main">
+              <a href="{% if f.stored_filename %}{{ url_for('public.public_file', filename=f.original_filename) }}{% elif f.url %}{{ f.url }}{% else %}{{ url_for('main.file_view', fid=f.id) }}{% endif %}" target="_blank">{{ f.title }}</a>
+              {% if f.description %}<div class="muted small">{{ f.description }}</div>{% endif %}
+              {% if f.original_filename %}<div class="muted smaller">{{ f.original_filename }}</div>{% endif %}
+              {% if f.url %}<div class="muted smaller trunc">{{ f.url }}</div>{% endif %}
+            </div>
+            <div class="row-actions">
+              {% if f.stored_filename %}
+              <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ url_for('public.public_file', filename=f.original_filename) }}">{{ icon('link') }} Copy link</button>
+              {% elif f.url %}
+              <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ f.url }}">{{ icon('link') }} Copy link</button>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+
+  </div>
+
+  {% if _has_side %}
+  <aside class="mtg-side" aria-label="Where and how to join">
       {% if meeting.zoom_enabled and (meeting.zoom_meeting_id or meeting.zoom_passcode or meeting.zoom_account or meeting.zoom_link) %}
       <section class="card data-card zoom-card zoom-card--brand">
       {% if meeting.meeting_type != 'in_person' and (meeting.zoom_link or meeting.zoom_meeting_id or meeting.zoom_account) %}
@@ -235,9 +328,30 @@
         </dl>
       </section>
       {% endif %}
-    </div>
-  </div>
-</section>
+
+    {% if meeting.location %}
+    {# Location resolved to a saved Location row in the route
+       (`location_record`, tolerant of minor name typos) for the full
+       address and a Maps link; a custom location shows as typed. #}
+    <section class="card data-card mtg-location">
+      <div class="data-card-head">{{ icon('map-pin') }}<span>Location</span></div>
+      {% if location_record %}
+        <div class="loc-block">
+          <div class="loc-name">{{ location_record.name }}</div>
+          {% for line in location_record.address_lines() %}<div class="loc-line">{{ line }}</div>{% endfor %}
+        </div>
+      {% else %}
+        <div class="loc-name">{{ meeting.location|safe_html }}</div>
+      {% endif %}
+      {% if meeting.location_notes %}<p class="loc-notes muted small">{{ meeting.location_notes }}</p>{% endif %}
+      {% if location_maps_url %}
+      <a class="btn mtg-maps" href="{{ location_maps_url|safe_url }}" target="_blank" rel="noopener">{{ icon('map-pin') }}<span>Open in Maps</span></a>
+      {% endif %}
+    </section>
+    {% endif %}
+  </aside>
+  {% endif %}
+</div>
 
 {% if meeting.meeting_type != 'in_person' and (meeting.zoom_link or meeting.zoom_meeting_id or meeting.zoom_account) %}
 {# ── Guided Zoom launcher ─────────────────────────────────────────── #}
@@ -452,90 +566,5 @@
 {% endif %}
 
 
-{# External links sits directly under Libraries on this backend page, so
-   pull it to the front of the category order here (FILE_CATEGORIES stays
-   as-is everywhere else). #}
-{% set ORDERED_CATS = ['external_links'] + (FILE_CATEGORIES|reject('equalto','external_links')|list) %}
-<div class="tabs">
-  {% if meeting.libraries %}<a href="#libraries" class="tab">Libraries <span class="count">{{ meeting.libraries|length }}</span></a>{% endif %}
-  {% for cat in ORDERED_CATS %}
-    {% set cnt = meeting.files.filter_by(category=cat).count() %}
-    {% if cnt %}<a href="#{{ cat }}" class="tab">{{ CATEGORY_LABELS[cat] }} <span class="count">{{ cnt }}</span></a>{% endif %}
-  {% endfor %}
-</div>
-
-{% if meeting.libraries %}
-<section class="card" id="libraries">
-  <div class="card-head"><h2>Libraries</h2></div>
-  {% set libs_all = meeting.libraries|list %}
-  {% set libs_first = libs_all|selectattr('name','equalto','Readings')|list %}
-  {% set libs_last = libs_all|selectattr('name','equalto','Meditation Videos')|list %}
-  {% set libs_mid = libs_all|rejectattr('name','equalto','Readings')|rejectattr('name','equalto','Meditation Videos')|list %}
-  {% for lib in libs_first + libs_mid + libs_last %}
-  <div class="lib-block">
-    <h3><a href="{{ url_for('main.library_detail', slug=lib.public_slug) }}">{{ lib.name }}</a></h3>
-    {% set rs = meeting.visible_library_items(lib) %}
-    {% if rs %}
-    <ul class="file-list">
-      {% for r in rs %}
-      <li>
-        {% if r.thumbnail_filename %}
-        <img class="reading-thumb" src="{{ url_for('main.reading_thumbnail', rid=r.id) }}" alt="">
-        {% else %}
-        {% set ft = r|file_type %}
-        <span class="ftype ftype-{{ ft }}" aria-label="{{ ft }}">{{ ft|upper }}</span>
-        {% endif %}
-        <div class="file-main">
-          <a href="{% if r.stored_filename %}{{ url_for('public.public_file', filename=r.original_filename) }}{% elif r.url %}{{ r.url }}{% else %}{{ url_for('main.reading_view', rid=r.id) }}{% endif %}" target="_blank">{{ r.title }}</a>
-          {% if r.original_filename %}<div class="muted smaller">{{ r.original_filename }}</div>{% endif %}
-          {% if r.url %}<div class="muted smaller trunc">{{ r.url }}</div>{% endif %}
-        </div>
-        <div class="row-actions">
-          {% if r.stored_filename %}
-          <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ url_for('public.public_file', filename=r.original_filename) }}">Copy Link</button>
-          {% elif r.url %}
-          <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ r.url }}">Copy Link</button>
-          {% endif %}
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}<p class="muted small">No files.</p>{% endif %}
-  </div>
-  {% endfor %}
-</section>
-{% endif %}
-
-{% for cat in ORDERED_CATS %}
-{% set items = meeting.files_by_category(cat) %}
-{% if items %}
-<section class="card" id="{{ cat }}">
-  <div class="card-head">
-    <h2>{{ CATEGORY_LABELS[cat] }}</h2>
-  </div>
-  <ul class="file-list">
-    {% for f in items %}
-    <li>
-      {% set ft = f|file_type %}
-      <span class="ftype ftype-{{ ft }}" aria-label="{{ ft }}">{{ ft|upper }}</span>
-      <div class="file-main">
-        <a href="{% if f.stored_filename %}{{ url_for('public.public_file', filename=f.original_filename) }}{% elif f.url %}{{ f.url }}{% else %}{{ url_for('main.file_view', fid=f.id) }}{% endif %}" target="_blank">{{ f.title }}</a>
-        {% if f.description %}<div class="muted small">{{ f.description }}</div>{% endif %}
-        {% if f.original_filename %}<div class="muted smaller">{{ f.original_filename }}</div>{% endif %}
-        {% if f.url %}<div class="muted smaller trunc">{{ f.url }}</div>{% endif %}
-      </div>
-      <div class="row-actions">
-        {% if f.stored_filename %}
-        <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ url_for('public.public_file', filename=f.original_filename) }}">Copy Link</button>
-        {% elif f.url %}
-        <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ f.url }}">Copy Link</button>
-        {% endif %}
-      </div>
-    </li>
-    {% endfor %}
-  </ul>
-</section>
-{% endif %}
-{% endfor %}
-
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
 {% endblock %}

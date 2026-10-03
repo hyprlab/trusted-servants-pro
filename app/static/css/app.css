@@ -5135,14 +5135,6 @@ form[data-savebar-row].is-dirty {
   border: 1px solid var(--border); background: var(--panel-2); }
 .meeting-logo { max-height: 48px; max-width: 48px; border-radius: 8px;
   margin-right: 10px; vertical-align: middle; }
-/* Backend meeting detail page — bigger 100px display, distinct from the
-   small inline thumbnails on the admin meeting list. Rendered as the
-   first item of the left details column (no full-width wrapper) so the
-   right-hand Zoom card can rise to the top of the section. */
-.meeting-info .meeting-logo {
-  max-height: 100px; max-width: 100px; margin: 0 0 20px;
-  display: block; align-self: flex-start;
-}
 .reading-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 8px;
   border: 1px solid var(--border); margin-right: 12px; flex: 0 0 auto; }
 .reading-hero { max-width: 320px; max-height: 220px; border-radius: 10px;
@@ -5530,29 +5522,8 @@ body.embed .card.data-card:last-child {
 .mtype-hybrid { background: rgba(172, 72, 255, 0.18); color: #8b36d9; }
 .mtype-in_person { background: rgba(56, 198, 76, 0.2); color: #1f9d3b; }
 
-.meeting-info {
-  display: flex; flex-direction: column; gap: 20px;
-  position: relative;
-}
-.meeting-info .detail-label { font-size: var(--fs-base); font-weight: 700; color: var(--text);
-  text-transform: none; letter-spacing: 0; margin-bottom: 1rem; }
 .meeting-description { color: var(--text); }
 .meeting-description .clamp-body { white-space: pre-wrap; }
-.meeting-details-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  column-gap: 2rem; row-gap: 16px;
-  /* Cells align to the top of the grid row (rather than stretching
-     and centering content), so the right column's first label sits
-     at the same Y as the left column's first label regardless of
-     how tall the description block grows. */
-  align-items: start;
-}
-.detail-block { display: flex; flex-direction: column; align-self: start; }
-/* The Zoom data-card lives in its own right-hand column (`.zoom-col`),
-   independent of the left column's Description / Schedule / Location so
-   the two sides flow without colliding. Top-aligned so the card sits up
-   against the top of the section with no dead space above it. */
 /* Zoom block promoted to its own data-card inside the right column.
    `.card`'s default bottom margin would push it off-center; zero it so
    the card centers cleanly. */
@@ -5581,29 +5552,14 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
 }
 .detail-label { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
   color: var(--muted); margin-bottom: 1rem; }
-.schedule-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
-.schedule-list li { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .sched-day { font-weight: 600; min-width: 90px; }
 .sched-time { font-weight: 600; color: var(--text); }
-.schedule-table { border-collapse: collapse; width: 100%; font-size: var(--fs-base); }
-.schedule-table th { text-align: left; padding: 4px 12px 6px 0; color: var(--muted);
-  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
-.schedule-table td { padding: 4px 12px 4px 0; vertical-align: middle; }
-.schedule-table td.sched-day { font-weight: 600; }
-.schedule-table td.sched-time { font-weight: 600; color: var(--text); }
 
-/* Card-style containers (matching the guide's .zg-creds look) wrapping
-   the Schedule and Location sections in the left details column. */
+/* A boxed group inside the Zoom card (the one-time passcodes), in the
+   guide's .zg-creds look. */
 .zg-card { background: var(--panel-2); border: 1px solid var(--border);
   border-radius: 10px; padding: 14px 16px; }
-.detail-block > .zg-card { margin-top: 16px; }
 .zg-card > .detail-label { margin-bottom: .75rem; }
-.zg-card .schedule-table td:last-child,
-.zg-card .schedule-table th:last-child { padding-right: 0; }
-.zg-card .loc-name { font-weight: 600; color: var(--text); }
-.zg-card .loc-line { color: var(--text); }
-.zg-maps-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; }
-.zg-maps-link .icon { width: 15px; height: 15px; }
 
 /* Inline OTP auto-retrieval on the meeting detail page (mirrors the
    wizard's Retrieve flow so seasoned hosts can grab a code in place). */
@@ -18682,6 +18638,66 @@ form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, min
 .meeting-files-panel .file-cat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .meeting-files-panel .file-cat-head .ds-group-title { margin: 0; }
 .meeting-files-panel .file-list { margin: 0; }
+
+/* ── Meeting page (meeting_detail.html): the meeting on the left (about,
+   schedule, files), where and how to join it on the right, which stays
+   in view on a wide screen and comes first on a narrow one. ── */
+.mtg-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 20px; align-items: start; }
+.mtg-layout--single { grid-template-columns: minmax(0, 1fr); }
+.mtg-main, .mtg-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.mtg-main > .card, .mtg-side > .card { margin: 0; }
+/* Cards styled like the Dashboard's widgets. */
+.mtg-layout .card.data-card { padding: 18px 20px; border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.mtg-files .data-card-head .mtg-files-edit .icon { width: 14px; height: 14px; color: inherit; }
+.mtg-side { position: sticky; top: calc(var(--topbar-h, 56px) + var(--content-px, 28px)); }
+@media (max-width: 1000px) {
+  .mtg-layout { grid-template-columns: minmax(0, 1fr); }
+  .mtg-side { order: -1; position: static; }
+}
+.mtg-public-alert { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 16px; padding: 12px 16px;
+  border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: 12px; background: var(--panel);
+  font-size: var(--fs-sm); }
+.mtg-public-alert > .icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--brand); margin-top: 1px; }
+.mtg-about { display: flex; gap: 20px; align-items: flex-start; }
+.mtg-logo { width: 88px; height: 88px; object-fit: contain; flex: 0 0 auto; }
+.mtg-about .meeting-description { flex: 1 1 auto; min-width: 0; }
+.mtg-about .meeting-description .clamp-body { white-space: normal; }
+.mtg-about .meeting-description .clamp-body > :first-child { margin-top: 0; }
+.mtg-about .meeting-description .clamp-body > :last-child { margin-bottom: 0; }
+@media (max-width: 560px) { .mtg-about { flex-direction: column; } }
+
+.mtg-sched { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.mtg-sched-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 4px 12px; align-items: center; padding: 9px 12px; border-radius: 8px; font-size: var(--fs-sm); }
+.mtg-sched-row:nth-child(odd) { background: var(--panel-2); }
+.mtg-sched-row.is-today { background: var(--brand-soft); }
+.mtg-sched-day { font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+.mtg-sched-time { font-weight: 600; font-variant-numeric: tabular-nums; }
+.mtg-sched-opens { text-align: right; font-variant-numeric: tabular-nums; }
+.mtg-today { padding: 1px 8px; border-radius: 999px; background: var(--brand); color: #fff; font-size: var(--fs-2xs); font-weight: 700; }
+@media (max-width: 560px) {
+  .mtg-sched-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .mtg-sched-opens { grid-column: 1 / -1; text-align: left; }
+}
+.mtg-sched-changes { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.mtg-sched-change { display: flex; gap: 10px; align-items: flex-start; font-size: var(--fs-sm); }
+.mtg-sched-change > .icon { width: 16px; height: 16px; flex: 0 0 auto; color: var(--brand); margin-top: 2px; }
+
+.mtg-files .data-card-head .mtg-files-edit { margin-left: auto; }
+.mtg-files .st-seg { margin: 14px 0 8px; }
+.mtg-count { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: 999px; font-size: var(--fs-2xs);
+  line-height: 1.6; background: color-mix(in srgb, currentColor 14%, transparent); }
+.mtg-files-panel[hidden] { display: none; }
+.mtg-lib-title { margin: 14px 0 6px; font-size: var(--fs-base); }
+.mtg-files-panel .lib-block:first-child .mtg-lib-title { margin-top: 4px; }
+.mtg-files .btn-copy { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.mtg-files .btn-copy .icon { width: 13px; height: 13px; }
+
+.mtg-location .loc-block { margin-top: 10px; }
+.mtg-location .loc-name { font-weight: 600; }
+.mtg-location .loc-notes { margin: 10px 0 0; }
+.mtg-location .mtg-maps { margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.mtg-side .zoom-card { padding: 18px 20px; }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */

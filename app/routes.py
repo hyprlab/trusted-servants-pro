@@ -2290,7 +2290,9 @@ def meeting_detail(slug):
     # password and OTP surfaces render for viewers too.
     zoom_password = decrypt(m.zoom_account.password_enc) if m.zoom_account else ""
     otp_email = ZoomOtpEmail.query.first()
-    return render_template("meeting_detail.html", meeting=m,
+    from .timezone import now_local_naive
+    today_dow = now_local_naive(_get_site_setting()).weekday()  # 0 = Monday, as schedules
+    return render_template("meeting_detail.html", meeting=m, today_dow=today_dow,
                            locations=locations, zoom_account_password=zoom_password,
                            location_record=location_record, location_maps_url=location_maps_url,
                            otp_email=otp_email)
