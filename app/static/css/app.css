@@ -237,7 +237,7 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
    padding on each side to hold the current page's bar (and the rows'
    edges) while the rows stay where they were. */
 .sidebar > .sidebar-scroll { margin: 0 -6px; padding: 0 6px; }
-.brand { display: flex; gap: 12px; align-items: flex-start; padding: 4px 6px 18px; }
+.brand { display: flex; align-items: center; padding: 4px 6px 18px; }
 .brand-mark {
   width: 36px; height: 36px; border-radius: 10px;
   background: linear-gradient(135deg, var(--brand), var(--brand-2));
@@ -245,11 +245,7 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
   font-weight: 700; letter-spacing: .5px;
 }
 .brand-mark.lg { width: 54px; height: 54px; font-size: var(--fs-xl); border-radius: 14px; }
-.brand-logo { width: 52px; height: 52px; object-fit: contain; display: block; }
-.brand > div { margin-top: 8px; }
-.brand-logo-lg { width: 72px; height: 72px; }
-.brand-title { font-weight: 700; font-size: var(--fs-lg); line-height: 1.1; }
-.brand-sub { font-size: var(--fs-lg); font-weight: 700; line-height: 1.1; }
+.brand-logo { width: 120px; height: auto; display: block; }
 .sidebar-footer-img-link { display: flex; justify-content: center; padding: 6px 0 10px; }
 .sidebar-footer-img-link img { max-width: 80px; width: 100%; height: auto; display: block; }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }

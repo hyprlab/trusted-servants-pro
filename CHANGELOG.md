@@ -137,6 +137,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The site index "Sort order" setting from the admin: no layout read it. Contact and Recovery Contacts page copy is no longer on Page templates (it is on their forms).
 - The Neobrutal Light, Neobrutal Dark, Cyberpunk and Solarpunk admin themes: their `[data-theme]` tokens and rules in `app.css`, the `.theme-picker` swatches in Settings → Appearance and the setup wizard, and their unstyled-page guard backgrounds. Web Frontend themes are unaffected.
 - The `.brand-version` badge from the sidebar footer and its rule in `app.css`; the version stays in the About modal.
+- The sidebar `.brand` text (`.brand-title`, `.brand-sub`) and the unused `.brand-logo-lg`; the sidebar now shows `logo_tspro_about.svg` at 120px wide.
 
 ## [2.20.2] — 2026-09-30
 

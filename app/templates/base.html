@@ -171,13 +171,9 @@
 {% if not embed %}
 <div class="layout">
   <aside class="sidebar">
-    {# The logo and app name stay put at the top. #}
+    {# The logo stays put at the top. #}
     <div class="brand">
-      <img class="brand-logo" src="{{ url_for('static', filename='img/logo.svg') }}" alt="">
-      <div>
-        <div class="brand-title">Trusted Servants</div>
-        <div class="brand-sub">Pro</div>
-      </div>
+      <img class="brand-logo" src="{{ url_for('static', filename='img/logo_tspro_about.svg') }}" alt="Trusted Servants Pro">
     </div>
     {# Between the brand and the footer, everything scrolls together: the
        rows at the top and the nav (app.js remembers the offset per tab). #}
