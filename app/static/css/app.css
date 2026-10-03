@@ -18631,11 +18631,29 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .post-studio .st-controls .post-gallery-upload-label { min-width: 0; }
 .post-gallery-count { font-weight: 600; letter-spacing: 0; text-transform: none; }
 
-/* ── File Browser picker (media.html, picker=1): the finding tools in a
-   sidebar beside the files. ── */
-.fb-pick { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 20px; align-items: start; }
-.fb-pick > .card.fb { margin: 0; }
-.fb-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+/* ── File Browser picker (media.html, picker=1, in the media picker
+   modal): two panes like Settings. The sidebar runs the full height on
+   the left with the title and the finding tools; the files sit on the
+   page grey to its right. The modal has no title bar; its close button
+   floats over the top right corner. ── */
+body.embed:has(.fb-pick) { background: var(--bg); }
+body.embed .embed-content:has(.fb-pick) { padding: 0; }
+.fb-pick { display: grid; grid-template-columns: 252px minmax(0, 1fr); align-items: start; min-height: 100vh; }
+.fb-side { position: sticky; top: 0; height: 100vh; overflow-y: auto; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 18px; min-width: 0; padding: 16px 14px 20px;
+  background: var(--panel-2); border-right: 1px solid var(--border); }
+.fb-side-head { margin: 2px 4px 0; font-size: var(--fs-lg); font-weight: 700; line-height: 1.3; }
+.fb-pick-main { min-width: 0; padding: 16px 20px 20px; }
+.fb-pick-main > .card.fb { margin: 0; }
+/* Leaves the corner to the modal's floating close button. */
+.fb-pick-main > .fb-pick-count { min-height: 32px; display: flex; align-items: center; padding-right: 48px; }
+body.embed .fb-pick-main > .card.fb { border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 16px 18px; }
+#media-picker-modal .modal-panel { height: 90vh; max-width: 1280px; }
+#media-picker-modal .modal-panel > .settings-frame { flex: 1 1 auto; height: auto; min-height: 0; }
+.media-picker-close { position: absolute; top: 12px; right: 14px; z-index: 2;
+  background: transparent; border: 1px solid transparent; box-shadow: none;
+  transition: background .12s ease, border-color .12s ease, box-shadow .12s ease; }
+.media-picker-close:hover, .media-picker-close:focus-visible { background: var(--panel); border-color: var(--border); box-shadow: var(--shadow); }
 .fb-side .fb-search { flex: 0 0 auto; }
 .fb-side .fb-search input { background: var(--panel); }
 .fb-side-upload { width: 100%; }
@@ -18658,10 +18676,11 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .fb-side-sort .fb-sort-link[aria-current] { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); }
 .fb-side .fb-view { display: flex; }
 .fb-side .fb-view > a { flex: 1 1 0; justify-content: center; }
-.fb-pick-count { margin: 0 0 10px; font-size: var(--fs-sm); }
+.fb-pick-count { margin: 0 0 12px; font-size: var(--fs-sm); }
 @media (max-width: 760px) {
-  .fb-pick { grid-template-columns: minmax(0, 1fr); }
-  .fb-side { position: static; }
+  .fb-pick { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .fb-side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  .fb-side-head { padding-right: 48px; }
 }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides

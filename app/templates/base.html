@@ -2559,15 +2559,14 @@
   </div>
 </div>
 
-{# Media picker modal (shared) #}
+{# Media picker modal (shared). Two panes like Settings, with no title
+   bar: the File Browser's sidebar (titled inside the frame) and its
+   files fill the panel, and the close button floats over the corner. #}
 <div class="modal modal-lg" id="media-picker-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <div class="modal-head">
-      <h2>File Browser</h2>
-      <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-    </div>
-    <iframe class="settings-frame" id="media-picker-frame" src="about:blank"></iframe>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-label="File Browser">
+    <iframe class="settings-frame" id="media-picker-frame" src="about:blank" title="File Browser"></iframe>
+    <button type="button" class="icon-btn media-picker-close" data-close aria-label="Close">{{ icon('x') }}</button>
   </div>
 </div>
 

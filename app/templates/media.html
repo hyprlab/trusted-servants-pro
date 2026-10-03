@@ -9,21 +9,6 @@
   {% endif %}
 {% endblock %}
 {% block content %}
-{# Multi-select picker bar — only rendered when the caller opened
-   the picker with ``multi=1``. The JS in app.js wires per-item
-   Select buttons to toggle items into a running set; this bar
-   shows the running count + a Done button that posts a single
-   ``media-selected-batch`` message back. Hidden by default until
-   at least one item is selected. #}
-{% if picker_multi %}
-<div class="media-multi-bar" data-media-multi-bar hidden>
-  <span class="media-multi-count">
-    <strong data-multi-count>0</strong> selected
-  </span>
-  <button type="button" class="btn btn-sm" data-multi-clear>Clear</button>
-  <button type="button" class="btn btn-primary" data-multi-done>Add items</button>
-</div>
-{% endif %}
 {% set _pkr = '1' if picker else None %}
 {% set _emb = '1' if (picker or request.args.get('embed') == '1') else None %}
 {% set _multi = '1' if picker_multi else None %}
@@ -136,6 +121,7 @@
 <div class="{{ 'fb-pick' if picker }}">
 {% if picker %}
 <aside class="fb-side" aria-label="Find a file">
+  <h1 class="fb-side-head">File Browser</h1>
   {{ _search_form() }}
   {% if current_user.can_edit() %}
   <label class="btn btn-primary fb-side-upload" for="media-upload-input">{{ icon('upload') }} Upload a file</label>
@@ -173,12 +159,14 @@
   </div>
 </aside>
 {% endif %}
-<section class="card fb">
-  {% if picker %}
+{% if picker %}
+<div class="fb-pick-main">
   {% set _total = pagination.total if pagination else items|length %}
   {% set _noun = {'img': 'image', 'doc': 'document', 'vid': 'video', 'aud': 'audio file', 'other': 'other file'}.get(kind, 'file') %}
   <p class="fb-pick-count muted">{{ _total }} {{ _noun }}{{ '' if _total == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}{% if mine %}, uploaded by you{% endif %}</p>
-  {% else %}
+{% endif %}
+<section class="card fb">
+  {% if not picker %}
   {# One toolbar for every mode: search, how many, sort and the view. #}
   <div class="fb-toolbar">
     {{ _search_form() }}
@@ -299,6 +287,23 @@
   </nav>
   {% endif %}
 </section>
+{% if picker %}
+{# Multi-select picker bar, only when the caller opened the picker with
+   ``multi=1``: app.js turns Select into a toggle, and this bar keeps
+   the running count and a Done button that posts one
+   ``media-selected-batch`` message back. Hidden until something is
+   picked; at the foot of the files, it sticks to the bottom. #}
+{% if picker_multi %}
+<div class="media-multi-bar" data-media-multi-bar hidden>
+  <span class="media-multi-count">
+    <strong data-multi-count>0</strong> selected
+  </span>
+  <button type="button" class="btn btn-sm" data-multi-clear>Clear</button>
+  <button type="button" class="btn btn-primary" data-multi-done>Add items</button>
+</div>
+{% endif %}
+</div>
+{% endif %}
 </div>
 
 <div class="modal file-lightbox" id="file-lightbox" aria-hidden="true">
