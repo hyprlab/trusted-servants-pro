@@ -18680,13 +18680,23 @@ form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, min
   border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: 12px; background: var(--panel);
   font-size: var(--fs-sm); }
 .mtg-public-alert > .icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--brand); margin-top: 1px; }
-.mtg-about { display: flex; gap: 20px; align-items: flex-start; }
+.mtg-main { container-type: inline-size; }
+.mtg-pair { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.mtg-pair > .card { margin: 0; }
+/* About and Schedule side by side, 40 / 60, once the column is wide
+   enough for both; stacked below that. */
+@container (min-width: 760px) {
+  .mtg-pair:has(> .mtg-about) { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); align-items: stretch; }
+}
+.mtg-about { container-type: inline-size; }
+.mtg-about-inner { display: flex; gap: 20px; align-items: flex-start; }
+/* Too narrow for the logo beside the text: the logo goes on top. */
+@container (max-width: 440px) { .mtg-about-inner { flex-direction: column; } }
 .mtg-logo { width: 120px; height: 120px; object-fit: contain; flex: 0 0 auto; }
 .mtg-about .meeting-description { flex: 1 1 auto; min-width: 0; }
 .mtg-about .meeting-description .clamp-body { white-space: normal; }
 .mtg-about .meeting-description .clamp-body > :first-child { margin-top: 0; }
 .mtg-about .meeting-description .clamp-body > :last-child { margin-bottom: 0; }
-@media (max-width: 560px) { .mtg-about { flex-direction: column; } }
 
 .mtg-sched { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .mtg-sched-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
