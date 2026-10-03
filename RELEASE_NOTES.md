@@ -98,6 +98,7 @@ release notes expanded by default and the changelog collapsed.
 - A meeting's page is laid out in two columns. On the left: its logo and description (with Markdown now shown as formatted text), its schedule with today marked and any queued schedule changes, and one Files card that switches between its libraries and each kind of file. On the right, staying in view as you scroll: how to join (Zoom with the guided launcher, host account and sign-in codes; Google Meet; Teams) and the location. On narrow screens the joining details come first.
 - A meeting's page shows its public alert, if one is set, and when it ends. Archiving or deleting a meeting asks in a confirmation window.
 - In light mode the highlight behind whatever the pointer is over (tabs in segmented controls, sidebar links, menu items, table rows) is a couple of shades darker, so it shows.
+- In segmented tab controls (the editors, Web Frontend pages and a meeting's Files card), the blue highlight slides over to the tab you choose instead of jumping.
 - New meetings are created on the same page, and land on their editor once created, so files can be added straight away.
 - Renaming a meeting moves its editor to the new address without reloading, and a meeting can now be saved with no libraries ticked.
 - Blog posts are written in Markdown with the same editor, toolbar and live preview as stories and announcements. New posts start in Markdown, and posts that were already Markdown open in it.

@@ -8655,6 +8655,50 @@
   });
 })();
 
+// Segmented controls (.st-seg): the chosen part's highlight is one
+// shape that slides to whichever part is chosen, rather than each part
+// lighting up on its own. It moves in both directions, since a control
+// with many parts wraps onto a second row, and follows the parts when
+// they resize or one is hidden. Whatever chooses the part (fe_studio.js,
+// design_studio.js, a link from elsewhere on the page) only has to set
+// aria-selected.
+(function () {
+  function setup(nav) {
+    if (nav._segThumb) return;
+    var thumb = document.createElement('span');
+    thumb.className = 'st-seg-thumb is-still';
+    thumb.setAttribute('aria-hidden', 'true');
+    nav.insertBefore(thumb, nav.firstChild);
+    nav._segThumb = thumb;
+    nav.classList.add('has-thumb');
+    var shown = false;
+    function place(animate) {
+      var on = nav.querySelector('[aria-selected="true"]');
+      if (!on || on.hidden || !on.offsetWidth) { thumb.style.opacity = '0'; shown = false; return; }
+      // The first placement (and one after a resize) lands without
+      // sliding in from wherever the shape last was.
+      var still = !animate || !shown;
+      thumb.classList.toggle('is-still', still);
+      thumb.style.width = on.offsetWidth + 'px';
+      thumb.style.height = on.offsetHeight + 'px';
+      thumb.style.transform = 'translate(' + on.offsetLeft + 'px, ' + on.offsetTop + 'px)';
+      thumb.style.opacity = '1';
+      shown = true;
+      if (still) requestAnimationFrame(function () { thumb.classList.remove('is-still'); });
+    }
+    place(false);
+    if (window.MutationObserver) {
+      new MutationObserver(function () { place(true); })
+        .observe(nav, { attributes: true, attributeFilter: ['aria-selected', 'hidden'], subtree: true });
+    }
+    if (window.ResizeObserver) new ResizeObserver(function () { place(false); }).observe(nav);
+    window.addEventListener('load', function () { place(false); });
+  }
+  function init() { document.querySelectorAll('.st-seg').forEach(setup); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
 // Segmented controls that scroll sideways ([data-seg-scroll] around the
 // .st-seg): fade the edge with parts out of view, let a vertical wheel
 // scroll it, and keep the chosen part in view.

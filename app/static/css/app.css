@@ -17419,6 +17419,17 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .st-seg button .icon { width: 15px; height: 15px; flex: 0 0 auto; }
 .st-seg button:not([aria-selected="true"]):hover { color: var(--text); background: var(--hover); }
 .st-seg button[aria-selected="true"] { background: var(--brand); color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
+/* With app.js's sliding highlight (.st-seg-thumb) the chosen part drops
+   its own fill and the shape behind it moves from part to part. */
+.st-seg.has-thumb { position: relative; }
+.st-seg-thumb { position: absolute; top: 0; left: 0; width: 0; height: 0; border-radius: 7px; pointer-events: none;
+  background: var(--brand); box-shadow: 0 1px 2px rgba(0, 0, 0, .15); opacity: 0; z-index: 0;
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.2, .8, .2, 1),
+    height .28s cubic-bezier(.2, .8, .2, 1), opacity .15s ease; }
+.st-seg-thumb.is-still { transition: none; }
+.st-seg.has-thumb > button { position: relative; z-index: 1; }
+.st-seg.has-thumb > button[aria-selected="true"] { background: transparent; box-shadow: none; transition: color .2s ease; }
+@media (prefers-reduced-motion: reduce) { .st-seg-thumb { transition: none; } }
 .st-seg-dot { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; display: inline-block; }
 @container (max-width: 520px) { .st-seg button span { display: none; } }
 
