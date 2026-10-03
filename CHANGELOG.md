@@ -19,6 +19,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `User.theme_pref` (`system` / `light` / `dark`, empty until chosen; added by `_migrate_sqlite`) and `POST /tspro/account/theme` (`account_theme_save`). `base.html` and `setup.html` carry it as `data-theme-pref` and resolve `data-theme` before paint (falling back to the browser's `tsp-theme`, with old theme names mapped to light or dark, then `prefers-color-scheme`); `app.js` follows device changes under `system`, saves from `[data-theme-pref-value]` controls and `#theme-toggle`, and migrates a browser's old choice to the account once.
 
 ### Changed
+- Light admin `--bg` is `#f2f4f6` (was `#f6f7fb`), and so is the unstyled-page guard background in `base.html`.
 - The floating Settings close button (`#settings-modal .settings-main-head [data-close]`) is transparent at rest and takes its panel background, border and shadow on hover or keyboard focus.
 - Row-menu columns in `.tbl` tables carry an "Actions" heading (`th.th-actions`, or `th.posts-th-actions` on the post, story and blog lists), right-aligned over the menu.
 - The admin `.page` body has no `max-width` (was `calc(1400px - 2 * var(--content-px))`); the `.page:has(.fe-admin-layout)` and `.page:has(.admin-404)` opt-outs went with it.
