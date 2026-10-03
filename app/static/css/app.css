@@ -3643,6 +3643,21 @@ button.chip { font-family: inherit; }
 .btn-danger { background: var(--danger); color: white; border-color: transparent; }
 .btn-danger:hover { background: #c73a3f; color: white; }
 .btn-sm { padding: 5px 10px; font-size: var(--fs-2xs); }
+/* A file field's own button ("Browse…", "Choose File") reads as a
+   standard blue button. Two rules, not one list: a browser that doesn't
+   know one of the pseudo-elements would drop the whole rule. */
+input[type="file"]::file-selector-button {
+  margin: 0 10px 0 0; padding: 6px 14px; border: 1px solid transparent; border-radius: 8px;
+  background: var(--access); color: #fff; cursor: pointer;
+  font: inherit; font-weight: 600; font-size: var(--fs-sm); line-height: 1.25;
+  transition: background .12s ease;
+}
+input[type="file"]::file-selector-button:hover { background: var(--access-hover); }
+input[type="file"]::-webkit-file-upload-button {
+  margin: 0 10px 0 0; padding: 6px 14px; border: 1px solid transparent; border-radius: 8px;
+  background: var(--access); color: #fff; cursor: pointer;
+  font: inherit; font-weight: 600; font-size: var(--fs-sm); line-height: 1.25;
+}
 
 .form { display: flex; flex-direction: column; gap: 2rem; }
 .form label { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-base); font-weight: 600; color: var(--text); }

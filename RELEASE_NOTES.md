@@ -105,6 +105,7 @@ release notes expanded by default and the changelog collapsed.
 - Choosing a featured image from the File Browser on an existing announcement or event now brings up the save bar; before, the pick was easy to lose.
 - Blog posts list their own past web addresses under URL change history; they showed none, or another post's.
 - The save bar on content pages no longer cuts off "Unsaved changes".
+- The button on file upload fields ("Choose File" or "Browse…", depending on the browser) is a standard blue button throughout the admin.
 - Admin pages use the full width of the screen. They were capped at about 1400 pixels, which left an empty band on the right of wide screens.
 - Tables whose rows show an Actions menu on hover (Meetings, Libraries, Announcements & Events, Stories, Blog, Email List, Recovery Contacts, Zoom Accounts, Redirects and access requests in Watchtower) have an Actions heading over that column.
 - The Settings window's close button is a plain × until you point at it, when its button outline appears.
