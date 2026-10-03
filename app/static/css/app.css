@@ -3068,7 +3068,12 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
    Announcements & Events) pushed the document wider than the viewport.
    Below 720px the media query further down swaps this for a horizontal
    swipe strip with an edge mask, which stays as-is. */
-.top-actions { display: flex; flex-wrap: wrap; gap: 8px; row-gap: 6px; }
+.top-actions { display: flex; flex-wrap: wrap; gap: 8px; row-gap: 6px;
+  /* Each control keeps its own height: a taller neighbour (tabs with
+     count badges) mustn't stretch the buttons beside it. */
+  align-items: center; }
+/* A count badge inside a small tab sits within the tab's line height. */
+.view-toggle .btn .badge { padding: 0 6px; line-height: 1.25; }
 /* Topbar actions run at the same size as the save bar's buttons — which
    is also the base `.btn` size, so the declaration only guards against a
    larger value creeping back in. Anything taller stood 38px beside the
