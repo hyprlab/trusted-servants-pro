@@ -245,7 +245,7 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
   font-weight: 700; letter-spacing: .5px;
 }
 .brand-mark.lg { width: 54px; height: 54px; font-size: var(--fs-xl); border-radius: 14px; }
-.brand-logo { width: 120px; height: auto; display: block; }
+.brand-logo { width: 48px; height: auto; display: block; }
 .sidebar-footer-img-link { display: flex; justify-content: center; padding: 6px 0 10px; }
 .sidebar-footer-img-link img { max-width: 80px; width: 100%; height: auto; display: block; }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
