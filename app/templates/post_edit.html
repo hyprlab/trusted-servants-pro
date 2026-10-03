@@ -150,14 +150,14 @@
             <input type="checkbox" name="is_announcement" value="1"
                    {% if _p and _p.is_announcement %}checked{% endif %}>
             <span class="post-type-pill-body">
-              <span class="post-type-pill-title">{{ icon('megaphone') }}Announcement {% call chip('Announcement type') %}Shows up in announcement feeds and on the public announcements list. Announcements stay up until you archive them by hand, unless you set an auto-archive date on the Publish tab.{% endcall %}</span>
+              <span class="post-type-pill-title">{{ icon('megaphone') }}Announcement {% call chip('Announcement type') %}Shows up in announcement feeds and on the public announcements list. Announcements stay up until you archive them by hand, unless you set an auto-archive date on the Post tab.{% endcall %}</span>
             </span>
           </label>
           <label class="post-type-pill">
             <input type="checkbox" name="is_event" value="1"
                    {% if _p and _p.is_event %}checked{% endif %}>
             <span class="post-type-pill-body">
-              <span class="post-type-pill-title">{{ icon('calendar') }}Event {% call chip('Event type') %}Shows up in event feeds and on the public calendar, and adds the <strong>Event</strong> tab for its dates, place and contact. Events auto-archive on their own: the event's end date takes over the auto-archive setting on the Publish tab.{% endcall %}</span>
+              <span class="post-type-pill-title">{{ icon('calendar') }}Event {% call chip('Event type') %}Shows up in event feeds and on the public calendar, and adds the <strong>Event</strong> tab for its dates, place and contact. Events auto-archive on their own: the event's end date takes over the auto-archive setting on the Post tab.{% endcall %}</span>
             </span>
           </label>
         </div>
@@ -205,7 +205,7 @@
       <div class="st-controls">
         <div class="st-seg-scroll" data-seg-scroll>
           <nav class="st-seg" role="tablist" aria-label="Post settings">
-            <button type="button" role="tab" data-studio-tab="publish">{{ icon('send') }}<span>Publish</span></button>
+            <button type="button" role="tab" data-studio-tab="publish">{{ icon('send') }}<span>Post</span></button>
             <button type="button" role="tab" data-studio-tab="event" data-post-event-tab{% if not (_p and _p.is_event) %} hidden{% endif %}>{{ icon('calendar') }}<span>Event</span></button>
             <button type="button" role="tab" data-studio-tab="links">{{ icon('link') }}<span>Links</span></button>
             <button type="button" role="tab" data-studio-tab="images">{{ icon('image') }}<span>Images</span></button>
@@ -351,7 +351,7 @@
                           title="Jump to today">Today</button>
                 </span>
               </label>
-              <label>{% call hrow('Ends') %}When the event finishes. This also drives auto-archiving: the post moves to <code>/archive</code> at midnight site-local the day after this date, so it stays up for the rest of the day it ends. Leave it blank and <strong>Starts</strong> is used instead; leave both blank and the post never auto-archives. The resolved date is shown under <strong>Auto-archive this post</strong> on the Publish tab.{% endcall %}
+              <label>{% call hrow('Ends') %}When the event finishes. This also drives auto-archiving: the post moves to <code>/archive</code> at midnight site-local the day after this date, so it stays up for the rest of the day it ends. Leave it blank and <strong>Starts</strong> is used instead; leave both blank and the post never auto-archives. The resolved date is shown under <strong>Auto-archive this post</strong> on the Post tab.{% endcall %}
                 <span class="dt-field">
                   <input type="datetime-local" name="event_ends_at" data-event-end
                          value="{% if _p and _p.event_ends_at %}{{ _p.event_ends_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
@@ -628,7 +628,7 @@
 {# Type-checkbox visibility wiring — runs after the whole form is in
    the DOM so plain querySelector finds everything:
    · The Event tab shows only while the Event type is checked.
-   · The auto-archive block (Publish tab) shows while *either*
+   · The auto-archive block (Post tab) shows while *either*
      type is checked, and switches owner depending on which:
        announcement only → the admin picks a date by hand
        tagged as Event   → the switch locks on, the event's own
