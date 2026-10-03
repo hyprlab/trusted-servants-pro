@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
 {% from "_featured_image_field.html" import featured_image_field %}
+{% from "_md_toolbar.html" import md_toolbar %}
 {% set _is_new = post is none %}
 {% set _p = post %}
+{# Posts written in the old block builder keep it until they're
+   converted to Markdown (app/blog_convert.py); everything else,
+   including every new post, is Markdown. #}
+{% set _blocks = (_p and _p.body_blocks) %}
 {% block heading %}{{ 'New blog post' if _is_new else 'Edit blog post' }}{% endblock %}
 {% block heading_help %}{% if _is_new %}Write a blog post: the title, summary and body on the left, and when it's posted, who wrote it, how it's filed and its image on the right.{% else %}Update the post's text, author, filing or image.{% endif %}{% endblock %}
 {% block top_actions %}
@@ -75,11 +80,16 @@
                     placeholder="One or two sentences: what's this post about?">{{ (_p.summary if _p else '') or '' }}</textarea>
         </label>
 
-        {# Body: the block editor (post_body_editor.js). The floating
-           "Add block" pill drops blocks onto the canvas; each block
-           renders as it will read, and its handle drags it into place.
-           `body_blocks_json` carries the blocks to `blog_save`; `body`
-           keeps a post's legacy Markdown until it's rebuilt in blocks. #}
+        {% if _blocks %}
+        {# Body, block builder (post_body_editor.js): the floating
+           "Add block" pill drops blocks onto the canvas, and a block's
+           handle drags it into place. `body_blocks_json` carries the
+           blocks to `blog_save`. #}
+        <div class="blog-convert-note">
+          {{ icon('info') }}
+          <span>This post uses the block builder. Convert it to Markdown to write it like stories and announcements.</span>
+          <button type="button" class="btn btn-sm" data-blog-convert-open data-open-modal="blog-convert-modal">Convert to Markdown</button>
+        </div>
         <div class="form-field-block pbe-card">{% call hrow('Body') %}Add blocks with the floating <span class="pbe-pill-inline">{{ icon('plus') }} Add block</span> pill in the corner, or click a tile to add it at the end. Drag the <span class="pbe-handle-inline" aria-hidden="true">{{ icon('grip-vertical') }}</span> handle on a block to move it.{% endcall %}
           <input type="hidden" name="body_blocks_json" id="pbe-blocks-json"
                  value='{{ (_p.body_blocks_json if (_p and _p.body_blocks_json) else "") }}'>
@@ -100,6 +110,27 @@
             </div>
           </div>
         </div>
+        {% else %}
+        {# Body, Markdown: the same editor as stories and announcements. #}
+        <div class="form-field-block">{% call hrow('Body') %}The full post. Use the toolbar, or type Markdown: headings, <code>**bold**</code>, lists and links. The preview shows it as visitors will see it.{% endcall %}
+          <div class="md-editor md-editor-live post-body-md" data-md-editor data-md-live="1">
+            {{ md_toolbar() }}
+            <div class="md-editor-pane md-editor-pane-write active">
+              <textarea name="body" rows="16"
+                        placeholder="The full post.">{{ (_p.body if _p else '') or '' }}</textarea>
+            </div>
+            <div class="md-editor-pane md-editor-pane-preview active">
+              <div class="md-editor-preview"><p class="muted smaller">Nothing to preview yet.</p></div>
+            </div>
+          </div>
+          {% if _p and _p.body_blocks_backup_json %}
+          <p class="blog-convert-undo muted small">
+            Converted from the block builder.
+            <button type="submit" form="blog-restore-blocks" class="link-btn">Go back to the block version</button>
+          </p>
+          {% endif %}
+        </div>
+        {% endif %}
       </div>
 
       {# ── Settings ────────────────────────────────────────────── #}
@@ -258,6 +289,7 @@
   </section>
 </form>
 
+{% if _blocks %}
 {# Floating block palette: the page builder's "Add block" pill and
    panel (`.fe-page-palette-floating`), namespaced `.pbe-palette` so
    its tiles drop onto the post body above. #}
@@ -320,6 +352,8 @@
     </div>
   </section>
 </div>
+
+{% endif %}
 
 <style>
   /* Category checklist — vertical rows, each a clickable label. Hover
@@ -421,7 +455,17 @@
   .blog-tag-add-status.is-success { color: #047857; }
 </style>
 <script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+{% if _blocks %}
 <script src="{{ url_for('static', filename='js/post_body_editor.js', v=app_build_id) }}" defer></script>
+{% include "_blog_convert_modal.html" %}
+{% endif %}
+{% if _p and _p.body_blocks_backup_json and not _blocks %}
+<form id="blog-restore-blocks" method="post" action="{{ url_for('main.blog_restore_blocks', bid=_p.id) }}" hidden
+      data-confirm="The post goes back to the block version it had when it was converted. Changes made to the Markdown since then are lost."
+      data-confirm-title="Go back to the block version?" data-confirm-label="Go back">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endif %}
 
 {# "Today" beside the publish date: sets it to now and opens the picker. #}
 <script>

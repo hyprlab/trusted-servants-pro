@@ -16468,7 +16468,11 @@ def _cleanup_retired_asset(stored):
         token = "/pub/" + m_item.original_filename
         body_refs = (Post.query.filter(Post.body.contains(token)).count()
                      + Story.query.filter(Story.body.contains(token)).count()
-                     + BlogPost.query.filter(BlogPost.body.contains(token)).count())
+                     + BlogPost.query.filter(BlogPost.body.contains(token)).count()
+                     # Block-builder posts, and the block version kept
+                     # when a post is converted to Markdown.
+                     + BlogPost.query.filter(BlogPost.body_blocks_json.contains(token)).count()
+                     + BlogPost.query.filter(BlogPost.body_blocks_backup_json.contains(token)).count())
         if body_refs > 0:
             return
     # Drop any cached thumbnails generated from this source so they
@@ -20272,6 +20276,13 @@ def blog_save():
         post.body_blocks_json = _sanitize_blog_body_blocks(blocks_raw)
     else:
         post.body_blocks_json = None
+    # "Convert to Markdown" saves the form with this flag: the blocks as
+    # they stand become the Markdown body, and are kept so the
+    # conversion can be undone.
+    converted = False
+    if request.form.get("convert_to_markdown") == "1" and post.body_blocks:
+        _convert_blog_post_to_markdown(post)
+        converted = True
     post.author_name = (request.form.get("author_name") or "").strip()[:120] or None
     # author_bio is no longer surfaced in the editor — legacy values
     # on existing posts are preserved (the column stays on the
@@ -20325,12 +20336,68 @@ def blog_save():
     if creating:
         flash(("Draft saved: " + post.title) if post.is_draft else ("Published: " + post.title), "success")
         return redirect(url_for("main.blog_index", show=("drafts" if post.is_draft else "active")))
-    flash("Post saved", "success")
+    flash("Converted to Markdown" if converted else "Post saved", "success")
     if _post_save_wants_json():
         return jsonify(_editor_save_payload(
             post.public_slug, post.slug,
             "public.blog_post_featured_image" if post.featured_image_filename else None, bid=post.id))
     return redirect(url_for("main.blog_edit", bid=post.id))
+
+
+def _convert_blog_post_to_markdown(post):
+    """Swap a block-builder post's body for Markdown (blog_convert),
+    keeping the blocks in ``body_blocks_backup_json``. Returns the note
+    counts. The caller commits."""
+    from .blog_convert import blocks_to_markdown
+    md, counts = blocks_to_markdown(post.body_blocks)
+    post.body_blocks_backup_json = post.body_blocks_json
+    post.body = md
+    post.body_blocks_json = None
+    return counts
+
+
+@bp.route("/blog/convert-preview", methods=["POST"])
+@login_required
+def blog_convert_preview():
+    """What "Convert to Markdown" would make of the blocks in the editor
+    right now: the Markdown, how it reads on the public page, and what
+    Markdown can't carry over. Changes nothing."""
+    _require_blog_enabled()
+    from flask import render_template_string
+    from .blog_convert import blocks_to_markdown, describe_notes
+    raw = (request.form.get("body_blocks_json") or "").strip()
+    try:
+        blocks = json.loads(_sanitize_blog_body_blocks(raw)) if raw else []
+    except (TypeError, ValueError):
+        blocks = []
+    md, counts = blocks_to_markdown(blocks)
+    return jsonify({
+        "ok": True,
+        "markdown": md,
+        "html": render_template_string("{{ md|markdown }}", md=md),
+        "notes": describe_notes(counts),
+    })
+
+
+@bp.route("/blog/<int:bid>/restore-blocks", methods=["POST"])
+@login_required
+def blog_restore_blocks(bid):
+    """Undo a conversion: the post goes back to the block version kept
+    when it was converted. Markdown edits made since are dropped."""
+    _require_blog_enabled()
+    post = db.session.get(BlogPost, bid) or abort(404)
+    if not post.body_blocks_backup_json:
+        flash("This post has no block version to go back to.", "warning")
+        return redirect(url_for("main.blog_edit", bid=bid))
+    post.body_blocks_json = post.body_blocks_backup_json
+    post.body_blocks_backup_json = None
+    post.body = None
+    db.session.commit()
+    from . import activity
+    activity.log("blog.restore_blocks", entity_type="blog", entity_id=post.id,
+                 summary=f"Restored the block version of “{post.title}”")
+    flash("Back to the block version", "success")
+    return redirect(url_for("main.blog_edit", bid=bid))
 
 
 @bp.route("/blog/<int:bid>/publish", methods=["POST"])
@@ -20438,7 +20505,7 @@ def blog_bulk():
     fields:
 
       action    — archive | unarchive | draft | publish | delete
-                | feature | unfeature | pin | unpin
+                | feature | unfeature | pin | unpin | markdown
                 | add_category | remove_category | replace_categories
                 | add_tag | remove_tag
       ids       — repeated ``ids`` field, one per checked row
@@ -20451,7 +20518,7 @@ def blog_bulk():
     _require_blog_enabled()
     action = (request.form.get("action") or "").strip().lower()
     valid = {"archive", "unarchive", "draft", "publish", "delete",
-             "feature", "unfeature", "pin", "unpin",
+             "feature", "unfeature", "pin", "unpin", "markdown",
              "add_category", "remove_category", "replace_categories",
              "add_tag", "remove_tag"}
     if action not in valid:
@@ -20493,6 +20560,18 @@ def blog_bulk():
         for asset in retired_inline:
             _cleanup_retired_asset(asset)
         label = "deleted"
+    elif action == "markdown":
+        # Posts already in Markdown are left as they are.
+        done = 0
+        for p in rows:
+            if p.body_blocks:
+                _convert_blog_post_to_markdown(p)
+                done += 1
+        db.session.commit()
+        skipped = n - done
+        n = done
+        label = "converted to Markdown" + (
+            f" ({skipped} already Markdown)" if skipped else "")
     elif action in ("add_category", "remove_category", "replace_categories"):
         try:
             cid = int(request.form.get("category_id") or 0)

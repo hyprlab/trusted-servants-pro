@@ -7,6 +7,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- `app/blog_convert.py`: `blocks_to_markdown` turns a blog post's block list into Markdown and counts what it simplifies (`describe_notes`); `block_breaks`, which the `markdown_block` filter now imports, keeps converted paragraphs reading as they did. `BlogPost.body_blocks_backup_json` (migrated in `_migrate_sqlite`) keeps the block version of a converted post.
+- Blog conversion routes: `POST /blog/convert-preview` (Markdown, rendered HTML and notes for the editor's current blocks), `blog_save` with `convert_to_markdown=1`, `POST /blog/<id>/restore-blocks`, and the `markdown` action in `blog_bulk`. `_blog_convert_modal.html` is the editor's preview and confirm.
 - `static/js/content_editor.js`: the title-to-slug sync and the fetch save bar, shared by `post_edit.html`, `story_edit.html` and `blog_edit.html` (form `[data-content-editor]`, bar `[data-editor-save-bar]`). Widgets that build their own fields mark themselves `data-editor-own-changes` and report edits with an `editor:changed` event (`post_body_editor.js` does).
 - `_featured_image_field.html` (`featured_image_field(src, about)`) and `_md_toolbar.html` (`md_toolbar()`), used by all three editors.
 - `story_save` and `blog_save` answer `X-Requested-With: fetch` with JSON (`_editor_save_payload`, `_editor_save_failed`); featured images go through `_apply_featured_image` (upload, WebP conversion, File Browser pick).
@@ -23,6 +25,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `User.theme_pref` (`system` / `light` / `dark`, empty until chosen; added by `_migrate_sqlite`) and `POST /tspro/account/theme` (`account_theme_save`). `base.html` and `setup.html` carry it as `data-theme-pref` and resolve `data-theme` before paint (falling back to the browser's `tsp-theme`, with old theme names mapped to light or dark, then `prefers-color-scheme`); `app.js` follows device changes under `system`, saves from `[data-theme-pref-value]` controls and `#theme-toggle`, and migrates a browser's old choice to the account once.
 
 ### Changed
+- `blog_edit.html` shows the Markdown editor (`md_toolbar`, live preview in `markdown` mode, as the public templates render `body`) unless the post has blocks; only then does it load `post_body_editor.js` and the block palette.
+- `_cleanup_retired_asset` also counts `/pub/` references in `BlogPost.body_blocks_json` and `body_blocks_backup_json`, so an image a block post or a kept block version uses isn't deleted with another post.
 - `story_edit.html` and `blog_edit.html` are `.st-studio.post-studio` cards (`data-studio="story"` / `"blog"`, driven by `fe_studio.js`) in the post editor's 60/40 layout. Top-of-page Publish / Move to Drafts submit the form with `action`. Delete forms in all three editors use `data-confirm`.
 - `_slug_history.html` takes a `slug_kind` ("story", "blog") and links the matching public path.
 - `.fe-save-bar-content` sizes to its contents.

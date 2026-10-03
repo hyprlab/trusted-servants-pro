@@ -2680,6 +2680,9 @@ class BlogPost(db.Model):
     # empty list means "use the legacy markdown `body` column" so older
     # posts keep rendering identically until they're re-edited.
     body_blocks_json = db.Column(db.Text)
+    # The block version of a post converted to Markdown, so the
+    # conversion can be undone (app/blog_convert.py). NULL otherwise.
+    body_blocks_backup_json = db.Column(db.Text)
     featured_image_filename = db.Column(db.String(500))
     author_name = db.Column(db.String(120))
     author_bio = db.Column(db.Text)

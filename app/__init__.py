@@ -332,43 +332,9 @@ def create_app():
                 cleaned = inner
         return Markup(cleaned)
 
-    import re as _re
-
-    _MD_FENCE_RE = _re.compile(r"^(?:```|~~~)")
-    _MD_LIST_RE  = _re.compile(r"^\s*(?:[-*+]\s|\d+\.\s)")
-    _MD_HEAD_RE  = _re.compile(r"^#{1,6}\s")
-    _MD_BQ_RE    = _re.compile(r"^>\s?")
-
-    def _markdown_block_breaks(text):
-        """Insert blank lines before list items, headings, and blockquotes
-        when they directly follow a non-blank line that isn't already the
-        same kind of marker. Python-Markdown requires that blank line for
-        the block to be recognized as a list/heading/quote — we add it for
-        the user so typing `intro⏎- item` "just works". Fenced code blocks
-        are passed through untouched."""
-        out = []
-        in_fence = False
-        for line in text.split("\n"):
-            if _MD_FENCE_RE.match(line):
-                in_fence = not in_fence
-                out.append(line); continue
-            if in_fence:
-                out.append(line); continue
-            prev = out[-1] if out else ""
-            prev_blank = prev.strip() == ""
-            is_list = bool(_MD_LIST_RE.match(line))
-            is_head = bool(_MD_HEAD_RE.match(line))
-            is_bq   = bool(_MD_BQ_RE.match(line))
-            if (is_list or is_head or is_bq) and prev and not prev_blank:
-                same_kind = (
-                    (is_list and _MD_LIST_RE.match(prev)) or
-                    (is_head and _MD_HEAD_RE.match(prev)) or
-                    (is_bq   and _MD_BQ_RE.match(prev))
-                )
-                if not same_kind:
-                    out.append("")
-            out.append(line)
-        return "\n".join(out)
+    # Shared with the blog conversion (blog_convert), which has to read
+    # the same as this filter.
+    from .blog_convert import block_breaks as _markdown_block_breaks
 
     @app.template_filter("markdown_block")
     def markdown_block_filter(value):
@@ -2108,7 +2074,10 @@ def _migrate_sqlite(app):
         # Blog post body block editor: stores the visual drag-and-drop
         # payload as a JSON list. NULL means "fall back to the legacy
         # markdown `body` column" so upgrades don't blank existing posts.
-        for col, ddl in (("body_blocks_json", "TEXT"),):
+        # body_blocks_backup_json: the block version of a post converted
+        # to Markdown (blog_convert), kept so the conversion can be undone.
+        for col, ddl in (("body_blocks_json", "TEXT"),
+                         ("body_blocks_backup_json", "TEXT")):
             add("blog_post", col, ddl)
         for col, ddl in (("is_archived", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("archived_at", "DATETIME"),

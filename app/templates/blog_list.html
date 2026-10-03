@@ -135,6 +135,10 @@
     {% endif %}
 
     <span class="posts-bulk-sep" aria-hidden="true">·</span>
+    {# Posts still in the block builder; the rest are skipped. #}
+    <button type="button" class="btn btn-sm" data-bulk="markdown"
+            title="Convert the selected block-builder posts to Markdown. Each keeps its block version and can be restored from its editor."
+            data-bulk-confirm="Convert the selected posts to Markdown? Section and image layout settings, buttons, callouts and videos are simplified. Each post keeps its block version, which can be restored from its editor.">To Markdown</button>
     <button type="button" class="btn btn-sm btn-danger" data-bulk="delete"
             data-bulk-confirm="Delete the selected posts permanently? Featured images will be cleaned up. This cannot be undone.">Delete</button>
     <button type="button" class="btn btn-sm posts-bulk-clear" data-bulk-clear>Clear</button>
@@ -208,6 +212,7 @@
           {% if p.is_featured and not p.is_draft and not p.is_archived %}<span class="post-chip post-chip-announcement">Featured</span>{% endif %}
           {% if p.is_draft %}<span class="post-chip post-chip-draft">Draft</span>{% endif %}
           {% if p.is_archived %}<span class="post-chip">Archived</span>{% endif %}
+          {% if p.body_blocks %}<span class="post-chip" title="Written in the block builder. Open it to convert it to Markdown.">Block builder</span>{% endif %}
           {% if not p.is_draft and not p.is_archived and not p.is_featured and not p.is_pinned %}<span class="post-chip post-chip-event">Live</span>{% endif %}
         </td>
         <td class="posts-td-actions">
