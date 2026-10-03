@@ -18525,34 +18525,43 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .post-studio-main .md-editor-live .md-editor-pane-write textarea { min-height: 340px; }
 /* One shell split into Write | Preview: no gap between the panes, and
    the preview is the tinted pane itself rather than a box inside it.
-   It names itself, since it can sit under the editor. */
+   Side by side, the toolbar names it; stacked under the editor, where
+   the toolbar is far above it, it names itself. */
 .post-studio-main .md-editor-live { gap: 0; }
-.post-studio-main .md-editor-live .md-editor-pane-preview::before {
-  content: "Preview"; display: block; padding: 12px 16px 0;
-  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .post-studio-main .md-editor-live .md-editor-preview {
-  border: 0; border-radius: 0; background: transparent; padding: 8px 16px 14px; }
+  border: 0; border-radius: 0; background: transparent; padding: 12px 16px 14px; }
 .form .post-studio-main .md-editor-live .md-editor-pane-write textarea {
   border: 0; border-radius: 0; background: var(--panel); box-shadow: none; padding: 12px 16px; }
 @container (max-width: 760px) {
   .post-studio-main .md-editor-live { grid-template-columns: minmax(0, 1fr); }
+  .post-studio-main .md-editor-live > .md-toolbar > .md-toolbar-label { display: none; }
+  .post-studio-main .md-editor-live .md-editor-pane-preview::before {
+    content: "Preview"; display: block; padding: 12px 16px 0;
+    font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .post-studio-main .md-editor-live .md-editor-preview { padding-top: 8px; }
   .post-studio-main .md-editor-live .md-editor-pane-write { border-right: 0; border-bottom: 1px solid var(--border); }
   .post-studio-main .md-editor-live .md-editor-pane-write textarea { min-height: 260px; }
   .post-studio-main .md-editor-live .md-editor-preview { min-height: 100px; }
 }
 @container (max-width: 520px) { .post-studio .post-type-row { grid-template-columns: minmax(0, 1fr); } }
 
-/* Markdown toolbar across the top of an editor (app.js initMdToolbars). */
-.md-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 5px 8px;
-  border-bottom: 1px solid var(--border); background: var(--panel); }
-.md-editor-live > .md-toolbar { grid-column: 1 / -1; }
-.md-toolbar > button, .form .md-toolbar > button { display: inline-flex; align-items: center; justify-content: center;
+/* Markdown toolbar across the top of an editor (app.js initMdToolbars).
+   In a side-by-side editor it follows the panes' columns: the buttons
+   over Write, the Preview label over the preview. */
+.md-toolbar { border-bottom: 1px solid var(--border); background: var(--panel); }
+.md-toolbar-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 5px 8px; min-width: 0; }
+.md-toolbar-label { display: none; }
+.md-editor-live > .md-toolbar { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
+.md-editor-live > .md-toolbar > .md-toolbar-label {
+  display: flex; align-items: center; padding: 0 16px; border-left: 1px solid var(--border); background: var(--panel-2);
+  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.md-toolbar button, .form .md-toolbar button { display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 30px; padding: 0; margin: 0; border: 0; border-radius: 6px; background: transparent;
   color: var(--muted); cursor: pointer; box-shadow: none; transition: background .12s, color .12s; }
-.md-toolbar > button:hover { background: var(--panel-2); color: var(--text); }
-.md-toolbar > button:active { background: var(--border); }
-.md-toolbar > button:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
-.md-toolbar > button .icon { width: 16px; height: 16px; }
+.md-toolbar button:hover { background: var(--panel-2); color: var(--text); }
+.md-toolbar button:active { background: var(--border); }
+.md-toolbar button:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.md-toolbar button .icon { width: 16px; height: 16px; }
 .md-toolbar-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--border); }
 
 /* Settings column. */

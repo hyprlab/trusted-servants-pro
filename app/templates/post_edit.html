@@ -188,20 +188,24 @@
                data-md-mode="block" data-md-event-tokens>
             {# Formatting buttons (app.js initMdToolbars): each writes the
                Markdown at the caret or around the selection. #}
-            <div class="md-toolbar" role="toolbar" aria-label="Formatting" data-md-toolbar>
-              <button type="button" data-md-cmd="heading" title="Heading" aria-label="Heading">{{ icon('heading') }}</button>
-              <button type="button" data-md-cmd="bold" title="Bold (Ctrl+B)" aria-label="Bold">{{ icon('bold') }}</button>
-              <button type="button" data-md-cmd="italic" title="Italic (Ctrl+I)" aria-label="Italic">{{ icon('italic') }}</button>
-              <span class="md-toolbar-sep" aria-hidden="true"></span>
-              <button type="button" data-md-cmd="link" title="Link (Ctrl+K)" aria-label="Link">{{ icon('link') }}</button>
-              <button type="button" data-md-cmd="image" title="Image from the File Browser" aria-label="Image">{{ icon('image') }}</button>
-              <span class="md-toolbar-sep" aria-hidden="true"></span>
-              <button type="button" data-md-cmd="ul" title="Bulleted list" aria-label="Bulleted list">{{ icon('list') }}</button>
-              <button type="button" data-md-cmd="ol" title="Numbered list" aria-label="Numbered list">{{ icon('list-ordered') }}</button>
-              <button type="button" data-md-cmd="quote" title="Quote" aria-label="Quote">{{ icon('quote') }}</button>
-              <span class="md-toolbar-sep" aria-hidden="true"></span>
-              <button type="button" data-md-cmd="code" title="Code" aria-label="Code">{{ icon('code') }}</button>
-              <button type="button" data-md-cmd="hr" title="Divider line" aria-label="Divider line">{{ icon('minus') }}</button>
+            <div class="md-toolbar" data-md-toolbar>
+              <div class="md-toolbar-tools" role="toolbar" aria-label="Formatting">
+                <button type="button" data-md-cmd="heading" title="Heading" aria-label="Heading">{{ icon('heading') }}</button>
+                <button type="button" data-md-cmd="bold" title="Bold (Ctrl+B)" aria-label="Bold">{{ icon('bold') }}</button>
+                <button type="button" data-md-cmd="italic" title="Italic (Ctrl+I)" aria-label="Italic">{{ icon('italic') }}</button>
+                <span class="md-toolbar-sep" aria-hidden="true"></span>
+                <button type="button" data-md-cmd="link" title="Link (Ctrl+K)" aria-label="Link">{{ icon('link') }}</button>
+                <button type="button" data-md-cmd="image" title="Image from the File Browser" aria-label="Image">{{ icon('image') }}</button>
+                <span class="md-toolbar-sep" aria-hidden="true"></span>
+                <button type="button" data-md-cmd="ul" title="Bulleted list" aria-label="Bulleted list">{{ icon('list') }}</button>
+                <button type="button" data-md-cmd="ol" title="Numbered list" aria-label="Numbered list">{{ icon('list-ordered') }}</button>
+                <button type="button" data-md-cmd="quote" title="Quote" aria-label="Quote">{{ icon('quote') }}</button>
+                <span class="md-toolbar-sep" aria-hidden="true"></span>
+                <button type="button" data-md-cmd="code" title="Code" aria-label="Code">{{ icon('code') }}</button>
+                <button type="button" data-md-cmd="hr" title="Divider line" aria-label="Divider line">{{ icon('minus') }}</button>
+              </div>
+              {# Heads the preview column when the panes sit side by side. #}
+              <span class="md-toolbar-label" aria-hidden="true">Preview</span>
             </div>
             <div class="md-editor-pane md-editor-pane-write active">
               <textarea name="body" rows="16" data-event-tag-target
