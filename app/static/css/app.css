@@ -18536,6 +18536,10 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 @container (max-width: 520px) { .post-studio .post-type-row { grid-template-columns: minmax(0, 1fr); } }
 
 /* Settings column. */
+/* No card head above it here, so the grey column meets the card's top
+   corner and takes its rounding; stacked under the writing, it doesn't. */
+.post-studio .st-body--split > .st-controls { border-top-right-radius: var(--radius); }
+@container (max-width: 900px) { .post-studio .st-body--split > .st-controls { border-top-right-radius: 0; } }
 .post-studio .st-controls .ds-group-title { margin-bottom: 0; }
 .post-stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .post-studio .st-controls .dt-field > input[type="datetime-local"] { max-width: none; }
