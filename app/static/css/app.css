@@ -18662,7 +18662,7 @@ form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, min
   font-size: var(--fs-sm); }
 .mtg-public-alert > .icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--brand); margin-top: 1px; }
 .mtg-about { display: flex; gap: 20px; align-items: flex-start; }
-.mtg-logo { width: 88px; height: 88px; object-fit: contain; flex: 0 0 auto; }
+.mtg-logo { width: 90px; height: 90px; object-fit: contain; flex: 0 0 auto; }
 .mtg-about .meeting-description { flex: 1 1 auto; min-width: 0; }
 .mtg-about .meeting-description .clamp-body { white-space: normal; }
 .mtg-about .meeting-description .clamp-body > :first-child { margin-top: 0; }
