@@ -73,10 +73,7 @@
       <img class="mtg-logo" src="{{ url_for('main.meeting_logo', mid=meeting.id) }}" alt="">
       {% endif %}
       {% if meeting.description %}
-      <div class="meeting-description clamp-5" data-clampable>
-        <div class="clamp-body">{{ meeting.description|markdown_block }}</div>
-        <button type="button" class="clamp-toggle link" data-clamp-toggle hidden>Show more</button>
-      </div>
+      <div class="meeting-description">{{ meeting.description|markdown_block }}</div>
       {% endif %}
       </div>
     </section>

@@ -5534,7 +5534,6 @@ body.embed .card.data-card:last-child {
 .mtype-in_person { background: rgba(56, 198, 76, 0.2); color: #1f9d3b; }
 
 .meeting-description { color: var(--text); }
-.meeting-description .clamp-body { white-space: pre-wrap; }
 /* Zoom block promoted to its own data-card inside the right column.
    `.card`'s default bottom margin would push it off-center; zero it so
    the card centers cleanly. */
@@ -18694,9 +18693,8 @@ form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, min
 @container (max-width: 440px) { .mtg-about-inner { flex-direction: column; } }
 .mtg-logo { width: 120px; height: 120px; object-fit: contain; flex: 0 0 auto; }
 .mtg-about .meeting-description { flex: 1 1 auto; min-width: 0; }
-.mtg-about .meeting-description .clamp-body { white-space: normal; }
-.mtg-about .meeting-description .clamp-body > :first-child { margin-top: 0; }
-.mtg-about .meeting-description .clamp-body > :last-child { margin-bottom: 0; }
+.mtg-about .meeting-description > :first-child { margin-top: 0; }
+.mtg-about .meeting-description > :last-child { margin-bottom: 0; }
 
 .mtg-sched { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .mtg-sched-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
