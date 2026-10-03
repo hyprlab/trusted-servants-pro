@@ -1036,15 +1036,6 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 .post-form textarea { max-width: 100%; box-sizing: border-box; }
 .post-form textarea { resize: vertical; }
 
-.post-form .post-subhead {
-  margin: 1.5rem 0 0.5rem; font-size: var(--fs-sm); font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
-}
-.post-zoom-block {
-  margin-top: 1.25rem; padding: 14px 16px;
-  background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
-}
-.post-zoom-block .post-subhead { margin-top: 0; }
 
 
 /* Two-panel split admin card — visualizes the layout builder's split
@@ -1656,19 +1647,6 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 [data-maps-url-help].is-warn { color: var(--danger, #b42318); }
 [data-maps-url-help].is-ok { color: var(--brand); }
 
-/* Uniform vertical rhythm inside every card on the announcement /
-   event edit page — 1rem between each grouping (card-head, pills,
-   labels, sub-blocks). Adjacent-sibling so the first element keeps
-   the card's own top padding without doubling. Sub-section headers
-   (.post-subhead) get a little extra air above so the card visually
-   splits into its sub-groups. */
-.post-form > .card > * + * {
-  margin-top: 1rem;
-}
-.post-form > .card > .post-subhead,
-.post-form > .card > .post-zoom-block {
-  margin-top: 1.5rem;
-}
 
 /* The whole post editor reads in the body face (Inter) — no
    monospace anywhere on this page. Overrides the global
@@ -18522,6 +18500,59 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .fb-empty p { margin: 0; }
 .fb-empty-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--panel-2); }
 .fb-empty-icon .icon { width: 22px; height: 22px; }
+
+/* ── Announcement / event editor (post_edit.html): the writing on the
+   left (60%) and the post's settings on the right, switched with a
+   segmented control, as on the Web Frontend studio pages. ── */
+.card.post-studio { padding: 0; container-type: inline-size; }
+.st-group-body[hidden], .st-seg button[hidden] { display: none; }
+.post-studio-main { min-width: 0; padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 16px;
+  container-type: inline-size; }
+.post-studio-main > label, .post-studio-main > .form-field-block { margin: 0; }
+.post-studio .post-type-row { margin: 0; gap: 10px; }
+.post-studio .post-type-pill { padding: 10px 14px; gap: 10px; border-width: 1px; border-radius: 10px; }
+.post-studio .post-type-pill:has(input:checked) { box-shadow: inset 0 0 0 1px var(--brand); }
+.post-type-pill-title { display: inline-flex; align-items: center; gap: 8px; }
+.post-type-pill-title > .icon { width: 16px; height: 16px; color: var(--muted); }
+.post-type-pill:has(input:checked) .post-type-pill-title > .icon { color: var(--brand); }
+.post-type-hint { margin: -6px 0 0; }
+.post-type-hint[hidden] { display: none; }
+.form .post-title-input { font-size: var(--fs-lg); font-weight: 600; padding: 10px 12px; }
+.post-studio-main .md-editor-live .md-editor-pane-write textarea { min-height: 340px; }
+/* The body's preview names itself, since it can sit under the editor. */
+.post-studio-main .md-editor-live .md-editor-pane-preview::before {
+  content: "Preview"; display: block; padding: 10px 16px 0;
+  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+@container (max-width: 760px) {
+  .post-studio-main .md-editor-live { grid-template-columns: minmax(0, 1fr); }
+  .post-studio-main .md-editor-live .md-editor-pane-write { border-right: 0; border-bottom: 1px solid var(--border); }
+  .post-studio-main .md-editor-live .md-editor-pane-write textarea { min-height: 260px; }
+  .post-studio-main .md-editor-live .md-editor-preview { min-height: 100px; }
+}
+@container (max-width: 520px) { .post-studio .post-type-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* Settings column. */
+.post-studio .st-controls .ds-group-title { margin-bottom: 0; }
+.post-stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.post-studio .st-controls .dt-field > input[type="datetime-local"] { max-width: none; }
+.post-vis-seg { display: flex; }
+.post-vis-seg > label { flex: 1 1 0; min-width: 0; }
+.post-studio .post-announcement-expiry,
+.post-studio .post-toggle-row--panel { background: var(--panel); }
+.post-studio .post-announcement-expiry-input { max-width: none; }
+.post-studio .slug-input-row { flex-wrap: wrap; }
+.post-studio .st-controls .post-links-editor { margin: 0; }
+.post-studio .st-controls .post-links-row { background: var(--panel); }
+.post-studio .st-controls .post-links-row-fields { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.post-studio .st-controls .post-links-row-style { min-width: 0; flex: 1 1 160px; }
+.post-studio [data-post-featured-image],
+.post-studio [data-post-gallery] { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.post-studio .st-controls .og-image-row { grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 0; }
+.post-studio .st-controls .og-image-preview img { margin-top: 0; }
+.post-studio .st-controls .og-image-empty { margin-top: 0; background: var(--panel); }
+.post-studio .st-controls .post-gallery-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); margin: 0; }
+.post-studio .st-controls .post-gallery-upload-label { min-width: 0; }
+.post-gallery-count { font-weight: 600; letter-spacing: 0; text-transform: none; }
 
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
