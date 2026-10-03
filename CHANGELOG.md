@@ -138,6 +138,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The Neobrutal Light, Neobrutal Dark, Cyberpunk and Solarpunk admin themes: their `[data-theme]` tokens and rules in `app.css`, the `.theme-picker` swatches in Settings → Appearance and the setup wizard, and their unstyled-page guard backgrounds. Web Frontend themes are unaffected.
 - The `.brand-version` badge from the sidebar footer and its rule in `app.css`; the version stays in the About modal.
 - The sidebar `.brand` text (`.brand-title`, `.brand-sub`) and the unused `.brand-logo-lg`; the sidebar now shows `logo_tspro_about.svg` at 64px wide.
+- The sidebar's Admin section: `_ADMIN_CATALOG` (Watchtower only, already hidden from the list) and `_DYNAMIC_SECTION_ITEMS` from `app/sidebar.py`. Every catalog item renders in Main, gated by `_is_visible` as before. `sidebar_order_json` no longer saves an `admin` list; a stored one is read as the tail of Main (`_main_order`) and a stored `admin` section key is ignored.
 
 ## [2.20.2] — 2026-09-30
 

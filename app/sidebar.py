@@ -7,10 +7,15 @@ visibility checks centralised here. Sorting honors the admin's
 ``sidebar_sort_mode``:
 
   auto-asc / auto-desc — alphabetical inside each section. The section
-                         order is fixed: Main → External → Admin.
+                         order is fixed: Main → Forms → Intergroup →
+                         External.
   manual               — reads ``sidebar_order_json`` written by the
                          drag-drop UI: {"sections": [...],
-                         "main": [...], "admin": [...]}.
+                         "main": [...], "intergroup": [...]}.
+
+There is no Admin section: every item sits in Main and shows only to the
+users its permission check lets in. Orders saved before that keep an
+"admin" list, which is read as the tail of Main.
 
 External-link items inside the External section are NOT reordered —
 admins manage their order on the External Links tab. The whole external
@@ -28,9 +33,8 @@ _MAIN_CATALOG = [
     {"key": "libraries",      "label": "Libraries",            "endpoint": "main.libraries",      "active_kind": "contains:librar|reading|!intergroup"},
     {"key": "media",          "label": "File Browser",         "endpoint": "main.media_list",     "active_kind": "contains:media"},
     {"key": "zoom_accounts",  "label": "Zoom Accounts",        "endpoint": "main.zoom_accounts",  "active_kind": "contains:zoom_account"},
-    # The four module-gated items below carry their own ``required_role``
-    # column. Their section placement is decided at render time:
-    # required_role == "admin" → Admin section; otherwise → Main.
+    # The module-gated items below carry their own ``required_role``
+    # column, checked in _is_visible.
     {"key": "intergroup",     "label": None,                   "endpoint": "main.intergroup",       "active_kind": "exact"},
     {"key": "zoom_tech",      "label": None,                   "endpoint": "main.zoom_tech",        "active_kind": "exact"},
     {"key": "posts",          "label": "Announcements & Events", "endpoint": "main.posts",          "active_kind": "prefix:main.post"},
@@ -41,21 +45,6 @@ _MAIN_CATALOG = [
     {"key": "web_frontend",   "label": "Web Frontend",         "endpoint": "main.frontend_dashboard", "active_kind": "prefix:main.frontend_"},
 ]
 
-_ADMIN_CATALOG = [
-    # Items that are always admin-only by code, not configuration.
-    # Watchtower absorbs the legacy Access Requests, User Log, and
-    # Delete Log surfaces into a single tabbed dashboard with new
-    # security analytics on top. The legacy routes still resolve so
-    # external bookmarks keep working — the sidebar only shows
-    # Watchtower as the canonical entry point.
-    {"key": "watchtower",      "label": "Watchtower",             "endpoint": "main.watchtower",       "active_kind": "contains:watchtower"},
-    # NOTE: "Contact Form" and the monolithic "Custom Form Submissions"
-    # link were moved out of the Admin section into the dynamic per-form
-    # "Forms" section (see _build_forms_items / build_sidebar) — the
-    # built-in Contact Form inbox pins to the top (admin-only), then each
-    # accessible custom form gets its own inbox.
-]
-
 # Static (non-library) items that live inside the "Intergroup" sidebar
 # subsection when the umbrella module is on. Library entries are
 # discovered dynamically from ``Library.is_intergroup`` so admins can
@@ -64,20 +53,6 @@ _INTERGROUP_CATALOG = [
     {"key": "ig_email", "label": "Email", "endpoint": "main.intergroup",
      "active_kind": "exact"},
 ]
-
-# Module-gated items whose section placement (Main vs Admin) follows
-# their required_role: admin → Admin section, otherwise → Main.
-# Maps item key → SiteSetting attribute that holds the required role.
-_DYNAMIC_SECTION_ITEMS = {
-    "intergroup":       "intergroup_required_role",
-    "zoom_tech":        "zoom_tech_required_role",
-    "posts":            "posts_required_role",
-    "stories":          "stories_required_role",
-    "blog":             "blog_required_role",
-    "trusted_servants": "trusted_servants_required_role",
-    "recovery_contacts":       "recovery_contacts_required_role",
-    "web_frontend":     "frontend_module_required_role",
-}
 
 # Keys that are always rendered first inside their section regardless of
 # sort mode and are excluded from the drag-drop reorder UI. Dashboard is
@@ -478,29 +453,12 @@ def build_sidebar(site, user, current_endpoint, nav_links, url_for):
     except (ValueError, TypeError):
         stored = {}
 
-    # Decide which section each visible Main-catalog item lives in. For
-    # the four module-gated items (intergroup, zoom_tech, posts,
-    # web_frontend) the placement follows their per-module required-
-    # role: ``admin`` → Admin section; anything else → Main. For all
-    # other items the section is always Main.
-    def _section_for(item_key):
-        attr = _DYNAMIC_SECTION_ITEMS.get(item_key)
-        if not attr:
-            return "main"
-        required = (getattr(site, attr, None) if site else None) or "viewer"
-        return "admin" if required == "admin" else "main"
-
     main_items = []
-    admin_items = []
     main_catalog_label_lookup = {it["key"]: _label_for(it["key"], site, it["label"]) for it in _MAIN_CATALOG}
     visible_main = [it for it in _MAIN_CATALOG if _is_visible(it["key"], site, user)]
     main_by_key = {it["key"]: it for it in visible_main}
 
-    # Partition visible Main-catalog items into their resolved section.
-    visible_main_keys_main = [it["key"] for it in visible_main if _section_for(it["key"]) == "main"]
-    visible_main_keys_admin = [it["key"] for it in visible_main if _section_for(it["key"]) == "admin"]
-
-    for k in _ordered_keys(stored.get("main"), visible_main_keys_main, mode, main_catalog_label_lookup):
+    for k in _ordered_keys(_main_order(stored), list(main_by_key), mode, main_catalog_label_lookup):
         it = main_by_key[k]
         main_items.append({
             "key": k,
@@ -519,26 +477,6 @@ def build_sidebar(site, user, current_endpoint, nav_links, url_for):
         external_items.sort(key=lambda x: (x["label"] or "").lower(),
                             reverse=(mode == "auto-desc"))
 
-    # Admin section: static admin-only items (Access Requests) plus any
-    # Main-catalog items the admin pinned to admin via required_role.
-    admin_label_lookup = dict(main_catalog_label_lookup)
-    admin_label_lookup.update({it["key"]: it["label"] for it in _ADMIN_CATALOG})
-    visible_static_admin = [it for it in _ADMIN_CATALOG if _is_visible(it["key"], site, user)]
-    static_admin_keys = [it["key"] for it in visible_static_admin]
-    admin_keys_combined = static_admin_keys + visible_main_keys_admin
-    admin_by_key = {it["key"]: it for it in visible_static_admin}
-    admin_by_key.update({it["key"]: it for it in visible_main if it["key"] in visible_main_keys_admin})
-
-    for k in _ordered_keys(stored.get("admin"), admin_keys_combined, mode, admin_label_lookup):
-        it = admin_by_key[k]
-        admin_items.append({
-            "key": k,
-            "label": admin_label_lookup[k],
-            "href": url_for(it["endpoint"]),
-            "active": _active_for(it["active_kind"], current_endpoint),
-            "target": None,
-        })
-
     intergroup_items = _build_intergroup_items(site, user, current_endpoint, url_for)
     forms_items = _build_forms_items(site, user, current_endpoint, url_for)
     sections = [
@@ -546,7 +484,6 @@ def build_sidebar(site, user, current_endpoint, nav_links, url_for):
         ("forms",      "Forms",      forms_items),
         ("intergroup", "Intergroup", intergroup_items),
         ("external",   "External",   external_items),
-        ("admin",      "Admin",      admin_items),
     ]
     sections_by_key = {s[0]: s for s in sections}
     if mode == "manual" and stored.get("sections"):
@@ -559,10 +496,9 @@ def build_sidebar(site, user, current_endpoint, nav_links, url_for):
         # in at its *canonical position relative to the explicit keys*.
         # Concretely, walk the canonical order; for each missing key,
         # insert it just before the first explicit key whose canonical
-        # index is higher. This keeps a saved [main, external, admin]
-        # order rendering [main, intergroup, external, admin] without
-        # bumping admin off the bottom.
-        canonical = ("main", "forms", "intergroup", "external", "admin")
+        # index is higher. This keeps a saved [main, external] order
+        # rendering [main, intergroup, external].
+        canonical = ("main", "forms", "intergroup", "external")
         canonical_idx = {k: i for i, k in enumerate(canonical)}
         missing = [k for k in canonical if k not in seen]
         order = list(explicit)
@@ -575,28 +511,22 @@ def build_sidebar(site, user, current_endpoint, nav_links, url_for):
                     break
             order.insert(insert_at, k)
         sections = [sections_by_key[k] for k in order]
-    # External should only render if there's at least one link AND
-    # the user can see admin-area entries OR the user's role permits it.
+    # A section with nothing this user may see is left out.
     sections = [(k, lbl, items) for (k, lbl, items) in sections if items]
     return sections
 
 
-# Catalog exposed for the admin reorder UI. Pinned keys are filtered
-# out so they never appear as draggable rows. Module-gated items
-# (intergroup, zoom_tech, posts, web_frontend) appear under whichever
-# section their current required_role places them in, mirroring the
-# live sidebar — so the manual reorder list always reflects what the
-# visitor actually sees.
-def admin_reorder_catalog(site):
-    def _section_for(key):
-        attr = _DYNAMIC_SECTION_ITEMS.get(key)
-        if not attr:
-            return "main"
-        required = (getattr(site, attr, None) if site else None) or "viewer"
-        return "admin" if required == "admin" else "main"
+def _main_order(stored):
+    """The saved manual order of Main. Orders saved while the sidebar had
+    an Admin section keep those items in an "admin" list; they follow
+    Main's own items, which is where they now render."""
+    return (stored.get("main") or []) + (stored.get("admin") or [])
 
+
+# Catalog exposed for the admin reorder UI. Pinned keys are filtered
+# out so they never appear as draggable rows.
+def admin_reorder_catalog(site):
     main_items = []
-    admin_items = []
     intergroup_items = []
     umbrella_on = bool(site and site.intergroup_module_enabled)
     for it in _MAIN_CATALOG:
@@ -608,15 +538,7 @@ def admin_reorder_catalog(site):
         # never actually renders.
         if it["key"] == "intergroup" and umbrella_on:
             continue
-        entry = {"key": it["key"], "label": _label_for(it["key"], site, it["label"]) or it["key"]}
-        if _section_for(it["key"]) == "admin":
-            admin_items.append(entry)
-        else:
-            main_items.append(entry)
-    for it in _ADMIN_CATALOG:
-        if it["key"] in PINNED_KEYS:
-            continue
-        admin_items.append({"key": it["key"], "label": it["label"]})
+        main_items.append({"key": it["key"], "label": _label_for(it["key"], site, it["label"]) or it["key"]})
     if umbrella_on:
         # Intergroup section: Email Accounts (static) plus one row per
         # Intergroup-flagged library. Surfaced here for visibility in
@@ -628,4 +550,4 @@ def admin_reorder_catalog(site):
         for lib in Library.query.filter(Library.is_intergroup == True)\
                 .order_by(Library.name).all():  # noqa: E712
             intergroup_items.append({"key": f"ig_lib_{lib.id}", "label": lib.name})
-    return {"main": main_items, "intergroup": intergroup_items, "admin": admin_items}
+    return {"main": main_items, "intergroup": intergroup_items}

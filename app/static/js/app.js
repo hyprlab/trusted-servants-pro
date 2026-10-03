@@ -5076,7 +5076,7 @@
     const sections = [...sectionList.querySelectorAll(":scope > .sidebar-order-section")]
       .map(sec => sec.getAttribute("data-section-key"));
     const out = { sections };
-    ["main", "intergroup", "admin"].forEach(scope => {
+    ["main", "intergroup"].forEach(scope => {
       const ul = sectionList.querySelector('[data-section-items="' + scope + '"]');
       if (!ul) return;
       out[scope] = [...ul.querySelectorAll(':scope > .sidebar-order-item')]

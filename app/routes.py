@@ -3272,7 +3272,7 @@ def sidebar_save():
     known set; manual JSON is parsed and only known keys are kept so a
     handcrafted POST can't poison the sidebar with stray entries."""
     import json as _json
-    from .sidebar import _MAIN_CATALOG, _ADMIN_CATALOG  # noqa: WPS437
+    from .sidebar import _MAIN_CATALOG  # noqa: WPS437
     s = _get_site_setting()
     mode = (request.form.get("sidebar_sort_mode") or "").strip()
     if mode not in {"auto-asc", "auto-desc", "manual"}:
@@ -3286,12 +3286,11 @@ def sidebar_save():
         except (ValueError, TypeError):
             payload = {}
         from .sidebar import PINNED_KEYS as _PINNED  # noqa: WPS437
-        valid_section_keys = {"main", "intergroup", "external", "admin"}
+        valid_section_keys = {"main", "intergroup", "external"}
         # Pinned keys (Dashboard) are excluded from validation so they
         # can't be saved into the manual order — they're always rendered
         # first by the helper regardless of stored JSON.
         valid_main = {it["key"] for it in _MAIN_CATALOG if it["key"] not in _PINNED}
-        valid_admin = {it["key"] for it in _ADMIN_CATALOG if it["key"] not in _PINNED}
         # Intergroup keys are *dynamic* — the section's content includes
         # ``ig_email`` plus one ``ig_lib_<id>`` per Intergroup-flagged
         # library. Resolve the valid set from the live reorder catalog
@@ -3309,9 +3308,6 @@ def sidebar_save():
         ig = payload.get("intergroup")
         if isinstance(ig, list):
             clean["intergroup"] = [k for k in ig if isinstance(k, str) and k in valid_intergroup]
-        a = payload.get("admin")
-        if isinstance(a, list):
-            clean["admin"] = [k for k in a if isinstance(k, str) and k in valid_admin]
         s.sidebar_order_json = _json.dumps(clean) if clean else None
     db.session.commit()
     flash("Sidebar order saved", "success")
@@ -3350,8 +3346,8 @@ def sidebar_nav_fragment():
 def sidebar_order_manual_fragment():
     """Inner HTML of the Settings → Sidebar tab's manual drag-drop
     section. Used by the live-refresh JS so the manual reorder list
-    mirrors the dynamic Main/Admin section placement of module-gated
-    items immediately after a role change, without a page reload."""
+    mirrors which module-gated items are on immediately after a
+    module change, without a page reload."""
     s = _get_site_setting()
     nav_items = NavLink.query.order_by(NavLink.position, NavLink.id).all()
     return render_template("_sidebar_order_manual.html",

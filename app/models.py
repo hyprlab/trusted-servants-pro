@@ -768,7 +768,7 @@ class SiteSetting(db.Model):
     # Sidebar ordering. Mode: auto-asc | auto-desc | manual. Auto modes
     # ignore the JSON and sort items alphabetically inside each section
     # (Main → External → Admin order is fixed). Manual mode reads
-    # sidebar_order_json: {"sections": [...], "main": [...], "admin": [...]}.
+    # sidebar_order_json: {"sections": [...], "main": [...], "intergroup": [...]}.
     sidebar_sort_mode = db.Column(db.String(16), nullable=False, default="auto-asc")
     sidebar_order_json = db.Column(db.Text)
     smtp_host = db.Column(db.String(255))
