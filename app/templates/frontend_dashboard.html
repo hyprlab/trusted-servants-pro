@@ -31,7 +31,7 @@
         </form>
         <div>
           <div class="fe-ss-label">Public site
-            {% call chip('Public site') %}On: everyone can see the site at the root URL. Off: only signed-in admins and frontend editors can, so you can keep building.{% endcall %}
+            {% call chip('Public site') %}On: everyone can see the site at the root URL. Off: only signed-in admins and frontend editors can.{% endcall %}
           </div>
           <div class="fe-ss-value">{% if site and site.frontend_enabled %}<span class="fe-status-pill on">● Live</span>{% else %}<span class="fe-status-pill off">● Off</span>{% endif %}</div>
         </div>
