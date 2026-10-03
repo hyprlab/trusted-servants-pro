@@ -41,8 +41,8 @@
    lines, separated with <br>). #}
 {% macro _place(m) %}{{ m.location.split('<br')[0]|striptags }}{% endmacro %}
 {# Gates mirror the detail page's own top actions. #}
-{% macro _actions(m) %}
-  {% call row_menu('Actions for ' ~ m.name, compact=True) %}
+{% macro _actions(m, compact=False) %}
+  {% call row_menu('Actions' if not compact else 'Actions for ' ~ m.name, compact=compact) %}
     <a class="row-menu-item" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">
       {{ icon('eye') }}<span>Open</span></a>
     {% if current_user.can_edit() %}
@@ -157,9 +157,8 @@
           <a class="lst-card-link" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">{{ m.name }}</a>
           <span class="mtype-chip mtype-{{ m.meeting_type }}">{{ TYPE_LABELS.get(m.meeting_type, m.meeting_type) }}</span>
         </div>
-        {{ _actions(m) }}
+        {{ _actions(m, compact=True) }}
       </div>
-      {% if m.alert_message %}<p class="lst-card-alert">{{ icon('alert-triangle') }}<span>{{ m.alert_message }}</span></p>{% endif %}
       {% if runs[m.id] %}
       <ul class="lst-sched">
         {% for r in runs[m.id] %}
@@ -186,7 +185,7 @@
   {% else %}
   <table class="tbl fb-tbl lst-tbl">
     <thead>
-      <tr><th class="fb-thumb-col"><span class="sr-only">Logo</span></th>{{ _sort_th('name', 'Name') }}{{ _sort_th('type', 'Type', 'fb-col') }}{{ _sort_th('day', 'Schedule', 'fb-col') }}{{ _sort_th('libraries', 'Libraries', 'fb-col fb-num fb-col-wide') }}{{ _sort_th('files', 'Files', 'fb-col fb-num') }}<th><span class="sr-only">Actions</span></th></tr>
+      <tr><th class="fb-thumb-col"><span class="sr-only">Logo</span></th>{{ _sort_th('name', 'Name') }}{{ _sort_th('type', 'Type', 'fb-col') }}{{ _sort_th('day', 'Schedule', 'fb-col') }}{{ _sort_th('libraries', 'Libraries', 'fb-col fb-num fb-col-wide') }}{{ _sort_th('files', 'Files', 'fb-col fb-num') }}<th class="th-actions">Actions</th></tr>
     </thead>
     <tbody>
       {% for m in meetings %}
@@ -195,9 +194,7 @@
         <td class="fb-thumb-cell">{{ _thumb(m) }}</td>
         <td class="media-name-cell">
           <a class="fb-name" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">{{ m.name }}</a>
-          {% if m.alert_message %}
-          <div class="fb-sub lst-sub-alert" title="{{ m.alert_message }}">{{ icon('alert-triangle') }} {{ m.alert_message }}</div>
-          {% elif m.location and m.meeting_type != 'online' %}
+          {% if m.location and m.meeting_type != 'online' %}
           <div class="fb-sub">{{ _place(m) }}</div>
           {% endif %}
           {# On a phone the columns fold into this line. #}

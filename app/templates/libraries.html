@@ -33,8 +33,8 @@
 {% endmacro %}
 {# Same permission gates the library detail page applies to its own
    top actions, so the menu never offers what the route would refuse. #}
-{% macro _actions(l) %}
-  {% call row_menu('Actions for ' ~ l.name, compact=True) %}
+{% macro _actions(l, compact=False) %}
+  {% call row_menu('Actions' if not compact else 'Actions for ' ~ l.name, compact=compact) %}
     <a class="row-menu-item" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">
       {{ icon('folder') }}<span>Open</span></a>
     {% if current_user.can_manage_libraries() and current_user.can_edit_library(l) %}
@@ -134,7 +134,7 @@
           <a class="lst-card-link" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">{{ l.name }}</a>
           {{ _chips(l) }}
         </div>
-        {{ _actions(l) }}
+        {{ _actions(l, compact=True) }}
       </div>
       {% if l.alert_message %}<p class="lst-card-alert">{{ icon('alert-triangle') }}<span>{{ l.alert_message }}</span></p>{% endif %}
       {% if l.description %}<p class="lst-card-desc">{{ l.description }}</p>
@@ -149,7 +149,7 @@
   {% else %}
   <table class="tbl fb-tbl lst-tbl">
     <thead>
-      <tr><th class="fb-thumb-col"><span class="sr-only">Icon</span></th>{{ _sort_th('name', 'Name') }}{{ _sort_th('files', 'Files', 'fb-col fb-num') }}{{ _sort_th('meetings', 'Meetings', 'fb-col fb-num') }}<th><span class="sr-only">Actions</span></th></tr>
+      <tr><th class="fb-thumb-col"><span class="sr-only">Icon</span></th>{{ _sort_th('name', 'Name') }}{{ _sort_th('files', 'Files', 'fb-col fb-num') }}{{ _sort_th('meetings', 'Meetings', 'fb-col fb-num') }}<th class="th-actions">Actions</th></tr>
     </thead>
     <tbody>
       {% for l in libraries %}
