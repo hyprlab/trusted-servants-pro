@@ -7,6 +7,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- `stories` takes `q` (title, summary or author, case-insensitive) and `featured=1`; `stories.html` gets the `.list-filters` row, and its column sort links carry both.
 - `media_list` filters by `kind` (`MEDIA_KINDS`: img, doc, vid, aud, other, from one SQL `type_case` now shared with the type sort) and `mine=1` (uploaded by the signed-in user), and passes `kind_counts`. In picker mode `media.html` puts search, upload, kind, uploader, sort and view in an `.fb-side` sidebar; every link goes through `_fb_url`, so filters, search and multi-select survive sorting, view changes and paging. `pointPicker` in `app.js` opens image pickers (featured image, gallery, Markdown image) on `kind=img`.
 - `app/blog_convert.py`: `blocks_to_markdown` turns a blog post's block list into Markdown and counts what it simplifies (`describe_notes`); `block_breaks`, which the `markdown_block` filter now imports, keeps converted paragraphs reading as they did. `BlogPost.body_blocks_backup_json` (migrated in `_migrate_sqlite`) keeps the block version of a converted post.
 - Blog conversion routes: `POST /blog/convert-preview` (Markdown, rendered HTML and notes for the editor's current blocks), `blog_save` with `convert_to_markdown=1`, `POST /blog/<id>/restore-blocks`, and the `markdown` action in `blog_bulk`. `_blog_convert_modal.html` is the editor's preview and confirm.

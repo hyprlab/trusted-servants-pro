@@ -19451,6 +19451,15 @@ def stories():
         q = q.filter(Story.is_archived.is_(False),
                      Story.is_draft.is_(False),
                      Story.is_pending_review.is_(False))
+    # Search and filter row (stories.html), as on the blog list.
+    q_text = (request.args.get("q") or "").strip()
+    if q_text:
+        like = f"%{q_text}%"
+        q = q.filter(db.or_(Story.title.ilike(like), Story.summary.ilike(like),
+                            Story.author_name.ilike(like)))
+    featured = request.args.get("featured") == "1"
+    if featured:
+        q = q.filter(Story.is_featured.is_(True))
     if sort == "posted_asc":
         q = q.order_by(db.func.coalesce(Story.published_at, Story.created_at).asc())
     elif sort == "title_asc":
@@ -19473,7 +19482,8 @@ def stories():
                      .filter(Story.is_pending_review.is_(True),
                              Story.is_archived.is_(False)).count())
     return render_template("stories.html", stories=items, show=show, sort=sort,
-                           pending_count=pending_count)
+                           pending_count=pending_count, q_text=q_text,
+                           featured=featured)
 
 
 @bp.route("/stories/new")

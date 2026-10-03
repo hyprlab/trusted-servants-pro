@@ -34,13 +34,40 @@
   {%- set is_active = sort in (primary, secondary) -%}
   {%- set next_sort = secondary if sort == primary else primary -%}
   <a class="posts-sort{% if is_active %} is-active{% endif %}"
-     href="{{ url_for('main.stories', show=show, sort=next_sort) }}">
+     href="{{ url_for('main.stories', show=show, sort=next_sort, q=q_text or None, featured='1' if featured else None) }}">
     {{ label }}
     {% if sort == primary %}<span class="posts-sort-arrow" aria-hidden="true">{{ '↑' if 'asc' in primary else '↓' }}</span>
     {% elif sort == secondary %}<span class="posts-sort-arrow" aria-hidden="true">{{ '↑' if 'asc' in secondary else '↓' }}</span>
     {% endif %}
   </a>
 {%- endmacro -%}
+{# Search and filters in one row, as on the blog list: a menu applies
+   as soon as it changes, the search when Enter is pressed. #}
+{% set _filtered = q_text or featured or sort != 'posted_desc' %}
+<form method="get" action="{{ url_for('main.stories') }}" class="list-filters" role="search" data-auto-submit>
+  <input type="hidden" name="show" value="{{ show }}">
+  <label class="list-filters-search">
+    {{ icon('search') }}
+    <input type="search" name="q" value="{{ q_text or '' }}" placeholder="Search titles, summaries and authors" aria-label="Search stories">
+  </label>
+  <select name="featured" aria-label="Featured">
+    <option value="">All stories</option>
+    <option value="1" {% if featured %}selected{% endif %}>Featured only</option>
+  </select>
+  <select name="sort" aria-label="Sort">
+    <option value="posted_desc" {% if sort == 'posted_desc' %}selected{% endif %}>Newest first</option>
+    <option value="posted_asc" {% if sort == 'posted_asc' %}selected{% endif %}>Oldest first</option>
+    <option value="updated_desc" {% if sort == 'updated_desc' %}selected{% endif %}>Recently edited</option>
+    <option value="story_date_desc" {% if sort == 'story_date_desc' %}selected{% endif %}>Story date, newest</option>
+    <option value="story_date_asc" {% if sort == 'story_date_asc' %}selected{% endif %}>Story date, oldest</option>
+    <option value="title_asc" {% if sort == 'title_asc' %}selected{% endif %}>Title, A to Z</option>
+    <option value="title_desc" {% if sort == 'title_desc' %}selected{% endif %}>Title, Z to A</option>
+    <option value="author_asc" {% if sort == 'author_asc' %}selected{% endif %}>Author, A to Z</option>
+  </select>
+  {% if _filtered %}<a class="btn list-filters-clear" href="{{ url_for('main.stories', show=show) }}">{{ icon('x') }} Clear</a>{% endif %}
+  <noscript><button class="btn btn-primary" type="submit">Apply</button></noscript>
+</form>
+
 {% if stories %}
 {# Bulk-action wrapper — same shape as posts.html. Per-row action
    buttons sit OUTSIDE this form (referenced via `form="single-<id>-..."`)
@@ -243,7 +270,9 @@
 {% else %}
 <section class="card">
   <p class="muted">
-    {% if show == 'archived' %}Nothing archived.
+    {% if q_text %}No {{ 'featured ' if featured }}stories match “{{ q_text }}”. <a href="{{ url_for('main.stories', show=show) }}">Show them all</a>.
+    {% elif featured %}No featured stories here. <a href="{{ url_for('main.stories', show=show) }}">Show them all</a>.
+    {% elif show == 'archived' %}Nothing archived.
     {% elif show == 'drafts' %}No drafts yet.
     {% elif show == 'pending' %}No story submissions waiting for review.
     {% else %}Nothing here yet — click <b>+ New story</b> above to start one.{% endif %}
