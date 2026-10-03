@@ -2,119 +2,182 @@
 {% from "_row_menu.html" import row_menu %}
 {% block heading %}Libraries{% endblock %}
 {% block heading_help %}Curated collections of readings and reference materials organized by topic for trusted servants and members.{% endblock %}
-{% block top_actions %}
-  <div class="view-controls">
-    <div class="view-toggle">
-      <a class="btn btn-sm {% if view != 'table' %}active{% endif %}" href="{{ url_for('main.libraries', view='cards', sort=sort, dir=direction, show=show) }}">Cards</a>
-      <a class="btn btn-sm {% if view == 'table' %}active{% endif %}" href="{{ url_for('main.libraries', view='table', sort=sort, dir=direction, show=show) }}">Table</a>
-    </div>
-    {# Active / Archived, same shape as the Meetings list. The Archived
-       tab is hidden entirely until something has been archived, so the
-       toolbar doesn't grow a permanently-empty tab. #}
-    {% if show == 'archived' or archived_count %}
-    <div class="view-toggle">
-      <a class="btn btn-sm {% if show != 'archived' %}active{% endif %}"
-         href="{{ url_for('main.libraries', view=view, sort=sort, dir=direction, show='active') }}">Active</a>
-      <a class="btn btn-sm {% if show == 'archived' %}active{% endif %}"
-         href="{{ url_for('main.libraries', view=view, sort=sort, dir=direction, show='archived') }}">
-        Archived{% if archived_count %} <span class="nav-badge">{{ archived_count }}</span>{% endif %}
-      </a>
-    </div>
-    {% endif %}
-    <label class="sort-select">
-      <span class="muted smaller">Sort</span>
-      <select onchange="window.location=this.value">
-        <option value="{{ url_for('main.libraries', view=view, sort='name', dir=direction, show=show) }}" {% if sort=='name' %}selected{% endif %}>Name</option>
-        <option value="{{ url_for('main.libraries', view=view, sort='files', dir=direction, show=show) }}" {% if sort=='files' %}selected{% endif %}>Files</option>
-      </select>
-    </label>
-    <a class="btn btn-sm sort-dir" title="Toggle sort direction"
-       href="{{ url_for('main.libraries', view=view, sort=sort, dir=('desc' if direction=='asc' else 'asc'), show=show) }}">
-      {{ '↓' if direction == 'desc' else '↑' }}
-    </a>
-  </div>
-  {% if current_user.can_manage_libraries() %}
-  <button type="button" class="btn btn-primary" data-open-modal="library-new-modal">+ New Library</button>
-  {% endif %}
-{% endblock %}
+{% block top_actions %}{% endblock %}
 {% block content %}
-{% if libraries %}
-  {% if view == 'table' %}
-  <section class="card">
-    <table class="tbl">
-      <thead>
-        <tr><th>Name</th><th class="hide-sm">Description</th><th>Files</th><th class="th-actions">Actions</th></tr>
-      </thead>
-      <tbody>
-        {% for l in libraries %}
-        <tr>
-          <td>
-            <a href="{{ url_for('main.library_detail', slug=l.public_slug) }}">{{ l.name }}</a>
-            {% if l.archived_at %}<span class="chip chip-archived">Archived</span>{% endif %}
-          </td>
-          <td class="muted hide-sm">{{ l.description or '—' }}</td>
-          <td>{{ l.items.count() }}</td>
-          {# Same permission gates the library detail page applies to its
-             own top-actions, so the menu can never offer something the
-             target route would then refuse. #}
-          <td class="row-actions">
-            {% call row_menu() %}
-              <a class="row-menu-item" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">
-                {{ icon('folder') }}<span>Open</span></a>
-              {% if current_user.can_manage_libraries() and current_user.can_edit_library(l) %}
-              <a class="row-menu-item" href="{{ url_for('main.library_edit', slug=l.public_slug) }}">
-                {{ icon('pencil') }}<span>Edit details</span></a>
-              {% endif %}
-              {% if current_user.is_admin() %}
-                {% if l.archived_at %}
-                <form method="post" action="{{ url_for('main.library_unarchive', slug=l.public_slug) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="row-menu-item" title="Restore from archive">
-                    {{ icon('rotate-ccw') }}<span>Restore</span></button>
-                </form>
-                {% else %}
-                <form method="post" action="{{ url_for('main.library_archive', slug=l.public_slug) }}"
-                      onsubmit="return confirm('Archive this library? It will be hidden from the main list and the public Literature Library page, but can be restored later.');">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="row-menu-item" title="Archive this library">
-                    {{ icon('box') }}<span>Archive</span></button>
-                </form>
-                {% endif %}
-              <div class="row-menu-sep" role="separator"></div>
-              <form method="post" action="{{ url_for('main.library_delete', slug=l.public_slug) }}"
-                    onsubmit="return confirm('Delete this library?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="row-menu-item row-menu-item-danger" title="Delete library">
-                  {{ icon('trash') }}<span>Delete</span></button>
-              </form>
-              {% endif %}
-            {% endcall %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
-  {% else %}
-  <div class="cards">
+{# Every link here keeps the page's settings (view, sort, search and
+   filters) and changes only what it passes in `over`. #}
+{% set _base = {'view': view, 'sort': sort, 'dir': direction, 'q': q or None,
+                'show': 'archived' if show == 'archived' else None, 'public': public or None} %}
+{% macro _url(over={}) -%}
+  {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}{{ url_for('main.libraries', **_u) }}
+{%- endmacro %}
+{# Sorting: click a column (or a Sort by button) to sort by it; click it
+   again to reverse. Counts start with the most. #}
+{% set SORT_FIRST_DIR = {'name': 'asc', 'files': 'desc', 'meetings': 'desc'} %}
+{% macro _sort_link(key, label) -%}
+  {%- set _on = sort == key -%}
+  <a class="erow-sort fb-sort-link" href="{{ _url({'sort': key, 'dir': (('asc' if direction == 'desc' else 'desc') if _on else SORT_FIRST_DIR[key])}) }}"
+     {% if _on %}data-dir="{{ direction }}" aria-current="true"{% endif %}
+     title="{% if _on %}Sorted by {{ label|lower }}: click to reverse{% else %}Sort by {{ label|lower }}{% endif %}">{{ label }}</a>
+{%- endmacro %}
+{% macro _sort_th(key, label, cls='') -%}
+  <th class="{{ cls }}"{% if sort == key %} aria-sort="{{ 'ascending' if direction == 'asc' else 'descending' }}"{% endif %}>{{ _sort_link(key, label) }}</th>
+{%- endmacro %}
+{% macro _plural(n, one, many=None) %}{{ n }} {{ one if n == 1 else (many or one ~ 's') }}{% endmacro %}
+{% macro _thumb(l) %}
+  <span class="lst-thumb lst-thumb--library{{ ' is-archived' if l.archived_at }}" aria-hidden="true">{{ icon('book-open') }}</span>
+{% endmacro %}
+{% macro _chips(l) %}
+  {% if l.archived_at %}<span class="chip chip-archived">Archived</span>
+  {% elif l.public_visible %}<span class="lst-chip" title="Shown on the public Literature Library page">{{ icon('globe') }}Public</span>{% endif %}
+{% endmacro %}
+{# Same permission gates the library detail page applies to its own
+   top actions, so the menu never offers what the route would refuse. #}
+{% macro _actions(l) %}
+  {% call row_menu('Actions for ' ~ l.name, compact=True) %}
+    <a class="row-menu-item" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">
+      {{ icon('folder') }}<span>Open</span></a>
+    {% if current_user.can_manage_libraries() and current_user.can_edit_library(l) %}
+    <a class="row-menu-item" href="{{ url_for('main.library_edit', slug=l.public_slug) }}">
+      {{ icon('pencil') }}<span>Edit details</span></a>
+    {% endif %}
+    {% if current_user.is_admin() %}
+      {% if l.archived_at %}
+      <form method="post" action="{{ url_for('main.library_unarchive', slug=l.public_slug) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="row-menu-item">{{ icon('rotate-ccw') }}<span>Restore</span></button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('main.library_archive', slug=l.public_slug) }}"
+            data-confirm-title="Archive this library?" data-confirm-label="Archive"
+            data-confirm="“{{ l.name }}” will be hidden from this list and the public Literature Library page. You can restore it from Archived at any time.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="row-menu-item">{{ icon('box') }}<span>Archive</span></button>
+      </form>
+      {% endif %}
+    <div class="row-menu-sep" role="separator"></div>
+    <form method="post" action="{{ url_for('main.library_delete', slug=l.public_slug) }}"
+          data-confirm-title="Delete this library?" data-confirm-label="Delete"
+          data-confirm="“{{ l.name }}” and its files will be deleted for good, and meetings that use it will lose it.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+    </form>
+    {% endif %}
+  {% endcall %}
+{% endmacro %}
+
+<div class="fb-pick fb-pick--page lst-page">
+<aside class="fb-side" aria-label="Find a library">
+  {% set _filtered = q or public %}
+  <div class="fb-side-top">
+    <p class="fb-side-total" aria-live="polite">{{ _plural(libraries|length, 'archived library' if show == 'archived' else 'library', 'archived libraries' if show == 'archived' else 'libraries') }}{% if q %} matching “{{ q }}”{% endif %}</p>
+  </div>
+  <form method="get" action="{{ url_for('main.libraries') }}" class="fb-search" role="search">
+    {% for k, v in _base.items() if k != 'q' and v is not none %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    {{ icon('search') }}
+    <input type="search" name="q" value="{{ q }}" placeholder="Search libraries" aria-label="Search libraries by name or description">
+  </form>
+  {% if current_user.can_manage_libraries() %}
+  <button type="button" class="btn btn-primary fb-side-upload" data-open-modal="library-new-modal">{{ icon('plus') }} New library</button>
+  {% endif %}
+  <nav class="fb-side-group" aria-label="Status">
+    <h3 class="fb-side-title">Status</h3>
+    <a class="fb-side-link" href="{{ _url({'show': None}) }}" {% if show != 'archived' %}aria-current="true"{% endif %}>
+      {{ icon('book-open') }}<span>Active</span><span class="fb-side-count">{{ active_count }}</span></a>
+    <a class="fb-side-link{{ ' is-empty' if not archived_count }}" href="{{ _url({'show': 'archived'}) }}" {% if show == 'archived' %}aria-current="true"{% endif %}>
+      {{ icon('box') }}<span>Archived</span><span class="fb-side-count">{{ archived_count }}</span></a>
+  </nav>
+  <nav class="fb-side-group" aria-label="Literature Library page">
+    <h3 class="fb-side-title">Public Literature page</h3>
+    {% for key, label, ic in [('', 'All libraries', 'layout-grid'), ('shown', 'Shown', 'globe'), ('hidden', 'Not shown', 'eye-off')] %}
+    {% set _n = public_counts.get(key, 0) %}
+    <a class="fb-side-link{{ ' is-empty' if not _n }}" href="{{ _url({'public': key or None}) }}" {% if public == key %}aria-current="true"{% endif %}>
+      {{ icon(ic) }}<span>{{ label }}</span><span class="fb-side-count">{{ _n }}</span></a>
+    {% endfor %}
+  </nav>
+  <div class="fb-side-group" role="group" aria-label="Sort libraries">
+    <h3 class="fb-side-title">Sort by</h3>
+    <div class="fb-side-sort">
+      {{ _sort_link('name', 'Name') }}{{ _sort_link('files', 'Files') }}{{ _sort_link('meetings', 'Meetings') }}
+    </div>
+  </div>
+  <div class="fb-side-group">
+    <h3 class="fb-side-title">View</h3>
+    <div class="ds-seg-btns fb-view" role="group" aria-label="View">
+      <a href="{{ _url({'view': 'list'}) }}" aria-checked="{{ 'true' if view != 'grid' else 'false' }}" role="radio" title="List">{{ icon('list') }}<span>List</span></a>
+      <a href="{{ _url({'view': 'grid'}) }}" aria-checked="{{ 'true' if view == 'grid' else 'false' }}" role="radio" title="Grid">{{ icon('layout-grid') }}<span>Grid</span></a>
+    </div>
+  </div>
+</aside>
+<div class="fb-pick-main">
+<section class="card fb lst">
+  {% if not libraries %}
+  <div class="fb-empty">
+    <span class="fb-empty-icon" aria-hidden="true">{{ icon('box' if show == 'archived' else 'book-open') }}</span>
+    {% if _filtered %}
+    <p>No {{ 'archived ' if show == 'archived' }}libraries match {{ 'these filters' if public else '“' ~ q ~ '”' }}.</p>
+    <a class="btn btn-sm" href="{{ _url({'q': None, 'public': None}) }}">Show all {{ 'archived ' if show == 'archived' }}libraries</a>
+    {% elif show == 'archived' %}
+    <p>Nothing archived. Archived libraries are kept out of this list and off the public Literature Library page until you restore them.</p>
+    {% else %}
+    <p>No libraries yet. Create one to start collecting files.</p>
+    {% if current_user.can_manage_libraries() %}<button type="button" class="btn btn-sm btn-primary" data-open-modal="library-new-modal">{{ icon('plus') }} New library</button>{% endif %}
+    {% endif %}
+  </div>
+  {% elif view == 'grid' %}
+  <div class="lst-grid">
     {% for l in libraries %}
-    <a class="card card-hover" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">
-      <h3>{{ l.name }}
-        {% if l.archived_at %}<span class="chip chip-archived">Archived</span>{% endif %}
-      </h3>
-      {% if l.description %}<p class="clip">{{ l.description }}</p>{% endif %}
-      <div class="tags"><span class="tag">{{ l.items.count() }} files</span></div>
-    </a>
+    <article class="lst-card">
+      <div class="lst-card-head">
+        {{ _thumb(l) }}
+        <div class="lst-card-title">
+          <a class="lst-card-link" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">{{ l.name }}</a>
+          {{ _chips(l) }}
+        </div>
+        {{ _actions(l) }}
+      </div>
+      {% if l.alert_message %}<p class="lst-card-alert">{{ icon('alert-triangle') }}<span>{{ l.alert_message }}</span></p>{% endif %}
+      {% if l.description %}<p class="lst-card-desc">{{ l.description }}</p>
+      {% else %}<p class="lst-card-none">No description</p>{% endif %}
+      <div class="lst-card-foot">
+        <span>{{ icon('file-text') }}{{ _plural(file_counts.get(l.id, 0), 'file') }}</span>
+        <span>{{ icon('calendar') }}{{ _plural(meeting_counts.get(l.id, 0), 'meeting') }}</span>
+      </div>
+    </article>
     {% endfor %}
   </div>
+  {% else %}
+  <table class="tbl fb-tbl lst-tbl">
+    <thead>
+      <tr><th class="fb-thumb-col"><span class="sr-only">Icon</span></th>{{ _sort_th('name', 'Name') }}{{ _sort_th('files', 'Files', 'fb-col fb-num') }}{{ _sort_th('meetings', 'Meetings', 'fb-col fb-num') }}<th><span class="sr-only">Actions</span></th></tr>
+    </thead>
+    <tbody>
+      {% for l in libraries %}
+      <tr>
+        <td class="fb-thumb-cell">{{ _thumb(l) }}</td>
+        <td class="media-name-cell">
+          <div class="lst-name-line">
+            <a class="fb-name" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">{{ l.name }}</a>
+            {{ _chips(l) }}
+          </div>
+          {% if l.alert_message %}
+          <div class="fb-sub lst-sub-alert" title="{{ l.alert_message }}">{{ icon('alert-triangle') }} {{ l.alert_message }}</div>
+          {% elif l.description %}
+          <div class="fb-sub" title="{{ l.description }}">{{ l.description }}</div>
+          {% endif %}
+          <div class="fb-sub fb-sub--narrow">{{ _plural(file_counts.get(l.id, 0), 'file') }} · {{ _plural(meeting_counts.get(l.id, 0), 'meeting') }}</div>
+        </td>
+        <td class="fb-col fb-num muted">{{ file_counts.get(l.id, 0) }}</td>
+        <td class="fb-col fb-num muted">{{ meeting_counts.get(l.id, 0) }}</td>
+        <td class="row-actions">{{ _actions(l) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% endif %}
-{% else %}
-{% if show == 'archived' %}
-<div class="empty"><h3>Nothing archived</h3><p class="muted">Archived libraries are kept out of the main list and off the public Literature Library page. Restore one any time.</p></div>
-{% else %}
-<div class="empty"><h3>No libraries yet</h3><p class="muted">Create one to start collecting files.</p></div>
-{% endif %}
-{% endif %}
+</section>
+</div>
+</div>
 
 {% if current_user.can_manage_libraries() %}
 <div class="modal" id="library-new-modal" aria-hidden="true">

@@ -1687,37 +1687,115 @@ def notifications_clear_all():
 
 # --- Meetings ---
 
+def _schedule_runs(schedules, today=None):
+    """A meeting's times for a list, with days that share a time merged:
+    [{"days": "Mon–Fri", "start": "08:00", "end": "09:00", "today": bool}],
+    in the order of each time's first day. Three or more days in a row
+    become a range; anything else is a comma list."""
+    names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    groups = {}
+    for s in sorted(schedules, key=lambda s: (s.day_of_week, s.start_time)):
+        groups.setdefault((s.start_time, s.end_time), []).append(s.day_of_week)
+    out = []
+    for (start, end), days in groups.items():
+        days = sorted(set(days))
+        runs, run = [], [days[0]]
+        for d in days[1:]:
+            if d == run[-1] + 1:
+                run.append(d)
+            else:
+                runs.append(run)
+                run = [d]
+        runs.append(run)
+        parts = []
+        for r in runs:
+            if len(r) >= 3:
+                parts.append(f"{names[r[0]]}–{names[r[-1]]}")
+            else:
+                parts.extend(names[d] for d in r)
+        out.append({"days": ", ".join(parts), "start": start, "end": end,
+                    "today": today in days, "first": days[0]})
+    out.sort(key=lambda g: (g["first"], g["start"]))
+    return out
+
+
 @bp.route("/meetings")
 @login_required
 def meetings():
     _expire_meeting_alerts()
     _apply_meeting_schedule_changes()
+    # Sort, direction and view stick (cookies); the filters don't, so a
+    # return visit starts on the whole list. A click on the current sort
+    # reverses it; a new one starts A to Z (most first for counts).
     sort = request.args.get("sort") or request.cookies.get("view-meetings-sort") or "name"
+    if sort not in ("name", "type", "day", "libraries", "files"):
+        sort = "name"
     direction = request.args.get("dir") or request.cookies.get("view-meetings-dir") or "asc"
-    view = request.args.get("view") or request.cookies.get("view-meetings") or "table"
-    show = request.args.get("show") or "active"
-    q = Meeting.query
-    if show == "archived":
-        q = q.filter(Meeting.archived_at.isnot(None))
-    else:
-        q = q.filter(Meeting.archived_at.is_(None))
-    items = q.all()
-    def first_day(m):
-        days = [s.day_of_week for s in m.schedules]
-        return (min(days) if days else 99)
+    if direction not in ("asc", "desc"):
+        direction = "asc"
+    # "cards" / "table" are the names older cookies carry.
+    view = request.args.get("view") or request.cookies.get("view-meetings") or "list"
+    view = "grid" if view in ("grid", "cards") else "list"
+    show = "archived" if request.args.get("show") == "archived" else "active"
+    mtype = request.args.get("type") or ""
+    if mtype not in ("in_person", "online", "hybrid"):
+        mtype = ""
+    day = request.args.get("day", type=int)
+    if day is not None and not 0 <= day <= 6:
+        day = None
+    q = (request.args.get("q") or "").strip()
+
+    active_count = Meeting.query.filter(Meeting.archived_at.is_(None)).count()
+    archived_count = Meeting.query.filter(Meeting.archived_at.isnot(None)).count()
+    pool = Meeting.query.filter(
+        Meeting.archived_at.isnot(None) if show == "archived" else Meeting.archived_at.is_(None)).all()
+    if q:
+        needle = q.lower()
+        pool = [m for m in pool if needle in m.name.lower() or needle in (m.location or "").lower()]
+
+    def on_day(m, d):
+        return any(s.day_of_week == d for s in m.schedules)
+    # Each filter's counts take the other filters as they stand, so a
+    # number says what a click would show.
+    type_counts = {"": 0, "in_person": 0, "online": 0, "hybrid": 0}
+    for m in pool:
+        if day is None or on_day(m, day):
+            type_counts[""] += 1
+            type_counts[m.meeting_type] = type_counts.get(m.meeting_type, 0) + 1
+    day_counts = {d: sum(1 for m in pool if (not mtype or m.meeting_type == mtype) and on_day(m, d))
+                  for d in range(7)}
+    items = [m for m in pool
+             if (not mtype or m.meeting_type == mtype) and (day is None or on_day(m, day))]
+
+    files = {mid: n for mid, n in db.session.query(MeetingFile.meeting_id, db.func.count(MeetingFile.id))
+             .group_by(MeetingFile.meeting_id).all()}
+    def first_slot(m):
+        slots = [(s.day_of_week, s.start_time) for s in m.schedules
+                 if day is None or s.day_of_week == day]
+        return min(slots) if slots else (99, "")
+    name_key = lambda m: m.name.lower()
     if sort == "day":
-        items.sort(key=lambda m: (first_day(m), m.name.lower()))
+        items.sort(key=lambda m: (first_slot(m), name_key(m)))
     elif sort == "type":
-        items.sort(key=lambda m: (m.meeting_type or "", m.name.lower()))
+        items.sort(key=lambda m: (m.meeting_type or "", name_key(m)))
+    elif sort == "libraries":
+        items.sort(key=lambda m: (len(m.libraries), name_key(m)))
+    elif sort == "files":
+        items.sort(key=lambda m: (files.get(m.id, 0), name_key(m)))
     else:
-        items.sort(key=lambda m: m.name.lower())
+        items.sort(key=name_key)
     if direction == "desc":
         items.reverse()
-    archived_count = Meeting.query.filter(Meeting.archived_at.isnot(None)).count()
+    from .timezone import now_local_naive
+    today_dow = now_local_naive(_get_site_setting()).weekday()
     resp = current_app.make_response(
         render_template("meetings.html", meetings=items,
                         sort=sort, direction=direction, view=view,
-                        show=show, archived_count=archived_count))
+                        show=show, mtype=mtype, day=day, q=q,
+                        active_count=active_count, archived_count=archived_count,
+                        type_counts=type_counts, day_counts=day_counts,
+                        file_counts=files, today_dow=today_dow,
+                        runs={m.id: _schedule_runs(m.schedules, today_dow) for m in items}))
     resp.set_cookie("view-meetings", view, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-meetings-sort", sort, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-meetings-dir", direction, max_age=60*60*24*365, samesite="Lax")
@@ -15340,40 +15418,61 @@ def file_download(fid):
 @bp.route("/libraries")
 @login_required
 def libraries():
-    view = request.args.get("view") or request.cookies.get("view-libraries") or "table"
+    # As on Meetings: sort, direction and view stick (cookies); search
+    # and filters don't. "cards" / "table" are older cookies' names.
+    view = request.args.get("view") or request.cookies.get("view-libraries") or "list"
+    view = "grid" if view in ("grid", "cards") else "list"
     sort = request.args.get("sort") or request.cookies.get("view-libraries-sort") or "name"
+    if sort not in ("name", "files", "meetings"):
+        sort = "name"
     direction = request.args.get("dir") or request.cookies.get("view-libraries-dir") or "asc"
+    if direction not in ("asc", "desc"):
+        direction = "asc"
     # Intergroup Documents and Intergroup Minutes are surfaced via the
     # Intergroup subsection in the sidebar (Email Accounts + Minutes +
     # Documents). They're managed through their dedicated entry points
     # rather than the generic libraries list, so we exclude them here
     # to keep the list focused on regular meeting / fellowship content.
     # Direct deep-link access (/libraries/<id>) still works for editors.
-    # Hide Intergroup-flagged libraries — they're surfaced in the
-    # dedicated Intergroup sidebar subsection instead.
-    # Active / Archived split, mirroring the Meetings list. `show` is not
-    # persisted in a cookie on purpose: Archived is somewhere you visit
+    # `show` is not persisted on purpose: Archived is somewhere you visit
     # deliberately, and a sticky one would strand an admin on an empty
     # list after they restore the last archived library.
-    show = (request.args.get("show") or "active").lower()
-    if show not in ("active", "archived"):
-        show = "active"
+    show = "archived" if (request.args.get("show") or "").lower() == "archived" else "active"
+    public = request.args.get("public") or ""
+    if public not in ("shown", "hidden"):
+        public = ""
+    q = (request.args.get("q") or "").strip()
     base = Library.query.filter(Library.is_intergroup == False)  # noqa: E712
+    active_count = base.filter(Library.archived_at.is_(None)).count()
     archived_count = base.filter(Library.archived_at.isnot(None)).count()
-    if show == "archived":
-        items = base.filter(Library.archived_at.isnot(None)).all()
-    else:
-        items = base.filter(Library.archived_at.is_(None)).all()
+    pool = base.filter(
+        Library.archived_at.isnot(None) if show == "archived" else Library.archived_at.is_(None)).all()
+    if q:
+        needle = q.lower()
+        pool = [l for l in pool if needle in l.name.lower() or needle in (l.description or "").lower()]
+    public_counts = {"": len(pool),
+                     "shown": sum(1 for l in pool if l.public_visible),
+                     "hidden": sum(1 for l in pool if not l.public_visible)}
+    items = [l for l in pool if not public or l.public_visible == (public == "shown")]
+    file_counts = {lid: n for lid, n in db.session.query(LibraryItem.library_id, db.func.count(LibraryItem.id))
+                   .group_by(LibraryItem.library_id).all()}
+    meeting_counts = {lid: n for lid, n in db.session.query(MeetingLibrary.library_id, db.func.count(MeetingLibrary.meeting_id))
+                      .group_by(MeetingLibrary.library_id).all()}
+    name_key = lambda l: l.name.lower()
     if sort == "files":
-        items.sort(key=lambda l: (l.items.count(), l.name.lower()))
+        items.sort(key=lambda l: (file_counts.get(l.id, 0), name_key(l)))
+    elif sort == "meetings":
+        items.sort(key=lambda l: (meeting_counts.get(l.id, 0), name_key(l)))
     else:
-        items.sort(key=lambda l: l.name.lower())
+        items.sort(key=name_key)
     if direction == "desc":
         items.reverse()
     resp = current_app.make_response(
         render_template("libraries.html", libraries=items, view=view,
-                        sort=sort, direction=direction,
-                        show=show, archived_count=archived_count))
+                        sort=sort, direction=direction, show=show, public=public, q=q,
+                        active_count=active_count, archived_count=archived_count,
+                        public_counts=public_counts, file_counts=file_counts,
+                        meeting_counts=meeting_counts))
     resp.set_cookie("view-libraries", view, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-libraries-sort", sort, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-libraries-dir", direction, max_age=60*60*24*365, samesite="Lax")

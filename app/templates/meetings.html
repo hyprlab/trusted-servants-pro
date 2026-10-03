@@ -2,127 +2,222 @@
 {% from "_row_menu.html" import row_menu %}
 {% block heading %}Meetings{% endblock %}
 {% block heading_help %}Browse and manage meetings — schedules, service positions, locations, and Zoom account assignments.{% endblock %}
-{% block top_actions %}
-  <div class="view-controls">
-    <div class="view-toggle">
-      <a class="btn btn-sm {% if view != 'table' %}active{% endif %}" href="{{ url_for('main.meetings', view='cards', sort=sort, dir=direction, show=show) }}">Cards</a>
-      <a class="btn btn-sm {% if view == 'table' %}active{% endif %}" href="{{ url_for('main.meetings', view='table', sort=sort, dir=direction, show=show) }}">Table</a>
-    </div>
-    <div class="view-toggle">
-      <a class="btn btn-sm {% if show != 'archived' %}active{% endif %}" href="{{ url_for('main.meetings', view=view, sort=sort, dir=direction, show='active') }}">Active</a>
-      <a class="btn btn-sm {% if show == 'archived' %}active{% endif %}" href="{{ url_for('main.meetings', view=view, sort=sort, dir=direction, show='archived') }}">Archived</a>
-    </div>
-    <label class="sort-select">
-      <span class="muted smaller">Sort</span>
-      <select onchange="window.location=this.value">
-        <option value="{{ url_for('main.meetings', view=view, sort='name', dir=direction) }}" {% if sort == 'name' %}selected{% endif %}>Name</option>
-        <option value="{{ url_for('main.meetings', view=view, sort='day', dir=direction) }}" {% if sort == 'day' %}selected{% endif %}>Day of week</option>
-        <option value="{{ url_for('main.meetings', view=view, sort='type', dir=direction) }}" {% if sort == 'type' %}selected{% endif %}>Type</option>
-      </select>
-    </label>
-    <a class="btn btn-sm sort-dir" title="Toggle sort direction"
-       href="{{ url_for('main.meetings', view=view, sort=sort, dir=('desc' if direction=='asc' else 'asc')) }}">
-      {{ '↓' if direction == 'desc' else '↑' }}
-    </a>
-  </div>
-  {% if current_user.can_create_meetings() %}
-  <a class="btn btn-primary" href="{{ url_for('main.meeting_new') }}">+ New Meeting</a>
-  {% endif %}
-{% endblock %}
+{% block top_actions %}{% endblock %}
 {% block content %}
-{% if meetings %}
-  {% if view == 'table' %}
-  <section class="card">
-    <table class="tbl">
-      <thead>
-        <tr><th>Name</th><th>Type</th><th>Schedule</th><th class="hide-sm">Libraries</th><th class="th-actions">Actions</th></tr>
-      </thead>
-      <tbody>
-        {% for m in meetings %}
-        <tr>
-          <td><a href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">{{ m.name }}</a></td>
-          <td><span class="mtype-chip mtype-{{ m.meeting_type }}">{{ {'in_person':'In-Person','online':'Online','hybrid':'Hybrid'}[m.meeting_type] }}</span></td>
-          <td>
-            {% for s in m.schedules %}
-              <div class="muted small">{{ s.day_name[:3] }} {{ s.start_time|fmt12h }}</div>
-            {% else %}<span class="muted smaller">—</span>{% endfor %}
-          </td>
-          <td class="hide-sm">{{ m.libraries|length }}</td>
-          {# Gates mirror the detail page's own top actions. #}
-          <td class="row-actions">
-            {% call row_menu() %}
-              <a class="row-menu-item" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">
-                {{ icon('eye') }}<span>Open</span></a>
-              {% if current_user.can_edit() %}
-              <a class="row-menu-item" href="{{ url_for('main.meeting_edit', slug=m.public_slug) }}">
-                {{ icon('pencil') }}<span>Edit</span></a>
-              {% endif %}
-              {% if current_user.is_admin() %}
-                {% if m.archived_at %}
-                <form method="post" action="{{ url_for('main.meeting_unarchive', slug=m.public_slug) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="row-menu-item" title="Restore from archive">
-                    {{ icon('rotate-ccw') }}<span>Restore</span></button>
-                </form>
-                {% else %}
-                <form method="post" action="{{ url_for('main.meeting_archive', slug=m.public_slug) }}"
-                      onsubmit="return confirm('Archive this meeting? It will be hidden from the main list but can be restored later.');">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="row-menu-item" title="Archive this meeting">
-                    {{ icon('box') }}<span>Archive</span></button>
-                </form>
-                {% endif %}
-              {% endif %}
-              {% if current_user.can_create_meetings() %}
-              <div class="row-menu-sep" role="separator"></div>
-              <form method="post" action="{{ url_for('main.meeting_delete', slug=m.public_slug) }}"
-                    onsubmit="return confirm('Delete this meeting permanently?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="row-menu-item row-menu-item-danger" title="Delete meeting">
-                  {{ icon('trash') }}<span>Delete</span></button>
-              </form>
-              {% endif %}
-            {% endcall %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
-  {% else %}
-  <div class="cards">
-    {% for m in meetings %}
-    <a class="card card-hover meeting-card" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">
-      <span class="mtype-chip mtype-{{ m.meeting_type }} card-type-chip">{{ {'in_person':'In-Person','online':'Online','hybrid':'Hybrid'}[m.meeting_type] }}</span>
-      <h3>
-        {% if m.logo_filename %}<img class="meeting-logo" src="{{ url_for('main.meeting_logo', mid=m.id) }}" alt="">{% endif %}
-        {{ m.name }}
-      </h3>
-      {% if m.schedules %}
-      <div class="muted small schedule-chips">
-        {% for s in m.schedules %}
-          <span class="chip chip-sm">{{ s.day_name[:3] }} {{ s.start_time|fmt12h }}</span>
-        {% endfor %}
-      </div>
+{# Every link here keeps the page's settings (view, sort, search and
+   filters) and changes only what it passes in `over`. #}
+{% set _base = {'view': view, 'sort': sort, 'dir': direction, 'q': q or None,
+                'show': 'archived' if show == 'archived' else None,
+                'type': mtype or None, 'day': day} %}
+{% macro _url(over={}) -%}
+  {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}{{ url_for('main.meetings', **_u) }}
+{%- endmacro %}
+{% set TYPE_LABELS = {'in_person': 'In-person', 'online': 'Online', 'hybrid': 'Hybrid'} %}
+{% set TYPE_ICONS = {'in_person': 'map-pin', 'online': 'video', 'hybrid': 'users'} %}
+{% set DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+{% set DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+{# Sorting: click a column (or a Sort by button) to sort by it; click it
+   again to reverse. Counts start with the most. #}
+{% set SORT_FIRST_DIR = {'name': 'asc', 'type': 'asc', 'day': 'asc', 'libraries': 'desc', 'files': 'desc'} %}
+{% macro _sort_link(key, label) -%}
+  {%- set _on = sort == key -%}
+  <a class="erow-sort fb-sort-link" href="{{ _url({'sort': key, 'dir': (('asc' if direction == 'desc' else 'desc') if _on else SORT_FIRST_DIR[key])}) }}"
+     {% if _on %}data-dir="{{ direction }}" aria-current="true"{% endif %}
+     title="{% if _on %}Sorted by {{ label|lower }}: click to reverse{% else %}Sort by {{ label|lower }}{% endif %}">{{ label }}</a>
+{%- endmacro %}
+{% macro _sort_th(key, label, cls='') -%}
+  <th class="{{ cls }}"{% if sort == key %} aria-sort="{{ 'ascending' if direction == 'asc' else 'descending' }}"{% endif %}>{{ _sort_link(key, label) }}</th>
+{%- endmacro %}
+{# The meeting's picture: its logo, or its type's icon (also when the
+   logo won't load). #}
+{% macro _thumb(m) %}
+  <span class="lst-thumb lst-thumb--{{ m.meeting_type }}{{ ' has-img' if m.logo_filename }}" aria-hidden="true">
+    {% if m.logo_filename %}<img src="{{ url_for('main.meeting_logo', mid=m.id) }}" alt="" loading="lazy"
+         onerror="this.parentNode.classList.add('is-broken')">{% endif %}
+    {{ icon(TYPE_ICONS.get(m.meeting_type, 'calendar')) }}
+  </span>
+{% endmacro %}
+{# The place's first line (a location can carry an address over several
+   lines, separated with <br>). #}
+{% macro _place(m) %}{{ m.location.split('<br')[0]|striptags }}{% endmacro %}
+{# Gates mirror the detail page's own top actions. #}
+{% macro _actions(m) %}
+  {% call row_menu('Actions for ' ~ m.name, compact=True) %}
+    <a class="row-menu-item" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">
+      {{ icon('eye') }}<span>Open</span></a>
+    {% if current_user.can_edit() %}
+    <a class="row-menu-item" href="{{ url_for('main.meeting_edit', slug=m.public_slug) }}">
+      {{ icon('pencil') }}<span>Edit</span></a>
+    {% endif %}
+    {% if current_user.is_admin() %}
+      {% if m.archived_at %}
+      <form method="post" action="{{ url_for('main.meeting_unarchive', slug=m.public_slug) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="row-menu-item">{{ icon('rotate-ccw') }}<span>Restore</span></button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('main.meeting_archive', slug=m.public_slug) }}"
+            data-confirm-title="Archive this meeting?" data-confirm-label="Archive"
+            data-confirm="“{{ m.name }}” will be hidden from the list. You can restore it from Archived at any time.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="row-menu-item">{{ icon('box') }}<span>Archive</span></button>
+      </form>
       {% endif %}
-      <div class="tags">
-        <span class="tag">{{ m.files.count() }} files</span>
-        <span class="tag">{{ m.libraries|length }} libraries</span>
+    {% endif %}
+    {% if current_user.can_create_meetings() %}
+    <div class="row-menu-sep" role="separator"></div>
+    <form method="post" action="{{ url_for('main.meeting_delete', slug=m.public_slug) }}"
+          data-confirm-title="Delete this meeting?" data-confirm-label="Delete"
+          data-confirm="“{{ m.name }}” and its files will be deleted for good.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+    </form>
+    {% endif %}
+  {% endcall %}
+{% endmacro %}
+{% macro _plural(n, one, many=None) %}{{ n }} {{ one if n == 1 else (many or one ~ 's') }}{% endmacro %}
+
+<div class="fb-pick fb-pick--page lst-page">
+<aside class="fb-side" aria-label="Find a meeting">
+  {% set _filtered = q or mtype or day is not none %}
+  <div class="fb-side-top">
+    <p class="fb-side-total" aria-live="polite">{{ _plural(meetings|length, 'archived meeting' if show == 'archived' else 'meeting') }}{% if q %} matching “{{ q }}”{% endif %}</p>
+  </div>
+  <form method="get" action="{{ url_for('main.meetings') }}" class="fb-search" role="search">
+    {% for k, v in _base.items() if k != 'q' and v is not none %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    {{ icon('search') }}
+    <input type="search" name="q" value="{{ q }}" placeholder="Search by name or place" aria-label="Search meetings by name or place">
+  </form>
+  {% if current_user.can_create_meetings() %}
+  <a class="btn btn-primary fb-side-upload" href="{{ url_for('main.meeting_new') }}">{{ icon('plus') }} New meeting</a>
+  {% endif %}
+  <nav class="fb-side-group" aria-label="Status">
+    <h3 class="fb-side-title">Status</h3>
+    <a class="fb-side-link" href="{{ _url({'show': None}) }}" {% if show != 'archived' %}aria-current="true"{% endif %}>
+      {{ icon('calendar') }}<span>Active</span><span class="fb-side-count">{{ active_count }}</span></a>
+    <a class="fb-side-link{{ ' is-empty' if not archived_count }}" href="{{ _url({'show': 'archived'}) }}" {% if show == 'archived' %}aria-current="true"{% endif %}>
+      {{ icon('box') }}<span>Archived</span><span class="fb-side-count">{{ archived_count }}</span></a>
+  </nav>
+  <nav class="fb-side-group" aria-label="Type of meeting">
+    <h3 class="fb-side-title">Type</h3>
+    {% for key, label, ic in [('', 'All types', 'layout-grid'), ('in_person', 'In-person', 'map-pin'), ('online', 'Online', 'video'), ('hybrid', 'Hybrid', 'users')] %}
+    {% set _n = type_counts.get(key, 0) %}
+    <a class="fb-side-link{{ ' is-empty' if not _n }}" href="{{ _url({'type': key or None}) }}" {% if mtype == key %}aria-current="true"{% endif %}>
+      {{ icon(ic) }}<span>{{ label }}</span><span class="fb-side-count">{{ _n }}</span></a>
+    {% endfor %}
+  </nav>
+  <div class="fb-side-group" role="group" aria-label="Meets on">
+    <h3 class="fb-side-title">Meets on</h3>
+    <div class="lst-days">
+      <a class="lst-day" href="{{ _url({'day': None}) }}" {% if day is none %}aria-current="true"{% endif %}>Any</a>
+      {% for d in range(7) %}
+      <a class="lst-day{{ ' is-empty' if not day_counts[d] }}{{ ' is-today' if d == today_dow }}" href="{{ _url({'day': d}) }}"
+         {% if day == d %}aria-current="true"{% endif %}
+         title="{{ DAY_NAMES[d] }}{{ ' (today)' if d == today_dow }}: {{ _plural(day_counts[d], 'meeting') }}">{{ DAYS[d] }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="fb-side-group" role="group" aria-label="Sort meetings">
+    <h3 class="fb-side-title">Sort by</h3>
+    <div class="fb-side-sort">
+      {{ _sort_link('name', 'Name') }}{{ _sort_link('type', 'Type') }}{{ _sort_link('day', 'Day') }}{{ _sort_link('libraries', 'Libraries') }}{{ _sort_link('files', 'Files') }}
+    </div>
+  </div>
+  <div class="fb-side-group">
+    <h3 class="fb-side-title">View</h3>
+    <div class="ds-seg-btns fb-view" role="group" aria-label="View">
+      <a href="{{ _url({'view': 'list'}) }}" aria-checked="{{ 'true' if view != 'grid' else 'false' }}" role="radio" title="List">{{ icon('list') }}<span>List</span></a>
+      <a href="{{ _url({'view': 'grid'}) }}" aria-checked="{{ 'true' if view == 'grid' else 'false' }}" role="radio" title="Grid">{{ icon('layout-grid') }}<span>Grid</span></a>
+    </div>
+  </div>
+</aside>
+<div class="fb-pick-main">
+<section class="card fb lst">
+  {% if not meetings %}
+  <div class="fb-empty">
+    <span class="fb-empty-icon" aria-hidden="true">{{ icon('box' if show == 'archived' else 'calendar') }}</span>
+    {% if _filtered %}
+    <p>No {{ 'archived ' if show == 'archived' }}meetings match {{ 'these filters' if (mtype or day is not none) else '“' ~ q ~ '”' }}.</p>
+    <a class="btn btn-sm" href="{{ _url({'q': None, 'type': None, 'day': None}) }}">Show all {{ 'archived ' if show == 'archived' }}meetings</a>
+    {% elif show == 'archived' %}
+    <p>No archived meetings. A meeting you archive is kept here, out of the list, until you restore it.</p>
+    {% else %}
+    <p>No meetings yet.</p>
+    {% if current_user.can_create_meetings() %}<a class="btn btn-sm btn-primary" href="{{ url_for('main.meeting_new') }}">{{ icon('plus') }} New meeting</a>{% endif %}
+    {% endif %}
+  </div>
+  {% elif view == 'grid' %}
+  <div class="lst-grid">
+    {% for m in meetings %}
+    {% set _files = file_counts.get(m.id, 0) %}
+    <article class="lst-card">
+      <div class="lst-card-head">
+        {{ _thumb(m) }}
+        <div class="lst-card-title">
+          <a class="lst-card-link" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">{{ m.name }}</a>
+          <span class="mtype-chip mtype-{{ m.meeting_type }}">{{ TYPE_LABELS.get(m.meeting_type, m.meeting_type) }}</span>
+        </div>
+        {{ _actions(m) }}
       </div>
-    </a>
+      {% if m.alert_message %}<p class="lst-card-alert">{{ icon('alert-triangle') }}<span>{{ m.alert_message }}</span></p>{% endif %}
+      {% if runs[m.id] %}
+      <ul class="lst-sched">
+        {% for r in runs[m.id] %}
+        <li{% if r.today %} class="is-today"{% endif %}>
+          <span class="lst-sched-day">{{ r.days }}</span>
+          <span class="lst-sched-time">{{ r.start|fmt12h }} – {{ r.end|fmt12h }}</span>
+          {% if r.today %}<span class="lst-sched-today">Today</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="lst-card-none">No schedule yet</p>
+      {% endif %}
+      {% if m.location and m.meeting_type != 'online' %}
+      <p class="lst-card-meta">{{ icon('map-pin') }}<span>{{ _place(m) }}</span></p>
+      {% endif %}
+      <div class="lst-card-foot">
+        <span>{{ icon('file-text') }}{{ _plural(_files, 'file') }}</span>
+        <span>{{ icon('book-open') }}{{ _plural(m.libraries|length, 'library', 'libraries') }}</span>
+      </div>
+    </article>
     {% endfor %}
   </div>
-  {% endif %}
-{% else %}
-<div class="empty">
-  {% if show == 'archived' %}
-  <h3>No archived meetings</h3>
-  <p class="muted">Meetings you archive will appear here. They stay hidden from the active list but can be restored any time.</p>
   {% else %}
-  <h3>No meetings yet</h3>
-  <p class="muted">Create your first meeting to get started.</p>
+  <table class="tbl fb-tbl lst-tbl">
+    <thead>
+      <tr><th class="fb-thumb-col"><span class="sr-only">Logo</span></th>{{ _sort_th('name', 'Name') }}{{ _sort_th('type', 'Type', 'fb-col') }}{{ _sort_th('day', 'Schedule', 'fb-col') }}{{ _sort_th('libraries', 'Libraries', 'fb-col fb-num fb-col-wide') }}{{ _sort_th('files', 'Files', 'fb-col fb-num') }}<th><span class="sr-only">Actions</span></th></tr>
+    </thead>
+    <tbody>
+      {% for m in meetings %}
+      {% set _files = file_counts.get(m.id, 0) %}
+      <tr>
+        <td class="fb-thumb-cell">{{ _thumb(m) }}</td>
+        <td class="media-name-cell">
+          <a class="fb-name" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">{{ m.name }}</a>
+          {% if m.alert_message %}
+          <div class="fb-sub lst-sub-alert" title="{{ m.alert_message }}">{{ icon('alert-triangle') }} {{ m.alert_message }}</div>
+          {% elif m.location and m.meeting_type != 'online' %}
+          <div class="fb-sub">{{ _place(m) }}</div>
+          {% endif %}
+          {# On a phone the columns fold into this line. #}
+          <div class="fb-sub fb-sub--narrow">{{ TYPE_LABELS.get(m.meeting_type, m.meeting_type) }}{% for r in runs[m.id] %} · {{ r.days }} {{ r.start|fmt12h }}{% endfor %}</div>
+        </td>
+        <td class="fb-col"><span class="mtype-chip mtype-{{ m.meeting_type }}">{{ TYPE_LABELS.get(m.meeting_type, m.meeting_type) }}</span></td>
+        <td class="fb-col">
+          {% for r in runs[m.id] %}
+          <div class="lst-tbl-slot{{ ' is-today' if r.today }}"><span>{{ r.days }}</span> {{ r.start|fmt12h }}</div>
+          {% else %}<span class="muted">—</span>{% endfor %}
+        </td>
+        <td class="fb-col fb-num fb-col-wide muted">{{ m.libraries|length }}</td>
+        <td class="fb-col fb-num muted">{{ _files }}</td>
+        <td class="row-actions">{{ _actions(m) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% endif %}
+</section>
 </div>
-{% endif %}
-
+</div>
 {% endblock %}
