@@ -18563,9 +18563,10 @@ body.embed .fb-pick-main > .card.fb { border: 1px solid var(--border); border-ra
 #media-picker-modal .modal-panel { height: 90vh; max-width: 1280px; }
 #media-picker-modal .modal-panel > .settings-frame { flex: 1 1 auto; height: auto; min-height: 0; }
 /* The close button where the Settings dialog has its own. */
-/* Bare until hovered or focused, then it takes its button face, as the
-   Settings close does. */
-.media-picker-close { position: absolute; top: 14px; right: 18px; z-index: 2;
+/* Inside the files card's top-right corner (the card starts 20px in),
+   over the empty end of its header row. Bare until hovered or focused,
+   then it takes its button face, as the Settings close does. */
+.media-picker-close { position: absolute; top: 28px; right: 28px; z-index: 2;
   /* Square, as the Settings close is: .icon-btn otherwise sizes it to its content. */
   flex: none; width: 32px; height: 32px; padding: 0;
   background: transparent; border: 1px solid transparent; box-shadow: none;
