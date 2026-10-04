@@ -18563,13 +18563,14 @@ body.embed .fb-pick-main > .card.fb { border: 1px solid var(--border); border-ra
 #media-picker-modal .modal-panel { height: 90vh; max-width: 1280px; }
 #media-picker-modal .modal-panel > .settings-frame { flex: 1 1 auto; height: auto; min-height: 0; }
 /* The close button where the Settings dialog has its own. */
-/* It overlaps the files card's corner, so it keeps its button face. */
+/* Bare until hovered or focused, then it takes its button face, as the
+   Settings close does. */
 .media-picker-close { position: absolute; top: 14px; right: 18px; z-index: 2;
   /* Square, as the Settings close is: .icon-btn otherwise sizes it to its content. */
   flex: none; width: 32px; height: 32px; padding: 0;
-  background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow);
-  transition: background .12s ease, border-color .12s ease; }
-.media-picker-close:hover, .media-picker-close:focus-visible { background: var(--hover); }
+  background: transparent; border: 1px solid transparent; box-shadow: none;
+  transition: background .12s ease, border-color .12s ease, box-shadow .12s ease; }
+.media-picker-close:hover, .media-picker-close:focus-visible { background: var(--panel); border-color: var(--border); box-shadow: var(--shadow); }
 .fb-side .fb-search { flex: 0 0 auto; }
 body.embed .fb-side .fb-search input { background: var(--panel); }
 .fb-side-upload { width: 100%; }
