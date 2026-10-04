@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% from "_md_toolbar.html" import md_toolbar %}
+{% set _name = site.zoom_tech_title or 'Zoom Tech Training' %}
+{% set _tmpl = site.zoom_tech_template or 'standard' %}
+{% block heading %}Edit {{ _name }}{% endblock %}
+{% block heading_help %}The page's title and text on the left, and its layout and sections on the right. Save with the yellow bar.{% endblock %}
+{% block top_actions %}
+  {% if site.zoom_tech_enabled %}
+  <a class="btn" href="{{ url_for('main.zoom_tech') }}">← Page</a>
+  {% else %}
+  <span class="post-chip post-chip-draft post-chip-header" title="Turn it on in Settings → Modules">Page is off</span>
+  {% endif %}
+{% endblock %}
+{% block content %}
+{# Laid out like the story and blog editors (story_edit.html): the
+   writing on the left, the settings on the right in a segmented
+   control (fe_studio.js), and the yellow save bar (content_editor.js).
+   The body is one Markdown document; each ## heading starts a section
+   (app/zoom_tech_doc.py). #}
+<form id="zoom-tech-edit-form" class="form post-form" method="post"
+      action="{{ url_for('main.zoom_tech_save') }}" data-content-editor>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="card st-studio post-studio zt-editor" data-studio="zoom-tech" data-no-collapse>
+    <div class="st-body st-body--split">
+
+      {# ── Writing ─────────────────────────────────────────────── #}
+      <div class="post-studio-main">
+        <label class="post-title-field">Page title
+          <input type="text" name="zoom_tech_title" maxlength="120" class="post-title-input"
+                 value="{{ site.zoom_tech_title or '' }}" placeholder="Zoom Tech Training">
+        </label>
+        <div class="form-field-block">{% call hrow('Page text') %}Use the toolbar, or type Markdown. Each <code>## Heading</code> starts a section, listed on the Sections tab and beside the page in the Wiki layout. An image line pointing at a video file, such as <code>![Video](/uploads/clip.mp4)</code>, shows a player.{% endcall %}
+          <div class="md-editor md-editor-live post-body-md zt-md" data-md-editor data-md-live="1" data-md-mode="doc">
+            {{ md_toolbar() }}
+            <div class="md-editor-pane md-editor-pane-write active">
+              <textarea name="zoom_tech_body" rows="24" spellcheck="true" data-zt-body
+                        placeholder="## Introduction&#10;&#10;What a Zoom Tech does, and who to ask for help.">{{ body }}</textarea>
+            </div>
+            <div class="md-editor-pane md-editor-pane-preview active">
+              <div class="md-editor-preview rich-content zt-doc" data-zt-preview><p class="muted smaller">Nothing to preview yet.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ── Settings ────────────────────────────────────────────── #}
+      <div class="st-controls">
+        <div class="st-seg-scroll" data-seg-scroll>
+          <nav class="st-seg" role="tablist" aria-label="Page settings">
+            <button type="button" role="tab" data-studio-tab="sections">{{ icon('list') }}<span>Sections</span></button>
+            <button type="button" role="tab" data-studio-tab="layout">{{ icon('columns') }}<span>Layout</span></button>
+          </nav>
+        </div>
+
+        {# ── Sections: the ## headings, kept in step with the text.
+           A click puts the editor and the preview at that section. #}
+        <div class="st-panel" data-studio-panel="sections">
+          {% if from_blocks %}
+          <div class="ds-group st-group-body zt-note">
+            <h3 class="ds-group-title">{{ icon('file-text') }}Now in Markdown</h3>
+            <p class="muted small">This page was built with the block editor. It opens here as Markdown, each section title a <code>##</code> heading, and is stored that way the first time you save. The callout became a quote. The block version is kept as it was.</p>
+          </div>
+          {% endif %}
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('list') }}Sections {% call chip('Sections') %}Each <code>## Heading</code> in the text starts a section. Click one to go to it in the editor.{% endcall %}</h3>
+            <ol class="zt-outline" data-zt-outline></ol>
+            <p class="muted small zt-outline-empty" data-zt-outline-empty hidden>No sections yet. Start a line with <code>## </code> to add one.</p>
+          </div>
+        </div>
+
+        {# ── Layout ── #}
+        <div class="st-panel" data-studio-panel="layout" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('columns') }}Layout</h3>
+            <div class="zt-layouts" role="radiogroup" aria-label="Layout">
+              <label class="post-type-pill zt-layout">
+                <input type="radio" name="zoom_tech_template" value="standard" {% if _tmpl != 'wiki' %}checked{% endif %}>
+                <span class="post-type-pill-body">
+                  <span class="post-type-pill-title">Standard</span>
+                  <span class="muted small">The text on its own.</span>
+                </span>
+                <span class="zt-layout-art" aria-hidden="true"><i></i></span>
+              </label>
+              <label class="post-type-pill zt-layout">
+                <input type="radio" name="zoom_tech_template" value="wiki" {% if _tmpl == 'wiki' %}checked{% endif %}>
+                <span class="post-type-pill-body">
+                  <span class="post-type-pill-title">Wiki</span>
+                  <span class="muted small">The sections listed beside the text, marking the one being read.</span>
+                </span>
+                <span class="zt-layout-art zt-layout-art--wiki" aria-hidden="true"><i></i><b></b></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</form>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+
+{# Sections list, jumping, and the preview following the editor. #}
+<script>
+(function () {
+  var ta = document.querySelector('[data-zt-body]');
+  var preview = document.querySelector('[data-zt-preview]');
+  var outline = document.querySelector('[data-zt-outline]');
+  var empty = document.querySelector('[data-zt-outline-empty]');
+  if (!ta || !preview || !outline) return;
+
+  // The ## headings outside fenced code: [{title, offset}].
+  function headings() {
+    var out = [], pos = 0, fence = false;
+    ta.value.split('\n').forEach(function (line) {
+      if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+      var m = !fence && /^##\s+(.+?)\s*#*\s*$/.exec(line);
+      if (m) out.push({ title: m[1], offset: pos });
+      pos += line.length + 1;
+    });
+    return out;
+  }
+
+  // Where each heading sits in the textarea, in pixels from its top:
+  // measured on a copy of the textarea with a marker at each heading.
+  var mirror = document.createElement('div');
+  mirror.setAttribute('aria-hidden', 'true');
+  mirror.style.cssText = 'position:absolute;top:0;left:-9999px;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;';
+  document.body.appendChild(mirror);
+  var tops = null;
+  function measure() {
+    if (tops) return tops;
+    var cs = getComputedStyle(ta);
+    ['boxSizing', 'width', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+     'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+     'fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'tabSize']
+      .forEach(function (k) { mirror.style[k] = cs[k]; });
+    mirror.style.width = ta.clientWidth + 'px';
+    mirror.style.borderWidth = '0';
+    mirror.textContent = '';
+    var last = 0, marks = [];
+    headings().forEach(function (h) {
+      mirror.appendChild(document.createTextNode(ta.value.slice(last, h.offset)));
+      var mark = document.createElement('span');
+      mirror.appendChild(mark);
+      marks.push(mark);
+      last = h.offset;
+    });
+    mirror.appendChild(document.createTextNode(ta.value.slice(last) + ' '));
+    tops = marks.map(function (m) { return m.offsetTop; });
+    return tops;
+  }
+
+  function previewTops() {
+    return Array.prototype.map.call(preview.querySelectorAll('h2'), function (h) {
+      return h.offsetTop;
+    });
+  }
+
+  // The preview follows the editor section by section: the same
+  // fraction of the way through the same section.
+  var following = true;
+  function follow() {
+    if (!following) return;
+    var a = measure(), b = previewTops();
+    var n = Math.min(a.length, b.length);
+    var src = [0].concat(a.slice(0, n), [Math.max(ta.scrollHeight - ta.clientHeight, 1)]);
+    var dst = [0].concat(b.slice(0, n), [Math.max(preview.scrollHeight - preview.clientHeight, 0)]);
+    var y = ta.scrollTop, i = 0;
+    while (i < src.length - 2 && y >= src[i + 1]) i++;
+    var span = src[i + 1] - src[i];
+    var f = span > 0 ? Math.min(Math.max((y - src[i]) / span, 0), 1) : 0;
+    preview.scrollTop = dst[i] + f * (dst[i + 1] - dst[i]);
+  }
+  var queued = false;
+  ta.addEventListener('scroll', function () {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () { queued = false; follow(); });
+  });
+
+  function go(i) {
+    var h = headings()[i];
+    if (!h) return;
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(h.offset, h.offset);
+    ta.scrollTop = Math.max(measure()[i] - 8, 0);
+    var b = preview.querySelectorAll('h2')[i];
+    if (b) {
+      following = false;
+      preview.scrollTop = Math.max(b.offsetTop - 8, 0);
+      setTimeout(function () { following = true; }, 120);
+    }
+  }
+
+  var drawn = '';
+  function draw() {
+    var hs = headings();
+    var key = hs.map(function (h) { return h.title; }).join('\n');
+    if (key === drawn && outline.children.length === hs.length) return;
+    drawn = key;
+    outline.textContent = '';
+    hs.forEach(function (h, i) {
+      var li = document.createElement('li');
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'zt-outline-link';
+      b.textContent = h.title;
+      b.addEventListener('click', function () { go(i); });
+      li.appendChild(b);
+      outline.appendChild(li);
+    });
+    if (empty) empty.hidden = hs.length > 0;
+  }
+
+  var timer = null;
+  ta.addEventListener('input', function () {
+    tops = null;
+    clearTimeout(timer);
+    timer = setTimeout(draw, 200);
+  });
+  window.addEventListener('resize', function () { tops = null; });
+  // The preview re-renders after typing: keep its place.
+  new MutationObserver(function () { follow(); }).observe(preview, { childList: true });
+  draw();
+})();
+</script>
+
+<div id="zoom-tech-save-bar" class="fe-save-bar fe-save-bar-content" hidden data-editor-save-bar>
+  <span class="fe-save-bar-msg">Unsaved changes</span>
+  <button type="button" class="btn fe-save-bar-btn">Save page</button>
+</div>
+<script src="{{ url_for('static', filename='js/content_editor.js', v=app_build_id) }}"></script>
+{% if from_blocks %}
+{# Not stored as Markdown yet: the save bar shows from the start. #}
+<script>document.getElementById('zoom-tech-edit-form').dispatchEvent(new Event('editor:changed'));</script>
+{% endif %}
+{% endblock %}

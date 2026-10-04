@@ -3338,40 +3338,50 @@ def intergroup_edit():
 @bp.route("/zoom-tech")
 @login_required
 def zoom_tech():
-    import json
+    from .zoom_tech_doc import page_markdown, render
     s = _get_site_setting()
     if not s.zoom_tech_enabled:
         abort(404)
     _require_module_role("zoom_tech_required_role")
-    sections = []
-    if s.zoom_tech_blocks_json:
-        try:
-            sections = json.loads(s.zoom_tech_blocks_json)
-        except (ValueError, TypeError):
-            sections = []
-    return render_template("zoom_tech.html", site=s, sections=sections,
-                           blocks_json=s.zoom_tech_blocks_json or "[]")
+    body, _ = page_markdown(s)
+    doc_html, toc = render(body) if body.strip() else ("", [])
+    # The page's first form, plain HTML, shows only while nothing newer
+    # was ever written: an emptied page stays empty.
+    legacy_html = (s.zoom_tech_content if s.zoom_tech_body is None and not body.strip()
+                   else None)
+    return render_template("zoom_tech.html", site=s, doc_html=doc_html, toc=toc,
+                           legacy_html=legacy_html)
+
+
+@bp.route("/zoom-tech/edit")
+@admin_required
+def zoom_tech_edit():
+    """The page's editor, laid out like the story and blog editors: the
+    title and Markdown on the left, the layout and sections on the right.
+    Opens while the page is turned off too, so it can be written first."""
+    from .zoom_tech_doc import page_markdown
+    s = _get_site_setting()
+    body, from_blocks = page_markdown(s)
+    return render_template("zoom_tech_edit.html", site=s, body=body,
+                           from_blocks=from_blocks)
 
 
 @bp.route("/zoom-tech/save", methods=["POST"])
 @admin_required
 def zoom_tech_save():
-    import json
     s = _get_site_setting()
-    s.zoom_tech_title = request.form.get("zoom_tech_title", "").strip() or None
-    tmpl = request.form.get("zoom_tech_template", "standard").strip()
+    s.zoom_tech_title = (request.form.get("zoom_tech_title") or "").strip()[:120] or None
+    tmpl = (request.form.get("zoom_tech_template") or "standard").strip()
     s.zoom_tech_template = tmpl if tmpl in ("standard", "wiki") else "standard"
-    blocks_json = request.form.get("blocks_json", "").strip()
-    if blocks_json:
-        try:
-            json.loads(blocks_json)
-            s.zoom_tech_blocks_json = blocks_json
-        except (ValueError, TypeError):
-            flash("Invalid blocks JSON", "danger")
-            return redirect(url_for("main.zoom_tech"))
+    body = (request.form.get("zoom_tech_body") or "").replace("\r\n", "\n")
+    # Kept even when blank, so an emptied page stays empty instead of
+    # falling back to the old blocks.
+    s.zoom_tech_body = body
     db.session.commit()
-    flash("Zoom Tech page updated", "success")
-    return redirect(url_for("main.zoom_tech"))
+    flash("Zoom Tech page saved", "success")
+    if _post_save_wants_json():
+        return jsonify(_editor_save_payload(None, None))
+    return redirect(url_for("main.zoom_tech_edit"))
 
 
 @bp.route("/settings/zoom-tech-toggle", methods=["POST"])
@@ -16052,6 +16062,10 @@ def markdown_preview():
 
         body = expand(body, _dt(request.form.get("event_start")),
                       _dt(request.form.get("event_end")))
+    if mode == "doc":
+        # The Zoom Tech page: block Markdown plus video players.
+        from .zoom_tech_doc import render as _render_doc
+        return jsonify(html=str(_render_doc(body)[0]))
     filter_name = "markdown_block" if mode == "block" else "markdown"
     html = str(render_template_string("{{ body|" + filter_name + " }}", body=body))
     return jsonify(html=html)

@@ -1667,6 +1667,7 @@ def _migrate_sqlite(app):
                          ("zoom_tech_title", "VARCHAR(120)"),
                          ("zoom_tech_content", "TEXT"),
                          ("zoom_tech_blocks_json", "TEXT"),
+                         ("zoom_tech_body", "TEXT"),
                          ("zoom_tech_template", "VARCHAR(16) NOT NULL DEFAULT 'standard'"),
                          ("posts_enabled", "BOOLEAN NOT NULL DEFAULT 1"),
                          ("intergroup_required_role", "VARCHAR(32) NOT NULL DEFAULT 'viewer'"),
