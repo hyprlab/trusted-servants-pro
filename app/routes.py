@@ -3338,7 +3338,7 @@ def intergroup_edit():
 @bp.route("/zoom-tech")
 @login_required
 def zoom_tech():
-    from .zoom_tech_doc import page_format, render, stored_sections
+    from .zoom_tech_doc import load_design, page_format, render, stored_sections
     s = _get_site_setting()
     if not s.zoom_tech_enabled:
         abort(404)
@@ -3354,7 +3354,8 @@ def zoom_tech():
         # newer was ever written: an emptied page stays empty.
         legacy_html = s.zoom_tech_content
     return render_template("zoom_tech.html", site=s, fmt=fmt, doc_html=doc_html,
-                           toc=toc, sections=sections, legacy_html=legacy_html)
+                           toc=toc, sections=sections, legacy_html=legacy_html,
+                           design=load_design(s))
 
 
 @bp.route("/zoom-tech/edit")
@@ -3365,7 +3366,9 @@ def zoom_tech_edit():
     the right. The text is the Markdown editor or the block editor,
     whichever version the page uses. Opens while the page is turned off
     too, so it can be written first."""
-    from .zoom_tech_doc import (BLOCK_TYPES, has_blocks, has_markdown,
+    from .zoom_tech_doc import (BLOCK_TYPES, DESIGN_CHOICES, DESIGN_COLORS,
+                                DESIGN_FONTS, DESIGN_SWITCHES, design_switch,
+                                has_blocks, has_markdown, load_design,
                                 markdown_notes, page_format, stored_sections)
     s = _get_site_setting()
     fmt = page_format(s)
@@ -3377,6 +3380,9 @@ def zoom_tech_edit():
         block_types=BLOCK_TYPES,
         has_markdown=has_markdown(s), has_blocks=has_blocks(s),
         markdown_notes=markdown_notes(sections) if fmt == "blocks" else [],
+        design=load_design(s), design_colors=DESIGN_COLORS,
+        design_choices=DESIGN_CHOICES, design_switches=DESIGN_SWITCHES,
+        design_fonts=DESIGN_FONTS, design_switch=design_switch,
     )
 
 
@@ -3388,12 +3394,15 @@ def zoom_tech_save():
     replacing that kept version, and switches to it; ``switch`` goes
     back to the kept version as it is. Either way the version left is
     kept, to go back to."""
-    from .zoom_tech_doc import (has_blocks, has_markdown, markdown_to_sections,
-                                page_format, sections_to_markdown, stored_sections)
+    from .zoom_tech_doc import (design_form, has_blocks, has_markdown,
+                                markdown_to_sections, page_format,
+                                sections_to_markdown, stored_sections)
     s = _get_site_setting()
     s.zoom_tech_title = (request.form.get("zoom_tech_title") or "").strip()[:120] or None
     tmpl = (request.form.get("zoom_tech_template") or "standard").strip()
     s.zoom_tech_template = tmpl if tmpl in ("standard", "wiki") else "standard"
+    if request.form.get("ztd_present"):
+        s.zoom_tech_design_json = json.dumps(design_form(request.form)) or None
     fmt = page_format(s)
     if fmt == "markdown":
         # Kept even when blank, so an emptied page stays empty.

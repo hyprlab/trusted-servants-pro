@@ -757,6 +757,8 @@ class SiteSetting(db.Model):
     # is stored); the other version is kept, to go back to.
     zoom_tech_body = db.Column(db.Text)
     zoom_tech_format = db.Column(db.String(16))
+    # The page's look (zoom_tech_doc.DESIGN): colors, fonts, sizes.
+    zoom_tech_design_json = db.Column(db.Text)
     zoom_tech_template = db.Column(db.String(16), nullable=False, default="standard")
     # Announcements & Events module toggle. Default True so existing
     # installs don't lose data the moment the column is added.

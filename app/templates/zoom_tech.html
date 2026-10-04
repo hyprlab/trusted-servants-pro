@@ -7,6 +7,7 @@
 {% endif %}
 {% endblock %}
 {% block content %}
+{% include "_zt_design_head.html" %}
 {# The text keeps a reading width however wide the window is. The Wiki
    layout adds the sections beside it (app/zoom_tech_doc.py); in a
    narrow window they fold into a list above the text. #}
@@ -17,7 +18,7 @@
   {% for sec in sections if sec.title %}{% set _ = toc.append(('sec-' ~ slug(sec.title), sec.title)) %}{% endfor %}
 {% endif %}
 {% set _wiki = site.zoom_tech_template == 'wiki' and toc %}
-<div class="zt-page">
+<div class="zt-page zt-design">
   <div class="zt-wrap{{ ' zt-wrap--wiki' if _wiki }}">
     {% if _wiki %}
     <nav class="zt-toc" aria-label="On this page">
@@ -31,7 +32,8 @@
       </details>
     </nav>
     {% endif %}
-    <article class="rich-content zt-doc">
+    {# Photos open in the zoomable lightbox (image_lightbox.js). #}
+    <article class="rich-content zt-doc" data-lightbox-scope>
       {% if sections %}
         {{ render_sections(sections) }}
       {% elif doc_html %}
@@ -46,6 +48,7 @@
   </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/image_lightbox.js', v=app_build_id) }}"></script>
 {% if _wiki %}
 <script>
 (function () {

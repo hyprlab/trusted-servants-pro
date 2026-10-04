@@ -234,3 +234,154 @@ def render(markdown):
 
     out = _H2_RE.sub(heading, out)
     return Markup(out), toc
+
+
+# ── Design ──────────────────────────────────────────────────────────
+# The page's look, set on the editor's Design tab and stored as JSON in
+# ``zoom_tech_design_json``: only what the admin set, everything else
+# following the admin theme. Each color has a light and a dark value
+# (``<key>_dark``); a blank dark value keeps the dark theme's own color.
+
+DESIGN_COLORS = [
+    ("bg", "Background", "Behind the whole page."),
+    ("text", "Text", "Paragraphs and lists."),
+    ("heading", "Headings", "Section titles and smaller headings."),
+    ("link", "Links", "Links in the text."),
+    ("accent", "Accent", "The edge of quotes and the current section in the contents."),
+    ("quote_bg", "Quotes and callouts", "Behind quotes and callouts."),
+]
+
+# Named choices: key → (label, help, default, [(value, label, css)]).
+DESIGN_CHOICES = {
+    "text_size": ("Text size", "The size of the text; headings follow it.", "md",
+                  [("sm", "S", "15px"), ("md", "M", "17px"), ("lg", "L", "19px"), ("xl", "XL", "21px")]),
+    "line_height": ("Line spacing", "The space between lines of text.", "normal",
+                    [("tight", "Tight", "1.5"), ("normal", "Normal", "1.7"), ("relaxed", "Relaxed", "1.9")]),
+    "width": ("Text width", "How wide the text runs on a wide screen.", "medium",
+              [("narrow", "Narrow", "40rem"), ("medium", "Medium", "46rem"), ("wide", "Wide", "56rem"),
+               ("full", "Full", "100%")]),
+    "img_radius": ("Photo corners", "How round the corners of photos and videos are.", "medium",
+                   [("none", "Square", "0"), ("small", "Small", "6px"), ("medium", "Medium", "10px"),
+                    ("large", "Large", "18px")]),
+}
+
+DESIGN_SWITCHES = [
+    ("img_border", "Outline photos", "A thin line around photos and videos.", True),
+    ("img_shadow", "Shadow under photos", "A soft shadow under photos and videos.", False),
+]
+
+DESIGN_FONTS = [
+    ("body_font", "Text font", "Paragraphs, lists and quotes."),
+    ("heading_font", "Heading font", "Section titles and smaller headings."),
+]
+
+_HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _hex(v):
+    v = str(v or "").strip()
+    if re.match(r"^#[0-9a-fA-F]{3}$", v):
+        v = "#" + "".join(c * 2 for c in v[1:])
+    return v.lower() if _HEX_RE.match(v) else ""
+
+
+def clean_design(raw):
+    """Only known keys with valid values: the stored form of a design,
+    from the editor's fields (``ztd_<key>``) or from storage."""
+    from .fonts import font_by_key
+    get = raw.get
+    out = {}
+    for key, _, _ in DESIGN_COLORS:
+        for k in (key, key + "_dark"):
+            v = _hex(get(k))
+            if v:
+                out[k] = v
+    for key, (_, _, default, opts) in DESIGN_CHOICES.items():
+        v = get(key)
+        if v and v != default and v in {o[0] for o in opts}:
+            out[key] = v
+    for key, _, _, default in DESIGN_SWITCHES:
+        v = get(key)
+        if v in ("1", "0", True, False, 1, 0):
+            on = v in ("1", True, 1)
+            if on != default:
+                out[key] = "1" if on else "0"
+    for key, _, _ in DESIGN_FONTS:
+        v = str(get(key) or "").strip().lower()
+        if v and font_by_key(v):
+            out[key] = v
+    return out
+
+
+def load_design(site):
+    try:
+        raw = json.loads(site.zoom_tech_design_json or "{}")
+    except (ValueError, TypeError):
+        raw = {}
+    return clean_design(raw) if isinstance(raw, dict) else {}
+
+
+def design_form(form):
+    """The design posted by the editor. A switch posts only when on."""
+    raw = {k[4:]: v for k, v in form.items() if k.startswith("ztd_")}
+    for key, _, _, _ in DESIGN_SWITCHES:
+        raw[key] = "1" if form.get("ztd_" + key) else "0"
+    return clean_design(raw)
+
+
+def design_switch(design, key):
+    default = next(d for k, _, _, d in DESIGN_SWITCHES if k == key)
+    return design[key] == "1" if key in design else default
+
+
+def design_css(design):
+    """CSS for a design: custom properties on ``.zt-design`` (the page,
+    and the editor's preview), each color's light value under the light
+    theme and its dark value under the dark one, and the page's
+    background behind the whole content column."""
+    from .fonts import font_stack
+    light, dark, both, extra = [], [], [], []
+    for key, _, _ in DESIGN_COLORS:
+        var = "--zt-" + key.replace("_", "-")
+        if design.get(key):
+            light.append(f"{var}: {design[key]};")
+        if design.get(key + "_dark"):
+            dark.append(f"{var}: {design[key + '_dark']};")
+    for key, (_, _, _, opts) in DESIGN_CHOICES.items():
+        if key in design:
+            css = {o[0]: o[2] for o in opts}[design[key]]
+            both.append(f"--zt-{key.replace('_', '-')}: {css};")
+    if not design_switch(design, "img_border"):
+        both.append("--zt-img-border: none;")
+    if design_switch(design, "img_shadow"):
+        both.append("--zt-img-shadow: 0 6px 24px rgba(15, 23, 42, .16);")
+    for key, _, _ in DESIGN_FONTS:
+        if design.get(key):
+            # Font names come from the font list; keep only what a
+            # font-family list can hold.
+            stack = re.sub(r"[^A-Za-z0-9 ,'\"_.-]", "", font_stack(design[key]))
+            both.append(f"--zt-{key.replace('_', '-')}: {stack};")
+    if both:
+        extra.append(".zt-design { " + " ".join(both) + " }")
+    if light:
+        extra.append('html:not([data-theme="dark"]) .zt-design { ' + " ".join(light) + " }")
+    if dark:
+        extra.append('html[data-theme="dark"] .zt-design { ' + " ".join(dark) + " }")
+    # Callouts keep their own tint unless the design sets one.
+    if design.get("quote_bg"):
+        extra.append(f'html:not([data-theme="dark"]) .zt-design .block-callout {{ background: {design["quote_bg"]}; }}')
+    if design.get("quote_bg_dark"):
+        extra.append(f'html[data-theme="dark"] .zt-design .block-callout {{ background: {design["quote_bg_dark"]}; }}')
+    # The background fills the content column, not just the text.
+    if design.get("bg"):
+        extra.append(f'html:not([data-theme="dark"]) .content:has(.zt-page) {{ background: {design["bg"]}; }}')
+    if design.get("bg_dark"):
+        extra.append(f'html[data-theme="dark"] .content:has(.zt-page) {{ background: {design["bg_dark"]}; }}')
+    return Markup("\n".join(extra))
+
+
+def design_fonts(design):
+    """Custom fonts the design uses, for their font-face CSS."""
+    from .fonts import custom_fonts
+    keys = {design.get(k) for k, _, _ in DESIGN_FONTS} - {None, ""}
+    return [cf for cf in custom_fonts() if cf.get("key") in keys] if keys else []

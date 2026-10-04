@@ -4,6 +4,38 @@
 {% set _name = site.zoom_tech_title or 'Zoom Tech Training' %}
 {% set _tmpl = site.zoom_tech_template or 'standard' %}
 {% set _md = fmt == 'markdown' %}
+{# One color of the design, light or dark: the posted value in a hidden
+   field (blank = the theme's color), a swatch over a color picker, the
+   hex, and a reset. #}
+{% macro zcolor(key, label, cap, ico) %}
+  {% set v = design.get(key, '') %}
+  <div class="ds-ctl ds-color{% if v %} is-custom{% endif %}" data-zt-color
+       data-mode-part="{{ 'light' if ico == 'sun' else 'dark' }}">
+    <span class="ds-cap">{{ icon(ico) }}{{ cap }}</span>
+    <input type="hidden" name="ztd_{{ key }}" value="{{ v }}">
+    <label class="ds-swatch" title="Pick a color" style="--ds-sw: {{ v or 'transparent' }}">
+      <input type="color" class="ds-picker" value="{{ v or '#ffffff' }}" data-no-token-picker
+             aria-label="{{ label }} ({{ cap|lower }})">
+    </label>
+    <input type="text" class="ds-hex" value="{{ v }}" placeholder="Theme" maxlength="7" spellcheck="false"
+           autocomplete="off" aria-label="{{ label }} ({{ cap|lower }}) hex value">
+    <button type="button" class="ds-reset" data-zt-reset title="Use the theme's color"
+            aria-label="Use the theme's {{ label|lower }} ({{ cap|lower }})">{{ icon('rotate-ccw') }}</button>
+  </div>
+{% endmacro %}
+{# A named choice as a segmented control. #}
+{% macro zchoice(key, inline=False) %}
+  {% set label, help, default, opts = design_choices[key] %}
+  {% set cur = design.get(key, default) %}
+  <div class="ds-row{{ ' ds-row--inline' if inline }}">
+    <span class="ds-label">{{ label }}{% call chip(label) %}{{ help }}{% endcall %}</span>
+    <div class="ds-seg-btns" role="radiogroup" aria-label="{{ label }}" data-default="{{ default }}">
+      {% for val, lab, css in opts %}
+      <label><input type="radio" name="ztd_{{ key }}" value="{{ val }}" {% if cur == val %}checked{% endif %}>{{ lab }}</label>
+      {% endfor %}
+    </div>
+  </div>
+{% endmacro %}
 {% block heading %}Edit {{ _name }}{% endblock %}
 {% block heading_help %}The page's title and text on the left, and its layout and sections on the right. Save with the yellow bar.{% endblock %}
 {% block top_actions %}
@@ -14,6 +46,7 @@
   {% endif %}
 {% endblock %}
 {% block content %}
+{% include "_zt_design_head.html" %}
 {# Laid out like the story and blog editors (story_edit.html): the
    writing on the left, the settings on the right in a segmented
    control (fe_studio.js), and the yellow save bar (content_editor.js).
@@ -43,7 +76,7 @@
                         placeholder="## Introduction&#10;&#10;What a Zoom Tech does, and who to ask for help.">{{ body }}</textarea>
             </div>
             <div class="md-editor-pane md-editor-pane-preview active">
-              <div class="md-editor-preview rich-content zt-doc" data-zt-preview><p class="muted smaller">Nothing to preview yet.</p></div>
+              <div class="md-editor-preview rich-content zt-doc zt-design" data-zt-preview><p class="muted smaller">Nothing to preview yet.</p></div>
             </div>
           </div>
         </div>
@@ -65,6 +98,7 @@
         <div class="st-seg-scroll" data-seg-scroll>
           <nav class="st-seg" role="tablist" aria-label="Page settings">
             <button type="button" role="tab" data-studio-tab="sections">{{ icon('list') }}<span>Sections</span></button>
+            <button type="button" role="tab" data-studio-tab="design">{{ icon('sliders') }}<span>Design</span></button>
             <button type="button" role="tab" data-studio-tab="layout">{{ icon('columns') }}<span>Layout</span></button>
           </nav>
         </div>
@@ -80,18 +114,18 @@
             <p class="muted small">{% if _md %}Written in Markdown.{% else %}Built with the block editor.{% endif %}{% if _kept %} The {{ _other }} version is kept too.{% endif %}</p>
             <div class="zt-format-actions">
               {% if _kept %}
-              <button type="button" class="btn btn-sm" data-zt-then="switch"
+              <button type="button" class="btn" data-zt-then="switch"
                       data-zt-title="Go back to the {{ _other }} version?"
                       data-zt-message="Your changes are saved first. The {{ _other }} version kept from before becomes the page, as it was, and this {{ 'Markdown' if _md else 'block' }} version is kept to come back to."
                       data-zt-label="Go back">{{ icon('rotate-ccw') }} Go back to the {{ _other }} version</button>
               {% endif %}
               {% if _md %}
-              <button type="button" class="btn btn-sm" data-zt-then="convert"
+              <button type="button" class="btn" data-zt-then="convert"
                       data-zt-title="Convert to blocks?"
                       data-zt-message="Your changes are saved first. Each ## heading then starts a section, and each paragraph, image, video, quote, smaller heading, code and divider becomes a block; quotes become callouts. The Markdown version is kept to go back to.{% if has_blocks %} This replaces the block version kept from before.{% endif %}"
                       data-zt-label="Convert">{{ icon('layout-grid') }} Convert to blocks</button>
               {% else %}
-              <button type="button" class="btn btn-sm" data-zt-then="convert"
+              <button type="button" class="btn" data-zt-then="convert"
                       data-zt-title="Convert to Markdown?"
                       data-zt-message="Your changes are saved first. Each section title then becomes a ## heading, and the page is edited like a blog post.{% for n in markdown_notes %} {{ n }}{% endfor %} The block version is kept to go back to.{% if has_markdown %} This replaces the Markdown version kept from before.{% endif %}"
                       data-zt-label="Convert">{{ icon('file-text') }} Convert to Markdown</button>
@@ -102,6 +136,60 @@
             <h3 class="ds-group-title">{{ icon('list') }}Sections {% call chip('Sections') %}{% if _md %}Each <code>## Heading</code> in the text starts a section.{% else %}Each section's title.{% endif %} Click one to go to it in the editor.{% endcall %}</h3>
             <ol class="zt-outline" data-zt-outline></ol>
             <p class="muted small zt-outline-empty" data-zt-outline-empty hidden>No sections yet.{% if _md %} Start a line with <code>## </code> to add one.{% endif %}</p>
+          </div>
+        </div>
+
+        {# ── Design: the page's colors, fonts, text and photos. Blank
+           or default follows the admin theme (zoom_tech_doc.DESIGN_*);
+           the Markdown preview shows changes as they're made. ── #}
+        <div class="st-panel ds-studio zt-design-panel" data-studio-panel="design" data-zt-design hidden>
+          <input type="hidden" name="ztd_present" value="1">
+          {% if not _md %}<p class="muted small zt-design-note">Save to see changes on the page: the block editor has no preview.</p>{% endif %}
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('droplet') }}Colors {% call chip('Colors') %}Each color has a value for the light theme and one for the dark theme. Leave one blank to keep the theme's own color.{% endcall %}</h3>
+            {% for key, label, help in design_colors %}
+            <div class="ds-row">
+              <span class="ds-label">{{ label }}{% call chip(label) %}{{ help }}{% endcall %}</span>
+              <div class="ds-pair">
+                {{ zcolor(key, label, 'Light', 'sun') }}
+                {{ zcolor(key ~ '_dark', label, 'Dark', 'moon') }}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('type') }}Text</h3>
+            {% for key, label, help in design_fonts %}
+            <label class="ds-row zt-font-row">
+              <span class="ds-label">{{ label }}{% call chip(label) %}{{ help }}{% endcall %}</span>
+              <select name="ztd_{{ key }}" data-zt-font>
+                <option value="" data-stack="">Same as the admin</option>
+                {% for f in frontend_fonts() %}
+                <option value="{{ f.key }}" data-stack="{{ f.stack }}" {% if design.get(key) == f.key %}selected{% endif %}>{{ f.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            {% endfor %}
+            {{ zchoice('text_size', inline=True) }}
+            {{ zchoice('line_height') }}
+            {{ zchoice('width') }}
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('image') }}Photos {% call chip('Photos') %}Photos and videos on the page. Clicking a photo opens it full screen, where it can be zoomed.{% endcall %}</h3>
+            {{ zchoice('img_radius') }}
+            {% for key, label, help, default in design_switches %}
+            <div class="ds-row ds-row--inline">
+              <label class="mode-toggle">
+                <input type="checkbox" name="ztd_{{ key }}" value="1" data-default="{{ '1' if default else '0' }}" {% if design_switch(design, key) %}checked{% endif %}>
+                <span class="mode-track"><span class="mode-thumb"></span></span>
+                <span class="ds-label">{{ label }}</span>
+              </label>
+              {% call chip(label) %}{{ help }}{% endcall %}
+            </div>
+            {% endfor %}
+          </div>
+          <div class="ds-group st-group-body">
+            <button type="button" class="btn" data-zt-design-reset>{{ icon('rotate-ccw') }} Back to the theme's design</button>
           </div>
         </div>
 
@@ -339,6 +427,84 @@
 })();
 </script>
 {% endif %}
+
+{# Design tab: the color controls, Back to the theme's design, and the
+   Markdown preview following every change. A blank setting is written
+   as `initial`, so the CSS falls back to the theme. #}
+<script>
+(function () {
+  var panel = document.querySelector('[data-zt-design]');
+  if (!panel) return;
+  var preview = document.querySelector('[data-zt-preview]');
+  var COLORS = {{ design_colors | map(attribute=0) | list | tojson }};
+  var CHOICES = {
+    {%- for key, (label, help, default, opts) in design_choices.items() %}
+    {{ key|tojson }}: { {% for val, lab, css in opts %}{{ val|tojson }}: {{ css|tojson }}{{ ', ' if not loop.last }}{% endfor %} }{{ ',' if not loop.last }}
+    {%- endfor %}
+  };
+  var isDark = function () { return document.documentElement.getAttribute('data-theme') === 'dark'; };
+  function field(name) { return panel.querySelector('[name="ztd_' + name + '"]'); }
+
+  panel.querySelectorAll('[data-zt-color]').forEach(function (c) {
+    var hidden = c.querySelector('input[type=hidden]');
+    var picker = c.querySelector('.ds-picker');
+    var hex = c.querySelector('.ds-hex');
+    var sw = c.querySelector('.ds-swatch');
+    function set(v, from) {
+      hidden.value = v;
+      c.classList.toggle('is-custom', !!v);
+      sw.style.setProperty('--ds-sw', v || 'transparent');
+      if (from !== 'hex') hex.value = v;
+      if (v && from !== 'picker') picker.value = v;
+      hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    picker.addEventListener('input', function () { set(picker.value, 'picker'); });
+    hex.addEventListener('input', function () {
+      var v = hex.value.trim();
+      if (v && v.charAt(0) !== '#') v = '#' + v;
+      if (/^#[0-9a-f]{6}$/i.test(v)) set(v.toLowerCase(), 'hex');
+      else if (!v) set('', 'hex');
+    });
+    hex.addEventListener('blur', function () { hex.value = hidden.value; });
+    c.querySelector('[data-zt-reset]').addEventListener('click', function () { set(''); });
+    c.__ztSet = set;
+  });
+
+  function apply() {
+    panel.setAttribute('data-mode', isDark() ? 'dark' : 'light');
+    if (!preview) return;
+    var st = preview.style;
+    COLORS.forEach(function (k) {
+      var f = field(isDark() ? k + '_dark' : k);
+      st.setProperty('--zt-' + k.replace(/_/g, '-'), (f && f.value) || 'initial');
+    });
+    Object.keys(CHOICES).forEach(function (k) {
+      var on = panel.querySelector('[name="ztd_' + k + '"]:checked');
+      st.setProperty('--zt-' + k.replace(/_/g, '-'), on ? CHOICES[k][on.value] : 'initial');
+    });
+    st.setProperty('--zt-img-border', field('img_border').checked ? 'initial' : 'none');
+    st.setProperty('--zt-img-shadow', field('img_shadow').checked ? '0 6px 24px rgba(15, 23, 42, .16)' : 'initial');
+    panel.querySelectorAll('[data-zt-font]').forEach(function (sel) {
+      var opt = sel.options[sel.selectedIndex];
+      st.setProperty('--zt-' + sel.name.slice(4).replace(/_/g, '-'), (opt && opt.dataset.stack) || 'initial');
+    });
+  }
+  panel.addEventListener('input', apply);
+  panel.addEventListener('change', apply);
+  new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  panel.querySelector('[data-zt-design-reset]').addEventListener('click', function () {
+    panel.querySelectorAll('[data-zt-color]').forEach(function (c) { c.__ztSet(''); });
+    panel.querySelectorAll('.ds-seg-btns[data-default]').forEach(function (g) {
+      g.querySelectorAll('input[type=radio]').forEach(function (r) { r.checked = r.value === g.dataset.default; });
+    });
+    panel.querySelectorAll('input[type=checkbox][data-default]').forEach(function (cb) { cb.checked = cb.dataset.default === '1'; });
+    panel.querySelectorAll('[data-zt-font]').forEach(function (sel) { sel.value = ''; });
+    panel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  apply();
+})();
+</script>
 
 {# Format buttons: confirm, then save with what follows. #}
 <script>

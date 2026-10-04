@@ -1055,6 +1055,9 @@ def create_app():
     app.jinja_env.globals["frontend_fonts"] = _all_fonts
     app.jinja_env.globals["custom_fonts"] = _custom_fonts
     app.jinja_env.globals["font_stack"] = _font_stack
+    from .zoom_tech_doc import design_css as _zt_design_css, design_fonts as _zt_design_fonts
+    app.jinja_env.globals["zt_design_css"] = _zt_design_css
+    app.jinja_env.globals["zt_design_fonts"] = _zt_design_fonts
     app.jinja_env.globals["frontend_font_roles"] = _FONT_ROLES
 
     # Intergroup officers — repeatable contact roster managed under
@@ -1669,6 +1672,7 @@ def _migrate_sqlite(app):
                          ("zoom_tech_blocks_json", "TEXT"),
                          ("zoom_tech_body", "TEXT"),
                          ("zoom_tech_format", "VARCHAR(16)"),
+                         ("zoom_tech_design_json", "TEXT"),
                          ("zoom_tech_template", "VARCHAR(16) NOT NULL DEFAULT 'standard'"),
                          ("posts_enabled", "BOOLEAN NOT NULL DEFAULT 1"),
                          ("intergroup_required_role", "VARCHAR(32) NOT NULL DEFAULT 'viewer'"),
