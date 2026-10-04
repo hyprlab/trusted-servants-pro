@@ -18927,7 +18927,7 @@ html.is-live-loading [data-live="main"] { opacity: .65; transition: opacity 120m
 /* The editor (zoom_tech_edit.html): a slimmer settings column, and the
    Markdown and its preview at the window's height, each scrolling, so a
    long page doesn't stretch the editor. */
-.zt-editor .zt-md { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); height: max(480px, calc(100vh - var(--topbar-h, 56px) - 250px)); grid-template-rows: auto minmax(0, 1fr); }
+.zt-editor .zt-md { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); height: max(480px, calc(100vh - var(--topbar-h, 56px) - 250px)); grid-template-rows: auto minmax(0, 1fr); }
 .zt-editor .zt-md .md-editor-pane { min-height: 0; overflow: hidden; }
 .form .zt-editor .zt-md .md-editor-pane-write textarea { height: 100%; min-height: 0; resize: none; overflow-y: auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-sm); line-height: 1.6; }
