@@ -118,14 +118,7 @@
 <aside class="fb-side" aria-label="Find a file">
   {% set _total = pagination.total if pagination else items|length %}
   {% set _noun = {'img': 'image', 'doc': 'document', 'vid': 'video', 'aud': 'audio file', 'other': 'other file'}.get(kind, 'file') %}
-  {% if picker %}
-  {# The picker's close sits here, by its heading, so the files pane
-     needs no gutter for it; the page around the modal closes it. #}
-  <div class="fb-side-headrow">
-    <h1 class="fb-side-head">File Browser</h1>
-    <button type="button" class="icon-btn fb-picker-close" data-picker-close aria-label="Close" title="Close (Esc)">{{ icon('x') }}</button>
-  </div>
-  {% endif %}
+  {% if picker %}<h1 class="fb-side-head">File Browser</h1>{% endif %}
   <div class="fb-side-top" data-live="total">
     <p class="fb-side-total" aria-live="polite">{{ _total }} {{ _noun }}{{ '' if _total == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}{% if mine %}, uploaded by you{% endif %}</p>
   </div>
@@ -313,15 +306,13 @@
 
 {% if picker %}
 <script>
-  // Close the picker: the button by the heading, or Esc with the
-  // focus in here (an open preview closes first).
+  // Esc with the focus in here closes the picker (an open preview
+  // closes first); the close button is the modal's, outside the frame.
   (function () {
-    function closePicker() {
-      if (window.parent !== window) window.parent.postMessage({ type: 'media-picker-close' }, window.location.origin);
-    }
-    document.querySelectorAll('[data-picker-close]').forEach(b => b.addEventListener('click', closePicker));
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && !document.querySelector('.modal.open')) closePicker();
+      if (e.key === 'Escape' && !document.querySelector('.modal.open') && window.parent !== window) {
+        window.parent.postMessage({ type: 'media-picker-close' }, window.location.origin);
+      }
     });
   })();
 </script>
