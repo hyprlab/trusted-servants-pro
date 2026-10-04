@@ -123,10 +123,15 @@
 
   // Where each heading sits in the textarea, in pixels from its top:
   // measured on a copy of the textarea with a marker at each heading.
+  // The copy sits in a fixed box of no size, so its height adds no
+  // scrolling to the page.
+  var box = document.createElement('div');
+  box.setAttribute('aria-hidden', 'true');
+  box.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;visibility:hidden;pointer-events:none;';
   var mirror = document.createElement('div');
-  mirror.setAttribute('aria-hidden', 'true');
-  mirror.style.cssText = 'position:absolute;top:0;left:-9999px;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;';
-  document.body.appendChild(mirror);
+  mirror.style.cssText = 'position:absolute;top:0;left:0;white-space:pre-wrap;overflow-wrap:break-word;';
+  box.appendChild(mirror);
+  document.body.appendChild(box);
   var tops = null;
   function measure() {
     if (tops) return tops;
