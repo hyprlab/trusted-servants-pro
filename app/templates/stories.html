@@ -1,382 +1,228 @@
 {% extends "base.html" %}
 {% from "_row_menu.html" import row_menu %}
+{% from "_list_page.html" import search_form, side_link, sort_link, view_switch, bulk_bar %}
 {% block heading %}Stories{% endblock %}
 {% block heading_help %}Recovery stories — long-form first-person posts. Each story has an author, a featured image, optional sobriety / story dates, and a body. Click a column header to sort. Tick the checkboxes to bulk delete, move to drafts, or archive.{% endblock %}
-{% block top_actions %}
-  <div class="view-controls">
-    <div class="view-toggle">
-      <a class="btn btn-sm {% if show == 'active' or show not in ('archived', 'drafts') %}active{% endif %}"
-         href="{{ url_for('main.stories', show='active', sort=sort) }}">Published</a>
-      <a class="btn btn-sm {% if show == 'drafts' %}active{% endif %}"
-         href="{{ url_for('main.stories', show='drafts', sort=sort) }}">Drafts</a>
-      <a class="btn btn-sm {% if show == 'archived' %}active{% endif %}"
-         href="{{ url_for('main.stories', show='archived', sort=sort) }}">Archived</a>
-      {# Amber outline when something is waiting, so the tab is
-         findable without the sidebar link hijacking every visit. #}
-      <a class="btn btn-sm {% if show == 'pending' %}active{% endif %}{% if pending_count and show != 'pending' %} has-pending{% endif %}"
-         href="{{ url_for('main.stories', show='pending', sort=sort) }}">
-        Pending review{% if pending_count %} <span class="nav-badge">{{ pending_count }}</span>{% endif %}
-      </a>
-    </div>
-  </div>
-  <a class="btn" href="{{ url_for('main.frontend_form_story') }}">{{ icon('settings') }} Manage form</a>
-  <a class="btn btn-primary" href="{{ url_for('main.story_new') }}">+ New story</a>
-{% endblock %}
+{% block top_actions %}{% endblock %}
 {% block content %}
-{%- set _sortmap = {
-    'title': ('title_asc', 'title_desc'),
-    'author': ('author_asc', 'author_asc'),
-    'story_date': ('story_date_desc', 'story_date_asc'),
-    'posted': ('posted_desc', 'posted_asc'),
-} -%}
-{%- macro sort_link(col, label) -%}
-  {%- set primary, secondary = _sortmap[col] -%}
-  {%- set is_active = sort in (primary, secondary) -%}
-  {%- set next_sort = secondary if sort == primary else primary -%}
-  <a class="posts-sort{% if is_active %} is-active{% endif %}"
-     href="{{ url_for('main.stories', show=show, sort=next_sort, q=q_text or None, featured='1' if featured else None) }}">
-    {{ label }}
-    {% if sort == primary %}<span class="posts-sort-arrow" aria-hidden="true">{{ '↑' if 'asc' in primary else '↓' }}</span>
-    {% elif sort == secondary %}<span class="posts-sort-arrow" aria-hidden="true">{{ '↑' if 'asc' in secondary else '↓' }}</span>
+{# Every link here keeps the page's settings (view, sort, search and
+   filters) and changes only what it passes in `over`. #}
+{% set _base = {'show': show if show != 'active' else None, 'featured': '1' if featured else None,
+                'sort': sort, 'q': q or None, 'view': view} %}
+{% macro _url(over={}) -%}
+  {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}{{ url_for('main.stories', **_u) }}
+{%- endmacro %}
+{# Sorting: `sort` is "<column>_<asc|desc>". Clicking the current column
+   reverses it; a new one starts in its natural order (dates newest
+   first, names A to Z). #}
+{% set _skey, _sdir = sort.rsplit('_', 1) %}
+{% set SORT_FIRST_DIR = {'title': 'asc', 'author': 'asc', 'story_date': 'desc', 'posted': 'desc', 'updated': 'desc'} %}
+{% macro _sort(key, label) -%}
+  {%- set _on = _skey == key -%}
+  {{ sort_link(_url({'sort': key ~ '_' ~ ((('asc' if _sdir == 'desc' else 'desc') if _on else SORT_FIRST_DIR[key]))}), label, _on, _sdir) }}
+{%- endmacro %}
+{% macro _sort_th(key, label, cls='') -%}
+  <th class="{{ cls }}"{% if _skey == key %} aria-sort="{{ 'ascending' if _sdir == 'asc' else 'descending' }}"{% endif %}>{{ _sort(key, label) }}</th>
+{%- endmacro %}
+{% macro _plural(n, one, many) %}{{ n }} {{ one if n == 1 else many }}{% endmacro %}
+{% macro _img(s) %}{{ url_for('public.story_featured_image', sid=s.id, thumb=400) }}{% endmacro %}
+{% macro _thumb(s) %}
+  {% if s.featured_image_filename %}
+  <span class="lst-thumb lst-thumb--photo has-img" aria-hidden="true">
+    <img src="{{ url_for('public.story_featured_image', sid=s.id, thumb=120) }}" alt="" loading="lazy" onerror="this.parentNode.classList.add('is-broken')">{{ icon('book-open') }}</span>
+  {% else %}
+  <span class="lst-thumb lst-thumb--post" aria-hidden="true">{{ icon('book-open') }}</span>
+  {% endif %}
+{% endmacro %}
+{% macro _chips(s) %}
+  {% if s.is_pending_review %}<span class="post-chip post-chip-warning">Pending</span>
+  {% elif s.is_draft %}<span class="post-chip post-chip-draft">Draft</span>
+  {% elif s.is_archived %}<span class="post-chip">Archived</span>
+  {% else %}<span class="post-chip post-chip-online">Published</span>{% endif %}
+  {% if s.is_featured and not s.is_draft and not s.is_archived %}<span class="post-chip post-chip-announcement">Featured</span>{% endif %}
+{% endmacro %}
+{% macro _submitter(s) %}
+  {% if s.is_pending_review and (s.submitter_name or s.submitter_email) %}
+  <div class="fb-sub lst-submitter">Sent by
+    {% if s.submitter_email %}<a href="mailto:{{ s.submitter_email }}">{{ s.submitter_name or s.submitter_email }}</a>{% else %}{{ s.submitter_name }}{% endif %}{% if s.submitted_at %} · {{ s.submitted_at|fmt_site_local('%b %-d, %Y') }}{% endif %}</div>
+  {% endif %}
+{% endmacro %}
+{% macro _actions(s, compact=False) %}
+  {% call row_menu('Actions' if not compact else 'Actions for ' ~ s.title, compact=compact) %}
+    {% if s.is_pending_review %}
+    {# A submission: Approve turns it into a draft to edit; Reject
+       deletes it (the submitter isn't told). #}
+    <button type="submit" form="single-story-approve-{{ s.id }}-form" class="row-menu-item">{{ icon('check') }}<span>Approve to drafts</span></button>
+    {% if s.submission_attachment_filename %}
+    <a class="row-menu-item" href="{{ url_for('main.story_submission_attachment', sid=s.id) }}">{{ icon('download') }}<span>Download attachment</span></a>
     {% endif %}
-  </a>
-{%- endmacro -%}
-{# Search and filters in one row, as on the blog list: a menu applies
-   as soon as it changes, the search when Enter is pressed. #}
-{% set _filtered = q_text or featured or sort != 'posted_desc' %}
-<form method="get" action="{{ url_for('main.stories') }}" class="list-filters" role="search" data-auto-submit>
-  <input type="hidden" name="show" value="{{ show }}">
-  <label class="list-filters-search">
-    {{ icon('search') }}
-    <input type="search" name="q" value="{{ q_text or '' }}" placeholder="Search titles, summaries and authors" aria-label="Search stories">
-  </label>
-  <select name="featured" aria-label="Featured">
-    <option value="">All stories</option>
-    <option value="1" {% if featured %}selected{% endif %}>Featured only</option>
-  </select>
-  <select name="sort" aria-label="Sort">
-    <option value="posted_desc" {% if sort == 'posted_desc' %}selected{% endif %}>Newest first</option>
-    <option value="posted_asc" {% if sort == 'posted_asc' %}selected{% endif %}>Oldest first</option>
-    <option value="updated_desc" {% if sort == 'updated_desc' %}selected{% endif %}>Recently edited</option>
-    <option value="story_date_desc" {% if sort == 'story_date_desc' %}selected{% endif %}>Story date, newest</option>
-    <option value="story_date_asc" {% if sort == 'story_date_asc' %}selected{% endif %}>Story date, oldest</option>
-    <option value="title_asc" {% if sort == 'title_asc' %}selected{% endif %}>Title, A to Z</option>
-    <option value="title_desc" {% if sort == 'title_desc' %}selected{% endif %}>Title, Z to A</option>
-    <option value="author_asc" {% if sort == 'author_asc' %}selected{% endif %}>Author, A to Z</option>
-  </select>
-  {% if _filtered %}<a class="btn list-filters-clear" href="{{ url_for('main.stories', show=show) }}">{{ icon('x') }} Clear</a>{% endif %}
-  <noscript><button class="btn btn-primary" type="submit">Apply</button></noscript>
+    <div class="row-menu-sep" role="separator"></div>
+    <button type="submit" form="single-story-reject-{{ s.id }}-form" class="row-menu-item row-menu-item-danger">{{ icon('x') }}<span>Reject</span></button>
+    {% else %}
+    <a class="row-menu-item" href="{{ url_for('main.story_edit', sid=s.id) }}">{{ icon('pencil') }}<span>Edit</span></a>
+    {% if s.is_draft %}
+    <button type="submit" form="single-story-publish-{{ s.id }}-form" class="row-menu-item">{{ icon('send') }}<span>Publish</span></button>
+    {% elif not s.is_archived %}
+    <button type="submit" form="single-story-unpublish-{{ s.id }}-form" class="row-menu-item">{{ icon('file-text') }}<span>Move to Drafts</span></button>
+    {% endif %}
+    {% if s.is_archived %}
+    <button type="submit" form="single-story-unarchive-{{ s.id }}-form" class="row-menu-item">{{ icon('rotate-ccw') }}<span>Restore</span></button>
+    {% else %}
+    <button type="submit" form="single-story-archive-{{ s.id }}-form" class="row-menu-item">{{ icon('box') }}<span>Archive</span></button>
+    {% endif %}
+    <div class="row-menu-sep" role="separator"></div>
+    <button type="submit" form="single-story-delete-{{ s.id }}-form" class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+    {% endif %}
+  {% endcall %}
+{% endmacro %}
+
+<div class="fb-pick fb-pick--page lst-page">
+<aside class="fb-side" aria-label="Find a story">
+  <div class="fb-side-top" data-live="total">
+    <p class="fb-side-total" aria-live="polite">{{ _plural(stories|length, 'story', 'stories') }}{% if q %} matching “{{ q }}”{% endif %}</p>
+  </div>
+  {{ search_form(url_for('main.stories'), _base, q, 'Search stories', 'Search stories') }}
+  <a class="btn btn-primary fb-side-upload" href="{{ url_for('main.story_new') }}">{{ icon('plus') }} New story</a>
+  <div class="lst-side-live" data-live="side">
+    <nav class="fb-side-group" aria-label="Status">
+      <h3 class="fb-side-title">Status</h3>
+      {{ side_link(_url({'show': None}), 'book-open', 'Published', status_counts.active, show == 'active') }}
+      {{ side_link(_url({'show': 'drafts'}), 'file-text', 'Drafts', status_counts.drafts, show == 'drafts') }}
+      {{ side_link(_url({'show': 'pending'}), 'inbox', 'Pending review', status_counts.pending, show == 'pending', 'has-waiting' if status_counts.pending and show != 'pending') }}
+      {{ side_link(_url({'show': 'archived'}), 'box', 'Archived', status_counts.archived, show == 'archived') }}
+    </nav>
+    <nav class="fb-side-group" aria-label="Featured">
+      <h3 class="fb-side-title">Featured</h3>
+      {{ side_link(_url({'featured': None}), 'layout-grid', 'All stories', featured_counts[''], not featured) }}
+      {{ side_link(_url({'featured': '1'}), 'star', 'Featured only', featured_counts['1'], featured) }}
+    </nav>
+    <div class="fb-side-group" role="group" aria-label="Sort stories">
+      <h3 class="fb-side-title">Sort by</h3>
+      <div class="fb-side-sort">
+        {{ _sort('posted', 'Posted') }}{{ _sort('title', 'Title') }}{{ _sort('author', 'Author') }}{{ _sort('story_date', 'Story date') }}{{ _sort('updated', 'Edited') }}
+      </div>
+    </div>
+    {{ view_switch(_url({'view': 'list'}), _url({'view': 'grid'}), view) }}
+    <nav class="fb-side-group" aria-label="More">
+      <h3 class="fb-side-title">More</h3>
+      {{ side_link(url_for('main.frontend_form_story'), 'settings', 'Submission form') }}
+    </nav>
+  </div>
+</aside>
+<div class="fb-pick-main" data-live="main">
+<form id="stories-bulk-form" method="post" action="{{ url_for('main.story_bulk') }}" data-bulk-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="" data-bulk-action-field>
 </form>
-
-{% if stories %}
-{# Bulk-action wrapper — same shape as posts.html. Per-row action
-   buttons sit OUTSIDE this form (referenced via `form="single-<id>-..."`)
-   so they don't trip nested-form warnings. #}
-<form id="stories-bulk-form" method="post" action="{{ url_for('main.story_bulk') }}">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<input type="hidden" name="action" id="stories-bulk-action" value="">
-
-<div class="posts-toolbar">
-  <div class="posts-meta muted small">
-    Showing <b>{{ stories|length }}</b> stor{{ 'ies' if stories|length != 1 else 'y' }}
+<section class="card fb lst" data-bulk-scope="stories-bulk-form">
+  {% if not stories %}
+  <div class="fb-empty">
+    <span class="fb-empty-icon" aria-hidden="true">{{ icon('book-open') }}</span>
+    {% if q or featured %}
+    <p>No {{ 'featured ' if featured }}stories here match{{ ' “' ~ q ~ '”' if q }}.</p>
+    <a class="btn btn-sm" href="{{ _url({'q': None, 'featured': None}) }}">Show all</a>
+    {% elif show == 'archived' %}<p>Nothing archived.</p>
+    {% elif show == 'drafts' %}<p>No drafts yet.</p>
+    {% elif show == 'pending' %}<p>No story submissions waiting for review.</p>
+    {% else %}<p>No stories yet.</p>
+    <a class="btn btn-sm btn-primary" href="{{ url_for('main.story_new') }}">{{ icon('plus') }} New story</a>
+    {% endif %}
   </div>
-  <div class="posts-bulkbar" data-stories-bulkbar hidden>
-    <span class="posts-bulkbar-count" data-bulk-count>0 selected</span>
-    {% if show != 'archived' %}
-    <button type="button" class="btn btn-sm" data-bulk="archive">Archive</button>
-    {% endif %}
-    {% if show == 'archived' %}
-    <button type="button" class="btn btn-sm" data-bulk="unarchive">Restore</button>
-    {% endif %}
-    {% if show != 'drafts' %}
-    <button type="button" class="btn btn-sm" data-bulk="draft">Move to drafts</button>
-    {% endif %}
-    {% if show != 'active' %}
-    <button type="button" class="btn btn-sm btn-primary" data-bulk="publish">Publish</button>
-    {% endif %}
-    <button type="button" class="btn btn-sm btn-danger" data-bulk="delete"
-            data-bulk-confirm="Delete the selected stories permanently? Featured images will be cleaned up. This cannot be undone.">Delete</button>
-    <button type="button" class="btn btn-sm posts-bulk-clear" data-bulk-clear>Clear</button>
+  {% elif view == 'grid' %}
+  <div class="lst-grid lst-grid--photo">
+    {% for s in stories %}
+    <article class="lst-card lst-card--photo">
+      <div class="lst-card-cover">
+        {% if s.featured_image_filename %}<img src="{{ _img(s) }}" alt="" loading="lazy">
+        {% else %}<span class="lst-card-cover-icon">{{ icon('book-open') }}</span>{% endif %}
+      </div>
+      <label class="lst-card-check" title="Select"><input type="checkbox" name="ids" value="{{ s.id }}" form="stories-bulk-form" data-bulk-check aria-label="Select {{ s.title }}"></label>
+      <div class="lst-card-head">
+        <a class="lst-card-link" href="{{ url_for('main.story_edit', sid=s.id) }}">{{ s.title }}</a>
+        {{ _actions(s, compact=True) }}
+      </div>
+      <div class="lst-card-body">
+        {% if s.author_name %}<p class="lst-card-meta">{{ icon('user') }}<span>{{ s.author_name }}</span></p>{% endif %}
+        {% if s.summary %}<p class="lst-card-desc">{{ s.summary|striptags }}</p>{% endif %}
+        {{ _submitter(s) }}
+      </div>
+      <div class="lst-card-foot">
+        <span class="lst-card-counts">{{ s.display_posted.strftime('%b %-d, %Y') if s.display_posted }}</span>
+        <span class="lst-card-chips">{{ _chips(s) }}</span>
+      </div>
+    </article>
+    {% endfor %}
   </div>
-</div>
-
-<section class="card posts-card">
-  <table class="tbl posts-tbl">
+  {% else %}
+  <table class="tbl fb-tbl lst-tbl">
     <thead>
       <tr>
-        <th class="posts-th-check">
-          <label class="posts-check-wrap" title="Select all on this page">
-            <input type="checkbox" data-stories-selectall>
-          </label>
-        </th>
-        <th class="posts-th-thumb"></th>
-        <th>{{ sort_link('title', 'Title') }}</th>
-        <th class="hide-sm">{{ sort_link('author', 'Author') }}</th>
-        <th class="hide-sm">{{ sort_link('story_date', 'Story date') }}</th>
-        <th class="hide-sm">{{ sort_link('posted', 'Posted') }}</th>
-        <th class="hide-sm">Status</th>
-        <th class="posts-th-actions">Actions</th>
+        <th class="lst-check-col"><label class="lst-check" title="Select all"><input type="checkbox" data-bulk-all aria-label="Select all"></label></th>
+        <th class="fb-thumb-col"><span class="sr-only">Image</span></th>
+        {{ _sort_th('title', 'Title') }}
+        {{ _sort_th('author', 'Author', 'fb-col') }}
+        {{ _sort_th('story_date', 'Story date', 'fb-col fb-col-wide') }}
+        {{ _sort_th('posted', 'Posted', 'fb-col') }}
+        <th class="fb-col">Status</th>
+        <th class="th-actions">Actions</th>
       </tr>
     </thead>
     <tbody>
-    {% for s in stories %}
-      <tr data-story-row>
-        <td class="posts-td-check">
-          <label class="posts-check-wrap">
-            <input type="checkbox" name="ids" value="{{ s.id }}" data-stories-row-check>
-          </label>
+      {% for s in stories %}
+      <tr>
+        <td class="lst-check-col"><label class="lst-check"><input type="checkbox" name="ids" value="{{ s.id }}" form="stories-bulk-form" data-bulk-check aria-label="Select {{ s.title }}"></label></td>
+        <td class="fb-thumb-cell">{{ _thumb(s) }}</td>
+        <td class="media-name-cell">
+          <a class="fb-name" href="{{ url_for('main.story_edit', sid=s.id) }}">{{ s.title }}</a>
+          {% if s.is_pending_review %}{{ _submitter(s) }}
+          {% elif s.summary %}<div class="fb-sub">{{ s.summary|striptags }}</div>{% endif %}
+          <div class="fb-sub fb-sub--narrow">{{ s.author_name or '' }}{% if s.author_name and s.display_posted %} · {% endif %}{{ s.display_posted.strftime('%b %-d, %Y') if s.display_posted }}</div>
         </td>
-        <td class="posts-td-thumb">
-          {% if s.featured_image_filename %}
-          <img class="posts-thumb"
-               src="{{ url_for('public.story_featured_image', sid=s.id, thumb=120) }}"
-               alt="" loading="lazy">
-          {% else %}
-          <div class="posts-thumb posts-thumb-empty">{{ icon('book-open') }}</div>
-          {% endif %}
-        </td>
-        <td>
-          <a class="posts-title" href="{{ url_for('main.story_edit', sid=s.id) }}">{{ s.title }}</a>
-          {% if s.summary %}<div class="muted small posts-summary">{{ s.summary[:140] }}{% if s.summary|length > 140 %}…{% endif %}</div>{% endif %}
-          {% if s.is_pending_review and (s.submitter_name or s.submitter_email) %}
-          <div class="muted smaller posts-submitter">
-            Submitted by
-            {% if s.submitter_email %}<a href="mailto:{{ s.submitter_email }}">{{ s.submitter_name or s.submitter_email }}</a>
-            {% else %}{{ s.submitter_name }}{% endif %}
-            {% if s.submitted_at %} · {{ s.submitted_at|fmt_site_local('%b %-d, %Y · %-I:%M %p') }}{% endif %}
-          </div>
-          {% endif %}
-        </td>
-        <td class="hide-sm">
-          {% if s.author_name %}<span class="muted small">{{ s.author_name }}</span>{% else %}<span class="muted smaller">—</span>{% endif %}
-        </td>
-        <td class="hide-sm">
-          {% if s.display_date %}
-            <div class="muted small">{{ s.display_date.strftime('%b %d, %Y') }}</div>
-          {% else %}
-            <span class="muted smaller">—</span>
-          {% endif %}
-        </td>
-        <td class="hide-sm">
-          {% if s.display_posted %}
-            <div class="muted small">{{ s.display_posted.strftime('%b %d, %Y') }}</div>
-            <div class="muted smaller">{{ s.display_posted.strftime('%-I:%M %p') }}</div>
-          {% else %}
-            <span class="muted smaller">—</span>
-          {% endif %}
-        </td>
-        <td class="hide-sm">
-          {% if s.is_pending_review %}<span class="post-chip post-chip-warning">Pending</span>{% endif %}
-          {% if s.is_draft %}<span class="post-chip post-chip-draft">Draft</span>{% endif %}
-          {% if s.is_archived %}<span class="post-chip">Archived</span>{% endif %}
-          {# A live story matched none of the states above, so the column
-             came up blank — the one case that most needs saying. #}
-          {% if not s.is_pending_review and not s.is_draft and not s.is_archived %}
-          <span class="post-chip post-chip-online">Published</span>
-          {% endif %}
-          {% if s.is_featured and not s.is_draft and not s.is_archived %}<span class="post-chip post-chip-announcement">Featured</span>{% endif %}
-        </td>
-        <td class="posts-td-actions">
-          <div class="row-actions">
-            {% call row_menu() %}
-              {% if s.is_pending_review %}
-              {# Pending-review submissions get a dedicated action set:
-                 an Approve item that flips the row to a regular draft
-                 (and lands the admin on the edit page), a download link
-                 for the submitter's attached file when present, and
-                 Reject to discard. The pending submitter contact line
-                 below the title shows who sent it in. #}
-              <button type="submit" form="single-story-approve-{{ s.id }}-form"
-                      class="row-menu-item" title="Approve into drafts for editing">
-                {{ icon('check') }}<span>Approve to drafts</span></button>
-              {% if s.submission_attachment_filename %}
-              <a class="row-menu-item"
-                 href="{{ url_for('main.story_submission_attachment', sid=s.id) }}"
-                 title="Download the submitter's attached file">
-                {{ icon('download') }}<span>Download attachment</span></a>
-              {% endif %}
-              <div class="row-menu-sep" role="separator"></div>
-              <button type="submit" form="single-story-delete-{{ s.id }}-form" class="row-menu-item row-menu-item-danger"
-                      title="Reject and delete this submission"
-                      onclick="return confirm('Reject and delete this submission permanently? The submitter is not notified automatically.');">
-                {{ icon('x') }}<span>Reject</span></button>
-              {% else %}
-              <a class="row-menu-item" href="{{ url_for('main.story_edit', sid=s.id) }}">
-                {{ icon('pencil') }}<span>Edit</span></a>
-              {% if s.is_draft %}
-              <button type="submit" form="single-story-publish-{{ s.id }}-form" class="row-menu-item" title="Publish this draft">
-                {{ icon('send') }}<span>Publish</span></button>
-              {% elif not s.is_archived %}
-              <button type="submit" form="single-story-unpublish-{{ s.id }}-form" class="row-menu-item" title="Move to Drafts">
-                {{ icon('file-text') }}<span>Move to Drafts</span></button>
-              {% endif %}
-              {% if s.is_archived %}
-                <button type="submit" form="single-story-unarchive-{{ s.id }}-form" class="row-menu-item" title="Restore">
-                  {{ icon('rotate-ccw') }}<span>Restore</span></button>
-              {% else %}
-                <button type="submit" form="single-story-archive-{{ s.id }}-form" class="row-menu-item" title="Archive">
-                  {{ icon('box') }}<span>Archive</span></button>
-              {% endif %}
-              <div class="row-menu-sep" role="separator"></div>
-              <button type="submit" form="single-story-delete-{{ s.id }}-form" class="row-menu-item row-menu-item-danger"
-                      title="Delete story"
-                      onclick="return confirm('Delete this story permanently? Featured image will be cleaned up.');">
-                {{ icon('trash') }}<span>Delete</span></button>
-              {% endif %}
-            {% endcall %}
-          </div>
-        </td>
+        <td class="fb-col muted">{{ s.author_name or '—' }}</td>
+        <td class="fb-col fb-col-wide muted">{{ s.display_date.strftime('%b %-d, %Y') if s.display_date else '—' }}</td>
+        <td class="fb-col muted">{{ s.display_posted.strftime('%b %-d, %Y') if s.display_posted else '—' }}</td>
+        <td class="fb-col"><div class="lst-chips">{{ _chips(s) }}</div></td>
+        <td class="row-actions">{{ _actions(s) }}</td>
       </tr>
-    {% endfor %}
+      {% endfor %}
     </tbody>
   </table>
+  {% endif %}
+
+  {% if stories %}
+  {% call bulk_bar() %}
+    {% if show != 'archived' %}<button type="button" class="btn btn-sm" data-bulk="archive">Archive</button>{% endif %}
+    {% if show == 'archived' %}<button type="button" class="btn btn-sm" data-bulk="unarchive">Restore</button>{% endif %}
+    {% if show != 'drafts' %}<button type="button" class="btn btn-sm" data-bulk="draft">Move to drafts</button>{% endif %}
+    {% if show != 'active' %}<button type="button" class="btn btn-sm btn-primary" data-bulk="publish">Publish</button>{% endif %}
+    <button type="button" class="btn btn-sm btn-danger" data-bulk="delete" data-bulk-noun="story" data-bulk-nouns="stories"
+            data-bulk-confirm="They will be deleted for good, with their featured images.">Delete</button>
+  {% endcall %}
+  {% endif %}
 </section>
 
-</form>
-
-{# Per-row action stubs — separate forms (referenced by `form=` on the
-   button) so the row-action buttons can sit inside the bulk form
-   without nesting. Each one POSTs to a single-row endpoint. #}
+{# Per-row action forms, matched by id from the row menus. #}
 {% for s in stories %}
 {% if s.is_pending_review %}
-<form id="single-story-approve-{{ s.id }}-form" method="post"
-      action="{{ url_for('main.story_approve_pending', sid=s.id) }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-</form>
+<form id="single-story-approve-{{ s.id }}-form" method="post" action="{{ url_for('main.story_approve_pending', sid=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+<form id="single-story-reject-{{ s.id }}-form" method="post" action="{{ url_for('main.story_delete', sid=s.id) }}"
+      data-confirm-title="Reject this submission?" data-confirm-label="Reject"
+      data-confirm="“{{ s.title }}” will be deleted for good. The person who sent it isn't told."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
 {% endif %}
 {% if s.is_draft %}
-<form id="single-story-publish-{{ s.id }}-form" method="post" action="{{ url_for('main.story_publish', sid=s.id) }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-</form>
+<form id="single-story-publish-{{ s.id }}-form" method="post" action="{{ url_for('main.story_publish', sid=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
 {% elif not s.is_archived %}
-<form id="single-story-unpublish-{{ s.id }}-form" method="post" action="{{ url_for('main.story_unpublish', sid=s.id) }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-</form>
+<form id="single-story-unpublish-{{ s.id }}-form" method="post" action="{{ url_for('main.story_unpublish', sid=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
 {% endif %}
 {% if s.is_archived %}
-<form id="single-story-unarchive-{{ s.id }}-form" method="post" action="{{ url_for('main.story_unarchive', sid=s.id) }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-</form>
+<form id="single-story-unarchive-{{ s.id }}-form" method="post" action="{{ url_for('main.story_unarchive', sid=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
 {% else %}
-<form id="single-story-archive-{{ s.id }}-form" method="post" action="{{ url_for('main.story_archive', sid=s.id) }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-</form>
+<form id="single-story-archive-{{ s.id }}-form" method="post" action="{{ url_for('main.story_archive', sid=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
 {% endif %}
-<form id="single-story-delete-{{ s.id }}-form" method="post" action="{{ url_for('main.story_delete', sid=s.id) }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-</form>
+<form id="single-story-delete-{{ s.id }}-form" method="post" action="{{ url_for('main.story_delete', sid=s.id) }}"
+      data-confirm-title="Delete this story?" data-confirm-label="Delete"
+      data-confirm="“{{ s.title }}” will be deleted for good, with its featured image."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
 {% endfor %}
-
-{% else %}
-<section class="card">
-  <p class="muted">
-    {% if q_text %}No {{ 'featured ' if featured }}stories match “{{ q_text }}”. <a href="{{ url_for('main.stories', show=show) }}">Show them all</a>.
-    {% elif featured %}No featured stories here. <a href="{{ url_for('main.stories', show=show) }}">Show them all</a>.
-    {% elif show == 'archived' %}Nothing archived.
-    {% elif show == 'drafts' %}No drafts yet.
-    {% elif show == 'pending' %}No story submissions waiting for review.
-    {% else %}Nothing here yet — click <b>+ New story</b> above to start one.{% endif %}
-  </p>
-</section>
-{% endif %}
-
-<style>
-  /* Bulk-action toolbar + bar — same chrome as the Posts admin
-     (defined locally there). Lifted here so the bulk-bar pill renders
-     correctly on /tspro/stories. The 1rem bottom margin separates the
-     "Showing N stories" line from the card below it. */
-  .posts-toolbar {
-    display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;
-  }
-  .posts-meta { font-size: var(--fs-sm); }
-  .posts-bulkbar {
-    display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
-    background: var(--panel-2, var(--panel));
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: .35rem .55rem .35rem 1rem;
-  }
-  .posts-bulkbar[hidden] { display: none; }
-  .posts-bulkbar-count {
-    font-weight: 600; font-size: var(--fs-sm);
-    color: var(--text);
-  }
-  .posts-bulk-clear { margin-left: .25rem; }
-
-  .posts-th-check, .posts-td-check { width: 2.4rem; text-align: center; }
-  .posts-check-wrap {
-    display: inline-flex; align-items: center; justify-content: center;
-    cursor: pointer; padding: 4px;
-  }
-  .posts-check-wrap input { margin: 0; cursor: pointer; }
-
-  /* Visual emphasis on selected rows so it's obvious what's about to
-     get bulk-actioned. Matches the highlight used on the Posts admin. */
-  tr[data-story-row]:has(input[data-stories-row-check]:checked) {
-    background: color-mix(in srgb, var(--brand) 8%, transparent);
-  }
-</style>
-
-{% if stories %}
-<script>
-(function () {
-  // Bulk action wiring — same shape as the Posts admin. The host form
-  // owns the hidden `action` field and the `ids` checkboxes; clicking
-  // a bulk button writes the action name into the hidden field and
-  // submits. Selectall covers visible rows; per-row click syncs the
-  // counter and reveals the bar.
-  var form = document.getElementById('stories-bulk-form');
-  if (!form) return;
-  var bar = form.querySelector('[data-stories-bulkbar]');
-  var counter = form.querySelector('[data-bulk-count]');
-  var actionField = document.getElementById('stories-bulk-action');
-  var checkboxes = form.querySelectorAll('[data-stories-row-check]');
-  var selectAll = form.querySelector('[data-stories-selectall]');
-
-  function refresh() {
-    var n = 0;
-    checkboxes.forEach(function (c) { if (c.checked) n++; });
-    if (counter) counter.textContent = n + ' selected';
-    if (bar) bar.hidden = n === 0;
-    if (selectAll) {
-      selectAll.checked = n === checkboxes.length && n > 0;
-      selectAll.indeterminate = n > 0 && n < checkboxes.length;
-    }
-  }
-  checkboxes.forEach(function (c) {
-    c.addEventListener('change', refresh);
-  });
-  if (selectAll) {
-    selectAll.addEventListener('change', function () {
-      checkboxes.forEach(function (c) { c.checked = selectAll.checked; });
-      refresh();
-    });
-  }
-  form.querySelectorAll('[data-bulk]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var action = btn.dataset.bulk;
-      var n = 0;
-      checkboxes.forEach(function (c) { if (c.checked) n++; });
-      if (n === 0) return;
-      var confirmMsg = btn.dataset.bulkConfirm;
-      if (confirmMsg) {
-        if (!confirm(confirmMsg.replace('the selected stories', n + ' selected stor' + (n === 1 ? 'y' : 'ies')))) return;
-      }
-      actionField.value = action;
-      form.submit();
-    });
-  });
-  var clearBtn = form.querySelector('[data-bulk-clear]');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', function () {
-      checkboxes.forEach(function (c) { c.checked = false; });
-      if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
-      refresh();
-    });
-  }
-  refresh();
-})();
-</script>
-{% endif %}
+</div>
+</div>
 {% endblock %}

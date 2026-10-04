@@ -69,17 +69,18 @@
 <div class="fb-pick fb-pick--page lst-page">
 <aside class="fb-side" aria-label="Find a library">
   {% set _filtered = q or public %}
-  <div class="fb-side-top">
+  <div class="fb-side-top" data-live="total">
     <p class="fb-side-total" aria-live="polite">{{ _plural(libraries|length, 'archived library' if show == 'archived' else 'library', 'archived libraries' if show == 'archived' else 'libraries') }}{% if q %} matching “{{ q }}”{% endif %}</p>
   </div>
-  <form method="get" action="{{ url_for('main.libraries') }}" class="fb-search" role="search">
+  <form method="get" action="{{ url_for('main.libraries') }}" class="fb-search" role="search" data-live-search>
     {% for k, v in _base.items() if k != 'q' and v is not none %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
     {{ icon('search') }}
-    <input type="search" name="q" value="{{ q }}" placeholder="Search libraries" aria-label="Search libraries by name or description">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search libraries" aria-label="Search libraries by name or description" autocomplete="off">
   </form>
   {% if current_user.can_manage_libraries() %}
   <button type="button" class="btn btn-primary fb-side-upload" data-open-modal="library-new-modal">{{ icon('plus') }} New library</button>
   {% endif %}
+  <div class="lst-side-live" data-live="side">
   <nav class="fb-side-group" aria-label="Status">
     <h3 class="fb-side-title">Status</h3>
     <a class="fb-side-link" href="{{ _url({'show': None}) }}" {% if show != 'archived' %}aria-current="true"{% endif %}>
@@ -108,8 +109,9 @@
       <a href="{{ _url({'view': 'grid'}) }}" aria-checked="{{ 'true' if view == 'grid' else 'false' }}" role="radio" title="Grid">{{ icon('layout-grid') }}<span>Grid</span></a>
     </div>
   </div>
+  </div>
 </aside>
-<div class="fb-pick-main">
+<div class="fb-pick-main" data-live="main">
 <section class="card fb lst">
   {% if not libraries %}
   <div class="fb-empty">

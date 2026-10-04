@@ -9,6 +9,9 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Announcements & Events, Stories and Blog have the same layout as Meetings, Libraries and the File Browser: a sidebar with the count, search, a New button, status and type filters with counts, sort and List or Grid, beside a list whose column headings stay in view. Blog filters by category and tag; Stories by featured.
+- The grid view on those three pages shows each post as a card with its featured image. Tick the box on a card, or a row in the list, to use the bulk actions, which now sit in a bar at the foot of the list.
+- Search is live everywhere: on Meetings, Libraries, the File Browser, Announcements & Events, Stories, Blog and the Search page, results and counts update as you type.
 - The Meetings and Libraries pages have the File Browser's layout: a sidebar with the count, search, a New button and filters beside a list whose column headings stay in view as it scrolls. Meetings filter by status, type and the day they meet; libraries by status and whether they show on the public Literature Library page. Each filter shows how many it would match.
 - Both pages sort from the column headings or the sidebar's Sort by buttons, and switch between List and Grid. Meetings also sort by number of libraries or files, and libraries by number of meetings.
 - The grid view has new cards: a meeting's card shows its logo (or an icon for its type), type, schedule with today marked, place, and file and library counts; a library's card shows its description, whether it's public, and its file and meeting counts. Each card has its own actions menu; in the list, the Actions button appears when you point at a row.

@@ -3,28 +3,33 @@
 {% block heading %}Search{% endblock %}
 {% block heading_help %}Search across meetings, libraries, files, posts, locations and more — filter by type and sort the results.{% endblock %}
 {% block content %}
-<form class="search-page-form card" method="get" action="{{ url_for('main.search_page') }}" role="search">
+{# Live: typing runs the search (see the script below); Enter runs it at once. #}
+<form class="search-page-form card" method="get" action="{{ url_for('main.search_page') }}" role="search" data-search-live>
   <span class="search-page-form-icon" aria-hidden="true">{{ icon('search') }}</span>
   <input type="search" name="q" value="{{ q }}" placeholder="Search everything…"
          autocomplete="off" spellcheck="false" aria-label="Search" {% if not q %}autofocus{% endif %}>
   {# Preserve sort across a fresh query; a new query resets the type filter to All. #}
   <input type="hidden" name="sort" value="{{ sort }}">
-  {% if q %}<a class="btn btn-sm search-page-clear" href="{{ url_for('main.search_page') }}">Clear</a>{% endif %}
-  <button type="submit" class="btn btn-primary">Search</button>
 </form>
 
+{# Swappable region: typing, filter and sort changes fetch only this
+   partial and replace it in place, so the page never reloads. #}
+<div id="search-ajax" class="search-ajax">
 {% if q and q|length >= 2 %}
-  {# Swappable region — filter/sort changes fetch only this partial and
-     replace it in place (see the script below), so the page never reloads. #}
-  <div id="search-ajax" class="search-ajax">
-    {% include "_search_results_region.html" %}
-  </div>
+  {% include "_search_results_region.html" %}
 {% else %}
   <div class="card search-page-empty">
     <span aria-hidden="true">{{ icon('search') }}</span>
     <p class="muted">Type at least two characters to search across the portal.</p>
   </div>
 {% endif %}
+</div>
+<template id="search-empty">
+  <div class="card search-page-empty">
+    <span aria-hidden="true">{{ icon('search') }}</span>
+    <p class="muted">Type at least two characters to search across the portal.</p>
+  </div>
+</template>
 
 <script>
 (function(){
@@ -90,6 +95,32 @@
   }
 
   function navigate(url){ load(url, true); }
+
+  // Typing runs the search: after a short pause, or at once on Enter.
+  // The address follows without adding a history step per keystroke.
+  const form = document.querySelector('form[data-search-live]');
+  const input = form && form.querySelector('input[name="q"]');
+  const empty = document.getElementById('search-empty');
+  let timer = null;
+  function runTyped(){
+    const q = input.value.trim();
+    const url = new URL(form.action, location.origin);
+    if (q) url.searchParams.set('q', q);
+    if (sortHidden && sortHidden.value && sortHidden.value !== 'relevance') url.searchParams.set('sort', sortHidden.value);
+    if (q.length < 2) {
+      if (inflight) inflight.abort();
+      region.innerHTML = empty ? empty.innerHTML : '';
+      history.replaceState(null, '', url.pathname + url.search);
+      return;
+    }
+    load(url.pathname + url.search, false).then(function(){
+      history.replaceState(null, '', url.pathname + url.search);
+    });
+  }
+  if (form && input) {
+    input.addEventListener('input', function(){ clearTimeout(timer); timer = setTimeout(runTyped, 250); });
+    form.addEventListener('submit', function(e){ e.preventDefault(); clearTimeout(timer); runTyped(); });
+  }
 
   // Back/forward between filter/sort states stays on this document — re-fetch
   // and swap rather than letting the stale DOM stand.

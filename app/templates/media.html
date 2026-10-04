@@ -88,7 +88,7 @@
 {% endmacro %}
 {# Search by filename, keeping the page's other settings. #}
 {% macro _search_form() %}
-  <form method="get" action="{{ url_for('main.media_list') }}" class="fb-search" role="search">
+  <form method="get" action="{{ url_for('main.media_list') }}" class="fb-search" role="search" data-live-search>
     {% if picker %}<input type="hidden" name="picker" value="1"><input type="hidden" name="embed" value="1">{% endif %}
     {% if picker_multi %}<input type="hidden" name="multi" value="1">{% endif %}
     {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
@@ -97,7 +97,7 @@
     <input type="hidden" name="sort" value="{{ sort }}">
     <input type="hidden" name="dir" value="{{ direction }}">
     {{ icon('search') }}
-    <input type="search" name="q" value="{{ q }}" placeholder="Search by filename" aria-label="Search by filename">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search by filename" aria-label="Search by filename" autocomplete="off">
   </form>
 {% endmacro %}
 {% macro _picker_actions(m, pub) %}
@@ -118,8 +118,8 @@
 <aside class="fb-side" aria-label="Find a file">
   {% set _total = pagination.total if pagination else items|length %}
   {% set _noun = {'img': 'image', 'doc': 'document', 'vid': 'video', 'aud': 'audio file', 'other': 'other file'}.get(kind, 'file') %}
-  <div class="fb-side-top">
-    {% if picker %}<h1 class="fb-side-head">File Browser</h1>{% endif %}
+  {% if picker %}<h1 class="fb-side-head">File Browser</h1>{% endif %}
+  <div class="fb-side-top" data-live="total">
     <p class="fb-side-total" aria-live="polite">{{ _total }} {{ _noun }}{{ '' if _total == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}{% if mine %}, uploaded by you{% endif %}</p>
   </div>
   {{ _search_form() }}
@@ -127,6 +127,8 @@
   <label class="btn btn-primary fb-side-upload" for="media-upload-input">{{ icon('upload') }} {{ 'Upload a file' if picker else 'Upload files' }}</label>
   <input type="file" id="media-upload-input" hidden{% if not picker %} multiple{% endif %}>
   {% endif %}
+  {# Swapped by a live search (app.js initLiveSearch), counts and all. #}
+  <div class="lst-side-live" data-live="side">
   <nav class="fb-side-group" aria-label="Kind of file">
     <h3 class="fb-side-title">Kind</h3>
     {% for key, label, ic in FB_KINDS %}
@@ -157,11 +159,12 @@
          aria-checked="{{ 'true' if view == 'grid' else 'false' }}" role="radio" title="Grid">{{ icon('layout-grid') }}<span>Grid</span></a>
     </div>
   </div>
+  </div>
 </aside>
 <div class="fb-pick-main">
 {# The card is its own scroll area, sized to the window: the column
    headings stay at its top while the files scroll under them. #}
-<section class="card fb">
+<section class="card fb" data-live="main">
   {% if not items %}
   <div class="fb-empty">
     <span class="fb-empty-icon" aria-hidden="true">{{ icon('folder') }}</span>
@@ -410,30 +413,31 @@
 
     // Filename links in the list view still open the lightbox so the
     // existing behaviour from before the grid view is preserved.
-    document.querySelectorAll('.media-tbl tr[data-previewable="1"] .media-name-cell a').forEach(link => {
-      link.addEventListener('click', e => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-        e.preventDefault();
-        const row = link.closest('tr[data-previewable="1"]');
-        items = collectItems();
-        const i = items.findIndex(it => it.el === row);
-        if (i >= 0) openAt(i);
-      });
+    // Delegated, as are the picker's Preview buttons, so rows a live
+    // search swaps in still answer.
+    document.addEventListener('click', e => {
+      const link = e.target.closest('.media-tbl tr[data-previewable="1"] .media-name-cell a');
+      if (!link || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+      e.preventDefault();
+      const row = link.closest('tr[data-previewable="1"]');
+      items = collectItems();
+      const i = items.findIndex(it => it.el === row);
+      if (i >= 0) openAt(i);
     });
 
     // Picker Preview button: open lightbox for images/PDFs, fallback to new
     // tab for other types so the user can always eyeball the file first.
-    document.querySelectorAll('[data-media-preview]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const url = btn.dataset.pubUrl;
-        const filename = btn.dataset.filename || '';
-        const downloadUrl = btn.dataset.downloadUrl || url;
-        if (IMG_RE.test(url) || PDF_RE.test(url)) {
-          openByUrl(url, filename, downloadUrl);
-        } else {
-          window.open(url, '_blank', 'noopener');
-        }
-      });
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('[data-media-preview]');
+      if (!btn) return;
+      const url = btn.dataset.pubUrl;
+      const filename = btn.dataset.filename || '';
+      const downloadUrl = btn.dataset.downloadUrl || url;
+      if (IMG_RE.test(url) || PDF_RE.test(url)) {
+        openByUrl(url, filename, downloadUrl);
+      } else {
+        window.open(url, '_blank', 'noopener');
+      }
     });
 
     prevEl.addEventListener('click', () => step(-1));

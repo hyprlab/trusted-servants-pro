@@ -18703,55 +18703,68 @@ def _auto_archive_events():
         db.session.commit()
 
 
+def _post_status_filter(q, show):
+    """Narrow a Post query to one of the list's status sections."""
+    if show == "archived":
+        return q.filter(Post.is_archived.is_(True), Post.is_pending_review.is_(False))
+    if show == "drafts":
+        return q.filter(Post.is_draft.is_(True), Post.is_archived.is_(False),
+                        Post.is_pending_review.is_(False))
+    if show == "pending":
+        # Holding tank for visitor submissions awaiting admin review.
+        return q.filter(Post.is_pending_review.is_(True), Post.is_archived.is_(False))
+    return q.filter(Post.is_archived.is_(False), Post.is_draft.is_(False),
+                    Post.is_pending_review.is_(False))
+
+
+def _post_kind_filter(q, kind):
+    if kind == "events":
+        return q.filter(Post.is_event.is_(True))
+    if kind == "announcements":
+        return q.filter(Post.is_announcement.is_(True))
+    return q
+
+
 @bp.route("/announcementsevents")
 @login_required
 def posts():
     _require_posts_enabled()
     _auto_archive_events()
     show = (request.args.get("show") or "active").strip()
+    if show not in ("active", "drafts", "pending", "archived"):
+        show = "active"
     kind = (request.args.get("kind") or "all").strip()
+    if kind not in ("all", "announcements", "events"):
+        kind = "all"
+    q_text = (request.args.get("q") or "").strip()
+    view = request.args.get("view") or request.cookies.get("view-posts") or "list"
+    view = "grid" if view == "grid" else "list"
     # Sort resolution order: explicit ?sort= wins, then the user's
-    # remembered cookie, then the per-tab default. Default for the
-    # main tabs is ``posted_desc`` (newest at top by Posted date);
-    # the pending tab keeps ``submitted_desc`` so the freshest
-    # submission sits up top. Any saved sort the route doesn't
-    # recognise is dropped to the default downstream.
+    # remembered cookie, then the per-tab default: newest posted first,
+    # or on the pending tab the freshest submission. A sort the route
+    # doesn't recognise drops to the default.
     sort = (request.args.get("sort")
-            or request.cookies.get("view-posts-sort")
+            or (None if show == "pending" else request.cookies.get("view-posts-sort"))
             or "").strip()
     try:
         page = max(1, int(request.args.get("page") or 1))
     except (TypeError, ValueError):
         page = 1
     per_page = 100
-    q = Post.query
-    if show == "archived":
-        q = q.filter(Post.is_archived.is_(True),
-                     Post.is_pending_review.is_(False))
-    elif show == "drafts":
-        q = q.filter(Post.is_draft.is_(True),
-                     Post.is_archived.is_(False),
-                     Post.is_pending_review.is_(False))
-    elif show == "pending":
-        # Holding tank for visitor submissions awaiting admin review.
-        q = q.filter(Post.is_pending_review.is_(True),
-                     Post.is_archived.is_(False))
-    else:  # active
-        show = "active"
-        q = q.filter(Post.is_archived.is_(False),
-                     Post.is_draft.is_(False),
-                     Post.is_pending_review.is_(False))
-    if kind == "events":
-        q = q.filter(Post.is_event.is_(True))
-    elif kind == "announcements":
-        q = q.filter(Post.is_announcement.is_(True))
-    # Sort modes. Default flips by tab — pending shows freshest
-    # submissions on top, every other tab shows by posted date
-    # (newest first) so the most recent activity reads first.
-    # Admin can override via the column-header click which sets
-    # ?sort=… directly; their choice is persisted to the
-    # ``view-posts-sort`` cookie at the bottom of the handler so
-    # the same sort sticks across reloads.
+
+    def searched(q):
+        if not q_text:
+            return q
+        like = f"%{q_text}%"
+        return q.filter(db.or_(Post.title.ilike(like), Post.summary.ilike(like),
+                               Post.location_name.ilike(like)))
+    # Each filter's counts take the other filters as they stand.
+    status_counts = {s: searched(_post_kind_filter(_post_status_filter(Post.query, s), kind)).count()
+                     for s in ("active", "drafts", "pending", "archived")}
+    kind_counts = {k: searched(_post_kind_filter(_post_status_filter(Post.query, show), k)).count()
+                   for k in ("all", "announcements", "events")}
+    q = searched(_post_kind_filter(_post_status_filter(Post.query, show), kind))
+
     default_sort = "submitted_desc" if show == "pending" else "posted_desc"
     if sort not in ("event_asc", "event_desc",
                     "title_asc", "title_desc",
@@ -18759,6 +18772,8 @@ def posts():
                     "submitted_asc", "submitted_desc",
                     "posted_asc", "posted_desc",
                     "type_asc", "type_desc"):
+        sort = default_sort
+    if sort.startswith("submitted") and show != "pending":
         sort = default_sort
     if sort == "event_asc":
         q = q.order_by(Post.event_starts_at.asc().nulls_last(),
@@ -18793,20 +18808,19 @@ def posts():
     elif sort == "type_desc":
         q = q.order_by(Post.is_event.desc(), Post.is_announcement.desc(),
                        Post.event_starts_at.desc().nulls_last())
-    total = q.count()
+    total = status_counts[show] if kind == "all" else kind_counts[kind]
     total_pages = max(1, (total + per_page - 1) // per_page)
     if page > total_pages:
         page = total_pages
     items = q.offset((page - 1) * per_page).limit(per_page).all()
-    pending_count = (Post.query.filter(Post.is_pending_review.is_(True),
-                                        Post.is_archived.is_(False)).count())
     from .timezone import now_local_naive as _now_local
     resp = current_app.make_response(
         render_template("posts.html", posts=items, show=show, kind=kind,
-                        sort=sort, page=page, per_page=per_page,
-                        total=total, total_pages=total_pages,
-                        pending_count=pending_count,
+                        sort=sort, default_sort=default_sort, page=page, per_page=per_page,
+                        total=total, total_pages=total_pages, q=q_text, view=view,
+                        status_counts=status_counts, kind_counts=kind_counts,
                         now_local=_now_local(_get_site_setting())))
+    resp.set_cookie("view-posts", view, max_age=60*60*24*365, samesite="Lax")
     # Remember the user's chosen sort so the next visit lands on
     # the same order. Skip persistence on the pending tab — its
     # ``submitted_desc`` default is contextual to that view and
@@ -19570,38 +19584,47 @@ def post_gallery_image(pid, idx):
 # ---------------------------------------------------------------------------
 # Stories — recovery story long-form posts.
 # ---------------------------------------------------------------------------
+def _story_status_filter(q, show):
+    """Narrow a Story query to one of the list's status sections."""
+    if show == "archived":
+        return q.filter(Story.is_archived.is_(True), Story.is_pending_review.is_(False))
+    if show == "drafts":
+        return q.filter(Story.is_draft.is_(True), Story.is_archived.is_(False),
+                        Story.is_pending_review.is_(False))
+    if show == "pending":
+        # Holding tank for visitor submissions awaiting admin review.
+        return q.filter(Story.is_pending_review.is_(True), Story.is_archived.is_(False))
+    return q.filter(Story.is_archived.is_(False), Story.is_draft.is_(False),
+                    Story.is_pending_review.is_(False))
+
+
 @bp.route("/stories")
 @login_required
 def stories():
     _require_stories_enabled()
     show = (request.args.get("show") or "active").strip()
-    sort = (request.args.get("sort") or "posted_desc").strip()
-    q = Story.query
-    if show == "archived":
-        q = q.filter(Story.is_archived.is_(True),
-                     Story.is_pending_review.is_(False))
-    elif show == "drafts":
-        q = q.filter(Story.is_draft.is_(True),
-                     Story.is_archived.is_(False),
-                     Story.is_pending_review.is_(False))
-    elif show == "pending":
-        # Holding tank for visitor submissions awaiting admin review.
-        q = q.filter(Story.is_pending_review.is_(True),
-                     Story.is_archived.is_(False))
-    else:
+    if show not in ("active", "drafts", "pending", "archived"):
         show = "active"
-        q = q.filter(Story.is_archived.is_(False),
-                     Story.is_draft.is_(False),
-                     Story.is_pending_review.is_(False))
-    # Search and filter row (stories.html), as on the blog list.
+    sort = (request.args.get("sort") or request.cookies.get("view-stories-sort") or "posted_desc").strip()
+    view = request.args.get("view") or request.cookies.get("view-stories") or "list"
+    view = "grid" if view == "grid" else "list"
     q_text = (request.args.get("q") or "").strip()
-    if q_text:
-        like = f"%{q_text}%"
-        q = q.filter(db.or_(Story.title.ilike(like), Story.summary.ilike(like),
-                            Story.author_name.ilike(like)))
     featured = request.args.get("featured") == "1"
-    if featured:
-        q = q.filter(Story.is_featured.is_(True))
+
+    def searched(q):
+        if not q_text:
+            return q
+        like = f"%{q_text}%"
+        return q.filter(db.or_(Story.title.ilike(like), Story.summary.ilike(like),
+                               Story.author_name.ilike(like)))
+    def featured_only(q, on):
+        return q.filter(Story.is_featured.is_(True)) if on else q
+    # Each filter's counts take the other filters as they stand.
+    status_counts = {s: featured_only(searched(_story_status_filter(Story.query, s)), featured).count()
+                     for s in ("active", "drafts", "pending", "archived")}
+    base = searched(_story_status_filter(Story.query, show))
+    featured_counts = {"": base.count(), "1": featured_only(base, True).count()}
+    q = featured_only(base, featured)
     if sort == "posted_asc":
         q = q.order_by(db.func.coalesce(Story.published_at, Story.created_at).asc())
     elif sort == "title_asc":
@@ -19610,22 +19633,27 @@ def stories():
         q = q.order_by(Story.title.desc())
     elif sort == "author_asc":
         q = q.order_by(Story.author_name.asc().nulls_last(), Story.title.asc())
+    elif sort == "author_desc":
+        q = q.order_by(Story.author_name.desc().nulls_last(), Story.title.asc())
     elif sort == "story_date_asc":
         q = q.order_by(Story.story_date.asc().nulls_last(), Story.updated_at.desc())
     elif sort == "story_date_desc":
         q = q.order_by(Story.story_date.desc().nulls_last(), Story.updated_at.desc())
     elif sort == "updated_desc":
         q = q.order_by(Story.updated_at.desc())
+    elif sort == "updated_asc":
+        q = q.order_by(Story.updated_at.asc())
     else:
         sort = "posted_desc"
         q = q.order_by(db.func.coalesce(Story.published_at, Story.created_at).desc())
     items = q.all()
-    pending_count = (Story.query
-                     .filter(Story.is_pending_review.is_(True),
-                             Story.is_archived.is_(False)).count())
-    return render_template("stories.html", stories=items, show=show, sort=sort,
-                           pending_count=pending_count, q_text=q_text,
-                           featured=featured)
+    resp = current_app.make_response(
+        render_template("stories.html", stories=items, show=show, sort=sort, view=view,
+                        q=q_text, featured=featured,
+                        status_counts=status_counts, featured_counts=featured_counts))
+    resp.set_cookie("view-stories", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-stories-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
 @bp.route("/stories/new")
@@ -20281,39 +20309,59 @@ def _resolve_blog_tag_assignments(form):
     return rows
 
 
+def _blog_status_filter(q, show):
+    """Narrow a BlogPost query to one of the list's status sections."""
+    if show == "archived":
+        return q.filter(BlogPost.is_archived.is_(True))
+    if show == "drafts":
+        return q.filter(BlogPost.is_draft.is_(True), BlogPost.is_archived.is_(False))
+    if show == "featured":
+        return q.filter(BlogPost.is_featured.is_(True), BlogPost.is_archived.is_(False),
+                        BlogPost.is_draft.is_(False))
+    return q.filter(BlogPost.is_archived.is_(False), BlogPost.is_draft.is_(False))
+
+
 @bp.route("/blog")
 @login_required
 def blog_index():
     _require_blog_enabled()
     show = (request.args.get("show") or "active").strip()
-    sort = (request.args.get("sort") or "published_desc").strip()
-    cat_id = (request.args.get("category") or "").strip()
-    tag_id = (request.args.get("tag") or "").strip()
-    q_text = (request.args.get("q") or "").strip()
-    q = BlogPost.query
-    if show == "archived":
-        q = q.filter(BlogPost.is_archived.is_(True))
-    elif show == "drafts":
-        q = q.filter(BlogPost.is_draft.is_(True), BlogPost.is_archived.is_(False))
-    elif show == "featured":
-        q = q.filter(BlogPost.is_featured.is_(True),
-                     BlogPost.is_archived.is_(False),
-                     BlogPost.is_draft.is_(False))
-    else:
+    if show not in ("active", "featured", "drafts", "archived"):
         show = "active"
-        q = q.filter(BlogPost.is_archived.is_(False), BlogPost.is_draft.is_(False))
-    # Category / tag filters.
-    if cat_id.isdigit():
-        q = q.filter(BlogPost.categories.any(BlogCategory.id == int(cat_id)))
-    if tag_id.isdigit():
-        q = q.filter(BlogPost.tags.any(BlogTag.id == int(tag_id)))
-    # Title / summary search — small dataset, basic ILIKE is enough.
-    if q_text:
+    sort = (request.args.get("sort") or request.cookies.get("view-blog-sort") or "published_desc").strip()
+    view = request.args.get("view") or request.cookies.get("view-blog") or "list"
+    view = "grid" if view == "grid" else "list"
+    cat_id = (request.args.get("category") or "").strip()
+    cat_id = cat_id if cat_id.isdigit() else ""
+    tag_id = (request.args.get("tag") or "").strip()
+    tag_id = tag_id if tag_id.isdigit() else ""
+    q_text = (request.args.get("q") or "").strip()
+
+    def searched(q):
+        # Title / summary / author search: a small dataset, so ILIKE is enough.
+        if not q_text:
+            return q
         like = f"%{q_text}%"
-        q = q.filter(db.or_(BlogPost.title.ilike(like),
-                            BlogPost.summary.ilike(like),
-                            BlogPost.author_name.ilike(like)))
-    # Sort modes.
+        return q.filter(db.or_(BlogPost.title.ilike(like), BlogPost.summary.ilike(like),
+                               BlogPost.author_name.ilike(like)))
+    def in_cat(q, cid):
+        return q.filter(BlogPost.categories.any(BlogCategory.id == int(cid))) if cid else q
+    def in_tag(q, tid):
+        return q.filter(BlogPost.tags.any(BlogTag.id == int(tid))) if tid else q
+    categories = BlogCategory.query.order_by(BlogCategory.position, BlogCategory.name).all()
+    tags = BlogTag.query.order_by(BlogTag.name).all()
+    # Each filter's counts take the other filters as they stand.
+    counts = {s: in_tag(in_cat(searched(_blog_status_filter(BlogPost.query, s)), cat_id), tag_id).count()
+              for s in ("active", "featured", "drafts", "archived")}
+    status_q = searched(_blog_status_filter(BlogPost.query, show))
+    cat_counts = {"": in_tag(status_q, tag_id).count()}
+    for c in categories:
+        cat_counts[str(c.id)] = in_tag(in_cat(status_q, str(c.id)), tag_id).count()
+    tag_counts = {"": in_cat(status_q, cat_id).count()}
+    for t in tags:
+        tag_counts[str(t.id)] = in_tag(in_cat(status_q, cat_id), str(t.id)).count()
+    q = in_tag(in_cat(status_q, cat_id), tag_id)
+    # Sort modes; pinned posts stay on top in each.
     if sort == "published_asc":
         q = q.order_by(BlogPost.is_pinned.desc(),
                        BlogPost.published_at.asc().nulls_last(),
@@ -20324,9 +20372,15 @@ def blog_index():
         q = q.order_by(BlogPost.is_pinned.desc(), BlogPost.title.desc())
     elif sort == "updated_desc":
         q = q.order_by(BlogPost.is_pinned.desc(), BlogPost.updated_at.desc())
+    elif sort == "updated_asc":
+        q = q.order_by(BlogPost.is_pinned.desc(), BlogPost.updated_at.asc())
     elif sort == "author_asc":
         q = q.order_by(BlogPost.is_pinned.desc(),
                        BlogPost.author_name.asc().nulls_last(),
+                       BlogPost.published_at.desc().nulls_last())
+    elif sort == "author_desc":
+        q = q.order_by(BlogPost.is_pinned.desc(),
+                       BlogPost.author_name.desc().nulls_last(),
                        BlogPost.published_at.desc().nulls_last())
     else:  # published_desc
         sort = "published_desc"
@@ -20334,22 +20388,14 @@ def blog_index():
                        BlogPost.published_at.desc().nulls_last(),
                        BlogPost.created_at.desc())
     items = q.all()
-    categories = BlogCategory.query.order_by(BlogCategory.position, BlogCategory.name).all()
-    tags = BlogTag.query.order_by(BlogTag.name).all()
-    counts = {
-        "active": BlogPost.query.filter(BlogPost.is_archived.is_(False),
-                                         BlogPost.is_draft.is_(False)).count(),
-        "drafts": BlogPost.query.filter(BlogPost.is_draft.is_(True),
-                                         BlogPost.is_archived.is_(False)).count(),
-        "archived": BlogPost.query.filter(BlogPost.is_archived.is_(True)).count(),
-        "featured": BlogPost.query.filter(BlogPost.is_featured.is_(True),
-                                           BlogPost.is_archived.is_(False),
-                                           BlogPost.is_draft.is_(False)).count(),
-    }
-    return render_template("blog_list.html", posts=items, show=show, sort=sort,
-                           categories=categories, tags=tags,
-                           selected_cat=cat_id, selected_tag=tag_id, q_text=q_text,
-                           counts=counts)
+    resp = current_app.make_response(
+        render_template("blog_list.html", posts=items, show=show, sort=sort, view=view,
+                        categories=categories, tags=tags,
+                        selected_cat=cat_id, selected_tag=tag_id, q=q_text,
+                        counts=counts, cat_counts=cat_counts, tag_counts=tag_counts))
+    resp.set_cookie("view-blog", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-blog-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
 def _blog_author_choices():

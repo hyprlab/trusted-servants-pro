@@ -1309,9 +1309,12 @@
     });
   }
 
-  // Media library: rename
-  document.querySelectorAll(".media-rename").forEach(btn => {
-    btn.addEventListener("click", async () => {
+  // Media library: rename. Delegated, so rows a live search swaps in
+  // still answer.
+  document.addEventListener("click", e => {
+    const btn = e.target.closest && e.target.closest(".media-rename");
+    if (!btn || btn.disabled) return;
+    (async () => {
       const row = btn.closest("[data-media-id]");
       const id = row?.dataset.mediaId;
       const current = row?.dataset.original || "";
@@ -1328,7 +1331,7 @@
         const nameEl = row.querySelector(".media-name, strong");
         if (nameEl) { nameEl.textContent = data.original_filename; nameEl.title = data.original_filename; }
       }
-    });
+    })();
   });
 
   // Media library: select (inside picker iframe). Two modes:
@@ -1380,20 +1383,31 @@
       if (btn) btn.textContent = on ? 'Selected ✓' : 'Select';
       refreshBar();
     }
-    document.querySelectorAll('.media-select').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var host = btn.closest('[data-media-id]');
+    // Delegated, so rows a live search swaps in still answer; after a
+    // swap, rows already picked are marked again.
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('.media-select');
+      if (!btn) return;
+      var host = btn.closest('[data-media-id]');
+      if (!host) return;
+      if (multi) {
+        var id = host.dataset.mediaId;
+        setSelected(host, !selected.has(id));
+        return;
+      }
+      // Single-select: post + done.
+      var payload = { type: 'media-selected', item: captureItem(host) };
+      if (window.parent !== window) {
+        window.parent.postMessage(payload, window.location.origin);
+      }
+    });
+    document.addEventListener('live:updated', function () {
+      selected.forEach(function (_v, id) {
+        var host = document.querySelector('[data-media-id="' + id + '"]');
         if (!host) return;
-        if (multi) {
-          var id = host.dataset.mediaId;
-          setSelected(host, !selected.has(id));
-          return;
-        }
-        // Single-select: post + done.
-        var payload = { type: 'media-selected', item: captureItem(host) };
-        if (window.parent !== window) {
-          window.parent.postMessage(payload, window.location.origin);
-        }
+        host.classList.add('is-selected');
+        var b = host.querySelector('.media-select');
+        if (b) b.textContent = 'Selected ✓';
       });
     });
     if (multiBar) {
@@ -8218,22 +8232,6 @@
   });
 })();
 
-/* ── Filter rows that apply at once ([data-auto-submit] forms, such as
-   the blog list's): a menu submits as soon as it changes, and clearing
-   the search box with its × submits too. Enter already submits. ── */
-(function initAutoSubmitFilters() {
-  document.addEventListener("change", function (e) {
-    var el = e.target;
-    if (!el || el.tagName !== "SELECT") return;
-    var form = el.form;
-    if (form && form.hasAttribute("data-auto-submit")) form.submit();
-  });
-  document.addEventListener("search", function (e) {
-    var el = e.target;
-    if (el && el.form && el.form.hasAttribute("data-auto-submit") && !el.value) el.form.submit();
-  }, true);
-})();
-
 (function initRowMenus() {
   var GAP = 6;          // px between trigger and panel
   var VIEWPORT_PAD = 8; // keep the panel this far from the viewport edge
@@ -8834,5 +8832,147 @@
   // page reported: its unsaved edits go with it.
   window.addEventListener("pagehide", () => {
     if (host) reported.forEach(k => host.dirty(pane, k, false));
+  });
+})();
+
+
+// ── Live search ─────────────────────────────────────────────────────
+// A GET form marked data-live-search (the list pages' sidebar search)
+// runs as its search box changes: the page is fetched with the form's
+// values and every [data-live="<name>"] part is swapped for the same
+// part of the answer, so the list and the sidebar's counts follow the
+// typing while the box keeps focus. Enter runs it at once. Parts that
+// are swapped lose listeners bound to their elements, so handlers for
+// anything inside one are delegated; "live:updated" fires after each
+// swap for anything that needs to look again.
+(function initLiveSearch() {
+  var DELAY = 200;
+  function urlFor(form) {
+    var url = new URL(form.getAttribute("action") || location.pathname, location.href);
+    var params = new URLSearchParams();
+    new FormData(form).forEach(function (v, k) { if (v !== "") params.append(k, v); });
+    url.search = params.toString();
+    return url;
+  }
+  function run(form) {
+    var url = urlFor(form);
+    var seq = (form._liveSeq || 0) + 1;
+    form._liveSeq = seq;
+    if (form._liveCtl) form._liveCtl.abort();
+    var ctl = window.AbortController ? new AbortController() : null;
+    form._liveCtl = ctl;
+    document.documentElement.classList.add("is-live-loading");
+    fetch(url, { credentials: "same-origin", signal: ctl ? ctl.signal : undefined })
+      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+      .then(function (html) {
+        if (seq !== form._liveSeq) return;
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        document.querySelectorAll("[data-live]").forEach(function (el) {
+          var next = doc.querySelector('[data-live="' + el.getAttribute("data-live") + '"]');
+          if (next) el.replaceWith(document.importNode(next, true));
+        });
+        if (history.replaceState) history.replaceState(history.state, "", url.pathname + url.search + location.hash);
+        document.dispatchEvent(new CustomEvent("live:updated", { detail: { form: form } }));
+      })
+      .catch(function (err) {
+        if (err && err.name === "AbortError") return;
+        location.assign(url.href);
+      })
+      .then(function () {
+        if (seq === form._liveSeq) document.documentElement.classList.remove("is-live-loading");
+      });
+  }
+  document.addEventListener("input", function (e) {
+    var el = e.target, form = el && el.form;
+    if (!form || el.type !== "search" || !form.hasAttribute("data-live-search")) return;
+    clearTimeout(form._liveTimer);
+    form._liveTimer = setTimeout(function () { run(form); }, DELAY);
+  });
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute("data-live-search")) return;
+    e.preventDefault();
+    clearTimeout(form._liveTimer);
+    run(form);
+  });
+})();
+
+// ── Ticking rows for a bulk action ──────────────────────────────────
+// On a list page, [data-bulk-scope="<form id>"] holds the rows'
+// checkboxes [data-bulk-check] (named ids, owned by that form through
+// form="…"), a select-all [data-bulk-all] and the bar [data-bulk-bar],
+// which shows while anything is ticked. A button [data-bulk="<action>"]
+// in the bar posts the form with that action:
+//   data-bulk-confirm   asks first, with this as the message; the title
+//                       is data-bulk-title ("{n}" becomes "3 posts") or
+//                       "<button text> 3 posts?"; data-bulk-noun /
+//                       data-bulk-nouns name the rows.
+//   data-bulk-needs=X   needs the menu [data-bulk-pick="X"] chosen; its
+//                       value goes in the form's [data-bulk-value="X"].
+// Delegated, so it survives a live search swapping the list.
+(function initBulkSelect() {
+  function scopeOf(el) { return el && el.closest && el.closest("[data-bulk-scope]"); }
+  function checks(scope) { return Array.prototype.slice.call(scope.querySelectorAll("[data-bulk-check]")); }
+  function refresh(scope) {
+    var all = checks(scope), n = all.filter(function (c) { return c.checked; }).length;
+    var bar = scope.querySelector("[data-bulk-bar]");
+    var count = scope.querySelector("[data-bulk-count]");
+    var sa = scope.querySelector("[data-bulk-all]");
+    if (bar) bar.hidden = n === 0;
+    if (count) count.textContent = n + " selected";
+    if (sa) { sa.checked = n > 0 && n === all.length; sa.indeterminate = n > 0 && n < all.length; }
+    all.forEach(function (c) {
+      var host = c.closest("tr, .lst-card");
+      if (host) host.classList.toggle("is-selected", c.checked);
+    });
+  }
+  document.addEventListener("change", function (e) {
+    var el = e.target, scope = scopeOf(el);
+    if (!scope) return;
+    if (el.hasAttribute("data-bulk-all")) {
+      checks(scope).forEach(function (c) { c.checked = el.checked; });
+      refresh(scope);
+    } else if (el.hasAttribute("data-bulk-check")) {
+      refresh(scope);
+    }
+  });
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest && e.target.closest("[data-bulk], [data-bulk-clear]");
+    var scope = scopeOf(t);
+    if (!scope) return;
+    if (t.hasAttribute("data-bulk-clear")) {
+      checks(scope).forEach(function (c) { c.checked = false; });
+      refresh(scope);
+      return;
+    }
+    var form = document.getElementById(scope.getAttribute("data-bulk-scope"));
+    var n = checks(scope).filter(function (c) { return c.checked; }).length;
+    if (!form || !n) return;
+    var needs = t.getAttribute("data-bulk-needs");
+    if (needs) {
+      var pick = scope.querySelector('[data-bulk-pick="' + needs + '"]');
+      if (!pick || !pick.value) { if (pick) pick.focus(); return; }
+      var field = form.querySelector('[data-bulk-value="' + needs + '"]');
+      if (field) field.value = pick.value;
+    }
+    var noun = n === 1 ? (t.dataset.bulkNoun || "item")
+      : (t.dataset.bulkNouns || (t.dataset.bulkNoun ? t.dataset.bulkNoun + "s" : "items"));
+    var what = n + " " + noun;
+    var go = function () {
+      form.querySelector("[data-bulk-action-field]").value = t.getAttribute("data-bulk");
+      form.submit();
+    };
+    if (!t.dataset.bulkConfirm) { go(); return; }
+    var title = t.dataset.bulkTitle ? t.dataset.bulkTitle.replace("{n}", what)
+      : t.textContent.trim() + " " + what + "?";
+    var ask = window.tspConfirm
+      ? window.tspConfirm({ title: title, message: t.dataset.bulkConfirm,
+                            confirmLabel: t.dataset.bulkLabel || t.textContent.trim() })
+      : Promise.resolve(window.confirm(title + " " + t.dataset.bulkConfirm));
+    ask.then(function (yes) { if (yes) go(); });
+  });
+  // Going back to a list restores ticked boxes; show the bar for them.
+  window.addEventListener("pageshow", function () {
+    document.querySelectorAll("[data-bulk-scope]").forEach(refresh);
   });
 })();
