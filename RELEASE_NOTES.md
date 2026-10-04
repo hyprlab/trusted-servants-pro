@@ -9,6 +9,9 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- The Contact Form and each custom form's submissions use the same list layout as the other pages: search that updates as you type, Inbox, Unread (or New) and Archived with counts, sort, List or Grid, and bulk Mark read, Mark unread, Archive or Restore, and Delete. The Contact Form also filters by whether the message was emailed to the recipient.
+- A Contact Form message or a form submission opens on its own page, laid out like the editors: the message or every answer on the left, when and where it came from on the right, with Reply, Mark unread, Archive and Delete at the top. Opening it marks it read. The popup and the expanding rows are gone.
+- On a custom form's submissions, the sidebar highlights that form instead of Web Frontend.
 - The Email List and Recovery Contacts use the same layout as the other lists: a sidebar with the count, search that updates as you type, filters with counts, sort, and List or Grid, beside the list. Tick rows or cards for bulk actions in a bar at the foot of the list.
 - Email List filters by account (portal account or added by hand), and its Updates sent view lists the updates sent to the list. Import a CSV and Send an update are in the sidebar.
 - Recovery Contacts splits what is waiting into New submissions, Update requests and Removal requests, each with an amber count, and filters published entries by Available to sponsor and Contact through the site. Search also finds phone numbers by their digits. The activity log is in the sidebar.

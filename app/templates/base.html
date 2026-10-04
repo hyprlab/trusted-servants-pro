@@ -239,7 +239,7 @@
       {% if _fe_on %}
       <div class="side-item-row">
         {% if _can_fe %}
-        <a class="side-item{% if _ep.startswith('main.frontend_') %} is-active{% endif %}" href="{{ url_for('main.frontend_dashboard') }}"
+        <a class="side-item{% if _ep.startswith('main.frontend_') and not _ep.startswith('main.frontend_form_submission') %} is-active{% endif %}" href="{{ url_for('main.frontend_dashboard') }}"
            title="The public website's admin">
           <span class="side-item-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
           <span class="side-item-label">Web Frontend</span>

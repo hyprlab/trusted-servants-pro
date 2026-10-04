@@ -3889,15 +3889,6 @@ input[type="file"]::-webkit-file-upload-button {
    pills, each with the checkbox to the LEFT of its label — the higher
    specificity beats ``.form label { flex-direction: column }`` (the edit
    page is one big .form), which was stacking the box above the text. */
-/* Topbar "Visible to: Admins · Editors …" chips on the forms backend
-   pages (submission inbox + form editor) — at-a-glance role visibility. */
-.fe-vis-roles { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.fe-vis-roles-label { color: var(--muted); font-size: var(--fs-xs); font-weight: 600; }
-.fe-vis-role {
-  display: inline-block; padding: 2px 10px; border-radius: 999px;
-  background: var(--panel-2); border: 1px solid var(--border);
-  color: var(--text); font-size: var(--fs-2xs); font-weight: 700; white-space: nowrap;
-}
 .fe-form-access-roles { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; padding: 1rem; }
 .fe-form-access-roles .check { display: flex; flex-direction: row; align-items: center; gap: 10px; }
 .fe-form-access-roles .check input { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; }
@@ -15806,365 +15797,12 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   border-color: #1f2937;
 }
 
-/* Form Submissions admin — list + detail.
-
-   The list uses a card-per-row layout: avatar circle with the
-   submitter's initial on the left, body in the middle (name + form
-   pill + when, then headline + contact/meta chips), affordance arrow
-   on the right. Anonymous submissions get a muted avatar to fade
-   into the rail. Hover lifts the border to brand-blue without
-   shifting layout. */
-.fe-submissions-filter {
-  margin-bottom: 1rem;
-  display: flex; flex-direction: row; flex-wrap: wrap;
-  align-items: flex-end; gap: 12px;
-}
-.fe-subs-csv-hint { padding-bottom: 8px; }
-/* Active / Archived tabs */
-.fe-subs-tabs { display: flex; gap: 2px; margin-bottom: 1rem; border-bottom: 1px solid var(--border); }
-.fe-subs-tab {
-  padding: 8px 14px; text-decoration: none; color: var(--muted);
-  font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px;
-  display: inline-flex; align-items: center; gap: 7px;
-}
-.fe-subs-tab:hover { color: var(--text); }
-.fe-subs-tab.is-active { color: var(--brand, #0B5CFF); border-bottom-color: var(--brand, #0B5CFF); }
-.fe-subs-tab-count {
-  min-width: 18px; padding: 0 6px; border-radius: 999px;
-  background: var(--panel-2); color: var(--muted);
-  font-size: var(--fs-2xs); font-weight: 700; text-align: center;
-}
-.fe-subs-tab.is-active .fe-subs-tab-count {
-  background: color-mix(in srgb, var(--brand, #0B5CFF) 16%, transparent); color: var(--brand, #0B5CFF);
-}
-/* Bulk-action bar + per-row select checkbox */
-.fe-subs-bulkbar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 12px; margin-bottom: 10px;
-  background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
-}
-.fe-subs-bulk-all { display: flex; align-items: center; gap: 7px; margin: 0; font-weight: 600; cursor: pointer; }
-.fe-subs-bulk-actions { margin-left: auto; display: flex; gap: 8px; }
-.fe-submission-check {
-  flex: 0 0 auto; display: grid; place-items: center;
-  align-self: stretch; padding: 0 2px 0 14px; cursor: pointer;
-}
-.fe-submission-check input { width: 16px; height: 16px; cursor: pointer; }
-.fe-submissions-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: .55rem;
-}
-.fe-submission-card {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--panel);
-  transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
-  overflow: hidden;
-}
-/* Row = checkbox + clickable card. SCOPED to the admin submissions list:
-   ``.fe-submission-card`` is ALSO the class the public form page uses
-   (frontend.css), so an unscoped ``display:flex`` here leaked onto the
-   public form and laid its intro + fields out side-by-side. */
-/* Card = a header row (checkbox + clickable toggle) stacked above an
-   inline detail panel that expands on click. */
-.fe-submissions-list .fe-submission-card { display: block; }
-.fe-submission-row { display: flex; align-items: center; }
-.fe-submission-row .fe-submission-card-main { flex: 1 1 auto; min-width: 0; }
-/* Always-visible per-row actions — View + archive/restore + delete, at
-   the right of the row, reachable even while the card is collapsed. */
-.fe-submission-row-actions {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 14px 0 2px;
-}
-.fe-submission-view-btn { white-space: nowrap; }
-.fe-submission-view-btn .icon { width: 15px; height: 15px; }
-.fe-submission-rowact-form { margin: 0; display: inline-flex; }
-/* Compact square icon-only buttons for archive / delete. */
-.fe-submission-rowact-btn { padding: 7px; line-height: 0; }
-.fe-submission-rowact-btn .icon { width: 16px; height: 16px; }
-.fe-submission-card:hover {
-  border-color: var(--brand, #0B5CFF);
-  box-shadow: 0 2px 8px rgba(11, 92, 255, .08);
-}
-.fe-submission-card.is-expanded {
-  border-color: var(--brand, #0B5CFF);
-  box-shadow: 0 2px 10px rgba(11, 92, 255, .10);
-}
-.fe-submission-card-main {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 14px;
-  align-items: center;
-  padding: 14px 16px;
-  text-decoration: none;
-  color: inherit;
-  /* <button> resets — this is now a toggle, not a link. */
-  width: 100%;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.fe-submission-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  font-size: var(--fs-lg);
-  background: var(--brand, #0B5CFF);
-  color: #fff;
-  flex: 0 0 auto;
-  letter-spacing: .02em;
-}
-.fe-submission-card.is-anonymous .fe-submission-avatar {
-  background: var(--border);
-  color: var(--muted);
-}
-.fe-submission-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.fe-submission-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-.fe-submission-name {
-  font-weight: 700;
-  font-size: var(--fs-base);
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.fe-submission-form-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: var(--panel-2);
-  color: var(--muted);
-  font-size: var(--fs-2xs);
-  font-weight: 600;
-  white-space: nowrap;
-}
-.fe-submission-form-pill .icon {
-  width: 12px;
-  height: 12px;
-}
-.fe-submission-when {
-  margin-left: auto;
-  white-space: nowrap;
-}
-.fe-submission-headline {
-  font-size: var(--fs-base);
-  color: var(--text);
-  line-height: 1.45;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.fe-submission-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 2px;
-}
-.fe-submission-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--brand, #0B5CFF) 7%, transparent);
-  color: var(--brand, #0B5CFF);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.fe-submission-chip .icon {
-  width: 13px;
-  height: 13px;
-  flex: 0 0 auto;
-}
-.fe-submission-chip--ghost {
-  background: transparent;
-  color: var(--muted);
-}
-.fe-submission-cta {
-  color: var(--muted);
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  transition: transform 120ms ease, color 120ms ease;
-}
-.fe-submission-card:hover .fe-submission-cta { color: var(--brand, #0B5CFF); }
-.fe-submission-card-main[aria-expanded="true"] .fe-submission-cta {
-  transform: rotate(180deg);
-  color: var(--brand, #0B5CFF);
-}
-.fe-submission-cta .icon { width: 18px; height: 18px; }
-
-/* Inline detail panel — the full record in the email/detail style, with
-   a smooth open/close. The panel is a CSS grid whose single row animates
-   0fr→1fr; the clip hides the overflow during the transition; the inner
-   carries the visible chrome (border / padding / fill) so nothing shows
-   while collapsed. */
-.fe-submission-detail-panel {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 240ms ease;
-}
-.fe-submission-card.is-expanded .fe-submission-detail-panel { grid-template-rows: 1fr; }
-.fe-submission-detail-clip { overflow: hidden; min-height: 0; }
-.fe-submission-detail-inner {
-  border-top: 1px solid var(--border);
-  padding: 2px 18px 16px;
-  background: var(--panel-2);
-}
-.fe-submission-detail-panel .fe-sub-detail-fields--inline { padding: 0; max-width: none; }
-.fe-submission-panel-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  margin-top: 4px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fe-submission-detail-panel { transition: none; }
-}
-@media (max-width: 640px) {
-  .fe-submission-card-main { gap: 12px; padding: 12px; }
-  .fe-submission-when { margin-left: 0; width: 100%; }
-  .fe-submission-detail-inner { padding: 2px 12px 14px; }
-  /* Compact to icon-only buttons on narrow screens. */
-  .fe-submission-view-label { display: none; }
-  .fe-submission-row-actions { gap: 4px; margin: 0 8px 0 2px; }
-}
-
-[data-theme="dark"] .fe-submission-card:hover {
-  box-shadow: 0 2px 12px rgba(81, 100, 255, .25);
-}
-
-.fe-submission-dl { display: grid; grid-template-columns: minmax(140px, 1fr) 3fr; gap: .5rem 1rem; }
-.fe-submission-dl dt { font-weight: 600; }
-.fe-submission-dl dd { margin: 0; word-break: break-word; }
-@media (max-width: 600px) {
-  .fe-submission-dl { grid-template-columns: 1fr; gap: .2rem .5rem; }
-  .fe-submission-dl dt { margin-top: .5rem; }
-}
 .fe-submission-raw { background: var(--panel-2); padding: .75rem;
   border-radius: 8px; overflow-x: auto; font-size: var(--fs-xs); }
 
-/* ── Submission detail — elegant "card" presentation that mirrors the
-   branded submission email: gradient accent bar, an identity hero, then
-   one labelled row per answered field with options as check pills and
-   live email/phone/file links. Theme-aware via design tokens. ─────── */
-.fe-sub-detail { max-width: 760px; }
-.fe-sub-detail-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 12px 36px rgba(15, 23, 42, .07);
-}
-.fe-sub-detail-accent {
-  height: 6px;
-  background: linear-gradient(90deg, #0b5cff 0%, #5164ff 50%, #2ad4c3 100%);
-}
-.fe-sub-detail-hero {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 24px 28px;
-  border-bottom: 1px solid var(--border);
-}
-.fe-sub-detail-avatar {
-  flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--fs-xl);
-  font-weight: 800;
-  color: #fff;
-  background: linear-gradient(135deg, #0b5cff, #5164ff);
-  box-shadow: 0 6px 18px rgba(11, 92, 255, .35);
-}
-.fe-sub-detail-hero-main { min-width: 0; }
-.fe-sub-detail-eyebrow {
-  font-size: var(--fs-2xs);
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--brand, #0b5cff);
-  margin-bottom: 4px;
-}
-.fe-sub-detail-archived {
-  color: #b45309;
-  background: rgba(245, 158, 11, .16);
-  padding: 1px 7px;
-  border-radius: 999px;
-  letter-spacing: .02em;
-}
-.fe-sub-detail-name {
-  margin: 0;
-  font-size: var(--fs-2xl);
-  font-weight: 800;
-  line-height: 1.2;
-  color: var(--text);
-  word-break: break-word;
-}
-.fe-sub-detail-metarow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
-  margin-top: 8px;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-}
-.fe-sub-detail-metarow span { display: inline-flex; align-items: center; gap: 5px; }
-.fe-sub-detail-metarow .icon { width: 14px; height: 14px; opacity: .8; }
-.fe-sub-detail-contact { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.fe-sub-detail-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  text-decoration: none;
-}
-.fe-sub-detail-chip:hover { border-color: var(--brand, #0b5cff); color: var(--brand, #0b5cff); }
-.fe-sub-detail-chip .icon { width: 15px; height: 15px; }
-
+/* Form submission answers (_submission_fields.html): one labelled row
+   per answered field, options as check pills, live email/phone/file
+   links. */
 .fe-sub-detail-fields { padding: 6px 28px; }
 .fe-sub-detail-field { padding: 16px 0; border-bottom: 1px solid var(--border); }
 .fe-sub-detail-field:last-child { border-bottom: 0; }
@@ -16228,70 +15866,6 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 .fe-sub-detail-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fe-sub-detail-file-go { margin-left: auto; opacity: .6; display: inline-flex; }
 .fe-sub-detail-file .icon { width: 16px; height: 16px; }
-
-.fe-sub-detail-foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 18px 28px;
-  background: var(--panel-2);
-  border-top: 1px solid var(--border);
-}
-.fe-sub-detail-foot form { margin: 0; }
-
-[data-theme="dark"] .fe-sub-detail-card { box-shadow: 0 12px 36px rgba(0, 0, 0, .35); }
-
-@media (max-width: 600px) {
-  .fe-sub-detail-hero { padding: 20px; gap: 14px; }
-  .fe-sub-detail-fields { padding: 4px 20px; }
-  .fe-sub-detail-foot { padding: 16px 20px; }
-  .fe-sub-detail-name { font-size: var(--fs-xl); }
-}
-
-/* ── Submission modal — the detail card rendered as a popup: sticky
-   identity header + close, a scrollable email-style body, and a sticky
-   Archive/Delete footer. Reuses the .modal / .modal-panel flex-column
-   chrome, so header + footer stay put while only the body scrolls. ── */
-.fe-sub-modal-panel { max-width: 720px; }
-.fe-sub-modal-head {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 16px 22px;
-  border-bottom: 1px solid var(--border);
-}
-.fe-sub-modal-head-id { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.fe-sub-modal-avatar { width: 44px; height: 44px; font-size: var(--fs-lg); flex: 0 0 auto; }
-.fe-sub-modal-avatar.is-anon { background: var(--border); color: var(--muted); box-shadow: none; }
-.fe-sub-modal-head-text { min-width: 0; }
-.fe-sub-modal-name {
-  margin: 0;
-  font-size: var(--fs-xl);
-  font-weight: 800;
-  line-height: 1.2;
-  color: var(--text);
-  word-break: break-word;
-}
-.fe-sub-modal-metarow { margin-top: 3px; }
-.fe-sub-modal-close { flex: 0 0 auto; }
-.fe-sub-modal-body { flex: 1 1 auto; overflow-y: auto; padding: 2px 22px 10px; }
-.fe-sub-modal-body .fe-sub-detail-fields { padding: 0; max-width: none; }
-.fe-sub-modal-foot {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 22px;
-  border-top: 1px solid var(--border);
-  background: var(--panel-2);
-}
-@media (max-width: 600px) {
-  .fe-sub-modal-head, .fe-sub-modal-foot { padding: 14px 16px; }
-  .fe-sub-modal-body { padding: 2px 16px 8px; }
-  .fe-sub-modal-name { font-size: var(--fs-lg); }
-}
 
 /* Custom-form field builder. Each field is a card with a head row
    (drag handle + type pill + title + edit/delete buttons) and a
@@ -18688,6 +18262,29 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .pe-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: var(--fs-sm); }
 .pe-facts dt { color: var(--muted); font-weight: 600; }
 .pe-facts dd { margin: 0; }
+
+/* ── Inboxes (Contact Form, custom form submissions): unread rows stand
+   out; a message's own page reads like an email. ── */
+.lst-thumb--person.is-unread { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--access, var(--brand)); }
+.lst-tbl--messages tr.is-unread .fb-name { font-weight: 700; }
+.lst-msg-line { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+.lst-msg-line b { color: var(--text); font-weight: 600; }
+.lst-card--message.is-unread { border-left: 3px solid var(--access, var(--brand)); }
+.lst-card-subject { margin: 0; font-weight: 600; color: var(--text); font-size: var(--fs-sm); }
+.lst-card--message .lst-card-desc { white-space: pre-line; }
+.fb-side-note { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0 0; padding: 0 10px;
+  font-size: var(--fs-xs); color: var(--muted); line-height: 1.4; }
+.fb-side-note .icon { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 1px; }
+.msg-from { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.msg-from .lst-thumb { width: 48px; height: 48px; font-size: var(--fs-base); }
+.msg-from-text { min-width: 0; }
+.msg-from-name { font-size: var(--fs-lg); font-weight: 700; color: var(--text); }
+.msg-from-contact { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 2px; font-size: var(--fs-sm); }
+.msg-from-contact a { display: inline-flex; align-items: center; gap: 5px; }
+.msg-from-contact .icon { width: 14px; height: 14px; }
+.msg-subject { margin: 4px 0 0; font-size: var(--fs-lg); line-height: 1.35; }
+.msg-body { white-space: pre-wrap; font-size: var(--fs-base); line-height: 1.65; color: var(--text); overflow-wrap: anywhere; }
+.msg-fields { padding: 0; border: 0; background: none; }
 
 /* ── Zoom Tech Training (zoom_tech.html): the text at a reading width,
    centered in a wide window, and in the Wiki layout the sections beside

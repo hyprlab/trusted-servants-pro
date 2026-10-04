@@ -10281,114 +10281,116 @@ def _form_access_or_403(form):
         abort(403)
 
 
+def _submission_payload(sub):
+    import json as _json
+    try:
+        data = _json.loads(sub.payload_json or "{}")
+    except (ValueError, TypeError):
+        data = {}
+    return {"fields": data.get("fields") or {}, "files": data.get("files") or {}}
+
+
+def _submission_text(payload):
+    """Every answer in a submission as one lowercase string, for search."""
+    parts = []
+    for v in (payload.get("fields") or {}).values():
+        parts.extend(v if isinstance(v, list) else [v])
+    return " ".join(str(p) for p in parts if p is not None).lower()
+
+
 @bp.route("/frontend/forms/submissions")
 @login_required
 def frontend_form_submissions():
-    """A single form's submission inbox — its Active / Archived tabs, bulk
-    actions, and CSV export. Access is per-form: admins see every form,
-    other roles only the forms whose ``submission_roles_csv`` grants their
-    role (the sidebar "Forms" list mirrors this). The view is always scoped
-    to one form (``?form=<id>``); a missing/inaccessible id lands on the
-    first form the user can reach."""
+    """A form's submissions in the File Browser layout: search over the
+    answers (live), Inbox / New / Archived with counts, sort, List or
+    Grid, bulk actions, and the CSV download. Access is per form: admins
+    see every form, other roles the forms whose ``submission_roles_csv``
+    grants their role. Scoped to one form (``?form=<id>``); a missing or
+    inaccessible id lands on the first form the user can reach. Each
+    submission opens on its own page."""
     accessible = _accessible_forms(current_user)
     if not accessible:
         abort(403)
-    show_archived = request.args.get("archived") == "1"
+    show = (request.args.get("show") or ("archived" if request.args.get("archived") == "1" else "inbox")).strip()
+    if show not in ("inbox", "new", "archived"):
+        show = "inbox"
     form_id_raw = (request.args.get("form") or "").strip()
     form_id = int(form_id_raw) if form_id_raw.isdigit() else None
     cf = next((f for f in accessible if f.id == form_id), None)
     if cf is None:
-        kwargs = {"form": accessible[0].id}
-        if show_archived:
-            kwargs["archived"] = 1
-        return redirect(url_for("main.frontend_form_submissions", **kwargs))
+        return redirect(url_for("main.frontend_form_submissions", form=accessible[0].id,
+                                show=show if show != "inbox" else None))
+    sort = (request.args.get("sort") or request.cookies.get("view-subs-sort") or "received_desc").strip()
+    view = request.args.get("view") or request.cookies.get("view-subs") or "list"
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
 
-    submissions = (FormSubmission.query
-                   .filter_by(form_id=cf.id, is_archived=show_archived)
-                   .order_by(FormSubmission.created_at.desc())
-                   .limit(200).all())
+    rows = (FormSubmission.query.filter_by(form_id=cf.id)
+            .order_by(FormSubmission.created_at.desc(), FormSubmission.id.desc()).all())
+    payloads = {sub.id: _submission_payload(sub) for sub in rows}
+    if q_text:
+        needle = q_text.lower()
+        rows = [r for r in rows if needle in _submission_text(payloads[r.id]) or needle in (r.ip or "")]
 
-    def _count(archived):
-        return FormSubmission.query.filter_by(form_id=cf.id, is_archived=archived).count()
-    active_count = _count(False)
-    archived_count = _count(True)
-
-    import json as _json
+    def in_show(r, k):
+        if k == "archived":
+            return r.is_archived
+        if k == "new":
+            return not r.is_archived and not r.is_seen
+        return not r.is_archived
+    show_counts = {k: sum(1 for r in rows if in_show(r, k)) for k in ("inbox", "new", "archived")}
+    submissions = [r for r in rows if in_show(r, show)]
     previews = {sub.id: _summarise_form_submission(sub) for sub in submissions}
-    # Decoded payloads keyed by submission id, so each row can expand inline
-    # to show the full email-style record without a round-trip. The form's
-    # field set (blocks) is shared across every row.
-    form_fields = _load_form_fields(cf)
-    payloads = {}
-    for sub in submissions:
-        try:
-            data = _json.loads(sub.payload_json or "{}")
-        except (ValueError, TypeError):
-            data = {}
-        payloads[sub.id] = {"fields": data.get("fields") or {},
-                            "files": data.get("files") or {}}
-    return render_template("frontend_form_submissions.html",
-                           submissions=submissions,
-                           previews=previews,
-                           form_fields=form_fields,
-                           payloads=payloads,
-                           forms=accessible,
-                           selected_form=cf,
-                           selected_form_id=cf.id,
-                           show_archived=show_archived,
-                           active_count=active_count,
-                           archived_count=archived_count,
-                           can_edit_form=current_user.is_admin())
-
-
-@bp.route("/frontend/forms/submissions/<int:sub_id>/seen", methods=["POST"])
-@login_required
-def frontend_form_submission_seen(sub_id):
-    """Mark a submission seen without leaving the inbox — fired when the
-    "View Submission" modal opens (the modal replaced the detail-page
-    navigation, which used to mark it seen). Returns the form's new
-    un-seen, un-archived count so the sidebar chip can update live."""
-    sub = db.session.get(FormSubmission, sub_id) or abort(404)
-    _form_access_or_403(sub.form)
-    if not sub.is_seen:
-        sub.is_seen = True
-        sub.seen_at = datetime.utcnow()
-        db.session.commit()
-    n = FormSubmission.query.filter_by(
-        form_id=sub.form_id, is_archived=False, is_seen=False).count()
-    return jsonify(ok=True, form_id=sub.form_id, count=n)
+    if sort == "received_asc":
+        submissions.reverse()
+    elif sort in ("name_asc", "name_desc"):
+        submissions.sort(key=lambda r: (previews[r.id].get("display_name") or "").lower(),
+                         reverse=sort == "name_desc")
+    else:
+        sort = "received_desc"
+    resp = current_app.make_response(render_template(
+        "frontend_form_submissions.html", submissions=submissions, previews=previews,
+        forms=accessible, selected_form=cf, selected_form_id=cf.id, show=show,
+        sort=sort, view=view, q=q_text, show_counts=show_counts,
+        can_edit_form=current_user.is_admin()))
+    resp.set_cookie("view-subs", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-subs-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
 @bp.route("/frontend/forms/submissions/<int:sub_id>")
 @login_required
 def frontend_form_submission_detail(sub_id):
-    """Per-submission detail view. Pairs each value in the submission's
-    payload with the field label from the form's blocks_json (since
-    submitter never saw the raw field names — labels are what the
-    operator authored)."""
-    import json as _json
+    """One submission on its own page: each answer under the field label
+    from the form's blocks_json (the labels are what the operator wrote;
+    the submitter never saw the raw field names). Opening it marks it
+    seen, which clears it from the form's "new" count."""
     sub = db.session.get(FormSubmission, sub_id) or abort(404)
     cf = sub.form
     _form_access_or_403(cf)
-    # Mark seen on first view — clears this submission from the form's
-    # "new" count chip (sidebar + dashboard widget) and its notification.
     if not sub.is_seen:
         sub.is_seen = True
         sub.seen_at = datetime.utcnow()
         db.session.commit()
     fields = _load_form_fields(cf) if cf else []
     label_for = {f["name"]: f["label"] for f in fields if isinstance(f, dict) and "name" in f}
-    try:
-        payload = _json.loads(sub.payload_json or "{}")
-    except (ValueError, TypeError):
-        payload = {}
-    # Reuse the list-view summariser for the hero (submitter name + the
-    # primary email/phone), so the detail page leads with who submitted it.
+    payload = _submission_payload(sub)
     summary = _summarise_form_submission(sub) if cf else None
     return render_template("frontend_form_submission_detail.html",
                            sub=sub, cf=cf, fields=fields,
                            payload=payload, label_for=label_for,
                            summary=summary)
+
+
+def _submission_back(sub_id, form_id, leave=False):
+    """Where a submission action returns: the page it came from, except
+    the submission's own page when the action means leaving it
+    (``leave``: deleted, or marked unread, which opening would undo)."""
+    ref = _safe_referrer()
+    on_page = bool(ref and re.search(r"/frontend/forms/submissions/%d(?:[/?#]|$)" % sub_id, ref))
+    if ref and not (leave and on_page):
+        return redirect(ref)
+    return redirect(url_for("main.frontend_form_submissions", form=form_id))
 
 
 @bp.route("/frontend/forms/submissions/<int:sub_id>/delete", methods=["POST"])
@@ -10400,89 +10402,64 @@ def frontend_form_submission_delete(sub_id):
     db.session.delete(sub)
     db.session.commit()
     flash("Submission deleted.", "success")
-    return redirect(url_for("main.frontend_form_submissions", form=form_id))
+    return _submission_back(sub_id, form_id, leave=True)
 
 
 @bp.route("/frontend/forms/submissions/<int:sub_id>/archive", methods=["POST"])
 @login_required
 def frontend_form_submission_archive(sub_id):
-    """Archive (or, with ``target=0``, restore) a single submission from
-    its detail view, then return to the submissions list — the active
-    list after archiving, the archived list after restoring (i.e. the
-    tab the row now lives on)."""
+    """Archive (or, with ``target=0``, restore) one submission."""
     sub = db.session.get(FormSubmission, sub_id) or abort(404)
     _form_access_or_403(sub.form)
-    form_id = sub.form_id
     restore = request.form.get("target") == "0"
     sub.is_archived = not restore
     sub.archived_at = None if restore else datetime.utcnow()
     db.session.commit()
     flash("Submission restored." if restore else "Submission archived.", "success")
-    kwargs = {"form": form_id}
-    if restore:
-        kwargs["archived"] = 1
-    return redirect(url_for("main.frontend_form_submissions", **kwargs))
+    return _submission_back(sub_id, sub.form_id)
 
 
-def _submissions_redirect():
-    """Send a bulk action back to the view it came from — same form
-    filter + active/archived tab — read from the POST so the operator
-    lands where they were."""
-    form_id = (request.form.get("form") or "").strip()
-    archived = request.form.get("archived") == "1"
-    kwargs = {}
-    if form_id.isdigit():
-        kwargs["form"] = int(form_id)
-    if archived:
-        kwargs["archived"] = 1
-    return redirect(url_for("main.frontend_form_submissions", **kwargs))
-
-
-@bp.route("/frontend/forms/submissions/bulk-delete", methods=["POST"])
+@bp.route("/frontend/forms/submissions/<int:sub_id>/seen", methods=["POST"])
 @login_required
-def frontend_form_submissions_bulk_delete():
-    """Permanently delete a multi-select set of submissions. Rows belonging
-    to a form the user can't manage are silently skipped, so a crafted POST
-    can't reach another form's submissions."""
-    ids = set(request.form.getlist("submission_ids", type=int))
-    if not ids:
-        flash("Pick at least one submission to delete.", "danger")
-        return _submissions_redirect()
-    subs = [s for s in FormSubmission.query.filter(FormSubmission.id.in_(ids)).all()
-            if current_user.can_access_form_submissions(s.form)]
-    n = 0
-    for s in subs:
-        db.session.delete(s)
-        n += 1
+def frontend_form_submission_seen(sub_id):
+    """Mark one submission read (seen) or, with ``target=0``, unread."""
+    sub = db.session.get(FormSubmission, sub_id) or abort(404)
+    _form_access_or_403(sub.form)
+    unread = request.form.get("target") == "0"
+    sub.is_seen = not unread
+    sub.seen_at = None if unread else datetime.utcnow()
     db.session.commit()
-    if n:
-        flash(f"Deleted {n} submission{'' if n == 1 else 's'}.", "success")
-    return _submissions_redirect()
+    return _submission_back(sub_id, sub.form_id, leave=unread)
 
 
-@bp.route("/frontend/forms/submissions/bulk-archive", methods=["POST"])
+@bp.route("/frontend/forms/submissions/bulk", methods=["POST"])
 @login_required
-def frontend_form_submissions_bulk_archive():
-    """Archive (or, with ``archived=0``, restore) a multi-select set of
-    submissions. Archived rows leave the default list but are kept. Rows on
-    a form the user can't manage are silently skipped."""
-    ids = set(request.form.getlist("submission_ids", type=int))
-    target = request.form.get("target") != "0"  # default: archive; "0" restores
-    if not ids:
-        flash("Pick at least one submission first.", "danger")
-        return _submissions_redirect()
-    subs = [s for s in FormSubmission.query.filter(FormSubmission.id.in_(ids)).all()
+def frontend_form_submissions_bulk():
+    """Archive, restore, mark read or unread, or delete the ticked
+    submissions. Rows on a form the user can't manage are skipped, so a
+    crafted POST can't reach another form's submissions."""
+    action = request.form.get("action")
+    ids = [int(i) for i in request.form.getlist("ids") if str(i).isdigit()]
+    subs = [s for s in (FormSubmission.query.filter(FormSubmission.id.in_(ids)).all() if ids else [])
             if current_user.can_access_form_submissions(s.form)]
-    n = 0
-    for s in subs:
-        s.is_archived = target
-        s.archived_at = datetime.utcnow() if target else None
-        n += 1
+    now = datetime.utcnow()
+    for sub in subs:
+        if action == "archive":
+            sub.is_archived, sub.archived_at = True, now
+        elif action == "restore":
+            sub.is_archived, sub.archived_at = False, None
+        elif action == "read":
+            sub.is_seen, sub.seen_at = True, now
+        elif action == "unread":
+            sub.is_seen, sub.seen_at = False, None
+        elif action == "delete":
+            db.session.delete(sub)
     db.session.commit()
-    if n:
-        verb = "Archived" if target else "Restored"
-        flash(f"{verb} {n} submission{'' if n == 1 else 's'}.", "success")
-    return _submissions_redirect()
+    verb = {"archive": "Archived", "restore": "Restored", "read": "Marked read",
+            "unread": "Marked unread", "delete": "Deleted"}.get(action)
+    if verb and subs:
+        flash(f"{verb}: {len(subs)} submission{'' if len(subs) == 1 else 's'}.", "success")
+    return redirect(_safe_referrer() or url_for("main.frontend_form_submissions"))
 
 
 def _csv_cell(value):
@@ -18579,30 +18556,94 @@ def watchtower_request_delete(rid):
 # sections feel like siblings.
 
 
+def _contact_show_filter(q, show):
+    """The inbox's sections: everything not archived, the unread part of
+    it, and the archive."""
+    C = ContactSubmission
+    if show == "archived":
+        return q.filter(C.is_archived.is_(True))
+    if show == "unread":
+        return q.filter(C.is_archived.is_(False), C.is_read.is_(False))
+    return q.filter(C.is_archived.is_(False))
+
+
+def _contact_delivery_filter(q, delivery):
+    C = ContactSubmission
+    if delivery == "sent":
+        return q.filter(C.email_sent.is_(True))
+    if delivery == "failed":
+        return q.filter(db.or_(C.email_sent.is_(False), C.email_sent.is_(None)))
+    return q
+
+
 @bp.route("/contact-form")
 @admin_required
 def contact_form():
+    """Contact Form messages in the File Browser layout: search (live),
+    Inbox / Unread / Archived with counts, an Email filter (sent or not),
+    sort, List or Grid, and bulk actions. Each message opens on its own
+    page (``contact_message``)."""
+    C = ContactSubmission
     s = _get_site_setting()
-    view = (request.args.get("view") or "active").strip().lower()
-    if view not in ("active", "archived"):
-        view = "active"
-    q = ContactSubmission.query
-    if view == "archived":
-        q = q.filter(ContactSubmission.is_archived.is_(True))
-        items = q.order_by(ContactSubmission.archived_at.desc().nullslast(),
-                           ContactSubmission.created_at.desc()).all()
-    else:
-        q = q.filter(ContactSubmission.is_archived.is_(False))
-        # Active list: unread first so new messages catch the eye, then
-        # most-recent-first within each group.
-        items = q.order_by(ContactSubmission.is_read.asc(),
-                           ContactSubmission.created_at.desc()).all()
-    archived_count = ContactSubmission.query.filter_by(is_archived=True).count()
-    active_count = ContactSubmission.query.filter_by(is_archived=False).count()
-    unread_count = ContactSubmission.query.filter_by(is_archived=False, is_read=False).count()
-    return render_template("contact_form.html", site=s, items=items, view=view,
-                           archived_count=archived_count, active_count=active_count,
-                           unread_count=unread_count)
+    show = (request.args.get("show") or request.args.get("view") or "inbox").strip().lower()
+    if show == "active":
+        show = "inbox"
+    if show not in ("inbox", "unread", "archived"):
+        show = "inbox"
+    delivery = request.args.get("delivery") if request.args.get("delivery") in ("sent", "failed") else ""
+    sort = (request.args.get("sort") or request.cookies.get("view-contact-sort") or "received_desc").strip()
+    view = request.args.get("view") if request.args.get("view") in ("list", "grid") else (request.cookies.get("view-contact") or "list")
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
+
+    base = C.query
+    if q_text:
+        like = f"%{q_text}%"
+        base = base.filter(db.or_(C.name.ilike(like), C.email.ilike(like), C.phone.ilike(like),
+                                  C.subject.ilike(like), C.message.ilike(like)))
+    show_counts = {k: _contact_delivery_filter(_contact_show_filter(base, k), delivery).count()
+                   for k in ("inbox", "unread", "archived")}
+    in_show = _contact_show_filter(base, show)
+    delivery_counts = {k: _contact_delivery_filter(in_show, k).count() for k in ("", "sent", "failed")}
+    q = _contact_delivery_filter(in_show, delivery)
+    orders = {
+        "received_desc": [C.created_at.desc(), C.id.desc()],
+        "received_asc": [C.created_at.asc(), C.id.asc()],
+        "name_asc": [db.func.lower(C.name).asc(), C.created_at.desc()],
+        "name_desc": [db.func.lower(C.name).desc(), C.created_at.desc()],
+    }
+    if sort not in orders:
+        sort = "received_desc"
+    items = q.order_by(*orders[sort]).all()
+    resp = current_app.make_response(render_template(
+        "contact_form.html", site=s, items=items, show=show, delivery=delivery,
+        sort=sort, view=view, q=q_text, show_counts=show_counts,
+        delivery_counts=delivery_counts))
+    resp.set_cookie("view-contact", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-contact-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
+
+
+@bp.route("/contact-form/<int:cid>")
+@admin_required
+def contact_message(cid):
+    """One message on its own page. Opening it marks it read."""
+    sub = db.session.get(ContactSubmission, cid) or abort(404)
+    if not sub.is_read:
+        sub.is_read = True
+        db.session.commit()
+    return render_template("contact_message.html", c=sub)
+
+
+def _contact_back(cid=None, leave=False):
+    """Where a Contact Form action returns: the page it came from,
+    except the message's own page when the action means leaving it
+    (``leave``: deleted, or marked unread, which opening would undo)."""
+    ref = _safe_referrer()
+    on_page = bool(ref and cid and re.search(r"/contact-form/%d(?:[/?#]|$)" % cid, ref))
+    if ref and not (leave and on_page):
+        return redirect(ref)
+    return redirect(url_for("main.contact_form"))
 
 
 @bp.route("/contact-form/<int:cid>/read", methods=["POST"])
@@ -18611,8 +18652,7 @@ def contact_submission_toggle_read(cid):
     sub = db.session.get(ContactSubmission, cid) or abort(404)
     sub.is_read = not sub.is_read
     db.session.commit()
-    return redirect(url_for("main.contact_form",
-                            view=request.form.get("view") or "active"))
+    return _contact_back(cid, leave=not sub.is_read)
 
 
 @bp.route("/contact-form/<int:cid>/archive", methods=["POST"])
@@ -18625,8 +18665,7 @@ def contact_submission_archive(cid):
         sub.is_read = True
     db.session.commit()
     flash("Message archived", "success")
-    return redirect(url_for("main.contact_form",
-                            view=request.form.get("view") or "active"))
+    return _contact_back(cid)
 
 
 @bp.route("/contact-form/<int:cid>/unarchive", methods=["POST"])
@@ -18637,8 +18676,7 @@ def contact_submission_unarchive(cid):
     sub.archived_at = None
     db.session.commit()
     flash("Message restored", "success")
-    return redirect(url_for("main.contact_form",
-                            view=request.form.get("view") or "archived"))
+    return _contact_back(cid)
 
 
 @bp.route("/contact-form/<int:cid>/delete", methods=["POST"])
@@ -18652,8 +18690,38 @@ def contact_submission_delete(cid):
     db.session.delete(sub)
     db.session.commit()
     flash("Message deleted", "success")
-    return redirect(url_for("main.contact_form",
-                            view=request.form.get("view") or "active"))
+    return _contact_back(cid, leave=True)
+
+
+@bp.route("/contact-form/bulk", methods=["POST"])
+@admin_required
+def contact_submissions_bulk():
+    """Mark read or unread, archive, restore or delete the ticked
+    messages."""
+    from . import activity
+    action = request.form.get("action")
+    ids = [int(i) for i in request.form.getlist("ids") if str(i).isdigit()]
+    rows = ContactSubmission.query.filter(ContactSubmission.id.in_(ids)).all() if ids else []
+    for c in rows:
+        if action == "read":
+            c.is_read = True
+        elif action == "unread":
+            c.is_read = False
+        elif action == "archive":
+            c.is_archived, c.archived_at, c.is_read = True, datetime.utcnow(), True
+        elif action == "unarchive":
+            c.is_archived, c.archived_at = False, None
+        elif action == "delete":
+            activity.log("contact_submission.delete",
+                         entity_type="contact_submission", entity_id=c.id,
+                         summary=f"Deleted contact message from {c.name} <{c.email}>")
+            db.session.delete(c)
+    db.session.commit()
+    verb = {"read": "Marked read", "unread": "Marked unread", "archive": "Archived",
+            "unarchive": "Restored", "delete": "Deleted"}.get(action)
+    if verb and rows:
+        flash(f"{verb}: {len(rows)} message{'' if len(rows) == 1 else 's'}.", "success")
+    return redirect(_safe_referrer() or url_for("main.contact_form"))
 
 
 # --- First-run setup wizard ---

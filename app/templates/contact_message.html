@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip %}
+{% block title %}Message from {{ c.name }} · Trusted Servants Pro{% endblock %}
+{% block heading %}{{ c.subject or ('Message from ' ~ c.name) }}{% endblock %}
+{% block heading_help %}A message from the public contact page. Reply by email, then archive it once it's handled.{% endblock %}
+{% block top_actions %}
+  <a class="btn" href="{{ url_for('main.contact_form', show='archived' if c.is_archived else None) }}">← All</a>
+  {% if c.is_archived %}<span class="post-chip post-chip-header">Archived</span>{% endif %}
+  <a class="btn btn-primary" href="mailto:{{ c.email }}{% if c.subject %}?subject={{ ('Re: ' ~ c.subject)|urlencode }}{% endif %}">{{ icon('mail') }} Reply</a>
+  <form method="post" action="{{ url_for('main.contact_submission_toggle_read', cid=c.id) }}" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn" title="Back to the list, with this message marked unread">Mark unread</button>
+  </form>
+  {% if c.is_archived %}
+  <form method="post" action="{{ url_for('main.contact_submission_unarchive', cid=c.id) }}" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn">Restore</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ url_for('main.contact_submission_archive', cid=c.id) }}" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn">Archive</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('main.contact_submission_delete', cid=c.id) }}" style="display:inline"
+        data-confirm-title="Delete this message?" data-confirm-label="Delete" data-confirm="The message from {{ c.name }} will be deleted for good.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-danger">Delete</button>
+  </form>
+{% endblock %}
+{% block content %}
+{# Laid out like the editors (story_edit.html): the message on the left,
+   its details on the right. Nothing here is edited, so no save bar. #}
+<section class="card st-studio post-studio msg-studio" data-no-collapse>
+  <div class="st-body st-body--split">
+    <div class="post-studio-main">
+      <header class="msg-from">
+        <span class="lst-thumb lst-thumb--person" aria-hidden="true">{{ c.name|initials if c.name else '?' }}</span>
+        <div class="msg-from-text">
+          <div class="msg-from-name">{{ c.name }}</div>
+          <div class="msg-from-contact">
+            <a href="mailto:{{ c.email }}">{{ icon('mail') }}<span>{{ c.email }}</span></a>
+            {% if c.phone %}<a href="tel:{{ c.phone }}">{{ icon('phone') }}<span>{{ c.phone }}</span></a>{% endif %}
+          </div>
+        </div>
+      </header>
+      {% if c.subject %}<h2 class="msg-subject">{{ c.subject }}</h2>{% endif %}
+      <div class="msg-body">{{ c.message }}</div>
+    </div>
+    <div class="st-controls">
+      <div class="ds-group st-group-body">
+        <h3 class="ds-group-title">{{ icon('clock') }}Received</h3>
+        <dl class="pe-facts">
+          <dt>When</dt><dd>{{ c.created_at|fmt_site_local('%b %-d, %Y · %-I:%M %p %Z') if c.created_at else '—' }}</dd>
+          {% if c.ip_address %}<dt>From</dt><dd class="muted">{{ c.ip_address }}</dd>{% endif %}
+        </dl>
+      </div>
+      <div class="ds-group st-group-body">
+        <h3 class="ds-group-title">{{ icon('send') }}Email to the recipient {% call chip('Email to the recipient') %}Each message is also emailed to the address set in the form settings.{% endcall %}</h3>
+        {% if c.email_sent %}
+        <p class="pe-fact"><span class="post-chip post-chip-online">Emailed</span></p>
+        {% else %}
+        <p class="pe-fact"><span class="post-chip post-chip-danger">Not emailed</span></p>
+        <p class="muted small">{{ c.email_error or 'There was no recipient, or email is not set up.' }}</p>
+        {% endif %}
+        <p class="small"><a href="{{ url_for('main.frontend_form_contact') }}">Form settings</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
