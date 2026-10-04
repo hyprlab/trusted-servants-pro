@@ -130,18 +130,17 @@
     <article class="lst-card">
       <div class="lst-card-head">
         {{ _thumb(l) }}
-        <div class="lst-card-title">
-          <a class="lst-card-link" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">{{ l.name }}</a>
-          {{ _chips(l) }}
-        </div>
+        <a class="lst-card-link" href="{{ url_for('main.library_detail', slug=l.public_slug) }}">{{ l.name }}</a>
         {{ _actions(l, compact=True) }}
       </div>
-      {% if l.alert_message %}<p class="lst-card-alert">{{ icon('alert-triangle') }}<span>{{ l.alert_message }}</span></p>{% endif %}
-      {% if l.description %}<p class="lst-card-desc">{{ l.description }}</p>
-      {% else %}<p class="lst-card-none">No description</p>{% endif %}
+      <div class="lst-card-body">
+        {% if l.alert_message %}<p class="lst-card-alert">{{ icon('alert-triangle') }}<span>{{ l.alert_message }}</span></p>{% endif %}
+        {% if l.description %}<p class="lst-card-desc">{{ l.description }}</p>
+        {% else %}<p class="lst-card-none">No description</p>{% endif %}
+      </div>
       <div class="lst-card-foot">
-        <span>{{ icon('file-text') }}{{ _plural(file_counts.get(l.id, 0), 'file') }}</span>
-        <span>{{ icon('calendar') }}{{ _plural(meeting_counts.get(l.id, 0), 'meeting') }}</span>
+        <span class="lst-card-counts">{{ _plural(file_counts.get(l.id, 0), 'file') }} · {{ _plural(meeting_counts.get(l.id, 0), 'meeting') }}</span>
+        {{ _chips(l) }}
       </div>
     </article>
     {% endfor %}

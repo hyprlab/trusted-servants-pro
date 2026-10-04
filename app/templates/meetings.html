@@ -153,31 +153,29 @@
     <article class="lst-card">
       <div class="lst-card-head">
         {{ _thumb(m) }}
-        <div class="lst-card-title">
-          <a class="lst-card-link" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">{{ m.name }}</a>
-          <span class="mtype-chip mtype-{{ m.meeting_type }}">{{ TYPE_LABELS.get(m.meeting_type, m.meeting_type) }}</span>
-        </div>
+        <a class="lst-card-link" href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">{{ m.name }}</a>
         {{ _actions(m, compact=True) }}
       </div>
-      {% if runs[m.id] %}
-      <ul class="lst-sched">
-        {% for r in runs[m.id] %}
-        <li{% if r.today %} class="is-today"{% endif %}>
-          <span class="lst-sched-day">{{ r.days }}</span>
-          <span class="lst-sched-time">{{ r.start|fmt12h }} – {{ r.end|fmt12h }}</span>
-          {% if r.today %}<span class="lst-sched-today">Today</span>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="lst-card-none">No schedule yet</p>
-      {% endif %}
-      {% if m.location and m.meeting_type != 'online' %}
-      <p class="lst-card-meta">{{ icon('map-pin') }}<span>{{ _place(m) }}</span></p>
-      {% endif %}
+      <div class="lst-card-body">
+        {% if runs[m.id] %}
+        <ul class="lst-sched">
+          {% for r in runs[m.id] %}
+          <li{% if r.today %} class="is-today"{% endif %}>
+            <span class="lst-sched-day">{{ r.days }}</span>
+            <span class="lst-sched-time"><span>{{ r.start|fmt12h }} – {{ r.end|fmt12h }}</span>{% if r.today %} <span class="lst-sched-today">Today</span>{% endif %}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="lst-card-none">No schedule yet</p>
+        {% endif %}
+        {% if m.location and m.meeting_type != 'online' %}
+        <p class="lst-card-meta">{{ icon('map-pin') }}<span>{{ _place(m) }}</span></p>
+        {% endif %}
+      </div>
       <div class="lst-card-foot">
-        <span>{{ icon('file-text') }}{{ _plural(_files, 'file') }}</span>
-        <span>{{ icon('book-open') }}{{ _plural(m.libraries|length, 'library', 'libraries') }}</span>
+        <span class="lst-card-counts">{{ _plural(_files, 'file') }} · {{ _plural(m.libraries|length, 'library', 'libraries') }}</span>
+        <span class="mtype-chip mtype-{{ m.meeting_type }}">{{ TYPE_LABELS.get(m.meeting_type, m.meeting_type) }}</span>
       </div>
     </article>
     {% endfor %}
