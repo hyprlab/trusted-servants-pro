@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import hashlib
 import os
+import re
 from datetime import datetime, timedelta
 import nh3
 import markdown as md_lib
@@ -352,6 +353,13 @@ def create_app():
         prepped = _markdown_block_breaks(str(value))
         html = md_lib.markdown(prepped, extensions=["extra", "nl2br", "sane_lists"])
         return Markup(_clean_html(html, SAFE_RICH_TAGS, SAFE_RICH_ATTRS))
+
+    @app.template_filter("initials")
+    def initials_filter(value):
+        """Up to two capital letters from a name, for a person's avatar:
+        "Jane Doe" → "JD", "Jane D." → "JD", "jane" → "J"."""
+        words = [w for w in re.split(r"[\s.]+", str(value or "")) if w and w[0].isalnum()]
+        return "".join(w[0] for w in (words[:1] + words[-1:] if len(words) > 1 else words)).upper()
 
     @app.template_filter("from_json")
     def from_json_filter(value):

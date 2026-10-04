@@ -9,6 +9,11 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- The Email List and Recovery Contacts use the same layout as the other lists: a sidebar with the count, search that updates as you type, filters with counts, sort, and List or Grid, beside the list. Tick rows or cards for bulk actions in a bar at the foot of the list.
+- Email List filters by account (portal account or added by hand), and its Updates sent view lists the updates sent to the list. Import a CSV and Send an update are in the sidebar.
+- Recovery Contacts splits what is waiting into New submissions, Update requests and Removal requests, each with an amber count, and filters published entries by Available to sponsor and Contact through the site. Search also finds phone numbers by their digits. The activity log is in the sidebar.
+- Each person on the Email List and each Recovery Contacts entry opens on its own page, laid out like the story editor, and saves with the yellow bar; the edit popups are gone. A Recovery Contacts submission or request opens with a review card that shows what it asks for, with buttons to approve it, apply the update or removal, or discard it. Approving from that card keeps any edits made below it first.
+- Recovery Contacts actions return to the page they came from, keeping the list's search and filters.
 - The File Browser picker has the same margin on every side of its file list, its close button sits inside the top-right corner of the list, and Esc closes it.
 - Zoom Tech Training is edited on its own page, laid out like the story and blog editors: the title and the text on the left and the settings on the right, split 60/40, saved with the yellow bar. The settings are Sections (the format and a list of sections), Design and Layout. Click a section in the list to go to it. The edit popup is gone.
 - The Design tab sets the Zoom Tech Training page's look: background, text, heading, link, accent and quote colors, each with a light and a dark value; the text and heading fonts; text size, line spacing and text width; and photo corners, outline and shadow. The Markdown preview shows changes as you make them, and Back to the theme's design clears them.

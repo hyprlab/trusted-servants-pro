@@ -1,104 +1,189 @@
 {% extends "base.html" %}
-{% from "_help_chip.html" import chip, hrow %}
 {% from "_row_menu.html" import row_menu %}
+{% from "_list_page.html" import search_form, side_link, sort_link, view_switch, bulk_bar %}
 {% block heading %}Trusted Servants Email List{% endblock %}
-{% block heading_help %}Roster of trusted servants who have opted into the contact list (plus any external contacts an admin has added manually), and a send-update surface for emailing the whole list at once.{% endblock %}
+{% block heading_help %}Trusted servants who joined the contact list from their dashboard, and contacts an admin added by hand. Send the whole list an update, or open someone to edit their details.{% endblock %}
+{% block top_actions %}{% endblock %}
 {% block content %}
+{# Every link keeps the page's settings (view, sort, search, filter and
+   tab) and changes only what it passes in `over`. #}
+{% set _base = {'account': account or None, 'sort': sort, 'q': q or None, 'view': view,
+                'tab': 'history' if tab == 'history' else None} %}
+{% macro _url(over={}) -%}
+  {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}{{ url_for('main.trusted_servants_list', **_u) }}
+{%- endmacro %}
+{% set _skey, _sdir = sort.rsplit('_', 1) %}
+{% set SORT_FIRST_DIR = {'name': 'asc', 'email': 'asc', 'joined': 'desc'} %}
+{% macro _sort(key, label) -%}
+  {%- set _on = _skey == key -%}
+  {{ sort_link(_url({'sort': key ~ '_' ~ ((('asc' if _sdir == 'desc' else 'desc') if _on else SORT_FIRST_DIR[key])), 'tab': None}), label, _on, _sdir) }}
+{%- endmacro %}
+{% macro _sort_th(key, label, cls='') -%}
+  <th class="{{ cls }}"{% if _skey == key %} aria-sort="{{ 'ascending' if _sdir == 'asc' else 'descending' }}"{% endif %}>{{ _sort(key, label) }}</th>
+{%- endmacro %}
+{% macro _plural(n, one, many) %}{{ n }} {{ one if n == 1 else many }}{% endmacro %}
+{% macro _avatar(s) %}<span class="lst-thumb lst-thumb--person" aria-hidden="true">{{ s.name|initials if s.name else '?' }}</span>{% endmacro %}
+{# Only someone with a portal account is marked: most were added by hand. #}
+{% macro _account(s) %}
+  {% if s.user %}<span class="lst-acct" title="Joined from their dashboard">{{ icon('user') }}<span>{{ s.user.username }}</span></span>{% endif %}
+{% endmacro %}
+{% macro _actions(s, compact=False) %}
+  {% call row_menu('Actions' if not compact else 'Actions for ' ~ s.name, compact=compact) %}
+    <a class="row-menu-item" href="{{ url_for('main.trusted_servants_editor', sid=s.id) }}">{{ icon('pencil') }}<span>Edit</span></a>
+    <a class="row-menu-item" href="mailto:{{ s.email }}">{{ icon('mail') }}<span>Email {{ s.name.split(' ')[0] }}</span></a>
+    <div class="row-menu-sep" role="separator"></div>
+    <button type="submit" form="single-ts-delete-{{ s.id }}-form" class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Remove from list</span></button>
+  {% endcall %}
+{% endmacro %}
 
-<div class="ts-page-wrap">
-  <div class="ts-page-toolbar">
-    <button type="button" class="btn" data-open-modal="ts-add-modal">{{ icon('user-plus') }} Add manually</button>
-    <button type="button" class="btn" data-open-modal="ts-import-wizard-modal">{{ icon('cloud-upload') }} Import CSV</button>
-    <a class="btn btn-primary" href="{{ url_for('main.trusted_servants_blast_compose') }}">
-      {{ icon('send') }} Send an update
-    </a>
+<div class="fb-pick fb-pick--page lst-page">
+<aside class="fb-side" aria-label="Find someone">
+  <div class="fb-side-top" data-live="total">
+    <p class="fb-side-total" aria-live="polite">{{ _plural(subscribers|length, 'person', 'people') }}{% if q %} matching “{{ q }}”{% endif %}</p>
+  </div>
+  {{ search_form(url_for('main.trusted_servants_list'), _base, q, 'Search the list', 'Search by name, email, phone or notes') }}
+  <a class="btn btn-primary fb-side-upload" href="{{ url_for('main.trusted_servants_blast_compose') }}">{{ icon('send') }} Send an update</a>
+  <div class="lst-side-live" data-live="side">
+    <nav class="fb-side-group" aria-label="Account">
+      <h3 class="fb-side-title">Account</h3>
+      {{ side_link(_url({'account': None, 'tab': None}), 'users', 'Everyone', account_counts[''], not account and tab != 'history') }}
+      {{ side_link(_url({'account': 'portal', 'tab': None}), 'user', 'Portal account', account_counts['portal'], account == 'portal' and tab != 'history') }}
+      {{ side_link(_url({'account': 'manual', 'tab': None}), 'user-plus', 'Added by hand', account_counts['manual'], account == 'manual' and tab != 'history') }}
+    </nav>
+    <div class="fb-side-group" role="group" aria-label="Sort the list">
+      <h3 class="fb-side-title">Sort by</h3>
+      <div class="fb-side-sort">{{ _sort('name', 'Name') }}{{ _sort('email', 'Email') }}{{ _sort('joined', 'Joined') }}</div>
+    </div>
+    {{ view_switch(_url({'view': 'list', 'tab': None}), _url({'view': 'grid', 'tab': None}), view if tab != 'history' else '') }}
+    <nav class="fb-side-group" aria-label="More">
+      <h3 class="fb-side-title">More</h3>
+      {{ side_link(url_for('main.trusted_servants_new'), 'user-plus', 'Add someone') }}
+      <a class="fb-side-link" href="#" data-open-modal="ts-import-wizard-modal">{{ icon('cloud-upload') }}<span>Import a CSV</span></a>
+      {{ side_link(_url({'tab': 'history'}), 'clock', 'Updates sent', blast_count, tab == 'history') }}
+    </nav>
+  </div>
+</aside>
+<div class="fb-pick-main" data-live="main">
+<form id="ts-bulk-form" method="post" action="{{ url_for('main.trusted_servants_bulk') }}" data-bulk-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="" data-bulk-action-field>
+</form>
+<section class="card fb lst" data-bulk-scope="ts-bulk-form">
+  {% if tab == 'history' %}
+  {# The updates sent to the list, newest first. #}
+  {% if blasts %}
+  <table class="tbl fb-tbl lst-tbl">
+    <thead><tr><th>Subject</th><th class="fb-col">Sent</th><th class="fb-col">By</th><th class="fb-col">Delivered</th></tr></thead>
+    <tbody>
+      {% for b in blasts %}
+      <tr>
+        <td class="media-name-cell"><span class="fb-name">{{ b.subject }}</span>
+          <div class="fb-sub fb-sub--narrow">{{ b.started_at|fmt_site_local('%b %-d, %Y') if b.started_at }} · {{ b.sent_count }} of {{ b.recipient_count }}</div></td>
+        <td class="fb-col muted">{{ b.started_at|fmt_site_local('%b %-d, %Y · %-I:%M %p') if b.started_at else '—' }}</td>
+        <td class="fb-col muted">{{ b.sent_by.username if b.sent_by else '(deleted user)' }}</td>
+        <td class="fb-col">{{ b.sent_count }} of {{ b.recipient_count }}{% if b.failed_count %} <span class="post-chip post-chip-warning">{{ b.failed_count }} failed</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="fb-empty">
+    <span class="fb-empty-icon" aria-hidden="true">{{ icon('send') }}</span>
+    <p>No updates sent yet.</p>
+    <a class="btn btn-sm btn-primary" href="{{ url_for('main.trusted_servants_blast_compose') }}">{{ icon('send') }} Send an update</a>
+  </div>
+  {% endif %}
+
+  {% elif not subscribers %}
+  <div class="fb-empty">
+    <span class="fb-empty-icon" aria-hidden="true">{{ icon('users') }}</span>
+    {% if q or account %}
+    <p>No one here matches{{ ' “' ~ q ~ '”' if q }}.</p>
+    <a class="btn btn-sm" href="{{ _url({'q': None, 'account': None}) }}">Show everyone</a>
+    {% else %}
+    <p>No one on the list yet. Signed-in users can join from their dashboard.</p>
+    <a class="btn btn-sm btn-primary" href="{{ url_for('main.trusted_servants_new') }}">{{ icon('user-plus') }} Add someone</a>
+    {% endif %}
   </div>
 
-  <section class="card data-card">
-    <div class="data-card-head">
-      {{ icon('users') }}
-      <span>Subscribers {% call chip('Subscribers') %}Every signed-in user can add themselves via the dashboard widget. Admins can also add external contacts (people without portal accounts) and edit or remove any row here.{% endcall %}</span>
-      <div class="data-card-head-actions muted smaller">
-        {{ subscribers|length }} member{% if subscribers|length != 1 %}s{% endif %}
+  {% elif view == 'grid' %}
+  <div class="lst-grid">
+    {% for s in subscribers %}
+    <article class="lst-card lst-card--person">
+      <label class="lst-card-check" title="Select"><input type="checkbox" name="ids" value="{{ s.id }}" form="ts-bulk-form" data-bulk-check aria-label="Select {{ s.name }}"></label>
+      <div class="lst-card-head">
+        {{ _avatar(s) }}
+        <a class="lst-card-link" href="{{ url_for('main.trusted_servants_editor', sid=s.id) }}">{{ s.name }}</a>
+        {{ _actions(s, compact=True) }}
       </div>
-    </div>
-    {% if subscribers %}
-    <table class="tbl ts-tbl">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Phone</th>
-          <th>Account</th>
-          <th>Joined</th>
-          <th class="th-actions">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in subscribers %}
-        <tr>
-          <td data-label="Name">{{ s.name }}</td>
-          <td data-label="Email"><a href="mailto:{{ s.email }}">{{ s.email }}</a></td>
-          <td data-label="Phone">{{ s.phone or '—' }}</td>
-          <td data-label="Account" class="muted smaller">
-            {% if s.user %}{{ s.user.username }}
-            {% else %}<span title="External contact — no portal account">manual</span>{% endif %}
-          </td>
-          <td data-label="Joined" class="muted smaller">{{ s.created_at.strftime('%b %-d, %Y') if s.created_at else '—' }}</td>
-          <td class="ts-row-actions">
-            {% call row_menu() %}
-              <button type="button" class="row-menu-item" data-open-modal="ts-edit-{{ s.id }}" title="Edit entry">
-                {{ icon('pencil') }}<span>Edit</span></button>
-              <div class="row-menu-sep" role="separator"></div>
-              <form method="post" action="{{ url_for('main.trusted_servants_delete', sid=s.id) }}"
-                    onsubmit="return confirm('Remove {{ s.name }} from the list?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="row-menu-item row-menu-item-danger" title="Remove from list">
-                  {{ icon('trash') }}<span>Remove</span></button>
-              </form>
-            {% endcall %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="muted">No subscribers yet — the sign-up widget will appear on every signed-in user's dashboard, and you can add external contacts with the <b>Add manually</b> button above.</p>
-    {% endif %}
-  </section>
+      <div class="lst-card-body">
+        <p class="lst-card-meta">{{ icon('mail') }}<a href="mailto:{{ s.email }}">{{ s.email }}</a></p>
+        {% if s.phone %}<p class="lst-card-meta">{{ icon('phone') }}<span>{{ s.phone }}</span></p>{% endif %}
+        {% if s.notes %}<p class="lst-card-desc">{{ s.notes }}</p>{% endif %}
+      </div>
+      <div class="lst-card-foot">
+        <span class="lst-card-counts">{{ 'Joined ' ~ s.created_at|fmt_site_local('%b %-d, %Y') if s.created_at }}</span>
+        <span class="lst-card-chips">{{ _account(s) }}</span>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
 
-  <section class="card data-card">
-    <div class="data-card-head">
-      {{ icon('clock') }}
-      <span>Send history {% call chip('Send history') %}The last 25 update emails sent to the list. Each row shows who sent it, when, the subject line, and how many recipients received it.{% endcall %}</span>
-    </div>
-    {% if blasts %}
-    <ul class="ts-blast-list">
-      {% for b in blasts %}
-      <li class="ts-blast-row">
-        <div class="ts-blast-meta">
-          <div class="ts-blast-subject"><strong>{{ b.subject }}</strong></div>
-          <div class="ts-blast-stats muted smaller">
-            {{ b.started_at.strftime('%Y-%m-%d %H:%M') }} UTC
-            · sent by {{ b.sent_by.username if b.sent_by else '(deleted user)' }}
-            · {{ b.sent_count }} of {{ b.recipient_count }} delivered
-            {% if b.failed_count %}<span class="ts-blast-fail">· {{ b.failed_count }} failed</span>{% endif %}
-          </div>
-        </div>
-      </li>
+  {% else %}
+  <table class="tbl fb-tbl lst-tbl lst-tbl--people">
+    <thead>
+      <tr>
+        <th class="lst-check-col"><label class="lst-check" title="Select all"><input type="checkbox" data-bulk-all aria-label="Select all"></label></th>
+        <th class="fb-thumb-col"><span class="sr-only">Initials</span></th>
+        {{ _sort_th('name', 'Name') }}
+        {{ _sort_th('email', 'Email', 'fb-col') }}
+        <th class="fb-col">Phone</th>
+        {{ _sort_th('joined', 'Joined', 'fb-col') }}
+        <th class="th-actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in subscribers %}
+      <tr>
+        <td class="lst-check-col"><label class="lst-check"><input type="checkbox" name="ids" value="{{ s.id }}" form="ts-bulk-form" data-bulk-check aria-label="Select {{ s.name }}"></label></td>
+        <td class="fb-thumb-cell">{{ _avatar(s) }}</td>
+        <td class="media-name-cell">
+          <a class="fb-name" href="{{ url_for('main.trusted_servants_editor', sid=s.id) }}">{{ s.name }}</a>
+          {% if s.user %}<div class="fb-sub">{{ _account(s) }}</div>{% endif %}
+          {% if s.notes %}<div class="fb-sub">{{ s.notes }}</div>{% endif %}
+          <div class="fb-sub fb-sub--narrow">{{ s.email }}{% if s.phone %} · {{ s.phone }}{% endif %}</div>
+        </td>
+        <td class="fb-col"><a class="lst-email" href="mailto:{{ s.email }}" title="{{ s.email }}">{{ s.email }}</a></td>
+        <td class="fb-col muted">{{ s.phone or '—' }}</td>
+        <td class="fb-col muted">{{ s.created_at|fmt_site_local('%b %-d, %Y') if s.created_at else '—' }}</td>
+        <td class="row-actions">{{ _actions(s) }}</td>
+      </tr>
       {% endfor %}
-    </ul>
-    {% else %}
-    <p class="muted">No updates sent yet.</p>
-    {% endif %}
-  </section>
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if subscribers and tab != 'history' %}
+  {% call bulk_bar() %}
+    <button type="button" class="btn btn-sm btn-danger" data-bulk="delete" data-bulk-noun="person" data-bulk-nouns="people"
+            data-bulk-title="Remove {n} from the list?" data-bulk-label="Remove"
+            data-bulk-confirm="They stop getting updates. People with a portal account can join again from their dashboard.">Remove from list</button>
+  {% endcall %}
+  {% endif %}
+</section>
+
+{# Per-row action forms, matched by id from the row menus. #}
+{% for s in subscribers %}
+<form id="single-ts-delete-{{ s.id }}-form" method="post" action="{{ url_for('main.trusted_servants_delete', sid=s.id) }}"
+      data-confirm-title="Remove {{ s.name }} from the list?" data-confirm-label="Remove"
+      data-confirm="They stop getting updates.{% if s.user %} They can join again from their dashboard.{% endif %}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% endfor %}
+</div>
 </div>
 
-{# CSV import wizard — multi-step flow lives in an iframe so the upload
-   form, column-mapping preview, dry-run summary, and completion screen
-   all stay inside the same modal until commit. Same iframe-modal
-   pattern as the off-site backup wizard. Close on completion is
-   driven by a postMessage from inside the iframe (see app.js). #}
+{# CSV import wizard: the upload, column mapping, dry run and result all
+   stay in this frame until the import is committed; app.js closes the
+   modal when the frame posts that it's done. #}
 <div class="modal modal-lg" id="ts-import-wizard-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
   <div class="modal-panel" role="dialog" aria-modal="true">
@@ -111,87 +196,4 @@
             src="about:blank"></iframe>
   </div>
 </div>
-
-{# Add manually — admin-only path that creates a TrustedServantSubscriber
-   row without a user_id, so external contacts (folks without portal
-   accounts) can land on the list too. #}
-<div class="modal" id="ts-add-modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <form method="post" action="{{ url_for('main.trusted_servants_manual_add') }}" class="form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="modal-head">
-        <h2>Add to email list</h2>
-        <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-      </div>
-      <div class="modal-body">
-        <p class="muted small" style="margin: 0 0 1rem;">
-          Use this for external contacts who don't have a portal account. Signed-in users can also self-subscribe from their dashboard.
-        </p>
-        <label><span class="field-label-row">Full name <span class="muted smaller">(required)</span></span>
-          <input type="text" name="name" required maxlength="120" placeholder="e.g. Jane D.">
-        </label>
-        <label><span class="field-label-row">Email <span class="muted smaller">(required)</span></span>
-          <input type="email" name="email" required maxlength="255" placeholder="jane@example.com">
-        </label>
-        <label><span class="field-label-row">Phone <span class="muted smaller">(optional)</span></span>
-          <input type="tel" name="phone" maxlength="64">
-        </label>
-        <label><span class="field-label-row">Notes <span class="muted smaller">(optional, admin-only)</span></span>
-          <textarea name="notes" rows="2" placeholder="Anything you want to remember about this contact."></textarea>
-        </label>
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Add to list</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-{# Per-row edit modals. One dialog per subscriber so each form's hidden
-   inputs carry the right id and pre-fill values. The same modal works
-   for user-linked rows and manual entries — only contact fields move;
-   the user_id binding is preserved server-side. #}
-{% for s in subscribers %}
-<div class="modal" id="ts-edit-{{ s.id }}" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <form method="post" action="{{ url_for('main.trusted_servants_edit', sid=s.id) }}" class="form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="modal-head">
-        <h2>Edit {{ s.name }}</h2>
-        <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-      </div>
-      <div class="modal-body">
-        {% if s.user %}
-        <p class="muted small" style="margin: 0 0 1rem;">
-          Linked to portal account <b>{{ s.user.username }}</b>. Edits you make here override what the user submitted from their dashboard; they can still re-edit via the widget.
-        </p>
-        {% else %}
-        <p class="muted small" style="margin: 0 0 1rem;">
-          External contact (no portal account). This row is admin-managed only.
-        </p>
-        {% endif %}
-        <label>Full name
-          <input type="text" name="name" required maxlength="120" value="{{ s.name }}">
-        </label>
-        <label>Email
-          <input type="email" name="email" required maxlength="255" value="{{ s.email }}">
-        </label>
-        <label>Phone
-          <input type="tel" name="phone" maxlength="64" value="{{ s.phone or '' }}">
-        </label>
-        <label><span class="field-label-row">Notes <span class="muted smaller">(admin-only)</span></span>
-          <textarea name="notes" rows="2">{{ s.notes or '' }}</textarea>
-        </label>
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Save changes</button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endfor %}
 {% endblock %}

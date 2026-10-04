@@ -3652,18 +3652,90 @@ def _require_trusted_servants_admin():
 # widget (or who an admin added manually). Admins manage the roster
 # here, send mass emails to the list, and review send history.
 # ---------------------------------------------------------------------------
+def _ts_account_filter(q, account):
+    """Narrow the email list to people with a portal account, or to
+    those an admin added by hand."""
+    T = TrustedServantSubscriber
+    if account == "portal":
+        return q.filter(T.user_id.isnot(None))
+    if account == "manual":
+        return q.filter(T.user_id.is_(None))
+    return q
+
+
 @bp.route("/email-list")
 @login_required
 def trusted_servants_list():
+    """The email list in the File Browser layout: search (name, email,
+    phone or notes, live), an Account filter with counts, sort, List or
+    Grid, and bulk removal. ``tab=history`` shows the updates sent."""
     _require_trusted_servants_admin()
-    subs = (TrustedServantSubscriber.query
-            .order_by(TrustedServantSubscriber.name.asc())
-            .all())
+    T = TrustedServantSubscriber
+    tab = "history" if request.args.get("tab") == "history" else "people"
+    account = request.args.get("account") if request.args.get("account") in ("portal", "manual") else ""
+    sort = (request.args.get("sort") or request.cookies.get("view-ts-sort") or "name_asc").strip()
+    view = request.args.get("view") or request.cookies.get("view-ts") or "list"
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
+
+    base = T.query
+    if q_text:
+        like = f"%{q_text}%"
+        base = base.filter(db.or_(T.name.ilike(like), T.email.ilike(like),
+                                  T.phone.ilike(like), T.notes.ilike(like)))
+    account_counts = {a: _ts_account_filter(base, a).count() for a in ("", "portal", "manual")}
+    q = _ts_account_filter(base, account)
+    orders = {
+        "name_asc": [db.func.lower(T.name).asc()],
+        "name_desc": [db.func.lower(T.name).desc()],
+        "email_asc": [db.func.lower(T.email).asc()],
+        "email_desc": [db.func.lower(T.email).desc()],
+        "joined_desc": [T.created_at.desc(), T.id.desc()],
+        "joined_asc": [T.created_at.asc(), T.id.asc()],
+    }
+    if sort not in orders:
+        sort = "name_asc"
+    subs = q.order_by(*orders[sort]).all()
     blasts = (TrustedServantBlast.query
               .order_by(TrustedServantBlast.started_at.desc())
-              .limit(25).all())
-    return render_template("trusted_servants_list.html",
-                           subscribers=subs, blasts=blasts)
+              .limit(50).all()) if tab == "history" else []
+    blast_count = TrustedServantBlast.query.count()
+    resp = current_app.make_response(render_template(
+        "trusted_servants_list.html", subscribers=subs, blasts=blasts,
+        blast_count=blast_count, tab=tab, account=account, sort=sort,
+        view=view, q=q_text, account_counts=account_counts))
+    resp.set_cookie("view-ts", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-ts-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
+
+
+@bp.route("/email-list/new")
+@login_required
+def trusted_servants_new():
+    _require_trusted_servants_admin()
+    return render_template("trusted_servant_edit.html", sub=None)
+
+
+@bp.route("/email-list/<int:sid>")
+@login_required
+def trusted_servants_editor(sid):
+    _require_trusted_servants_admin()
+    sub = db.session.get(TrustedServantSubscriber, sid) or abort(404)
+    return render_template("trusted_servant_edit.html", sub=sub)
+
+
+@bp.route("/email-list/bulk", methods=["POST"])
+@login_required
+def trusted_servants_bulk():
+    _require_trusted_servants_admin()
+    ids = [int(i) for i in request.form.getlist("ids") if str(i).isdigit()]
+    if request.form.get("action") == "delete" and ids:
+        rows = TrustedServantSubscriber.query.filter(TrustedServantSubscriber.id.in_(ids)).all()
+        for r in rows:
+            db.session.delete(r)
+        db.session.commit()
+        flash(f"Removed {len(rows)} {'person' if len(rows) == 1 else 'people'} from the email list.", "info")
+    return redirect(_safe_referrer() or url_for("main.trusted_servants_list"))
 
 
 @bp.route("/email-list/<int:sid>/delete", methods=["POST"])
@@ -3675,6 +3747,11 @@ def trusted_servants_delete(sid):
     db.session.delete(sub)
     db.session.commit()
     flash(f"Removed {name} from the Trusted Servants list.", "info")
+    # From the person's own page, back to the list; from the list, stay
+    # where it was (search and filters).
+    ref = _safe_referrer()
+    if ref and "/email-list/" + str(sid) not in ref:
+        return redirect(ref)
     return redirect(url_for("main.trusted_servants_list"))
 
 
@@ -3709,36 +3786,174 @@ def _require_recovery_contacts_admin():
         abort(404)
 
 
-@bp.route("/recovery-contacts")
-@login_required
-def recovery_contacts():
-    _require_recovery_contacts_admin()
-    from .models import RecoveryContactLog, RecoveryContactAbuse
-    s = _get_site_setting()
-    pending = (RecoveryContact.query.filter_by(approved=False)
-               .order_by(RecoveryContact.created_at.desc()).all())
-    approved = (RecoveryContact.query.filter_by(approved=True)
-                .order_by(RecoveryContact.name.asc()).all())
-    logs = (RecoveryContactLog.query
-            .order_by(RecoveryContactLog.created_at.desc(), RecoveryContactLog.id.desc())
-            .limit(60).all())
-    # Per-listing abuse flags (unresolved) so the published table can mark
-    # records that drew malicious update/removal requests. Maps entry_id →
-    # {"kinds": set, "count": n} — the listing's own lock state is read off
-    # the row's ``requests_locked_until``.
-    abuse_by_entry = {}
+# The list's status sections: published entries, new submissions, and
+# the two kinds of request about an existing entry.
+_RC_SHOWS = ("published", "pending", "updates", "removals")
+
+
+def _rc_show_filter(q, show):
+    R = RecoveryContact
+    if show == "pending":
+        return q.filter(R.approved.is_(False), R.wants_update.is_(False), R.wants_removal.is_(False))
+    if show == "updates":
+        return q.filter(R.approved.is_(False), R.wants_update.is_(True), R.wants_removal.is_(False))
+    if show == "removals":
+        return q.filter(R.approved.is_(False), R.wants_removal.is_(True))
+    return q.filter(R.approved.is_(True))
+
+
+def _rc_only_filter(q, only):
+    R = RecoveryContact
+    if only == "sponsor":
+        return q.filter(R.available_to_sponsor.is_(True))
+    if only == "contact":
+        return q.filter(R.contact_enabled.is_(True))
+    return q
+
+
+def _rc_abuse_by_entry():
+    """Unresolved abuse flags per entry: {entry_id: {"kinds", "count"}},
+    so the list can mark entries that drew malicious requests."""
+    from .models import RecoveryContactAbuse
+    out = {}
     try:
         for a in (RecoveryContactAbuse.query
                   .filter(RecoveryContactAbuse.resolved.is_(False),
                           RecoveryContactAbuse.entry_id.isnot(None)).all()):
-            slot = abuse_by_entry.setdefault(a.entry_id, {"kinds": set(), "count": 0})
+            slot = out.setdefault(a.entry_id, {"kinds": set(), "count": 0})
             slot["kinds"].add(a.kind)
             slot["count"] += int(a.attempt_count or 1)
     except Exception:  # noqa: BLE001
-        abuse_by_entry = {}
-    return render_template("recovery_contacts.html", site=s,
-                           pending=pending, approved=approved, logs=logs,
-                           abuse_by_entry=abuse_by_entry, now=datetime.utcnow())
+        out = {}
+    return out
+
+
+@bp.route("/recovery-contacts")
+@login_required
+def recovery_contacts():
+    """Recovery Contacts in the File Browser layout: search (live), the
+    status sections with counts (Published, New submissions, Update and
+    Removal requests), a Listing filter, sort, List or Grid, and bulk
+    actions. ``tab=log`` shows the activity log."""
+    _require_recovery_contacts_admin()
+    from .models import RecoveryContactLog
+    R = RecoveryContact
+    s = _get_site_setting()
+    tab = "log" if request.args.get("tab") == "log" else "people"
+    show = request.args.get("show") if request.args.get("show") in _RC_SHOWS else "published"
+    only = request.args.get("only") if request.args.get("only") in ("sponsor", "contact") else ""
+    sort = (request.args.get("sort") or request.cookies.get("view-rc-sort") or "name_asc").strip()
+    view = request.args.get("view") or request.cookies.get("view-rc") or "list"
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
+
+    base = R.query
+    if q_text:
+        like = f"%{q_text}%"
+        conds = [R.name.ilike(like), R.email.ilike(like), R.phone.ilike(like), R.note.ilike(like)]
+        digits = re.sub(r"\D+", "", q_text)
+        if len(digits) >= 3:
+            # Phone numbers match on their digits, whatever the punctuation.
+            stripped = R.phone
+            for ch in (" ", "-", "(", ")", ".", "+"):
+                stripped = db.func.replace(stripped, ch, "")
+            conds.append(stripped.ilike(f"%{digits}%"))
+        base = base.filter(db.or_(*conds))
+    show_counts = {k: _rc_only_filter(_rc_show_filter(base, k), only).count() for k in _RC_SHOWS}
+    in_show = _rc_show_filter(base, show)
+    only_counts = {k: _rc_only_filter(in_show, k).count() for k in ("", "sponsor", "contact")}
+    q = _rc_only_filter(in_show, only)
+    orders = {
+        "name_asc": [db.func.lower(R.name).asc()],
+        "name_desc": [db.func.lower(R.name).desc()],
+        "added_desc": [R.created_at.desc(), R.id.desc()],
+        "added_asc": [R.created_at.asc(), R.id.asc()],
+        "contacted_desc": [R.contact_count.desc(), db.func.lower(R.name).asc()],
+        "contacted_asc": [R.contact_count.asc(), db.func.lower(R.name).asc()],
+    }
+    if sort not in orders:
+        sort = "name_asc"
+    entries = q.order_by(*orders[sort]).all()
+    logs = (RecoveryContactLog.query
+            .order_by(RecoveryContactLog.created_at.desc(), RecoveryContactLog.id.desc())
+            .limit(100).all()) if tab == "log" else []
+    resp = current_app.make_response(render_template(
+        "recovery_contacts.html", site=s, entries=entries, logs=logs, tab=tab,
+        show=show, only=only, sort=sort, view=view, q=q_text,
+        show_counts=show_counts, only_counts=only_counts,
+        abuse_by_entry=_rc_abuse_by_entry(), now=datetime.utcnow()))
+    resp.set_cookie("view-rc", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-rc-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
+
+
+@bp.route("/recovery-contacts/new")
+@login_required
+def recovery_contacts_new():
+    _require_recovery_contacts_admin()
+    return render_template("recovery_contact_edit.html", e=None, logs=[], abuse=None,
+                           now=datetime.utcnow())
+
+
+@bp.route("/recovery-contacts/<int:eid>")
+@login_required
+def recovery_contacts_editor(eid):
+    """One entry's page, laid out like the other editors. A submission
+    still waiting opens with its review card (approve, apply the update
+    or removal it asks for, or discard it) above the form."""
+    _require_recovery_contacts_admin()
+    from .models import RecoveryContactLog
+    e = db.session.get(RecoveryContact, eid) or abort(404)
+    names = {e.name} | ({e.matched_entry.name} if e.matched_entry else set())
+    logs = (RecoveryContactLog.query.filter(RecoveryContactLog.entry_name.in_(names))
+            .order_by(RecoveryContactLog.created_at.desc(), RecoveryContactLog.id.desc())
+            .limit(40).all())
+    return render_template("recovery_contact_edit.html", e=e, logs=logs,
+                           abuse=_rc_abuse_by_entry().get(e.id), now=datetime.utcnow())
+
+
+@bp.route("/recovery-contacts/bulk", methods=["POST"])
+@login_required
+def recovery_contacts_bulk():
+    """Approve (new submissions only: requests about an existing entry
+    are applied one at a time), unpublish, or delete the ticked rows."""
+    _require_recovery_contacts_admin()
+    action = request.form.get("action")
+    ids = [int(i) for i in request.form.getlist("ids") if str(i).isdigit()]
+    rows = RecoveryContact.query.filter(RecoveryContact.id.in_(ids)).all() if ids else []
+    actor = f"admin: {current_user.username}"
+    done = 0
+    for e in rows:
+        if action == "approve" and not e.approved and not (e.wants_update or e.wants_removal):
+            e.approved, e.approved_at = True, datetime.utcnow()
+            log_recovery_contact("approved", "Approved and published by admin", entry_name=e.name, actor=actor)
+            done += 1
+        elif action == "unpublish" and e.approved:
+            e.approved, e.approved_at = False, None
+            log_recovery_contact("unapproved", "Moved back to pending by admin", entry_name=e.name, actor=actor)
+            done += 1
+        elif action == "delete":
+            RecoveryContact.query.filter_by(matched_entry_id=e.id).update({"matched_entry_id": None})
+            log_recovery_contact("deleted", "Deleted by admin", entry_name=e.name, actor=actor)
+            db.session.delete(e)
+            done += 1
+    db.session.commit()
+    noun = "entry" if done == 1 else "entries"
+    verb = {"approve": "Approved", "unpublish": "Unpublished", "delete": "Deleted"}.get(action, "Changed")
+    skipped = len(rows) - done
+    flash(f"{verb} {done} {noun}." + (f" {skipped} skipped: requests are applied one at a time." if skipped and action == "approve" else ""),
+          "success" if done else "info")
+    return redirect(_safe_referrer() or url_for("main.recovery_contacts"))
+
+
+def _rc_back(gone=None):
+    """Where a Recovery Contacts action returns: the page it came from
+    (the list with its filters, or the entry's own page), unless that
+    page is an entry the action removed (``gone``), then the list."""
+    ref = _safe_referrer()
+    if ref and not (gone and re.search(r"/recovery-contacts/%d(?:[/?#]|$)" % gone, ref)):
+        return redirect(ref)
+    return redirect(url_for("main.recovery_contacts"))
 
 
 @bp.route("/recovery-contacts/add", methods=["POST"])
@@ -3754,10 +3969,10 @@ def recovery_contacts_manual_add():
     phone = (request.form.get("phone") or "").strip()[:64] or None
     if not name:
         flash("A name is required.", "danger")
-        return redirect(url_for("main.recovery_contacts"))
+        return redirect(url_for("main.recovery_contacts_new"))
     if not email and not phone:
         flash("Add a phone number, an email, or both.", "danger")
-        return redirect(url_for("main.recovery_contacts"))
+        return redirect(url_for("main.recovery_contacts_new"))
     e = RecoveryContact(
         name=name, email=email, phone=phone,
         show_phone=request.form.get("show_phone") == "1",
@@ -3772,7 +3987,7 @@ def recovery_contacts_manual_add():
     log_recovery_contact("manual_add", "Added manually by admin",
                          entry_name=name, actor=f"admin: {current_user.username}")
     flash(f"Added {name} to Recovery Contacts.", "success")
-    return redirect(url_for("main.recovery_contacts"))
+    return redirect(url_for("main.recovery_contacts_editor", eid=e.id))
 
 
 @bp.route("/recovery-contacts/<int:eid>/approve", methods=["POST"])
@@ -3786,7 +4001,7 @@ def recovery_contacts_approve(eid):
     log_recovery_contact("approved", "Approved and published by admin",
                          entry_name=e.name, actor=f"admin: {current_user.username}")
     flash(f"Approved {e.name} — now visible on the public Recovery Contacts page.", "success")
-    return redirect(url_for("main.recovery_contacts"))
+    return _rc_back()
 
 
 @bp.route("/recovery-contacts/<int:eid>/apply-update", methods=["POST"])
@@ -3801,7 +4016,7 @@ def recovery_contacts_apply_update(eid):
     target = sub.matched_entry
     if target is None:
         flash("That submission isn't matched to an existing entry — approve it as a new entry instead.", "danger")
-        return redirect(url_for("main.recovery_contacts"))
+        return _rc_back()
     target.name = sub.name
     target.phone = sub.phone
     target.email = sub.email
@@ -3816,7 +4031,9 @@ def recovery_contacts_apply_update(eid):
     log_recovery_contact("update_applied", "Update applied to the listing by admin",
                          entry_name=target.name, actor=f"admin: {current_user.username}")
     flash(f"Updated {target.name} from the submission.", "success")
-    return redirect(url_for("main.recovery_contacts"))
+    if re.search(r"/recovery-contacts/%d(?:[/?#]|$)" % eid, _safe_referrer() or ""):
+        return redirect(url_for("main.recovery_contacts_editor", eid=target.id))
+    return _rc_back()
 
 
 @bp.route("/recovery-contacts/<int:eid>/apply-removal", methods=["POST"])
@@ -3845,7 +4062,7 @@ def recovery_contacts_apply_removal(eid):
         log_recovery_contact("dismissed", "Removal request dismissed by admin (no matching entry)",
                              entry_name=sub_name, actor=f"admin: {current_user.username}")
         flash("Dismissed the removal request — no matching entry was found.", "info")
-    return redirect(url_for("main.recovery_contacts"))
+    return _rc_back(eid)
 
 
 @bp.route("/recovery-contacts/<int:eid>/unapprove", methods=["POST"])
@@ -3859,7 +4076,7 @@ def recovery_contacts_unapprove(eid):
     log_recovery_contact("unapproved", "Moved back to pending by admin",
                          entry_name=e.name, actor=f"admin: {current_user.username}")
     flash(f"Moved {e.name} back to pending review.", "info")
-    return redirect(url_for("main.recovery_contacts"))
+    return _rc_back()
 
 
 @bp.route("/recovery-contacts/<int:eid>/visibility", methods=["POST"])
@@ -3881,7 +4098,7 @@ def recovery_contacts_visibility(eid):
         log_recovery_contact("visibility",
                              f"Set {field} {'shown' if on else 'hidden'} by admin",
                              entry_name=e.name, actor=f"admin: {current_user.username}")
-    return redirect(url_for("main.recovery_contacts"))
+    return _rc_back()
 
 
 @bp.route("/recovery-contacts/<int:eid>/update", methods=["POST"])
@@ -3902,8 +4119,16 @@ def recovery_contacts_update(eid):
     db.session.commit()
     log_recovery_contact("edited", "Edited by admin",
                          entry_name=e.name, actor=f"admin: {current_user.username}")
+    # The review card's buttons save the edits first, then act.
+    then = request.form.get("then")
+    if then == "approve" and not e.approved:
+        return recovery_contacts_approve(eid)
+    if then == "apply" and e.wants_update and e.matched_entry:
+        return recovery_contacts_apply_update(eid)
     flash(f"Updated {e.name}.", "success")
-    return redirect(url_for("main.recovery_contacts"))
+    if _post_save_wants_json():
+        return jsonify(_editor_save_payload(None, None))
+    return _rc_back()
 
 
 @bp.route("/recovery-contacts/<int:eid>/delete", methods=["POST"])
@@ -3921,7 +4146,7 @@ def recovery_contacts_delete(eid):
     log_recovery_contact("deleted", "Deleted by admin",
                          entry_name=name, actor=f"admin: {current_user.username}")
     flash(f"Removed {name} from Recovery Contacts.", "info")
-    return redirect(url_for("main.recovery_contacts"))
+    return _rc_back(eid)
 
 
 @bp.route("/email-list/blast")
@@ -4160,12 +4385,9 @@ def trusted_servants_manual_add():
     phone = (request.form.get("phone") or "").strip()[:64]
     email = (request.form.get("email") or "").strip()[:255]
     notes = (request.form.get("notes") or "").strip() or None
-    if not name:
-        flash("Name is required.", "danger")
-        return redirect(url_for("main.trusted_servants_list"))
-    if not email:
-        flash("Email is required.", "danger")
-        return redirect(url_for("main.trusted_servants_list"))
+    if not name or not email:
+        flash("A name and an email are required.", "danger")
+        return redirect(url_for("main.trusted_servants_new"))
     sub = TrustedServantSubscriber(
         user_id=None,
         name=name,
@@ -4176,7 +4398,7 @@ def trusted_servants_manual_add():
     db.session.add(sub)
     db.session.commit()
     flash(f"Added {name} to the email list.", "success")
-    return redirect(url_for("main.trusted_servants_list"))
+    return redirect(url_for("main.trusted_servants_editor", sid=sub.id))
 
 
 _TS_IMPORT_MAX_ROWS = 5000
@@ -4621,15 +4843,19 @@ def trusted_servants_edit(sid):
     email = (request.form.get("email") or "").strip()[:255]
     notes = (request.form.get("notes") or "").strip() or None
     if not name or not email:
-        flash("Name and email are required.", "danger")
-        return redirect(url_for("main.trusted_servants_list"))
+        flash("A name and an email are required.", "danger")
+        if _post_save_wants_json():
+            return _editor_save_failed()
+        return redirect(url_for("main.trusted_servants_editor", sid=sid))
     sub.name = name
     sub.phone = phone or None
     sub.email = email
     sub.notes = notes
     db.session.commit()
     flash(f"Updated {name}.", "success")
-    return redirect(url_for("main.trusted_servants_list"))
+    if _post_save_wants_json():
+        return jsonify(_editor_save_payload(None, None))
+    return redirect(url_for("main.trusted_servants_editor", sid=sid))
 
 
 @bp.route("/settings/blog-toggle", methods=["POST"])
