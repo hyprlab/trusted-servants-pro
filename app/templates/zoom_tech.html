@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_blocks.html" import render_sections, slug %}
 {% block heading %}{{ site.zoom_tech_title or 'Zoom Tech Training' }}{% endblock %}
 {% block top_actions %}
 {% if current_user.is_admin() %}
@@ -7,9 +8,14 @@
 {% endblock %}
 {% block content %}
 {# The text keeps a reading width however wide the window is. The Wiki
-   layout adds the sections beside it, built from the ## headings
-   (app/zoom_tech_doc.py); in a narrow window they fold into a list
-   above the text. #}
+   layout adds the sections beside it (app/zoom_tech_doc.py); in a
+   narrow window they fold into a list above the text. #}
+{# The sections: the ## headings of the Markdown version, or the
+   section titles of the block version (anchored by render_sections). #}
+{% if fmt == 'blocks' %}
+  {% set toc = [] %}
+  {% for sec in sections if sec.title %}{% set _ = toc.append(('sec-' ~ slug(sec.title), sec.title)) %}{% endfor %}
+{% endif %}
 {% set _wiki = site.zoom_tech_template == 'wiki' and toc %}
 <div class="zt-page">
   <div class="zt-wrap{{ ' zt-wrap--wiki' if _wiki }}">
@@ -26,7 +32,9 @@
     </nav>
     {% endif %}
     <article class="rich-content zt-doc">
-      {% if doc_html %}
+      {% if sections %}
+        {{ render_sections(sections) }}
+      {% elif doc_html %}
         {{ doc_html }}
       {% elif legacy_html %}
         {# Legacy HTML fallback, sanitized via bleach #}

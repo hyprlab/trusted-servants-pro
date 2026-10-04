@@ -2,13 +2,15 @@
    A form with data-confirm="<message>" asks here before it submits;
    data-confirm-title and data-confirm-label set the heading and the
    button (default "Delete"). Scripts call window.tspConfirm({title,
-   message, confirmLabel}), which resolves true or false. #}
+   message, confirmLabel, tone}), which resolves true or false; tone
+   "neutral" asks about something that isn't a deletion (an info icon
+   and the primary button). #}
 <div class="modal confirm-modal" id="tsp-confirm" aria-hidden="true">
   <div class="modal-backdrop" data-confirm-cancel></div>
   <div class="modal-panel" role="alertdialog" aria-modal="true"
        aria-labelledby="tsp-confirm-title" aria-describedby="tsp-confirm-msg">
     <div class="modal-body confirm-body">
-      <span class="confirm-icon" aria-hidden="true">{{ icon('trash-2') }}</span>
+      <span class="confirm-icon" aria-hidden="true">{{ icon('trash-2', 'confirm-icon-danger') }}{{ icon('info', 'confirm-icon-neutral') }}</span>
       <div class="confirm-text">
         <h2 id="tsp-confirm-title">Delete this?</h2>
         <p id="tsp-confirm-msg"></p>

@@ -752,10 +752,11 @@ class SiteSetting(db.Model):
     zoom_tech_title = db.Column(db.String(120))
     zoom_tech_content = db.Column(db.Text)
     zoom_tech_blocks_json = db.Column(db.Text)
-    # The page's Markdown (app/zoom_tech_doc.py). Until the first save
-    # in the editor the page is read from the blocks above, which stay
-    # as they were.
+    # The page's Markdown (app/zoom_tech_doc.py). The page is either
+    # Markdown or blocks (``zoom_tech_format``, blank meaning whichever
+    # is stored); the other version is kept, to go back to.
     zoom_tech_body = db.Column(db.Text)
+    zoom_tech_format = db.Column(db.String(16))
     zoom_tech_template = db.Column(db.String(16), nullable=False, default="standard")
     # Announcements & Events module toggle. Default True so existing
     # installs don't lose data the moment the column is added.

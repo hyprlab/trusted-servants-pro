@@ -8741,8 +8741,9 @@
 })();
 
 // ── Delete confirmation (_confirm_modal.html) ──────────────────────
-// window.tspConfirm({title, message, confirmLabel}) shows the dialog
-// and resolves true (confirmed) or false. A form carrying
+// window.tspConfirm({title, message, confirmLabel, tone}) shows the
+// dialog and resolves true (confirmed) or false; tone "neutral" is for
+// a question that isn't a deletion. A form carrying
 // data-confirm="<message>" asks first and submits only once confirmed
 // (data-confirm-title / data-confirm-label set the heading and button).
 (function () {
@@ -8767,6 +8768,10 @@
     title.textContent = opts.title || "Delete this?";
     msg.textContent = opts.message || "This can't be undone.";
     ok.textContent = opts.confirmLabel || "Delete";
+    const neutral = opts.tone === "neutral";
+    modal.classList.toggle("is-neutral", neutral);
+    ok.classList.toggle("btn-danger", !neutral);
+    ok.classList.toggle("btn-primary", neutral);
     lastFocus = document.activeElement;
     modal.classList.add("open");
     modal.setAttribute("aria-hidden", "false");

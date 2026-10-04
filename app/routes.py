@@ -3338,48 +3338,100 @@ def intergroup_edit():
 @bp.route("/zoom-tech")
 @login_required
 def zoom_tech():
-    from .zoom_tech_doc import page_markdown, render
+    from .zoom_tech_doc import page_format, render, stored_sections
     s = _get_site_setting()
     if not s.zoom_tech_enabled:
         abort(404)
     _require_module_role("zoom_tech_required_role")
-    body, _ = page_markdown(s)
-    doc_html, toc = render(body) if body.strip() else ("", [])
-    # The page's first form, plain HTML, shows only while nothing newer
-    # was ever written: an emptied page stays empty.
-    legacy_html = (s.zoom_tech_content if s.zoom_tech_body is None and not body.strip()
-                   else None)
-    return render_template("zoom_tech.html", site=s, doc_html=doc_html, toc=toc,
-                           legacy_html=legacy_html)
+    fmt = page_format(s)
+    doc_html, toc, sections, legacy_html = "", [], [], None
+    if fmt == "blocks":
+        sections = stored_sections(s)
+    elif (s.zoom_tech_body or "").strip():
+        doc_html, toc = render(s.zoom_tech_body)
+    elif s.zoom_tech_body is None:
+        # The page's first form, plain HTML, shows only while nothing
+        # newer was ever written: an emptied page stays empty.
+        legacy_html = s.zoom_tech_content
+    return render_template("zoom_tech.html", site=s, fmt=fmt, doc_html=doc_html,
+                           toc=toc, sections=sections, legacy_html=legacy_html)
 
 
 @bp.route("/zoom-tech/edit")
 @admin_required
 def zoom_tech_edit():
     """The page's editor, laid out like the story and blog editors: the
-    title and Markdown on the left, the layout and sections on the right.
-    Opens while the page is turned off too, so it can be written first."""
-    from .zoom_tech_doc import page_markdown
+    title and the text on the left, the format, sections and layout on
+    the right. The text is the Markdown editor or the block editor,
+    whichever version the page uses. Opens while the page is turned off
+    too, so it can be written first."""
+    from .zoom_tech_doc import (BLOCK_TYPES, has_blocks, has_markdown,
+                                markdown_notes, page_format, stored_sections)
     s = _get_site_setting()
-    body, from_blocks = page_markdown(s)
-    return render_template("zoom_tech_edit.html", site=s, body=body,
-                           from_blocks=from_blocks)
+    fmt = page_format(s)
+    sections = stored_sections(s)
+    return render_template(
+        "zoom_tech_edit.html", site=s, fmt=fmt,
+        body=s.zoom_tech_body or "",
+        blocks_json=json.dumps(sections),
+        block_types=BLOCK_TYPES,
+        has_markdown=has_markdown(s), has_blocks=has_blocks(s),
+        markdown_notes=markdown_notes(sections) if fmt == "blocks" else [],
+    )
 
 
 @bp.route("/zoom-tech/save", methods=["POST"])
 @admin_required
 def zoom_tech_save():
+    """Saves the title, layout and the version in use. ``then`` follows
+    the save: ``convert`` writes the page out as the other format,
+    replacing that kept version, and switches to it; ``switch`` goes
+    back to the kept version as it is. Either way the version left is
+    kept, to go back to."""
+    from .zoom_tech_doc import (has_blocks, has_markdown, markdown_to_sections,
+                                page_format, sections_to_markdown, stored_sections)
     s = _get_site_setting()
     s.zoom_tech_title = (request.form.get("zoom_tech_title") or "").strip()[:120] or None
     tmpl = (request.form.get("zoom_tech_template") or "standard").strip()
     s.zoom_tech_template = tmpl if tmpl in ("standard", "wiki") else "standard"
-    body = (request.form.get("zoom_tech_body") or "").replace("\r\n", "\n")
-    # Kept even when blank, so an emptied page stays empty instead of
-    # falling back to the old blocks.
-    s.zoom_tech_body = body
+    fmt = page_format(s)
+    if fmt == "markdown":
+        # Kept even when blank, so an emptied page stays empty.
+        s.zoom_tech_body = (request.form.get("zoom_tech_body") or "").replace("\r\n", "\n")
+    else:
+        raw = request.form.get("blocks_json")
+        if raw is not None:
+            try:
+                parsed = json.loads(raw)
+                if not isinstance(parsed, list):
+                    raise ValueError
+            except (ValueError, TypeError):
+                flash("The blocks couldn't be read, so nothing was saved.", "danger")
+                if _post_save_wants_json():
+                    return _editor_save_failed()
+                return redirect(url_for("main.zoom_tech_edit"))
+            s.zoom_tech_blocks_json = json.dumps(parsed)
+    s.zoom_tech_format = fmt
+
+    then = request.form.get("then")
+    other = "blocks" if fmt == "markdown" else "markdown"
+    if then == "convert":
+        if fmt == "markdown":
+            s.zoom_tech_blocks_json = json.dumps(markdown_to_sections(s.zoom_tech_body))
+        else:
+            s.zoom_tech_body = sections_to_markdown(stored_sections(s))
+        s.zoom_tech_format = other
+        flash("Saved, and converted to " + ("blocks" if other == "blocks" else "Markdown")
+              + ". The " + ("Markdown" if fmt == "markdown" else "block")
+              + " version is kept.", "success")
+    elif then == "switch" and (has_blocks(s) if other == "blocks" else has_markdown(s)):
+        s.zoom_tech_format = other
+        flash("Saved, and back to the " + ("block" if other == "blocks" else "Markdown")
+              + " version.", "success")
+    else:
+        flash("Zoom Tech page saved", "success")
     db.session.commit()
-    flash("Zoom Tech page saved", "success")
-    if _post_save_wants_json():
+    if _post_save_wants_json() and not then:
         return jsonify(_editor_save_payload(None, None))
     return redirect(url_for("main.zoom_tech_edit"))
 

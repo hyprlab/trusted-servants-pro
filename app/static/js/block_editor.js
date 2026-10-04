@@ -3,7 +3,9 @@
    Usage:
      const editor = BlockEditor.mount(rootEl, {
        initial: [...sections],
-       onSerialize: (json) => hiddenInput.value = json
+       onSerialize: (json) => hiddenInput.value = json,
+       allowedTypes: ['paragraph', ...],   // optional palette subset
+       typographyFolded: true,             // optional: Typography closed
      });
    The host form should serialize via onSerialize in its submit handler.
 */
@@ -1263,7 +1265,11 @@
     // editor's serialise picks up the override on next save.
     function renderTypographyPanel(d) {
       const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-      const panel = el('details', { class: 'be-container-panel be-typo-panel', open: 'open' }, [
+      // Open unless the host asks for it folded (`typographyFolded`:
+      // the Zoom Tech editor, where a long page of open panels buries
+      // the text).
+      const panel = el('details', Object.assign({ class: 'be-container-panel be-typo-panel' },
+                                                opts.typographyFolded ? {} : { open: 'open' }), [
         el('summary', {}, ['Typography']),
       ]);
       const body = el('div', { class: 'be-container-panel-body' });

@@ -9,9 +9,9 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
-- Zoom Tech Training is edited on its own page, laid out like the story and blog editors: the title and the text, in Markdown with the formatting toolbar and a live preview, on the left, and the layout and a list of sections on the right, saved with the yellow bar. Each `##` heading starts a section; click one in the list to go to it. The edit popup is gone.
+- Zoom Tech Training is edited on its own page, laid out like the story and blog editors: the title and the text on the left, and the format, a list of sections and the layout on the right, saved with the yellow bar. Click a section in the list to go to it. The edit popup is gone.
 - The Zoom Tech Training page keeps its text at a reading width on wide screens. In the Wiki layout the sections sit beside the text and mark the one being read; on a phone they fold into a list above it. Videos on the page play in place.
-- A Zoom Tech Training page made with the old block editor opens in the new editor as Markdown and is stored that way when you first save it. Its callout becomes a quote; the block version stays in the database.
+- The Zoom Tech Training page can be written in Markdown, with the formatting toolbar and a live preview, or built with the block editor. Convert it either way from the editor's Format group: the version you leave is kept, and Go back returns to it as it was. A page made with blocks stays in blocks until you convert it.
 - Announcements & Events, Stories and Blog have the same layout as Meetings, Libraries and the File Browser: a sidebar with the count, search, a New button, status and type filters with counts, sort and List or Grid, beside a list whose column headings stay in view. Blog filters by category and tag; Stories by featured.
 - The grid view on those three pages shows each post as a card with its featured image. Tick the box on a card, or a row in the list, to use the bulk actions, which now sit in a bar at the foot of the list.
 - Search is live everywhere: on Meetings, Libraries, the File Browser, Announcements & Events, Stories, Blog and the Search page, results and counts update as you type.
