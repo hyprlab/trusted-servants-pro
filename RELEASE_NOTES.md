@@ -9,6 +9,7 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- The File Browser picker has the same margin on both sides of its file list; its close button sits beside the File Browser heading, and Esc closes it.
 - Zoom Tech Training is edited on its own page, laid out like the story and blog editors: the title and the text on the left and the settings on the right, split 60/40, saved with the yellow bar. The settings are Sections (the format and a list of sections), Design and Layout. Click a section in the list to go to it. The edit popup is gone.
 - The Design tab sets the Zoom Tech Training page's look: background, text, heading, link, accent and quote colors, each with a light and a dark value; the text and heading fonts; text size, line spacing and text width; and photo corners, outline and shadow. The Markdown preview shows changes as you make them, and Back to the theme's design clears them.
 - Photos on the Zoom Tech Training page open full screen when clicked. Click or double-tap to zoom in where you pointed, use the mouse wheel, a pinch or the + and - buttons, drag to look around, and move between photos with the arrows or a swipe. Esc closes it.

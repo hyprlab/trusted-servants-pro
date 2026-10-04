@@ -1762,6 +1762,11 @@
     // with the full items array on Done. Route it through the same
     // gallery handler one item at a time so the existing per-pick
     // optimistic-tile logic + count cap still apply.
+    if (e.data && e.data.type === "media-picker-close") {
+      const mb = document.getElementById("media-picker-modal");
+      if (mb) closeModal(mb);
+      return;
+    }
     if (e.data && e.data.type === "media-selected-batch") {
       if (currentMediaMode === "post-gallery") {
         const gallerySection = document.querySelector("[data-post-gallery]");
