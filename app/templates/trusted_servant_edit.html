@@ -49,8 +49,15 @@
         </div>
         <div class="st-panel" data-studio-panel="account">
           <div class="ds-group st-group-body">
+            {% if _new %}
+            {# Nothing exists yet: say what adding someone here means. #}
+            <h3 class="ds-group-title">{{ icon('user-plus') }}Adding someone</h3>
+            <p class="muted small">Use this for someone without a portal account; only admins can change or remove what you add here. People with an account can join from their dashboard instead, and keep their own details up to date.</p>
+            {% else %}
             <h3 class="ds-group-title">{{ icon('user') }}Portal account</h3>
-            {% if sub and sub.user %}
+            {% endif %}
+            {% if _new %}
+            {% elif sub.user %}
             <p class="pe-fact"><span class="lst-acct">{{ icon('user') }}<span>{{ sub.user.username }}</span></span></p>
             <p class="muted small">They joined from their dashboard and can change these details there. Edits here replace what they entered.</p>
             {% else %}
