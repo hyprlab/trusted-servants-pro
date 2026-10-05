@@ -11,7 +11,8 @@ release notes expanded by default and the changelog collapsed.
 
 - Watchtower's Visitors and 404s top bars match the rest of the admin: the Unique visitors / Hits switch is the standard segmented switch, its help is the usual info icon, and the date range and buttons are the standard button size.
 - Every segmented switch in the admin (such as List / Grid, Light / Dark and the editors' panel tabs) slides its highlight to the part you pick.
-- Moving between Watchtower's tabs, and between Active and Archived requests, loads the section in place without reloading the page. The address and the browser's Back and Forward follow along.
+- Moving between Watchtower's tabs, and between Active and Archived requests, loads the section in place without reloading the page: the tab highlight slides to the new section and nothing above it moves. The address and the browser's Back and Forward follow along.
+- The top bar is the same height on every page, whether or not it has buttons.
 - Watchtower's section tabs use the same tab style as the editors' panels, with the current section in the accent color.
 - Green status badges (such as Active in Watchtower and 2FA on the Users page) are green again in light mode, and the dark sample in the dynamic background picker has its dark background again.
 - Spacing is the same everywhere in the admin, down to the gaps between items inside cards and sidebars, which now come in one set of sizes: every card has the same padding, corners and gap to the next one, and pages, Settings sections, dialogs and pages shown inside Settings all keep the same space from the edge, tighter on a phone. Cards that still had the older look (a thick blue left edge and wider padding), such as on the Users page, match the rest.

@@ -369,10 +369,37 @@
     return { url: r.url, doc: new DOMParser().parseFromString(await r.text(), "text/html") };
   }
   let swapped = false;
+  // A [data-swap-nav] that the new page has too (matched by aria-label)
+  // stays the same element: its links and current mark take the new
+  // page's, so its sliding highlight moves rather than being redrawn.
+  function keepNavs(doc) {
+    const kept = [];
+    document.querySelectorAll("[data-swap-nav][aria-label]").forEach(nav => {
+      const twin = doc.querySelector('[data-swap-nav][aria-label="' + CSS.escape(nav.getAttribute("aria-label")) + '"]');
+      if (!twin) return;
+      const mine = nav.querySelectorAll("a[href]"), theirs = twin.querySelectorAll("a[href]");
+      if (mine.length !== theirs.length) return;
+      mine.forEach((a, i) => {
+        a.innerHTML = theirs[i].innerHTML;
+        if (theirs[i].hasAttribute("aria-current")) a.setAttribute("aria-current", theirs[i].getAttribute("aria-current"));
+        else a.removeAttribute("aria-current");
+      });
+      const slot = doc.createElement("span");
+      slot.setAttribute("data-swap-keep", String(kept.length));
+      twin.replaceWith(slot);
+      kept.push(nav);
+    });
+    return kept;
+  }
   async function swapPage(url, opts) {
     const { url: landed, doc } = await fetchPage(url);
+    const kept = keepNavs(doc);
     swapParts(doc, [".topbar > h1", ".topbar > .top-actions",
                     "main.content > .flashes", "main.content > section.page"]);
+    kept.forEach((nav, i) => {
+      const slot = document.querySelector('[data-swap-keep="' + i + '"]');
+      if (slot) slot.replaceWith(nav);
+    });
     swapPinned(doc);
     document.title = doc.title;
     document.body.classList.toggle("fe-admin-autohide", doc.body.classList.contains("fe-admin-autohide"));
