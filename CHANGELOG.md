@@ -166,6 +166,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
+- Help tooltips (`.heading-help`) clipped by a scrolling or overflow-hidden ancestor, such as the list sidebar `.fb-side`, float: app.js moves the tooltip to `<body>` as `.help-tooltip.is-floating` (fixed, above modals) beside its button, flips it above when there is no room below, and puts it back on close, Escape, scroll or resize.
 - `zoom_account_delete` sets `zoom_account_id` to NULL on `MeetingSchedule` and `Meeting` rows itself: SQLite here doesn't enforce the `ON DELETE SET NULL`.
 - File Browser picker: `body.embed .fb-pick-main` loses the 58px right gutter and has a 20px margin on every side; `.media-picker-close` sits inside the files card's top-right corner (28px, 28px), over the empty end of its header row. Esc inside the frame posts `media-picker-close` to the parent.
 - `.alert-banner` had no dark-mode colors and showed light-mode yellow on the dark page; `[data-theme="dark"] .alert-banner` tints it instead.

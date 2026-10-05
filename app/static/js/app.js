@@ -154,13 +154,54 @@
   });
   applySidebarSectionState();
 
+  // A tooltip that a scrolling or clipping box would cut off (a list
+  // page's sidebar, a card) floats instead: moved to <body>, fixed beside
+  // its button, and put back when it closes. Scrolling closes it, since
+  // it no longer moves with the page.
+  function clipsTip(tip) {
+    const r = tip.getBoundingClientRect();
+    for (let el = tip.parentElement; el && el !== document.body; el = el.parentElement) {
+      const cs = getComputedStyle(el);
+      if (cs.overflowX === "visible" && cs.overflowY === "visible") continue;
+      const b = el.getBoundingClientRect();
+      if (r.left < b.left - 1 || r.right > b.right + 1 || r.top < b.top - 1 || r.bottom > b.bottom + 1) return true;
+    }
+    return false;
+  }
+  function floatTip(wrap, tip) {
+    const btnR = wrap.querySelector(".help-btn").getBoundingClientRect();
+    tip._home = wrap;
+    tip.classList.add("is-floating");
+    document.body.appendChild(tip);
+    const pad = 8, w = tip.offsetWidth, h = tip.offsetHeight;
+    let left = Math.min(btnR.left, window.innerWidth - pad - w);
+    left = Math.max(pad, left);
+    let top = btnR.bottom + 6;
+    if (top + h > window.innerHeight - pad && btnR.top - 6 - h >= pad) top = btnR.top - 6 - h;
+    tip.style.left = Math.round(left) + "px";
+    tip.style.top = Math.round(top) + "px";
+  }
+  function closeTips() {
+    document.querySelectorAll(".help-tooltip.is-floating").forEach(tip => {
+      tip.classList.remove("is-floating");
+      tip.style.left = tip.style.top = "";
+      if (tip._home && tip._home.isConnected) tip._home.appendChild(tip); else tip.remove();
+    });
+    document.querySelectorAll(".heading-help.open").forEach(el => el.classList.remove("open"));
+  }
+  window.addEventListener("scroll", () => {
+    if (document.querySelector(".help-tooltip.is-floating")) closeTips();
+  }, true);
+  window.addEventListener("resize", () => {
+    if (document.querySelector(".help-tooltip.is-floating")) closeTips();
+  });
+
   document.addEventListener("click", (e) => {
     const btn = e.target.closest(".help-btn");
-    const openEls = document.querySelectorAll(".heading-help.open");
     if (btn) {
       const wrap = btn.closest(".heading-help");
       const wasOpen = wrap.classList.contains("open");
-      openEls.forEach(el => el.classList.remove("open"));
+      closeTips();
       if (!wasOpen) {
         wrap.classList.add("open");
         // Inline field chips sit wherever their label does, including
@@ -179,6 +220,7 @@
           if (r.right > window.innerWidth - pad) shift = window.innerWidth - pad - r.right;
           if (r.left + shift < pad) shift = pad - r.left;
           if (shift) tip.style.transform = "translateX(" + Math.round(shift) + "px)";
+          if (clipsTip(tip)) { tip.style.transform = ""; floatTip(wrap, tip); }
         }
       }
       // Chips live inside <label> and <summary> elements; without this
@@ -186,11 +228,11 @@
       e.preventDefault();
       e.stopPropagation();
     } else if (!e.target.closest(".help-tooltip")) {
-      openEls.forEach(el => el.classList.remove("open"));
+      closeTips();
     }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") document.querySelectorAll(".heading-help.open").forEach(el => el.classList.remove("open"));
+    if (e.key === "Escape") closeTips();
   });
 
   // Branding: live-preview footer logo width + selected file

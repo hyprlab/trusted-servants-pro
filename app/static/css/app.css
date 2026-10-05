@@ -2968,6 +2968,8 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
   text-transform: none; letter-spacing: normal; text-align: left; white-space: normal;
 }
 .heading-help.open .help-tooltip { display: block; }
+/* Floating (app.js): out of a box that would clip it, above modals. */
+.help-tooltip.is-floating { display: block; position: fixed; z-index: 1100; max-width: min(360px, calc(100vw - 16px)); }
 /* Inline field chip — the same control shrunk to sit beside a form
    label, a card <h2>, or a toggle title instead of the page heading.
    Every helper paragraph on a form collapses into one of these, so a
