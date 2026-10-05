@@ -18005,6 +18005,7 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .alert-details-fields { display: flex; flex-direction: column; gap: 2rem; }
 .alert-details-fields[hidden] { display: none; }
 .alert-posted-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.alert-posted-row { align-items: stretch; }
 .alert-posted-row input[type="datetime-local"] { flex: 0 1 260px; }
 .form .alert-posted-row label.check { flex: 0 1 auto; align-items: center; font-weight: 600; }
 .alert-message-md .md-editor-pane-write textarea { min-height: 110px; }

@@ -1528,6 +1528,7 @@
                 <div class="alert-posted-row">
                   <input type="datetime-local" name="alert_posted_at" data-alert-posted aria-label="Posted"
                          value="{{ site.alert_posted_at.strftime('%Y-%m-%dT%H:%M') if site.alert_posted_at else '' }}">
+                  <button type="button" class="btn" data-alert-posted-now data-tz="{{ site.timezone or 'UTC' }}" title="Set to now, in the portal's timezone">{{ icon('clock') }} Today</button>
                   <label class="check"><input type="checkbox" name="alert_show_posted" value="1" data-alert-show-posted {% if site.alert_show_posted %}checked{% endif %}>
                     <span>Show the posted date in the window</span></label>
                 </div>
@@ -1595,6 +1596,19 @@
             box.classList.toggle('has-details', hasDetails());
           }
           detailsTa.addEventListener('input', tone);
+          // Today: the posted date and time now, in the portal's timezone.
+          form.querySelector('[data-alert-posted-now]').addEventListener('click', e => {
+            const input = form.querySelector('[data-alert-posted]');
+            let parts;
+            try {
+              parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+                timeZone: e.currentTarget.dataset.tz, year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date()).map(p => [p.type, p.value]));
+            } catch (_) { return; }
+            input.value = parts.year + '-' + parts.month + '-' + parts.day + 'T' + parts.hour + ':' + parts.minute;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          });
           // The preview opens the details window filled from the form; it
           // puts the saved one back on close (base.html).
           function md(text, mode){
