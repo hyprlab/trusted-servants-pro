@@ -1137,7 +1137,7 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 .ds-controls > .ds-panel > .ds-kind { display: flex; margin: 14px 18px 2px; }
 .ds-kind > button { flex: 1 1 0; }
 
-.ds-group { padding: 14px 18px 12px; border-bottom: 1px solid var(--border); }
+.ds-group { padding: 14px var(--card-pad-x) 12px; border-bottom: 1px solid var(--border); }
 .ds-panel > .ds-group:last-child { border-bottom: 0; }
 .ds-group-title {
   display: flex; align-items: center; gap: 8px; margin: 0 0 6px;
@@ -2837,14 +2837,16 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
 /* Spacing, set once for every screen. --content-px is the space around
    the page's content and between laid-out columns (--layout-gap: a list's
    sidebar and its list, the dashboard's widgets, a page's two sides);
-   --card-pad is the inside of every card; --stack-gap is between cards
+   --card-pad is the inside of every card (and --card-pad-x the side
+   inset of an editor's columns and panels); --stack-gap is between cards
    stacked in a column; --card-radius their corners. On the root so the
    fixed save bars, outside .content, line up too. A phone (720px and
    under) changes the values here, and nowhere else. */
 :root { --content-px: 20px; --content-pt: 20px; --layout-gap: var(--content-px);
-  --card-pad: 18px 20px; --stack-gap: 16px; --card-radius: 14px; }
+  --card-pad-y: 18px; --card-pad-x: 20px; --card-pad: var(--card-pad-y) var(--card-pad-x);
+  --stack-gap: 16px; --card-radius: 14px; }
 @media (max-width: 720px) {
-  :root { --content-px: 14px; --content-pt: 14px; --card-pad: 16px; --stack-gap: 14px; }
+  :root { --content-px: 14px; --content-pt: 14px; --card-pad-y: 16px; --card-pad-x: 16px; --stack-gap: 14px; }
 }
 .content {
   padding: var(--content-pt) var(--content-px) var(--content-px);
@@ -14979,7 +14981,7 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 .st-actions { display: flex; gap: 8px; margin-left: auto; align-items: center; flex-wrap: wrap; }
 .st-panel[hidden] { display: none; }
 .st-panel > .ds-group:last-child { border-bottom: 0; }
-.st-panel-intro { margin: 0; padding: 14px 18px 0; font-size: var(--fs-sm); color: var(--muted); }
+.st-panel-intro { margin: 0; padding: 14px var(--card-pad-x) 0; font-size: var(--fs-sm); color: var(--muted); }
 .st-na { margin: 12px 18px 0; padding: 10px 12px; border-radius: 8px; font-size: var(--fs-sm);
   background: color-mix(in srgb, #f59e0b 12%, transparent); color: var(--text);
   border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent); }
@@ -15200,7 +15202,7 @@ a.fe-ss-item:hover { background: var(--hover); text-decoration: none; }
 .fe-page-edit-status-locked { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; }
 .fe-page-edit-status-locked .icon { width: 14px; height: 14px; }
 .be-section-untitled { padding: 0 6px; }
-.st-controls .fe-page-settings-section { padding: 14px 18px; border-bottom: 1px solid var(--border); margin: 0; }
+.st-controls .fe-page-settings-section { padding: 14px var(--card-pad-x); border-bottom: 1px solid var(--border); margin: 0; }
 .st-controls .fe-page-settings-section:last-child { border-bottom: 0; }
 .st-controls .fe-page-settings-section .form-grid { grid-template-columns: minmax(0, 1fr); }
 .st-controls .page-og-grid { grid-template-columns: minmax(0, 1fr) !important; }
@@ -15512,15 +15514,15 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .ol-add-item small { font-size: var(--fs-xs); color: var(--muted); }
 
 /* ── Header page in the split studio ── */
-.st-controls .hdr-menu-list { margin: 10px 18px 0; gap: 6px; }
+.st-controls .hdr-menu-list { margin: 10px var(--card-pad-x) 0; gap: 6px; }
 .st-controls .hdr-menu-item.ol-row { display: block; padding: 0; gap: 0; }
 .hdr-add { padding: 10px 18px 0; }
-.st-controls .hdr-foot { padding: 12px 18px 0; }
-.st-controls .hdr-mm-head { display: block; padding: 14px 18px 6px; }
+.st-controls .hdr-foot { padding: 12px var(--card-pad-x) 0; }
+.st-controls .hdr-mm-head { display: block; padding: 14px var(--card-pad-x) 6px; }
 .st-controls .hdr-mm-head h3 { margin: 10px 0 2px; font-size: var(--fs-base); }
 .st-controls .hdr-mm-head p { margin: 0; }
-.st-controls .hdr-mm-addcol { padding: 10px 18px 0; margin: 0; }
-.st-controls #megamenu-editor { padding: 8px 18px 0; gap: 12px; display: flex; flex-direction: column; }
+.st-controls .hdr-mm-addcol { padding: 10px var(--card-pad-x) 0; margin: 0; }
+.st-controls #megamenu-editor { padding: 8px var(--card-pad-x) 0; gap: 12px; display: flex; flex-direction: column; }
 .st-controls .nav-megacol { padding: 8px 10px 12px; gap: 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; }
 .st-controls .nav-megacol-head { display: flex; align-items: center; gap: 6px; }
 .st-controls .nav-megacol-label { flex: 0 0 auto; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -15532,7 +15534,7 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .st-controls .nav-megalink .ol-body .nav-megalink-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
 .st-controls .nav-megalink .ol-body .nav-megalink-field-form-trigger,
 .st-controls .nav-megalink .ol-body .nav-megalink-size-field { grid-column: 1 / -1; }
-.st-controls .hdr-utility .hdr-switch-row { padding: 14px 18px 0; }
+.st-controls .hdr-utility .hdr-switch-row { padding: 14px var(--card-pad-x) 0; }
 .st-controls .hdr-alert-form { padding: 0; }
 .st-controls .hdr-item-form { display: flex; flex-direction: column; gap: 12px; }
 
@@ -15635,7 +15637,7 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .st-controls .nav-megalink .ol-body .nav-megalink-newtab input { width: auto; }
 .st-body--split .st-field textarea, .st-body--split .fe-footer-editor textarea { font-family: inherit; }
 .fe-page-settings-card .st-controls .fe-page-settings-section,
-.fe-page-settings-card .st-controls .fe-page-settings-section:first-of-type { padding: 14px 18px; margin: 0; border-top: 0; }
+.fe-page-settings-card .st-controls .fe-page-settings-section:first-of-type { padding: 14px var(--card-pad-x); margin: 0; border-top: 0; }
 .utility-bar-row-fields[hidden] { display: none !important; }
 .form label.fe-footer-link-newtab { flex-direction: row; align-items: center; gap: 6px; font-size: var(--fs-xs); }
 
@@ -16416,7 +16418,7 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
    segmented control, as on the Web Frontend studio pages. ── */
 .card.post-studio { padding: 0; container-type: inline-size; }
 .st-group-body[hidden], .st-seg button[hidden] { display: none; }
-.post-studio-main { min-width: 0; padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 16px;
+.post-studio-main { min-width: 0; padding: var(--card-pad); display: flex; flex-direction: column; gap: 16px;
   container-type: inline-size; }
 .post-studio-main > label, .post-studio-main > .form-field-block { margin: 0; }
 .post-studio .post-type-row { margin: 0; gap: 10px; }
