@@ -7,6 +7,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- `users_create` adds the new user to `TrustedServantSubscriber` (with `user_id`, name or username, email, phone) when the form's `add_to_email_list` box is ticked, its default; an entry already holding that email (case-insensitive) with no account gets the new `user_id` instead.
 - `frontend/_request_access_modal.html`, included in `frontend/base.html` for signed-out visitors: the Request Access form as a `data-fe-form-modal="request-access"` popup, posted with `X-Requested-With: fetch` and answered in place. `.fe-megamenu-request-access` (all three mega menus) and `.fe-footer-request-access` (`footers/blocks/_admin_login.html`) under the anonymous Login button open it, falling back to `auth.login#request-access`, which opens the sign-in page's form. `ACCESS_ROLE_OPTIONS` is a template global (`_inject_access_roles`).
 - `initSideFold` (app.js) and `#fb-side-fold-tpl` (base.html): at 760px and under, every `.fb-side` with filter groups gets a `.fb-side-bar` row (its `.fb-search` and a `.fb-side-fold` button with an in-use count) and `.fb-side-chips`; `.fb-side-group`s hide until the button opens the sidebar (`.is-open`), except `.fb-side-keep` (the Zoom passcode tools). A filter is in use when its group's current link isn't the group's first, and its chip links to that first link. Recounted on `live:updated`; wider screens are unchanged (`.fb-side-bar` is `display: contents`).
 - `library_detail.html`: `.fb-side-back`, an arrow button left of the file count in `.fb-side-toprow`, linking to `main.libraries` (`show=archived` for an archived library); not shown for Intergroup libraries, which aren't on that list.
@@ -210,6 +211,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `#relayFields` and `#smtpFields` were plain blocks inside the flex `.form`, so their fields had no gap; they are now flex columns inheriting the form's gap.
 
 ### Removed
+- The dashboard's Join the email list widget (`trusted-servants` in `DASHBOARD_WIDGET_KEYS`, its Customize toggle, `trusted_servants_subscribe` at `POST /email-list/subscribe`, and the `.ts-widget-*` rules). `User.dash_show_trusted_servants` stays, unused, so older databases and backups load.
 - The unused `.zoom-cal` table and `.cal-slot`, `.cal-time`, `.cal-link` rules.
 - The Zoom account add and edit modals and the `.zoom-accounts-*`, `.zoom-otp-widget`, `.zoom-otp-title` and `.notes-*` rules.
 - The `.ts-page-wrap`, `.ts-page-toolbar`, `.ts-blast-form`, `.ts-blast-actions`, `.ts-aud-*` (outside the shared segmented-control lists), `#ts-add-modal` / `ts-edit-*` modal and `.rc-settings-grid` rules.

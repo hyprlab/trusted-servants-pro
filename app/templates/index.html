@@ -221,43 +221,6 @@
     {% endcall %}
   {% endif %}
 
-  {# Trusted Servants Email List widget — always shown while the
-     module is on and the user has the dashboard toggle on. The portal
-     account may be shared by several people, so the widget always
-     renders as a blank "join the list" form: it never remembers a
-     prior submission, never pre-fills the account's details, and never
-     offers self-removal. Each submit creates a fresh admin-managed
-     entry; editing/removing is admin-only on /email-list. #}
-  {% if widget_key == 'trusted-servants' and trusted_servants_enabled
-        and current_user.dash_show_trusted_servants %}
-    {% call dash_widget(key='trusted-servants',
-                         title='Join the email list',
-                         head_icon='user-plus',
-                         help='Add your name, phone, and preferred email so admins can reach you with quick fellowship-business updates. We only contact you with announcements that go to the whole list.') %}
-      <form class="form ts-widget-form" method="post" autocomplete="off"
-            action="{{ url_for('main.trusted_servants_subscribe') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label>Full name
-          <input type="text" name="name" maxlength="120" required
-                 autocomplete="off" value="" placeholder="e.g. Jane D.">
-        </label>
-        <div class="ts-widget-row">
-          <label>Email
-            <input type="email" name="email" maxlength="255" required
-                   autocomplete="off" value="" placeholder="you@example.com">
-          </label>
-          <label><span class="field-label-row">Phone <span class="muted smaller">(optional)</span></span>
-            <input type="tel" name="phone" maxlength="64"
-                   autocomplete="off" value="" placeholder="(555) 123-4567">
-          </label>
-        </div>
-        <div class="ts-widget-actions">
-          <button type="submit" class="btn btn-primary btn-sm">{{ icon('user-plus') }} Join the list</button>
-        </div>
-      </form>
-    {% endcall %}
-  {% endif %}
-
   {# What's New — leads with the latest release note (rendered from the
      same RELEASE_NOTES.md the About tab uses) plus a compact history of
      the previous few versions. The CTA deep-links into Settings → About
@@ -484,8 +447,6 @@
             ('dash_show_files', 'Recent files', 'Most recently uploaded files from the file browser.'),
             ('dash_show_server_metrics', ('Server' if _has_server else 'Your role'),
               ('CPU, memory, disk, load, uptime and how many people are signed in.' if _has_server else 'Your account role and what it lets you do.')),
-            ('dash_show_trusted_servants', 'Join the email list',
-              'Sign-up form for the trusted-servants contact list. Hides itself automatically once you have joined the list — uncheck here to hide it earlier.'),
             ('dash_show_release_notes', "What's new",
               'The latest release note plus a button to open the full release-notes history under Settings → About.'),
           ] %}

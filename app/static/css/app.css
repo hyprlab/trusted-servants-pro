@@ -15094,76 +15094,6 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 .dash-forms-cta .icon { width: 16px; height: 16px; }
 .dash-forms-link:hover .dash-forms-cta { color: var(--brand); }
 
-/* Trusted Servants — dashboard sign-up widget. Compact form that
-   hides once the user has subscribed; lives inside the standard
-   dash_widget chrome. */
-.ts-widget-blurb { margin: 0 0 .85rem; line-height: 1.5; }
-.ts-widget-form {
-  display: flex;
-  flex-direction: column;
-  gap: .75rem;
-  margin: 0;
-}
-.ts-widget-form label {
-  display: flex;
-  flex-direction: column;
-  gap: .25rem;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--text);
-}
-.ts-widget-form input {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel);
-  color: var(--text);
-  font-size: var(--fs-sm);
-  font-weight: 400;
-}
-.ts-widget-form input:focus {
-  outline: none;
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px var(--brand-soft);
-}
-.ts-widget-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: .75rem;
-}
-@media (max-width: 480px) {
-  .ts-widget-row { grid-template-columns: 1fr; }
-}
-.ts-widget-actions {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: .25rem;
-}
-
-/* Unsubscribe row sits below the main update form, separated by a
-   subtle divider so it reads as a secondary action rather than a
-   peer of the primary Save button. The danger-tinted text mirrors
-   what every other "remove this" button on the site looks like
-   without using a fully-coloured btn-danger pill — gentler since
-   the user is removing themselves, not something destructive. */
-.ts-widget-unsub {
-  margin-top: .85rem;
-  padding-top: .75rem;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: flex-start;
-}
-.ts-widget-unsub-btn {
-  color: var(--danger, #b91c1c);
-  background: transparent;
-  border-color: transparent;
-}
-.ts-widget-unsub-btn:hover {
-  color: var(--danger, #b91c1c);
-  background: color-mix(in srgb, var(--danger, #b91c1c) 8%, transparent);
-  border-color: color-mix(in srgb, var(--danger, #b91c1c) 25%, transparent);
-}
-
 /* Tables that keep the older .ts-tbl look (Zoom Accounts, Watchtower). */
 .ts-tbl td { vertical-align: middle; }
 
@@ -17168,10 +17098,6 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   .dash-glance-os { display: none; }
   .dash-glance-os + .dash-widget-viewall { margin-left: auto; padding-left: 0; border-left: 0; }
 }
-/* The email-list form's two fields share a row; let them shrink with
-   the card instead of pushing past it. */
-.dash-grid .ts-widget-row > label { min-width: 0; }
-.dash-grid .ts-widget-row input { width: 100%; min-width: 0; }
 /* Currently online builds its own head: match it. */
 .dash-grid .user-log-online > .card-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0;
   font-size: var(--fs-md); font-weight: 650; }

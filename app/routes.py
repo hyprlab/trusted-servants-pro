@@ -502,7 +502,7 @@ def inject_globals():
             "ALERT_PLACES": ALERT_PLACES, "ALERT_TONES": ALERT_TONES}
 
 
-DASHBOARD_WIDGET_KEYS = ("server-metrics", "visitor-metrics", "currently-online", "backups", "trusted-servants", "release-notes", "meetings", "libraries", "files", "access-requests", "forms", "deletions")
+DASHBOARD_WIDGET_KEYS = ("server-metrics", "visitor-metrics", "currently-online", "backups", "release-notes", "meetings", "libraries", "files", "access-requests", "forms", "deletions")
 
 # Legacy widget keys that have been merged into newer widgets. The
 # dashboard order loader maps these forward so a user who has the old
@@ -1004,7 +1004,6 @@ def dashboard_customize():
     current_user.dash_show_libraries = request.form.get("dash_show_libraries") == "1"
     current_user.dash_show_files = request.form.get("dash_show_files") == "1"
     current_user.dash_show_server_metrics = request.form.get("dash_show_server_metrics") == "1"
-    current_user.dash_show_trusted_servants = request.form.get("dash_show_trusted_servants") == "1"
     current_user.dash_show_release_notes = request.form.get("dash_show_release_notes") == "1"
     if current_user.is_admin():
         current_user.dash_show_access_requests = request.form.get("dash_show_access_requests") == "1"
@@ -4580,52 +4579,15 @@ def trusted_servants_blast_send():
 
 
 # ---------------------------------------------------------------------------
-# Trusted Servants Email List — self-service routes called from the
-# dashboard widget. Authenticated users only; no role gate (the
-# required-role setting only governs the admin side).
+# Trusted Servants Email List: adding people. New portal users join it
+# when they're created (auth.users_create); others are added here.
 # ---------------------------------------------------------------------------
-@bp.route("/email-list/subscribe", methods=["POST"])
-@login_required
-def trusted_servants_subscribe():
-    """Add a new entry to the Trusted Servants email list. Hit by the
-    dashboard widget's form. The portal account may be shared by several
-    people, so every submission creates a fresh row with ``user_id =
-    NULL`` (admin-managed, like the manual-add path) rather than upserting
-    a single per-account subscription. End users can only add themselves;
-    editing and removing entries is admin-only on /email-list.
-    """
-    s = _get_site_setting()
-    if not s.trusted_servants_enabled:
-        abort(404)
-    name = (request.form.get("name") or "").strip()[:120]
-    phone = (request.form.get("phone") or "").strip()[:64]
-    email = (request.form.get("email") or "").strip()[:255]
-    if not name:
-        flash("Your name is required to join the list.", "danger")
-        return redirect(_safe_referrer() or url_for("main.index"))
-    if not email:
-        flash("An email address is required to join the list.", "danger")
-        return redirect(_safe_referrer() or url_for("main.index"))
-
-    sub = TrustedServantSubscriber(
-        user_id=None,
-        name=name,
-        phone=phone or None,
-        email=email,
-    )
-    db.session.add(sub)
-    db.session.commit()
-    flash("You've been added to the Trusted Servants Email List.", "success")
-    return redirect(_safe_referrer() or url_for("main.index"))
-
-
 @bp.route("/email-list/manual-add", methods=["POST"])
 @login_required
 def trusted_servants_manual_add():
     """Admin-only path that adds an external contact to the list.
 
-    Unlike the self-subscribe route, the row created here has
-    ``user_id = NULL`` — the entry isn't tied to any portal account
+    The row created here has ``user_id = NULL`` — the entry isn't tied to any portal account
     and the only way to edit / remove it is via this admin surface.
     Used for trusted servants who don't have (or don't want) a portal
     login but still belong on the contact roster.
