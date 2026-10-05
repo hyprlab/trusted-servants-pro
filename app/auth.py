@@ -1046,6 +1046,28 @@ def _close_access_request(raw_rid, user):
     return r.id
 
 
+def add_user_to_email_list(u):
+    """Put a portal user on the Trusted Servants Email List: a new entry
+    with their name (or username), email and phone, or, when an entry
+    without an account already has their email, that entry linked to
+    them. Does nothing if they're already on it. The caller commits.
+    Returns "added", "linked" or None."""
+    from .models import TrustedServantSubscriber
+    if not u.email or u.trusted_servant_subscription is not None:
+        return None
+    sub = TrustedServantSubscriber.query.filter(
+        func.lower(TrustedServantSubscriber.email) == u.email.lower()).first()
+    if sub is None:
+        db.session.add(TrustedServantSubscriber(
+            user_id=u.id, name=(u.name or u.username)[:120], email=u.email[:255],
+            phone=(u.phone or "")[:64] or None))
+        return "added"
+    if sub.user_id is None:
+        sub.user_id = u.id
+        return "linked"
+    return None
+
+
 @bp.route("/users/create", methods=["POST"])
 @login_required
 def users_create():
@@ -1096,15 +1118,7 @@ def users_create():
     # before they had an account) has that entry linked to the account
     # instead of a second one made.
     if request.form.get("add_to_email_list") == "1":
-        from .models import TrustedServantSubscriber
-        sub = TrustedServantSubscriber.query.filter(
-            func.lower(TrustedServantSubscriber.email) == email.lower()).first()
-        if sub is None:
-            db.session.add(TrustedServantSubscriber(
-                user_id=u.id, name=(name or username)[:120], email=email[:255],
-                phone=(phone or "")[:64] or None))
-        elif sub.user_id is None:
-            sub.user_id = u.id
+        add_user_to_email_list(u)
         db.session.commit()
 
     # Optional welcome email. Defaults to opt-in via the form checkbox;
