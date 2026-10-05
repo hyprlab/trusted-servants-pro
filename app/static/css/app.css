@@ -15197,35 +15197,7 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   border-color: color-mix(in srgb, var(--danger, #b91c1c) 25%, transparent);
 }
 
-/* Trusted Servants — admin /email-list list + compose pages. */
-.ts-page-wrap {
-  /* No max-width / auto margins — the outer .content container already
-     caps page width at 1400px and pads the gutters. A second narrower
-     centering layer on top of that produces a visibly oversized left
-     margin compared to every other admin page (meetings list, library
-     list, etc.) which sit flush inside .content. Keep just the flex
-     column + gap so the cards stack with consistent breathing room. */
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-/* Drop the cards' right border AND the brand-blue left accent on the
-   email-list pages — the soft shadow + the standard top/bottom
-   hairlines already define the card edges, and both verticals read
-   as redundant chrome against the .content gutter on these wide-table
-   pages. Scoped to .ts-page-wrap so other consumers of .data-card
-   (Settings panes, backups admin, etc.) keep their 4-sided border. */
-.ts-page-wrap .card.data-card {
-  border-right: 0;
-  border-left: 1px solid var(--border);
-}
-.ts-page-toolbar {
-  display: flex;
-  gap: .5rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.ts-page-toolbar .btn-primary { margin-left: auto; }
+/* Tables that keep the older .ts-tbl look (Zoom Accounts, Watchtower). */
 .ts-tbl td { vertical-align: middle; }
 
 /* ── Recovery Contacts admin ─────────────────────────────────── */
@@ -15253,217 +15225,6 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 .rc-log-body { min-width: 0; }
 .rc-log-msg { font-size: var(--fs-base); line-height: 1.35; }
 .rc-log-meta { margin-top: 1px; }
-.rc-settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: .85rem;
-}
-.ts-blast-form { display: flex; flex-direction: column; gap: 1rem; }
-.ts-blast-form label {
-  display: flex;
-  flex-direction: column;
-  gap: .35rem;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--text);
-}
-.ts-blast-form input,
-.ts-blast-form textarea {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel);
-  color: var(--text);
-  font: inherit;
-  font-weight: 400;
-}
-.ts-blast-form textarea {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  font-size: var(--fs-sm);
-  line-height: 1.5;
-  resize: vertical;
-  min-height: 280px;
-}
-.ts-blast-form input:focus,
-.ts-blast-form textarea:focus {
-  outline: none;
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px var(--brand-soft);
-}
-.ts-blast-actions {
-  display: flex;
-  gap: .5rem;
-  margin-top: .25rem;
-}
-
-/* Audience controls on the blast-compose page. Two-level pattern:
-   "Full list" / "Granular" radio at the top, then per-group toggles
-   inside granular mode (Subscribers gets a further all/granular
-   sub-mode with a checkbox picker — same shape MeetingLibrary uses
-   per-meeting for its reading selection). */
-.ts-aud-modes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: .55rem;
-  margin: .25rem 0 1rem;
-}
-@media (max-width: 640px) {
-  .ts-aud-modes { grid-template-columns: 1fr; }
-}
-.ts-aud-mode {
-  display: flex;
-  align-items: flex-start;
-  gap: .65rem;
-  padding: .85rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  cursor: pointer;
-  background: var(--panel, transparent);
-  margin: 0;
-  transition: border-color .12s ease, background .12s ease;
-}
-.ts-aud-mode:hover { border-color: var(--brand); }
-.ts-aud-mode input { margin-top: .25rem; }
-.ts-aud-mode > span {
-  display: flex; flex-direction: column; gap: .15rem;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.ts-aud-mode-summary {
-  margin-top: .35rem;
-  padding-top: .35rem;
-  border-top: 1px dashed var(--border);
-  line-height: 1.45;
-  font-variant-numeric: tabular-nums;
-}
-.ts-aud-mode-summary b {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.ts-aud-groups {
-  display: flex;
-  flex-direction: column;
-  gap: .75rem;
-  border-top: 1px solid var(--border);
-  padding-top: 1rem;
-  margin-top: .25rem;
-}
-/* `display: flex` above outranks the user-agent stylesheet's
-   `[hidden] { display: none }`, so toggling .hidden on this element
-   sets the attribute but the flex layout sticks. Explicit override
-   restores the hide-on-attribute behaviour the JS expects. */
-.ts-aud-groups[hidden] { display: none; }
-.ts-aud-group {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: .85rem 1rem;
-  background: var(--panel-muted, rgba(0,0,0,.02));
-}
-.ts-aud-group-toggle {
-  display: flex;
-  align-items: flex-start;
-  gap: .65rem;
-  cursor: pointer;
-  margin: 0;
-}
-.ts-aud-group-toggle input[type="checkbox"] {
-  margin-top: .25rem;
-}
-.ts-aud-group-toggle > span {
-  display: flex; flex-direction: column; gap: .15rem;
-  flex: 1 1 auto;
-}
-.ts-aud-group-detail {
-  margin: .85rem 0 0 1.85rem;
-}
-@media (max-width: 640px) {
-  .ts-aud-group-detail { margin-left: 0; }
-}
-
-.ts-aud-submode { flex-wrap: wrap; margin-bottom: .65rem; }
-
-.ts-aud-sub-picker {
-  border-top: 1px solid var(--border);
-  padding-top: .65rem;
-}
-.ts-aud-sub-picker-controls {
-  display: flex;
-  gap: .35rem;
-  margin-bottom: .5rem;
-}
-.ts-aud-sub-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: .25rem;
-  max-height: 360px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel);
-}
-.ts-aud-sub-row {
-  display: flex;
-  align-items: center;
-  gap: .55rem;
-  padding: .35rem .65rem;
-  margin: 0;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.ts-aud-sub-row:hover { background: var(--panel-muted, rgba(0,0,0,.03)); }
-.ts-aud-sub-row input { margin: 0; }
-.ts-aud-sub-name { flex: 1 1 auto; min-width: 0; }
-.ts-aud-sub-email {
-  flex: 0 0 auto;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  font-size: var(--fs-2xs);
-}
-
-/* Trusted Servants add/edit modals — label + input stack, with a
-   compact gap between fields. The modal panel reuses the generic
-   .modal chrome from elsewhere in the file; only the form bits
-   inside the body need scoped styles. */
-#ts-add-modal .modal-body label,
-[id^="ts-edit-"] .modal-body label {
-  display: flex;
-  flex-direction: column;
-  gap: .3rem;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: .85rem;
-}
-#ts-add-modal .modal-body input,
-#ts-add-modal .modal-body textarea,
-[id^="ts-edit-"] .modal-body input,
-[id^="ts-edit-"] .modal-body textarea {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel);
-  color: var(--text);
-  font-size: var(--fs-sm);
-  font-weight: 400;
-  font-family: inherit;
-}
-#ts-add-modal .modal-body textarea,
-[id^="ts-edit-"] .modal-body textarea {
-  resize: vertical;
-  min-height: 56px;
-}
-#ts-add-modal .modal-body input:focus,
-#ts-add-modal .modal-body textarea:focus,
-[id^="ts-edit-"] .modal-body input:focus,
-[id^="ts-edit-"] .modal-body textarea:focus {
-  outline: none;
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px var(--brand-soft);
-}
-
 /* CSV import modal — collapsible "what headers does it recognize?"
    hint block that admins can expand without leaving the upload screen. */
 .ts-import-hints {
@@ -18187,6 +17948,47 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .pe-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: var(--fs-sm); }
 .pe-facts dt { color: var(--muted); font-weight: 600; }
 .pe-facts dd { margin: 0; }
+
+/* A button that can't be used yet looks it (until now a disabled
+   primary button looked ready). */
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Sending an update to the Email List (trusted_servants_blast.html):
+   the message beside its audience, with how many it reaches. ── */
+.ts-msg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ts-msg-head > .field-label-row { font-weight: 600; }
+.ts-insert-name { display: inline-flex; align-items: center; gap: 6px; }
+.ts-insert-name .icon { width: 14px; height: 14px; }
+.ts-name-tip { margin: 6px 0 0; }
+.ts-reach { display: flex; align-items: center; gap: 12px; margin: 14px 16px 2px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+.ts-reach-num { font-size: 1.75rem; font-weight: 800; line-height: 1; color: var(--access, var(--brand)); font-variant-numeric: tabular-nums; }
+.ts-reach-text { display: flex; flex-direction: column; min-width: 0; }
+.ts-mode, .ts-sub-mode { display: flex; }
+.ts-mode > label, .ts-sub-mode > label { flex: 1 1 0; justify-content: center; }
+.ts-mode-note { margin: 8px 0 0; }
+.ts-mode-note[hidden], [data-ts-groups][hidden], .ts-subs[hidden], .ts-picker[hidden] { display: none; }
+.ts-group-n { margin-left: 4px; padding: 0 7px; border-radius: 999px; background: var(--panel-2); color: var(--muted);
+  font-size: var(--fs-2xs); font-weight: 700; }
+.ts-subs { margin: -2px 0 10px; padding: 10px; border: 1px dashed var(--border); border-radius: 10px; }
+.ts-picker { margin-top: 10px; }
+.ts-picker-tools { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.ts-picker-search { position: relative; flex: 1 1 auto; display: flex; margin: 0; }
+.ts-picker-search .icon { position: absolute; left: 9px; top: 50%; margin-top: -7px; width: 14px; height: 14px; color: var(--muted); }
+.form .ts-picker-search input { width: 100%; padding: 6px 8px 6px 28px; font-size: var(--fs-sm); }
+.ts-picker-list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.ts-picker-list li[hidden] { display: none; }
+.form .ts-picker-row { display: flex; flex-direction: row; align-items: center; gap: 8px; margin: 0; padding: 7px 10px;
+  border-bottom: 1px solid var(--border); cursor: pointer; font-size: var(--fs-sm); font-weight: 500; }
+.ts-picker-list li:last-child .ts-picker-row { border-bottom: 0; }
+.ts-picker-row:hover { background: var(--hover); }
+.ts-picker-row input { width: auto; margin: 0; flex: 0 0 auto; }
+.ts-picker-name { flex: 0 1 auto; white-space: nowrap; }
+.ts-picker-email { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: var(--fs-xs); }
+.ts-history { list-style: none; margin: 0 0 10px; padding: 0; }
+.ts-history-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.ts-history-text { flex: 1 1 auto; min-width: 0; }
+.ts-history-subject { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── Intergroup Email (intergroup.html, intergroup_edit.html): the
    accounts with Copy and Email, and the mail-app setup with Copy. ── */

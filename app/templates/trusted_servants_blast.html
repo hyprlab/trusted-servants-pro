@@ -1,272 +1,249 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
-{% block heading %}Send an update from the Trusted Servants list{% endblock %}
-{% block heading_help %}Pick who receives the update, then write the message. One SMTP send per recipient with duplicate emails de-duped across groups; Markdown is rendered to HTML and the raw markdown source is sent as the plain-text fallback.{% endblock %}
+{% from "_md_toolbar.html" import md_toolbar %}
+{% set pf = prefill or {} %}
+{% set _mode = pf.get('audience_mode', 'all') %}
+{% set _sub_mode = pf.get('subscribers_mode', 'all') %}
+{% set _picked = (prefill.getlist('subscriber_ids') if prefill else []) %}
+{# Group switches: on by default only for subscribers; a refused send
+   keeps what was ticked. #}
+{% set _inc_subs = (pf.get('include_subscribers') == '1') if prefill else True %}
+{% set _inc_ig = pf.get('include_intergroup') == '1' %}
+{% set _inc_app = pf.get('include_app_users') == '1' %}
+{% block heading %}Send an update{% endblock %}
+{% block heading_help %}Write the update on the left, with a preview as it will look; pick who gets it on the right. Each person gets their own copy, and anyone in two groups gets only one.{% endblock %}
+{% block top_actions %}
+  <a class="btn" href="{{ url_for('main.trusted_servants_list') }}">← Email List</a>
+  <button type="submit" form="ts-blast-form" class="btn btn-primary" data-ts-blast-submit disabled>{{ icon('send') }} <span>Send update</span></button>
+{% endblock %}
 {% block content %}
-
-<div class="ts-page-wrap">
-  <div class="ts-page-toolbar">
-    <a class="btn" href="{{ url_for('main.trusted_servants_list') }}">← Back to list</a>
-  </div>
-
-  <form class="form ts-blast-form" method="post"
-        action="{{ url_for('main.trusted_servants_blast_send') }}"
-        data-ts-blast-form>
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-    {# ── Audience controls ────────────────────────────────────────
-       Two-level mode + per-group toggles, same shape MeetingLibrary
-       uses for its all-vs-granular reading selection. The subscribers
-       group is further sub-divided into all-or-pick-which inside
-       granular mode — IG members and app users stay as on/off only. #}
-    <section class="card data-card">
-      <div class="data-card-head">
-        {{ icon('users') }}
-        <span>Audience {% call chip('Audience') %}Pick who receives this update. <b>Full list</b> sends to every subscriber + every intergroup member + every regular app user. <b>Granular</b> lets you tick exactly which groups (and which specific subscribers) to include.{% endcall %}</span>
-      </div>
-
-      {%- set _all_total = subscriber_count + intergroup_count + app_user_count -%}
-      <div class="ts-aud-modes" role="radiogroup" aria-label="Audience mode">
-        <label class="ts-aud-mode">
-          <input type="radio" name="audience_mode" value="all" data-aud-mode checked>
-          <span>
-            <strong>Full list</strong>
-            <span class="muted smaller">Everyone across all three groups below.</span>
-            <span class="ts-aud-mode-summary muted smaller">
-              {{ subscriber_count }} subscriber{% if subscriber_count != 1 %}s{% endif %}
-              + {{ intergroup_count }} intergroup
-              + {{ app_user_count }} app user{% if app_user_count != 1 %}s{% endif %}
-              <b>· {{ _all_total }} total</b>
-              <span class="muted smaller">(before email-dedupe)</span>
-            </span>
-          </span>
+{# Laid out like the editors (story_edit.html): the message on the left
+   in the Markdown editor with its live preview, the audience and past
+   updates on the right in a segmented control (fe_studio.js). #}
+<form id="ts-blast-form" class="form post-form" method="post" action="{{ url_for('main.trusted_servants_blast_send') }}" data-ts-blast-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <section class="card st-studio post-studio" data-studio="email-update" data-no-collapse>
+    <div class="st-body st-body--split">
+      <div class="post-studio-main">
+        <label class="post-title-field">Subject
+          <input type="text" name="subject" maxlength="500" required class="post-title-input" data-ts-subject
+                 value="{{ pf.get('subject', '') }}" placeholder="Business meeting moves to 7:30pm" autofocus>
         </label>
-        <label class="ts-aud-mode">
-          <input type="radio" name="audience_mode" value="granular" data-aud-mode>
-          <span>
-            <strong>Granular</strong>
-            <span class="muted smaller">Pick the groups (and which subscribers) yourself.</span>
-            <span class="ts-aud-mode-summary muted smaller"
-                  data-aud-granular-summary
-                  data-sub-count="{{ subscriber_count }}"
-                  data-ig-count="{{ intergroup_count }}"
-                  data-app-count="{{ app_user_count }}">
-              <!-- populated by JS; static fallback so non-JS viewers see something -->
-              {{ subscriber_count }} subscriber{% if subscriber_count != 1 %}s{% endif %} selected
-            </span>
-          </span>
-        </label>
-      </div>
-
-      <div class="ts-aud-groups" data-aud-groups>
-
-        {# Subscribers — additional all/granular sub-mode. #}
-        <div class="ts-aud-group">
-          <label class="ts-aud-group-toggle">
-            <input type="checkbox" name="include_subscribers" value="1" checked data-aud-group="subscribers">
-            <span>
-              <strong>Subscribers</strong>
-              <span class="muted smaller">{{ subscriber_count }} on the Trusted Servants Email List.</span>
-            </span>
-          </label>
-          <div class="ts-aud-group-detail" data-aud-detail="subscribers">
-            <div class="ts-aud-submode" role="radiogroup" aria-label="Subscribers sub-mode">
-              <label class="ts-aud-submode-pill">
-                <input type="radio" name="subscribers_mode" value="all" checked data-aud-sub-mode>
-                <span>All subscribers</span>
-              </label>
-              <label class="ts-aud-submode-pill">
-                <input type="radio" name="subscribers_mode" value="granular" data-aud-sub-mode>
-                <span>Pick which subscribers</span>
-              </label>
+        <div class="form-field-block">
+          <div class="ts-msg-head">
+            {% call hrow('Message') %}Use the toolbar, or type Markdown: headings, <code>**bold**</code>, lists and links. The preview shows it as it will look in the email.{% endcall %}
+            <button type="button" class="btn btn-sm ts-insert-name" data-ts-insert-name title="Put each person's name here">{{ icon('user') }} Insert their name</button>
+          </div>
+          <div class="md-editor md-editor-live post-body-md" data-md-editor data-md-live="1">
+            {{ md_toolbar() }}
+            <div class="md-editor-pane md-editor-pane-write active">
+              <textarea name="body" rows="16" required data-ts-body
+                        placeholder="Hi {name},&#10;&#10;This Thursday's business meeting moves to 7:30pm.">{{ pf.get('body', '') }}</textarea>
             </div>
-            <div class="ts-aud-sub-picker" data-aud-sub-picker hidden>
-              {% if subscribers %}
-              <div class="ts-aud-sub-picker-controls">
-                <button type="button" class="btn btn-sm" data-aud-pick-all>Select all</button>
-                <button type="button" class="btn btn-sm" data-aud-pick-none>Clear</button>
+            <div class="md-editor-pane md-editor-pane-preview active">
+              <div class="md-editor-preview"><p class="muted smaller">Nothing to preview yet.</p></div>
+            </div>
+          </div>
+          <p class="muted small ts-name-tip"><code>{name}</code> becomes each person's name, in the subject or the message.</p>
+        </div>
+      </div>
+
+      <div class="st-controls">
+        {# How many it goes to, kept up to date as the audience changes. #}
+        <div class="ts-reach" aria-live="polite">
+          <span class="ts-reach-num" data-ts-reach>0</span>
+          <span class="ts-reach-text"><strong data-ts-reach-word>people</strong><span class="muted small" data-ts-reach-detail></span></span>
+        </div>
+        <div class="st-seg-scroll" data-seg-scroll>
+          <nav class="st-seg" role="tablist" aria-label="Update settings">
+            <button type="button" role="tab" data-studio-tab="audience">{{ icon('users') }}<span>Audience</span></button>
+            <button type="button" role="tab" data-studio-tab="history">{{ icon('clock') }}<span>Sent before</span></button>
+          </nav>
+        </div>
+
+        <div class="st-panel ds-studio" data-studio-panel="audience"
+             data-ts-audience data-sub="{{ subscriber_count }}" data-ig="{{ intergroup_count }}" data-app="{{ app_user_count }}">
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('users') }}Who gets it</h3>
+            <div class="ds-seg-btns ts-mode" role="radiogroup" aria-label="Audience">
+              <label><input type="radio" name="audience_mode" value="all" data-ts-mode {% if _mode == 'all' %}checked{% endif %}>Everyone</label>
+              <label><input type="radio" name="audience_mode" value="granular" data-ts-mode {% if _mode != 'all' %}checked{% endif %}>Choose groups</label>
+            </div>
+            <p class="muted small ts-mode-note" data-ts-all-note>Every subscriber, intergroup member and app user.</p>
+          </div>
+
+          <div class="ds-group st-group-body" data-ts-groups>
+            {% macro _group(name, label, n, help, on) %}
+            <div class="post-toggle-row post-toggle-row--panel">
+              <div class="post-toggle-info">
+                <div class="post-toggle-title">{{ label }} <span class="ts-group-n">{{ n }}</span></div>
+                <div class="muted small">{{ help }}</div>
               </div>
-              <ul class="ts-aud-sub-list">
-                {% for s in subscribers %}
-                <li>
-                  <label class="ts-aud-sub-row">
-                    <input type="checkbox" name="subscriber_ids" value="{{ s.id }}">
-                    <span class="ts-aud-sub-name">{{ s.name }}</span>
-                    <span class="muted smaller ts-aud-sub-email">{{ s.email }}</span>
-                  </label>
-                </li>
-                {% endfor %}
-              </ul>
-              {% else %}
-              <p class="muted small">No subscribers on the list yet.</p>
-              {% endif %}
+              <label class="mode-toggle">
+                <input type="checkbox" name="{{ name }}" value="1" data-ts-group {% if on %}checked{% endif %}>
+                <span class="mode-track"><span class="mode-thumb"></span></span>
+              </label>
             </div>
+            {% endmacro %}
+            {{ _group('include_subscribers', 'Subscribers', subscriber_count, 'Everyone on the Email List.', _inc_subs) }}
+            <div class="ts-subs" data-ts-subs>
+              <div class="ds-seg-btns ts-sub-mode" role="radiogroup" aria-label="Which subscribers">
+                <label><input type="radio" name="subscribers_mode" value="all" data-ts-sub-mode {% if _sub_mode != 'granular' %}checked{% endif %}>All of them</label>
+                <label><input type="radio" name="subscribers_mode" value="granular" data-ts-sub-mode {% if _sub_mode == 'granular' %}checked{% endif %}>Pick people</label>
+              </div>
+              <div class="ts-picker" data-ts-picker>
+                {% if subscribers %}
+                <div class="ts-picker-tools">
+                  <label class="ts-picker-search">{{ icon('search') }}<input type="search" placeholder="Find someone" aria-label="Find a subscriber" data-ts-picker-search autocomplete="off"></label>
+                  <button type="button" class="btn btn-sm" data-ts-pick="all">All</button>
+                  <button type="button" class="btn btn-sm" data-ts-pick="none">None</button>
+                </div>
+                <ul class="ts-picker-list">
+                  {% for s in subscribers %}
+                  <li data-ts-person="{{ (s.name ~ ' ' ~ s.email)|lower }}">
+                    <label class="ts-picker-row">
+                      <input type="checkbox" name="subscriber_ids" value="{{ s.id }}" data-ts-sub {% if s.id|string in _picked %}checked{% endif %}>
+                      <span class="ts-picker-name">{{ s.name }}</span>
+                      <span class="ts-picker-email muted">{{ s.email }}</span>
+                    </label>
+                  </li>
+                  {% endfor %}
+                </ul>
+                {% else %}<p class="muted small">No one is on the list yet.</p>{% endif %}
+              </div>
+            </div>
+            {{ _group('include_intergroup', 'Intergroup members', intergroup_count, 'Portal users with the Intergroup Member role.', _inc_ig) }}
+            {{ _group('include_app_users', 'App users', app_user_count, 'Editor and viewer accounts; not admins.', _inc_app) }}
           </div>
         </div>
 
-        {# Intergroup members. #}
-        <div class="ts-aud-group">
-          <label class="ts-aud-group-toggle">
-            <input type="checkbox" name="include_intergroup" value="1" data-aud-group="intergroup">
-            <span>
-              <strong>Intergroup members</strong>
-              <span class="muted smaller">{{ intergroup_count }} user{% if intergroup_count != 1 %}s{% endif %} with the Intergroup Member role.</span>
-            </span>
-          </label>
+        <div class="st-panel" data-studio-panel="history" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('clock') }}Sent before {% call chip('Sent before') %}The latest updates. Use one again to start from its subject and message.{% endcall %}</h3>
+            {% if blasts %}
+            <ul class="ts-history">
+              {% for b in blasts %}
+              <li class="ts-history-row">
+                <div class="ts-history-text">
+                  <div class="ts-history-subject">{{ b.subject }}</div>
+                  <div class="muted small">{{ b.started_at|fmt_site_local('%b %-d, %Y') if b.started_at }} · {{ b.sent_count }} of {{ b.recipient_count }}{% if b.failed_count %} · {{ b.failed_count }} failed{% endif %}</div>
+                </div>
+                <button type="button" class="btn btn-sm" data-ts-reuse data-subject="{{ b.subject }}" data-body="{{ b.body_md }}">Use again</button>
+              </li>
+              {% endfor %}
+            </ul>
+            <a class="small" href="{{ url_for('main.trusted_servants_list', tab='history') }}">All updates sent</a>
+            {% else %}<p class="muted small">Nothing sent yet.</p>{% endif %}
+          </div>
         </div>
-
-        {# Other app-user roles (editor / viewer). Admins are excluded — they get the update via subscriber or IG paths if they're on those lists. #}
-        <div class="ts-aud-group">
-          <label class="ts-aud-group-toggle">
-            <input type="checkbox" name="include_app_users" value="1" data-aud-group="app_users">
-            <span>
-              <strong>App users</strong>
-              <span class="muted smaller">{{ app_user_count }} editor / viewer account{% if app_user_count != 1 %}s{% endif %} (admins + intergroup members are tracked under their own groups above).</span>
-            </span>
-          </label>
-        </div>
-
       </div>
-    </section>
+    </div>
+  </section>
+</form>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
 
-    {# ── Compose ─────────────────────────────────────────────────── #}
-    <section class="card data-card">
-      <div class="data-card-head">
-        {{ icon('send') }}
-        <span>Compose update {% call chip('Compose update') %}Use <code>{name}</code> anywhere in the subject or body to drop in each recipient's name. Leave it out for a generic message.{% endcall %}</span>
-      </div>
-      <label>Subject
-        <input type="text" name="subject" maxlength="500" required
-               placeholder="Quick update from the chair">
-      </label>
-      <label>{% call hrow('Message body (Markdown)') %}Supports headings (<code>#</code>), <b>bold</b>, <i>italic</i>, links <code>[text](url)</code>, and bullet lists.{% endcall %}
-        <textarea name="body" rows="14" required
-                  placeholder="Hi {name},&#10;&#10;Heads up that this Thursday's business meeting moves to 7:30pm…"></textarea>
-      </label>
-      <div class="ts-blast-actions">
-        <button type="submit" class="btn btn-primary" data-ts-blast-submit>
-          {{ icon('send') }} Send update
-        </button>
-        <a class="btn" href="{{ url_for('main.trusted_servants_list') }}">Cancel</a>
-      </div>
-    </section>
-  </form>
-</div>
-
-{# Busy overlay — synchronous SMTP loop takes seconds per recipient,
-   so a small list (50 subscribers) can still take 30–60 seconds.
-   Block the page so the admin doesn't double-submit. #}
+{# Sending takes a moment per person: block the page meanwhile so the
+   update isn't sent twice. #}
 <div class="backup-busy" data-ts-busy hidden>
   <div class="backup-busy-card">
     <div class="backup-busy-spinner" aria-hidden="true"></div>
     <div class="backup-busy-text">
-      <strong>Sending updates…</strong>
-      <span class="muted small">Delivering one message at a time. This can take a minute or two — don't close this window.</span>
+      <strong>Sending the update…</strong>
+      <span class="muted small">One message at a time; this can take a minute or two. Keep this window open.</span>
     </div>
   </div>
 </div>
 
 <script>
 (function () {
-  // Audience-mode toggle: when "Full list" is picked, hide the granular
-  // group toggles + disable their inputs so the form posts a clean
-  // ``audience_mode=all`` (the send route already ignores include_* in
-  // that case, but disabled inputs keep the post body tidy in DevTools).
-  const modes = document.querySelectorAll('[data-aud-mode]');
-  const groups = document.querySelector('[data-aud-groups]');
-  function syncMode() {
-    const checked = document.querySelector('[data-aud-mode]:checked');
-    const isAll = checked && checked.value === 'all';
-    if (groups) groups.hidden = isAll;
-  }
-  modes.forEach(m => m.addEventListener('change', syncMode));
-  syncMode();
+  var form = document.getElementById('ts-blast-form');
+  var aud = form.querySelector('[data-ts-audience]');
+  var subject = form.querySelector('[data-ts-subject]');
+  var body = form.querySelector('[data-ts-body]');
+  var send = document.querySelector('[data-ts-blast-submit]');
+  var N = { sub: +aud.dataset.sub || 0, ig: +aud.dataset.ig || 0, app: +aud.dataset.app || 0 };
+  var $ = function (sel) { return form.querySelector(sel); };
+  var all = function (sel) { return Array.prototype.slice.call(form.querySelectorAll(sel)); };
 
-  // Subscribers sub-mode toggle: show / hide the checkbox picker, and
-  // enable/disable the picker's checkboxes so a stale "Pick which" set
-  // doesn't ride along with an "All subscribers" send.
-  const subModes = document.querySelectorAll('[data-aud-sub-mode]');
-  const picker = document.querySelector('[data-aud-sub-picker]');
-  function syncSubMode() {
-    const checked = document.querySelector('[data-aud-sub-mode]:checked');
-    const isGranular = checked && checked.value === 'granular';
-    if (picker) picker.hidden = !isGranular;
+  // How many it goes to (before the same address in two groups is
+  // counted once), and which parts of the audience show.
+  function reach() {
+    var everyone = ($('[data-ts-mode]:checked') || {}).value === 'all';
+    var subsOn = $('[name=include_subscribers]').checked;
+    var picking = ($('[data-ts-sub-mode]:checked') || {}).value === 'granular';
+    $('[data-ts-groups]').hidden = everyone;
+    $('[data-ts-all-note]').hidden = !everyone;
+    $('[data-ts-subs]').hidden = !subsOn;
+    $('[data-ts-picker]').hidden = !picking;
+    var subs = everyone ? N.sub : (!subsOn ? 0 : (picking ? all('[data-ts-sub]:checked').length : N.sub));
+    var ig = everyone || $('[name=include_intergroup]').checked ? N.ig : 0;
+    var app = everyone || $('[name=include_app_users]').checked ? N.app : 0;
+    var total = subs + ig + app, parts = [];
+    if (subs) parts.push(subs + ' subscriber' + (subs === 1 ? '' : 's'));
+    if (ig) parts.push(ig + ' intergroup');
+    if (app) parts.push(app + ' app user' + (app === 1 ? '' : 's'));
+    document.querySelector('[data-ts-reach]').textContent = total;
+    document.querySelector('[data-ts-reach-word]').textContent = total === 1 ? 'person' : 'people';
+    document.querySelector('[data-ts-reach-detail]').textContent = parts.length ? parts.join(' + ') : 'No one yet: pick a group.';
+    send.disabled = !(total && subject.value.trim() && body.value.trim());
+    return total;
   }
-  subModes.forEach(m => m.addEventListener('change', syncSubMode));
-  syncSubMode();
+  form.addEventListener('input', reach);
+  form.addEventListener('change', reach);
 
-  // Select all / clear on the subscriber checkbox list.
-  const pickAll = document.querySelector('[data-aud-pick-all]');
-  const pickNone = document.querySelector('[data-aud-pick-none]');
-  const subBoxes = () => document.querySelectorAll('input[name="subscriber_ids"]');
-  if (pickAll) pickAll.addEventListener('click', () => {
-    subBoxes().forEach(b => { b.checked = true; }); renderGranularSummary();
+  // Find someone, and tick all or none of those showing.
+  var search = $('[data-ts-picker-search]');
+  if (search) search.addEventListener('input', function () {
+    var q = search.value.trim().toLowerCase();
+    all('[data-ts-person]').forEach(function (li) { li.hidden = !!q && li.dataset.tsPerson.indexOf(q) === -1; });
   });
-  if (pickNone) pickNone.addEventListener('click', () => {
-    subBoxes().forEach(b => { b.checked = false; }); renderGranularSummary();
-  });
-
-  // Live granular summary — updates the count line under the
-  // Granular radio every time any audience input changes. Three
-  // numbers: subscribers (full count when subs_mode=all + included,
-  // ticked-count when subs_mode=granular + included, 0 when the
-  // group toggle is off), intergroup, app users. Final total reflects
-  // the sum before email-dedupe; the actual send dedupes by
-  // lowercased email so a person in two groups only gets one copy.
-  const summaryEl = document.querySelector('[data-aud-granular-summary]');
-  const totals = summaryEl ? {
-    sub: parseInt(summaryEl.dataset.subCount || '0', 10) || 0,
-    ig:  parseInt(summaryEl.dataset.igCount  || '0', 10) || 0,
-    app: parseInt(summaryEl.dataset.appCount || '0', 10) || 0,
-  } : { sub: 0, ig: 0, app: 0 };
-
-  function plural(n, word) {
-    return n + ' ' + word + (n === 1 ? '' : 's');
-  }
-
-  function renderGranularSummary() {
-    if (!summaryEl) return;
-    const subsOn = !!document.querySelector('[data-aud-group="subscribers"]:checked');
-    const igOn = !!document.querySelector('[data-aud-group="intergroup"]:checked');
-    const appOn = !!document.querySelector('[data-aud-group="app_users"]:checked');
-    const subMode = (document.querySelector('[data-aud-sub-mode]:checked') || {}).value || 'all';
-
-    let subN = 0;
-    if (subsOn) {
-      if (subMode === 'granular') {
-        subN = document.querySelectorAll('input[name="subscriber_ids"]:checked').length;
-      } else {
-        subN = totals.sub;
-      }
-    }
-    const igN = igOn ? totals.ig : 0;
-    const appN = appOn ? totals.app : 0;
-    const all = subN + igN + appN;
-
-    summaryEl.innerHTML =
-      plural(subN, 'subscriber') + ' + '
-      + igN + ' intergroup + '
-      + plural(appN, 'app user')
-      + ' <b>· ' + all + ' total</b>'
-      + ' <span class="muted smaller">(before email-dedupe)</span>';
-  }
-  // Re-render on every interaction inside the audience card — covers
-  // the group toggles, sub-mode flips, Select all / Clear, and the
-  // per-subscriber checkboxes.
-  document.querySelectorAll('input[data-aud-group], [data-aud-sub-mode], input[name="subscriber_ids"]')
-    .forEach(el => el.addEventListener('change', renderGranularSummary));
-  renderGranularSummary();
-
-  // Busy overlay on submit.
-  const form = document.querySelector('[data-ts-blast-form]');
-  const busy = document.querySelector('[data-ts-busy]');
-  const btn = document.querySelector('[data-ts-blast-submit]');
-  if (form && busy) {
-    form.addEventListener('submit', () => {
-      busy.hidden = false;
-      if (btn) btn.disabled = true;
+  all('[data-ts-pick]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var on = b.dataset.tsPick === 'all';
+      all('[data-ts-person]:not([hidden]) [data-ts-sub]').forEach(function (c) { c.checked = on; });
+      reach();
     });
-  }
+  });
+
+  // Insert their name at the cursor in the message (undoable).
+  $('[data-ts-insert-name]').addEventListener('click', function () {
+    body.focus();
+    if (!document.execCommand('insertText', false, '{name}')) {
+      var a = body.selectionStart, z = body.selectionEnd;
+      body.setRangeText('{name}', a, z, 'end');
+    }
+    body.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  // Start from an earlier update.
+  all('[data-ts-reuse]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      subject.value = b.dataset.subject;
+      body.value = b.dataset.body;
+      body.dispatchEvent(new Event('input', { bubbles: true }));
+      subject.focus();
+    });
+  });
+
+  // Ask first, then block the page while it sends.
+  var confirmed = false;
+  form.addEventListener('submit', function (e) {
+    if (confirmed) {
+      document.querySelector('[data-ts-busy]').hidden = false;
+      send.disabled = true;
+      return;
+    }
+    e.preventDefault();
+    var n = reach();
+    if (!n) return;
+    var ask = window.tspConfirm ? window.tspConfirm({
+      title: 'Send “' + subject.value.trim() + '”?',
+      message: 'It goes to ' + n + (n === 1 ? ' person' : ' people') + ' (anyone in two groups gets one copy). Emails can\'t be called back once sent.',
+      confirmLabel: 'Send', tone: 'neutral'
+    }) : Promise.resolve(window.confirm('Send this update to ' + n + ' people?'));
+    ask.then(function (yes) { if (yes) { confirmed = true; form.requestSubmit(); } });
+  });
+  reach();
 })();
 </script>
 {% endblock %}

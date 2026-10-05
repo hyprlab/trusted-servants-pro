@@ -4159,26 +4159,32 @@ def recovery_contacts_delete(eid):
     return _rc_back(eid)
 
 
-@bp.route("/email-list/blast")
-@login_required
-def trusted_servants_blast_compose():
-    _require_trusted_servants_admin()
+def _blast_compose_page(prefill=None, status=200):
+    """The compose page, optionally filled in with what was posted (a
+    refused send keeps everything typed and picked)."""
     # The subscriber rows themselves are listed (not just counted) so
-    # the compose page can render a checkbox list under the "Pick which"
-    # subscribers granular mode — same shape as MeetingLibrary's per-
-    # reading selection. Intergroup-members + app-users stay as bare
-    # counts (their granular controls are a follow-up if asked for).
+    # the audience can pick specific people.
     subscribers = (TrustedServantSubscriber.query
                    .order_by(TrustedServantSubscriber.name.asc()).all())
     ig_count = User.query.filter(User.role == "intergroup_member").count()
     app_count = User.query.filter(
         User.role.notin_(("admin", "intergroup_member"))
     ).count()
+    blasts = (TrustedServantBlast.query
+              .order_by(TrustedServantBlast.started_at.desc()).limit(8).all())
     return render_template("trusted_servants_blast.html",
                            subscribers=subscribers,
                            subscriber_count=len(subscribers),
                            intergroup_count=ig_count,
-                           app_user_count=app_count)
+                           app_user_count=app_count,
+                           blasts=blasts, prefill=prefill), status
+
+
+@bp.route("/email-list/blast")
+@login_required
+def trusted_servants_blast_compose():
+    _require_trusted_servants_admin()
+    return _blast_compose_page()
 
 
 @bp.route("/email-list/blast", methods=["POST"])
@@ -4213,10 +4219,10 @@ def trusted_servants_blast_send():
     body_md = (request.form.get("body") or "").strip()
     if not subject:
         flash("Subject is required.", "danger")
-        return redirect(url_for("main.trusted_servants_blast_compose"))
+        return _blast_compose_page(request.form, 400)
     if not body_md:
         flash("Message body is required.", "danger")
-        return redirect(url_for("main.trusted_servants_blast_compose"))
+        return _blast_compose_page(request.form, 400)
 
     mode = (request.form.get("audience_mode") or "granular").strip().lower()
     if mode not in ("all", "granular"):
@@ -4274,7 +4280,7 @@ def trusted_servants_blast_send():
                     "Pick at least one subscriber, or switch the subscribers "
                     "mode to All before sending.",
                     "danger")
-                return redirect(url_for("main.trusted_servants_blast_compose"))
+                return _blast_compose_page(request.form, 400)
             q = q.filter(TrustedServantSubscriber.id.in_(selected_sub_ids))
         for sub in q.all():
             _add(sub.name, sub.email)
@@ -4293,7 +4299,7 @@ def trusted_servants_blast_send():
             "No one is in the audience you picked — turn on at least one group "
             "(or pick Full list) before sending.",
             "danger")
-        return redirect(url_for("main.trusted_servants_blast_compose"))
+        return _blast_compose_page(request.form, 400)
 
     blast = TrustedServantBlast(
         sent_by_user_id=current_user.id,
@@ -4331,12 +4337,12 @@ def trusted_servants_blast_send():
     db.session.commit()
 
     if sent and not failed:
-        flash(f"Sent the update to {sent} subscriber{'s' if sent != 1 else ''}.", "success")
+        flash(f"Sent the update to {sent} {'person' if sent == 1 else 'people'}.", "success")
     elif sent and failed:
         flash(f"Sent to {sent} of {sent + failed}. {failed} failed — check the server log.", "warning")
     else:
         flash(f"All {failed} sends failed. Check SMTP settings on the Domain / Email tab.", "danger")
-    return redirect(url_for("main.trusted_servants_list"))
+    return redirect(url_for("main.trusted_servants_list", tab="history"))
 
 
 # ---------------------------------------------------------------------------

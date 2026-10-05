@@ -9,6 +9,9 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Sending an update to the Email List is laid out like the other editors: the subject and message on the left, in the Markdown editor with its formatting toolbar and a live preview, and who gets it on the right. A count shows how many people it reaches as you change the audience: everyone, or chosen groups, with a search to pick particular subscribers. Insert their name puts `{name}` in the message, and Sent before lets you start from an earlier update.
+- Send update stays off until there is a subject, a message and someone to send to, and asks before sending. If the server refuses a send, the page keeps what you wrote and picked.
+- A button that can't be used yet now looks faded.
 - Intergroup Email lists each shared account with its role and initials, and Copy and Email buttons on each; with more than five accounts, a box finds one by role or address. Open webmail is the main button at the top. The mail-app setup shows the incoming and outgoing servers with Copy buttons, the setup notes as a list of points, and a link to the full guide.
 - Intergroup Email is edited on its own page, laid out like the other editors and saved with the yellow bar: the title, intro and accounts on the left, where accounts can be dragged into order, and the mail servers, notes, guide and webmail address on the right. The popup is gone.
 - Every library, the Intergroup ones included, uses the same list layout as the other pages: search that updates as you type, Category, Kind and (for libraries on the public Literature Library) Public filters with counts, sort by custom order, name, date added or kind, List or Grid, and bulk Add, Remove or Replace a category, Show publicly or Hide, and Delete.
