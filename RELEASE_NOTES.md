@@ -9,6 +9,7 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Every page has the same 20px of space around its content, on all four sides, matching the gap between a list's filter sidebar and the list (14px on phones, as before). The page heading and the yellow save bars line up with it.
 - A library's page has a back button beside its file count, at the top of the sidebar, that returns to the Libraries list (Archived libraries, for an archived one).
 - An info popover that would be cut off by the box it sits in, such as One-time passcodes in the Zoom Accounts sidebar, now opens in full over the page.
 - Admins can post an alert bar that everyone signed in sees, from Settings > Alert Bar: a message written in Markdown with the formatting toolbar and a live preview beside it (headings, lists, quotes, links and images all show in the bar), a style (Information, Good news, Warning or Urgent), and where it shows: above the top bar, on the dashboard, at the foot of the sidebar, or any mix. People can close it unless that is turned off, and a closed alert comes back when the message changes. It can stop on its own at a set time, and the settings show a preview. Turn on Open details when clicked to give it a window with a title and longer details, written the same way: clicking the bar, or its Details button, opens it, with Close and Don't show again. The window can show when the alert was posted: the date sets itself when you post a new message, and you can change it or set it back to now with Today.
