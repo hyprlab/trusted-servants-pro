@@ -148,36 +148,8 @@
 
   modal.querySelectorAll('[data-close]').forEach(el =>
     el.addEventListener('click', close));
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modal.classList.contains('open')) close();
-  });
 
-  // Is this a form that bans an IP? Matched on the action path so any
-  // Block button added later is covered without opting in.
-  function banFormIp(form) {
-    if (!form || form.tagName !== 'FORM') return null;
-    let path;
-    try {
-      path = new URL(form.action, window.location.href).pathname;
-    } catch (err) {
-      return null;
-    }
-    if (!path.endsWith('/watchtower/ban-ip')) return null;
-    const field = form.querySelector('[name="ip"]');
-    return field ? (field.value || '').trim() : null;
-  }
 
-  document.addEventListener('submit', (e) => {
-    const form = e.target;
-    if (form.dataset.selfBlockConfirmed === '1') return;  // already acknowledged
-    const ip = banFormIp(form);
-    if (!ip || ip !== selfIp) return;
-    // Pre-empt the page's own submit handlers (the 404s tab fetches
-    // these forms) so nothing fires until the admin has decided.
-    e.preventDefault();
-    e.stopPropagation();
-    open(form, ip);
-  }, true);  // capture
 
   confirmBtn.addEventListener('click', () => {
     const form = pendingForm;
@@ -212,5 +184,43 @@
       window.confirm = origConfirm;
     }
   });
+
+  // The page-wide handlers are added once per document and act on the
+  // dialog that is on the page now: Watchtower's tabs bring pages in
+  // without a reload (tspSwapPage), each with its own copy of this dialog.
+  window.__wtSelfBlock = { modal, selfIp, open, close };
+  if (window.__wtSelfBlockBound) return;
+  window.__wtSelfBlockBound = true;
+  document.addEventListener('keydown', (e) => {
+    const cur = window.__wtSelfBlock;
+    if (e.key === 'Escape' && cur && cur.modal.isConnected && cur.modal.classList.contains('open')) cur.close();
+  });
+  // Is this a form that bans an IP? Matched on the action path so any
+  // Block button added later is covered without opting in.
+  function banFormIp(form) {
+    if (!form || form.tagName !== 'FORM') return null;
+    let path;
+    try {
+      path = new URL(form.action, window.location.href).pathname;
+    } catch (err) {
+      return null;
+    }
+    if (!path.endsWith('/watchtower/ban-ip')) return null;
+    const field = form.querySelector('[name="ip"]');
+    return field ? (field.value || '').trim() : null;
+  }
+  document.addEventListener('submit', (e) => {
+    const form = e.target;
+    if (form.dataset.selfBlockConfirmed === '1') return;  // already acknowledged
+    const cur = window.__wtSelfBlock;
+    if (!cur || !cur.modal.isConnected) return;
+    const ip = banFormIp(form);
+    if (!ip || ip !== cur.selfIp) return;
+    // Pre-empt the page's own submit handlers (the 404s tab fetches
+    // these forms) so nothing fires until the admin has decided.
+    e.preventDefault();
+    e.stopPropagation();
+    cur.open(form, ip);
+  }, true);  // capture
 })();
 </script>

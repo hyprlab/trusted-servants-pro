@@ -12,9 +12,10 @@
    Counts come from inject_globals() in routes.py — available everywhere.
 
    The links are the shared accent segmented control (.st-seg); the current
-   one carries aria-current. Below 720px the control scrolls sideways and
+   one carries aria-current. data-swap-nav: a section loads in place
+   (tspSwapPage in app.js) instead of reloading the page. Below 720px the control scrolls sideways and
    fades at its edges (topActionsSwipeFade in app.js). #}
-<nav class="wt-tabs" aria-label="Watchtower sections">
+<nav class="wt-tabs" aria-label="Watchtower sections" data-swap-nav>
   <div class="st-seg wt-tabs-track">
     <a href="{{ url_for('main.watchtower') }}"
        {% if active_tab == 'overview' %}aria-current="page"{% endif %}>

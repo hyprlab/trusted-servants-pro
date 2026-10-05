@@ -68,7 +68,7 @@
 <section class="card">
   <div class="card-head ar-card-head">
     <h2>Requests</h2>
-    <div class="ar-view-tabs" role="tablist">
+    <div class="ar-view-tabs" role="tablist" data-swap-nav>
       <a href="{{ url_for('main.watchtower_requests', view='active') }}"
          class="ar-view-tab {% if view == 'active' %}is-active{% endif %}"
          role="tab" aria-selected="{{ 'true' if view == 'active' else 'false' }}">
@@ -190,6 +190,10 @@
 
 <script>
 (function(){
+  // Once per document: Watchtower's tabs bring this page in again
+  // without a reload (tspSwapPage), which runs this script again.
+  if (window.__wtReqBridge) return;
+  window.__wtReqBridge = true;
   // Live-update bridge for "Create User" from an access request. The
   // Settings → Users iframe archives the request server-side and posts
   // a message up here; we drop the row and adjust the tab counts so the

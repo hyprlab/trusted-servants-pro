@@ -342,6 +342,85 @@
   window.tspRunPageSetups = () => pageSetups.forEach(fn => {
     try { fn(); } catch (err) { console.error(err); }
   });
+  window.tspOnEachPage = onEachPage;
+
+  // Replace the page with another without reloading (window.tspSwapPage):
+  // the page behind Settings when a module is turned off, and links in a
+  // [data-swap-nav] (Watchtower's sections). It swaps the heading, its
+  // actions, messages and content, the sidebar's pinned buttons, the
+  // tab title and the address. The page's app.js setups then run again
+  // (tspRunPageSetups). Scripts inside the new content are not run, so
+  // this suits pages whose behavior lives in app.js, as the Dashboard's
+  // does.
+  function swapParts(doc, sels) {
+    sels.forEach(sel => {
+      const now = document.querySelector(sel), next = doc.querySelector(sel);
+      if (now && next) now.replaceWith(document.importNode(next, true));
+    });
+  }
+  // The rows at the top of the sidebar (Dashboard, Watchtower, Web
+  // Frontend) follow the modules that are on and which page is open.
+  function swapPinned(doc) {
+    swapParts(doc, [".sidebar > .side-top"]);
+  }
+  async function fetchPage(url) {
+    const r = await fetch(url, { credentials: "same-origin" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return { url: r.url, doc: new DOMParser().parseFromString(await r.text(), "text/html") };
+  }
+  let swapped = false;
+  async function swapPage(url, opts) {
+    const { url: landed, doc } = await fetchPage(url);
+    swapParts(doc, [".topbar > h1", ".topbar > .top-actions",
+                    "main.content > .flashes", "main.content > section.page"]);
+    swapPinned(doc);
+    document.title = doc.title;
+    document.body.classList.toggle("fe-admin-autohide", doc.body.classList.contains("fe-admin-autohide"));
+    document.querySelector(".sidebar")?.classList.remove("open");
+    if ((!opts || opts.push !== false) && landed !== location.href) history.pushState(null, "", landed);
+    swapped = true;
+    (document.scrollingElement || document.documentElement).scrollTop = 0;
+    runScripts(document.querySelector("main.content > section.page"));
+    window.tspRunPageSetups();
+  }
+  // Scripts in swapped-in content don't run on their own: run each
+  // inline one, and load each external one this document hasn't yet.
+  function runScripts(root) {
+    if (!root) return;
+    const loaded = new Set(Array.from(document.scripts)
+      .filter(sc => sc.src && !root.contains(sc)).map(sc => sc.src));
+    root.querySelectorAll("script").forEach(old => {
+      if (old.src && loaded.has(old.src)) return;
+      const sc = document.createElement("script");
+      Array.from(old.attributes).forEach(a => sc.setAttribute(a.name, a.value));
+      if (!old.src) sc.textContent = old.textContent;
+      old.replaceWith(sc);
+    });
+  }
+  // Back or Forward after a swap: the address changed without its page,
+  // so bring in the page it names the same way.
+  window.addEventListener("popstate", () => {
+    if (swapped) swapPage(location.href, { push: false }).catch(() => window.location.reload());
+  });
+  window.tspSwapPage = swapPage;
+  // Links in a [data-swap-nav] load in place: a plain click swaps the page
+  // (the clicked part turns current at once); anything else, or a failed
+  // fetch, is an ordinary navigation.
+  document.addEventListener("click", e => {
+    const a = e.target.closest("[data-swap-nav] a[href]");
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (a.target && a.target !== "_self") return;
+    const url = new URL(a.href, location.href);
+    if (url.origin !== location.origin) return;
+    e.preventDefault();
+    if (url.href === location.href) return;
+    const nav = a.closest("[data-swap-nav]");
+    nav.querySelectorAll('[aria-current="page"]').forEach(x => x.removeAttribute("aria-current"));
+    a.setAttribute("aria-current", "page");
+    document.documentElement.classList.add("is-live-loading");
+    swapPage(url.href).catch(() => location.assign(url.href))
+      .finally(() => document.documentElement.classList.remove("is-live-loading"));
+  });
 
   onEachPage(() => document.querySelectorAll("[data-open-modal]").forEach(el => {
     if (el._tspOpener) return;
@@ -676,7 +755,9 @@
   // pre-populated. Email seeds username + email; name and phone are
   // forwarded so the admin doesn't have to retype anything from the
   // request row they just clicked.
-  document.querySelectorAll("[data-create-user-from-request]").forEach(btn => {
+  onEachPage(() => document.querySelectorAll("[data-create-user-from-request]").forEach(btn => {
+    if (btn._tspCreateUser) return;
+    btn._tspCreateUser = true;
     btn.addEventListener("click", () => {
       const email = btn.dataset.email || "";
       const name = btn.dataset.name || "";
@@ -703,7 +784,7 @@
         iframe.src = base + sep + params.toString();
       }
     });
-  });
+  }));
   onEachPage(() => document.querySelectorAll(".modal").forEach(m => {
     m.querySelectorAll("[data-close]").forEach(el => {
       if (el._tspCloser) return;
@@ -855,61 +936,6 @@
       return data;
     }
 
-    // Replace the page behind Settings with another (the Dashboard after
-    // a module is turned off) and leave Settings open: the heading, its
-    // actions, messages and content, the sidebar's pinned buttons, the
-    // tab title and the address. The page's app.js setups then run again
-    // (tspRunPageSetups). Scripts inside the new content are not run, so
-    // this suits pages whose behavior lives in app.js, as the Dashboard's
-    // does.
-    function swapParts(doc, sels) {
-      sels.forEach(sel => {
-        const now = document.querySelector(sel), next = doc.querySelector(sel);
-        if (now && next) now.replaceWith(document.importNode(next, true));
-      });
-    }
-    // The rows at the top of the sidebar (Dashboard, Watchtower, Web
-    // Frontend) follow the modules that are on and which page is open.
-    function swapPinned(doc) {
-      swapParts(doc, [".sidebar > .side-top"]);
-    }
-    async function fetchPage(url) {
-      const r = await fetch(url, { credentials: "same-origin" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return { url: r.url, doc: new DOMParser().parseFromString(await r.text(), "text/html") };
-    }
-    let swapped = false;
-    async function swapPage(url) {
-      const { url: landed, doc } = await fetchPage(url);
-      swapParts(doc, [".topbar > h1", ".topbar > .top-actions",
-                      "main.content > .flashes", "main.content > section.page"]);
-      swapPinned(doc);
-      document.title = doc.title;
-      document.body.classList.toggle("fe-admin-autohide", doc.body.classList.contains("fe-admin-autohide"));
-      document.querySelector(".sidebar")?.classList.remove("open");
-      if (landed !== location.href) history.pushState(null, "", landed);
-      swapped = true;
-      (document.scrollingElement || document.documentElement).scrollTop = 0;
-      runScripts(document.querySelector("main.content > section.page"));
-      window.tspRunPageSetups();
-    }
-    // Scripts in swapped-in content don't run on their own: run each
-    // inline one, and load each external one this document hasn't yet.
-    function runScripts(root) {
-      if (!root) return;
-      const loaded = new Set(Array.from(document.scripts)
-        .filter(sc => sc.src && !root.contains(sc)).map(sc => sc.src));
-      root.querySelectorAll("script").forEach(old => {
-        if (old.src && loaded.has(old.src)) return;
-        const sc = document.createElement("script");
-        Array.from(old.attributes).forEach(a => sc.setAttribute(a.name, a.value));
-        if (!old.src) sc.textContent = old.textContent;
-        old.replaceWith(sc);
-      });
-    }
-    // Back or Forward after a swap: the address changed without its page,
-    // so load the page it names.
-    window.addEventListener("popstate", () => { if (swapped) window.location.reload(); });
 
     // Email transport toggle: the <select> is the SMTP-vs-relay switch.
     // Show only the field group for the chosen transport — relay fields
@@ -7289,8 +7315,11 @@
 //   </ul>
 //   <button data-wt-expand-btn="<key>">Show 30 more</button>
 //   <span data-wt-expand-meta="<key>">base · meta</span>   (optional)
-(function () {
+// Runs again on a page brought in by tspSwapPage (Watchtower's tabs).
+(window.tspOnEachPage || (f => f()))(function () {
   document.querySelectorAll('[data-wt-expand]').forEach(list => {
+    if (list.dataset.wtExpandBound) return;
+    list.dataset.wtExpandBound = '1';
     const key = list.dataset.wtExpand;
     const step = parseInt(list.dataset.step, 10) || 30;
     const total = parseInt(list.dataset.total, 10) || 0;
@@ -7330,7 +7359,7 @@
       }
     });
   });
-})();
+});
 
 // ── Metric mode toggle (Unique visitors ⇄ Hits) ────────────────────
 // Shared toggle for the Visitor Metrics + Watchtower Visitors pages.
@@ -7367,17 +7396,15 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    if (!document.querySelector(".metric-toggle")) return;
-    applyMode(getMode());
-
-    document.querySelectorAll(".metric-toggle button[data-metric]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const mode = btn.dataset.metric;
-        localStorage.setItem(KEY, mode);
-        applyMode(mode);
-      });
-    });
+  // Delegated, and applied again to a page brought in by tspSwapPage.
+  document.addEventListener("click", e => {
+    const btn = e.target.closest(".metric-toggle button[data-metric]");
+    if (!btn) return;
+    localStorage.setItem(KEY, btn.dataset.metric);
+    applyMode(btn.dataset.metric);
+  });
+  (window.tspOnEachPage || (f => f()))(() => {
+    if (document.querySelector(".metric-toggle, [data-uniques][data-views]")) applyMode(getMode());
   });
 })();
 
@@ -8344,13 +8371,15 @@
 // Keyboard gets the identical readout — arrow keys step the focus index,
 // which matters because the tooltip is a value's second home (the table
 // view under each chart is the first).
-(function () {
-  const charts = document.querySelectorAll('[data-wtc]');
+// Runs again on a page brought in by tspSwapPage (Watchtower's tabs).
+(window.tspOnEachPage || (f => f()))(function () {
+  const charts = Array.from(document.querySelectorAll('[data-wtc]')).filter(fig => !fig.dataset.wtcBound);
   if (!charts.length) return;
 
   const fmt = (n) => Number(n).toLocaleString();
 
   charts.forEach((fig) => {
+    fig.dataset.wtcBound = '1';
     const svg = fig.querySelector('.wtc-svg');
     const dataEl = fig.querySelector('.wtc-data');
     const tip = fig.querySelector('.wtc-tooltip');
@@ -8501,7 +8530,7 @@
       show(i);
     });
   });
-})();
+});
 
 // Segmented controls (.st-seg): the chosen part's highlight is one
 // shape that slides to whichever part is chosen, rather than each part

@@ -588,6 +588,10 @@
 // panel without re-fetching. Delegated so newly-revealed rows from
 // the "Show 30 more" expander participate too.
 (function () {
+  // Once per document: Watchtower's tabs bring this page in again
+  // without a reload (tspSwapPage), which runs this script again.
+  if (window.__wtNfIpsBound) return;
+  window.__wtNfIpsBound = true;
   const PANEL_SEL = '[data-wt-ips-panel]';
   document.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-wt-ips-toggle]');
@@ -631,6 +635,8 @@
 // more IPs. On success the form swaps in place for a "Blocked" chip.
 // Delegated because the forms don't exist until a panel is opened.
 (function () {
+  if (window.__wtNfBlockBound) return;
+  window.__wtNfBlockBound = true;
   function toast(msg) {
     const el = document.createElement('div');
     el.className = 'wt-redirect-success-flash';
