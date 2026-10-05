@@ -2949,12 +2949,7 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
 /* A page with no actions: no empty box, which on a phone wraps to a
    second line and leaves the bar's gap under the heading. */
 .top-actions:not(:has(*)) { display: none; }
-/* On a phone the controls take a row of their own. A page whose sections
-   switch in place ([data-swap-nav], Watchtower) keeps that row even when
-   a section has none, so the page doesn't jump between sections. */
-@media (max-width: 720px) {
-  body:has([data-swap-nav]) .topbar .top-actions:not(:has(*)) { display: flex; min-height: 34px; }
-}
+
 /* A count badge inside a small tab sits within the tab's line height. */
 .view-toggle .btn .badge { padding: 0 6px; line-height: 1.25; }
 /* Topbar actions run at the same size as the save bar's buttons — which
@@ -7251,6 +7246,13 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .view-toggle .btn { flex: 0 0 auto; min-width: 0; }
   .sort-select { flex: 0 0 auto; min-width: 0; }
   .sort-select select { flex: 0 0 auto; min-width: 0; }
+  /* A page whose sections switch in place ([data-swap-nav], Watchtower)
+     keeps the controls on the title's row, as the same swipe strip, so
+     the bar is one row high whether a section has controls or not and
+     nothing moves between sections. */
+  body:has([data-swap-nav]) .topbar { flex-wrap: nowrap; }
+  body:has([data-swap-nav]) .topbar h1 { flex: 0 1 auto; }
+  body:has([data-swap-nav]) .top-actions { flex: 1 1 0; order: 0; }
   .heading-help { display: none; }
   /* ...but the inline field chips are the only place the help text
      lives now, so they stay — it's the topbar duplicate that goes. */
