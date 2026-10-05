@@ -158,9 +158,7 @@ body.frontend-body {
 .frontend-body .fe-recovery-nav-cta:hover { text-decoration: var(--fe-btn-decoration, none); }
 /* Mega-menu links read their own colour + decoration tokens so they
    don't inherit the body-link colour. */
-.fe-megamenu-link { text-decoration: var(--fe-megamenu-link-decoration, none); }
 .fe-megamenu-link:not(.fe-megamenu-link-colored) { color: var(--fe-color-megamenu-link, inherit); }
-.fe-megamenu-link:hover { text-decoration: var(--fe-megamenu-link-decoration-hover, none); }
 .fe-megamenu-link:hover:not(.fe-megamenu-link-colored) { color: var(--fe-color-megamenu-link-hover, inherit); }
 /* Dark-mode swap: hue-preserving slightly-dimmed variant so pure-white
    admin choices read as soft off-white instead of harsh #fff against
@@ -326,7 +324,6 @@ html[data-theme="dark"] .fe-utility-bar.is-live { background: #d6b000; }
    folds whole side items into the popover below until it fits; these
    rules are the chrome that fold needs (plus the last-resort ellipsis).
    Everything here is inert until the script unhides a trigger. */
-.fe-utility-bar { position: relative; }
 
 /* Trigger — same round pill as the theme toggle / collapsed container so
    the bar's icon chrome reads as one matched set. */
@@ -1750,10 +1747,10 @@ html[data-theme="dark"] body[data-fe-theme="recovery-blue"] .fe-btn-ghost:hover 
 .fe-contact-body > :last-child { margin-bottom: 0; }
 .fe-contact-body a { color: var(--fe-accent-2); }
 .fe-contact-card {
-  display: inline-block; text-align: left;
-  padding: 22px 28px; border-radius: 16px;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-  min-width: 280px; backdrop-filter: blur(4px);
+  display: inline-block;
+  text-align: left;
+  min-width: 280px;
+  backdrop-filter: blur(4px);
 }
 .fe-contact-role {
   font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
@@ -2234,10 +2231,7 @@ body.fe-footer-force-dark .fe-footer-custom .fe-footer-block-divider { border-to
    selectors carry the same weight. #}
 /* Dark mode (page is dark) — text colors are DIMMED so the footer
    reads as a quiet, low-contrast band against the all-dark page. */
-html[data-theme="dark"] .fe-footer {
-  background: var(--fe-color-footer-dark-bg, #0b1026); border-top-color: var(--fe-color-footer-dark-line, #1f2a44); color: var(--fe-text-dark-active, #cbd5e1);
-}
-html[data-theme="dark"] .fe-footer-name { color: var(--fe-text-dark-active, #e2e8f0); }
+html[data-theme="dark"] .fe-footer { color: var(--fe-text-dark-active, #cbd5e1); }
 html[data-theme="dark"] .fe-footer-tagline,
 html[data-theme="dark"] .fe-footer-link-list a,
 html[data-theme="dark"] .fe-footer-secondary-nav a,
@@ -9628,13 +9622,11 @@ body.fe-frontend-force-dark .fe-submission-modal-body {
 /* Hero: title + lead + image + CTA, all centered, generous whitespace. */
 .fe-pp-hero { text-align: center; }
 .fe-pp-title {
-  font-family: var(--fe-font-display);
   font-size: clamp(2.25rem, 4.6vw, 3.75rem);
   line-height: 1.05;
   letter-spacing: -0.02em;
   font-weight: 700;
   margin: 0 0 22px;
-  color: var(--fe-color-text, var(--fe-ink));
 }
 .fe-pp-lead {
   font-size: clamp(1.0625rem, 1.4vw, 1.25rem);
@@ -9723,19 +9715,11 @@ body.fe-frontend-force-dark .fe-submission-modal-body {
 .fe-pp-section { margin-top: var(--fe-pp-section-gap, 32px); }
 .fe-pp-section:first-of-type { margin-top: 0; }
 .fe-pp-section-title {
-  /* Section titles only render when the admin set `sec.title`, and
-     they keep theme-derived font + colour (typography, not chrome).
-     `text-align: center` was forced visual styling and has been
-     removed — the title now follows its parent's text alignment so
-     the admin's choice (left-aligned page, centered page, etc.)
-     wins. */
-  font-family: var(--fe-font-display);
   font-size: clamp(1.5rem, 2.4vw, 2rem);
   line-height: 1.15;
   letter-spacing: -0.015em;
   font-weight: 700;
   margin: 0 0 20px;
-  color: var(--fe-color-text, var(--fe-ink));
 }
 
 /* Body prose inside sections. Centered for the hero, left-aligned
@@ -9904,16 +9888,6 @@ body.fe-frontend-force-dark .fe-pp-list-pills > li {
 /* Dark mode parity — surface, border, and shadow tokens already shift
    via the design system; tune the step-card contrast so it reads
    cleanly against the dark page surface. */
-html[data-theme="dark"] .fe-pp-step {
-  /* Dark-mode parity with `.fe-meeting-card` — same surface + border
-     tokens so list cards and meeting cards read as the same family
-     under either theme. */
-  background: #131a33;
-  border-color: #1f2a44;
-}
-html[data-theme="dark"] .fe-pp-step:hover {
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-}
 @media (max-width: 640px) {
   /* Honor the admin's `--fe-pp-pad-top` / `--fe-pp-pad-bottom` on
      mobile too — the previous hardcoded `padding: 56px 0 72px`
@@ -9974,7 +9948,6 @@ html[data-theme="dark"] .fe-pp-step:hover {
 .fe-pp-hero-card .fe-pp-lead {
   text-align: left;
   max-width: none;
-  color: var(--fe-color-text, var(--fe-ink));
 }
 .fe-pp-hero-card .fe-pp-prose { text-align: left; }
 .fe-pp-hero-card .fe-pp-prose p { margin: 0; }

@@ -219,7 +219,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `#relayFields` and `#smtpFields` were plain blocks inside the flex `.form`, so their fields had no gap; they are now flex columns inheriting the form's gap.
 
 ### Removed
-- 373 CSS rules no page uses (372 in app.css, 1 in frontend.css; about 1,000 lines): rules whose every selector names a class that no template, script, Python module or stored content refers to, directly or by a built-up name. Shared rules lost only those selectors. Screenshots of 57 admin and public screens at desktop, phone and dark showed no change.
+- 68 CSS declarations (50 in app.css, 18 in frontend.css) that a later rule with the identical selector, in the same @media / @container context, sets again or covers with a shorthand; 15 rules emptied by this went too.
+- 374 CSS rules no page uses (372 in app.css, 2 in frontend.css; about 1,000 lines): rules whose every selector names a class that no template, script, Python module or stored content refers to, directly or by a built-up name. Shared rules lost only those selectors. Screenshots of 57 admin and public screens at desktop, phone and dark showed no change.
 - The dashboard's Join the email list widget (`trusted-servants` in `DASHBOARD_WIDGET_KEYS`, its Customize toggle, `trusted_servants_subscribe` at `POST /email-list/subscribe`, and the `.ts-widget-*` rules). `User.dash_show_trusted_servants` stays, unused, so older databases and backups load.
 - The unused `.zoom-cal` table and `.cal-slot`, `.cal-time`, `.cal-link` rules.
 - The Zoom account add and edit modals and the `.zoom-accounts-*`, `.zoom-otp-widget`, `.zoom-otp-title` and `.notes-*` rules.
