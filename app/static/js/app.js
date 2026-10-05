@@ -2380,24 +2380,25 @@
     });
   });
 
-  // Click-to-copy buttons
-  document.querySelectorAll(".copy-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      try {
-        let value = btn.dataset.copy;
-        if (!value && btn.dataset.copyUrl) {
-          const r = await fetch(btn.dataset.copyUrl);
-          const j = await r.json();
-          value = j.password || j.value || "";
-        }
-        if (!value) throw new Error("empty");
-        await navigator.clipboard.writeText(value);
-        const original = btn.dataset.tip;
-        btn.dataset.tip = "Copied!";
-        btn.classList.add("copied");
-        setTimeout(() => { btn.dataset.tip = original; btn.classList.remove("copied"); }, 1200);
-      } catch (e) { btn.dataset.tip = "Copy failed"; }
-    });
+  // Click-to-copy buttons. Delegated, so chips on a page swapped in
+  // (a File Browser file's path) copy too. copyText (below) falls back
+  // to a hidden textarea where the clipboard API is off (plain http).
+  document.addEventListener("click", async e => {
+    const btn = e.target.closest && e.target.closest(".copy-btn");
+    if (!btn) return;
+    try {
+      let value = btn.dataset.copy;
+      if (!value && btn.dataset.copyUrl) {
+        const r = await fetch(btn.dataset.copyUrl);
+        const j = await r.json();
+        value = j.password || j.value || "";
+      }
+      if (!value || !(await copyText(value))) throw new Error("not copied");
+      const original = btn.dataset.tip;
+      btn.dataset.tip = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => { btn.dataset.tip = original; btn.classList.remove("copied"); }, 1200);
+    } catch (err) { btn.dataset.tip = "Copy failed"; }
   });
 
   // Reveal Zoom password

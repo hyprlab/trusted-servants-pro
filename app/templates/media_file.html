@@ -76,10 +76,7 @@
       <div class="st-controls">
         <div class="ds-group st-group-body">
           <h3 class="ds-group-title">{{ icon('link') }}Path</h3>
-          <div class="fe-sync-tokenbox fb-file-path">
-            <code class="fe-sync-token-value">{{ _pub_full }}</code>
-            <button type="button" class="btn btn-sm" data-copy-text="{{ _pub_full }}" title="Copy the path">{{ icon('copy') }}<span>Copy</span></button>
-          </div>
+          <button type="button" class="copy-btn fb-file-path" data-copy="{{ _pub_full }}" data-tip="Click to copy">{{ _pub_full }}</button>
           <p class="muted small">Anyone with this link can open the file.</p>
         </div>
 
@@ -111,20 +108,6 @@
           {% endif %}
         </div>
 
-        {% if current_user.is_admin() %}
-        <div class="ds-group st-group-body">
-          <h3 class="ds-group-title">{{ icon('hard-drive') }}Storage</h3>
-          <div class="fe-sync-tokenbox fb-file-path">
-            <code class="fe-sync-token-value">{{ disk_path }}</code>
-            <button type="button" class="btn btn-sm" data-copy-text="{{ disk_path }}" title="Copy the location on the server">{{ icon('copy') }}<span>Copy</span></button>
-          </div>
-          <dl class="pe-facts">
-            <dt>Stored as</dt><dd class="mono">{{ m.stored_filename }}</dd>
-            {% if m.content_hash %}<dt>SHA-256</dt><dd class="mono">{{ m.content_hash }}</dd>{% endif %}
-            <dt>On disk</dt><dd>{% if on_disk %}Present{% else %}<span class="post-chip post-chip-danger">Missing</span>{% endif %}</dd>
-          </dl>
-        </div>
-        {% endif %}
       </div>
     </div>
   </section>

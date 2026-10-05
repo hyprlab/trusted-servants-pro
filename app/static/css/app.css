@@ -16241,8 +16241,8 @@ body.embed .fb-file-view { --fb-h: calc(100vh - 2 * var(--content-px)); }
 .fb-empty.fb-file-stage { height: auto; }
 .fb-file-media { display: block; width: 100%; height: 100%; object-fit: contain; border: 0; }
 .fb-file-pdf { background: #525659; }
-.fb-file-path { margin: 0; }
-.fb-file-path > .fe-sync-token-value { white-space: normal; overflow-wrap: anywhere; }
+/* The path is a click-to-copy chip (.copy-btn) the column's width. */
+.copy-btn.fb-file-path { display: block; width: 100%; text-align: left; overflow-wrap: anywhere; }
 /* The pager keeps its size in a bar (the list's own goes full width
    on a phone). */
 :is(.top-actions, .fb-file-bar) > .media-pagination-controls { width: auto; flex: 0 0 auto; }

@@ -17472,7 +17472,7 @@ def media_file(mid):
                          **({"page": back_page} if back_page and back_page > 1 else {})),
         type_label=MEDIA_TYPE_LABELS.get(t, "File"),
         mime=m.mime_type or mimetypes.guess_type(m.original_filename or "")[0],
-        on_disk=on_disk, disk_path=path, facts=facts, usages=_media_usages(m))
+        on_disk=on_disk, facts=facts, usages=_media_usages(m))
 
 
 @bp.route("/files/upload", methods=["POST"])
