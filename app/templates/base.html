@@ -1,5 +1,6 @@
 {% from "_help_chip.html" import chip, hrow %}
 {% from "_site_alert.html" import site_alert_bar, site_alert_modal with context %}
+{% from "_md_toolbar.html" import md_toolbar %}
 <!doctype html>
 <html lang="en" data-theme="light"{% if current_user.is_authenticated and current_user.theme_pref %} data-theme-pref="{{ current_user.theme_pref }}"{% endif %}>
 <head>
@@ -1488,10 +1489,27 @@
                 <span class="mode-track"><span class="mode-thumb"></span></span>
               </label>
             </div>
-            <label>{% call hrow('Message') %}Markdown works: **bold**, *italic* and [a link](https://example.org).{% endcall %}
-              <textarea name="alert_message" rows="3" maxlength="2000" data-alert-message
-                        placeholder="The portal moves to a new server on Saturday at 9 PM. Save your work before then.">{{ site.alert_message or '' }}</textarea>
-            </label>
+            <div class="form-field-block">{% call hrow('Message') %}What the bar says. Use the toolbar, or type Markdown: headings, <code>**bold**</code>, lists and links. The preview beside it shows the Markdown; the bar below shows it in place.{% endcall %}
+              <div class="md-editor md-editor-live alert-message-md" data-md-editor data-md-live="1" data-md-mode="inline">
+                {{ md_toolbar() }}
+                <div class="md-editor-pane md-editor-pane-write active">
+                  <textarea name="alert_message" rows="4" maxlength="2000" data-alert-message aria-label="Message"
+                            placeholder="The portal moves to a new server on Saturday at 9 PM. Save your work before then.">{{ site.alert_message or '' }}</textarea>
+                </div>
+                <div class="md-editor-pane md-editor-pane-preview active">
+                  <div class="md-editor-preview site-alert-msg"><p class="muted smaller">Nothing to preview yet.</p></div>
+                </div>
+              </div>
+            </div>
+            <div class="form-field-block">
+              <span class="alert-preview-label muted small">Preview<span data-alert-preview-hint{% if not (site.alert_details_enabled and (site.alert_details or '').strip()) %} hidden{% endif %}>: click it to see the window</span></span>
+              <div class="site-alert site-alert--preview is-{{ _al_tone }}" data-alert-preview>
+                <span class="site-alert-icon" aria-hidden="true">{% for key, label, ic in ALERT_TONES %}<span data-tone-icon="{{ key }}"{% if key != _al_tone %} hidden{% endif %}>{{ icon(ic) }}</span>{% endfor %}</span>
+                <div class="site-alert-msg" data-alert-preview-msg>{{ (site.alert_message or '')|markdown_inline }}</div>
+                <button type="button" class="site-alert-more" data-alert-preview-more{% if not (site.alert_details_enabled and (site.alert_details or '').strip()) %} hidden{% endif %}>Details{{ icon('chevron-right') }}</button>
+                <span class="site-alert-close" data-alert-preview-close aria-hidden="true"{% if not site.alert_dismissible %} hidden{% endif %}>{{ icon('x') }}</span>
+              </div>
+            </div>
             <div class="special-page-row">
               <div class="special-page-info">
                 <div class="u-name">Open details when clicked</div>
@@ -1506,10 +1524,18 @@
               <label>{% call hrow('Window title') %}Optional. Left blank, the window is titled with the style's name, such as Warning.{% endcall %}
                 <input type="text" name="alert_title" maxlength="200" value="{{ site.alert_title or '' }}" data-alert-title placeholder="Server move this Saturday">
               </label>
-              <label>{% call hrow('Details') %}Shown in the window under the message. Markdown works: headings, lists, bold, italic and links.{% endcall %}
-                <textarea name="alert_details" rows="6" maxlength="20000" data-alert-details
-                          placeholder="What is changing, when, and what people need to do.">{{ site.alert_details or '' }}</textarea>
-              </label>
+              <div class="form-field-block">{% call hrow('Details') %}Shown in the window under the message. Use the toolbar, or type Markdown: headings, <code>**bold**</code>, lists and links. The preview shows it as it will look.{% endcall %}
+                <div class="md-editor md-editor-live alert-details-md" data-md-editor data-md-live="1">
+                  {{ md_toolbar() }}
+                  <div class="md-editor-pane md-editor-pane-write active">
+                    <textarea name="alert_details" rows="8" maxlength="20000" data-alert-details aria-label="Details"
+                              placeholder="What is changing, when, and what people need to do.">{{ site.alert_details or '' }}</textarea>
+                  </div>
+                  <div class="md-editor-pane md-editor-pane-preview active">
+                    <div class="md-editor-preview site-alert-detail-body"><p class="muted smaller">Nothing to preview yet.</p></div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="form-field-block">{% call hrow('Style') %}The bar's color and icon.{% endcall %}
               <div class="ds-seg-btns alert-tone-seg" role="radiogroup" aria-label="Style">
@@ -1531,15 +1557,6 @@
             <label>{% call hrow('Stop showing after') %}Optional, in the portal's timezone ({{ site.timezone or 'UTC' }}). Leave it blank to show the bar until you turn it off.{% endcall %}
               <input type="datetime-local" name="alert_until" value="{{ site.alert_until.strftime('%Y-%m-%dT%H:%M') if site.alert_until else '' }}">
             </label>
-            <div class="form-field-block">
-              <span class="alert-preview-label muted small">Preview<span data-alert-preview-hint{% if not (site.alert_details_enabled and (site.alert_details or '').strip()) %} hidden{% endif %}>: click it to see the window</span></span>
-              <div class="site-alert site-alert--preview is-{{ _al_tone }}" data-alert-preview>
-                <span class="site-alert-icon" aria-hidden="true">{% for key, label, ic in ALERT_TONES %}<span data-tone-icon="{{ key }}"{% if key != _al_tone %} hidden{% endif %}>{{ icon(ic) }}</span>{% endfor %}</span>
-                <div class="site-alert-msg" data-alert-preview-msg>{{ (site.alert_message or '')|markdown_inline }}</div>
-                <button type="button" class="site-alert-more" data-alert-preview-more{% if not (site.alert_details_enabled and (site.alert_details or '').strip()) %} hidden{% endif %}>Details{{ icon('chevron-right') }}</button>
-                <span class="site-alert-close" data-alert-preview-close aria-hidden="true"{% if not site.alert_dismissible %} hidden{% endif %}>{{ icon('x') }}</span>
-              </div>
-            </div>
             <div class="data-card-actions"><button class="btn btn-primary">Save Alert Bar</button></div>
           </form>
         </section>

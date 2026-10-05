@@ -17937,6 +17937,15 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .site-alert-msg p { margin: 0; }
 .site-alert-msg p + p { margin-top: 6px; }
 .site-alert-msg a { color: inherit; font-weight: 600; text-decoration: underline; }
+/* Full Markdown in the bar: blocks spaced like paragraphs, headings at
+   the bar's size. */
+.site-alert-msg > * + * { margin-top: 6px; }
+.site-alert-msg :is(h1, h2, h3, h4, h5, h6) { margin: 0; font-size: inherit; font-weight: 700; line-height: inherit; }
+.site-alert-msg :is(ul, ol) { margin: 0; padding-left: 20px; }
+.site-alert-msg blockquote { margin: 0; padding-left: 10px; border-left: 3px solid color-mix(in srgb, var(--sa-edge) 45%, transparent); }
+.site-alert-msg hr { margin: 6px 0; border: 0; border-top: 1px solid color-mix(in srgb, var(--sa-edge) 35%, transparent); }
+.site-alert-msg img { max-width: 100%; height: auto; border-radius: 6px; }
+.site-alert-msg code { font-size: .92em; }
 .site-alert-close { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
   margin: -3px -6px -3px 0; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; opacity: .7; cursor: pointer; }
 .site-alert-close:hover { opacity: 1; background: color-mix(in srgb, var(--sa-edge) 14%, transparent); }
@@ -17963,6 +17972,9 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .site-alert-detail-lead { padding: 12px 14px; border-radius: 10px; background: var(--sa-bg); color: var(--sa-ink);
   border: 1px solid color-mix(in srgb, var(--sa-edge) 35%, transparent); line-height: 1.5; }
 .site-alert-detail-lead p, .site-alert-detail-body p { margin: 0; }
+.site-alert-detail-lead > * + * { margin-top: 8px; }
+.site-alert-detail-lead :is(h1, h2, h3, h4, h5, h6) { margin: 0; font-size: var(--fs-md); font-weight: 700; }
+.site-alert-detail-lead :is(ul, ol) { margin: 0; padding-left: 22px; }
 .site-alert-detail-lead a { color: inherit; font-weight: 600; text-decoration: underline; }
 .site-alert-detail-body { display: flex; flex-direction: column; gap: 10px; line-height: 1.6; overflow-wrap: anywhere; }
 .site-alert-detail-body:empty { display: none; }
@@ -17985,6 +17997,9 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .site-alert--dashboard { margin-bottom: 20px; }
 /* Settings > Alert Bar. */
 .alert-places { display: grid; gap: 8px; }
+.alert-details-fields { display: flex; flex-direction: column; gap: 2rem; }
+.alert-details-fields[hidden] { display: none; }
+.alert-message-md .md-editor-pane-write textarea { min-height: 110px; }
 .alert-form .check > span > span { display: block; font-weight: 400; }
 .alert-preview-label { display: block; margin-bottom: 6px; font-weight: 600; }
 
