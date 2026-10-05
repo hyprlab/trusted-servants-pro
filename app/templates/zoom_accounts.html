@@ -172,7 +172,7 @@
         {% set _w = 100 / W.lanes / b.cols %}
         <a class="zcal-block za-c{{ b.color }}{{ ' is-conflict' if s.id in conflict_ids }}"
            href="{{ url_for('main.meeting_detail', slug=s.meeting.public_slug) }}"
-           style="top: {{ b.top }}%; height: {{ b.height }}%; left: calc({{ b.lane * 100 / W.lanes + b.col * _w }}% + 2px); width: calc({{ _w }}% - 4px);"
+           style="top: {{ b.top }}%; height: {{ b.height }}%; --zl: {{ b.lane * 100 / W.lanes + b.col * _w }}%; --zw: {{ _w }}%;"
            title="{{ s.meeting.name }} · {{ s.zoom_account.name if s.zoom_account }} · {{ _t(b.start) }}–{{ _t(b.end) }}{% if s.opens_time and b.start < s.start_minutes() %} (room opens {{ _t(b.start) }}, starts {{ s.start_time|fmt12h }}){% endif %}{% if s.id in conflict_ids %} · overlaps another meeting on this account{% endif %}">
           <span class="zcal-block-time">{{ b.label }}</span>
           <span class="zcal-block-name">{{ s.meeting.name }}</span>

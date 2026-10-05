@@ -18016,7 +18016,15 @@ html[data-theme="dark"] .za-c5 { --za-bg: rgba(20, 184, 166, .26); --za-ink: #99
 .zcal-block { position: absolute; z-index: 1; display: flex; flex-direction: column; gap: 1px; min-height: 18px; overflow: hidden;
   padding: 3px 6px; border-radius: 6px; background: var(--za-bg); box-shadow: inset 3px 0 0 var(--za-edge);
   color: var(--za-ink); font-size: var(--fs-2xs); line-height: 1.25; text-decoration: none; container-type: inline-size; }
-.zcal-block:hover { z-index: 2; text-decoration: none; filter: saturate(1.4); box-shadow: inset 3px 0 0 var(--za-edge), 0 2px 8px rgba(15, 23, 42, .18); }
+/* A block sits in its lane (--zl, --zw from the template); hovered or
+   focused it widens to the whole day column to show its time and name,
+   after a short pause so sweeping the pointer across doesn't set it off. */
+.zcal-block { left: calc(var(--zl, 0%) + 2px); width: calc(var(--zw, 100%) - 4px);
+  transition: left .2s ease, width .2s ease, box-shadow .2s ease; }
+.zcal-block:hover, .zcal-block:focus-visible { z-index: 2; left: 2px; width: calc(100% - 4px); text-decoration: none; filter: saturate(1.4);
+  background: linear-gradient(var(--za-bg), var(--za-bg)), var(--panel);
+  box-shadow: inset 3px 0 0 var(--za-edge), 0 4px 14px rgba(15, 23, 42, .22); transition-delay: .08s; }
+@media (prefers-reduced-motion: reduce) { .zcal-block, .zcal-block:hover, .zcal-block:focus-visible { transition: none; } }
 .zcal-block.is-conflict { outline: 2px solid #dc2626; outline-offset: -2px; }
 .zcal-block-time { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zcal-block-name { font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
