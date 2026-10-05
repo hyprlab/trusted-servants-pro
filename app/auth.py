@@ -1091,6 +1091,22 @@ def users_create():
     # tidy up the request they just acted on.
     archived_rid = _close_access_request(request.form.get("access_request_id"), u)
 
+    # New users join the Trusted Servants Email List unless the form's box
+    # is cleared. Someone already on it by this email (added by hand
+    # before they had an account) has that entry linked to the account
+    # instead of a second one made.
+    if request.form.get("add_to_email_list") == "1":
+        from .models import TrustedServantSubscriber
+        sub = TrustedServantSubscriber.query.filter(
+            func.lower(TrustedServantSubscriber.email) == email.lower()).first()
+        if sub is None:
+            db.session.add(TrustedServantSubscriber(
+                user_id=u.id, name=(name or username)[:120], email=email[:255],
+                phone=(phone or "")[:64] or None))
+        elif sub.user_id is None:
+            sub.user_id = u.id
+        db.session.commit()
+
     # Optional welcome email. Defaults to opt-in via the form checkbox;
     # falls back to the success path silently when SMTP isn't configured
     # or sending fails — the admin keeps the credentials they typed in

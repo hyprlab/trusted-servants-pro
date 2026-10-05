@@ -101,6 +101,9 @@ class User(UserMixin, db.Model):
     dash_show_currently_online = db.Column(db.Boolean, nullable=False, default=True)
     dash_show_visitor_metrics = db.Column(db.Boolean, nullable=False, default=True)
     dash_show_backups = db.Column(db.Boolean, nullable=False, default=True)
+    # Unused: the dashboard's "Join the email list" widget it showed is
+    # retired (new users join the list when created). Kept so older
+    # databases and backups still load.
     dash_show_trusted_servants = db.Column(db.Boolean, nullable=False, default=True)
     dash_show_release_notes = db.Column(db.Boolean, nullable=False, default=True)
     # When True, the main app sidebar auto-collapses to a hamburger
@@ -3615,12 +3618,11 @@ class TrustedServantSubscriber(db.Model):
     """One row per entry on the Trusted Servants email list. Two paths
     create rows:
 
-      1. A signed-in user clicks "Join the list" on the dashboard
-         widget — ``user_id`` is set and the user can edit/remove their
-         own entry via the widget on subsequent visits.
-      2. An admin uses the manual-entry modal on /email-list to
-         add an external contact who doesn't have a portal account —
-         ``user_id`` is NULL; the row is admin-managed only.
+      1. Creating a portal user (auth.users_create, unless its "Add to
+         the Email List" box is cleared) adds them with ``user_id`` set,
+         or links an entry that already has their email.
+      2. An admin adds someone on /email-list, often a contact without
+         a portal account: ``user_id`` is NULL.
 
     ``user_id`` is unique when set so a single user can't accumulate
     duplicate subscriptions, but multiple NULL rows are allowed (SQLite
