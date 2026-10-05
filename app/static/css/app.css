@@ -3938,8 +3938,6 @@ input[type="file"]::-webkit-file-upload-button {
 }
 .ulog-expand-btn .muted { color: var(--muted, #64748b); }
 
-.badge-success { background: #d1fae5; color: #065f46; border-color: #10b981; }
-[data-theme="dark"] .badge-success { background: #064e3b; color: #d1fae5; border-color: #059669; }
 
 
 /* Activity feed — vertical timeline with rail + circular icon nodes.
@@ -4568,6 +4566,10 @@ html.login-fade-in body { animation: login-page-fade-in 650ms ease-out both; }
   background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); }
 .badge-warning { background: #fef3c7; color: #78350f; border-color: #f59e0b; }
 .badge-muted { background: var(--panel-2); color: var(--muted); border-color: var(--border); }
+/* Variants come after .badge so their colors win (.badge-success sat
+   above it, so the green never showed in light mode). */
+.badge-success { background: #d1fae5; color: #065f46; border-color: #10b981; }
+[data-theme="dark"] .badge-success { background: #064e3b; color: #d1fae5; border-color: #059669; }
 [data-theme="dark"] .badge-warning { background: #78350f; color: #fef3c7; border-color: #d97706; }
 .user-locked-badge { margin-left: 8px; }
 
@@ -11797,10 +11799,6 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 .dynbg-modal-preview-pane { min-width: 0; }
 /* Dark pane: paint the page-bg the recipes assume in dark mode so the
    surface reads as a real dark-theme sample, not a light card. */
-.dynbg-modal-preview-surface--dark {
-  background: var(--fe-color-bg, #0b1220);
-  border-color: color-mix(in srgb, #fff 12%, transparent);
-}
 .dynbg-modal-preview-surface--dark .dynbg-modal-preview-empty { color: rgba(255, 255, 255, 0.6); }
 .dynbg-modal-preview-surface.fe-dynbg-host > .dynbg-modal-preview-mode {
   position: absolute; right: 10px; top: 8px; z-index: 2;
@@ -11821,6 +11819,11 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   display: grid;
   place-items: center;
   isolation: isolate;
+}
+/* After the base rule, so the dark sample keeps its dark background. */
+.dynbg-modal-preview-surface--dark {
+  background: var(--fe-color-bg, #0b1220);
+  border-color: color-mix(in srgb, #fff 12%, transparent);
 }
 .dynbg-modal-preview-empty {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
