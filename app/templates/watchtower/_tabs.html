@@ -11,42 +11,42 @@
      • pending_access_count          → Requests (access-request inbox)
    Counts come from inject_globals() in routes.py — available everywhere.
 
-   The links sit in an inner track so that below 720px the track alone
-   scrolls sideways and fades at its edges (topActionsSwipeFade in
-   app.js), while the strip's own border and background stay solid. #}
+   The links are the shared segmented control (.ds-seg-btns); the current
+   one carries aria-current. Below 720px the control scrolls sideways and
+   fades at its edges (topActionsSwipeFade in app.js). #}
 <nav class="wt-tabs" aria-label="Watchtower sections">
-  <div class="wt-tabs-track">
+  <div class="ds-seg-btns wt-tabs-track">
     <a href="{{ url_for('main.watchtower') }}"
-       class="wt-tab {% if active_tab == 'overview' %}is-active{% endif %}">
-      <span class="wt-tab-icon">{{ icon('activity') }}</span>
-      <span class="wt-tab-label">Overview</span>
+       {% if active_tab == 'overview' %}aria-current="page"{% endif %}>
+      {{ icon('activity') }}
+      <span>Overview</span>
       {% if recovery_contacts_abuse_count %}<span class="nav-badge nav-badge-danger" title="{{ recovery_contacts_abuse_count }} flagged Recovery Contacts request{{ 's' if recovery_contacts_abuse_count != 1 else '' }} need review">{{ recovery_contacts_abuse_count }}</span>{% endif %}
     </a>
     <a href="{{ url_for('main.watchtower_visitors') }}"
-       class="wt-tab {% if active_tab == 'visitors' %}is-active{% endif %}">
-      <span class="wt-tab-icon">{{ icon('users') }}</span>
-      <span class="wt-tab-label">Visitors</span>
+       {% if active_tab == 'visitors' %}aria-current="page"{% endif %}>
+      {{ icon('users') }}
+      <span>Visitors</span>
     </a>
     <a href="{{ url_for('main.watchtower_not_found') }}"
-       class="wt-tab {% if active_tab == 'not-found' %}is-active{% endif %}">
-      <span class="wt-tab-icon">{{ icon('alert-triangle') }}</span>
-      <span class="wt-tab-label">404s</span>
+       {% if active_tab == 'not-found' %}aria-current="page"{% endif %}>
+      {{ icon('alert-triangle') }}
+      <span>404s</span>
     </a>
     <a href="{{ url_for('main.watchtower_access') }}"
-       class="wt-tab {% if active_tab == 'access' %}is-active{% endif %}">
-      <span class="wt-tab-icon">{{ icon('key') }}</span>
-      <span class="wt-tab-label">Access</span>
+       {% if active_tab == 'access' %}aria-current="page"{% endif %}>
+      {{ icon('key') }}
+      <span>Access</span>
       {% if locked_accounts_count %}<span class="nav-badge" title="{{ locked_accounts_count }} locked account{{ 's' if locked_accounts_count != 1 else '' }}">{{ locked_accounts_count }}</span>{% endif %}
     </a>
     <a href="{{ url_for('main.watchtower_deletes') }}"
-       class="wt-tab {% if active_tab == 'deletes' %}is-active{% endif %}">
-      <span class="wt-tab-icon">{{ icon('trash-2') }}</span>
-      <span class="wt-tab-label">Deletes</span>
+       {% if active_tab == 'deletes' %}aria-current="page"{% endif %}>
+      {{ icon('trash-2') }}
+      <span>Deletes</span>
     </a>
     <a href="{{ url_for('main.watchtower_requests') }}"
-       class="wt-tab {% if active_tab == 'requests' %}is-active{% endif %}">
-      <span class="wt-tab-icon">{{ icon('mail') }}</span>
-      <span class="wt-tab-label">Requests</span>
+       {% if active_tab == 'requests' %}aria-current="page"{% endif %}>
+      {{ icon('mail') }}
+      <span>Requests</span>
       {% if pending_access_count %}<span class="nav-badge nav-badge-warn" title="{{ pending_access_count }} pending access request{{ 's' if pending_access_count != 1 else '' }}">{{ pending_access_count }}</span>{% endif %}
     </a>
   </div>

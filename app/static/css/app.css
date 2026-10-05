@@ -293,7 +293,7 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
   display: inline-flex; align-items: center; gap: var(--gap-3xs); padding: 3px; margin: 0;
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px;
 }
-.ds-seg-btns > button, .ds-kind > button, .ds-seg-btns > label, .form .ds-seg-btns > label,
+.ds-seg-btns > button, .ds-kind > button, .ds-seg-btns > label, .form .ds-seg-btns > label, .ds-seg-btns > a,
 .nav-megalink-seg-opt, .form .nav-megalink-seg-opt,
 .ar-view-tab, .fe-mlist-link-type-opt > span, .dynbg-modal-tab-wrap, .pbe-segmented-btn,
 .content-mode-seg-btn, .view-toggle > .btn, .fe-template-picker .btn {
@@ -303,13 +303,14 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
   color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: none; box-shadow: none;
   transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
-.ds-seg-btns > button:hover, .ds-kind > button:hover, .ds-seg-btns > label:hover,
+.ds-seg-btns > button:hover, .ds-kind > button:hover, .ds-seg-btns > label:hover, .ds-seg-btns > a:hover,
 .nav-megalink-seg-opt:hover, .ar-view-tab:hover,
 .fe-mlist-link-type-opt:hover > span, .dynbg-modal-tab-wrap:hover, .pbe-segmented-btn:hover,
 .content-mode-seg-btn:hover, .view-toggle > .btn:hover {
   background: transparent; color: var(--text); text-decoration: none;
 }
 .ds-seg-btns > [aria-checked="true"], .ds-kind > [aria-checked="true"], .ds-seg-btns > label.is-active,
+.ds-seg-btns > [aria-current="page"],
 .ds-seg-btns > label:has(input:checked), .nav-megalink-seg-opt:has(input:checked), .ar-view-tab.is-active,
 .fe-mlist-link-type-opt input:checked + span, .dynbg-modal-tab-wrap.is-active,
 .pbe-segmented-btn.is-active, .content-mode-seg-btn.is-active,
@@ -323,7 +324,7 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
   position: absolute; width: 0; height: 0; opacity: 0; margin: 0; pointer-events: none;
 }
 .ds-seg-btns > label:has(input:focus-visible), .nav-megalink-seg-opt:has(input:focus-visible), .fe-mlist-link-type-opt input:focus-visible + span,
-.ds-seg-btns > button:focus-visible, .ds-kind > button:focus-visible, .ar-view-tab:focus-visible,
+.ds-seg-btns > button:focus-visible, .ds-kind > button:focus-visible, .ar-view-tab:focus-visible, .ds-seg-btns > a:focus-visible,
 .dynbg-modal-tab-wrap:has(:focus-visible), .pbe-segmented-btn:focus-visible,
 .content-mode-seg-btn:focus-visible, .view-toggle > .btn:focus-visible, .fe-template-picker .btn:focus-visible {
   outline: 2px solid var(--brand); outline-offset: 1px;
@@ -12965,24 +12966,16 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
    Everything below scopes under `.wt-*` so it can't collide with
    other admin pages. ============================================ */
 
-/* Tabs strip ─────────────────────────────────────────────────────── */
-.wt-tabs {
-  margin: 0 0 18px;
-  padding: 4px;
-  background: var(--panel, #f8fafc);
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: var(--r-xl);
-}
-.wt-tabs-track { display: flex; flex-wrap: wrap; gap: var(--gap-2xs); }
-/* Phones: one row that swipes sideways instead of wrapping to three.
-   The track is the scroller, so the fade mask (vars driven by
-   topActionsSwipeFade in app.js) only touches the tabs, not the
-   strip's border. The 2px track padding keeps the active tab's shadow
-   from being clipped by the scroll box. */
+/* Tabs strip ───────────────────────────────────────────────────────
+   The shared segmented control (.ds-seg-btns, at the top of this file):
+   only its spacing and the phone swipe live here. Phones: one row that
+   swipes sideways, with the fade mask driven by topActionsSwipeFade in
+   app.js. */
+.wt-tabs { margin: 0 0 var(--stack-gap); }
+.wt-tabs-track { flex-wrap: wrap; max-width: 100%; }
 @media (max-width: 720px) {
-  .wt-tabs { padding: 2px; }
   .wt-tabs-track {
-    flex-wrap: nowrap; padding: 2px;
+    display: flex; flex-wrap: nowrap;
     overflow-x: auto; overflow-y: hidden;
     touch-action: pan-x; -webkit-overflow-scrolling: touch;
     scrollbar-width: none; -ms-overflow-style: none;
@@ -12995,33 +12988,11 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
       #000 calc(100% - var(--swipe-fade-r)), transparent 100%);
   }
   .wt-tabs-track::-webkit-scrollbar { width: 0; height: 0; display: none; }
-  .wt-tab { flex: 0 0 auto; white-space: nowrap; }
+  .wt-tabs-track > a { flex: 0 0 auto; }
 }
-.wt-tab {
-  display: inline-flex; align-items: center; gap: var(--gap-sm);
-  padding: 8px 14px;
-  border-radius: var(--r-md);
-  color: var(--muted, #475569);
-  text-decoration: none;
-  font-weight: 600; font-size: var(--fs-base);
-  transition: background-color 140ms ease, color 140ms ease;
-}
-.wt-tab:hover { background: rgba(15, 23, 42, 0.05); color: var(--text, #0f172a); }
-.wt-tab.is-active {
-  background: var(--bg, #ffffff);
-  color: var(--text, #0f172a);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.05);
-}
-.wt-tab-icon { display: inline-flex; width: 16px; height: 16px; }
-.wt-tab-icon svg { width: 16px; height: 16px; }
-
-[data-theme="dark"] .wt-tabs { background: #0f172a; border-color: #1f2937; }
-[data-theme="dark"] .wt-tab { color: #94a3b8; }
-[data-theme="dark"] .wt-tab:hover { background: rgba(255,255,255,0.04); color: #e5e7eb; }
-[data-theme="dark"] .wt-tab.is-active { background: #1f2937; color: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
 /* Per-tab attention chip — reuses .nav-badge; just trims the default
    left margin so it sits snug against the label inside the tab. */
-.wt-tab .nav-badge { margin-left: 2px; }
+.wt-tabs .nav-badge { margin-left: 2px; }
 
 /* Needs-attention widget (Overview) ─────────────────────────────────
    Mirrors the sidebar Watchtower chip and routes each item to the tab
@@ -16271,12 +16242,6 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .fb-sort-link:hover { text-decoration: none; }
 .fb-tbl th .fb-sort-link { font-size: inherit; letter-spacing: inherit; }
 .fb-tbl th.fb-num .fb-sort-link { justify-content: flex-end; }
-.fb-view > a { display: inline-flex; align-items: center; gap: var(--gap-xs); padding: 5px 10px; border-radius: var(--r-sm);
-  font-size: var(--fs-sm); font-weight: 600; line-height: 1.2; color: var(--muted); text-decoration: none; white-space: nowrap; }
-.fb-view > a:hover { color: var(--text); text-decoration: none; }
-.fb-view > a[aria-checked="true"] { background: var(--panel); color: var(--text);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border); }
-.fb-view > a .icon { width: 15px; height: 15px; }
 /* The file menu stays visible (other tables show theirs on hover). */
 .fb-tbl tbody tr .row-menu-btn { opacity: 1; }
 
@@ -17146,19 +17111,6 @@ html[data-theme="dark"] .za-slot.is-conflict .za-slot-time { color: #fca5a5; }
 .fb-side > .ts-switch { display: flex; }
 .fb-side > .ts-switch > a { flex: 1 1 0; min-width: 0; justify-content: center; padding: 6px 8px; }
 .fb-side > .ts-switch .icon { display: none; }
-.ts-switch > a {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--gap-xs);
-  border-radius: var(--r-sm);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--muted);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.ts-switch > a:hover { color: var(--text); text-decoration: none; }
-.ts-switch > a .icon { width: 15px; height: 15px; }
 .ts-switch-n { padding: 0 7px; border-radius: var(--r-pill); background: var(--panel-2); color: var(--muted); font-size: var(--fs-2xs); font-weight: 700; }
 .ts-switch > [aria-checked="true"] .ts-switch-n { background: var(--brand-soft); color: var(--access, var(--brand)); }
 .ts-updates { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 0; min-height: 100%; margin: 0 -18px -16px; }
