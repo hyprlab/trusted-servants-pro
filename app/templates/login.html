@@ -118,6 +118,11 @@
         <input name="meeting_name" type="text">
       </label>
 
+      <label class="request-access-message">
+        <span>Message <span class="muted smaller">(optional)</span></span>
+        <textarea name="message" rows="3" maxlength="2000" placeholder="Anything the admins should know, such as what you'll use it for."></textarea>
+      </label>
+
       {% if site and site.turnstile_enabled and site.turnstile_site_key %}
       <div class="cf-turnstile request-access-turnstile" data-sitekey="{{ site.turnstile_site_key }}" data-theme="auto"></div>
       {% endif %}

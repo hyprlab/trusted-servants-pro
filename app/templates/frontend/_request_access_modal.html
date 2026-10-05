@@ -57,6 +57,10 @@
           <span>Meeting <span class="muted smaller">(if you need access for a specific meeting, its name)</span></span>
           <input name="meeting_name" type="text" maxlength="200">
         </label>
+        <label>
+          <span>Message <span class="muted smaller">(optional)</span></span>
+          <textarea name="message" rows="3" maxlength="2000" placeholder="Anything the admins should know, such as what you'll use it for."></textarea>
+        </label>
         {% if site and site.turnstile_enabled and site.turnstile_site_key %}
         <div class="cf-turnstile fe-submission-turnstile"
              data-sitekey="{{ site.turnstile_site_key }}"

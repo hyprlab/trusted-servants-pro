@@ -4698,9 +4698,11 @@ html.login-fade-in body { animation: login-page-fade-in 650ms ease-out both; }
 .request-access-form .req { color: var(--danger, #e11d48); }
 .request-access-form input[type="text"],
 .request-access-form input[type="tel"],
-.request-access-form input[type="email"] { padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border);
+.request-access-form input[type="email"],
+.request-access-form textarea { padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border);
   background: var(--panel); color: var(--text); font-size: var(--fs-base); }
-.request-access-form input:focus { outline: none; border-color: var(--access); box-shadow: 0 0 0 3px var(--brand-soft); }
+.request-access-form textarea { font-family: inherit; line-height: 1.45; resize: vertical; }
+.request-access-form input:focus, .request-access-form textarea:focus { outline: none; border-color: var(--access); box-shadow: 0 0 0 3px var(--brand-soft); }
 .request-access-roles { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
 .request-access-roles legend { font-size: var(--fs-base); font-weight: 500; color: var(--text); padding: 0; margin-bottom: 8px; }
 .request-access-roles .check { display: flex; flex-direction: row; align-items: center; gap: 10px;
@@ -17886,6 +17888,11 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 /* A button that can't be used yet looks it (until now a disabled
    primary button looked ready). */
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* A request's message under the name (Watchtower > Requests): three
+   lines at most, the whole of it on hover. */
+.wt-req-message { margin-top: 4px; max-width: 32ch; color: var(--muted); font-size: var(--fs-xs); font-weight: 400; line-height: 1.4;
+  white-space: pre-line; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
 /* The Request Access form's honeypot (login.html): off screen, out of
    the tab order, for bots only. */

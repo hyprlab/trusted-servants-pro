@@ -17884,6 +17884,7 @@ def request_access_submit():
     email = (request.form.get("email") or "").strip()[:255]
     roles = [r for r in request.form.getlist("roles") if r in ACCESS_ROLE_OPTIONS]
     meeting_name = (request.form.get("meeting_name") or "").strip()[:200] or None
+    message = (request.form.get("message") or "").strip()[:2000] or None
 
     wants_json = request.headers.get("X-Requested-With") == "fetch" \
                  or request.accept_mimetypes.best == "application/json"
@@ -17918,7 +17919,7 @@ def request_access_submit():
 
     from .frontend import _client_ip
     req = AccessRequest(name=name, phone=phone, email=email,
-                        roles_json=json.dumps(roles), meeting_name=meeting_name,
+                        roles_json=json.dumps(roles), meeting_name=meeting_name, message=message,
                         ip_address=(_client_ip() or "")[:64] or None)
     db.session.add(req)
     db.session.commit()
@@ -17935,6 +17936,8 @@ def request_access_submit():
         ]
         if meeting_name:
             lines.append(f"Meeting: {meeting_name}")
+        if message:
+            lines += ["", "Message:", message]
         lines += ["", "Review pending requests in the portal under Access Requests."]
         # Branded HTML twin — same style as every other form email.
         from .frontend import _render_branded_email, _branded_field
@@ -17951,6 +17954,7 @@ def request_access_submit():
                 _branded_field("Email", email, "email"),
                 _branded_field("Roles", ", ".join(roles)),
                 _branded_field("Meeting", meeting_name),
+                _branded_field("Message", message),
             ],
             cta_url=review_url, cta_label="Review access requests",
         )

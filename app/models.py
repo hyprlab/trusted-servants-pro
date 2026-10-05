@@ -1767,6 +1767,8 @@ class AccessRequest(db.Model):
     email = db.Column(db.String(255), nullable=False)
     roles_json = db.Column(db.Text)  # JSON array of selected role labels
     meeting_name = db.Column(db.String(255))
+    # Optional note from the requester, in their words.
+    message = db.Column(db.Text)
     status = db.Column(db.String(16), nullable=False, default="pending")  # pending|handled
     # IP the request was submitted from (best-effort, via _client_ip()).
     # Lets an admin block an abusive requester from Watchtower → Requests.

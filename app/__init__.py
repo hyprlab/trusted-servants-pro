@@ -2125,7 +2125,8 @@ def _migrate_sqlite(app):
             add("blog_post", col, ddl)
         for col, ddl in (("is_archived", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("archived_at", "DATETIME"),
-                         ("ip_address", "VARCHAR(64)")):
+                         ("ip_address", "VARCHAR(64)"),
+                         ("message", "TEXT")):
             add("access_request", col, ddl)
         for col, ddl in (("is_archived", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("archived_at", "DATETIME"),
