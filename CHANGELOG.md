@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-10-05
+
 ### Added
 - In-place image zoom: `image_lightbox.js` now holds the zoom as `zoomer(stage, img, opts)` (fit, click or double-tap toward the pointer, wheel, pinch, drag, +/-/0), used by the photo lightbox and by any `[data-zoom-stage]` with its `[data-zoom]` buttons (a File Browser file's image, with the `.ilb-tools` / `.ilb-btn` / `.ilb-zoom` controls). Stages are set up on every page (`tspOnEachPage`) and follow their size with a `ResizeObserver`. The script loads on every admin page from `base.html` instead of `zoom_tech.html`, and builds the lightbox overlay on first use. The `.ilb-stage` / `.ilb-img` cursor and placement rules are shared with `[data-zoom-stage].is-zoomable`.
 - `app.js`: `a[data-swap]` links load in place through `tspSwapPage`, which also swaps `main.embed-content` so it works in an embedded page (the picker). In a file's view Left, Right and Esc click its Previous, Next and Back links; back in the list, the file just seen is scrolled into view.

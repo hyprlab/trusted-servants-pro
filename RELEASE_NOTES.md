@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.0.0 — 2026-10-05 (latest)
+
 - Opening a file in the File Browser shows it in the page instead of a pop-up, without reloading: the file on the left (images, PDFs and videos play in place, audio has a player) and a column of details on the right. The details give its full link (click it to copy), its kind, format, size, image dimensions (and, for photos, when and on what camera they were taken), when and by whom it was uploaded, and every meeting, library, post, story or page that uses it. A file missing from storage says so. The back arrow (or Esc) returns to the list where you left it; the arrows in the top bar (or the Left and Right keys) step through the files in the list's order, search and filters. In the picker, a file's view has a Select button.
 - Images in a File Browser file's view zoom in place: click (or double-tap on a phone) to zoom in where you point and again to fit, use the wheel or pinch, drag to move around, or use the zoom buttons under the image, which show the zoom level (click the percentage to fit). The +, - and 0 keys work too, and Esc fits a zoomed image before it goes back to the list.
 - The File Browser's Download downloaded the meeting file with the same number instead of the file you chose (or nothing); it now downloads the right file.
@@ -240,7 +242,7 @@ release notes expanded by default and the changelog collapsed.
 - The list shows when each file was uploaded, and sizes read naturally (638 B, 27 KB, 1.4 MB) instead of "0 KB" for small files; on a phone the columns fold into one line under the name. The grid shows a picture, the name, and size and date on one line, two cards across on a phone. An image that fails to load shows its type icon instead of a blank box, and an empty search offers to clear it.
 - The File Browser sorts by clicking a column heading (Name, Type, Size, Uploaded or By); clicking it again reverses the order, and an arrow marks the sorted column. The grid, and the list on a phone, have the same choices in a Sort by row. This replaces the sort menu and its direction button, and sorting by who uploaded a file is new.
 
-## 2.20.2 — 2026-09-30 (latest)
+## 2.20.2 — 2026-09-30
 
 - The featured image on announcement, event and archive pages now has the same shadow as the cards beside it, set under Design, in place of a heavier shadow of its own.
 
