@@ -319,6 +319,15 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border);
 }
 .ds-seg-btns .icon, .ds-kind .icon, .view-toggle .icon, .fe-mlist-link-type-opt .icon { width: 15px; height: 15px; }
+/* With app.js's sliding highlight (the .st-seg-thumb shape, also used by
+   .st-seg) the chosen part drops its own chip and the shape behind it,
+   in the same chip look, slides from part to part. */
+.ds-seg-btns.has-thumb { position: relative; }
+.ds-seg-btns > .st-seg-thumb { background: var(--panel); border-radius: var(--r-sm);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border); }
+.ds-seg-btns.has-thumb > :not(.st-seg-thumb) { position: relative; z-index: 1; }
+.ds-seg-btns.has-thumb > :is([aria-checked="true"], [aria-current="page"], label:has(input:checked), label.is-active) {
+  background: transparent; box-shadow: none; }
 .ds-seg-btns > label input, .nav-megalink-seg-opt input,
 .fe-mlist-link-type-opt input {
   position: absolute; width: 0; height: 0; opacity: 0; margin: 0; pointer-events: none;
@@ -13034,7 +13043,6 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
 [data-theme="dark"] .wt-attention-icon--warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
 
 /* Window selector on the visitors tab ───────────────────────────── */
-.wt-window-form select { padding: 6px 28px 6px 10px; }
 
 /* Anomaly banner row ────────────────────────────────────────────── */
 .wt-anomalies { display: flex; flex-direction: column; gap: var(--gap-md); margin: 0 0 18px; }
@@ -13359,68 +13367,14 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
 .wt-expand-foot .icon { width: 14px; height: 14px; }
 
 /* Metric-mode toggle ─────────────────────────────────────────────────
-   Segmented pill control on the visitor-metrics pages (Watchtower
-   Visitors + Web Frontend → Metrics) that flips every count between
-   Unique visitors and Hits. The actual show/hide is driven by an
-   `html.metric-mode-*` class; the IIFE in app.js (`installMetricModeToggle`)
-   reads localStorage on load and toggles the class + each button's
-   `aria-pressed`. Each metric-bearing element wears either
+   The shared segmented control (.ds-seg-btns.metric-toggle) on Watchtower
+   → Visitors flips every count between Unique visitors and Hits. The
+   show/hide is driven by an `html.metric-mode-*` class; app.js reads
+   localStorage and sets the class and each button's `aria-checked`. Each metric-bearing element wears either
    `data-metric-mode="uniques"` or `data-metric-mode="views"` and the
    rules below pair the visible side with the active mode. KPI tiles
    that only need a single number swap can carry `data-uniques="..."`
    and `data-views="..."` instead; JS swaps `textContent` in place. */
-.metric-toggle {
-  display: inline-flex; align-items: stretch;
-  background: var(--surface-2, color-mix(in srgb, var(--border) 35%, transparent));
-  border: 1px solid var(--border);
-  border-radius: var(--r-pill);
-  padding: 3px;
-  gap: 0;
-  position: relative;
-}
-.metric-toggle button {
-  appearance: none; -webkit-appearance: none;
-  background: transparent; border: 0;
-  padding: 5px 14px;
-  font: inherit; font-size: var(--fs-sm); font-weight: 600;
-  color: var(--muted, #64748b);
-  border-radius: var(--r-pill);
-  cursor: pointer;
-  transition: color 0.16s ease, background 0.16s ease;
-  white-space: nowrap;
-  line-height: 1.2;
-}
-.metric-toggle button:hover { color: var(--ink, #0f172a); }
-.metric-toggle button[aria-pressed="true"] {
-  background: var(--card, #fff);
-  color: var(--brand, #2563eb);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
-}
-.metric-toggle-help {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px;
-  border-radius: var(--r-pill);
-  background: transparent; border: 1px solid var(--border);
-  color: var(--muted, #64748b);
-  cursor: help;
-  margin-left: 6px;
-  position: relative;
-}
-.metric-toggle-help .icon { width: 14px; height: 14px; }
-.metric-toggle-help[data-tooltip]:hover::after,
-.metric-toggle-help[data-tooltip]:focus::after {
-  content: attr(data-tooltip);
-  position: absolute; top: calc(100% + 8px); right: 0;
-  background: var(--ink, #0f172a); color: white;
-  padding: 10px 12px; border-radius: var(--r-md);
-  font-size: var(--fs-xs); font-weight: 400;
-  line-height: 1.45; text-align: left;
-  width: max-content; max-width: 320px;
-  box-shadow: 0 10px 28px rgba(0,0,0,0.18);
-  z-index: 50;
-  white-space: normal;
-}
-
 /* Visibility rules: each metric-bearing element opts in by wearing
    data-metric-mode="uniques" or "views". The opposite side is hidden
    based on the html class. Default page state assumes uniques. */

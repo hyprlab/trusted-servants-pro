@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Watchtower's Visitors and 404s top bars match the rest of the admin: the Unique visitors / Hits switch is the standard segmented switch, its help is the usual info icon, and the date range and buttons are the standard button size.
+- Every segmented switch in the admin (such as List / Grid, Light / Dark and the editors' panel tabs) slides its highlight to the part you pick.
 - Moving between Watchtower's tabs, and between Active and Archived requests, loads the section in place without reloading the page. The address and the browser's Back and Forward follow along.
 - Watchtower's section tabs use the same tab style as the editors' panels, with the current section in the accent color.
 - Green status badges (such as Active in Watchtower and 2FA on the Users page) are green again in light mode, and the dark sample in the dynamic background picker has its dark background again.

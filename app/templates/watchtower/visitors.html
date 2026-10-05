@@ -8,14 +8,14 @@
 <form method="get" action="{{ url_for('main.watchtower_visitors') }}" class="wt-window-form">
   <label>
     <span class="visually-hidden">Window</span>
-    <select name="window" onchange="this.form.submit()">
+    <select name="window" class="btn" onchange="this.form.submit()">
       {% for w in windows %}
       <option value="{{ w }}" {% if w == window %}selected{% endif %}>Last {{ w }} days</option>
       {% endfor %}
     </select>
   </label>
 </form>
-<a class="btn btn-sm" href="{{ url_for('main.watchtower_visitors_csv', window=window) }}"
+<a class="btn" href="{{ url_for('main.watchtower_visitors_csv', window=window) }}"
    title="Download a comprehensive CSV of the current window's metrics — summary, daily series, hourly distribution, top paths/referrers, and device/browser/OS breakdowns. Each breakdown carries both views and unique-visitor counts.">
   {{ icon('download') }} Download CSV
 </a>

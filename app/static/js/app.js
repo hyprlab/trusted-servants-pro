@@ -7387,10 +7387,10 @@
     document.querySelectorAll("[data-uniques][data-views]").forEach(el => {
       el.textContent = el.dataset[mode] || "";
     });
-    // Per-toggle aria-pressed state for the active button in each toggle.
+    // The chosen part of each toggle (the shared segmented control).
     document.querySelectorAll(".metric-toggle").forEach(group => {
       group.querySelectorAll("button[data-metric]").forEach(btn => {
-        btn.setAttribute("aria-pressed",
+        btn.setAttribute("aria-checked",
           btn.dataset.metric === mode ? "true" : "false");
       });
     });
@@ -8532,14 +8532,16 @@
   });
 });
 
-// Segmented controls (.st-seg): the chosen part's highlight is one
-// shape that slides to whichever part is chosen, rather than each part
-// lighting up on its own. It moves in both directions, since a control
-// with many parts wraps onto a second row, and follows the parts when
-// they resize or one is hidden. Whatever chooses the part (fe_studio.js,
-// design_studio.js, a link from elsewhere on the page) only has to set
-// aria-selected.
+// Segmented controls (.st-seg, accent; .ds-seg-btns, raised chip): the
+// chosen part's highlight is one shape that slides to whichever part is
+// chosen, rather than each part lighting up on its own. It moves in both
+// directions, since a control with many parts wraps onto a second row,
+// and follows the parts when they resize or one is hidden. Whatever
+// chooses the part (fe_studio.js, design_studio.js, a link, a radio)
+// only has to mark it: aria-selected, aria-checked, aria-current, or a
+// checked radio inside a label.
 (function () {
+  var CHOSEN = '[aria-selected="true"], [aria-checked="true"], [aria-current="page"], label:has(> input:checked)';
   function setup(nav) {
     if (nav._segThumb) return;
     var thumb = document.createElement('span');
@@ -8550,7 +8552,7 @@
     nav.classList.add('has-thumb');
     var shown = false;
     function place(animate) {
-      var on = nav.querySelector('[aria-selected="true"]');
+      var on = Array.prototype.find.call(nav.children, function (el) { return el !== thumb && el.matches(CHOSEN); });
       if (!on || on.hidden || !on.offsetWidth) { thumb.style.opacity = '0'; shown = false; return; }
       // The first placement (and one after a resize) lands without
       // sliding in from wherever the shape last was.
@@ -8566,14 +8568,17 @@
     place(false);
     if (window.MutationObserver) {
       new MutationObserver(function () { place(true); })
-        .observe(nav, { attributes: true, attributeFilter: ['aria-selected', 'hidden'], subtree: true });
+        .observe(nav, { attributes: true, attributeFilter: ['aria-selected', 'aria-checked', 'aria-current', 'hidden'], subtree: true });
     }
+    nav.addEventListener('change', function () { place(true); });
     if (window.ResizeObserver) new ResizeObserver(function () { place(false); }).observe(nav);
     window.addEventListener('load', function () { place(false); });
   }
-  function init() { document.querySelectorAll('.st-seg').forEach(setup); }
+  function init() { document.querySelectorAll('.st-seg, .ds-seg-btns').forEach(setup); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
+  // Controls on a page brought in by tspSwapPage get theirs too.
+  if (window.tspOnEachPage) window.tspOnEachPage(init);
 })();
 
 // Segmented controls that scroll sideways ([data-seg-scroll] around the
