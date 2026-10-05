@@ -56,9 +56,6 @@
                  window.matchMedia('(prefers-color-scheme: dark)').matches);
       root.setAttribute('data-theme', dark ? 'dark' : 'light');
     })();
-    // A page shown inside Settings (an iframe.settings-frame) spaces itself
-    // like the Settings sections around it (app.css, html.in-settings).
-    try { if (window.frameElement && window.frameElement.classList.contains('settings-frame')) document.documentElement.classList.add('in-settings'); } catch (e) {}
     {% if site_alert and site_alert.dismissible %}
     // The alert bar this browser closed stays closed until its message
     // changes (its version goes up).

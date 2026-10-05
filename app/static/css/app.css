@@ -2901,10 +2901,18 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
 [data-theme="light"] .theme-icon-dark { display: inline; }
 [data-theme="dark"] .theme-icon-light { display: inline; }
 
-/* The space around the page's content: 20px on every side, the same as
-   the gap between a list page's filter sidebar and its list. Set on the
-   root so the fixed save bars, outside .content, line up with it. */
-:root { --content-px: 20px; --content-pt: 20px; }
+/* Spacing, set once for every screen. --content-px is the space around
+   the page's content and between laid-out columns (--layout-gap: a list's
+   sidebar and its list, the dashboard's widgets, a page's two sides);
+   --card-pad is the inside of every card; --stack-gap is between cards
+   stacked in a column; --card-radius their corners. On the root so the
+   fixed save bars, outside .content, line up too. A phone (720px and
+   under) changes the values here, and nowhere else. */
+:root { --content-px: 20px; --content-pt: 20px; --layout-gap: var(--content-px);
+  --card-pad: 18px 20px; --stack-gap: 16px; --card-radius: 14px; }
+@media (max-width: 720px) {
+  :root { --content-px: 14px; --content-pt: 14px; --card-pad: 16px; --stack-gap: 14px; }
+}
 .content {
   padding: var(--content-pt) var(--content-px) var(--content-px);
   min-width: 0;
@@ -3067,7 +3075,7 @@ body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
 
 .card {
   background: var(--panel); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 2rem; margin-bottom: 16px;
+  border-radius: var(--card-radius); padding: var(--card-pad); margin-bottom: var(--stack-gap);
   box-shadow: var(--shadow);
 }
 .card-head {
@@ -3162,7 +3170,7 @@ body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
-.stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; box-shadow: var(--shadow); }
+.stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--card-pad); box-shadow: var(--shadow); }
 .stat-v { font-size: var(--fs-xl); font-weight: 700; }
 .stat-l { color: var(--muted); font-size: var(--fs-xs); margin-top: 2px; }
 /* Footer "See full access details" link — render without the green
@@ -4849,20 +4857,20 @@ form[data-savebar-row].is-dirty {
   transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .modal.open .modal-panel { transform: translateY(0); }
+/* A dialog's head, body and foot share the page's side spacing, so their
+   contents line up with each other and follow the phone value. */
 .modal-head { display: flex; justify-content: space-between; align-items: center;
-  padding: 14px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  padding: 14px var(--content-px); border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .modal-head h2 { font-size: var(--fs-lg); font-weight: 700; }
 
 .modal-head .icon-btn { flex: 0 0 auto; width: 32px; height: 32px; }
 .modal-panel > form { display: flex; flex-direction: column; min-height: 0; max-height: 90vh; }
-.modal-body { padding: 20px 24px; overflow-y: auto; overflow-x: hidden; display: flex;
+.modal-body { padding: var(--content-px); overflow-y: auto; overflow-x: hidden; display: flex;
   flex-direction: column; gap: 12px; flex: 1 1 auto; min-height: 0; }
 .modal-body > form.form { flex: 0 0 auto; }
-.modal-foot { flex-shrink: 0; }
-/* 20px vertical (was 12) — the yellow save bar docks into this strip's
-   left half while a modal is open, and at 12px it looked cramped
-   against the panel edge (+16px total height). */
-.modal-foot { padding: 20px 18px; border-top: 1px solid var(--border);
+/* 20px vertical: the yellow save bar docks into this strip's left half
+   while a dialog is open, and less looked cramped against the edge. */
+.modal-foot { flex-shrink: 0; padding: 20px var(--content-px); border-top: 1px solid var(--border);
   display: flex; justify-content: flex-end; gap: 10px; }
 
 /* ── Guided Zoom launcher ──────────────────────────────────────────── */
@@ -5172,20 +5180,14 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
   overflow-y: auto; overflow-x: hidden; min-width: 0;
 }
 .settings-pane.active > * { max-width: 100%; min-width: 0; }
-/* Every section spaced alike: 24px at the sides and foot (the top
-   clears the close button), 16px between cards from the section's gap
-   alone, cards padded 18px 20px. By ID, so it outranks the per-pane
-   paddings below; a pane holding a page in an iframe keeps none, and
-   that page (html.in-settings, set in base.html) matches instead. The
-   phone values are in the 720px block. */
-#settings-modal .settings-pane.active:not(:has(> iframe.settings-frame)) { padding: 60px 24px 24px; gap: 16px; }
+/* Every section spaced like the page: --content-px around it and
+   --stack-gap between its cards (the section's gap alone). By ID, so it
+   outranks the per-pane paddings below. A pane holding a page in an
+   iframe has none; that page's own content padding matches. On a wide
+   screen the top also clears the close button (the 721px block). */
+#settings-modal .settings-pane.active:not(:has(> iframe.settings-frame)) { padding: var(--content-px); gap: var(--stack-gap); }
 #settings-modal .settings-pane .data-card,
 #settings-modal .settings-pane .data-card:last-child { margin-bottom: 0; }
-html.in-settings body.embed .embed-content { padding: 14px 24px 24px; }
-html.in-settings body.embed .card.data-card,
-html.in-settings body.embed .card.data-card:last-child { padding: 18px 20px; }
-html.in-settings body.embed .card.data-card { margin-bottom: 16px; }
-html.in-settings body.embed .card.data-card:last-child { margin-bottom: 0; }
 .settings-pane.active .u-name { font-size: var(--fs-base); font-weight: 700; line-height: 1.3; }
 .settings-pane.active .special-page-row { padding: 1rem; }
 .settings-pane.active:has(> iframe.settings-frame),
@@ -5419,32 +5421,8 @@ html.in-settings body.embed .card.data-card:last-child { margin-bottom: 0; }
 .tech-tile-name { font-size: var(--fs-2xs); font-weight: 500; color: var(--muted); text-align: center; line-height: 1.2; }
 
 body.embed { background: var(--panel); }
-body.embed .embed-content { padding: 20px; }
-body.embed .card { background: var(--panel); border: 0; border-radius: 0;
-  box-shadow: none; padding: 0 0 20px; margin: 0 0 20px;
-  border-bottom: 1px solid var(--border); }
-body.embed .card:last-child { margin-bottom: 0; padding-bottom: 2rem; border-bottom: 0; }
-/* Restore the standard data-card chrome inside embed mode — the generic
-   .card override above strips border/radius/shadow/padding for plain
-   list cards, but data-cards rely on those for their brand-blue left
-   accent + soft shadow + visible separation. Without this override,
-   embed iframes (Global tab, Backups admin modal) would render their
-   data-cards as bare flush blocks divided only by a thin hairline. */
-body.embed .card.data-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--brand);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 2rem;
-  margin: 0 0 16px;
-}
-body.embed .card.data-card:last-child {
-  margin-bottom: 0;
-  padding: 2rem;
-  border-bottom: 1px solid var(--border);
-  border-left: 4px solid var(--brand);
-}
+body.embed .embed-content { padding: var(--content-px); }
+body.embed .card:last-child { margin-bottom: 0; }
 .embed-actions { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 /* Wraps for the same reason `.top-actions` does: as a single nowrap
    child it was one ~490px block the header couldn't break, so the
@@ -6405,8 +6383,7 @@ body.embed .wp-wizard-header {
    rows) sit inside the card. Originally for the Data settings tab,
    reused by the WordPress importer wizard. */
 .data-card {
-  border-left: 4px solid var(--brand);
-  margin-bottom: 16px;
+  margin-bottom: var(--stack-gap);
 }
 .data-card:last-child {
   margin-bottom: 0;
@@ -6414,19 +6391,18 @@ body.embed .wp-wizard-header {
 .data-card-head {
   display: flex;
   align-items: center;
-  gap: .6rem;
-  font-weight: 700;
+  gap: 10px;
+  font-weight: 650;
   font-size: var(--fs-md);
   line-height: 1.3;
   color: var(--text);
-  margin: 0 0 .9rem;
+  margin: 0 0 14px;
 }
-.data-card-head .icon {
-  color: var(--brand);
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-}
+
+/* The head's leading icon sits on a small tinted tile. */
+.data-card-head > .icon {
+  width: 30px; height: 30px; padding: 7px; border-radius: 8px; box-sizing: border-box; flex-shrink: 0;
+  background: var(--brand-soft); color: var(--access, var(--brand)); }
 /* Icons inside buttons that sit in the card head should inherit the
    button's foreground (white on .btn-primary, var(--text) on plain
    .btn) rather than picking up the brand-blue tint reserved for the
@@ -7372,20 +7348,9 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   }
   body:not(.frontend-body) .modal-panel > form { max-height: none; flex: 1 1 auto; min-height: 0; }
   #settings-modal .settings-body { flex: 1 1 auto; height: auto; min-height: 0; }
-  /* The same spacing as the rest of the app on a phone: 14px around a
-     section (the content's padding), 16px inside a card, 14px between
-     cards, and the heads padded like the top bar. The ID wins over each
-     pane's own desktop padding; a pane that holds a page in an iframe
-     keeps none. */
+  /* The heads padded like the top bar. */
   #settings-modal .settings-main-head,
-  #settings-modal .settings-nav-head { padding: 12px 14px; }
-  #settings-modal .settings-pane.active:not(:has(> iframe.settings-frame)) { padding: 14px; gap: 14px; }
-  #settings-modal .settings-pane .card { padding: 16px; }
-  html.in-settings body.embed .embed-content { padding: 14px; }
-  html.in-settings body.embed .card.data-card,
-  html.in-settings body.embed .card.data-card:last-child { padding: 16px; }
-  html.in-settings body.embed .card.data-card { margin-bottom: 14px; }
-  html.in-settings body.embed .card.data-card:last-child { margin-bottom: 0; }
+  #settings-modal .settings-nav-head { padding: 12px var(--content-px); }
   .zoom-info dd:has(> .btn-primary) { grid-column: 1 / -1; }
   .zoom-info dt:has(+ dd > .btn-primary) { display: none; }
   .zoom-info .btn-primary { display: block; width: 100%; text-align: center; }
@@ -7466,9 +7431,6 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .loc-csz-row { grid-template-columns: 1fr; }
 
 
-  :root { --content-px: 14px; --content-pt: 14px; }
-  .card { padding: 16px; }
-  .stat { padding: 16px; }
   /* Bar stays pinned; the heading takes the first line and the actions
      drop to a second line that is a single, horizontally swipeable
      strip. Buttons keep their natural width and overflow sideways
@@ -7664,11 +7626,7 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
    the standard 1px border on the left so each widget reads as a
    uniform tile without the accent stripe. Settings panes, iframes,
    and every other place that uses .data-card keep the accent. */
-.dash-grid .card.data-card {
-  padding: 1.25rem 1.25rem 1.1rem;
-  margin-bottom: 0;
-  border-left: 1px solid var(--border);
-}
+.dash-grid .card.data-card { margin-bottom: 0; }
 
 /* ── "What's New" / release-notes dashboard widget ──────────────────
    Leads with a soft brand-tinted hero panel for the latest release,
@@ -17118,9 +17076,8 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
    Head: grip (on hover), icon tile, title, count, one short link on the
    right. Body: rows that highlight on hover, stat tiles of one size, and
    a quiet dashed box when there's nothing to show. ── */
-.dash-grid { column-gap: 20px; }
-.dash-grid .card.data-card { padding: 18px 20px; border-radius: 14px; border: 1px solid var(--border);
-  box-shadow: var(--shadow); container-type: inline-size; }
+.dash-grid { column-gap: var(--layout-gap); }
+.dash-grid .card.data-card { container-type: inline-size; }
 
 /* Head */
 .dash-grid .dash-widget-head,
@@ -17266,23 +17223,12 @@ a.dash-stat--link .dash-stat-value { color: var(--access, var(--brand)); }
   #settings-modal .settings-main-head [data-close]:focus-visible { background: var(--panel); border-color: var(--border);
     box-shadow: var(--shadow); }
   /* Room for the close button above each section's first card. */
-  #settings-modal .settings-pane.active { padding-top: 60px; }
+  #settings-modal .settings-pane.active,
+  #settings-modal .settings-pane.active:not(:has(> iframe.settings-frame)) { padding-top: calc(46px + var(--content-px)); }
   #settings-modal .settings-pane.active:has(> iframe.settings-frame),
   #settings-modal .settings-pane.active:has(> .settings-frame) { padding-top: 46px; }
 }
 #settings-modal .settings-body, .settings-frame, body.embed { background: var(--bg); }
-#settings-modal .data-card, body.embed .card.data-card, body.embed .card.data-card:last-child {
-  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-  box-shadow: var(--shadow); padding: 18px 20px; }
-#settings-modal .data-card-head, body.embed .data-card-head { gap: 10px; font-size: var(--fs-md); font-weight: 650; margin: 0 0 14px; }
-#settings-modal .data-card-head > .icon, body.embed .data-card-head > .icon {
-  width: 30px; height: 30px; padding: 7px; border-radius: 8px; box-sizing: border-box;
-  background: var(--brand-soft); color: var(--access, var(--brand)); }
-/* The other cards in embedded pages (lists that used to sit flush on
-   white) become the same white cards on the grey. */
-body.embed .card:not(.data-card) { background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-  box-shadow: var(--shadow); padding: 18px 20px; margin: 0 0 16px; }
-body.embed .card:not(.data-card):last-child { padding-bottom: 18px; margin-bottom: 0; border-bottom: 1px solid var(--border); }
 
 /* Meeting page: the Zoom card on a pale blue (a deep, quiet blue in dark
    mode), with the standard text, chips and buttons. Scoped up to win over
@@ -17513,7 +17459,7 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 
 /* On the page, both the sidebar and the files card start just under the
    top bar and end at the window's foot; only the card's files scroll. */
-.fb-pick--page { gap: 20px; --fb-h: calc(100vh - var(--topbar-h, 56px) - 2 * var(--content-px, 20px)); }
+.fb-pick--page { gap: var(--layout-gap); --fb-h: calc(100vh - var(--topbar-h, 56px) - 2 * var(--content-px, 20px)); }
 .fb-pick--page .fb-side { position: sticky; top: calc(var(--topbar-h, 56px) + var(--content-px, 20px));
   max-height: var(--fb-h); overflow-y: auto; padding: 14px;
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
@@ -17658,12 +17604,11 @@ form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, min
 /* ── Meeting page (meeting_detail.html): the meeting on the left (about,
    schedule, files), where and how to join it on the right, which stays
    in view on a wide screen and comes first on a narrow one. ── */
-.mtg-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: 20px; align-items: start; }
+.mtg-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: var(--layout-gap); align-items: start; }
 .mtg-layout--single { grid-template-columns: minmax(0, 1fr); }
-.mtg-main, .mtg-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.mtg-main, .mtg-side { display: flex; flex-direction: column; gap: var(--layout-gap); min-width: 0; }
 .mtg-main > .card, .mtg-side > .card { margin: 0; }
 /* Cards styled like the Dashboard's widgets. */
-.mtg-layout .card.data-card { padding: 18px 20px; border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--shadow); }
 .mtg-files .data-card-head .mtg-files-edit .icon { width: 14px; height: 14px; color: inherit; }
 .mtg-side { position: sticky; top: calc(var(--topbar-h, 56px) + var(--content-px, 20px)); }
 @media (max-width: 1000px) {
@@ -18232,9 +18177,8 @@ html[data-theme="dark"] .ts-upd-failed { color: #fca5a5; }
 /* ── Intergroup Email (intergroup.html, intergroup_edit.html): the
    accounts with Copy and Email, and the mail-app setup with Copy. ── */
 .ig-intro { margin: 0 0 16px; max-width: 70ch; }
-.ig-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); gap: 20px; align-items: start; }
+.ig-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); gap: var(--layout-gap); align-items: start; }
 @media (max-width: 1000px) { .ig-layout { grid-template-columns: minmax(0, 1fr); } }
-.ig-layout > .card { border-radius: 14px; box-shadow: var(--shadow); padding: 18px 20px; }
 .ig-card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin: 0 0 12px; }
 .ig-card-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-md); }
 .ig-card-head h2 > .icon { width: 18px; height: 18px; color: var(--muted); }
