@@ -17990,6 +17990,50 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .ts-history-text { flex: 1 1 auto; min-width: 0; }
 .ts-history-subject { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ── Email List: People / Updates sent, and an update kept in full
+   (trusted_servants_list.html). ── */
+.fb-pick-main > .ts-switch { display: flex; width: max-content; margin: 0 0 14px; }
+.ts-switch > a { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 6px;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--muted); text-decoration: none; white-space: nowrap; }
+.ts-switch > a:hover { color: var(--text); text-decoration: none; }
+.ts-switch > a .icon { width: 15px; height: 15px; }
+.ts-switch-n { padding: 0 7px; border-radius: 999px; background: var(--panel-2); color: var(--muted); font-size: var(--fs-2xs); font-weight: 700; }
+.ts-switch > [aria-checked="true"] .ts-switch-n { background: var(--brand-soft); color: var(--access, var(--brand)); }
+.ts-updates { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 0; min-height: 100%; margin: 0 -18px -16px; }
+.ts-upd-list { list-style: none; margin: 0; padding: 12px 10px; border-right: 1px solid var(--border); overflow-y: auto; }
+.ts-upd-item { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 10px; color: var(--text); text-decoration: none; }
+.ts-upd-item:hover { background: var(--hover); text-decoration: none; }
+.ts-upd-item.is-current { background: var(--brand-soft); }
+.ts-upd-subject { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-upd-meta { font-size: var(--fs-xs); color: var(--muted); }
+.ts-upd-failed { color: #b91c1c; font-weight: 600; }
+html[data-theme="dark"] .ts-upd-failed { color: #fca5a5; }
+.ts-upd-view { min-width: 0; padding: 20px 24px 24px; overflow-y: auto; }
+.ts-upd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ts-upd-head .btn { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.ts-upd-title { margin: 0 0 6px; font-size: var(--fs-xl); line-height: 1.3; }
+.ts-upd-facts { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.ts-upd-facts span { display: inline-flex; align-items: center; gap: 5px; }
+.ts-upd-facts .icon { width: 14px; height: 14px; }
+.ts-upd-stats { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.ts-upd-body { padding: 18px 0; max-width: 70ch; font-size: var(--fs-base); line-height: 1.65; overflow-wrap: anywhere; }
+.ts-upd-body > :first-child { margin-top: 0; }
+.ts-upd-rcpts { border-top: 1px solid var(--border); padding-top: 12px; }
+.ts-upd-rcpts summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; }
+.ts-upd-rcpts summary .icon { width: 16px; height: 16px; color: var(--muted); }
+.ts-rcpt-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.ts-rcpt { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 90px 92px; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+.ts-rcpt-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-rcpt-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-rcpt > .post-chip { justify-self: end; margin: 0; }
+.ts-upd-note { flex: 1 1 100%; }
+@media (max-width: 900px) {
+  .ts-updates { grid-template-columns: minmax(0, 1fr); }
+  .ts-upd-list { border-right: 0; border-bottom: 1px solid var(--border); max-height: 240px; }
+  .ts-rcpt { grid-template-columns: minmax(0, 1fr) 92px; }
+  .ts-rcpt-email, .ts-rcpt-group { display: none; }
+}
+
 /* ── Intergroup Email (intergroup.html, intergroup_edit.html): the
    accounts with Copy and Email, and the mail-app setup with Copy. ── */
 .ig-intro { margin: 0 0 16px; max-width: 70ch; }

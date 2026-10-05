@@ -3636,8 +3636,31 @@ class TrustedServantBlast(db.Model):
     failed_count = db.Column(db.Integer, nullable=False, default=0)
     started_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     finished_at = db.Column(db.DateTime)
+    # The update kept in full, as it went out: the HTML the Markdown
+    # rendered to (``{name}`` still in place, filled per person), the
+    # audience picked ({"mode", "groups", "picked"}) and every
+    # recipient's result ([{"name", "email", "group", "ok", "error"}]).
+    # Blank on updates sent before these were kept.
+    body_html = db.Column(db.Text)
+    audience_json = db.Column(db.Text)
+    recipients_json = db.Column(db.Text)
 
     sent_by = db.relationship("User")
+
+    def audience(self):
+        import json
+        try:
+            return json.loads(self.audience_json or "{}") or {}
+        except (ValueError, TypeError):
+            return {}
+
+    def recipients(self):
+        import json
+        try:
+            rows = json.loads(self.recipients_json or "[]")
+        except (ValueError, TypeError):
+            return []
+        return rows if isinstance(rows, list) else []
 
 
 class CustomForm(db.Model):

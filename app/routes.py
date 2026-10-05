@@ -3706,14 +3706,24 @@ def trusted_servants_list():
     if sort not in orders:
         sort = "name_asc"
     subs = q.order_by(*orders[sort]).all()
-    blasts = (TrustedServantBlast.query
-              .order_by(TrustedServantBlast.started_at.desc())
-              .limit(50).all()) if tab == "history" else []
-    blast_count = TrustedServantBlast.query.count()
+    # Updates sent: every one kept in full, searchable by subject or
+    # message; the one picked (``update``, else the latest) opens beside
+    # the list.
+    B = TrustedServantBlast
+    blasts, selected = [], None
+    if tab == "history":
+        bq = B.query
+        if q_text:
+            like = f"%{q_text}%"
+            bq = bq.filter(db.or_(B.subject.ilike(like), B.body_md.ilike(like)))
+        blasts = bq.order_by(B.started_at.desc(), B.id.desc()).all()
+        uid = request.args.get("update", type=int)
+        selected = next((b for b in blasts if b.id == uid), None) or (blasts[0] if blasts else None)
+    blast_count = B.query.count()
     resp = current_app.make_response(render_template(
-        "trusted_servants_list.html", subscribers=subs, blasts=blasts,
-        blast_count=blast_count, tab=tab, account=account, sort=sort,
-        view=view, q=q_text, account_counts=account_counts))
+        "trusted_servants_list.html", subscribers=subs, blasts=blasts, selected=selected,
+        blast_count=blast_count, people_count=T.query.count(), tab=tab, account=account,
+        sort=sort, view=view, q=q_text, account_counts=account_counts))
     resp.set_cookie("view-ts", view, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-ts-sort", sort, max_age=60*60*24*365, samesite="Lax")
     return resp
@@ -4183,7 +4193,14 @@ def _blast_compose_page(prefill=None, status=200):
 @bp.route("/email-list/blast")
 @login_required
 def trusted_servants_blast_compose():
+    """The composer; ``reuse=<id>`` starts from an earlier update's
+    subject and message."""
     _require_trusted_servants_admin()
+    reuse = request.args.get("reuse", type=int)
+    b = db.session.get(TrustedServantBlast, reuse) if reuse else None
+    if b is not None:
+        from werkzeug.datastructures import MultiDict
+        return _blast_compose_page(MultiDict({"subject": b.subject, "body": b.body_md}))
     return _blast_compose_page()
 
 
@@ -4260,14 +4277,14 @@ def trusted_servants_blast_send():
     recipients = []
     seen = set()
 
-    def _add(name, email):
+    def _add(name, email, group):
         if not email:
             return
         key = email.strip().lower()
         if not key or key in seen:
             return
         seen.add(key)
-        recipients.append((name or email, email))
+        recipients.append((name or email, email, group))
 
     if include_subs:
         q = TrustedServantSubscriber.query.order_by(TrustedServantSubscriber.name.asc())
@@ -4283,16 +4300,16 @@ def trusted_servants_blast_send():
                 return _blast_compose_page(request.form, 400)
             q = q.filter(TrustedServantSubscriber.id.in_(selected_sub_ids))
         for sub in q.all():
-            _add(sub.name, sub.email)
+            _add(sub.name, sub.email, "subscriber")
     if include_ig:
         for u in (User.query.filter(User.role == "intergroup_member")
                   .order_by(User.username.asc()).all()):
-            _add(u.name or u.username, u.email)
+            _add(u.name or u.username, u.email, "intergroup")
     if include_app:
         for u in (User.query
                   .filter(User.role.notin_(("admin", "intergroup_member")))
                   .order_by(User.username.asc()).all()):
-            _add(u.name or u.username, u.email)
+            _add(u.name or u.username, u.email, "app_user")
 
     if not recipients:
         flash(
@@ -4301,10 +4318,16 @@ def trusted_servants_blast_send():
             "danger")
         return _blast_compose_page(request.form, 400)
 
+    body_html = _md_lib.markdown(body_md, extensions=["extra", "nl2br"])
+    groups = [g for g, on in (("subscribers", include_subs), ("intergroup", include_ig),
+                              ("app_users", include_app)) if on]
     blast = TrustedServantBlast(
         sent_by_user_id=current_user.id,
         subject=subject[:500],
         body_md=body_md,
+        body_html=body_html,
+        audience_json=json.dumps({"mode": mode, "groups": groups,
+                                  "picked": len(selected_sub_ids) if subs_mode == "granular" else None}),
         recipient_count=len(recipients),
         started_at=_dt.utcnow(),
     )
@@ -4313,36 +4336,40 @@ def trusted_servants_blast_send():
 
     sent = 0
     failed = 0
-    body_html = _md_lib.markdown(body_md, extensions=["extra", "nl2br"])
-    for name, email in recipients:
+    results = []  # kept with the update: who it went to and how it went
+    for name, email, group in recipients:
         # Personalize the first-line greeting if the body opens with a
         # `{name}` token. Admins who don't use the token just get an
         # un-replaced body — opt-in personalization, no surprises.
         text_body = body_md.replace("{name}", name)
         html_body = body_html.replace("{name}", name)
+        err = None
         try:
-            ok, _err = send_mail(s, email, subject, text_body, body_html=html_body)
-            if ok:
-                sent += 1
-            else:
-                failed += 1
-        except Exception:  # noqa: BLE001
+            ok, err = send_mail(s, email, subject.replace("{name}", name), text_body, body_html=html_body)
+        except Exception as e:  # noqa: BLE001
             current_app.logger.exception(
                 "trusted_servants_blast: send to %s failed", email)
+            ok, err = False, str(e)
+        if ok:
+            sent += 1
+        else:
             failed += 1
+        results.append({"name": name, "email": email, "group": group, "ok": bool(ok),
+                        "error": (str(err)[:300] if (err and not ok) else None)})
 
     blast.sent_count = sent
     blast.failed_count = failed
+    blast.recipients_json = json.dumps(results)
     blast.finished_at = _dt.utcnow()
     db.session.commit()
 
     if sent and not failed:
         flash(f"Sent the update to {sent} {'person' if sent == 1 else 'people'}.", "success")
     elif sent and failed:
-        flash(f"Sent to {sent} of {sent + failed}. {failed} failed — check the server log.", "warning")
+        flash(f"Sent to {sent} of {sent + failed}. {failed} failed: see Who it went to.", "warning")
     else:
-        flash(f"All {failed} sends failed. Check SMTP settings on the Domain / Email tab.", "danger")
-    return redirect(url_for("main.trusted_servants_list", tab="history"))
+        flash(f"All {failed} sends failed: see Who it went to, and check the email settings on the Domain / Email tab.", "danger")
+    return redirect(url_for("main.trusted_servants_list", tab="history", update=blast.id))
 
 
 # ---------------------------------------------------------------------------

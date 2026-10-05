@@ -2263,6 +2263,10 @@ def _migrate_sqlite(app):
         # back-filled. "" means "role not chosen yet"; the setup wizard sets
         # it to 'live' or 'staging'.
         add("frontend_sync_peer", "self_role", "VARCHAR(16) NOT NULL DEFAULT ''")
+        # Email List updates kept in full: the rendered message, the
+        # audience and each recipient's result.
+        for col in ("body_html", "audience_json", "recipients_json"):
+            add("trusted_servant_blast", col, "TEXT")
 
         # One-shot data migration: when the new frontend_og_* columns are
         # added on an existing deployment, seed them from the legacy og_*

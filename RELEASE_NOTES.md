@@ -9,6 +9,9 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Each update sent to the Email List is kept in full: the message as it went out, who chose the audience and how, and every person it went to with whether their copy was delivered (and why not, when it wasn't).
+- The Email List page has a People / Updates sent switch above the list. Updates sent lists every update beside the one you pick, shown in full with its delivered and failed counts and who it went to; failed copies come first. Search finds updates by subject or message, and Use again starts a new update from one.
+- `{name}` in an update's subject is now filled in with each person's name, as it already was in the message.
 - Sending an update to the Email List is laid out like the other editors: the subject and message on the left, in the Markdown editor with its formatting toolbar and a live preview, and who gets it on the right. A count shows how many people it reaches as you change the audience: everyone, or chosen groups, with a search to pick particular subscribers. Insert their name puts `{name}` in the message, and Sent before lets you start from an earlier update.
 - Send update stays off until there is a subject, a message and someone to send to, and asks before sending. If the server refuses a send, the page keeps what you wrote and picked.
 - A button that can't be used yet now looks faded.

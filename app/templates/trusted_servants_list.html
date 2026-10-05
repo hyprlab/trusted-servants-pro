@@ -39,11 +39,13 @@
 <div class="fb-pick fb-pick--page lst-page">
 <aside class="fb-side" aria-label="Find someone">
   <div class="fb-side-top" data-live="total">
-    <p class="fb-side-total" aria-live="polite">{{ _plural(subscribers|length, 'person', 'people') }}{% if q %} matching “{{ q }}”{% endif %}</p>
+    <p class="fb-side-total" aria-live="polite">{% if tab == 'history' %}{{ _plural(blasts|length, 'update', 'updates') }}{% else %}{{ _plural(subscribers|length, 'person', 'people') }}{% endif %}{% if q %} matching “{{ q }}”{% endif %}</p>
   </div>
-  {{ search_form(url_for('main.trusted_servants_list'), _base, q, 'Search the list', 'Search by name, email, phone or notes') }}
+  {% if tab == 'history' %}{{ search_form(url_for('main.trusted_servants_list'), _base, q, 'Search updates', 'Search updates by subject or message') }}
+  {% else %}{{ search_form(url_for('main.trusted_servants_list'), _base, q, 'Search the list', 'Search by name, email, phone or notes') }}{% endif %}
   <a class="btn btn-primary fb-side-upload" href="{{ url_for('main.trusted_servants_blast_compose') }}">{{ icon('send') }} Send an update</a>
   <div class="lst-side-live" data-live="side">
+    {% if tab != 'history' %}
     <nav class="fb-side-group" aria-label="Account">
       <h3 class="fb-side-title">Account</h3>
       {{ side_link(_url({'account': None, 'tab': None}), 'users', 'Everyone', account_counts[''], not account and tab != 'history') }}
@@ -54,43 +56,87 @@
       <h3 class="fb-side-title">Sort by</h3>
       <div class="fb-side-sort">{{ _sort('name', 'Name') }}{{ _sort('email', 'Email') }}{{ _sort('joined', 'Joined') }}</div>
     </div>
-    {{ view_switch(_url({'view': 'list', 'tab': None}), _url({'view': 'grid', 'tab': None}), view if tab != 'history' else '') }}
+    {{ view_switch(_url({'view': 'list', 'tab': None}), _url({'view': 'grid', 'tab': None}), view) }}
+    {% endif %}
     <nav class="fb-side-group" aria-label="More">
       <h3 class="fb-side-title">More</h3>
       {{ side_link(url_for('main.trusted_servants_new'), 'user-plus', 'Add someone') }}
       <a class="fb-side-link" href="#" data-open-modal="ts-import-wizard-modal">{{ icon('cloud-upload') }}<span>Import a CSV</span></a>
-      {{ side_link(_url({'tab': 'history'}), 'clock', 'Updates sent', blast_count, tab == 'history') }}
     </nav>
   </div>
 </aside>
 <div class="fb-pick-main" data-live="main">
+{# The list's two halves: the people on it, and every update sent to it. #}
+<nav class="ds-seg-btns ts-switch" aria-label="Show">
+  <a href="{{ url_for('main.trusted_servants_list', view=view) }}" role="radio" aria-checked="{{ 'false' if tab == 'history' else 'true' }}">{{ icon('users') }}<span>People</span><span class="ts-switch-n">{{ people_count }}</span></a>
+  <a href="{{ url_for('main.trusted_servants_list', tab='history') }}" role="radio" aria-checked="{{ 'true' if tab == 'history' else 'false' }}">{{ icon('send') }}<span>Updates sent</span><span class="ts-switch-n">{{ blast_count }}</span></a>
+</nav>
 <form id="ts-bulk-form" method="post" action="{{ url_for('main.trusted_servants_bulk') }}" data-bulk-form>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="action" value="" data-bulk-action-field>
 </form>
 <section class="card fb lst" data-bulk-scope="ts-bulk-form">
   {% if tab == 'history' %}
-  {# The updates sent to the list, newest first. #}
+  {# Every update, newest first, beside the one picked, kept in full:
+     the message as it went out, the audience and each recipient. #}
   {% if blasts %}
-  <table class="tbl fb-tbl lst-tbl">
-    <thead><tr><th>Subject</th><th class="fb-col">Sent</th><th class="fb-col">By</th><th class="fb-col">Delivered</th></tr></thead>
-    <tbody>
+  <div class="ts-updates">
+    <ul class="ts-upd-list" aria-label="Updates sent">
       {% for b in blasts %}
-      <tr>
-        <td class="media-name-cell"><span class="fb-name">{{ b.subject }}</span>
-          <div class="fb-sub fb-sub--narrow">{{ b.started_at|fmt_site_local('%b %-d, %Y') if b.started_at }} · {{ b.sent_count }} of {{ b.recipient_count }}</div></td>
-        <td class="fb-col muted">{{ b.started_at|fmt_site_local('%b %-d, %Y · %-I:%M %p') if b.started_at else '—' }}</td>
-        <td class="fb-col muted">{{ b.sent_by.username if b.sent_by else '(deleted user)' }}</td>
-        <td class="fb-col">{{ b.sent_count }} of {{ b.recipient_count }}{% if b.failed_count %} <span class="post-chip post-chip-warning">{{ b.failed_count }} failed</span>{% endif %}</td>
-      </tr>
+      <li><a class="ts-upd-item{{ ' is-current' if selected and b.id == selected.id }}" href="{{ _url({'update': b.id}) }}"{% if selected and b.id == selected.id %} aria-current="true"{% endif %}>
+        <span class="ts-upd-subject">{{ b.subject }}</span>
+        <span class="ts-upd-meta">{{ b.started_at|fmt_site_local('%b %-d, %Y') if b.started_at }} · {{ b.sent_count }} of {{ b.recipient_count }}{% if b.failed_count %} · <span class="ts-upd-failed">{{ b.failed_count }} failed</span>{% endif %}</span>
+      </a></li>
       {% endfor %}
-    </tbody>
-  </table>
+    </ul>
+    {% set u = selected %}
+    {% set _aud = u.audience() %}
+    {% set _rcpts = u.recipients() %}
+    {% set GROUPS = {'subscribers': 'subscribers', 'intergroup': 'intergroup members', 'app_users': 'app users'} %}
+    {% set GROUP_ONE = {'subscriber': 'Subscriber', 'intergroup': 'Intergroup', 'app_user': 'App user'} %}
+    <article class="ts-upd-view">
+      <header class="ts-upd-head">
+        <div class="ts-upd-head-text">
+          <h2 class="ts-upd-title">{{ u.subject }}</h2>
+          <div class="ts-upd-facts muted small">
+            <span>{{ icon('clock') }}{{ u.started_at|fmt_site_local('%b %-d, %Y · %-I:%M %p %Z') if u.started_at }}</span>
+            <span>{{ icon('user') }}{{ u.sent_by.username if u.sent_by else 'a deleted user' }}</span>
+            {% if _aud %}<span>{{ icon('users') }}{% if _aud.mode == 'all' %}Everyone{% else %}{% for g in _aud.groups %}{{ GROUPS.get(g, g)|capitalize if loop.first else GROUPS.get(g, g) }}{{ ', ' if not loop.last }}{% endfor %}{% if _aud.picked %} ({{ _aud.picked }} picked){% endif %}{% endif %}</span>{% endif %}
+          </div>
+        </div>
+        <a class="btn btn-sm" href="{{ url_for('main.trusted_servants_blast_compose', reuse=u.id) }}" title="Start a new update from this one">{{ icon('rotate-ccw') }} Use again</a>
+      </header>
+      <div class="ts-upd-stats">
+        <span class="post-chip post-chip-online">{{ u.sent_count }} delivered</span>
+        {% if u.failed_count %}<span class="post-chip post-chip-danger">{{ u.failed_count }} failed</span>{% endif %}
+        <span class="muted small">of {{ u.recipient_count }}</span>
+        {% if '{name}' in u.body_md or '{name}' in u.subject %}<span class="muted small ts-upd-note">Each copy had {name} filled in with the person's name.</span>{% endif %}
+      </div>
+      <div class="ts-upd-body rich-content">{{ (u.body_html or (u.body_md|markdown))|safe_rich_html }}</div>
+      <details class="ts-upd-rcpts"{% if u.failed_count %} open{% endif %}>
+        <summary>{{ icon('users') }}Who it went to{% if _rcpts %} <span class="ts-switch-n">{{ _rcpts|length }}</span>{% endif %}</summary>
+        {% if _rcpts %}
+        <ul class="ts-rcpt-list">
+          {% for r in _rcpts|sort(attribute='ok') %}
+          <li class="ts-rcpt">
+            <span class="ts-rcpt-name">{{ r.name }}</span>
+            <span class="ts-rcpt-email muted">{{ r.email }}</span>
+            <span class="ts-rcpt-group muted small">{{ GROUP_ONE.get(r.group, '') }}</span>
+            {% if r.ok %}<span class="post-chip post-chip-online">Delivered</span>
+            {% else %}<span class="post-chip post-chip-danger" title="{{ r.error or 'Not delivered' }}">Failed</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}<p class="muted small">Not kept for updates sent before recipients were recorded.</p>{% endif %}
+      </details>
+    </article>
+  </div>
   {% else %}
   <div class="fb-empty">
     <span class="fb-empty-icon" aria-hidden="true">{{ icon('send') }}</span>
-    <p>No updates sent yet.</p>
-    <a class="btn btn-sm btn-primary" href="{{ url_for('main.trusted_servants_blast_compose') }}">{{ icon('send') }} Send an update</a>
+    {% if q %}<p>No update matches “{{ q }}”.</p><a class="btn btn-sm" href="{{ _url({'q': None}) }}">Show all</a>
+    {% else %}<p>No updates sent yet.</p>
+    <a class="btn btn-sm btn-primary" href="{{ url_for('main.trusted_servants_blast_compose') }}">{{ icon('send') }} Send an update</a>{% endif %}
   </div>
   {% endif %}
 

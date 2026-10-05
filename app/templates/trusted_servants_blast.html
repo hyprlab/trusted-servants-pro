@@ -7,7 +7,8 @@
 {% set _picked = (prefill.getlist('subscriber_ids') if prefill else []) %}
 {# Group switches: on by default only for subscribers; a refused send
    keeps what was ticked. #}
-{% set _inc_subs = (pf.get('include_subscribers') == '1') if prefill else True %}
+{% set _posted = prefill and prefill.get('audience_mode') %}
+{% set _inc_subs = (pf.get('include_subscribers') == '1') if _posted else True %}
 {% set _inc_ig = pf.get('include_intergroup') == '1' %}
 {% set _inc_app = pf.get('include_app_users') == '1' %}
 {% block heading %}Send an update{% endblock %}
