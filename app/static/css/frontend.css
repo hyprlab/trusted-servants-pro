@@ -11993,10 +11993,10 @@ body.fe-footer-force-dark .fe-footer-admin-login--logout:focus-visible {
 /* ── Request access (frontend/_request_access_modal.html) ──────────
    Signed out, the mega menu's Login and Request access buttons share a
    row (the auth row Dashboard and Logout use), side by side rather than
-   at the column's edges. The popup is 320px wide, its footer stacked so
+   at the column's edges. The popup is 400px wide, its footer stacked so
    the fine print and the button each get the width. */
 .fe-megamenu-authrow--guest { justify-content: flex-start; }
-.fe-request-access-modal .fe-submission-modal-panel { max-width: 320px; }
+.fe-request-access-modal .fe-submission-modal-panel { max-width: 400px; }
 .fe-request-access-modal .fe-submission-modal-foot { flex-direction: column; align-items: stretch; gap: 10px; }
 .fe-request-access-modal .fe-submission-modal-foot-actions { width: 100%; }
 .fe-request-access-modal .fe-submission-modal-foot-actions > .btn { width: 100%; justify-content: center; }
