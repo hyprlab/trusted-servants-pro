@@ -11507,10 +11507,6 @@ html[data-theme="dark"] .fe-mlist-sort select option {
 .fe-fellowships-compact-row-link:hover { text-decoration: underline; }
 .fe-fellowships-compact-row-link svg { width: 14px; height: 14px; }
 
-/* Admin Fellowships Index card (Settings → Global) — toggle styles */
-.fellowships-tbl input[type="text"],
-.fellowships-tbl input[type="url"] { width: 100%; }
-.fellowships-tbl tr.is-virtual .fellowship-cell-region-field { opacity: 0; pointer-events: none; }
 .fellowships-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
 .fellowship-virtual-toggle { display: inline-flex; align-items: center; }
 
