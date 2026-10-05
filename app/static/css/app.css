@@ -7222,21 +7222,6 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 .zoom-otp-card { width: 50%; margin-right: auto; }
 @media (max-width: 720px) { .zoom-otp-card { width: 100%; } }
 
-.notes-btn { padding: 0; border-radius: 50%; width: 24px; height: 24px; }
-.notes-btn .icon { width: 16px; height: 16px; }
-.notes-tip .help-tooltip { white-space: pre-wrap; }
-
-.zoom-accounts-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-  gap: 24px; align-items: start; }
-.zoom-accounts-main { min-width: 0; }
-.zoom-accounts-side { min-width: 0; }
-.zoom-otp-widget { padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px;
-  background: var(--panel-2); }
-.zoom-otp-title { margin: 0 0 4px; font-size: var(--fs-base); font-weight: 600; }
-.zoom-otp-widget .zoom-info { margin-top: 10px; }
-@media (max-width: 900px) {
-  .zoom-accounts-layout { grid-template-columns: 1fr; }
-}
 
 .users-new-card .form { gap: 12px; }
 .users-new-card .users-new-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; align-items: end; }
@@ -7397,17 +7382,6 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   body.embed .embed-actions .btn,
   body.embed .embed-actions .btn-primary { width: 100%; justify-content: center; }
 
-  .zoom-accounts-tbl { overflow-x: visible; }
-  .zoom-accounts-tbl thead { display: none; }
-  .zoom-accounts-tbl tbody, .zoom-accounts-tbl tr { display: block; }
-  .zoom-accounts-tbl tr { padding: 12px 0; border-bottom: 2px solid var(--border); }
-  .zoom-accounts-tbl td { display: block; border: none; padding: 4px 0; white-space: normal; }
-  .zoom-accounts-tbl td[data-label]::before { content: attr(data-label); display: block;
-    font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); text-transform: uppercase;
-    letter-spacing: 0.04em; margin-bottom: 2px; }
-  .zoom-accounts-tbl td.zoom-accounts-actions { padding-top: 10px; }
-  .zoom-accounts-tbl td.zoom-accounts-actions .row-actions { justify-content: flex-start; flex-wrap: wrap; }
-  .zoom-accounts-tbl td.zoom-accounts-actions .row-actions .btn { flex: 1 1 auto; }
 
   .loc-csz-row { grid-template-columns: 1fr 1fr 1fr; }
 
@@ -17989,6 +17963,48 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .ts-history-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
 .ts-history-text { flex: 1 1 auto; min-width: 0; }
 .ts-history-subject { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Zoom Accounts (zoom_accounts.html, zoom_account_edit.html): sign-in
+   and password with Copy, the passcode tools in the sidebar, and the
+   weekly calendar as its own view. ── */
+.za-cred { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.za-cred-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.za-pw-text { letter-spacing: .04em; }
+[data-za-pw].is-shown .za-pw-text { letter-spacing: 0; color: var(--text); }
+.za-cred-btn { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.za-cred-btn .icon { width: 13px; height: 13px; }
+.za-tbl .za-cred-btn > span { display: none; }
+.za-tbl .za-cred-btn { padding: 5px 7px; }
+.za-uses { white-space: nowrap; }
+.za-tbl .media-name-cell { min-width: 150px; }
+.za-tbl .fb-name { overflow-wrap: normal; word-break: normal; }
+.za-tbl td .post-chip { margin-left: 6px; }
+.za-card .lst-card-body { gap: 8px; }
+.za-card-row { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.za-card-label { font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.za-otp { margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--border); }
+.za-otp .fb-side-title { display: flex; align-items: center; gap: 6px; }
+.za-otp-inline { display: flex; flex-direction: column; gap: 8px; padding: 0 2px; }
+.za-otp-inline .otp-inline-fetch { width: 100%; justify-content: center; }
+.za-otp-manual { margin: 10px 2px 0; font-size: var(--fs-sm); }
+.za-otp-manual summary { cursor: pointer; color: var(--access, var(--brand)); font-weight: 600; }
+.za-otp-manual .zoom-info { margin: 8px 0; }
+.za-otp-login { display: inline-flex; align-items: center; gap: 6px; }
+.za-cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 16px 0 12px; }
+.za-cal-head h2 { margin: 0; font-size: var(--fs-md); }
+.za-legend { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-xs); color: var(--muted); }
+.za-legend-swatch { width: 14px; height: 14px; border-radius: 4px; background: #fee2e2; border-left: 3px solid #dc2626; }
+.za-pw-field { display: flex; gap: 6px; align-items: center; }
+.za-pw-field input { flex: 1 1 auto; }
+.za-pw-current { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.za-slots { list-style: none; margin: 0 0 10px; padding: 0; }
+.za-slot { display: grid; grid-template-columns: 36px 130px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+.za-slot-day { font-weight: 700; color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; }
+.za-slot-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.za-slot-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.za-slot.is-conflict .za-slot-time { color: #b91c1c; }
+html[data-theme="dark"] .za-slot.is-conflict .za-slot-time { color: #fca5a5; }
 
 /* ── Email List: People / Updates sent, and an update kept in full
    (trusted_servants_list.html). ── */

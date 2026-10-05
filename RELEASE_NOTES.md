@@ -9,6 +9,9 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Zoom Accounts uses the same layout as the other lists: an Accounts / Calendar switch, search that updates as you type, an Overlapping meetings filter, sort by name or most used, and List or Grid. Each account's sign-in has a Copy button, and its password can be shown for 15 seconds or copied without showing it. The weekly calendar is its own view, marking times that overlap on one account, and the one-time passcode tools are in the sidebar.
+- Adding or editing a Zoom account opens on its own page, saved with the yellow bar: the name, sign-in, password and notes on the left, and the meetings that start from the account on the right. The popups are gone.
+- Deleting a Zoom account now clears it from the meetings and meeting times that used it; before, they kept pointing at the deleted account.
 - Each update sent to the Email List is kept in full: the message as it went out, who chose the audience and how, and every person it went to with whether their copy was delivered (and why not, when it wasn't).
 - The Email List page has a People / Updates switch at the top of its sidebar. Updates sent lists every update beside the one you pick, shown in full with its delivered and failed counts and who it went to; failed copies come first. Search finds updates by subject or message, and Use again starts a new update from one.
 - `{name}` in an update's subject is now filled in with each person's name, as it already was in the message.

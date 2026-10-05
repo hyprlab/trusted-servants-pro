@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% set _new = acct is none %}
+{% block heading %}{{ 'New Zoom account' if _new else acct.name }}{% endblock %}
+{% block heading_help %}{% if _new %}Add a shared Zoom account; then pick it on a meeting's Online tab.{% else %}The account's name, sign-in and password on the left, and the meetings that start from it on the right. Save with the yellow bar.{% endif %}{% endblock %}
+{% block top_actions %}
+  <a class="btn" href="{{ url_for('main.zoom_accounts') }}">← All</a>
+  {% if _new %}
+  <button type="submit" form="za-form" class="btn btn-primary">{{ icon('plus') }} Add the account</button>
+  {% else %}
+  <form method="post" action="{{ url_for('main.zoom_account_delete', aid=acct.id) }}" style="display:inline"
+        data-confirm-title="Delete {{ acct.name }}?" data-confirm-label="Delete"
+        data-confirm="Meetings that start from it are left without a Zoom account until you pick another.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-danger">Delete</button>
+  </form>
+  {% endif %}
+{% endblock %}
+{% block content %}
+{# Laid out like the other editors (story_edit.html): the account on the
+   left, the meetings using it on the right (fe_studio.js), and the
+   yellow save bar (content_editor.js) once it exists. #}
+<form id="za-form" class="form post-form" method="post" data-content-editor autocomplete="off"
+      action="{{ url_for('main.zoom_account_new') if _new else url_for('main.zoom_account_edit', aid=acct.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <section class="card st-studio post-studio" data-studio="zoom-account" data-no-collapse>
+    <div class="st-body st-body--split">
+      <div class="post-studio-main">
+        <label class="post-title-field">{% call hrow('Name') %}What the account is called in the portal and on meetings.{% endcall %}
+          <input type="text" name="name" required maxlength="128" class="post-title-input" value="{{ acct.name if acct else '' }}"
+                 placeholder="dccmazoomtech" {% if _new %}autofocus{% endif %}>
+        </label>
+        <label>{% call hrow('Sign-in') %}The email or username used to sign in to Zoom.{% endcall %}
+          <input type="text" name="username" required maxlength="255" value="{{ acct.username if acct else '' }}" placeholder="zoomtech@example.org" autocomplete="off">
+        </label>
+        <div class="form-field-block">
+          {% call hrow('Password') %}{% if _new %}The account's Zoom password, stored encrypted.{% else %}Leave it blank to keep the current password; type a new one to replace it. Stored encrypted.{% endif %}{% endcall %}
+          <div class="za-pw-field">
+            <input type="password" name="password" {% if _new %}required{% endif %} autocomplete="new-password" data-za-pw-input
+                   placeholder="{{ 'Zoom password' if _new else 'Unchanged' }}" aria-label="Password">
+            <button type="button" class="btn btn-sm" data-za-toggle aria-label="Show what you typed" title="Show what you typed">{{ icon('eye') }}</button>
+          </div>
+          {% if not _new %}
+          <div class="za-pw-current" data-za-pw data-url="{{ url_for('main.zoom_account_reveal', aid=acct.id) }}">
+            <span class="muted small">Current password:</span>
+            <span class="za-cred-text za-pw-text mono" data-za-pw-text>••••••••</span>
+            <button type="button" class="btn btn-sm za-cred-btn" data-za-reveal>{{ icon('eye') }}<span>Show</span></button>
+            <button type="button" class="btn btn-sm za-cred-btn" data-za-copy>{{ icon('copy') }}<span>Copy</span></button>
+          </div>
+          {% endif %}
+        </div>
+        <label>{% call hrow('Notes') %}Optional: anything a host should know, such as who looks after it.{% endcall %}
+          <textarea name="notes" rows="3">{{ (acct.notes if acct else '') or '' }}</textarea>
+        </label>
+      </div>
+
+      <div class="st-controls">
+        <div class="ds-group st-group-body">
+          <h3 class="ds-group-title">{{ icon('calendar') }}Meetings using it {% call chip('Meetings using it') %}Meeting times that start from this account, set on each meeting's Online tab. Times that overlap on one account are marked.{% endcall %}</h3>
+          {% if slots %}
+          <ul class="za-slots">
+            {% for s in slots %}
+            <li class="za-slot{{ ' is-conflict' if s.id in conflict_ids }}">
+              <span class="za-slot-day">{{ DAYS_OF_WEEK[s.day_of_week][:3] }}</span>
+              <span class="za-slot-time">{{ (s.opens_time or s.start_time)|fmt12h }}–{{ s.end_time|fmt12h }}</span>
+              <a class="za-slot-name" href="{{ url_for('main.meeting_detail', slug=s.meeting.public_slug) }}">{{ s.meeting.name }}</a>
+              {% if s.id in conflict_ids %}<span class="post-chip post-chip-warning">Overlap</span>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          <a class="small" href="{{ url_for('main.zoom_accounts', tab='calendar', q=acct.name) }}">See it in the calendar</a>
+          {% else %}
+          <p class="muted small">{% if _new %}Once it's added, pick it on a meeting's Online tab.{% else %}No meeting uses it yet. Pick it on a meeting's Online tab.{% endif %}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+</form>
+<script>
+(function () {
+  // Show what's typed in the password box.
+  var t = document.querySelector('[data-za-toggle]'), i = document.querySelector('[data-za-pw-input]');
+  if (t && i) t.addEventListener('click', function () { i.type = i.type === 'password' ? 'text' : 'password'; });
+  // The current password: Show for 15 seconds, Copy, fetched when asked.
+  var box = document.querySelector('[data-za-pw]');
+  if (!box) return;
+  var timer;
+  function get() {
+    if (box.dataset.pw) return Promise.resolve(box.dataset.pw);
+    return fetch(box.dataset.url, { credentials: 'same-origin' }).then(function (r) { return r.json(); })
+      .then(function (j) { box.dataset.pw = j.password || ''; return box.dataset.pw; });
+  }
+  var text = box.querySelector('[data-za-pw-text]'), show = box.querySelector('[data-za-reveal] span');
+  function hide() { text.textContent = '••••••••'; show.textContent = 'Show'; box.classList.remove('is-shown'); }
+  box.querySelector('[data-za-reveal]').addEventListener('click', function () {
+    if (box.classList.contains('is-shown')) { hide(); return; }
+    get().then(function (pw) { text.textContent = pw || '(none)'; show.textContent = 'Hide'; box.classList.add('is-shown');
+      clearTimeout(timer); timer = setTimeout(hide, 15000); });
+  });
+  box.querySelector('[data-za-copy]').addEventListener('click', function (e) {
+    var label = e.currentTarget.querySelector('span');
+    get().then(function (pw) { return navigator.clipboard.writeText(pw); })
+      .then(function () { label.textContent = 'Copied!'; setTimeout(function () { label.textContent = 'Copy'; }, 1500); });
+  });
+})();
+</script>
+{% if not _new %}
+<div id="za-save-bar" class="fe-save-bar fe-save-bar-content" hidden data-editor-save-bar>
+  <span class="fe-save-bar-msg">Unsaved changes</span>
+  <button type="button" class="btn fe-save-bar-btn">Save</button>
+</div>
+{% endif %}
+<script src="{{ url_for('static', filename='js/content_editor.js', v=app_build_id) }}"></script>
+{% endblock %}

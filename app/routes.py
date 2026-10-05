@@ -3021,78 +3021,163 @@ def meeting_logo(mid):
 
 # --- Zoom Accounts ---
 
+def _zoom_conflicts(schedules):
+    """Ids of the schedule slots that overlap another slot on the same
+    account and day, and the accounts that have any."""
+    by = {}
+    for s in schedules:
+        if s.zoom_account_id:
+            by.setdefault((s.zoom_account_id, s.day_of_week), []).append(s)
+    ids, accts = set(), set()
+    for (acct, _day), slots in by.items():
+        for i in range(len(slots)):
+            for j in range(i + 1, len(slots)):
+                x, y = slots[i], slots[j]
+                if x.start_minutes() < y.end_minutes() and y.start_minutes() < x.end_minutes():
+                    ids.update((x.id, y.id))
+                    accts.add(acct)
+    return ids, accts
+
+
 @bp.route("/zoom-accounts")
 @login_required
 def zoom_accounts():
-    accounts = ZoomAccount.query.order_by(ZoomAccount.name).all()
+    """Zoom accounts in the File Browser layout: search (name, sign-in or
+    notes, live), an Overlaps filter, sort, List or Grid, and the
+    one-time passcode tools in the sidebar. ``tab=calendar`` shows the
+    weekly assignment calendar for the accounts found."""
+    Z = ZoomAccount
+    tab = "calendar" if request.args.get("tab") == "calendar" else "accounts"
+    only = "overlaps" if request.args.get("only") == "overlaps" else ""
+    sort = (request.args.get("sort") or request.cookies.get("view-zoom-sort") or "name_asc").strip()
+    view = request.args.get("view") or request.cookies.get("view-zoom") or "list"
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
+
     schedules = (MeetingSchedule.query
-                 .filter(MeetingSchedule.zoom_account_id.isnot(None))
-                 .all())
-    # Build calendar grid: rows = hours 6..23, cols = days
+                 .filter(MeetingSchedule.zoom_account_id.isnot(None)).all())
+    conflict_ids, conflict_accts = _zoom_conflicts(schedules)
+    base = Z.query
+    if q_text:
+        like = f"%{q_text}%"
+        base = base.filter(db.or_(Z.name.ilike(like), Z.username.ilike(like), Z.notes.ilike(like)))
+    found = base.all()
+    only_counts = {"": len(found), "overlaps": sum(1 for a in found if a.id in conflict_accts)}
+    accounts = [a for a in found if not only or a.id in conflict_accts]
+    uses = {}
+    for s in schedules:
+        uses[s.zoom_account_id] = uses.get(s.zoom_account_id, 0) + 1
+    key, direction = sort.rsplit("_", 1) if "_" in sort else ("name", "asc")
+    if key == "uses":
+        accounts.sort(key=lambda a: (uses.get(a.id, 0), a.name.lower()), reverse=direction == "desc")
+    else:
+        sort = "name_desc" if sort == "name_desc" else "name_asc"
+        accounts.sort(key=lambda a: a.name.lower(), reverse=sort == "name_desc")
+
+    # The calendar: each account's slots by day, Sunday first.
     calendar = {a.id: {d: [] for d in range(7)} for a in accounts}
     for s in schedules:
         if s.zoom_account_id in calendar:
             calendar[s.zoom_account_id][s.day_of_week].append(s)
-    conflict_ids = set()
-    for acct_id, by_day in calendar.items():
-        for day, slots in by_day.items():
-            for i in range(len(slots)):
-                for j in range(i + 1, len(slots)):
-                    a, b = slots[i], slots[j]
-                    if a.start_minutes() < b.end_minutes() and b.start_minutes() < a.end_minutes():
-                        conflict_ids.add(a.id)
-                        conflict_ids.add(b.id)
-    # Display order: Sunday first, then Monday..Saturday
     day_order = [6, 0, 1, 2, 3, 4, 5]
     otp = _get_otp_email()
-    return render_template("zoom_accounts.html", accounts=accounts,
-                           calendar=calendar, schedules=schedules,
-                           conflict_ids=conflict_ids, day_order=day_order,
-                           otp=otp, decrypt=decrypt)
+    resp = current_app.make_response(render_template(
+        "zoom_accounts.html", accounts=accounts, calendar=calendar, uses=uses,
+        conflict_ids=conflict_ids, conflict_accts=conflict_accts, day_order=day_order,
+        otp=otp, tab=tab, only=only, sort=sort, view=view, q=q_text,
+        only_counts=only_counts, total=Z.query.count()))
+    resp.set_cookie("view-zoom", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-zoom-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
-@bp.route("/zoom-accounts/new", methods=["POST"])
+def _zoom_account_page(acct):
+    """The editor page for a new (``acct`` None) or existing account,
+    with the meetings using it and which of their times overlap."""
+    slots, conflict_ids = [], set()
+    if acct:
+        slots = (MeetingSchedule.query.filter_by(zoom_account_id=acct.id).all())
+        slots.sort(key=lambda s: ((s.day_of_week + 1) % 7, s.start_time or ""))
+        conflict_ids, _ = _zoom_conflicts(slots)
+    return render_template("zoom_account_edit.html", acct=acct, slots=slots,
+                           conflict_ids=conflict_ids)
+
+
+@bp.route("/zoom-accounts/new", methods=["GET", "POST"])
 @admin_required
 def zoom_account_new():
-    name = request.form["name"].strip()
+    if request.method == "GET":
+        return _zoom_account_page(None)
+    name = (request.form.get("name") or "").strip()[:128]
+    username = (request.form.get("username") or "").strip()[:255]
+    if not name or not username:
+        flash("A name and a sign-in are required.", "danger")
+        return redirect(url_for("main.zoom_account_new"))
     if ZoomAccount.query.filter_by(name=name).first():
         flash("A Zoom account with that name already exists", "danger")
-        return redirect(url_for("main.zoom_accounts", **({"embed": "1"} if request.values.get("embed") == "1" else {})))
+        return redirect(url_for("main.zoom_account_new"))
     acct = ZoomAccount(
         name=name,
-        username=request.form["username"].strip(),
+        username=username,
         password_enc=encrypt(request.form.get("password", "")),
-        notes=request.form.get("notes", "").strip(),
+        notes=(request.form.get("notes") or "").strip(),
     )
     db.session.add(acct)
     db.session.commit()
     flash("Zoom account created", "success")
-    return redirect(url_for("main.zoom_accounts", **({"embed": "1"} if request.values.get("embed") == "1" else {})))
+    return redirect(url_for("main.zoom_account_edit", aid=acct.id))
 
 
-@bp.route("/zoom-accounts/<int:aid>/edit", methods=["POST"])
+@bp.route("/zoom-accounts/<int:aid>/edit", methods=["GET", "POST"])
 @admin_required
 def zoom_account_edit(aid):
     acct = db.session.get(ZoomAccount, aid) or abort(404)
-    acct.name = request.form["name"].strip()
-    acct.username = request.form["username"].strip()
+    if request.method == "GET":
+        return _zoom_account_page(acct)
+    name = (request.form.get("name") or "").strip()[:128]
+    username = (request.form.get("username") or "").strip()[:255]
+    problem = None
+    if not name or not username:
+        problem = "A name and a sign-in are required."
+    elif ZoomAccount.query.filter(ZoomAccount.name == name, ZoomAccount.id != acct.id).first():
+        problem = "Another Zoom account already has that name."
+    if problem:
+        flash(problem, "danger")
+        if _post_save_wants_json():
+            return _editor_save_failed()
+        return redirect(url_for("main.zoom_account_edit", aid=aid))
+    acct.name = name
+    acct.username = username
     pw = request.form.get("password", "")
     if pw:
         acct.password_enc = encrypt(pw)
-    acct.notes = request.form.get("notes", "").strip()
+    acct.notes = (request.form.get("notes") or "").strip()
     db.session.commit()
     flash("Zoom account updated", "success")
-    return redirect(url_for("main.zoom_accounts", **({"embed": "1"} if request.values.get("embed") == "1" else {})))
+    if _post_save_wants_json():
+        payload = _editor_save_payload(None, None)
+        # A new password is stored; the page clears the box on reload.
+        if pw:
+            payload["redirect"] = url_for("main.zoom_account_edit", aid=aid)
+        return jsonify(payload)
+    return redirect(url_for("main.zoom_account_edit", aid=aid))
 
 
 @bp.route("/zoom-accounts/<int:aid>/delete", methods=["POST"])
 @admin_required
 def zoom_account_delete(aid):
     acct = db.session.get(ZoomAccount, aid) or abort(404)
+    # SQLite here doesn't enforce the ON DELETE SET NULL, so clear the
+    # meetings and times that used the account by hand.
+    MeetingSchedule.query.filter_by(zoom_account_id=aid).update({"zoom_account_id": None})
+    Meeting.query.filter_by(zoom_account_id=aid).update({"zoom_account_id": None})
     db.session.delete(acct)
     db.session.commit()
     flash("Zoom account deleted", "success")
-    return redirect(url_for("main.zoom_accounts", **({"embed": "1"} if request.values.get("embed") == "1" else {})))
+    ref = _safe_referrer()
+    if ref and "/zoom-accounts/%d/" % aid not in ref:
+        return redirect(ref)
+    return redirect(url_for("main.zoom_accounts"))
 
 
 @bp.route("/zoom-accounts/<int:aid>/reveal")

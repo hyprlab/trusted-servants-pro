@@ -41,6 +41,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `User.theme_pref` (`system` / `light` / `dark`, empty until chosen; added by `_migrate_sqlite`) and `POST /tspro/account/theme` (`account_theme_save`). `base.html` and `setup.html` carry it as `data-theme-pref` and resolve `data-theme` before paint (falling back to the browser's `tsp-theme`, with old theme names mapped to light or dark, then `prefers-color-scheme`); `app.js` follows device changes under `system`, saves from `[data-theme-pref-value]` controls and `#theme-toggle`, and migrates a browser's old choice to the account once.
 
 ### Changed
+- `zoom_accounts.html` uses the `.fb-pick--page` list layout: `tab` (accounts, calendar), `only=overlaps` (`_zoom_conflicts`), `sort` (name, uses), `view`, `q` (name, sign-in, notes); the OTP widget moves into the sidebar outside the live regions. Passwords reveal and copy through a delegated `[data-za-pw]` script. `zoom_account_new` and `zoom_account_edit` take GET (`zoom_account_edit.html`, `.post-studio`, the account's schedule slots with overlaps); `zoom_account_edit` answers the save bar with JSON and refuses a blank or duplicate name.
 - `trusted_servants_list.html`: a `.ts-switch` segmented control (People / Updates) at the top of the `.fb-side` sidebar; `tab=history` is a two-pane view (`.ts-upd-list` beside `.ts-upd-view`) of the update picked by `update=<id>` (else the latest), searchable by subject or message, with the People filters, sort and view hidden. The subject's `{name}` is filled per recipient.
 - `trusted_servants_blast.html` is a `.post-studio` page: the body in `.md-editor-live` with `md_toolbar`, the audience (same form fields) and recent updates in Audience and Sent before tabs, a live `.ts-reach` count, and a `tspConfirm` before posting. `_blast_compose_page(prefill, status)` renders it; `trusted_servants_blast_send` re-renders it with the posted values (400) instead of redirecting when it refuses a send, and returns to the Email List's Updates sent view after sending.
 - `.btn:disabled` is faded with a not-allowed cursor.
@@ -162,6 +163,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
+- `zoom_account_delete` sets `zoom_account_id` to NULL on `MeetingSchedule` and `Meeting` rows itself: SQLite here doesn't enforce the `ON DELETE SET NULL`.
 - File Browser picker: `body.embed .fb-pick-main` loses the 58px right gutter and has a 20px margin on every side; `.media-picker-close` sits inside the files card's top-right corner (28px, 28px), over the empty end of its header row. Esc inside the frame posts `media-picker-close` to the parent.
 - `.alert-banner` had no dark-mode colors and showed light-mode yellow on the dark page; `[data-theme="dark"] .alert-banner` tints it instead.
 - A meeting saved with every library unticked kept its libraries: `library_ids` wasn't posted at all, so `_apply_library_selections` never ran. The editor always posts an empty `library_ids`.
@@ -198,6 +200,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `#relayFields` and `#smtpFields` were plain blocks inside the flex `.form`, so their fields had no gap; they are now flex columns inheriting the form's gap.
 
 ### Removed
+- The Zoom account add and edit modals and the `.zoom-accounts-*`, `.zoom-otp-widget`, `.zoom-otp-title` and `.notes-*` rules.
 - The `.ts-page-wrap`, `.ts-page-toolbar`, `.ts-blast-form`, `.ts-blast-actions`, `.ts-aud-*` (outside the shared segmented-control lists), `#ts-add-modal` / `ts-edit-*` modal and `.rc-settings-grid` rules.
 - The Intergroup Email edit modal and the `.intergroup-grid`, `.ig-email-list`, `.ig-setting*`, `.ig-webmail` and `.ig-learn` rules.
 - `library_readings_bulk_categories` and `library_readings_bulk_delete`; the library page's add, edit, bulk-categories and library-edit modals; the Intergroup library search/sort/filter and old bulk-bar scripts in `app.js`; the `.ig-lib-*`, `.ig-cat-chip*`, `.lib-bulk-*` and `.lib-row-select` rules.
