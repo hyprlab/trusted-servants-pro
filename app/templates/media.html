@@ -285,12 +285,12 @@
 <div class="modal file-lightbox" id="file-lightbox" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
   <div class="lightbox-panel" role="dialog" aria-modal="true">
-    <div class="lightbox-head">
-      <div class="lightbox-title" id="lightbox-title">—</div>
+    <div class="modal-head">
+      <h2 class="lightbox-title" id="lightbox-title">—</h2>
       <div class="lightbox-counter muted small" id="lightbox-counter" aria-live="polite"></div>
       <div class="lightbox-head-actions">
-        <a class="btn btn-sm" id="lightbox-open-tab" target="_blank" rel="noopener">Open in new tab</a>
-        <a class="btn btn-sm" id="lightbox-download">Download</a>
+        <a class="btn" id="lightbox-open-tab" target="_blank" rel="noopener" title="Open in new tab">{{ icon('external-link') }}<span class="hide-sm">Open in new tab</span></a>
+        <a class="btn" id="lightbox-download" title="Download">{{ icon('download') }}<span class="hide-sm">Download</span></a>
         <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
       </div>
     </div>

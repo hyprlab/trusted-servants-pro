@@ -9,6 +9,7 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- The File Browser's preview fills the window, with the image or PDF centered and as large as it fits. Its title and buttons match the other dialogs; on a phone, Open in new tab and Download are icons so the file name has room.
 - Watchtower's Visitors and 404s top bars match the rest of the admin: the Unique visitors / Hits switch is the standard segmented switch, its help is the usual info icon, and the date range and buttons are the standard button size.
 - Every segmented switch in the admin (such as List / Grid, Light / Dark and the editors' panel tabs) slides its highlight to the part you pick.
 - Moving between Watchtower's tabs, and between Active and Archived requests, loads the section in place without reloading the page: the tab highlight slides to the new section and nothing above it moves. The address and the browser's Back and Forward follow along.
