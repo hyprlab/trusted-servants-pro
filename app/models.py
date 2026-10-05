@@ -779,6 +779,11 @@ class SiteSetting(db.Model):
     alert_details_enabled = db.Column(db.Boolean, nullable=False, default=False)
     alert_title = db.Column(db.String(200))
     alert_details = db.Column(db.Text)
+    # When the alert was posted (site-local): set when the message changes
+    # or the bar is turned on, unless the admin sets it; shown in the
+    # details window with ``alert_show_posted``.
+    alert_posted_at = db.Column(db.DateTime)
+    alert_show_posted = db.Column(db.Boolean, nullable=False, default=False)
     # Announcements & Events module toggle. Default True so existing
     # installs don't lose data the moment the column is added.
     posts_enabled = db.Column(db.Boolean, nullable=False, default=True)

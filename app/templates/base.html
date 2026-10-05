@@ -1524,6 +1524,14 @@
               <label>{% call hrow('Window title') %}Optional. Left blank, the window is titled with the style's name, such as Warning.{% endcall %}
                 <input type="text" name="alert_title" maxlength="200" value="{{ site.alert_title or '' }}" data-alert-title placeholder="Server move this Saturday">
               </label>
+              <div class="form-field-block">{% call hrow('Posted') %}Set to now when you post a new message or turn the bar on; change it to show another date. In the portal's timezone ({{ site.timezone or 'UTC' }}).{% endcall %}
+                <div class="alert-posted-row">
+                  <input type="datetime-local" name="alert_posted_at" data-alert-posted aria-label="Posted"
+                         value="{{ site.alert_posted_at.strftime('%Y-%m-%dT%H:%M') if site.alert_posted_at else '' }}">
+                  <label class="check"><input type="checkbox" name="alert_show_posted" value="1" data-alert-show-posted {% if site.alert_show_posted %}checked{% endif %}>
+                    <span>Show the posted date in the window</span></label>
+                </div>
+              </div>
               <div class="form-field-block">{% call hrow('Details') %}Shown in the window under the message. Use the toolbar, or type Markdown: headings, <code>**bold**</code>, lists and links. The preview shows it as it will look.{% endcall %}
                 <div class="md-editor md-editor-live alert-details-md" data-md-editor data-md-live="1">
                   {{ md_toolbar() }}
@@ -1610,6 +1618,14 @@
               const lbl = form.querySelector('input[name=alert_tone]:checked + span');
               slot.querySelector('[data-detail-title]').textContent = custom || (lbl ? lbl.textContent : '');
               slot.querySelector('[data-detail-lead]').innerHTML = lead;
+              // Posted: the date in the field, or now for a new message.
+              const postedOn = form.querySelector('[data-alert-show-posted]').checked;
+              const raw = form.querySelector('[data-alert-posted]').value;
+              const when = raw ? new Date(raw) : new Date();
+              slot.querySelector('[data-detail-posted]').hidden = !postedOn;
+              slot.querySelector('[data-detail-posted-text]').textContent =
+                when.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + ' at ' +
+                when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
               slot.querySelector('[data-detail-body]').innerHTML = body;
               slot.querySelector('.modal-foot [data-site-alert-close]').hidden = !form.querySelector('[data-alert-closable]').checked;
               window.tspSiteAlertOpen(box);
@@ -1634,6 +1650,8 @@
                 const detail = document.querySelector('#site-alert-modal [data-site-alert-detail]');
                 const nextDetail = doc.querySelector('#site-alert-modal [data-site-alert-detail]');
                 if (detail && nextDetail) detail.replaceWith(document.importNode(nextDetail, true));
+                const posted = doc.querySelector('[data-alert-posted]');
+                if (posted) form.querySelector('[data-alert-posted]').value = posted.value;
                 const st = doc.querySelector('[data-alert-status]'), now = form.querySelector('[data-alert-status]');
                 if (st && now) now.textContent = st.textContent;
                 if (window.tspSiteAlertSync) window.tspSiteAlertSync();

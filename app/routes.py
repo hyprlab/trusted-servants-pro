@@ -438,6 +438,7 @@ def _site_alert(site):
             "icon": dict((k, i) for k, _l, i in ALERT_TONES)[tone],
             "title": (site.alert_title or "").strip() or dict((k, l) for k, l, _i in ALERT_TONES)[tone],
             "details": details,
+            "posted": site.alert_posted_at if site.alert_show_posted else None,
             "dismissible": bool(site.alert_dismissible), "version": site.alert_version or 0}
 
 
@@ -17775,6 +17776,20 @@ def alert_save():
     if ((message or "") != (s.alert_message or "") or (details or "") != (s.alert_details or "")
             or (enabled and not s.alert_enabled)):
         s.alert_version = (s.alert_version or 0) + 1
+    # Posted: what the admin typed, if they changed it; otherwise now, when
+    # the message changes or the bar is turned on (or it was never set).
+    posted_raw = (f.get("alert_posted_at") or "").strip()
+    before = s.alert_posted_at.strftime("%Y-%m-%dT%H:%M") if s.alert_posted_at else ""
+    if posted_raw and posted_raw != before:
+        try:
+            s.alert_posted_at = datetime.strptime(posted_raw, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            pass
+    elif ((message or "") != (s.alert_message or "") or (enabled and not s.alert_enabled)
+            or not s.alert_posted_at):
+        from .timezone import now_local_naive
+        s.alert_posted_at = now_local_naive(s).replace(second=0, microsecond=0) if message else s.alert_posted_at
+    s.alert_show_posted = f.get("alert_show_posted") == "1"
     s.alert_details = details
     s.alert_details_enabled = f.get("alert_details_enabled") == "1"
     s.alert_title = (f.get("alert_title") or "").strip()[:200] or None

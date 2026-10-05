@@ -42,6 +42,7 @@
         <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
       </div>
       <div class="modal-body">
+        <p class="site-alert-detail-posted muted small" data-detail-posted{% if not (a and a.posted) %} hidden{% endif %}>{{ icon('calendar') }}<span>Posted <time data-detail-posted-text{% if a and a.posted %} datetime="{{ a.posted.strftime('%Y-%m-%dT%H:%M') }}"{% endif %}>{{ a.posted.strftime('%B %-d, %Y at %-I:%M %p') if a and a.posted else '' }}</time></span></p>
         <div class="site-alert-detail-lead" data-detail-lead>{{ (a.message if a else '')|markdown }}</div>
         <div class="site-alert-detail-body" data-detail-body>{{ (a.details if a else '')|markdown }}</div>
       </div>

@@ -1692,6 +1692,8 @@ def _migrate_sqlite(app):
                          ("alert_details_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("alert_title", "VARCHAR(200)"),
                          ("alert_details", "TEXT"),
+                         ("alert_posted_at", "DATETIME"),
+                         ("alert_show_posted", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("posts_enabled", "BOOLEAN NOT NULL DEFAULT 1"),
                          ("intergroup_required_role", "VARCHAR(32) NOT NULL DEFAULT 'viewer'"),
                          ("zoom_tech_required_role", "VARCHAR(32) NOT NULL DEFAULT 'viewer'"),
