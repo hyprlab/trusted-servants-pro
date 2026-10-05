@@ -17368,21 +17368,26 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
    the preview is the tinted pane itself rather than a box inside it.
    Side by side, the toolbar names it; stacked under the editor, where
    the toolbar is far above it, it names itself. */
-.post-studio-main .md-editor-live { gap: 0; }
-.post-studio-main .md-editor-live .md-editor-preview {
+/* Settings > Alert Bar's editors (.alert-form) take the same shell. */
+.alert-form { container-type: inline-size; }
+:is(.post-studio-main, .alert-form) .md-editor-live { gap: 0; }
+:is(.post-studio-main, .alert-form) .md-editor-live .md-editor-preview {
   border: 0; border-radius: 0; background: transparent; padding: 12px 16px 14px; }
-.form .post-studio-main .md-editor-live .md-editor-pane-write textarea {
-  border: 0; border-radius: 0; background: var(--panel); box-shadow: none; padding: 12px 16px; }
+.form :is(.post-studio-main, .alert-form) .md-editor-live .md-editor-pane-write textarea,
+.form:is(.alert-form) .md-editor-live .md-editor-pane-write textarea {
+  border: 0; border-radius: 0; background: var(--panel); box-shadow: none; padding: 12px 16px;
+  font-family: inherit; font-size: var(--fs-base); line-height: 1.5; }
 @container (max-width: 760px) {
-  .post-studio-main .md-editor-live { grid-template-columns: minmax(0, 1fr); }
-  .post-studio-main .md-editor-live > .md-toolbar > .md-toolbar-label { display: none; }
-  .post-studio-main .md-editor-live .md-editor-pane-preview::before {
+  :is(.post-studio-main, .alert-form) .md-editor-live { grid-template-columns: minmax(0, 1fr); }
+  :is(.post-studio-main, .alert-form) .md-editor-live > .md-toolbar > .md-toolbar-label { display: none; }
+  :is(.post-studio-main, .alert-form) .md-editor-live .md-editor-pane-preview::before {
     content: "Preview"; display: block; padding: 12px 16px 0;
     font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-  .post-studio-main .md-editor-live .md-editor-preview { padding-top: 8px; }
-  .post-studio-main .md-editor-live .md-editor-pane-write { border-right: 0; border-bottom: 1px solid var(--border); }
+  :is(.post-studio-main, .alert-form) .md-editor-live .md-editor-preview { padding-top: 8px; }
+  :is(.post-studio-main, .alert-form) .md-editor-live .md-editor-pane-write { border-right: 0; border-bottom: 1px solid var(--border); }
   .post-studio-main .md-editor-live .md-editor-pane-write textarea { min-height: 260px; }
   .post-studio-main .md-editor-live .md-editor-preview { min-height: 100px; }
+  .alert-form .md-editor-live .md-editor-preview { min-height: 48px; }
 }
 @container (max-width: 520px) { .post-studio .post-type-row { grid-template-columns: minmax(0, 1fr); } }
 
