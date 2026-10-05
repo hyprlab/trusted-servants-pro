@@ -1391,7 +1391,7 @@ def _search_sections(tokens, per_section):
             "items": [{
                 "label": m.original_filename or m.stored_filename,
                 "snippet": (m.mime_type or "File"),
-                "url": url_for("main.media_list") + "?q=" + (m.original_filename or "")[:80],
+                "url": url_for("main.media_file", mid=m.id),
                 "icon": "folder",
                 "_ts": _ts_of(m),
             } for m in media],
@@ -17194,53 +17194,22 @@ def _cleanup_retired_asset(stored):
 MEDIA_PER_PAGE = 100
 
 
-@bp.route("/files")
-@login_required
-def media_list():
+def _media_browse(args):
+    """The File Browser's files as the query string asks for them:
+    searched, filtered by kind and uploader, and sorted. Shared by the
+    list and a file's own view, whose Previous and Next step through
+    the same files in the same order. Returns the ordered query and the
+    settings it was built from."""
     from sqlalchemy import case, func, or_
-    q = (request.args.get("q") or "").strip().lower()
-    picker = request.args.get("picker") == "1"
-    # Multi-select picker mode — surfaces a checkbox on every item +
-    # a fixed bottom bar with the running count and a "Done — add N"
-    # button that posts a batch ``media-selected-batch`` message back
-    # to the parent. Only meaningful when ``picker=1``.
-    picker_multi = picker and request.args.get("multi") == "1"
-    view = request.args.get("view") or request.cookies.get("view-media") or "list"
-    if view not in ("list", "grid"): view = "list"  # legacy "table" → "list"
-    sort = request.args.get("sort") or request.cookies.get("view-media-sort") or "uploaded"
-    direction = request.args.get("dir") or request.cookies.get("view-media-dir") or "desc"
-    try:
-        page = max(1, int(request.args.get("page") or 1))
-    except (TypeError, ValueError):
-        page = 1
+    q = (args.get("q") or "").strip().lower()
+    sort = args.get("sort") or request.cookies.get("view-media-sort") or "uploaded"
+    direction = args.get("dir") or request.cookies.get("view-media-dir") or "desc"
 
-    query = MediaItem.query
-
-    # Site-interface uploads (branding logos, OG images, favicon, etc.)
-    # are hidden from the File Browser so administrative uploads don't
-    # clutter the content library.
-    hidden = _interface_stored_filenames()
-    if hidden:
-        query = query.filter(MediaItem.stored_filename.notin_(hidden))
-
-    # Public-submission uploads are hidden from non-admin users while
-    # the parent post is still in the holding tank — admins see them
-    # so they can review before approving, but editors / viewers
-    # shouldn't have a curated review surface polluted with raw
-    # visitor uploads. Once the admin approves the submission, the
-    # parent post leaves pending state and the file appears normally.
-    if not current_user.is_admin():
-        pending_uploads = {p.featured_image_filename for p in
-                           Post.query.filter(Post.is_pending_review.is_(True),
-                                             Post.featured_image_filename.isnot(None)).all()
-                           if p.featured_image_filename}
-        if pending_uploads:
-            query = query.filter(MediaItem.stored_filename.notin_(pending_uploads))
-
+    query = _media_visible_query()
     if q:
         query = query.filter(func.lower(MediaItem.original_filename).contains(q))
     # Who uploaded it: anyone, or only the signed-in user.
-    mine = request.args.get("mine") == "1"
+    mine = args.get("mine") == "1"
     if mine:
         query = query.filter(MediaItem.uploaded_by == current_user.id)
 
@@ -17263,7 +17232,7 @@ def media_list():
     )
     # The kind filter (the picker's sidebar): how many files of each
     # kind match the search, then just the chosen kind.
-    kind = request.args.get("kind") or ""
+    kind = args.get("kind") or ""
     if kind not in MEDIA_KINDS:
         kind = ""
     kind_counts = {k: 0 for k in MEDIA_KINDS}
@@ -17275,8 +17244,6 @@ def media_list():
     if kind:
         query = query.filter(type_case.in_(MEDIA_KINDS[kind]))
 
-    # Server-side sort + paginate so the route always returns at most
-    # MEDIA_PER_PAGE rows, regardless of how many files exist.
     if sort == "name":
         order_cols = [name_col, MediaItem.id]
     elif sort == "size":
@@ -17289,14 +17256,81 @@ def media_list():
         query = query.outerjoin(User, MediaItem.uploaded_by == User.id)
         order_cols = [func.lower(User.username), name_col, MediaItem.id]
     else:  # uploaded (created_at)
+        sort = "uploaded"
         order_cols = [MediaItem.created_at, MediaItem.id]
 
-    if direction == "desc":
+    if direction != "asc":
+        direction = "desc"
         order_cols = [c.desc() for c in order_cols]
     if sort == "by":
         order_cols = [case((User.username.is_(None), 1), else_=0)] + order_cols
-    query = query.order_by(*order_cols)
+    return {"query": query.order_by(*order_cols), "q": q, "sort": sort,
+            "direction": direction, "kind": kind, "kind_counts": kind_counts,
+            "mine": mine}
 
+
+def _media_visible_query():
+    """The files the signed-in user may see in the File Browser."""
+    query = MediaItem.query
+    # Site-interface uploads (branding logos, OG images, favicon, etc.)
+    # are hidden from the File Browser so administrative uploads don't
+    # clutter the content library.
+    hidden = _interface_stored_filenames()
+    if hidden:
+        query = query.filter(MediaItem.stored_filename.notin_(hidden))
+
+    # Public-submission uploads are hidden from non-admin users while
+    # the parent post is still in the holding tank — admins see them
+    # so they can review before approving, but editors / viewers
+    # shouldn't have a curated review surface polluted with raw
+    # visitor uploads. Once the admin approves the submission, the
+    # parent post leaves pending state and the file appears normally.
+    if not current_user.is_admin():
+        pending_uploads = {p.featured_image_filename for p in
+                           Post.query.filter(Post.is_pending_review.is_(True),
+                                             Post.featured_image_filename.isnot(None)).all()
+                           if p.featured_image_filename}
+        if pending_uploads:
+            query = query.filter(MediaItem.stored_filename.notin_(pending_uploads))
+    return query
+
+
+def _media_view_args():
+    """The list settings a File Browser link carries: the view, sort,
+    search, filters and picker mode."""
+    a = request.args
+    out = {k: a.get(k) for k in ("view", "sort", "dir", "q", "kind")}
+    out["mine"] = "1" if a.get("mine") == "1" else None
+    if a.get("picker") == "1":
+        out["picker"] = "1"
+        out["embed"] = "1"
+        out["multi"] = "1" if a.get("multi") == "1" else None
+    elif a.get("embed") == "1":
+        out["embed"] = "1"
+    return {k: v for k, v in out.items() if v}
+
+
+@bp.route("/files")
+@login_required
+def media_list():
+    picker = request.args.get("picker") == "1"
+    # Multi-select picker mode — surfaces a checkbox on every item +
+    # a fixed bottom bar with the running count and a "Done — add N"
+    # button that posts a batch ``media-selected-batch`` message back
+    # to the parent. Only meaningful when ``picker=1``.
+    picker_multi = picker and request.args.get("multi") == "1"
+    view = request.args.get("view") or request.cookies.get("view-media") or "list"
+    if view not in ("list", "grid"): view = "list"  # legacy "table" → "list"
+    try:
+        page = max(1, int(request.args.get("page") or 1))
+    except (TypeError, ValueError):
+        page = 1
+
+    b = _media_browse(request.args)
+    query = b["query"]
+
+    # Server-side paginate so the route always returns at most
+    # MEDIA_PER_PAGE rows, regardless of how many files exist.
     total = query.count()
     pages = max(1, (total + MEDIA_PER_PAGE - 1) // MEDIA_PER_PAGE)
     if page > pages:
@@ -17312,16 +17346,133 @@ def media_list():
     }
 
     resp = current_app.make_response(
-        render_template("media.html", items=items, q=q, picker=picker,
+        render_template("media.html", items=items, q=b["q"], picker=picker,
                         picker_multi=picker_multi, view=view,
-                        sort=sort, direction=direction, media_type=_media_type,
-                        pagination=pagination, kind=kind, kind_counts=kind_counts,
-                        mine=mine))
+                        sort=b["sort"], direction=b["direction"], media_type=_media_type,
+                        pagination=pagination, kind=b["kind"], kind_counts=b["kind_counts"],
+                        mine=b["mine"]))
     if not picker:
         resp.set_cookie("view-media", view, max_age=60*60*24*365, samesite="Lax")
-        resp.set_cookie("view-media-sort", sort, max_age=60*60*24*365, samesite="Lax")
-        resp.set_cookie("view-media-dir", direction, max_age=60*60*24*365, samesite="Lax")
+        resp.set_cookie("view-media-sort", b["sort"], max_age=60*60*24*365, samesite="Lax")
+        resp.set_cookie("view-media-dir", b["direction"], max_age=60*60*24*365, samesite="Lax")
     return resp
+
+
+# What each ``_media_type`` bucket is called on a file's own view.
+MEDIA_TYPE_LABELS = {"pdf": "PDF document", "doc": "Document", "xls": "Spreadsheet",
+                     "ppt": "Presentation", "img": "Image", "vid": "Video",
+                     "aud": "Audio", "file": "File"}
+
+
+def _media_image_facts(path):
+    """An image's size in pixels and, from its EXIF, when it was taken
+    and on what camera. Read from the file's header only; anything
+    unreadable is left out."""
+    facts = {}
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            facts["dimensions"] = im.size
+            exif = im.getexif()
+            if exif:
+                # 0x8769 is the Exif sub-IFD, which holds DateTimeOriginal
+                # (0x9003); Make (0x010F) and Model (0x0110) sit in IFD0.
+                taken = exif.get_ifd(0x8769).get(0x9003) or exif.get(0x0132)
+                if taken:
+                    try:
+                        facts["taken"] = datetime.strptime(str(taken).strip("\x00 "), "%Y:%m:%d %H:%M:%S")
+                    except ValueError:
+                        pass
+                make = str(exif.get(0x010F) or "").strip("\x00 ")
+                model = str(exif.get(0x0110) or "").strip("\x00 ")
+                if model and make and not model.lower().startswith(make.lower().split()[0]):
+                    model = make + " " + model
+                if model or make:
+                    facts["camera"] = model or make
+    except Exception:  # noqa: BLE001 — a file Pillow can't read just has no facts
+        pass
+    return facts
+
+
+def _media_usages(m):
+    """Where a file is used: meeting files and logos, library items and
+    their covers, and the posts, stories, blog posts and pages that show
+    it. Each is (kind, title, url or None); a link is given only where
+    the signed-in user can open it."""
+    stored, can_edit = m.stored_filename, current_user.can_edit()
+    out = []
+    for f in MeetingFile.query.filter_by(stored_filename=stored).all():
+        if f.meeting:
+            out.append(("Meeting file", f"{f.meeting.name}: {f.title}",
+                        url_for("main.meeting_detail", slug=f.meeting.public_slug)))
+    for mt in Meeting.query.filter_by(logo_filename=stored).all():
+        out.append(("Meeting logo", mt.name, url_for("main.meeting_detail", slug=mt.public_slug)))
+    for r in LibraryItem.query.filter(db.or_(LibraryItem.stored_filename == stored,
+                                          LibraryItem.thumbnail_filename == stored)).all():
+        kind = "Library item" if r.stored_filename == stored else "Library cover"
+        lib = r.library
+        out.append((kind, f"{lib.name}: {r.title}" if lib else r.title,
+                    url_for("main.library_detail_legacy", lid=lib.id) if lib else None))
+    token = '"' + stored.replace('"', '\\"') + '"'
+    body = "/pub/" + m.original_filename if m.original_filename else None
+    posts = Post.query.filter(db.or_(Post.featured_image_filename == stored,
+                                  Post.gallery_json.contains(token),
+                                  *([Post.body.contains(body)] if body else []))).all()
+    for p in posts:
+        out.append(("Post", p.title, url_for("main.post_edit", pid=p.id) if can_edit else None))
+    for st in Story.query.filter(db.or_(Story.featured_image_filename == stored,
+                                     *([Story.body.contains(body)] if body else []))).all():
+        out.append(("Story", st.title, url_for("main.story_edit", sid=st.id) if can_edit else None))
+    blog_conds = [BlogPost.featured_image_filename == stored]
+    if body:
+        blog_conds += [BlogPost.body.contains(body), BlogPost.body_blocks_json.contains(body)]
+    for bp_ in BlogPost.query.filter(db.or_(*blog_conds)).all():
+        out.append(("Blog post", bp_.title, url_for("main.blog_edit", bid=bp_.id) if can_edit else None))
+    page_conds = [Page.bg_image_filename == stored, Page.blocks_json.contains(token)]
+    if body:
+        page_conds.append(Page.blocks_json.contains(body))
+    for pg in Page.query.filter(db.or_(*page_conds)).all():
+        out.append(("Page", pg.title, url_for("main.frontend_page_edit", page_id=pg.id)
+                    if current_user.can_edit_frontend() else None))
+    return out
+
+
+@bp.route("/files/media/<int:mid>")
+@login_required
+def media_file(mid):
+    """A file's own view: the file itself beside its details, its path
+    and where it's used. Previous and Next step through the File
+    Browser's files as the list was searched, filtered and sorted."""
+    import mimetypes
+    m = (_media_visible_query().filter(MediaItem.id == mid).first()
+         or abort(404))
+    picker = request.args.get("picker") == "1"
+    args = _media_view_args()
+
+    ids = [i for (i,) in _media_browse(request.args)["query"]
+           .with_entities(MediaItem.id).all()]
+    pos = ids.index(m.id) if m.id in ids else -1
+    prev_id = ids[pos - 1] if pos > 0 else None
+    next_id = ids[pos + 1] if 0 <= pos < len(ids) - 1 else None
+    # Back lands on the list's page that holds this file.
+    back_page = pos // MEDIA_PER_PAGE + 1 if pos >= 0 else None
+
+    path = os.path.join(current_app.config["UPLOAD_FOLDER"], m.stored_filename)
+    on_disk = os.path.isfile(path)
+    t = _media_type(m.original_filename)
+    facts = _media_image_facts(path) if on_disk and t == "img" else {}
+    ext = (m.original_filename.rsplit(".", 1)[-1].lower()
+           if m.original_filename and "." in m.original_filename else "")
+    return render_template(
+        "media_file.html", m=m, t=t, ext=ext, picker=picker,
+        picker_multi=picker and request.args.get("multi") == "1",
+        args=args, prev_id=prev_id, next_id=next_id,
+        position=pos + 1 if pos >= 0 else None, count=len(ids),
+        back_url=url_for("main.media_list", **args,
+                         **({"page": back_page} if back_page and back_page > 1 else {})),
+        type_label=MEDIA_TYPE_LABELS.get(t, "File"),
+        mime=m.mime_type or mimetypes.guess_type(m.original_filename or "")[0],
+        on_disk=on_disk, disk_path=path, facts=facts, usages=_media_usages(m))
 
 
 @bp.route("/files/upload", methods=["POST"])
@@ -17411,10 +17562,18 @@ def media_delete(mid):
                      summary=f"Deleted file “{name}” from File Browser (recoverable for {trash.RETENTION_DAYS} days)")
         trash.soft_delete_media(m, current_user.id)
         flash("File moved to the Delete Log — restorable for 30 days.", "success")
+    # A file's own view sends the list it came from (search, filters,
+    # sort), so the delete lands back there; anything else is ignored.
+    back = request.form.get("back") or ""
+    if back.startswith(url_for("main.media_list") + "?") and "//" not in back:
+        return redirect(back)
     return redirect(url_for("main.media_list"))
 
 
-@bp.route("/files/<int:mid>/download")
+# Under "media" for the same reason as media_delete: "/files/<int>/download"
+# is file_download's (a meeting file), which registered first and
+# answered for this one, serving the meeting file with the same number.
+@bp.route("/files/media/<int:mid>/download")
 @login_required
 def media_download(mid):
     m = db.session.get(MediaItem, mid) or abort(404)

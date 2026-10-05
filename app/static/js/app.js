@@ -345,10 +345,11 @@
   window.tspOnEachPage = onEachPage;
 
   // Replace the page with another without reloading (window.tspSwapPage):
-  // the page behind Settings when a module is turned off, and links in a
-  // [data-swap-nav] (Watchtower's sections). It swaps the heading, its
-  // actions, messages and content, the sidebar's pinned buttons, the
-  // tab title and the address. The page's app.js setups then run again
+  // the page behind Settings when a module is turned off, links in a
+  // [data-swap-nav] (Watchtower's sections) and links marked data-swap
+  // (the File Browser's files). It swaps the heading, its actions,
+  // messages and content (in an embedded page, all of it), the
+  // sidebar's pinned buttons, the tab title and the address. The page's app.js setups then run again
   // (tspRunPageSetups). Scripts inside the new content are not run, so
   // this suits pages whose behavior lives in app.js, as the Dashboard's
   // does.
@@ -413,7 +414,7 @@
     });
     const kept = keepNavs(doc);
     swapParts(doc, [".topbar > h1", ".topbar > .top-actions",
-                    "main.content > .flashes", "main.content > section.page"]);
+                    "main.content > .flashes", "main.content > section.page", "main.embed-content"]);
     kept.forEach((nav, i) => {
       const slot = document.querySelector('[data-swap-keep="' + i + '"]');
       if (slot) slot.replaceWith(nav);
@@ -427,7 +428,7 @@
     if ((!opts || opts.push !== false) && landed !== location.href) history.pushState(null, "", landed);
     swapped = true;
     (document.scrollingElement || document.documentElement).scrollTop = 0;
-    runScripts(document.querySelector("main.content > section.page"));
+    runScripts(document.querySelector("main.content > section.page, main.embed-content"));
     window.tspRunPageSetups();
   }
   // Scripts in swapped-in content don't run on their own: run each
@@ -450,11 +451,12 @@
     if (swapped) swapPage(location.href, { push: false }).catch(() => window.location.reload());
   });
   window.tspSwapPage = swapPage;
-  // Links in a [data-swap-nav] load in place: a plain click swaps the page
-  // (the clicked part turns current at once); anything else, or a failed
-  // fetch, is an ordinary navigation.
+  // Links in a [data-swap-nav], and links marked data-swap, load in
+  // place: a plain click swaps the page (a nav's clicked part turns
+  // current at once); anything else, or a failed fetch, is an ordinary
+  // navigation.
   document.addEventListener("click", e => {
-    const a = e.target.closest("[data-swap-nav] a[href]");
+    const a = e.target.closest("[data-swap-nav] a[href], a[data-swap][href]");
     if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     if (a.target && a.target !== "_self") return;
     const url = new URL(a.href, location.href);
@@ -462,9 +464,11 @@
     e.preventDefault();
     if (url.href === location.href) return;
     const nav = a.closest("[data-swap-nav]");
-    nav.querySelectorAll('[aria-current="page"]').forEach(x => x.removeAttribute("aria-current"));
-    a.setAttribute("aria-current", "page");
-    revealCurrent(nav, true);
+    if (nav) {
+      nav.querySelectorAll('[aria-current="page"]').forEach(x => x.removeAttribute("aria-current"));
+      a.setAttribute("aria-current", "page");
+      revealCurrent(nav, true);
+    }
     document.documentElement.classList.add("is-live-loading");
     swapPage(url.href).catch(() => location.assign(url.href))
       .finally(() => document.documentElement.classList.remove("is-live-loading"));
@@ -1404,31 +1408,30 @@
     });
   });
 
-// Media library: upload input
-  const mediaUploadInput = document.getElementById("media-upload-input");
-  if (mediaUploadInput) {
-    mediaUploadInput.addEventListener("change", async (e) => {
-      const files = Array.from(e.target.files || []);
-      for (const file of files) {
-        const fd = new FormData();
-        fd.append("file", file);
-        try {
-          const res = await fetch("/tspro/files/upload", {
-            method: "POST", body: fd, credentials: "same-origin",
-            headers: { "X-Requested-With": "XMLHttpRequest" },
-          });
-          if (!res.ok) throw new Error("upload failed");
-          const data = await res.json();
-          if (window.parent !== window && window.parent.postMessage) {
-            // inside picker: hand the item to parent
-            window.parent.postMessage({ type: "media-uploaded", item: data.item }, window.location.origin);
-          }
-        } catch (err) { alert("Upload failed: " + err.message); }
-      }
-      // refresh listing
-      window.location.reload();
-    });
-  }
+  // Media library: upload input. Delegated, so the list brought back in
+  // from a file's own view (tspSwapPage) still uploads.
+  document.addEventListener("change", async (e) => {
+    if (e.target.id !== "media-upload-input") return;
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append("file", file);
+      try {
+        const res = await fetch("/tspro/files/upload", {
+          method: "POST", body: fd, credentials: "same-origin",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        });
+        if (!res.ok) throw new Error("upload failed");
+        const data = await res.json();
+        if (window.parent !== window && window.parent.postMessage) {
+          // inside picker: hand the item to parent
+          window.parent.postMessage({ type: "media-uploaded", item: data.item }, window.location.origin);
+        }
+      } catch (err) { alert("Upload failed: " + err.message); }
+    }
+    // refresh listing
+    window.location.reload();
+  });
 
   // Media library: rename. Delegated, so rows a live search swaps in
   // still answer.
@@ -1436,7 +1439,8 @@
     const btn = e.target.closest && e.target.closest(".media-rename");
     if (!btn || btn.disabled) return;
     (async () => {
-      const row = btn.closest("[data-media-id]");
+      // In a file's own view the menu is in the top bar.
+      const row = btn.closest("[data-media-id]") || document.querySelector("[data-fb-file]");
       const id = row?.dataset.mediaId;
       const current = row?.dataset.original || "";
       const next = prompt("Rename file:", current);
@@ -1448,6 +1452,8 @@
       });
       if (res.ok) {
         const data = await res.json();
+        // The view shows the name in its heading and path: bring it in again.
+        if (row.matches("[data-fb-file]")) { window.tspSwapPage(location.href, { push: false }); return; }
         row.dataset.original = data.original_filename;
         const nameEl = row.querySelector(".media-name, strong");
         if (nameEl) { nameEl.textContent = data.original_filename; nameEl.title = data.original_filename; }
@@ -1469,9 +1475,11 @@
   // ``closest('[data-media-id]')`` walks UP to either the card
   // article OR the table row, fixing the prior bug where only card
   // view worked — list view rows are <tr>, not .media-card.
+  // The picked set outlives the page: a file's own view and the list
+  // swap in and out (tspSwapPage), so the bar and buttons are looked up
+  // each time and marked again on every page.
   (function () {
-    var multiBar = document.querySelector('[data-media-multi-bar]');
-    var multi = !!multiBar;
+    function bar() { return document.querySelector('[data-media-multi-bar]'); }
     var selected = new Map();  // id → {id, stored_filename, original_filename}
     function captureItem(host) {
       return {
@@ -1481,6 +1489,7 @@
       };
     }
     function refreshBar() {
+      var multiBar = bar();
       if (!multiBar) return;
       var count = selected.size;
       multiBar.hidden = count === 0;
@@ -1491,77 +1500,97 @@
         ? 'Add 1 item'
         : ('Add ' + count + ' items');
     }
+    function mark(host, on) {
+      host.classList.toggle('is-selected', on);
+      // Update the Select button label so the operator can see
+      // what state each row is in at a glance.
+      host.querySelectorAll('.media-select').forEach(function (btn) {
+        btn.textContent = on ? 'Selected ✓' : 'Select';
+      });
+    }
     function setSelected(host, on) {
       if (!host) return;
       var id = host.dataset.mediaId;
       if (!id) return;
       if (on) selected.set(id, captureItem(host));
       else selected.delete(id);
-      host.classList.toggle('is-selected', on);
-      // Update the Select button label so the operator can see
-      // what state each row is in at a glance.
-      var btn = host.querySelector('.media-select');
-      if (btn) btn.textContent = on ? 'Selected ✓' : 'Select';
+      mark(host, on);
       refreshBar();
     }
-    // Delegated, so rows a live search swaps in still answer; after a
-    // swap, rows already picked are marked again.
-    document.addEventListener('click', function (e) {
-      var btn = e.target.closest && e.target.closest('.media-select');
-      if (!btn) return;
-      var host = btn.closest('[data-media-id]');
-      if (!host) return;
-      if (multi) {
-        var id = host.dataset.mediaId;
-        setSelected(host, !selected.has(id));
-        return;
-      }
-      // Single-select: post + done.
-      var payload = { type: 'media-selected', item: captureItem(host) };
-      if (window.parent !== window) {
-        window.parent.postMessage(payload, window.location.origin);
-      }
-    });
-    document.addEventListener('live:updated', function () {
+    function markAll() {
       selected.forEach(function (_v, id) {
         var host = document.querySelector('[data-media-id="' + id + '"]');
-        if (!host) return;
-        host.classList.add('is-selected');
-        var b = host.querySelector('.media-select');
-        if (b) b.textContent = 'Selected ✓';
+        if (host) mark(host, true);
       });
-    });
-    if (multiBar) {
-      var doneBtn = multiBar.querySelector('[data-multi-done]');
-      if (doneBtn) {
-        doneBtn.addEventListener('click', function () {
-          if (!selected.size) return;
-          var items = Array.from(selected.values());
-          if (window.parent !== window) {
-            window.parent.postMessage(
-              { type: 'media-selected-batch', items: items },
-              window.location.origin
-            );
-          }
-        });
-      }
-      var clearBtn = multiBar.querySelector('[data-multi-clear]');
-      if (clearBtn) {
-        clearBtn.addEventListener('click', function () {
-          selected.forEach(function (_v, id) {
-            var host = document.querySelector('[data-media-id="' + id + '"]');
-            if (host) {
-              host.classList.remove('is-selected');
-              var btn = host.querySelector('.media-select');
-              if (btn) btn.textContent = 'Select';
-            }
-          });
-          selected.clear();
-          refreshBar();
-        });
-      }
       refreshBar();
     }
+    // Delegated, so rows a live search swaps in still answer.
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('.media-select');
+      if (btn) {
+        var host = btn.closest('[data-media-id]');
+        if (!host) return;
+        if (bar()) {
+          var id = host.dataset.mediaId;
+          setSelected(host, !selected.has(id));
+          return;
+        }
+        // Single-select: post + done.
+        var payload = { type: 'media-selected', item: captureItem(host) };
+        if (window.parent !== window) {
+          window.parent.postMessage(payload, window.location.origin);
+        }
+        return;
+      }
+      if (e.target.closest && e.target.closest('[data-multi-done]')) {
+        if (!selected.size) return;
+        if (window.parent !== window) {
+          window.parent.postMessage(
+            { type: 'media-selected-batch', items: Array.from(selected.values()) },
+            window.location.origin
+          );
+        }
+        return;
+      }
+      if (e.target.closest && e.target.closest('[data-multi-clear]')) {
+        selected.forEach(function (_v, id) {
+          var host = document.querySelector('[data-media-id="' + id + '"]');
+          if (host) mark(host, false);
+        });
+        selected.clear();
+        refreshBar();
+      }
+    });
+    document.addEventListener('live:updated', markAll);
+    onEachPage(markAll);
+  })();
+
+  // A file's own view (media_file.html): Left and Right step to the
+  // previous and next file and Esc goes back to the files, by clicking
+  // the view's own links. Back in the list, the file just seen is
+  // scrolled into view.
+  (function () {
+    let lastFile = null;
+    const KEYS = { ArrowLeft: "[data-fb-prev]", ArrowRight: "[data-fb-next]", Escape: "[data-fb-back]" };
+    document.addEventListener("keydown", e => {
+      const sel = KEYS[e.key];
+      if (!sel || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      if (!document.querySelector("[data-fb-file]") || document.querySelector(".modal.open, .row-menu.is-open")) return;
+      const t = e.target;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT|VIDEO|AUDIO)$/.test(t.tagName))) return;
+      const link = document.querySelector(sel);
+      if (!link) return;
+      e.preventDefault();
+      link.click();
+    });
+    onEachPage(() => {
+      const view = document.querySelector("[data-fb-file]");
+      if (view) { lastFile = view.dataset.mediaId; return; }
+      if (!lastFile) return;
+      const host = document.querySelector('.fb [data-media-id="' + CSS.escape(lastFile) + '"]');
+      lastFile = null;
+      if (host) host.scrollIntoView({ block: "center" });
+    });
   })();
 
   // Auto-dismiss flash toasts after 3s
@@ -8863,10 +8892,13 @@
     });
     refresh(side);
   }
-  document.querySelectorAll(".fb-side").forEach(setup);
-  document.addEventListener("live:updated", function () {
+  // Again after a live search, and on a list brought back in from a
+  // file's own view (tspSwapPage).
+  function setupAll() {
     document.querySelectorAll(".fb-side").forEach(function (side) { setup(side); refresh(side); });
-  });
+  }
+  window.tspOnEachPage(setupAll);
+  document.addEventListener("live:updated", setupAll);
 })();
 
 (function initLiveSearch() {

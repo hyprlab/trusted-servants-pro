@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_row_menu.html" import row_menu %}
+{% from "_media_macros.html" import media_size, media_actions with context %}
 {% block heading %}File Browser{% endblock %}
 {% block heading_help %}Upload, browse, and manage images, documents, and other files used throughout the portal.{% endblock %}
 {% block top_actions %}{% endblock %}
@@ -15,6 +15,9 @@
 {% macro _fb_url(over={}) -%}
   {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}{{ url_for('main.media_list', **_u) }}
 {%- endmacro %}
+{# A file's own view, which keeps the list's settings for its Back,
+   Previous and Next. #}
+{% macro _file_url(m) -%}{{ url_for('main.media_file', mid=m.id, **_base) }}{%- endmacro %}
 {% set IMG_EXTS = ('jpg','jpeg','png','gif','webp','svg','bmp','avif') %}
 {# A file's picture: its image (falling back to the type icon if it fails
    to load), or for other types an icon with the extension. #}
@@ -30,10 +33,6 @@
     <span class="media-thumb-ext">{{ (m.original_filename.rsplit('.', 1)[-1] if m.original_filename and '.' in m.original_filename else t)|upper }}</span>
   </span>
 {% endmacro %}
-{% macro _size(n) -%}
-  {%- set n = n or 0 -%}
-  {%- if n < 1024 %}{{ n }} B{% elif n < 1048576 %}{{ (n / 1024)|round|int }} KB{% else %}{{ '%.1f'|format(n / 1048576) }} MB{% endif -%}
-{%- endmacro %}
 {% macro _when(m) -%}{{ m.created_at|fmt_site_local('%b %-d, %Y') if m.created_at else '' }}{%- endmacro %}
 {# Sorting: click a column (or, in the grid, a Sort by button) to sort by
    it; click it again to reverse. A new column starts A to Z for text and
@@ -52,40 +51,6 @@
   {%- set _on = sort == key -%}
   <th class="{{ cls }}"{% if _on %} aria-sort="{{ 'ascending' if direction == 'asc' else 'descending' }}"{% endif %}>{{ _sort_link(key, label) }}</th>
 {%- endmacro %}
-{# A file's actions: Copy link, Download, Rename and Delete (Delete asks
-   first). Rename and Delete show for editors and grey out when this
-   file isn't theirs to change; viewers see Copy and Download only. #}
-{% macro _actions(m, pub, compact=False) %}
-  {% call row_menu('Actions for ' ~ m.original_filename, compact=compact) %}
-    <button type="button" class="row-menu-item btn-copy" data-copy-url="{{ pub }}">
-      {{ icon('link') }}<span>Copy link</span></button>
-    <a class="row-menu-item" href="{{ url_for('main.media_download', mid=m.id) }}">
-      {{ icon('download') }}<span>Download</span></a>
-    {% if current_user.can_edit() %}
-      {% if current_user.can_rename_media(m) %}
-      <button type="button" class="row-menu-item media-rename">
-        {{ icon('pencil') }}<span>Rename</span></button>
-      {% else %}
-      <button type="button" class="row-menu-item btn-perm-disabled" disabled
-              title="You don't have permission to rename this file. Editors can only rename files uploaded by another Editor; this one was uploaded by an admin or Intergroup Member, or its uploader is unknown.">
-        {{ icon('pencil') }}<span>Rename</span></button>
-      {% endif %}
-      <div class="row-menu-sep" role="separator"></div>
-      {% if current_user.is_admin() %}
-      <form method="post" action="{{ url_for('main.media_delete', mid=m.id) }}"
-            data-confirm-title="Delete this file?"
-            data-confirm="“{{ m.original_filename }}” will be deleted from the file browser. Pages and meetings that link to it will lose it.">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
-      </form>
-      {% else %}
-      <button type="button" class="row-menu-item row-menu-item-danger btn-perm-disabled" disabled
-              title="Only admins can delete files here.">
-        {{ icon('trash') }}<span>Delete</span></button>
-      {% endif %}
-    {% endif %}
-  {% endcall %}
-{% endmacro %}
 {# Search by filename, keeping the page's other settings. #}
 {% macro _search_form() %}
   <form method="get" action="{{ url_for('main.media_list') }}" class="fb-search" role="search" data-live-search>
@@ -101,9 +66,7 @@
   </form>
 {% endmacro %}
 {% macro _picker_actions(m, pub) %}
-  <button type="button" class="btn btn-sm media-preview" data-media-preview
-          data-pub-url="{{ pub }}" data-download-url="{{ url_for('main.media_download', mid=m.id) }}"
-          data-filename="{{ m.original_filename }}">Preview</button>
+  <a class="btn btn-sm" href="{{ _file_url(m) }}" data-swap>View</a>
   <button type="button" class="btn btn-sm btn-primary media-select">Select</button>
 {% endmacro %}
 
@@ -177,24 +140,18 @@
     {% for m in items %}
     {% set t = media_type(m.original_filename) %}
     {% set _pub = url_for('public.public_file', filename=m.original_filename) %}
-    {% set _previewable = (t == 'img') or (m.original_filename and m.original_filename.lower().endswith('.pdf')) %}
     <article class="media-card fb-card" data-media-id="{{ m.id }}" data-stored="{{ m.stored_filename }}"
              data-original="{{ m.original_filename }}"
-             data-pub-url="{{ _pub }}"
-             data-download-url="{{ url_for('main.media_download', mid=m.id) }}"
-             {% if _previewable %}data-previewable="1"{% endif %}
              data-media-type="{{ t }}">
-      <button type="button" class="media-thumb-btn{% if _previewable %} is-previewable{% endif %}"
-              {% if _previewable %}data-open-lightbox{% endif %}
-              title="{{ 'Preview' if _previewable else 'Open' }} {{ m.original_filename }}">
+      <a class="media-thumb-btn" href="{{ _file_url(m) }}" data-swap tabindex="-1" aria-hidden="true">
         {{ _thumb_for(m, t) }}
-      </button>
+      </a>
       <div class="fb-card-body">
         <div class="fb-card-text">
-          <a class="media-name fb-name" href="{{ _pub }}" target="_blank" title="{{ m.original_filename }}">{{ m.original_filename }}</a>
-          <div class="fb-sub">{{ _size(m.size_bytes) }}<span aria-hidden="true"> · </span>{{ _when(m) }}</div>
+          <a class="media-name fb-name" href="{{ _file_url(m) }}" data-swap title="{{ m.original_filename }}">{{ m.original_filename }}</a>
+          <div class="fb-sub">{{ media_size(m.size_bytes) }}<span aria-hidden="true"> · </span>{{ _when(m) }}</div>
         </div>
-        {% if not picker %}{{ _actions(m, _pub, compact=True) }}{% endif %}
+        {% if not picker %}{{ media_actions(m, _pub, compact=True) }}{% endif %}
       </div>
       {% if picker %}<div class="fb-card-pick">{{ _picker_actions(m, _pub) }}</div>{% endif %}
     </article>
@@ -209,30 +166,24 @@
       {% for m in items %}
       {% set t = media_type(m.original_filename) %}
       {% set _pub = url_for('public.public_file', filename=m.original_filename) %}
-      {% set _previewable = (t == 'img') or (m.original_filename and m.original_filename.lower().endswith('.pdf')) %}
       <tr data-media-id="{{ m.id }}" data-stored="{{ m.stored_filename }}" data-original="{{ m.original_filename }}"
-          data-pub-url="{{ _pub }}"
-          data-download-url="{{ url_for('main.media_download', mid=m.id) }}"
-          {% if _previewable %}data-previewable="1"{% endif %}
           data-media-type="{{ t }}">
         <td class="fb-thumb-cell">
-          <button type="button" class="media-thumb-btn media-thumb-btn-sm{% if _previewable %} is-previewable{% endif %}"
-                  {% if _previewable %}data-open-lightbox{% endif %}
-                  title="{{ 'Preview' if _previewable else 'Open' }} {{ m.original_filename }}">
+          <a class="media-thumb-btn media-thumb-btn-sm" href="{{ _file_url(m) }}" data-swap tabindex="-1" aria-hidden="true">
             {{ _thumb_for(m, t) }}
-          </button>
+          </a>
         </td>
         <td class="media-name-cell">
-          <a class="media-name fb-name" href="{{ _pub }}" target="_blank" title="{{ m.original_filename }}">{{ m.original_filename }}</a>
+          <a class="media-name fb-name" href="{{ _file_url(m) }}" data-swap title="{{ m.original_filename }}">{{ m.original_filename }}</a>
           {# On a phone the columns fold into this line. #}
-          <div class="fb-sub fb-sub--narrow">{{ t|upper }} · {{ _size(m.size_bytes) }} · {{ _when(m) }}</div>
+          <div class="fb-sub fb-sub--narrow">{{ t|upper }} · {{ media_size(m.size_bytes) }} · {{ _when(m) }}</div>
         </td>
         <td class="fb-col"><span class="ftype ftype-{{ t }} ftype-sm">{{ t|upper }}</span></td>
-        <td class="fb-col fb-num muted">{{ _size(m.size_bytes) }}</td>
+        <td class="fb-col fb-num muted">{{ media_size(m.size_bytes) }}</td>
         <td class="fb-col muted">{{ _when(m) }}</td>
         <td class="fb-col fb-col-wide muted">{{ m.uploader.username if m.uploader else '—' }}</td>
         <td class="row-actions">
-          {% if picker %}{{ _picker_actions(m, _pub) }}{% else %}{{ _actions(m, _pub, compact=True) }}{% endif %}
+          {% if picker %}{{ _picker_actions(m, _pub) }}{% else %}{{ media_actions(m, _pub, compact=True) }}{% endif %}
         </td>
       </tr>
       {% endfor %}
@@ -282,187 +233,21 @@
 </div>
 </div>
 
-<div class="modal file-lightbox" id="file-lightbox" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="lightbox-panel" role="dialog" aria-modal="true">
-    <div class="modal-head">
-      <h2 class="lightbox-title" id="lightbox-title">—</h2>
-      <div class="lightbox-counter muted small" id="lightbox-counter" aria-live="polite"></div>
-      <div class="lightbox-head-actions">
-        <a class="btn" id="lightbox-open-tab" target="_blank" rel="noopener" title="Open in new tab">{{ icon('external-link') }}<span class="hide-sm">Open in new tab</span></a>
-        <a class="btn" id="lightbox-download" title="Download">{{ icon('download') }}<span class="hide-sm">Download</span></a>
-        <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-      </div>
-    </div>
-    <div class="lightbox-body" id="lightbox-body">
-      <button type="button" class="lightbox-nav lightbox-nav-prev" id="lightbox-prev"
-              aria-label="Previous file" title="Previous (←)">{{ icon('chevron-left') }}</button>
-      <div class="lightbox-stage" id="lightbox-stage"></div>
-      <button type="button" class="lightbox-nav lightbox-nav-next" id="lightbox-next"
-              aria-label="Next file" title="Next (→)">{{ icon('chevron-right') }}</button>
-    </div>
-  </div>
-</div>
-
 {% if picker %}
 <script>
-  // Esc with the focus in here closes the picker (an open preview
+  // Esc with the focus in here closes the picker (an open dialog
   // closes first); the close button is the modal's, outside the frame.
+  // Added once: this runs again each time a view is swapped in. A
+  // file's own view takes Esc itself, back to the list.
   (function () {
+    if (window.__fbPickerEsc) return;
+    window.__fbPickerEsc = true;
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && !document.querySelector('.modal.open') && window.parent !== window) {
+      if (e.key === 'Escape' && !document.querySelector('.modal.open, [data-fb-file]') && window.parent !== window) {
         window.parent.postMessage({ type: 'media-picker-close' }, window.location.origin);
       }
     });
   })();
 </script>
 {% endif %}
-<script>
-  (function(){
-    const IMG_RE = /\.(jpe?g|png|gif|webp|svg|bmp|avif)$/i;
-    const PDF_RE = /\.pdf$/i;
-    const modal = document.getElementById('file-lightbox');
-    if (!modal) return;
-    const stageEl = document.getElementById('lightbox-stage');
-    const titleEl = document.getElementById('lightbox-title');
-    const counterEl = document.getElementById('lightbox-counter');
-    const openTabEl = document.getElementById('lightbox-open-tab');
-    const downloadEl = document.getElementById('lightbox-download');
-    const prevEl = document.getElementById('lightbox-prev');
-    const nextEl = document.getElementById('lightbox-next');
-
-    // Collect every previewable item on the page (in DOM order) so the
-    // lightbox can step prev/next through what the user is actually
-    // looking at. Each entry stores the URL, display filename and the
-    // dedicated download URL (lets us serve images with a sensible
-    // filename instead of the UUID-stored copy on disk).
-    function collectItems(){
-      const rows = document.querySelectorAll('[data-previewable="1"]');
-      const out = [];
-      rows.forEach(row => {
-        const url = row.dataset.pubUrl;
-        if (!url) return;
-        out.push({
-          url,
-          filename: row.dataset.original || '',
-          download: row.dataset.downloadUrl || url,
-          el: row,
-        });
-      });
-      return out;
-    }
-    let items = collectItems();
-    let idx = -1;
-
-    function render(){
-      stageEl.innerHTML = '';
-      const it = items[idx];
-      if (!it) return;
-      if (IMG_RE.test(it.url)) {
-        const img = document.createElement('img');
-        img.className = 'lightbox-image';
-        img.alt = it.filename;
-        img.src = it.url;
-        stageEl.appendChild(img);
-      } else if (PDF_RE.test(it.url)) {
-        const frame = document.createElement('iframe');
-        frame.className = 'lightbox-pdf';
-        frame.src = it.url + '#toolbar=1&navpanes=0';
-        frame.title = it.filename;
-        stageEl.appendChild(frame);
-      }
-      titleEl.textContent = it.filename;
-      openTabEl.href = it.url;
-      downloadEl.href = it.download;
-      const hasNav = items.length > 1;
-      counterEl.textContent = hasNav ? ((idx + 1) + ' / ' + items.length) : '';
-      prevEl.hidden = !hasNav;
-      nextEl.hidden = !hasNav;
-    }
-    function openAt(i){
-      items = collectItems();
-      if (i < 0 || i >= items.length) return;
-      idx = i;
-      render();
-      modal.classList.add('open');
-      modal.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
-    }
-    function openByUrl(url, filename, downloadUrl){
-      items = collectItems();
-      let i = items.findIndex(it => it.url === url);
-      if (i < 0) {
-        items = [{url, filename: filename || '', download: downloadUrl || url, el: null}];
-        i = 0;
-      }
-      openAt(i);
-    }
-    function close(){
-      modal.classList.remove('open');
-      modal.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
-      stageEl.innerHTML = '';
-      idx = -1;
-    }
-    function step(delta){
-      if (!items.length) return;
-      idx = (idx + delta + items.length) % items.length;
-      render();
-    }
-
-    // Clicking any thumbnail flagged as previewable opens the lightbox
-    // at that item's position in the page's preview-list. Delegated so
-    // it survives any future DOM updates.
-    document.addEventListener('click', e => {
-      const btn = e.target.closest('[data-open-lightbox]');
-      if (!btn) return;
-      const row = btn.closest('[data-previewable="1"]');
-      if (!row) return;
-      e.preventDefault();
-      items = collectItems();
-      const i = items.findIndex(it => it.el === row);
-      if (i >= 0) openAt(i);
-    });
-
-    // Filename links in the list view still open the lightbox so the
-    // existing behaviour from before the grid view is preserved.
-    // Delegated, as are the picker's Preview buttons, so rows a live
-    // search swaps in still answer.
-    document.addEventListener('click', e => {
-      const link = e.target.closest('.media-tbl tr[data-previewable="1"] .media-name-cell a');
-      if (!link || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-      e.preventDefault();
-      const row = link.closest('tr[data-previewable="1"]');
-      items = collectItems();
-      const i = items.findIndex(it => it.el === row);
-      if (i >= 0) openAt(i);
-    });
-
-    // Picker Preview button: open lightbox for images/PDFs, fallback to new
-    // tab for other types so the user can always eyeball the file first.
-    document.addEventListener('click', e => {
-      const btn = e.target.closest('[data-media-preview]');
-      if (!btn) return;
-      const url = btn.dataset.pubUrl;
-      const filename = btn.dataset.filename || '';
-      const downloadUrl = btn.dataset.downloadUrl || url;
-      if (IMG_RE.test(url) || PDF_RE.test(url)) {
-        openByUrl(url, filename, downloadUrl);
-      } else {
-        window.open(url, '_blank', 'noopener');
-      }
-    });
-
-    prevEl.addEventListener('click', () => step(-1));
-    nextEl.addEventListener('click', () => step(1));
-    modal.querySelectorAll('[data-close]').forEach(el =>
-      el.addEventListener('click', close));
-    document.addEventListener('keydown', e => {
-      if (!modal.classList.contains('open')) return;
-      if (e.key === 'Escape') close();
-      else if (e.key === 'ArrowLeft') step(-1);
-      else if (e.key === 'ArrowRight') step(1);
-    });
-  })();
-</script>
 {% endblock %}
