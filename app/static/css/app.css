@@ -237,12 +237,11 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
      `touch-action: pan-y` so iOS Safari can't initiate a horizontal
      pan even if some descendant manages to overflow. */
   overflow-x: hidden; touch-action: pan-y;
-  scrollbar-width: none; -ms-overflow-style: none; }
+  scrollbar-width: none; -ms-overflow-style: none;
+  /* The scroll area clips sideways, so it reaches 6px past the sidebar's padding on each side to hold the current page's bar (and the rows' edges) while the rows stay where they were. */
+  margin: 0 -6px; padding: 0 6px;
+}
 .sidebar > .sidebar-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
-/* The scroll area clips sideways, so it reaches 6px past the sidebar's
-   padding on each side to hold the current page's bar (and the rows'
-   edges) while the rows stay where they were. */
-.sidebar > .sidebar-scroll { margin: 0 -6px; padding: 0 6px; }
 .brand { display: flex; align-items: center; padding: 4px 6px 18px; }
 .brand-logo { width: 64px; height: auto; display: block; }
 .sidebar-footer-img-link { display: flex; justify-content: center; padding: 6px 0 10px; }
@@ -256,20 +255,17 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
   line-height: 1.3;
   overflow-wrap: anywhere;
   hyphens: auto;
+  /* The active page as in the Web Frontend menu: bold, with a bar on its left (held by .sidebar-scroll's side padding). Each link is a row like the ones above the nav: icon, label, then any count at the end. */
+  position: relative; display: flex; align-items: center; gap: 10px;
 }
 .sidebar nav a:hover { background: var(--hover); text-decoration: none; }
-.sidebar nav a.active { background: var(--brand-soft); color: var(--access); }
-/* The active page as in the Web Frontend menu: bold, with a bar on its
-   left (held by .sidebar-scroll's side padding). Each link is a row
-   like the ones above the nav: icon, label, then any count at the end. */
-.sidebar nav a { position: relative; display: flex; align-items: center; gap: 10px; }
+.sidebar nav a.active { background: var(--brand-soft); color: var(--access); font-weight: 650; }
 .sidebar nav a .nav-icon { display: inline-flex; flex: 0 0 auto; color: var(--muted); transition: color 120ms ease; }
 .sidebar nav a .nav-icon .icon { width: 18px; height: 18px; display: block; }
 .sidebar nav a:hover .nav-icon { color: var(--text); }
 .sidebar nav a.active .nav-icon { color: var(--access, var(--brand)); }
 .sidebar nav a .nav-label { flex: 1 1 auto; min-width: 0; }
 .sidebar nav a .nav-badge { flex: 0 0 auto; margin-left: 0; }
-.sidebar nav a.active { font-weight: 650; }
 .sidebar nav a.active::before { content: ""; position: absolute; left: -4px; top: 8px; bottom: 8px;
   width: 3px; border-radius: 2px; background: var(--brand); }
 /* Action rows (e.g. "+ Add Library" under the Intergroup subsection)
@@ -994,7 +990,7 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 .post-type-pill:has(input:checked) { border-color: var(--brand); background: var(--brand-soft, var(--panel-2)); }
 .post-type-pill input[type="checkbox"] { flex: 0 0 auto; }
 .post-type-pill-body { display: flex; flex-direction: column; gap: 2px; }
-.post-type-pill-title { font-weight: 700; color: var(--text); font-size: var(--fs-base); }
+.post-type-pill-title { font-weight: 700; color: var(--text); font-size: var(--fs-base); display: inline-flex; align-items: center; gap: 8px; }
 
 /* Reusable two-column row for short fields (start/end, phone/email, etc.) */
 .post-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -1115,7 +1111,7 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 .ds-appearance-text p { margin: 2px 0 0; }
 
 /* The studio card. */
-.fe-admin-main .ds-studio { padding: 0; container-type: inline-size; }
+.fe-admin-main .ds-studio { padding: 0; container-type: inline-size; scroll-margin-top: calc(var(--topbar-h, 56px) + 12px); }
 .fe-admin-main .ds-studio-head { padding: 18px 22px 12px; flex-wrap: wrap; }
 .ds-studio-actions { display: flex; gap: 8px; margin-left: auto; }
 
@@ -1127,11 +1123,12 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   background: var(--brand-soft); color: var(--brand);
 }
 
-.ds-body { display: grid; align-items: start; }
+.ds-body { display: grid; align-items: start; /* Design page: the same 60/40 split as the other studios, its groups chosen with a segmented control at the top of the settings column. */ grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr); }
 .ds-stage {
   position: sticky;
   top: calc(var(--topbar-h, 56px) + 12px);
   min-width: 0;
+  padding: 16px 20px 20px;
 }
 .ds-stage-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .ds-stage-title { font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: var(--fs-2xs); }
@@ -1303,7 +1300,6 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
 .ds-row--inline > .ds-na-note { flex-basis: 100%; }
 .ds-row-wrap > .ds-na-note { margin: -4px 0 4px; }
 .ds-studio .ds-prange .ds-range { --ds-on: var(--brand); }
-.fe-admin-main .ds-studio { scroll-margin-top: calc(var(--topbar-h, 56px) + 12px); }
 
 /* Notes that only hold while the preview shows dark mode. */
 .ds-note { margin: 2px 0 4px; font-size: var(--fs-xs); color: var(--muted); line-height: 1.45; }
@@ -1557,7 +1553,7 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
 }
 .post-archive-owner[hidden] { display: none; }
-.post-toggle-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.post-toggle-title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 600; }
 /* Google Maps link + its "Use address" generator button. The button
    sits inline after the field rather than inside a bordered shell (the
    .slug-input-row pattern) because the input is a plain URL field the
@@ -1609,7 +1605,6 @@ html[data-theme="dark"] .post-chip-public       { background: rgba(22, 163, 74, 
   background: var(--panel-2);
 }
 .post-toggle-info { min-width: 0; flex: 1; }
-.post-toggle-title { font-weight: 600; }
 .post-toggle-info p { margin: 2px 0 0; }
 /* With the descriptions folded into help chips these rows are a single
    line of text plus a switch, so centre them on the switch. */
@@ -2353,10 +2348,13 @@ html[data-theme="dark"] .post-featured-clear input:checked + span {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Mega menu blocks: one line each, options behind More. */
+  padding: 8px 10px; gap: 8px;
 }
 .nav-megalink-top {
   display: flex;
   align-items: center;
+  justify-content: flex-start; gap: 8px;
 }
 .nav-megalink-drag { cursor: grab; color: var(--muted); }
 .nav-megalink-drag:active { cursor: grabbing; }
@@ -2972,6 +2970,7 @@ body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
   pointer-events: auto;
   box-shadow: 0 6px 24px rgba(0,0,0,0.18);
   animation: flash-in 180ms ease-out;
+  padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--panel);
 }
 .flash.flash-hide { animation: flash-out 240ms ease-in forwards; }
 @keyframes flash-in {
@@ -2980,9 +2979,6 @@ body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
 }
 @keyframes flash-out {
   to { opacity: 0; transform: translateY(-8px); }
-}
-.flash {
-  padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--panel);
 }
 .flash-success { border-color: #b5e5cd; background: #e7f8ee; color: #14532d; }
 .flash-danger  { border-color: #f3b9bb; background: #fdecec; color: #7f1d1d; }
@@ -3095,7 +3091,10 @@ body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
 
 /* ===== Markdown editor (reading body) ===== */
 .md-editor { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden;
-  background: var(--panel); }
+  background: var(--panel);
+  /* Markdown editor with live side-by-side preview. The textarea is the real form input; the right-hand pane is rendered HTML from marked.js refreshed on every keystroke. Below 720px the panes stack so the editor stays usable in narrow modal panels. */
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px;
+}
 .md-editor-tab { background: transparent; border: 0; padding: 6px 12px; font-size: var(--fs-xs);
   font-weight: 600; color: var(--muted); cursor: pointer; border-radius: 6px 6px 0 0; }
 .md-editor-tab.active { background: var(--panel); color: var(--text); border: 1px solid var(--border);
@@ -3110,15 +3109,16 @@ body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
 .md-editor-preview {
   max-height: 420px;
   font-size: var(--fs-base);
+  min-height: 180px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-md); font: inherit; line-height: 1.5; box-sizing: border-box;
+  overflow: auto; background: var(--panel-2);
 }
 .md-editor-preview > :first-child { margin-top: 0; }
 .md-editor-preview > :last-child { margin-bottom: 0; }
-.md-editor-preview ul, .md-editor-preview ol { padding: 0; }
+.md-editor-preview ul, .md-editor-preview ol { padding: 0; margin: 0.4em 0; padding-left: 1.4em; }
 .md-editor-preview blockquote { margin: .4em 0; padding: .2em .8em;
   border-left: 3px solid var(--border); color: var(--muted); font-style: italic; }
 .md-editor-preview code {
-  font-family: ui-monospace, monospace;
-}
+  font-family: ui-monospace, monospace; padding: 1px 5px; border-radius: 3px; background: rgba(15, 23, 42, 0.06); font-size: 0.92em; }
 
 /* Side-by-side live mode (used by the inclusion editor + features card
    bodies). The tabs are hidden (no need — both panes are visible at once);
@@ -3208,7 +3208,10 @@ body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
 .lightbox-head-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 .lightbox-head-actions .icon-btn { width: 32px; height: 32px; }
 .lightbox-body { flex: 1 1 auto; min-height: 0; display: flex; align-items: center;
-  justify-content: center; background: var(--panel-2); overflow: hidden; }
+  justify-content: center; background: var(--panel-2); overflow: hidden;
+  /* Lightbox prev/next nav buttons inside the body. */
+  position: relative;
+}
 .lightbox-image { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
 .lightbox-pdf { width: 100%; height: 85vh; border: 0; background: #525659; }
 @media (max-width: 720px) {
@@ -3592,8 +3595,6 @@ input[type="file"]::-webkit-file-upload-button {
   .media-pagination-controls { width: 100%; justify-content: center; }
 }
 
-/* Lightbox prev/next nav buttons inside the body. */
-.lightbox-body { position: relative; }
 .lightbox-stage { flex: 1 1 auto; min-width: 0; min-height: 0;
   display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 .lightbox-nav {
@@ -3713,6 +3714,8 @@ input[type="file"]::-webkit-file-upload-button {
   align-items: center;
   flex-wrap: wrap;
   margin: 0 0 .85rem;
+  /* Settings → Users: one row per user (users.html .ulist). Who they are on the left (avatar, name, @username, badges, then email and phone), their role and an actions menu on the right. In a narrow pane the role and menu wrap under the name; nothing scrolls sideways. */
+  gap: 10px;
 }
 .users-filter {
   flex: 1 1 280px; min-width: 0;
@@ -4913,7 +4916,7 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
 
 /* Settings modal */
 .modal-lg .modal-panel { max-width: 1180px; }
-#settings-modal .modal-panel { height: calc(100vh - 10vh); max-width: 1280px; }
+#settings-modal .modal-panel { height: calc(100vh - 10vh); max-width: 1280px; /* Settings modal layout: section nav on the left, the active pane on the right with its own head (pane title + close). Below 720px the two become separate screens, see the mobile block further down. */ flex-direction: row; }
 
 /* WordPress importer modal — same full-height treatment as the
    settings modal so the iframe has a tall canvas to render the
@@ -4941,10 +4944,6 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
 #settings-modal .settings-body { flex: 1 1 auto; height: auto; min-height: 0; }
 .user-chip-name { flex: 1; min-width: 0; }
 .icon-btn-inline { width: 40px; height: 40px; flex: 0 0 auto; font-size: var(--fs-xl); }
-/* Settings modal layout: section nav on the left, the active pane on
-   the right with its own head (pane title + close). Below 720px the
-   two become separate screens, see the mobile block further down. */
-#settings-modal .modal-panel { flex-direction: row; }
 .settings-nav { flex: 0 0 236px; display: flex; flex-direction: column; min-height: 0;
   background: var(--panel-2); border-right: 1px solid var(--border); }
 .settings-nav-head { display: flex; align-items: center; justify-content: space-between;
@@ -4960,7 +4959,10 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
 .settings-tab { display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 8px 10px; border: 0; border-radius: var(--r-md); background: none;
   font: inherit; font-size: var(--fs-base); font-weight: 600; line-height: 1.3;
-  color: var(--muted); text-align: left; cursor: pointer; }
+  color: var(--muted); text-align: left; cursor: pointer;
+  /* Same as the main sidebar's current page: bold, with a bar on the left (inside the list's 10px side padding, so its clip doesn't cut it). */
+  position: relative;
+}
 .settings-tab-icon { display: inline-flex; flex: 0 0 auto; }
 .settings-tab-icon .icon { width: 18px; height: 18px; }
 .settings-tab-label { flex: 1 1 auto; min-width: 0; }
@@ -4969,11 +4971,7 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
   .settings-tab:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
 }
 .settings-tab:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
-.settings-tab.active { color: var(--access, var(--brand)); background: var(--brand-soft); }
-/* Same as the main sidebar's current page: bold, with a bar on the left
-   (inside the list's 10px side padding, so its clip doesn't cut it). */
-.settings-tab { position: relative; }
-.settings-tab.active { font-weight: 700; }
+.settings-tab.active { color: var(--access, var(--brand)); background: var(--brand-soft); font-weight: 700; }
 .settings-tab.active::before { content: ""; position: absolute; left: -4px; top: 8px; bottom: 8px;
   width: 3px; border-radius: 2px; background: var(--brand); }
 .settings-main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex;
@@ -5756,7 +5754,7 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
 
 .login-appearance-form { padding: 0 24px 24px; display: flex; flex-direction: column; gap: 14px; max-width: none; width: 100%; }
 .login-appearance-form .login-fx-controls { width: 100%; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
-.login-appearance-form .login-fx-preview-wrap { width: 100%; }
+.login-appearance-form .login-fx-preview-wrap { width: 100%; margin-bottom: 4px; }
 .login-appearance-form .u-name { font-size: var(--fs-base); }
 .login-appearance-form p { margin: 0 0 4px; }
 .login-appearance-form label { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
@@ -5774,7 +5772,6 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
 .login-appearance-form .login-fx-toggle-row .special-page-info { flex: 1; min-width: 0; }
 .login-appearance-form .login-fx-toggle-row .u-name { font-size: var(--fs-base); margin-bottom: 2px; }
 .login-appearance-form .login-fx-toggle-row p { margin: 0; }
-.login-appearance-form .login-fx-preview-wrap { margin-bottom: 4px; }
 .login-appearance-form .login-fx-preview { position: relative; width: 100%; height: 160px; border-radius: var(--r-lg);
   overflow: hidden; border: 1px solid var(--border); }
 .login-appearance-form .login-fx-preview canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -7216,21 +7213,14 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
        so the bar reads clean — same treatment as the sidebar nav */
     touch-action: pan-x; -webkit-overflow-scrolling: touch;
     scrollbar-width: none; -ms-overflow-style: none;
+    /* Edge fade = "more to swipe" affordance. The two vars are driven by JS (topActionsSwipeFade in app.js) from the live scroll position, so only the side that actually hides content fades out; at 0px the gradient stop collapses and the mask is fully opaque. */
+    --swipe-fade-l: 0px; --swipe-fade-r: 0px; -webkit-mask-image: linear-gradient(to right,
+      transparent 0, #000 var(--swipe-fade-l),
+      #000 calc(100% - var(--swipe-fade-r)), transparent 100%); mask-image: linear-gradient(to right,
+      transparent 0, #000 var(--swipe-fade-l),
+      #000 calc(100% - var(--swipe-fade-r)), transparent 100%);
   }
   .top-actions::-webkit-scrollbar { width: 0; height: 0; display: none; }
-  /* Edge fade = "more to swipe" affordance. The two vars are driven by
-     JS (topActionsSwipeFade in app.js) from the live scroll position,
-     so only the side that actually hides content fades out; at 0px the
-     gradient stop collapses and the mask is fully opaque. */
-  .top-actions {
-    --swipe-fade-l: 0px; --swipe-fade-r: 0px;
-    -webkit-mask-image: linear-gradient(to right,
-      transparent 0, #000 var(--swipe-fade-l),
-      #000 calc(100% - var(--swipe-fade-r)), transparent 100%);
-    mask-image: linear-gradient(to right,
-      transparent 0, #000 var(--swipe-fade-l),
-      #000 calc(100% - var(--swipe-fade-r)), transparent 100%);
-  }
   /* every action (button or inline <form>) keeps its intrinsic width
      and never shrinks, so the row stays a swipe strip */
   .top-actions > * { flex: 0 0 auto; }
@@ -7261,6 +7251,8 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   grid-auto-flow: row dense;
   row-gap: 0;
   align-items: start;
+  /* ── Dashboard: one look for every widget (index.html, _dash_widget.html). Head: grip (on hover), icon tile, title, count, one short link on the right. Body: rows that highlight on hover, stat tiles of one size, and a quiet dashed box when there's nothing to show. ── */
+  column-gap: var(--layout-gap);
 }
 .dash-widget { position: relative; min-width: 0;
   /* Default span before the masonry JS measures real heights — uses
@@ -7356,7 +7348,7 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
    the standard 1px border on the left so each widget reads as a
    uniform tile without the accent stripe. Settings panes, iframes,
    and every other place that uses .data-card keep the accent. */
-.dash-grid .card.data-card { margin-bottom: 0; }
+.dash-grid .card.data-card { margin-bottom: 0; container-type: inline-size; }
 
 /* ── "What's New" / release-notes dashboard widget ──────────────────
    Leads with a soft brand-tinted hero panel for the latest release,
@@ -8954,6 +8946,7 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   border-radius: var(--r-md);
   background: var(--panel);
   border: 1px solid var(--border);
+  align-items: flex-start;
 }
 .fe-footer-loc-predefined-check {
   display: flex; align-items: center; gap: 8px;
@@ -9201,6 +9194,9 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   color: var(--text); font-size: var(--fs-sm); font-weight: 500;
   border: 1px solid var(--border);
   text-align: left; font-family: inherit;
+  min-width: 0;
+  /* Block pills: the Edit hint and the duplicate / remove buttons float over the right end on hover instead of reserving room, so the name keeps the pill's full width in narrow columns. */
+  padding-right: 10px;
 }
 /* Clickable variant — buttons that open the matching content-edit modal.
    Cursor + brand-tint hover affordance + a small "Edit" hint that fades
@@ -9726,42 +9722,12 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
   font-family: inherit; font-size: var(--fs-base);
 }
 
-/* Markdown editor with live side-by-side preview. The textarea is the
-   real form input; the right-hand pane is rendered HTML from marked.js
-   refreshed on every keystroke. Below 720px the panes stack so the
-   editor stays usable in narrow modal panels. */
-.md-editor {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 4px;
-}
-.md-editor-preview {
-  min-height: 180px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  font: inherit;
-  line-height: 1.5;
-  box-sizing: border-box;
-}
-.md-editor-preview {
-  overflow: auto;
-  background: var(--panel-2);
-}
 .md-editor-preview > *:first-child { margin-top: 0; }
 .md-editor-preview > *:last-child { margin-bottom: 0; }
 .md-editor-preview p { margin: 0.4em 0; }
-.md-editor-preview ul,
-.md-editor-preview ol { margin: 0.4em 0; padding-left: 1.4em; }
 .md-editor-preview h1,
 .md-editor-preview h2,
 .md-editor-preview h3 { margin: 0.6em 0 0.3em; line-height: 1.25; }
-.md-editor-preview code {
-  padding: 1px 5px; border-radius: 3px;
-  background: rgba(15, 23, 42, 0.06);
-  font-size: 0.92em;
-}
 .md-editor-preview pre {
   padding: 10px 12px; border-radius: var(--r-sm);
   background: rgba(15, 23, 42, 0.06);
@@ -10466,12 +10432,12 @@ input.page-typo-color-text.is-invalid {
   font-family: inherit; font-size: var(--fs-sm);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
 }
 .be-pad-cell-wrap > input[type="number"]::-webkit-outer-spin-button,
 .be-pad-cell-wrap > input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none; margin: 0;
 }
-.be-pad-cell-wrap > input[type="number"] { -moz-appearance: textfield; }
 /* Unit selector sits flush against the number; native chevron is
    suppressed to keep the chip compact, the muted colour tells the
    admin it's a secondary control (the number is the focus). */
@@ -11943,20 +11909,11 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   align-items: center;
   gap: 8px;
 }
-.dynbg-modal-color-controls input[type="color"]    { grid-column: 1; }
+.dynbg-modal-color-controls input[type="color"]    { grid-column: 1; width: 44px; height: 44px; box-sizing: border-box; flex: 0 0 auto; padding: 0; border: 1px solid var(--border); border-radius: var(--r-md); cursor: pointer; background: var(--card); overflow: hidden; }
 .dynbg-modal-color-controls .dt-shared-token-btn  { grid-column: 2; justify-self: center; }
-.dynbg-modal-color-controls input[type="text"]     { grid-column: 3; }
-.dynbg-modal-color-controls .dt-token-chip         { grid-column: 4; justify-self: start; }
+.dynbg-modal-color-controls input[type="text"]     { grid-column: 3; /* The hex field is a compact editable chip (same look as the token picker's read-only caption, which these rows opt out of via data-dt-no-caption) — type or paste a hex straight into it. Flex `order` puts it right after the 🎨 button regardless of where the picker injects its elements: swatch → 🎨 → hex → token chip → Clear. */ width: 9.5ch; padding: 3px 8px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--panel-2, var(--panel)); color: var(--text); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-transform: lowercase; }
+.dynbg-modal-color-controls .dt-token-chip         { grid-column: 4; justify-self: start; margin-left: 0; }
 .dynbg-modal-color-controls .dynbg-modal-color-clear { grid-column: 5; }
-.dynbg-modal-color-controls input[type="color"] {
-  width: 44px; height: 44px;
-  box-sizing: border-box;
-  flex: 0 0 auto;
-  padding: 0; border: 1px solid var(--border);
-  border-radius: var(--r-md); cursor: pointer;
-  background: var(--card);
-  overflow: hidden;
-}
 /* The native swatch is a padded square inside the input, so its
    corners poke through the rounded frame. Collapse the wrapper padding
    and round the swatch itself so it fills the tile edge to edge. */
@@ -11989,26 +11946,8 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
       var(--card) 5px 10px);
 }
 .dynbg-modal-color-null.is-shown { display: grid; }
-/* The hex field is a compact editable chip (same look as the token
-   picker's read-only caption, which these rows opt out of via
-   data-dt-no-caption) — type or paste a hex straight into it. Flex
-   `order` puts it right after the 🎨 button regardless of where the
-   picker injects its elements: swatch → 🎨 → hex → token chip → Clear. */
-.dynbg-modal-color-controls input[type="text"] {
-  width: 9.5ch;
-  padding: 3px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--panel-2, var(--panel));
-  color: var(--text);
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
-  text-transform: lowercase;
-}
 .dynbg-modal-color-controls input[type="text"]::placeholder { color: var(--muted); text-transform: none; }
 .dynbg-modal-color-controls input[type="text"]:focus { outline: 2px solid color-mix(in srgb, var(--access) 40%, transparent); border-color: var(--access); }
-.dynbg-modal-color-controls .dt-token-chip { margin-left: 0; }
 
 /* Overlay-tab thumbnails sit on a soft brand-tinted plate so the
    overlay's translucent texture is visible in isolation. Without
@@ -14543,6 +14482,7 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
   background: var(--panel);
   padding: 0;
   transition: box-shadow 120ms ease, border-color 120ms ease;
+  cursor: pointer;
 }
 .fe-form-field-card.dragging {
   opacity: 0.6;
@@ -14550,9 +14490,6 @@ body.embed .backups-wrap.backup-edit { max-width: none; }
 }
 .fe-form-field-card.drag-over {
   box-shadow: 0 0 0 2px var(--brand, #0B5CFF) inset;
-}
-.fe-form-field-card {
-  cursor: pointer;
 }
 .fe-form-field-card:hover { background: var(--panel-2, rgba(0,0,0,.03)); }
 /* Open-card form controls revert to the regular text cursor and
@@ -15037,9 +14974,6 @@ a.fe-ss-item:hover { background: var(--hover); text-decoration: none; }
 .hdr-alert-form { display: flex; flex-direction: column; }
 .hdr-utility .form { gap: 14px; }
 
-/* Mega menu blocks: one line each, options behind More. */
-.nav-megalink { padding: 8px 10px; gap: 8px; }
-.nav-megalink-top { justify-content: flex-start; gap: 8px; }
 .nav-megalink-kind.chip { flex: 0 0 auto; min-width: 58px; text-align: center; }
 .nav-megalink-top-fields { display: flex; gap: 8px; flex: 1 1 auto; min-width: 0; align-items: center; }
 .nav-megalink-top-fields input[type="text"] { flex: 1 1 0; min-width: 0; padding: 7px 10px; font-size: var(--fs-sm);
@@ -15144,7 +15078,7 @@ a.fe-ss-item:hover { background: var(--hover); text-decoration: none; }
 .fs-links { margin: 0; padding-left: 18px; font-size: var(--fs-sm); }
 /* The field builder (_field_builder.html): cards that open in place. */
 .fb-list { display: flex; flex-direction: column; gap: 6px; }
-.fb-card { border: 1px solid var(--border); }
+.fb-card { border: 1px solid var(--border); gap: 0; padding: 0; overflow: hidden; background: var(--panel); border-radius: var(--r-xl); }
 .fb-card.is-open { box-shadow: 0 0 0 1px var(--brand); border-color: var(--brand); }
 .fb-card.is-dragging { opacity: .5; }
 .fb-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; min-width: 0; }
@@ -15162,7 +15096,7 @@ a.fe-ss-item:hover { background: var(--hover); text-decoration: none; }
 .fb-body[hidden] { display: none; }
 .fb-note { margin: 0; }
 .fb-add { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
-.fb-empty { margin: 4px 0; }
+.fb-empty { margin: 4px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 16px; border: 1px dashed var(--border); border-radius: var(--r-xl); color: var(--muted); text-align: center; }
 
 .tp-group-label { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; }
 .tp-item { display: flex; flex-direction: column; padding: 6px 8px; border-radius: var(--r-md); color: var(--text); text-decoration: none; }
@@ -15234,7 +15168,7 @@ a.fe-ss-item:hover { background: var(--hover); text-decoration: none; }
 }
 .cc-mode b { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); }
 .cc-mode b .icon { width: 15px; height: 15px; }
-.cc-mode small { color: var(--muted); font-size: var(--fs-xs); line-height: 1.4; }
+.cc-mode small { color: var(--muted); font-size: var(--fs-xs); line-height: 1.4; font-weight: 400; }
 .cc-mode:has(input:checked) { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--panel-2)); }
 .cc-switch { align-items: flex-start; }
 .cc-switch > span:last-child { display: flex; flex-direction: column; gap: 2px; }
@@ -15256,7 +15190,6 @@ a.fe-ss-item:hover { background: var(--hover); text-decoration: none; }
 .cc-warn { color: var(--warn, #b45309); font-size: var(--fs-xs); }
 .cc-mode input[type=radio] { width: auto; grid-column: 1; grid-row: 1 / span 2; margin: 3px 0 0; }
 .cc-mode b, .cc-mode small { grid-column: 2; }
-.cc-mode small { font-weight: 400; }
 .st-field .cc-days-in input { width: 6rem; }
 .st-field .cc-days-in { font-weight: 400; }
 .form .cc-modes .cc-mode { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; }
@@ -15281,7 +15214,6 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .form label.fe-footer-loc-predefined-check input[type="checkbox"] { grid-row: 1 / span 2; margin: 3px 0 0; width: auto; }
 .form label.fe-footer-loc-predefined-check .fe-footer-loc-predefined-name,
 .form label.fe-footer-loc-predefined-check .fe-footer-loc-predefined-addr { grid-column: 2; margin: 0; }
-.fe-footer-loc-predefined-row { align-items: flex-start; }
 
 /* Footer layout builder bar and block palette (frontend_footer.html). */
   .fe-footer-builder-bar {
@@ -15394,9 +15326,11 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 /* ── Split studio (Header, Footer): the preview on the left (60%, sticky)
    and the settings in a column on the right, as on the Design page. ── */
 .st-body--split { display: grid; grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr); align-items: start; }
-.st-body--split > .st-preview { position: sticky; top: calc(var(--topbar-h, 56px) + 12px); padding: 16px 20px 20px; min-width: 0; }
+.st-body--split > .st-preview { position: sticky; top: calc(var(--topbar-h, 56px) + 12px); padding: 16px 20px 20px; min-width: 0; /* Split studios: the preview is always the left column, whatever the markup order. */ order: 0; }
 .st-body--split > .st-controls { border-left: 1px solid var(--border); background: var(--panel-2); align-self: stretch;
-  min-width: 0; border-bottom-right-radius: var(--radius); padding-bottom: 18px; }
+  min-width: 0; border-bottom-right-radius: var(--radius); padding-bottom: 18px;
+  order: 1;
+}
 @container (max-width: 900px) {
   .st-body--split { grid-template-columns: minmax(0, 1fr); }
   .st-body--split > .st-preview { position: static; border-bottom: 1px solid var(--border); }
@@ -15411,6 +15345,8 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
+  /* Segmented control: as many equal parts as fit a row, wrapping when a page has more (a form's seven). */
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
 }
 .st-seg button {
   flex: 1 1 0;
@@ -15429,6 +15365,7 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   font-weight: 600;
   cursor: pointer;
   transition: background .12s, color .12s;
+  white-space: normal; line-height: 1.2; text-align: center; min-height: 34px;
 }
 .st-seg button .icon { width: 15px; height: 15px; flex: 0 0 auto; }
 .st-seg button:not([aria-selected="true"]):hover { color: var(--text); background: var(--hover); }
@@ -15556,10 +15493,12 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .utility-bar-row.ol-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 2px; padding: 4px 6px 4px 4px;
   align-items: center; background: var(--panel); }
 .utility-bar-row.ol-row > .utility-bar-row-fields { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); margin-top: 4px;
-  padding: 12px 8px 8px 38px; border-top: 1px solid var(--border); }
+  padding: 12px 8px 8px 38px; border-top: 1px solid var(--border);
+  grid-row: 2;
+}
 .utility-bar-row.ol-row > .utility-bar-handle,
 .utility-bar-container-head > .utility-bar-handle { margin: 0; width: 24px; height: 32px; }
-.utility-bar-row.ol-row > .ol-del { align-self: center; }
+.utility-bar-row.ol-row > .ol-del { align-self: center; /* Utility bar row: remove stays on the summary line, fields go below. */ grid-row: 1; grid-column: 3; }
 .utility-bar-row--theme-toggle { padding: 6px 10px 6px 4px; align-items: center; gap: 6px; }
 .utility-bar-row--theme-toggle .utility-bar-handle { margin: 0; width: 24px; height: 28px; }
 .utility-bar-container.ol-row { display: block; padding: 0; background: color-mix(in srgb, var(--brand) 5%, var(--panel));
@@ -15634,9 +15573,6 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .st-body--split .fe-footer-link-newtab input { width: auto; }
 .st-body--split .fe-footer-col-card { padding: 10px; }
 
-/* Utility bar row: remove stays on the summary line, fields go below. */
-.utility-bar-row.ol-row > .ol-del { grid-row: 1; grid-column: 3; }
-.utility-bar-row.ol-row > .utility-bar-row-fields { grid-row: 2; }
 .utility-bar-row.ol-row > .utility-bar-handle { grid-row: 1; grid-column: 1; }
 .utility-bar-row.ol-row > .ol-toggle { grid-row: 1; grid-column: 2; }
 
@@ -15672,16 +15608,8 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fs-part > .fs-body .ds-group { padding-left: 14px; padding-right: 14px; }
 .fs-part.is-open { scroll-margin-top: calc(var(--topbar-h, 56px) + 12px); }
 
-/* Split studios: the preview is always the left column, whatever the
-   markup order. */
-.st-body--split > .st-preview { order: 0; }
-.st-body--split > .st-controls { order: 1; }
 .st-body--split > .st-preview .lp { min-width: 0; }
 
-/* Segmented control: as many equal parts as fit a row, wrapping when a
-   page has more (a form's seven). */
-.st-seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); }
-.st-seg button { white-space: normal; line-height: 1.2; text-align: center; min-height: 34px; }
 .st-seg .ds-tab-count { font-size: var(--fs-2xs); font-weight: 700; padding: 0 6px; border-radius: var(--r-pill); line-height: 16px;
   background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand); }
 .st-seg button[aria-selected="true"] .ds-tab-count { background: rgba(255, 255, 255, .25); color: #fff; }
@@ -15713,6 +15641,9 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   border-radius: var(--r-xl);
   box-shadow: 0 16px 40px rgba(0, 0, 0, .18);
   column-gap: 10px;
+  display: flex; flex-direction: column; columns: auto;
+  /* Selector menus: each group is its own boxed section with a ruled heading, and each entry is one line, its name on the left and its detail (layout, address, status) on the right. */
+  width: min(680px, 92vw); padding: 12px;
 }
 .tp-pick-menu .tp-group + .tp-group { margin-top: 0; }
 .tp-studio .card-head.tp-head { flex-direction: column; align-items: flex-start; gap: 8px; }
@@ -15726,7 +15657,6 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .st-pick-about { flex: 1 1 100%; margin: 0; }
 .st-pick-about .icon { width: 14px; height: 14px; vertical-align: -2px; }
 .tp-pick-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46ch; }
-.tp-pick-menu { display: flex; flex-direction: column; columns: auto; }
 .tp-pick-actions { display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px solid var(--border); }
 .tp-pick-action { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--r-md); border: 0;
   background: transparent; color: var(--brand); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; text-decoration: none; }
@@ -15877,7 +15807,6 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-action > span {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .fe-page-structure .fe-page-structure-row--split .fe-page-structure-col { padding: 8px; }
-.fe-page-structure .fe-page-structure-block { min-width: 0; }
 .fe-page-structure .fe-page-structure-block-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @container (max-width: 520px) {
   .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .muted.smaller { display: none; }
@@ -15909,10 +15838,6 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fe-page-structure .fe-page-structure-block-list--flex-row-reverse > .fe-page-structure-row { flex: 1 1 240px; min-width: 0; }
 .fe-block-library-fold { flex: 0 0 auto; width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 
-/* Block pills: the Edit hint and the duplicate / remove buttons float
-   over the right end on hover instead of reserving room, so the name
-   keeps the pill's full width in narrow columns. */
-.fe-page-structure .fe-page-structure-block { padding-right: 10px; }
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint,
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate,
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove {
@@ -15923,7 +15848,7 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-duplicate,
 .fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-remove,
 .fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-duplicate,
-.fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-remove { pointer-events: auto; }
+.fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-remove { pointer-events: auto; color: var(--text); background: var(--panel); box-shadow: 0 0 0 1px var(--border); }
 /* Narrow pills keep just the buttons. */
 @container (max-width: 300px) {
   .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint { display: none; }
@@ -15940,20 +15865,11 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-label-input { flex-basis: 100%; }
 }
 
-.fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-duplicate,
-.fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-remove,
-.fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-duplicate,
-.fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-remove { color: var(--text); background: var(--panel);
-  box-shadow: 0 0 0 1px var(--border); }
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate:hover { background: var(--brand); color: #fff; }
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove:hover { background: var(--danger); color: #fff; }
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate .icon,
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove .icon { width: 13px; height: 13px; }
 
-/* Selector menus: each group is its own boxed section with a ruled
-   heading, and each entry is one line, its name on the left and its
-   detail (layout, address, status) on the right. */
-.tp-pick-menu { width: min(680px, 92vw); padding: 12px; }
 .tp-pick-groups { columns: 2 280px; column-gap: 12px; }
 .tp-pick-menu .tp-group { break-inside: avoid; margin: 0 0 12px; padding: 0 6px 6px; border: 1px solid var(--border);
   border-radius: var(--r-lg); background: var(--panel); overflow: hidden; }
@@ -15969,10 +15885,6 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
    between the groups (a column's last margin doesn't count). */
 .tp-pick-menu .tp-pick-actions { margin-top: 12px; padding-top: 10px; }
 
-/* Design page: the same 60/40 split as the other studios, its groups
-   chosen with a segmented control at the top of the settings column. */
-.ds-body { grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr); }
-.ds-stage { padding: 16px 20px 20px; }
 .fe-admin-main .card.ds-studio > .card-head.ds-studio-head { border-bottom: 1px solid var(--border); padding-bottom: 16px; margin: 0; }
 /* A segmented control with more parts than fit: one row that scrolls
    sideways (no scrollbar), the edge with parts out of view fading out.
@@ -15998,11 +15910,6 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   .ds-controls { border-left: 0; border-top: 1px solid var(--border); border-bottom-left-radius: var(--radius); }
 }
 
-/* Settings → Users: one row per user (users.html .ulist). Who they are
-   on the left (avatar, name, @username, badges, then email and phone),
-   their role and an actions menu on the right. In a narrow pane the
-   role and menu wrap under the name; nothing scrolls sideways. */
-.users-toolbar { gap: 10px; }
 .users-selectall { padding: 0 2px 0 4px; }
 .users-sort select, .ulist-role select { padding: 7px 10px; min-height: 36px; border-radius: var(--r-md);
   border: 1px solid var(--border); background: var(--panel-2); color: var(--text); font: inherit; font-size: var(--fs-sm); }
@@ -16179,17 +16086,14 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
    app.js shows a group by clearing its inline display. */
 #relayFields, #smtpFields { display: flex; flex-direction: column; gap: inherit; }
 
-/* ── Dashboard: one look for every widget (index.html, _dash_widget.html).
-   Head: grip (on hover), icon tile, title, count, one short link on the
-   right. Body: rows that highlight on hover, stat tiles of one size, and
-   a quiet dashed box when there's nothing to show. ── */
-.dash-grid { column-gap: var(--layout-gap); }
-.dash-grid .card.data-card { container-type: inline-size; }
 
 /* Head */
 .dash-grid .dash-widget-head,
 .dash-grid .user-log-online > .card-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px;
-  margin: 0 0 14px; padding: 0; border: 0; min-height: 30px; }
+  margin: 0 0 14px; padding: 0; border: 0; min-height: 30px;
+  /* Dragging (app.js initDashboardReorder): the widget lifts and follows the pointer, a dashed placeholder keeps its spot, the rest slide. */
+  cursor: grab;
+}
 .dash-grid .dash-widget-head .data-card-head-icon { width: 30px; height: 30px; border-radius: var(--r-md); justify-content: center;
   background: var(--brand-soft); color: var(--access, var(--brand)); }
 .dash-grid .dash-widget-head .data-card-head-icon .icon { width: 16px; height: 16px; color: inherit; }
@@ -16215,19 +16119,17 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 
 /* Grip: the whole card drags; the grip only shows it can. */
 .dash-grid .dash-drag-handle { position: absolute; left: 3px; top: 25px; padding: 2px; border: 0; background: none;
-  color: var(--muted); opacity: 0; transition: opacity 150ms ease; }
+  color: var(--muted); opacity: 0; transition: opacity 150ms ease;
+  cursor: grab; border-radius: var(--r-xs); touch-action: none; font: inherit; line-height: 0;
+}
 .dash-grid .dash-drag-handle .icon { width: 14px; height: 14px; color: inherit; }
 .dash-grid .dash-widget:hover .dash-drag-handle,
 .dash-grid .dash-widget:focus-within .dash-drag-handle { opacity: 1; }
 .dash-grid .dash-drag-handle:hover { background: none; color: var(--text); }
-.dash-grid .dash-drag-handle { cursor: grab; border-radius: var(--r-xs); touch-action: none; font: inherit; line-height: 0; }
 .dash-grid .dash-drag-handle:focus-visible { opacity: 1; outline: 2px solid var(--brand); outline-offset: 1px; }
 /* No hover on touch screens: the grip, the touch drag handle, always shows. */
 @media (hover: none) { .dash-grid .dash-drag-handle { opacity: 1; } }
 
-/* Dragging (app.js initDashboardReorder): the widget lifts and follows
-   the pointer, a dashed placeholder keeps its spot, the rest slide. */
-.dash-grid .dash-widget-head, .dash-grid .user-log-online > .card-head { cursor: grab; }
 .dash-grid .dash-widget-head :is(a, button, .heading-help),
 .dash-grid .user-log-online > .card-head :is(a, button) { cursor: pointer; }
 body.dash-dragging, body.dash-dragging * { cursor: grabbing !important; user-select: none; }
@@ -16410,7 +16312,6 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 /* Grid */
 .fb-grid { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 14px; }
 @media (max-width: 520px) { .fb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
-.fb-card { gap: 0; padding: 0; overflow: hidden; background: var(--panel); border-radius: var(--r-xl); }
 .fb-card:hover { border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); }
 .fb-card .media-thumb-btn { border: 0; border-radius: 0; border-bottom: 1px solid var(--border); aspect-ratio: 4 / 3; }
 .fb-card-body { display: flex; align-items: center; gap: 6px; padding: 10px 8px 10px 12px; min-width: 0; }
@@ -16424,8 +16325,6 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .row-menu--compact .row-menu-btn:hover, .row-menu--compact.is-open .row-menu-btn { background: var(--hover); border-color: var(--border); }
 .row-menu--compact .row-menu-btn .icon { width: 18px; height: 18px; }
 
-.fb-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 16px;
-  border: 1px dashed var(--border); border-radius: var(--r-xl); color: var(--muted); text-align: center; }
 .fb-empty p { margin: 0; }
 .fb-empty-icon { width: 44px; height: 44px; border-radius: var(--r-xl); display: grid; place-items: center; background: var(--panel-2); }
 .fb-empty-icon .icon { width: 22px; height: 22px; }
@@ -16441,7 +16340,6 @@ html body .card.data-card.zoom-card.zoom-card--brand { background: var(--zc-bg);
 .post-studio .post-type-row { margin: 0; gap: 10px; }
 .post-studio .post-type-pill { padding: 10px 14px; gap: 10px; border-width: 1px; border-radius: var(--r-lg); }
 .post-studio .post-type-pill:has(input:checked) { box-shadow: inset 0 0 0 1px var(--brand); }
-.post-type-pill-title { display: inline-flex; align-items: center; gap: 8px; }
 .post-type-pill-title > .icon { width: 16px; height: 16px; color: var(--muted); }
 .post-type-pill:has(input:checked) .post-type-pill-title > .icon { color: var(--brand); }
 .post-type-hint { margin: -6px 0 0; }
@@ -16580,8 +16478,7 @@ body.embed .fb-side { position: sticky; top: 0; height: 100vh; overflow-y: auto;
    modal's close button sits in its top-right corner, over the empty end
    of the header row. */
 body.embed .fb-pick-main { padding: 20px; }
-body.embed .fb-pick-main > .card.fb { height: calc(100vh - 40px); box-sizing: border-box; }
-body.embed .fb-pick-main > .card.fb { border: 1px solid var(--border); border-radius: var(--r-2xl); box-shadow: var(--shadow); padding: 0 18px 16px; }
+body.embed .fb-pick-main > .card.fb { height: calc(100vh - 40px); box-sizing: border-box; border: 1px solid var(--border); border-radius: var(--r-2xl); box-shadow: var(--shadow); padding: 0 18px 16px; }
 #media-picker-modal .modal-panel { height: 90vh; max-width: 1280px; }
 #media-picker-modal .modal-panel > .settings-frame { flex: 1 1 auto; height: auto; min-height: 0; }
 /* The close button where the Settings dialog has its own. */
@@ -17099,8 +16996,7 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .alert-places { display: grid; gap: 8px; }
 .alert-details-fields { display: flex; flex-direction: column; gap: 2rem; }
 .alert-details-fields[hidden] { display: none; }
-.alert-posted-row { display: flex; flex-wrap: wrap; gap: 10px 14px; }
-.alert-posted-row { align-items: stretch; }
+.alert-posted-row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: stretch; }
 .alert-posted-row input[type="datetime-local"] { flex: 0 1 260px; }
 .form .alert-posted-row label.check { flex: 0 1 auto; align-items: center; font-weight: 600; }
 .alert-message-md .md-editor-pane-write textarea { min-height: 110px; }
@@ -17170,7 +17066,7 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .za-otp-manual summary { cursor: pointer; color: var(--access, var(--brand)); font-weight: 600; }
 .za-otp-manual .zoom-info { margin: 8px 0; }
 .za-otp-login { display: inline-flex; align-items: center; gap: 6px; }
-.za-cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.za-cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 16px 0 12px; }
 .za-cal-head h2 { margin: 0; font-size: var(--fs-md); }
 .za-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; font-size: var(--fs-xs); color: var(--muted); }
 .za-legend-item { display: inline-flex; align-items: center; gap: 6px; }
@@ -17210,12 +17106,10 @@ html[data-theme="dark"] .za-c5 { --za-bg: rgba(20, 184, 166, .26); --za-ink: #99
 .zcal-day.is-today { background-color: color-mix(in srgb, var(--brand-soft) 45%, transparent); }
 .zcal-block { position: absolute; z-index: 1; display: flex; flex-direction: column; gap: 1px; min-height: 18px; overflow: hidden;
   padding: 3px 6px; border-radius: var(--r-sm); background: var(--za-bg); box-shadow: inset 3px 0 0 var(--za-edge);
-  color: var(--za-ink); font-size: var(--fs-2xs); line-height: 1.25; text-decoration: none; container-type: inline-size; }
-/* A block sits in its lane (--zl, --zw from the template); hovered or
-   focused it widens to the whole day column to show its time and name,
-   after a short pause so sweeping the pointer across doesn't set it off. */
-.zcal-block { left: calc(var(--zl, 0%) + 2px); width: calc(var(--zw, 100%) - 4px);
-  transition: left .2s ease, width .2s ease, box-shadow .2s ease; }
+  color: var(--za-ink); font-size: var(--fs-2xs); line-height: 1.25; text-decoration: none; container-type: inline-size;
+  /* A block sits in its lane (--zl, --zw from the template); hovered or focused it widens to the whole day column to show its time and name, after a short pause so sweeping the pointer across doesn't set it off. */
+  left: calc(var(--zl, 0%) + 2px); width: calc(var(--zw, 100%) - 4px); transition: left .2s ease, width .2s ease, box-shadow .2s ease;
+}
 .zcal-block:hover, .zcal-block:focus-visible { z-index: 2; left: 2px; width: calc(100% - 4px); text-decoration: none; filter: saturate(1.4);
   background: linear-gradient(var(--za-bg), var(--za-bg)), var(--panel);
   box-shadow: inset 3px 0 0 var(--za-edge), 0 4px 14px rgba(15, 23, 42, .22); transition-delay: .08s; }
@@ -17228,7 +17122,6 @@ html[data-theme="dark"] .za-c5 { --za-bg: rgba(20, 184, 166, .26); --za-ink: #99
 .zcal-now { position: absolute; left: 0; right: 0; z-index: 2; height: 0; border-top: 2px solid #dc2626; pointer-events: none; }
 .zcal-now::before { content: ""; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: #dc2626; }
 .za-cal-note { margin: 10px 0 0; }
-.za-cal-head { margin: 16px 0 12px; }
 @media (max-width: 760px) {
   .zcal { overflow-x: auto; }
   .zcal-head, .zcal-body { min-width: 640px; }
@@ -17543,9 +17436,8 @@ html.ilb-open, html.ilb-open body { overflow: hidden; }
 .ilb-img.is-ready { opacity: 1; }
 .ilb-bar { position: absolute; top: 0; left: 0; right: 0; height: 60px; pointer-events: none; display: flex; align-items: center;
   justify-content: space-between; gap: 12px; padding: 0 12px 0 20px; }
-.ilb-count { font-size: var(--fs-sm); font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .75); }
+.ilb-count { font-size: var(--fs-sm); font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .75); padding: 4px 10px; border-radius: var(--r-md); background: rgba(8, 10, 16, .55); }
 .ilb-tools { display: flex; align-items: center; gap: 4px; pointer-events: auto; }
-.ilb-count { padding: 4px 10px; border-radius: var(--r-md); background: rgba(8, 10, 16, .55); }
 .ilb-count:empty { display: none; }
 .ilb-btn, .ilb-zoom, .ilb-nav { display: inline-flex; align-items: center; justify-content: center; border: 0;
   background: rgba(40, 44, 56, .72); color: #fff; cursor: pointer; text-decoration: none; }
