@@ -18263,13 +18263,12 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .pe-facts dt { color: var(--muted); font-weight: 600; }
 .pe-facts dd { margin: 0; }
 
-/* ── Inboxes (Contact Form, custom form submissions): unread rows stand
-   out; a message's own page reads like an email. ── */
-.lst-thumb--person.is-unread { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--access, var(--brand)); }
+/* ── Inboxes (Contact Form, custom form submissions): an unread row's
+   name is bold beside its New chip; a message's own page reads like an
+   email. ── */
 .lst-tbl--messages tr.is-unread .fb-name { font-weight: 700; }
 .lst-msg-line { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
 .lst-msg-line b { color: var(--text); font-weight: 600; }
-.lst-card--message.is-unread { border-left: 3px solid var(--access, var(--brand)); }
 .lst-card-subject { margin: 0; font-weight: 600; color: var(--text); font-size: var(--fs-sm); }
 .lst-card--message .lst-card-desc { white-space: pre-line; }
 .fb-side-note { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0 0; padding: 0 10px;

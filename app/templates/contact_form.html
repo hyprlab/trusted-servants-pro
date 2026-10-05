@@ -24,7 +24,7 @@
 {%- endmacro %}
 {% macro _plural(n, one, many) %}{{ n }} {{ one if n == 1 else many }}{% endmacro %}
 {% macro _open(c) %}{{ url_for('main.contact_message', cid=c.id) }}{% endmacro %}
-{% macro _avatar(c) %}<span class="lst-thumb lst-thumb--person{{ ' is-unread' if not c.is_read }}" aria-hidden="true">{{ c.name|initials if c.name else '?' }}</span>{% endmacro %}
+{% macro _avatar(c) %}<span class="lst-thumb lst-thumb--person" aria-hidden="true">{{ c.name|initials if c.name else '?' }}</span>{% endmacro %}
 {% macro _chips(c) %}
   {% if not c.is_read %}<span class="post-chip post-chip-event">New</span>{% endif %}
   {% if c.is_archived %}<span class="post-chip">Archived</span>{% endif %}
@@ -97,7 +97,7 @@
   {% elif view == 'grid' %}
   <div class="lst-grid">
     {% for c in items %}
-    <article class="lst-card lst-card--person lst-card--message{{ ' is-unread' if not c.is_read }}">
+    <article class="lst-card lst-card--person lst-card--message">
       <label class="lst-card-check" title="Select"><input type="checkbox" name="ids" value="{{ c.id }}" form="cf-bulk-form" data-bulk-check aria-label="Select the message from {{ c.name }}"></label>
       <div class="lst-card-head">
         {{ _avatar(c) }}

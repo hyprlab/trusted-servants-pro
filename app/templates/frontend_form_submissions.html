@@ -23,7 +23,7 @@
 {%- endmacro %}
 {% macro _plural(n, one, many) %}{{ n }} {{ one if n == 1 else many }}{% endmacro %}
 {% macro _open(sub) %}{{ url_for('main.frontend_form_submission_detail', sub_id=sub.id, form=selected_form_id) }}{% endmacro %}
-{% macro _avatar(sub, p) %}<span class="lst-thumb lst-thumb--person{{ ' is-unread' if not sub.is_seen }}" aria-hidden="true">{{ p.display_name|initials if p.display_name and p.display_name != 'Anonymous' else '?' }}</span>{% endmacro %}
+{% macro _avatar(sub, p) %}<span class="lst-thumb lst-thumb--person" aria-hidden="true">{{ p.display_name|initials if p.display_name and p.display_name != 'Anonymous' else '?' }}</span>{% endmacro %}
 {% macro _chips(sub, p) %}
   {% if not sub.is_seen %}<span class="post-chip post-chip-event">New</span>{% endif %}
   {% if sub.is_archived %}<span class="post-chip">Archived</span>{% endif %}
@@ -88,7 +88,7 @@
   {% elif view == 'grid' %}
   <div class="lst-grid">
     {% for sub in submissions %}{% set p = previews[sub.id] %}
-    <article class="lst-card lst-card--person lst-card--message{{ ' is-unread' if not sub.is_seen }}">
+    <article class="lst-card lst-card--person lst-card--message">
       <label class="lst-card-check" title="Select"><input type="checkbox" name="ids" value="{{ sub.id }}" form="fs-bulk-form" data-bulk-check aria-label="Select the submission from {{ p.display_name }}"></label>
       <div class="lst-card-head">
         {{ _avatar(sub, p) }}
