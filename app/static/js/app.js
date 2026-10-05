@@ -391,8 +391,26 @@
     });
     return kept;
   }
+  // A nav's current part, scrolled to the middle of the strip it sits in
+  // when that strip scrolls sideways (Watchtower's tabs on a phone).
+  function revealCurrent(nav, smooth) {
+    const on = nav.querySelector('[aria-current="page"]');
+    if (!on) return;
+    let strip = on.parentElement;
+    while (strip && strip !== nav.parentElement && strip.scrollWidth <= strip.clientWidth) strip = strip.parentElement;
+    if (!strip || strip.scrollWidth <= strip.clientWidth) return;
+    const s = strip.getBoundingClientRect(), a = on.getBoundingClientRect();
+    strip.scrollTo({ left: strip.scrollLeft + (a.left - s.left) - (s.width - a.width) / 2,
+                     behavior: smooth ? "smooth" : "auto" });
+  }
   async function swapPage(url, opts) {
     const { url: landed, doc } = await fetchPage(url);
+    // Moving a kept nav out and back in resets its strip's sideways
+    // scroll: note it, to put it back.
+    const scrolls = [];
+    document.querySelectorAll("[data-swap-nav]").forEach(nav => {
+      [nav, ...nav.querySelectorAll("*")].forEach(el => { if (el.scrollLeft) scrolls.push([el, el.scrollLeft]); });
+    });
     const kept = keepNavs(doc);
     swapParts(doc, [".topbar > h1", ".topbar > .top-actions",
                     "main.content > .flashes", "main.content > section.page"]);
@@ -400,6 +418,8 @@
       const slot = document.querySelector('[data-swap-keep="' + i + '"]');
       if (slot) slot.replaceWith(nav);
     });
+    scrolls.forEach(([el, left]) => { if (el.isConnected) el.scrollLeft = left; });
+    kept.forEach(nav => revealCurrent(nav, true));
     swapPinned(doc);
     document.title = doc.title;
     document.body.classList.toggle("fe-admin-autohide", doc.body.classList.contains("fe-admin-autohide"));
@@ -444,6 +464,7 @@
     const nav = a.closest("[data-swap-nav]");
     nav.querySelectorAll('[aria-current="page"]').forEach(x => x.removeAttribute("aria-current"));
     a.setAttribute("aria-current", "page");
+    revealCurrent(nav, true);
     document.documentElement.classList.add("is-live-loading");
     swapPage(url.href).catch(() => location.assign(url.href))
       .finally(() => document.documentElement.classList.remove("is-live-loading"));
