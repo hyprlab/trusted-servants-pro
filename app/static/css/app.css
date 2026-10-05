@@ -3005,6 +3005,9 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
   /* Each control keeps its own height: a taller neighbour (tabs with
      count badges) mustn't stretch the buttons beside it. */
   align-items: center; }
+/* A page with no actions: no empty box, which on a phone wraps to a
+   second line and leaves the bar's gap under the heading. */
+.top-actions:not(:has(*)) { display: none; }
 /* A count badge inside a small tab sits within the tab's line height. */
 .view-toggle .btn .badge { padding: 0 6px; line-height: 1.25; }
 /* Topbar actions run at the same size as the save bar's buttons — which

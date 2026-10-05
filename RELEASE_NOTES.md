@@ -9,6 +9,7 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- On a phone, the top bar's menu button and page title are centered in the bar on pages with no buttons beside the title.
 - On a phone, list pages put the list first: the filters, sort and view fold away behind a Filters button beside the search, which counts the filters in use. Each filter in use shows as a chip under the search; tap its x to clear it. Zoom Accounts keeps its one-time passcode tools in view.
 - Every page has the same 20px of space around its content, on all four sides, matching the gap between a list's filter sidebar and the list (14px on phones, as before). The page heading and the yellow save bars line up with it.
 - A library's page has a back button beside its file count, at the top of the sidebar, that returns to the Libraries list (Archived libraries, for an archived one).
