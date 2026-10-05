@@ -11,11 +11,11 @@
      • pending_access_count          → Requests (access-request inbox)
    Counts come from inject_globals() in routes.py — available everywhere.
 
-   The links are the shared segmented control (.ds-seg-btns); the current
+   The links are the shared accent segmented control (.st-seg); the current
    one carries aria-current. Below 720px the control scrolls sideways and
    fades at its edges (topActionsSwipeFade in app.js). #}
 <nav class="wt-tabs" aria-label="Watchtower sections">
-  <div class="ds-seg-btns wt-tabs-track">
+  <div class="st-seg wt-tabs-track">
     <a href="{{ url_for('main.watchtower') }}"
        {% if active_tab == 'overview' %}aria-current="page"{% endif %}>
       {{ icon('activity') }}

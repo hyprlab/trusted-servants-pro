@@ -12967,14 +12967,14 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
    other admin pages. ============================================ */
 
 /* Tabs strip ───────────────────────────────────────────────────────
-   The shared segmented control (.ds-seg-btns, at the top of this file):
-   only its spacing and the phone swipe live here. Phones: one row that
+   The shared accent segmented control (.st-seg): only its spacing and
+   the phone swipe live here. Phones: one row that
    swipes sideways, with the fade mask driven by topActionsSwipeFade in
    app.js. */
 .wt-tabs { margin: 0 0 var(--stack-gap); }
-.wt-tabs-track { flex-wrap: wrap; max-width: 100%; }
+.wt-tabs > .wt-tabs-track { margin: 0; }
 @media (max-width: 720px) {
-  .wt-tabs-track {
+  .wt-tabs > .wt-tabs-track {
     display: flex; flex-wrap: nowrap;
     overflow-x: auto; overflow-y: hidden;
     touch-action: pan-x; -webkit-overflow-scrolling: touch;
@@ -12988,7 +12988,7 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
       #000 calc(100% - var(--swipe-fade-r)), transparent 100%);
   }
   .wt-tabs-track::-webkit-scrollbar { width: 0; height: 0; display: none; }
-  .wt-tabs-track > a { flex: 0 0 auto; }
+  .wt-tabs > .wt-tabs-track > a { flex: 0 0 auto; }
 }
 /* Per-tab attention chip — reuses .nav-badge; just trims the default
    left margin so it sits snug against the label inside the tab. */
@@ -15322,7 +15322,7 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   /* Segmented control: as many equal parts as fit a row, wrapping when a page has more (a form's seven). */
   display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
 }
-.st-seg button {
+.st-seg button, .st-seg > a {
   flex: 1 1 0;
   min-width: 0;
   display: inline-flex;
@@ -15339,11 +15339,15 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   font-weight: 600;
   cursor: pointer;
   transition: background .12s, color .12s;
-  white-space: normal; line-height: 1.2; text-align: center; min-height: 34px;
+  white-space: normal; line-height: 1.2; text-align: center; min-height: 34px; text-decoration: none;
 }
-.st-seg button .icon { width: 15px; height: 15px; flex: 0 0 auto; }
-.st-seg button:not([aria-selected="true"]):hover { color: var(--text); background: var(--hover); }
-.st-seg button[aria-selected="true"] { background: var(--brand); color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
+/* Links work as parts too (a page's sections), the current one marked
+   aria-current="page". */
+.st-seg button .icon, .st-seg > a .icon { width: 15px; height: 15px; flex: 0 0 auto; }
+.st-seg button:not([aria-selected="true"]):hover,
+.st-seg > a:not([aria-current="page"]):hover { color: var(--text); background: var(--hover); text-decoration: none; }
+.st-seg button[aria-selected="true"],
+.st-seg > a[aria-current="page"] { background: var(--brand); color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
 /* With app.js's sliding highlight (.st-seg-thumb) the chosen part drops
    its own fill and the shape behind it moves from part to part. */
 .st-seg.has-thumb { position: relative; }

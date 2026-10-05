@@ -9,7 +9,7 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
-- Watchtower's section tabs use the same switch style as the rest of the admin, such as List and Grid.
+- Watchtower's section tabs use the same tab style as the editors' panels, with the current section in the accent color.
 - Green status badges (such as Active in Watchtower and 2FA on the Users page) are green again in light mode, and the dark sample in the dynamic background picker has its dark background again.
 - Spacing is the same everywhere in the admin, down to the gaps between items inside cards and sidebars, which now come in one set of sizes: every card has the same padding, corners and gap to the next one, and pages, Settings sections, dialogs and pages shown inside Settings all keep the same space from the edge, tighter on a phone. Cards that still had the older look (a thick blue left edge and wider padding), such as on the Users page, match the rest.
 - Settings is spaced the same in every section: 24px at the sides and 16px between cards on a computer, 14px and 14px on a phone, including Global and Users.
