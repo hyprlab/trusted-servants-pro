@@ -3021,9 +3021,24 @@ def meeting_logo(mid):
 
 # --- Zoom Accounts ---
 
+def _zoom_busy(s):
+    """When a meeting time holds its Zoom account, in minutes from
+    midnight: from when the room opens (``opens_time``, else the start)
+    to the end, cut at midnight."""
+    start = s.start_minutes()
+    if s.opens_time:
+        try:
+            h, m = s.opens_time.split(":")
+            start = min(start, int(h) * 60 + int(m))
+        except ValueError:
+            pass
+    return start, min(s.end_minutes(), 24 * 60)
+
+
 def _zoom_conflicts(schedules):
-    """Ids of the schedule slots that overlap another slot on the same
-    account and day, and the accounts that have any."""
+    """Ids of the meeting times that overlap another on the same account
+    and day (counting from when the room opens), and the accounts that
+    have any."""
     by = {}
     for s in schedules:
         if s.zoom_account_id:
@@ -3032,11 +3047,78 @@ def _zoom_conflicts(schedules):
     for (acct, _day), slots in by.items():
         for i in range(len(slots)):
             for j in range(i + 1, len(slots)):
-                x, y = slots[i], slots[j]
-                if x.start_minutes() < y.end_minutes() and y.start_minutes() < x.end_minutes():
-                    ids.update((x.id, y.id))
+                (a0, a1), (b0, b1) = _zoom_busy(slots[i]), _zoom_busy(slots[j])
+                if a0 < b1 and b0 < a1:
+                    ids.update((slots[i].id, slots[j].id))
                     accts.add(acct)
     return ids, accts
+
+
+def _short_range(a, b):
+    """A compact time range for a calendar block: "7–9 AM", "8:45–10 AM",
+    "11:30 AM–1 PM"."""
+    def part(m):
+        h, mm = (m // 60) % 24, m % 60
+        return (str(h % 12 or 12) + (f":{mm:02d}" if mm else "")), ("AM" if h < 12 else "PM")
+    (t0, p0), (t1, p1) = part(a), part(b)
+    return f"{t0}–{t1} {p1}" if p0 == p1 else f"{t0} {p0}–{t1} {p1}"
+
+
+# Account colors in the calendar, by the account's place in name order
+# (so a color stays with its account whatever is filtered).
+ZOOM_COLORS = 6
+
+
+def _zoom_week(accounts, schedules, all_accounts):
+    """The week grid: for each day (Sunday first) the blocks to place,
+    each with its account's lane and color and its spot in time; plus
+    the hours shown. Each account is a lane across every day; times
+    that overlap on one account split that lane."""
+    shown = [a.id for a in accounts]
+    lane_of = {aid: i for i, aid in enumerate(shown)}
+    color_of = {a.id: i % ZOOM_COLORS for i, a in enumerate(sorted(all_accounts, key=lambda a: a.name.lower()))}
+    mine = [s for s in schedules if s.zoom_account_id in lane_of]
+    if mine:
+        lo = min(_zoom_busy(s)[0] for s in mine)
+        hi = max(_zoom_busy(s)[1] for s in mine)
+    else:
+        lo, hi = 8 * 60, 20 * 60
+    start = min(6 * 60, (lo // 60) * 60)
+    end = min(24 * 60, max(22 * 60, -(-hi // 60) * 60))
+    span = end - start
+    days = []
+    for d in (6, 0, 1, 2, 3, 4, 5):
+        blocks = []
+        for aid in shown:
+            slots = sorted((s for s in mine if s.zoom_account_id == aid and s.day_of_week == d),
+                           key=lambda s: _zoom_busy(s))
+            # Overlapping times share the lane side by side: each takes
+            # the first free column of its cluster.
+            cluster, cols_end = [], []
+            def flush():
+                for blk in cluster:
+                    blk["cols"] = len(cols_end)
+                blocks.extend(cluster)
+            for s in slots:
+                b0, b1 = _zoom_busy(s)
+                if cluster and b0 >= max(c for c in cols_end):
+                    flush()
+                    cluster, cols_end = [], []
+                col = next((i for i, e in enumerate(cols_end) if e <= b0), None)
+                if col is None:
+                    col = len(cols_end)
+                    cols_end.append(b1)
+                else:
+                    cols_end[col] = b1
+                cluster.append({"s": s, "lane": lane_of[aid], "color": color_of.get(aid, 0),
+                                "col": col, "start": b0, "end": b1, "label": _short_range(b0, b1),
+                                "top": (b0 - start) / span * 100,
+                                "height": max(b1 - b0, 15) / span * 100})
+            if cluster:
+                flush()
+        days.append({"day": d, "blocks": blocks})
+    return {"days": days, "start": start, "end": end, "hours": list(range(start // 60, end // 60)),
+            "lanes": max(len(shown), 1), "color_of": color_of}
 
 
 @bp.route("/zoom-accounts")
@@ -3064,6 +3146,11 @@ def zoom_accounts():
     found = base.all()
     only_counts = {"": len(found), "overlaps": sum(1 for a in found if a.id in conflict_accts)}
     accounts = [a for a in found if not only or a.id in conflict_accts]
+    acct = request.args.get("acct", type=int)
+    if acct and any(a.id == acct for a in accounts):
+        accounts = [a for a in accounts if a.id == acct]
+    else:
+        acct = None
     uses = {}
     for s in schedules:
         uses[s.zoom_account_id] = uses.get(s.zoom_account_id, 0) + 1
@@ -3074,16 +3161,16 @@ def zoom_accounts():
         sort = "name_desc" if sort == "name_desc" else "name_asc"
         accounts.sort(key=lambda a: a.name.lower(), reverse=sort == "name_desc")
 
-    # The calendar: each account's slots by day, Sunday first.
-    calendar = {a.id: {d: [] for d in range(7)} for a in accounts}
-    for s in schedules:
-        if s.zoom_account_id in calendar:
-            calendar[s.zoom_account_id][s.day_of_week].append(s)
-    day_order = [6, 0, 1, 2, 3, 4, 5]
+    all_accounts = Z.query.all()
+    week = _zoom_week(accounts, schedules, all_accounts) if tab == "calendar" else None
+    from .timezone import now_local_naive
+    now = now_local_naive(_get_site_setting())
     otp = _get_otp_email()
     resp = current_app.make_response(render_template(
-        "zoom_accounts.html", accounts=accounts, calendar=calendar, uses=uses,
-        conflict_ids=conflict_ids, conflict_accts=conflict_accts, day_order=day_order,
+        "zoom_accounts.html", accounts=accounts, uses=uses, week=week, acct=acct,
+        all_accounts=sorted(all_accounts, key=lambda a: a.name.lower()),
+        conflict_ids=conflict_ids, conflict_accts=conflict_accts,
+        today_dow=now.weekday(), now_min=now.hour * 60 + now.minute,
         otp=otp, tab=tab, only=only, sort=sort, view=view, q=q_text,
         only_counts=only_counts, total=Z.query.count()))
     resp.set_cookie("view-zoom", view, max_age=60*60*24*365, samesite="Lax")

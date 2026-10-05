@@ -68,7 +68,7 @@
             </li>
             {% endfor %}
           </ul>
-          <a class="small" href="{{ url_for('main.zoom_accounts', tab='calendar', q=acct.name) }}">See it in the calendar</a>
+          <a class="small" href="{{ url_for('main.zoom_accounts', tab='calendar', acct=acct.id) }}">See it in the calendar</a>
           {% else %}
           <p class="muted small">{% if _new %}Once it's added, pick it on a meeting's Online tab.{% else %}No meeting uses it yet. Pick it on a meeting's Online tab.{% endif %}</p>
           {% endif %}

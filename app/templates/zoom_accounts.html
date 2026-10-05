@@ -10,7 +10,7 @@
 {# Every link keeps the page's settings and changes only what it passes
    in `over`. #}
 {% set _base = {'tab': 'calendar' if tab == 'calendar' else None, 'only': only or None,
-                'sort': sort, 'q': q or None, 'view': view} %}
+                'acct': acct, 'sort': sort, 'q': q or None, 'view': view} %}
 {% macro _url(over={}) -%}
   {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}{{ url_for('main.zoom_accounts', **_u) }}
 {%- endmacro %}
@@ -68,7 +68,17 @@
       {{ side_link(_url({'only': None}), 'video', 'All accounts', only_counts[''], not only) }}
       {{ side_link(_url({'only': 'overlaps'}), 'alert-triangle', 'Overlapping meetings', only_counts.overlaps, only == 'overlaps', 'has-waiting' if only_counts.overlaps and only != 'overlaps') }}
     </nav>
-    {% if tab != 'calendar' %}
+    {% if tab == 'calendar' %}
+    {# One account at a time gets the whole day's width, with labels. #}
+    <nav class="fb-side-group" aria-label="Account">
+      <h3 class="fb-side-title">Account</h3>
+      {{ side_link(_url({'acct': None}), 'layout-grid', 'All accounts', None, not acct) }}
+      {% for a in all_accounts %}
+      <a class="fb-side-link za-acct-link" href="{{ _url({'acct': a.id}) }}"{% if acct == a.id %} aria-current="true"{% endif %}>
+        <span class="za-swatch za-c{{ week.color_of.get(a.id, 0) if week else 0 }}" aria-hidden="true"></span><span>{{ a.name }}</span><span class="fb-side-count">{{ uses.get(a.id, 0) }}</span></a>
+      {% endfor %}
+    </nav>
+    {% else %}
     <div class="fb-side-group" role="group" aria-label="Sort accounts">
       <h3 class="fb-side-title">Sort by</h3>
       <div class="fb-side-sort">{{ _sort('name', 'Name') }}{{ _sort('uses', 'Most used') }}</div>
@@ -132,39 +142,50 @@
   </div>
 
   {% elif tab == 'calendar' %}
-  {# Weekly assignment calendar: each account's meeting times by day,
-     Sunday first; times that overlap on one account are marked. #}
+  {# The week as a grid: days across, hours down, each meeting time at
+     its real place, from when its room opens to its end, so the free
+     time shows. Each account has its own lane and color in every day;
+     times that overlap on one account sit side by side, outlined. #}
+  {% set W = week %}
+  {% set span = W.end - W.start %}
+  {% macro _t(m) %}{{ ('%02d:%02d' % ((m // 60) % 24, m % 60))|fmt12h }}{% endmacro %}
   <div class="za-cal-head">
     <h2>Weekly assignments</h2>
-    {% if conflict_ids %}<span class="za-legend"><span class="za-legend-swatch" aria-hidden="true"></span>Times that overlap on one account</span>{% endif %}
+    <div class="za-legend">
+      {% for a in accounts %}<span class="za-legend-item"><span class="za-swatch za-c{{ W.color_of.get(a.id, 0) }}" aria-hidden="true"></span>{{ a.name }}</span>{% endfor %}
+      {% if conflict_ids %}<span class="za-legend-item"><span class="za-swatch za-swatch--overlap" aria-hidden="true"></span>Overlap</span>{% endif %}
+    </div>
   </div>
-  <div class="zoom-cal-wrap">
-    <table class="zoom-cal">
-      <thead>
-        <tr>
-          <th class="cal-acct">Account</th>
-          {% for d in day_order %}<th>{{ DAYS_OF_WEEK[d][:3] }}</th>{% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in accounts %}
-        <tr>
-          <th class="cal-acct">{% if _admin %}<a href="{{ url_for('main.zoom_account_edit', aid=a.id) }}">{{ a.name }}</a>{% else %}{{ a.name }}{% endif %}</th>
-          {% for d in day_order %}
-          <td>
-            {% for s in calendar[a.id][d]|sort(attribute='start_time') %}
-              <div class="cal-slot{% if s.id in conflict_ids %} cal-slot-conflict{% endif %}"{% if s.id in conflict_ids %} title="Overlaps another meeting on this account"{% endif %}>
-                <div class="cal-time">{{ (s.opens_time or s.start_time)|fmt12h }}–{{ s.end_time|fmt12h }}</div>
-                <a class="cal-link" href="{{ url_for('main.meeting_detail', slug=s.meeting.public_slug) }}">{{ s.meeting.name }}</a>
-              </div>
-            {% endfor %}
-          </td>
-          {% endfor %}
-        </tr>
+  <div class="zcal" style="--zcal-hours: {{ W.hours|length }}; --zcal-lanes: {{ W.lanes }};">
+    <div class="zcal-head">
+      <span class="zcal-corner" aria-hidden="true"></span>
+      {% for day in W.days %}<span class="zcal-dayname{{ ' is-today' if day.day == today_dow }}">{{ DAYS_OF_WEEK[day.day][:3] }}</span>{% endfor %}
+    </div>
+    <div class="zcal-body">
+      <div class="zcal-gutter" aria-hidden="true">
+        {% for h in W.hours %}<span class="zcal-hour" style="top: {{ (h * 60 - W.start) / span * 100 }}%">{{ ('%02d:00' % h)|fmt12h }}</span>{% endfor %}
+      </div>
+      {% for day in W.days %}
+      <div class="zcal-day{{ ' is-today' if day.day == today_dow }}" role="group" aria-label="{{ DAYS_OF_WEEK[day.day] }}">
+        {% for b in day.blocks %}
+        {% set s = b.s %}
+        {% set _w = 100 / W.lanes / b.cols %}
+        <a class="zcal-block za-c{{ b.color }}{{ ' is-conflict' if s.id in conflict_ids }}"
+           href="{{ url_for('main.meeting_detail', slug=s.meeting.public_slug) }}"
+           style="top: {{ b.top }}%; height: {{ b.height }}%; left: calc({{ b.lane * 100 / W.lanes + b.col * _w }}% + 2px); width: calc({{ _w }}% - 4px);"
+           title="{{ s.meeting.name }} · {{ s.zoom_account.name if s.zoom_account }} · {{ _t(b.start) }}–{{ _t(b.end) }}{% if s.opens_time and b.start < s.start_minutes() %} (room opens {{ _t(b.start) }}, starts {{ s.start_time|fmt12h }}){% endif %}{% if s.id in conflict_ids %} · overlaps another meeting on this account{% endif %}">
+          <span class="zcal-block-time">{{ b.label }}</span>
+          <span class="zcal-block-name">{{ s.meeting.name }}</span>
+        </a>
         {% endfor %}
-      </tbody>
-    </table>
+        {% if day.day == today_dow and W.start <= now_min < W.end %}
+        <span class="zcal-now" style="top: {{ (now_min - W.start) / span * 100 }}%" title="Now" aria-hidden="true"></span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
   </div>
+  <p class="muted small za-cal-note">Each block runs from when the Zoom room opens to the meeting's end. {% if W.lanes > 1 %}Pick an account in the sidebar to see its week with the meeting names.{% endif %}</p>
 
   {% elif view == 'grid' %}
   <div class="lst-grid">
