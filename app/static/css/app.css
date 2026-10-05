@@ -16882,6 +16882,9 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .site-alert-close:hover { opacity: 1; background: color-mix(in srgb, var(--sa-edge) 14%, transparent); }
 .site-alert-close .icon { width: 16px; height: 16px; }
 .site-alert-close[hidden] { display: none; }
+/* Details and Close sit at the middle of the bar, however many lines
+   the message runs to (the icon stays by the first line). */
+.site-alert > :is(.site-alert-more, .site-alert-close) { align-self: center; }
 /* With details, the whole bar opens the window; Details is the way in
    from the keyboard. */
 .site-alert.has-details { cursor: pointer; }

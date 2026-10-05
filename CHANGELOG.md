@@ -187,6 +187,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
+- The alert bar's Details and Close sat at the top of a two-line message; they are centered in the bar (`align-self: center`), the icon staying by the first line.
 - A phone's top-bar swipe strip brought in by `tspSwapPage` (a Watchtower section) had no edge fade: `topActionsSwipeFade` runs through `tspOnEachPage`, wiring each strip once and watching its children's sizes, and centers the current tab by `aria-current`.
 - The sliding highlight covered Watchtower's tab labels: `.st-seg.has-thumb` now lifts every part, links included, above the shape, and a chosen link drops its own fill.
 - Moving between Watchtower's sections shifted the page: `.topbar h1` has a 34px minimum (the top-bar controls' height), and on a phone a `[data-swap-nav]` page keeps its top-bar controls on the title's row (the same swipe strip), so the bar is one row on every section. `tspSwapPage` keeps a `[data-swap-nav]` the new page shares (same `aria-label`) as the same element, taking the new links' content and `aria-current`, so its highlight slides instead of being redrawn.
