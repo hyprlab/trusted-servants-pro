@@ -103,14 +103,18 @@
 
 <div class="fb-pick fb-pick--page lst-page">
 <aside class="fb-side" aria-label="Find a file">
-  {# Back to the list of libraries (to Archived, for an archived one).
-     Intergroup libraries aren't on that list; the sidebar is their way
-     around. #}
-  {% if not is_ig %}
-  <a class="fb-side-back" href="{{ url_for('main.libraries', show='archived') if library.archived_at else url_for('main.libraries') }}">{{ icon('arrow-left') }}<span>{{ 'Archived libraries' if library.archived_at else 'All libraries' }}</span></a>
-  {% endif %}
-  <div class="fb-side-top" data-live="total">
-    <p class="fb-side-total" aria-live="polite">{{ _plural(items|length, 'file', 'files') }}{% if q %} matching “{{ q }}”{% elif items|length != total %} of {{ total }}{% endif %}</p>
+  {# Back to the list of libraries (to Archived, for an archived one),
+     beside the file count. Intergroup libraries aren't on that list;
+     the sidebar is their way around. #}
+  <div class="fb-side-toprow">
+    {% if not is_ig %}
+    {% set _back = 'Archived libraries' if library.archived_at else 'All libraries' %}
+    <a class="fb-side-back" href="{{ url_for('main.libraries', show='archived') if library.archived_at else url_for('main.libraries') }}"
+       title="Back to {{ _back }}" aria-label="Back to {{ _back }}">{{ icon('arrow-left') }}</a>
+    {% endif %}
+    <div class="fb-side-top" data-live="total">
+      <p class="fb-side-total" aria-live="polite">{{ _plural(items|length, 'file', 'files') }}{% if q %} matching “{{ q }}”{% elif items|length != total %} of {{ total }}{% endif %}</p>
+    </div>
   </div>
   {{ search_form(_home, _base, q, 'Search files', 'Search titles, file names, summaries and categories') }}
   {% if can_edit %}<a class="btn btn-primary fb-side-upload" href="{{ url_for('main.reading_new', slug=library.public_slug) }}">{{ icon('plus') }} Add a file</a>{% endif %}
