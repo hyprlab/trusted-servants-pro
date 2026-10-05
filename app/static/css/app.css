@@ -17921,7 +17921,9 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .site-alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
   background: var(--sa-bg); color: var(--sa-ink); border: 1px solid color-mix(in srgb, var(--sa-edge) 35%, transparent);
   border-radius: 10px; font-size: var(--fs-sm); line-height: 1.45; transition: opacity .2s ease, transform .2s ease; }
-.site-alert[hidden], .site-alert-closed .site-alert[data-closable] { display: none; }
+/* A place the alert doesn't show in, or a closed alert, stays hidden
+   whatever layout its place gives it (the sidebar's grid). */
+.site-alert[hidden], .site-alert-closed .site-alert[data-closable] { display: none !important; }
 .site-alert.is-closing { opacity: 0; transform: translateY(-4px); }
 .site-alert.is-success, .site-alert-detail.is-success { --sa-bg: #e7f8ee; --sa-edge: #16a34a; --sa-ink: #14532d; --sa-icon: #15803d; }
 .site-alert.is-warning, .site-alert-detail.is-warning { --sa-bg: #fff6e1; --sa-edge: #d97706; --sa-ink: #7c4a03; --sa-icon: #b45309; }
