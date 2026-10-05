@@ -17915,18 +17915,18 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 /* ── Alert bar (_site_alert.html, Settings > Alert Bar): a message every
    signed-in user sees above the top bar, at the foot of the sidebar or
    on the dashboard, in one of four tones. ─────────────────────────── */
-.site-alert { --sa-bg: var(--brand-soft); --sa-edge: var(--brand); --sa-ink: var(--text); --sa-icon: var(--brand);
-  display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+.site-alert, .site-alert-detail { --sa-bg: var(--brand-soft); --sa-edge: var(--brand); --sa-ink: var(--text); --sa-icon: var(--brand); }
+.site-alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
   background: var(--sa-bg); color: var(--sa-ink); border: 1px solid color-mix(in srgb, var(--sa-edge) 35%, transparent);
   border-radius: 10px; font-size: var(--fs-sm); line-height: 1.45; transition: opacity .2s ease, transform .2s ease; }
 .site-alert[hidden], .site-alert-closed .site-alert[data-closable] { display: none; }
 .site-alert.is-closing { opacity: 0; transform: translateY(-4px); }
-.site-alert.is-success { --sa-bg: #e7f8ee; --sa-edge: #16a34a; --sa-ink: #14532d; --sa-icon: #15803d; }
-.site-alert.is-warning { --sa-bg: #fff6e1; --sa-edge: #d97706; --sa-ink: #7c4a03; --sa-icon: #b45309; }
-.site-alert.is-danger { --sa-bg: #fdecec; --sa-edge: #dc2626; --sa-ink: #7f1d1d; --sa-icon: #b91c1c; }
-[data-theme="dark"] .site-alert.is-success { --sa-bg: #15341f; --sa-ink: #b7f5cf; --sa-icon: #4ade80; }
-[data-theme="dark"] .site-alert.is-warning { --sa-bg: #3a2808; --sa-ink: #ffdc99; --sa-icon: #fbbf24; }
-[data-theme="dark"] .site-alert.is-danger { --sa-bg: #381416; --sa-ink: #fecaca; --sa-icon: #f87171; }
+.site-alert.is-success, .site-alert-detail.is-success { --sa-bg: #e7f8ee; --sa-edge: #16a34a; --sa-ink: #14532d; --sa-icon: #15803d; }
+.site-alert.is-warning, .site-alert-detail.is-warning { --sa-bg: #fff6e1; --sa-edge: #d97706; --sa-ink: #7c4a03; --sa-icon: #b45309; }
+.site-alert.is-danger, .site-alert-detail.is-danger { --sa-bg: #fdecec; --sa-edge: #dc2626; --sa-ink: #7f1d1d; --sa-icon: #b91c1c; }
+[data-theme="dark"] :is(.site-alert, .site-alert-detail).is-success { --sa-bg: #15341f; --sa-ink: #b7f5cf; --sa-icon: #4ade80; }
+[data-theme="dark"] :is(.site-alert, .site-alert-detail).is-warning { --sa-bg: #3a2808; --sa-ink: #ffdc99; --sa-icon: #fbbf24; }
+[data-theme="dark"] :is(.site-alert, .site-alert-detail).is-danger { --sa-bg: #381416; --sa-ink: #fecaca; --sa-icon: #f87171; }
 .site-alert-icon { flex: 0 0 auto; display: inline-flex; margin-top: 1px; color: var(--sa-icon); }
 .site-alert-icon > span { display: inline-flex; }
 .site-alert-icon > span[hidden] { display: none; }
@@ -17940,6 +17940,33 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .site-alert-close:hover { opacity: 1; background: color-mix(in srgb, var(--sa-edge) 14%, transparent); }
 .site-alert-close .icon { width: 16px; height: 16px; }
 .site-alert-close[hidden] { display: none; }
+/* With details, the whole bar opens the window; Details is the way in
+   from the keyboard. */
+.site-alert.has-details { cursor: pointer; }
+.site-alert.has-details:hover { background: color-mix(in srgb, var(--sa-edge) 8%, var(--sa-bg)); }
+.site-alert-more { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px; margin: -2px 0; padding: 2px 4px 2px 8px;
+  border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.site-alert-more:hover { background: color-mix(in srgb, var(--sa-edge) 14%, transparent); }
+.site-alert-more .icon { width: 15px; height: 15px; }
+.site-alert-more[hidden] { display: none; }
+/* The details window: the message in the alert's colors, then the
+   details. */
+.site-alert-detail { display: contents; }
+.site-alert-modal .modal-head h2 { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.site-alert-detail-icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 32px; height: 32px;
+  border-radius: 8px; background: var(--sa-bg); color: var(--sa-icon); }
+.site-alert-detail-icon > span { display: inline-flex; }
+.site-alert-detail-icon > span[hidden] { display: none; }
+.site-alert-detail-icon .icon { width: 18px; height: 18px; }
+.site-alert-detail-lead { padding: 12px 14px; border-radius: 10px; background: var(--sa-bg); color: var(--sa-ink);
+  border: 1px solid color-mix(in srgb, var(--sa-edge) 35%, transparent); line-height: 1.5; }
+.site-alert-detail-lead p, .site-alert-detail-body p { margin: 0; }
+.site-alert-detail-lead a { color: inherit; font-weight: 600; text-decoration: underline; }
+.site-alert-detail-body { display: flex; flex-direction: column; gap: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.site-alert-detail-body:empty { display: none; }
+.site-alert-detail-body :is(h1, h2, h3, h4) { margin: 6px 0 0; font-size: var(--fs-md); font-weight: 700; }
+.site-alert-detail-body :is(ul, ol) { margin: 0; padding-left: 22px; }
+.site-alert-modal .modal-foot [hidden] { display: none; }
 /* Above the top bar: edge to edge; the top bar then drops the pull-up
    that takes it into the content's top padding. */
 .content > .site-alert--top { margin: calc(var(--content-pt) * -1) calc(var(--content-px) * -1) 0;
@@ -17950,6 +17977,8 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .sidebar-footer > .site-alert--sidebar { margin: 0 0 12px; padding: 8px 10px; gap: 8px; border-radius: 8px; font-size: var(--fs-xs); }
 .site-alert--sidebar .site-alert-icon .icon { width: 16px; height: 16px; }
 .site-alert--sidebar .site-alert-close { width: 22px; height: 22px; margin: -2px -4px -2px 0; }
+.site-alert--sidebar.has-details { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 4px; }
+.site-alert--sidebar .site-alert-more { grid-column: 2; grid-row: 2; justify-self: start; margin: 0 0 0 -4px; padding-left: 4px; }
 /* The dashboard: above the widgets. */
 .site-alert--dashboard { margin-bottom: 20px; }
 /* Settings > Alert Bar. */

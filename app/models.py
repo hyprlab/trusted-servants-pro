@@ -773,6 +773,12 @@ class SiteSetting(db.Model):
     alert_dismissible = db.Column(db.Boolean, nullable=False, default=True)
     alert_until = db.Column(db.DateTime)
     alert_version = db.Column(db.Integer, nullable=False, default=0)
+    # Optional details: with ``alert_details_enabled``, clicking the bar
+    # opens a window with a title (blank for the tone's name) and the
+    # details (Markdown) under the message.
+    alert_details_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    alert_title = db.Column(db.String(200))
+    alert_details = db.Column(db.Text)
     # Announcements & Events module toggle. Default True so existing
     # installs don't lose data the moment the column is added.
     posts_enabled = db.Column(db.Boolean, nullable=False, default=True)

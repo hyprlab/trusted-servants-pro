@@ -433,8 +433,11 @@ def _site_alert(site):
         if now_local_naive(site) >= site.alert_until:
             return None
     tone = site.alert_tone if site.alert_tone in dict((k, 1) for k, _l, _i in ALERT_TONES) else "info"
+    details = (site.alert_details or "").strip() if site.alert_details_enabled else ""
     return {"message": site.alert_message.strip(), "tone": tone, "places": places,
             "icon": dict((k, i) for k, _l, i in ALERT_TONES)[tone],
+            "title": (site.alert_title or "").strip() or dict((k, l) for k, l, _i in ALERT_TONES)[tone],
+            "details": details,
             "dismissible": bool(site.alert_dismissible), "version": site.alert_version or 0}
 
 
@@ -17761,15 +17764,20 @@ def timezone_save():
 @bp.route("/settings/alert-save", methods=["POST"])
 @admin_required
 def alert_save():
-    """Settings > Alert bar. The version goes up when the message changes
-    or the bar is turned on again, so people who closed the old one see
-    the new one."""
+    """Settings > Alert bar. The version goes up when the message or the
+    details change or the bar is turned on again, so people who closed
+    the old one see the new one."""
     s = _get_site_setting()
     f = request.form
     enabled = f.get("alert_enabled") == "1"
     message = (f.get("alert_message") or "").strip()[:2000] or None
-    if (message or "") != (s.alert_message or "") or (enabled and not s.alert_enabled):
+    details = (f.get("alert_details") or "").strip()[:20000] or None
+    if ((message or "") != (s.alert_message or "") or (details or "") != (s.alert_details or "")
+            or (enabled and not s.alert_enabled)):
         s.alert_version = (s.alert_version or 0) + 1
+    s.alert_details = details
+    s.alert_details_enabled = f.get("alert_details_enabled") == "1"
+    s.alert_title = (f.get("alert_title") or "").strip()[:200] or None
     s.alert_enabled = enabled
     s.alert_message = message
     tone = f.get("alert_tone") or "info"

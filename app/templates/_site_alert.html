@@ -2,18 +2,54 @@
    sidebar or dashboard. Every place renders its element, hidden where
    the alert doesn't show, so a save in Settings can swap them in place.
    A closed alert is hidden by the site-alert-closed class on <html>,
-   set before paint in base.html while its version is the one closed. #}
+   set before paint in base.html while its version is the one closed.
+   With details, a click on the bar (or its Details button) opens
+   site_alert_modal. #}
 {% macro site_alert_bar(place) %}
 {%- set a = site_alert -%}
-<div class="site-alert site-alert--{{ place }} is-{{ a.tone if a else 'info' }}" data-site-alert="{{ place }}"
+<div class="site-alert site-alert--{{ place }} is-{{ a.tone if a else 'info' }}{{ ' has-details' if a and a.details }}" data-site-alert="{{ place }}"
      {%- if a %} data-version="{{ a.version }}"{% if a.dismissible %} data-closable{% endif %}{% endif %} role="status"
      {%- if not (a and place in a.places) %} hidden{% endif %}>
   {%- if a %}
   <span class="site-alert-icon" aria-hidden="true">{{ icon(a.icon) }}</span>
   <div class="site-alert-msg">{{ a.message|markdown_inline }}</div>
+  {%- if a.details %}
+  <button type="button" class="site-alert-more" data-site-alert-open aria-haspopup="dialog">Details{{ icon('chevron-right') }}</button>
+  {%- endif %}
   {%- if a.dismissible %}
   <button type="button" class="site-alert-close" data-site-alert-close aria-label="Close this alert" title="Close">{{ icon('x') }}</button>
   {%- endif %}
   {%- endif %}
+</div>
+{%- endmacro %}
+
+{# The window with the alert's details. The shell stays; its contents
+   ([data-site-alert-detail], display: contents) are swapped after a
+   save and filled from the form for the Settings preview. #}
+{% macro site_alert_modal() %}
+{%- set a = site_alert -%}
+<div class="modal site-alert-modal" id="site-alert-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="site-alert-modal-title">
+    <div class="site-alert-detail is-{{ a.tone if a else 'info' }}" data-site-alert-detail{% if a %} data-version="{{ a.version }}"{% endif %}>
+      <div class="modal-head">
+        <h2 id="site-alert-modal-title">
+          <span class="site-alert-detail-icon" aria-hidden="true">
+            {%- for key, label, ic in ALERT_TONES %}<span data-tone-icon="{{ key }}"{% if key != (a.tone if a else 'info') %} hidden{% endif %}>{{ icon(ic) }}</span>{% endfor -%}
+          </span>
+          <span data-detail-title>{{ a.title if a else '' }}</span>
+        </h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
+      </div>
+      <div class="modal-body">
+        <div class="site-alert-detail-lead" data-detail-lead>{{ (a.message if a else '')|markdown }}</div>
+        <div class="site-alert-detail-body" data-detail-body>{{ (a.details if a else '')|markdown }}</div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-site-alert-close data-close{% if not (a and a.dismissible) %} hidden{% endif %}>Don't show again</button>
+        <button type="button" class="btn btn-primary" data-close>Close</button>
+      </div>
+    </div>
+  </div>
 </div>
 {%- endmacro %}

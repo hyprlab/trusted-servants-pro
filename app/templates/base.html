@@ -1,5 +1,5 @@
 {% from "_help_chip.html" import chip, hrow %}
-{% from "_site_alert.html" import site_alert_bar with context %}
+{% from "_site_alert.html" import site_alert_bar, site_alert_modal with context %}
 <!doctype html>
 <html lang="en" data-theme="light"{% if current_user.is_authenticated and current_user.theme_pref %} data-theme-pref="{{ current_user.theme_pref }}"{% endif %}>
 <head>
@@ -1492,6 +1492,25 @@
               <textarea name="alert_message" rows="3" maxlength="2000" data-alert-message
                         placeholder="The portal moves to a new server on Saturday at 9 PM. Save your work before then.">{{ site.alert_message or '' }}</textarea>
             </label>
+            <div class="special-page-row">
+              <div class="special-page-info">
+                <div class="u-name">Open details when clicked</div>
+                <div class="muted small">Clicking the bar opens a window with a title and more about it.</div>
+              </div>
+              <label class="mode-toggle" title="Open details when the bar is clicked">
+                <input type="checkbox" name="alert_details_enabled" value="1" data-alert-details-on {% if site.alert_details_enabled %}checked{% endif %}>
+                <span class="mode-track"><span class="mode-thumb"></span></span>
+              </label>
+            </div>
+            <div class="alert-details-fields" data-alert-details-fields{% if not site.alert_details_enabled %} hidden{% endif %}>
+              <label>{% call hrow('Window title') %}Optional. Left blank, the window is titled with the style's name, such as Warning.{% endcall %}
+                <input type="text" name="alert_title" maxlength="200" value="{{ site.alert_title or '' }}" data-alert-title placeholder="Server move this Saturday">
+              </label>
+              <label>{% call hrow('Details') %}Shown in the window under the message. Markdown works: headings, lists, bold, italic and links.{% endcall %}
+                <textarea name="alert_details" rows="6" maxlength="20000" data-alert-details
+                          placeholder="What is changing, when, and what people need to do.">{{ site.alert_details or '' }}</textarea>
+              </label>
+            </div>
             <div class="form-field-block">{% call hrow('Style') %}The bar's color and icon.{% endcall %}
               <div class="ds-seg-btns alert-tone-seg" role="radiogroup" aria-label="Style">
                 {% for key, label, ic in ALERT_TONES %}
@@ -1513,10 +1532,11 @@
               <input type="datetime-local" name="alert_until" value="{{ site.alert_until.strftime('%Y-%m-%dT%H:%M') if site.alert_until else '' }}">
             </label>
             <div class="form-field-block">
-              <span class="alert-preview-label muted small">Preview</span>
+              <span class="alert-preview-label muted small">Preview<span data-alert-preview-hint{% if not (site.alert_details_enabled and (site.alert_details or '').strip()) %} hidden{% endif %}>: click it to see the window</span></span>
               <div class="site-alert site-alert--preview is-{{ _al_tone }}" data-alert-preview>
                 <span class="site-alert-icon" aria-hidden="true">{% for key, label, ic in ALERT_TONES %}<span data-tone-icon="{{ key }}"{% if key != _al_tone %} hidden{% endif %}>{{ icon(ic) }}</span>{% endfor %}</span>
                 <div class="site-alert-msg" data-alert-preview-msg>{{ (site.alert_message or '')|markdown_inline }}</div>
+                <button type="button" class="site-alert-more" data-alert-preview-more{% if not (site.alert_details_enabled and (site.alert_details or '').strip()) %} hidden{% endif %}>Details{{ icon('chevron-right') }}</button>
                 <span class="site-alert-close" data-alert-preview-close aria-hidden="true"{% if not site.alert_dismissible %} hidden{% endif %}>{{ icon('x') }}</span>
               </div>
             </div>
@@ -1535,12 +1555,49 @@
           const msg = form.querySelector('[data-alert-preview-msg]');
           const ta = form.querySelector('[data-alert-message]');
           let timer;
+          const detailsOn = form.querySelector('[data-alert-details-on]');
+          const detailsTa = form.querySelector('[data-alert-details]');
+          const toneNow = () => (form.querySelector('input[name=alert_tone]:checked') || {}).value || 'info';
+          const hasDetails = () => detailsOn.checked && detailsTa.value.trim() !== '';
           function tone(){
-            const t = (form.querySelector('input[name=alert_tone]:checked') || {}).value || 'info';
+            const t = toneNow();
             box.className = box.className.replace(/\bis-\w+/, 'is-' + t);
             box.querySelectorAll('[data-tone-icon]').forEach(el => { el.hidden = el.dataset.toneIcon !== t; });
             box.querySelector('[data-alert-preview-close]').hidden = !form.querySelector('[data-alert-closable]').checked;
+            form.querySelector('[data-alert-details-fields]').hidden = !detailsOn.checked;
+            box.querySelector('[data-alert-preview-more]').hidden = !hasDetails();
+            form.querySelector('[data-alert-preview-hint]').hidden = !hasDetails();
+            box.classList.toggle('has-details', hasDetails());
           }
+          detailsTa.addEventListener('input', tone);
+          // The preview opens the details window filled from the form; it
+          // puts the saved one back on close (base.html).
+          function md(text, mode){
+            const body = new FormData();
+            body.append('body', text); if (mode) body.append('mode', mode);
+            return fetch('{{ url_for('main.markdown_preview') }}', { method: 'POST', body, credentials: 'same-origin' })
+              .then(r => r.ok ? r.json() : { html: '' }).then(j => j.html || '').catch(() => '');
+          }
+          box.addEventListener('click', e => {
+            if (!hasDetails() || e.target.closest('a')) return;
+            e.preventDefault();
+            const modal = document.getElementById('site-alert-modal');
+            const slot = modal && modal.querySelector('[data-site-alert-detail]');
+            if (!slot) return;
+            Promise.all([md(ta.value), md(detailsTa.value)]).then(([lead, body]) => {
+              if (modal._saved == null) modal._saved = slot.outerHTML;
+              const t = toneNow();
+              slot.className = slot.className.replace(/\bis-\w+/, 'is-' + t);
+              slot.querySelectorAll('[data-tone-icon]').forEach(el => { el.hidden = el.dataset.toneIcon !== t; });
+              const custom = form.querySelector('[data-alert-title]').value.trim();
+              const lbl = form.querySelector('input[name=alert_tone]:checked + span');
+              slot.querySelector('[data-detail-title]').textContent = custom || (lbl ? lbl.textContent : '');
+              slot.querySelector('[data-detail-lead]').innerHTML = lead;
+              slot.querySelector('[data-detail-body]').innerHTML = body;
+              slot.querySelector('.modal-foot [data-site-alert-close]').hidden = !form.querySelector('[data-alert-closable]').checked;
+              window.tspSiteAlertOpen(box);
+            });
+          });
           function render(){
             const body = new FormData();
             body.append('body', ta.value); body.append('mode', 'inline');
@@ -1557,6 +1614,9 @@
                   const next = doc.querySelector('[data-site-alert="' + el.dataset.siteAlert + '"]');
                   if (next) el.replaceWith(document.importNode(next, true));
                 });
+                const detail = document.querySelector('#site-alert-modal [data-site-alert-detail]');
+                const nextDetail = doc.querySelector('#site-alert-modal [data-site-alert-detail]');
+                if (detail && nextDetail) detail.replaceWith(document.importNode(nextDetail, true));
                 const st = doc.querySelector('[data-alert-status]'), now = form.querySelector('[data-alert-status]');
                 if (st && now) now.textContent = st.textContent;
                 if (window.tspSiteAlertSync) window.tspSiteAlertSync();
@@ -2422,6 +2482,8 @@
   </div>
 </div>
 {# Help popup: tour replay + Public Info Chair contact #}
+{{ site_alert_modal() }}
+
 <div class="modal" id="pic-help-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
   <div class="modal-panel" role="dialog" aria-modal="true">
@@ -2498,10 +2560,52 @@
       root.classList.toggle('site-alert-closed', !!(a && closedVersion() === a.dataset.version));
       if (window.tspTopbarSync) window.tspTopbarSync();
     };
+    // The details window: a click anywhere on a bar with details opens
+    // it, except on a link or the Close button; its Details button is
+    // the way in from the keyboard.
+    var modal = document.getElementById('site-alert-modal');
+    // app.js may have closed it already (its [data-close] and Escape
+    // handlers), so this only finishes the job.
+    function closeDetails(){
+      if (!modal) return;
+      modal._isOpen = false;
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      // The Settings preview filled it from the form: put the saved one back.
+      if (modal._saved != null) { modal.querySelector('[data-site-alert-detail]').outerHTML = modal._saved; modal._saved = null; }
+      if (modal._opener && modal._opener.isConnected) modal._opener.focus();
+    }
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && modal && modal._isOpen) closeDetails(); });
+    window.tspSiteAlertOpen = function(opener){
+      if (!modal) return;
+      modal._opener = opener || null;
+      modal._isOpen = true;
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      var btn = modal.querySelector('.modal-foot .btn-primary');
+      if (btn) setTimeout(function(){ btn.focus(); }, 50);
+    };
     document.addEventListener('click', function(e){
+      if (modal && modal.contains(e.target) && e.target.closest('[data-close]')) {
+        if (e.target.closest('[data-site-alert-close]') && modal._saved == null) {
+          try { localStorage.setItem(KEY, modal.querySelector('[data-site-alert-detail]').dataset.version); } catch (x) {}
+          root.classList.add('site-alert-closed');
+          if (window.tspTopbarSync) window.tspTopbarSync();
+        }
+        closeDetails();
+        return;
+      }
+      var bar = e.target.closest('.site-alert.has-details[data-site-alert]');
+      if (bar && !e.target.closest('a, [data-site-alert-close]')) {
+        window.tspSiteAlertOpen(bar.querySelector('[data-site-alert-open]'));
+        return;
+      }
       var btn = e.target.closest('[data-site-alert-close]');
       if (!btn) return;
       var a = btn.closest('[data-site-alert]');
+      if (!a) return;
       try { localStorage.setItem(KEY, a.dataset.version); } catch (x) {}
       document.querySelectorAll('[data-site-alert]:not([hidden])').forEach(function(el){ el.classList.add('is-closing'); });
       setTimeout(function(){
