@@ -2486,7 +2486,8 @@
     });
   });
 
-  // Copy-to-clipboard buttons: <button data-copy-url="/pub/...">
+  // Copy-to-clipboard buttons: <button data-copy-url="/pub/..."> or
+  // <button data-copy-text="imap.example.com">
   function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       return navigator.clipboard.writeText(text).then(() => true).catch(() => fallbackCopy(text));
@@ -2505,12 +2506,14 @@
     return ok;
   }
   document.addEventListener("click", e => {
-    const btn = e.target.closest("[data-copy-url]");
+    // data-copy-url copies a full address; data-copy-text, the text as is.
+    const btn = e.target.closest("[data-copy-url], [data-copy-text]");
     if (!btn) return;
     e.preventDefault();
     e.stopPropagation();
-    const url = new URL(btn.dataset.copyUrl, window.location.origin).href;
-    copyText(url).then(ok => {
+    const value = btn.hasAttribute("data-copy-text") ? btn.dataset.copyText
+      : new URL(btn.dataset.copyUrl, window.location.origin).href;
+    copyText(value).then(ok => {
       // Swap only the label, never the button's whole textContent: a
       // copy control inside a row-actions menu is `<svg> + <span>`, and
       // setting textContent on the button would delete the icon and the

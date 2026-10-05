@@ -2803,24 +2803,6 @@ body.has-fe-save-bar .fe-admin-main .form-actions { display: none; }
   }
   .fe-subnav-select:focus { outline: 2px solid var(--brand, #0B5CFF); outline-offset: 1px; }
 }
-.intergroup-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start; }
-@media (max-width: 800px) { .intergroup-grid { grid-template-columns: 1fr; } }
-.ig-email-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.ig-email-list li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.ig-role { font-weight: 500; }
-.ig-sep { color: var(--muted); }
-.ig-addr { font-weight: 500; }
-.ig-webmail { margin-top: 18px; }
-.ig-setup .ig-setting { display: flex; gap: 14px; align-items: flex-start; margin: 14px 0; }
-.ig-setting-icon {
-  width: 44px; height: 44px; border-radius: 10px; display: flex;
-  align-items: center; justify-content: center; font-size: var(--fs-xl);
-  color: #fff; flex-shrink: 0;
-}
-.ig-icon-incoming { background: #2563eb; box-shadow: inset 0 -8px 0 rgba(34,197,94,0.6); }
-.ig-icon-outgoing { background: #7c3aed; box-shadow: inset 0 -8px 0 rgba(236,72,153,0.6); }
-.ig-setting-title { font-weight: 600; margin-bottom: 2px; }
-.ig-learn { color: var(--access); font-weight: 500; }
 .alert-banner {
   background: #fef3c7;
   color: #78350f;
@@ -18205,6 +18187,51 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .pe-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: var(--fs-sm); }
 .pe-facts dt { color: var(--muted); font-weight: 600; }
 .pe-facts dd { margin: 0; }
+
+/* ── Intergroup Email (intergroup.html, intergroup_edit.html): the
+   accounts with Copy and Email, and the mail-app setup with Copy. ── */
+.ig-intro { margin: 0 0 16px; max-width: 70ch; }
+.ig-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .ig-layout { grid-template-columns: minmax(0, 1fr); } }
+.ig-layout > .card { border-radius: 14px; box-shadow: var(--shadow); padding: 18px 20px; }
+.ig-card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin: 0 0 12px; }
+.ig-card-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-md); }
+.ig-card-head h2 > .icon { width: 18px; height: 18px; color: var(--muted); }
+.ig-count { padding: 1px 8px; border-radius: 999px; background: var(--panel-2); color: var(--muted); font-size: var(--fs-xs); font-weight: 600; }
+.ig-filter { position: relative; display: flex; align-items: center; margin: 0; flex: 0 1 240px; }
+.ig-filter .icon { position: absolute; left: 10px; width: 15px; height: 15px; color: var(--muted); pointer-events: none; }
+.ig-filter input { width: 100%; padding: 7px 10px 7px 32px; border-radius: 9px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); }
+.ig-acc-list { list-style: none; margin: 0; padding: 0; }
+.ig-acc { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.ig-acc:first-child { border-top: 0; }
+.ig-acc[hidden] { display: none; }
+.ig-acc .lst-thumb { width: 38px; height: 38px; font-size: var(--fs-xs); }
+.ig-acc-text { flex: 1 1 auto; min-width: 0; }
+.ig-acc-role { font-weight: 600; color: var(--text); }
+.ig-acc-email { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+.ig-acc-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.ig-acc-actions .btn, .ig-server .btn { display: inline-flex; align-items: center; gap: 6px; }
+.ig-acc-actions .icon, .ig-server .btn .icon { width: 14px; height: 14px; }
+.ig-none { margin: 8px 0 0; }
+.ig-servers { display: flex; flex-direction: column; gap: 10px; }
+.ig-server { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-2); }
+.ig-server-icon { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; }
+.ig-server-icon .icon { width: 18px; height: 18px; }
+.ig-server-icon--in { background: rgba(11, 92, 255, .12); color: #0b5cff; }
+.ig-server-icon--out { background: rgba(124, 58, 237, .12); color: #7c3aed; }
+html[data-theme="dark"] .ig-server-icon--in { color: #93c5fd; }
+html[data-theme="dark"] .ig-server-icon--out { color: #c4b5fd; }
+.ig-server-text { flex: 1 1 auto; min-width: 0; }
+.ig-server-label { font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.ig-server-host { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-sm); color: var(--text); overflow-wrap: anywhere; }
+.ig-notes { margin: 14px 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); color: var(--text); }
+.ig-guide { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-weight: 600; }
+.ig-guide .icon { width: 15px; height: 15px; }
+.ig-edit-rows { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ig-edit-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.3fr) auto; align-items: center; gap: 8px; }
+.ig-edit-row > input[type=hidden] { display: none; }
+@media (max-width: 640px) { .ig-edit-row { grid-template-columns: auto minmax(0, 1fr) auto; } .ig-edit-row input[type=email] { grid-column: 2; } }
+.ig-edit-add { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; width: auto; }
 
 /* ── A library's files (library_detail.html) and their editor
    (reading_form.html, library_form.html). ── */

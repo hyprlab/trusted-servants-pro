@@ -3312,6 +3312,9 @@ def intergroup_edit():
         ids = request.form.getlist("account_id")
         roles = request.form.getlist("account_role")
         emails = request.form.getlist("account_email")
+        # New rows get their ids on the reload the save bar does (below).
+        adds_rows = any((r or "").strip() or (e or "").strip()
+                        for i, r, e in zip(ids, roles, emails) if not i)
         existing = {a.id: a for a in IntergroupAccount.query.all()}
         seen = set()
         for pos, (aid, role, email) in enumerate(zip(ids, roles, emails)):
@@ -3330,9 +3333,16 @@ def intergroup_edit():
                 db.session.delete(a)
         db.session.commit()
         flash("Intergroup page updated", "success")
-        return redirect(url_for("main.intergroup"))
+        if _post_save_wants_json():
+            payload = _editor_save_payload(None, None)
+            if adds_rows:
+                payload["redirect"] = url_for("main.intergroup_edit")
+            return jsonify(payload)
+        return redirect(url_for("main.intergroup_edit"))
 
-    return redirect(url_for("main.intergroup"))
+    accounts = IntergroupAccount.query.order_by(IntergroupAccount.position,
+                                                IntergroupAccount.id).all()
+    return render_template("intergroup_edit.html", site=s, accounts=accounts)
 
 
 @bp.route("/zoom-tech")
