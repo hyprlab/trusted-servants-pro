@@ -110,9 +110,10 @@
                 </a>
               </div>
               {%- else -%}
+              {# Signed out: Login and Request access side by side. #}
+              <div class="fe-megamenu-classic-block-authrow fe-megamenu-authrow--guest" {{ _scale_style|safe }}>
               <a href="{{ url_for('auth.login') }}"
-                 class="fe-megamenu-classic-block-btn fe-megamenu-classic-block-btn-{{ _btn_style }} fe-megamenu-classic-block-btn--admin-auth"
-                 {{ _scale_style|safe }}>
+                 class="fe-megamenu-classic-block-btn fe-megamenu-classic-block-btn-{{ _btn_style }} fe-megamenu-classic-block-btn--admin-auth">
                 {# Default Login icon when no admin override; matches the
                    footer's `log-in` chip so anonymous visitors see the
                    same affordance in both surfaces. #}
@@ -121,8 +122,12 @@
                 {% if link.icon_after %}<span class="fe-megamenu-classic-icon"{{ _icon_style(link.icon_after_color, link.icon_after_size)|safe }}>{{ icon(link.icon_after) }}</span>{% endif %}
               </a>
               {# Request access: the public popup (frontend/_request_access_modal.html), or the sign-in page's form without JavaScript. #}
-              <a href="{{ url_for('auth.login') }}#request-access" class="fe-megamenu-request-access" data-fe-form-trigger="request-access"
-                 {{ _scale_style|safe }}>Request access</a>
+              <a href="{{ url_for('auth.login') }}#request-access" data-fe-form-trigger="request-access"
+                 class="fe-megamenu-classic-block-btn fe-megamenu-classic-block-btn-{{ _btn_style }} fe-megamenu-classic-block-btn--admin-auth">
+                <span class="fe-megamenu-classic-icon">{{ icon('user-plus') }}</span>
+                <span>Request access</span>
+              </a>
+              </div>
               {%- endif -%}
             {% else %}
               {% set _link_cls = 'fe-megamenu-classic-link' %}

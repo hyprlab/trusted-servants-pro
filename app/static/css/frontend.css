@@ -11991,20 +11991,22 @@ body.fe-footer-force-dark .fe-footer-admin-login--logout:focus-visible {
 .fe-custom-form { display: flex; flex-direction: column; gap: 1rem; position: relative; }
 
 /* ── Request access (frontend/_request_access_modal.html) ──────────
-   The link under Login in the mega menu and the footer: a plain text
-   link in the surrounding color, on its own line under the button.
-   The popup's thank-you and error reuse the form's colors. */
-.fe-megamenu-request-access,
-.fe-footer-request-access {
-  display: block; width: fit-content; margin-top: 8px;
-  font-size: 0.8125em; font-weight: 600; color: inherit;
-  text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px;
+   Signed out, the mega menu's Login and Request access buttons share a
+   row (the auth row Dashboard and Logout use), side by side rather than
+   at the column's edges. The popup is 320px wide, its footer stacked so
+   the fine print and the button each get the width. */
+.fe-megamenu-authrow--guest { justify-content: flex-start; }
+.fe-request-access-modal .fe-submission-modal-panel { max-width: 320px; }
+.fe-request-access-modal .fe-submission-modal-foot { flex-direction: column; align-items: stretch; gap: 10px; }
+.fe-request-access-modal .fe-submission-modal-foot-actions { width: 100%; }
+.fe-request-access-modal .fe-submission-modal-foot-actions > .btn { width: 100%; justify-content: center; }
+.fe-request-access-modal .fe-submission-modal-foot .fe-submission-fineprint { flex: 0 0 auto; }
+/* On a phone it stays a card the height of its form, not the shared
+   popups' full-screen sheet. */
+@media (max-width: 540px) {
+  .fe-request-access-modal { padding: 16px; }
+  .fe-request-access-modal .fe-submission-modal-panel { height: auto; max-height: calc(100vh - 32px); border-radius: 18px; }
 }
-/* In the mega menu, in line with the Login button above it, which
-   carries the menu buttons' 6px 10px margin. */
-.fe-megamenu-request-access { font-size: calc(0.8125rem * var(--fe-mm-link-scale, 1)); margin: 2px 10px 6px; }
-.fe-megamenu-request-access:hover,
-.fe-footer-request-access:hover { text-decoration-thickness: 2px; }
 .fe-request-access-error {
   margin: 0; padding: 10px 12px; border-radius: 8px;
   background: #fdecec; color: #7f1d1d; font-size: 0.875rem;
