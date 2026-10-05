@@ -7905,32 +7905,42 @@
    hidden past it. */
 (function topActionsSwipeFade() {
   const FADE = "28px";
+  // Each strip once; the hook runs this again on a page brought in by
+  // tspSwapPage (Watchtower's sections), whose strips are new elements.
   function init() {
     // Open a tab strip scrolled to the current tab, so arriving on
     // Requests doesn't leave it hidden past the right edge.
     document.querySelectorAll(".wt-tabs-track").forEach(track => {
-      const active = track.querySelector(".is-active");
+      if (track._fadeCentered) return;
+      track._fadeCentered = true;
+      const active = track.querySelector('[aria-current="page"]');
       if (!active || track.scrollWidth <= track.clientWidth) return;
       const t = track.getBoundingClientRect(), a = active.getBoundingClientRect();
       track.scrollLeft += (a.left - t.left) - (t.width - a.width) / 2;
     });
     document.querySelectorAll(".top-actions, .wt-tabs-track").forEach(strip => {
+      if (strip._swipeFade) return;
       const update = () => {
         const max = strip.scrollWidth - strip.clientWidth;
         strip.style.setProperty("--swipe-fade-l", max > 2 && strip.scrollLeft > 2 ? FADE : "0px");
         strip.style.setProperty("--swipe-fade-r", max > 2 && strip.scrollLeft < max - 2 ? FADE : "0px");
       };
+      strip._swipeFade = update;
       strip.addEventListener("scroll", update, { passive: true });
-      window.addEventListener("resize", update);
-      if (typeof ResizeObserver !== "undefined") new ResizeObserver(update).observe(strip);
+      if (typeof ResizeObserver !== "undefined") {
+        // The strip resizing, or anything inside it (a control appearing).
+        const ro = new ResizeObserver(update);
+        ro.observe(strip);
+        Array.from(strip.children).forEach(c => ro.observe(c));
+      } else {
+        window.addEventListener("resize", update);
+      }
       update();
     });
   }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  const run = window.tspOnEachPage || (fn => fn());
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => run(init));
+  else run(init);
 })();
 
 /* ── Click-to-reveal for abbreviated IPv6 in the Watchtower tables ──
