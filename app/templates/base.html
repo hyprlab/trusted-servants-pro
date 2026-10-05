@@ -2968,6 +2968,13 @@
    can_edit() — current_user is Anonymous there. #}
 {% if current_user.is_authenticated and current_user.can_edit() %}{% include "_notifications_modal.html" %}{% endif %}
 {% include "_confirm_modal.html" %}
+{# The filter sidebar on a phone (app.js initSideFold): the Filters
+   button that sits beside the search, and the icon for each in-use
+   filter's chip. #}
+<template id="fb-side-fold-tpl">
+  <button type="button" class="btn fb-side-fold" aria-expanded="false">{{ icon('sliders') }}<span>Filters</span><span class="fb-side-fold-n" hidden></span>{{ icon('chevron-down', 'fb-side-fold-chev') }}</button>
+  <span class="fb-side-chip-x">{{ icon('x') }}</span>
+</template>
 <script src="{{ url_for('static', filename='js/app.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/tour.js', v=app_build_id) }}"></script>
 

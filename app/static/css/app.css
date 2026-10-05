@@ -17605,6 +17605,37 @@ body.embed .fb-side .fb-search input { background: var(--panel); }
 .fb-side-sort .fb-sort-link[aria-current] { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); }
 .fb-side .fb-view { display: flex; }
 .fb-side .fb-view > a { flex: 1 1 0; justify-content: center; }
+/* The filter sidebar on a phone (app.js initSideFold): the search and a
+   Filters button share a row, the groups fold away until it's pressed,
+   and the filters in use show as chips that clear them. On wider
+   screens the row is display: contents and nothing changes. */
+.fb-side-bar { display: contents; }
+.fb-side-fold, .fb-side-chips { display: none; }
+@media (max-width: 760px) {
+  .fb-side-bar { display: flex; align-items: stretch; gap: 8px; }
+  .fb-side-bar > .fb-search { flex: 1 1 auto; min-width: 0; }
+  .fb-side-fold { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; padding: 0 12px; }
+  .fb-side-fold > .icon { width: 16px; height: 16px; }
+  .fb-side-fold .fb-side-fold-chev { width: 14px; height: 14px; color: var(--muted); transition: transform 160ms ease; }
+  .fb-side-fold-n { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 999px; background: var(--brand); color: #fff; font-size: var(--fs-2xs); font-weight: 700; line-height: 1; }
+  .fb-side-fold-n[hidden] { display: none; }
+  .fb-side.is-open .fb-side-fold { background: var(--brand-soft); border-color: color-mix(in srgb, var(--brand) 35%, var(--border)); color: var(--access, var(--brand)); }
+  .fb-side.is-open .fb-side-fold .fb-side-fold-chev { transform: rotate(180deg); color: inherit; }
+  /* .fb-side-keep: a tool, not a filter (Zoom passcodes), stays out. */
+  .fb-side.is-foldable:not(.is-open) .fb-side-group:not(.fb-side-keep) { display: none; }
+  .fb-side.is-open .fb-side-group { animation: fb-side-unfold 180ms ease-out; }
+  .fb-side-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -8px; }
+  .fb-side-chips[hidden], .fb-side.is-open .fb-side-chips { display: none; }
+  .fb-side-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 4px 6px 4px 10px; border-radius: 999px;
+    background: var(--brand-soft); color: var(--access, var(--brand)); font-size: var(--fs-xs); font-weight: 600; text-decoration: none; }
+  .fb-side-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fb-side-chip > .icon { width: 14px; height: 14px; flex: 0 0 auto; opacity: .75; }
+  .fb-side-chip:hover { text-decoration: none; filter: saturate(1.3); }
+  .fb-side-chip:hover > .icon { opacity: 1; }
+}
+@keyframes fb-side-unfold { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .fb-side.is-open .fb-side-group { animation: none; } }
 @media (max-width: 760px) {
   .fb-pick { grid-template-columns: minmax(0, 1fr); }
   body.embed .fb-pick { min-height: 0; }

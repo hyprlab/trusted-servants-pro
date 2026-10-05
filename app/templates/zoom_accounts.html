@@ -90,7 +90,7 @@
   {# One-time passcodes: outside the part a live search replaces, so its
      own scripts (initOtpFetch, the copy and reveal buttons) keep working. #}
   {% if otp and (otp.email or otp.login_url or otp.password_enc or otp.imap_host) %}
-  <section class="fb-side-group za-otp" aria-label="One-time passcodes">
+  <section class="fb-side-group fb-side-keep za-otp" aria-label="One-time passcodes">
     <h3 class="fb-side-title">One-time passcodes {% call chip('One-time passcodes') %}When Zoom asks for a code while you sign in, retrieve it here. It can take up to a minute to arrive.{% endcall %}</h3>
     {% if otp.imap_host %}
     <div class="otp-inline za-otp-inline" data-otp-widget data-fetch-url="{{ url_for('main.otp_email_fetch_code') }}">

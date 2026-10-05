@@ -8700,6 +8700,83 @@
 // are swapped lose listeners bound to their elements, so handlers for
 // anything inside one are delegated; "live:updated" fires after each
 // swap for anything that needs to look again.
+// The filter sidebar on a phone (760px and under, where it stacks above
+// the list): its groups fold away behind a Filters button beside the
+// search, so the list comes first. The button counts the filters in
+// use, and each shows as a chip that clears it. A filter in use is a
+// group whose current link isn't its first (the group's "All" or
+// default). Picking a filter loads the page folded again, showing the
+// result. Desktop is unchanged: the bar is display: contents there and
+// the button and chips are hidden.
+(function initSideFold() {
+  var tpl = document.getElementById("fb-side-fold-tpl");
+  if (!tpl) return;
+  function inUse(side) {
+    var out = [];
+    side.querySelectorAll(".fb-side-group").forEach(function (g) {
+      var links = g.querySelectorAll(".fb-side-link");
+      var cur = g.querySelector('.fb-side-link[aria-current="true"]');
+      if (links.length < 2 || !cur || cur === links[0]) return;
+      // The link's label: its first span with text (some lead with an
+      // empty swatch), not the count.
+      var span = Array.prototype.find.call(cur.querySelectorAll("span:not(.fb-side-count)"),
+        function (el) { return el.textContent.trim(); });
+      out.push({ label: (span || cur).textContent.trim(), href: links[0].getAttribute("href"),
+                 group: g.getAttribute("aria-label") || "" });
+    });
+    return out;
+  }
+  function refresh(side) {
+    var f = side._fold;
+    if (!f) return;
+    var used = inUse(side);
+    f.n.textContent = used.length;
+    f.n.hidden = !used.length;
+    f.btn.setAttribute("aria-label", "Filters" + (used.length ? ", " + used.length + " in use" : ""));
+    f.chips.textContent = "";
+    used.forEach(function (u) {
+      var a = document.createElement("a");
+      a.className = "fb-side-chip";
+      a.href = u.href;
+      a.title = "Clear " + (u.group ? u.group + ": " : "") + u.label;
+      var t = document.createElement("span");
+      t.textContent = u.label;
+      a.appendChild(t);
+      a.appendChild(f.x.cloneNode(true));
+      f.chips.appendChild(a);
+    });
+    f.chips.hidden = !used.length;
+  }
+  function setup(side) {
+    if (side._fold || !side.querySelector(".fb-side-group:not(.fb-side-keep)")) return;
+    var search = side.querySelector(".fb-search");
+    var frag = tpl.content.cloneNode(true);
+    var btn = frag.querySelector(".fb-side-fold");
+    var bar = document.createElement("div");
+    bar.className = "fb-side-bar";
+    if (search) { search.parentNode.insertBefore(bar, search); bar.appendChild(search); }
+    else side.insertBefore(bar, side.querySelector(".fb-side-group"));
+    bar.appendChild(btn);
+    var chips = document.createElement("div");
+    chips.className = "fb-side-chips";
+    chips.hidden = true;
+    bar.parentNode.insertBefore(chips, bar.nextSibling);
+    side.classList.add("is-foldable");
+    side._fold = { btn: btn, n: btn.querySelector(".fb-side-fold-n"), chips: chips,
+                   x: frag.querySelector(".fb-side-chip-x .icon") };
+    btn.addEventListener("click", function () {
+      var open = !side.classList.contains("is-open");
+      side.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    refresh(side);
+  }
+  document.querySelectorAll(".fb-side").forEach(setup);
+  document.addEventListener("live:updated", function () {
+    document.querySelectorAll(".fb-side").forEach(function (side) { setup(side); refresh(side); });
+  });
+})();
+
 (function initLiveSearch() {
   var DELAY = 200;
   function urlFor(form) {
