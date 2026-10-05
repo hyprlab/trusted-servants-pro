@@ -1,21 +1,160 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% set _new = library is none %}
+{% set _admin = current_user.is_admin() %}
 {% block heading %}
-  {%- if library -%}Edit Library
-  {%- elif intergroup_create -%}New Intergroup Library
-  {%- else -%}New Library
+  {%- if library -%}{{ library.name }} settings
+  {%- elif intergroup_create -%}New Intergroup library
+  {%- else -%}New library
   {%- endif -%}
 {% endblock %}
-{% block content %}
-<form method="post" class="form card">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  {% if intergroup_create %}
-  <p class="muted small">Creates a library flagged as Intergroup: hidden from the main Libraries list, restricted to admins and the Intergroup Member role, and surfaced in the Intergroup sidebar subsection.</p>
+{% block heading_help %}{% if _new %}Name the library; you can add files once it exists.{% else %}The library's name, description and notice on the left; who can change it, where it shows, its categories and the meetings using it on the right. Save with the yellow bar.{% endif %}{% endblock %}
+{% block top_actions %}
+  {% if library %}
+  {% set _lib_url = url_for('main.intergroup_library_detail', slug=library.public_slug) if library.is_intergroup else url_for('main.library_detail', slug=library.public_slug) %}
+  <a class="btn" href="{{ _lib_url }}">← {{ library.name }}</a>
+  {% if library.archived_at %}<span class="post-chip post-chip-header">Archived</span>{% endif %}
+  {% if _admin %}
+    {% if library.archived_at %}
+    <form method="post" action="{{ url_for('main.library_unarchive', slug=library.public_slug) }}" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn">Restore</button>
+    </form>
+    {% else %}
+    <form method="post" action="{{ url_for('main.library_archive', slug=library.public_slug) }}" style="display:inline"
+          data-confirm-title="Archive {{ library.name }}?" data-confirm-label="Archive"
+          data-confirm="It's hidden from the Libraries list and the public Literature Library, and can be restored later.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn">Archive</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{{ url_for('main.library_delete', slug=library.public_slug) }}" style="display:inline"
+          data-confirm-title="Delete {{ library.name }}?" data-confirm-label="Delete"
+          data-confirm="The library and its list of files are deleted.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-danger">Delete</button>
+    </form>
   {% endif %}
-  <label>Name<input name="name" required value="{{ library.name if library else '' }}"></label>
-  <label>Description<textarea name="description" rows="4">{{ library.description if library else '' }}</textarea></label>
-  <div class="form-actions">
-    <a href="{{ url_for('main.libraries') }}" class="btn">Cancel</a>
-    <button class="btn btn-primary">{{ "Save" if library else "Create" }}</button>
-  </div>
+  {% else %}
+  <a class="btn" href="{{ url_for('main.libraries') }}">Cancel</a>
+  <button type="submit" form="library-form" class="btn btn-primary">{{ icon('plus') }} Create the library</button>
+  {% endif %}
+{% endblock %}
+{% block content %}
+{% macro _switch(name, label, on, help) %}
+<div class="post-toggle-row post-toggle-row--panel">
+  <div class="post-toggle-info"><div class="post-toggle-title">{{ label }} {% call chip(label) %}{{ help }}{% endcall %}</div></div>
+  <label class="mode-toggle">
+    <input type="checkbox" name="{{ name }}" value="1" {% if on %}checked{% endif %}>
+    <span class="mode-track"><span class="mode-thumb"></span></span>
+  </label>
+</div>
+{% endmacro %}
+{# Laid out like the other editors (story_edit.html): what the library
+   is on the left, its settings on the right in a segmented control
+   (fe_studio.js), and the yellow save bar (content_editor.js) once it
+   exists. #}
+<form id="library-form" class="form post-form" method="post"{% if library %} action="{{ url_for('main.library_edit', slug=library.public_slug) }}" data-content-editor{% endif %}>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <section class="card st-studio post-studio" data-studio="library" data-no-collapse>
+    <div class="st-body st-body--split">
+      <div class="post-studio-main">
+        <label class="post-title-field">Name
+          <input type="text" name="name" required class="post-title-input" value="{{ library.name if library else '' }}"
+                 placeholder="Intergroup Minutes" {% if _new %}autofocus{% endif %}
+                 {% if library and library.is_intergroup and not _admin %}readonly title="Only admins can rename an Intergroup library"{% endif %}>
+        </label>
+        <label>{% call hrow('Description') %}Shown at the top of the library.{% endcall %}
+          <textarea name="description" rows="4" placeholder="What's kept here.">{{ (library.description if library else '') or '' }}</textarea>
+        </label>
+        <label>{% call hrow('Notice') %}Optional: shown prominently above the files. Leave it blank to hide it.{% endcall %}
+          <textarea name="alert_message" rows="2" placeholder="These minutes are drafts until approved.">{{ (library.alert_message if library else '') or '' }}</textarea>
+        </label>
+      </div>
+
+      <div class="st-controls">
+        {% if _new %}
+        <div class="ds-group st-group-body">
+          <h3 class="ds-group-title">{{ icon('folder') }}{{ 'Intergroup library' if intergroup_create else 'Library' }}</h3>
+          {% if intergroup_create %}
+          <p class="muted small">Only admins and the Intergroup Member role can change it. It's left out of the Libraries list and shows in the Intergroup part of the sidebar.</p>
+          {% else %}
+          <p class="muted small">Once it exists, its settings let you add categories, show it on the public Literature Library, and see which meetings use it.</p>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="st-seg-scroll" data-seg-scroll>
+          <nav class="st-seg" role="tablist" aria-label="Library settings">
+            {% if _admin %}<button type="button" role="tab" data-studio-tab="access">{{ icon('eye') }}<span>Access</span></button>
+            <button type="button" role="tab" data-studio-tab="categories">{{ icon('tag') }}<span>Categories</span></button>{% endif %}
+            <button type="button" role="tab" data-studio-tab="meetings">{{ icon('calendar') }}<span>Meetings</span></button>
+          </nav>
+        </div>
+        {% if _admin %}
+        <div class="st-panel" data-studio-panel="access">
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('lock') }}Who can change it</h3>
+            <input type="hidden" name="is_intergroup_present" value="1">
+            {{ _switch('is_intergroup', 'Intergroup library', library.is_intergroup, 'Only admins and the Intergroup Member role can change it, and it shows in the Intergroup part of the sidebar instead of the Libraries list.') }}
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('globe') }}Public</h3>
+            <input type="hidden" name="public_visible_present" value="1">
+            {{ _switch('public_visible', 'On the Literature Library', library.public_visible, 'Shows the library and its files on the public /library page. Each file then gets a Public switch in the list, on unless you turn it off.') }}
+          </div>
+        </div>
+        <div class="st-panel" data-studio-panel="categories" hidden>
+          <div class="ds-group st-group-body" data-ig-cat-editor>
+            <h3 class="ds-group-title">{{ icon('tag') }}Categories {% call chip('Categories') %}The tags people pick when they add a file. The library can be filtered by them.{% endcall %}</h3>
+            <input type="hidden" name="category_picker" value="1">
+            <label class="mode-toggle ig-cat-required-toggle">
+              <input type="checkbox" name="categories_required" value="1" {% if library.categories_required %}checked{% endif %}>
+              <span class="mode-track"><span class="mode-thumb"></span></span>
+              <span>Every file needs a category</span>
+            </label>
+            <div class="ig-cat-rows" data-ig-cat-rows>
+              {% for c in library.categories %}
+              <div class="ig-cat-row" data-ig-cat-row>
+                <input type="hidden" name="category_id" value="{{ c.id }}">
+                <input type="text" name="category_name" value="{{ c.name }}" maxlength="120" placeholder="Category name" required aria-label="Category name">
+                <button type="button" class="icon-btn" data-ig-cat-remove aria-label="Remove {{ c.name }}">{{ icon('x') }}</button>
+              </div>
+              {% endfor %}
+            </div>
+            {# Inert until "Add a category" clones it into the list. #}
+            <template data-ig-cat-template>
+              <div class="ig-cat-row" data-ig-cat-row>
+                <input type="hidden" name="category_id" value="">
+                <input type="text" name="category_name" value="" maxlength="120" placeholder="Category name" required aria-label="Category name">
+                <button type="button" class="icon-btn" data-ig-cat-remove aria-label="Remove the category">{{ icon('x') }}</button>
+              </div>
+            </template>
+            <button type="button" class="btn btn-sm" data-ig-cat-add>{{ icon('plus') }} Add a category</button>
+            <p class="muted small">Removing a category takes it off the files that have it.</p>
+          </div>
+        </div>
+        {% endif %}
+        <div class="st-panel" data-studio-panel="meetings"{% if _admin %} hidden{% endif %}>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('calendar') }}Used by meetings</h3>
+            {% if library.meetings %}
+            <ul class="lib-meetings">
+              {% for m in library.meetings %}<li><a href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">{{ m.name }}</a></li>{% endfor %}
+            </ul>
+            {% else %}<p class="muted small">No meeting uses this library.</p>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
 </form>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+{% if library %}
+<div id="library-save-bar" class="fe-save-bar fe-save-bar-content" hidden data-editor-save-bar>
+  <span class="fe-save-bar-msg">Unsaved changes</span>
+  <button type="button" class="btn fe-save-bar-btn">Save</button>
+</div>
+<script src="{{ url_for('static', filename='js/content_editor.js', v=app_build_id) }}"></script>
+{% endif %}
 {% endblock %}

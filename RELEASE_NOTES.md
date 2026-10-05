@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Every library, the Intergroup ones included, uses the same list layout as the other pages: search that updates as you type, Category, Kind and (for libraries on the public Literature Library) Public filters with counts, sort by custom order, name, date added or kind, List or Grid, and bulk Add, Remove or Replace a category, Show publicly or Hide, and Delete.
+- In a library, drag files into a new order while it's sorted by custom order and nothing is filtered; the yellow bar saves the order. Intergroup libraries can now be put in a custom order too.
+- Adding or editing a library file, and a library's settings, open on their own pages laid out like the other editors and save with the yellow bar. A file's page has its title, summary and what it opens (a file, text written there, or a link) on the left, and its thumbnail, categories and details on the right. A library's settings have its name, description and notice on the left, and who can change it, the public Literature Library, its categories and the meetings that use it on the right. The popups are gone.
+- Deleting several library files at once moves them to the Delete Log, where they can be restored for 30 days, as deleting one already did.
 - The Contact Form and each custom form's submissions use the same list layout as the other pages: search that updates as you type, Inbox, Unread (or New) and Archived with counts, sort, List or Grid, and bulk Mark read, Mark unread, Archive or Restore, and Delete. The Contact Form also filters by whether the message was emailed to the recipient.
 - A Contact Form message or a form submission opens on its own page, laid out like the editors: the message or every answer on the left, when and where it came from on the right, with Reply, Mark unread, Archive and Delete at the top. Opening it marks it read. The popup and the expanding rows are gone.
 - On a custom form's submissions, the sidebar highlights that form instead of Web Frontend.

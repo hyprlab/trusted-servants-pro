@@ -3421,32 +3421,6 @@ button.chip { font-family: inherit; }
    the rest of the meta row's chips. */
 .fe-page-edit-make-homepage { display: inline; margin: 0; padding: 0; }
 
-/* Intergroup library detail toolbar: search + sort + category filter
-   pills sit above the file list. Wraps on narrow screens. */
-.ig-lib-toolbar {
-  display: flex; flex-wrap: wrap; gap: 12px 16px;
-  align-items: center; padding: 6px 12px 14px;
-}
-.ig-lib-search { flex: 1 1 240px; min-width: 220px; }
-.ig-lib-search input[type="search"] {
-  width: 100%; padding: 8px 12px; border-radius: 8px;
-  border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
-}
-.ig-lib-sort { display: flex; align-items: center; }
-.ig-lib-sort label { display: inline-flex; gap: 8px; align-items: center; }
-.ig-lib-sort select {
-  padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
-  background: var(--panel-2); color: var(--text);
-}
-.ig-lib-filter { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; }
-.ig-lib-filter .chip { font-weight: 500; }
-.ig-lib-empty { padding: 12px 14px; }
-.ig-cat-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.ig-cat-chip {
-  background: var(--brand-soft); color: var(--brand);
-  padding: 1px 8px; border-radius: 999px;
-  font-size: var(--fs-2xs); font-weight: 600;
-}
 /* Category picker on the upload / edit modals: each checkbox sits on
    its own line, left-aligned. Specificity bumps (.ig-cat-picker
    .ig-cat-check) deliberately beat .form label's column direction and
@@ -3473,38 +3447,7 @@ button.chip { font-family: inherit; }
    it has breathing room above the editable rows. */
 .ig-cat-required-toggle { margin: 4px 0 12px; }
 
-/* Multi-select bulk-action bar above the file list. Sits inline with
-   the section so it visually anchors to the rows below; the action
-   buttons cluster on the right. Left padding (6px) matches the
-   checkbox position on each row beneath it (li padding-left 2px +
-   label padding-left 4px = 6px) so the bar's "Select all" checkbox
-   sits in the same column as the per-row checkboxes. */
-.lib-bulk-bar {
-  display: flex; align-items: center; gap: 16px;
-  padding: 8px 14px 8px 6px; border-bottom: 1px solid var(--border);
-  background: var(--panel-2);
-}
-.lib-bulk-bar-actions { margin-left: auto; display: inline-flex; gap: 8px; }
-/* Hide the action buttons entirely until at least one row is checked
-   — they're enabled-disabled by the JS based on the selection count,
-   so disabled === "nothing selected yet" === "don't show". */
-.lib-bulk-bar-actions > [data-bulk-action][disabled],
-.lib-bulk-bar-actions > [data-bulk-delete][disabled] { display: none; }
-.lib-bulk-select-all { display: inline-flex; align-items: center; gap: 8px;
-  font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
-.lib-bulk-select-all input[type="checkbox"] {
-  width: 16px; height: 16px; accent-color: var(--brand); margin: 0;
-}
-/* Per-row checkbox slot. Sits to the left of the drag handle / file
-   icon so the row reads "select | drag | type | name | actions". */
-.file-list .lib-row-select {
-  display: inline-flex; align-items: center; padding: 0 4px;
-  cursor: pointer;
-}
-.file-list .lib-row-select input[type="checkbox"] {
-  width: 16px; height: 16px; accent-color: var(--brand); margin: 0;
-}
-/* Category editor inside the library-edit modal: each row is a name
+/* Category editor on a library's settings page: each row is a name
    input + remove button laid side-by-side. */
 .ig-cat-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .ig-cat-row { display: flex; gap: 6px; align-items: center; }
@@ -18262,6 +18205,53 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .pe-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: var(--fs-sm); }
 .pe-facts dt { color: var(--muted); font-weight: 600; }
 .pe-facts dd { margin: 0; }
+
+/* ── A library's files (library_detail.html) and their editor
+   (reading_form.html, library_form.html). ── */
+.lst-thumb--kind { background: var(--panel-2); color: var(--muted); }
+.lst-kind-doc { color: #dc2626; }
+.lst-kind-img { color: #7c3aed; }
+.lst-kind-vid { color: #0b5cff; }
+.lst-kind-aud { color: #0891b2; }
+.lst-kind-link { color: #0f766e; }
+.lst-kind-text { color: #b45309; }
+.lst-thumb--kind.lst-kind-doc { background: rgba(220, 38, 38, .08); }
+.lst-thumb--kind.lst-kind-img { background: rgba(124, 58, 237, .1); }
+.lst-thumb--kind.lst-kind-vid { background: rgba(11, 92, 255, .1); }
+.lst-thumb--kind.lst-kind-aud { background: rgba(8, 145, 178, .1); }
+.lst-thumb--kind.lst-kind-link { background: rgba(15, 118, 110, .1); }
+.lst-thumb--kind.lst-kind-text { background: rgba(245, 158, 11, .12); }
+html[data-theme="dark"] .lst-kind-doc { color: #f87171; }
+html[data-theme="dark"] .lst-kind-img { color: #c4b5fd; }
+html[data-theme="dark"] .lst-kind-vid { color: #93c5fd; }
+html[data-theme="dark"] .lst-kind-link { color: #5eead4; }
+html[data-theme="dark"] .lst-kind-text { color: #fbbf24; }
+.lib-cats { margin-top: 4px; }
+.lib-cat { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: var(--fs-2xs);
+  font-weight: 600; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.lib-tbl .lib-drag-col { width: 28px; padding-left: 0; padding-right: 0; }
+.lib-tbl .drag-handle { padding: 4px; border-radius: 6px; }
+.lib-tbl .drag-handle:hover { background: var(--hover); color: var(--text); }
+.lib-tbl tr.dragging { opacity: .4; }
+.lib-public-switch { display: inline-flex; }
+.lib-alert { margin: 0 0 14px; }
+.card.fb.lst > .lib-desc { margin: 16px 0 4px; }
+.lib-reorder-note { margin: 12px 0 0; }
+.row-menu-item.is-disabled { opacity: .45; cursor: not-allowed; }
+.reading-mode { margin: 4px 0 12px; }
+.reading-panel { display: flex; flex-direction: column; gap: 10px; }
+.reading-panel[hidden] { display: none; }
+.reading-current { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); }
+.reading-current-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }
+.reading-current-name a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reading-current .check, .reading-thumb-current .check { flex-direction: row; align-items: center; gap: 6px; margin: 0; }
+.reading-thumb-current { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.reading-thumb-current img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); }
+.reading-cats { display: flex; flex-direction: column; gap: 6px; }
+.reading-cats .check { flex-direction: row; align-items: center; gap: 8px; margin: 0; }
+.lib-meetings { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 4px; }
+.reading-panel .media-picked-label:empty { display: none; }
 
 /* ── Inboxes (Contact Form, custom form submissions): an unread row's
    name is bold beside its New chip; a message's own page reads like an

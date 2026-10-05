@@ -15821,8 +15821,86 @@ def library_detail(slug):
     lib = _resolve_library_by_slug(slug) or abort(404)
     if lib.is_intergroup:
         return redirect(url_for("main.intergroup_library_detail",
-                                slug=lib.public_slug), code=301)
-    return render_template("library_detail.html", library=lib)
+                                slug=lib.public_slug, **request.args), code=301)
+    return _library_page(lib)
+
+
+# A library item's kind, for the Kind filter: what the file type key
+# (the ``file_type`` filter) groups under.
+_LIB_KINDS = [("doc", "Documents", "file-text"), ("img", "Images", "image"),
+              ("vid", "Video", "video"), ("aud", "Audio", "music"),
+              ("link", "Links", "link"), ("text", "Text", "type")]
+
+
+def _library_item_kind(r):
+    if not r.stored_filename and not r.url and r.body:
+        return "text"
+    ft = current_app.jinja_env.filters["file_type"](r)
+    if ft in ("img", "vid", "aud", "link"):
+        return ft
+    return "doc"
+
+
+def _library_page(lib):
+    """A library's files in the File Browser layout: search (title, file
+    name, summary, link and categories, live), Category, Kind and Public
+    filters with counts, sort (custom order, name, added, kind), List or
+    Grid, and bulk actions. Custom order can be dragged when nothing is
+    filtered, so the saved order is always the whole library's. Shared by
+    regular and Intergroup libraries."""
+    q_text = (request.args.get("q") or "").strip()
+    cat = request.args.get("cat") or ""
+    kinds = {k for k, _, _ in _LIB_KINDS}
+    kind = request.args.get("kind") if request.args.get("kind") in kinds else ""
+    public = request.args.get("public") if request.args.get("public") in ("shown", "hidden") else ""
+    default_sort = "name_asc" if lib.is_intergroup else "custom_asc"
+    sort = (request.args.get("sort") or default_sort).strip()
+    if sort not in ("custom_asc", "name_asc", "name_desc", "added_desc", "added_asc", "kind_asc", "kind_desc"):
+        sort = default_sort
+    view = request.args.get("view") or request.cookies.get("view-library") or "list"
+    view = "grid" if view == "grid" else "list"
+    cat_ids = {c.id for c in lib.categories}
+    cat_id = int(cat) if cat.isdigit() and int(cat) in cat_ids else None
+
+    items = lib.items.all()  # custom order (position)
+    item_kind = {r.id: _library_item_kind(r) for r in items}
+    if q_text:
+        needle = q_text.lower()
+        def hit(r):
+            hay = " ".join(filter(None, [r.title, r.original_filename, r.summary, r.url]
+                                  + [c.name for c in r.categories])).lower()
+            return needle in hay
+        items = [r for r in items if hit(r)]
+
+    def f_cat(r, c): return c is None or any(x.id == c for x in r.categories)
+    def f_kind(r, k): return not k or item_kind[r.id] == k
+    def f_pub(r, p): return not p or (p == "shown") == bool(r.public_visible)
+    cat_counts = {"": sum(1 for r in items if f_kind(r, kind) and f_pub(r, public))}
+    for c in lib.categories:
+        cat_counts[c.id] = sum(1 for r in items if f_cat(r, c.id) and f_kind(r, kind) and f_pub(r, public))
+    kind_counts = {k: sum(1 for r in items if f_cat(r, cat_id) and f_kind(r, k) and f_pub(r, public))
+                   for k in [""] + [k for k, _, _ in _LIB_KINDS]}
+    public_counts = {p: sum(1 for r in items if f_cat(r, cat_id) and f_kind(r, kind) and f_pub(r, p))
+                     for p in ("", "shown", "hidden")}
+    items = [r for r in items if f_cat(r, cat_id) and f_kind(r, kind) and f_pub(r, public)]
+
+    key, direction = sort.rsplit("_", 1)
+    if key == "name":
+        items.sort(key=lambda r: (r.title or "").lower(), reverse=direction == "desc")
+    elif key == "added":
+        items.sort(key=lambda r: (r.created_at or datetime.min, r.id), reverse=direction == "desc")
+    elif key == "kind":
+        items.sort(key=lambda r: (item_kind[r.id], (r.title or "").lower()), reverse=direction == "desc")
+    filtered = bool(q_text or cat_id or kind or public)
+    can_reorder = (current_user.can_edit_library(lib) and key == "custom" and not filtered)
+    resp = current_app.make_response(render_template(
+        "library_detail.html", library=lib, items=items, item_kind=item_kind,
+        kinds=_LIB_KINDS, q=q_text, cat=cat_id, kind=kind, public=public, sort=sort,
+        default_sort=default_sort, view=view, cat_counts=cat_counts,
+        kind_counts=kind_counts, public_counts=public_counts,
+        can_reorder=can_reorder, total=lib.items.count()))
+    resp.set_cookie("view-library", view, max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
 @bp.route("/libraries/<int:lid>")
@@ -15852,7 +15930,7 @@ def intergroup_library_detail(slug):
     lib = next((l for l in libs if slugify(l.name) == target), None)
     if lib is None:
         abort(404)
-    return render_template("library_detail.html", library=lib)
+    return _library_page(lib)
 
 
 @bp.route("/libraries/<slug>/edit", methods=["GET", "POST"])
@@ -15879,7 +15957,19 @@ def library_edit(slug):
                 and new_name != lib.name
                 and not current_user.is_admin()):
             flash("Only admins can rename Intergroup libraries", "danger")
-            return redirect(url_for("main.library_detail", slug=lib.public_slug))
+            if _post_save_wants_json():
+                return _editor_save_failed()
+            return redirect(url_for("main.library_edit", slug=lib.public_slug))
+        if not new_name:
+            flash("A library needs a name.", "danger")
+            if _post_save_wants_json():
+                return _editor_save_failed()
+            return redirect(url_for("main.library_edit", slug=lib.public_slug))
+        old_slug = lib.public_slug
+        # New categories get their ids on the reload the save bar does
+        # (below); saving their rows again without ids would duplicate.
+        adds_categories = any(n.strip() and not i for i, n in
+                              zip(request.form.getlist("category_id"), request.form.getlist("category_name")))
         lib.name = new_name
         lib.description = request.form.get("description", "").strip()
         lib.alert_message = request.form.get("alert_message", "").strip() or None
@@ -15909,7 +15999,13 @@ def library_edit(slug):
         activity.log("library.update", entity_type="library", entity_id=lib.id,
                      summary=f"Updated library “{lib.name}”")
         flash("Library updated", "success")
-        return redirect(url_for("main.library_detail", slug=lib.public_slug))
+        if _post_save_wants_json():
+            payload = _editor_save_payload(None, None)
+            # A rename moves the page; new categories need their ids.
+            if lib.public_slug != old_slug or adds_categories:
+                payload["redirect"] = url_for("main.library_edit", slug=lib.public_slug)
+            return jsonify(payload)
+        return redirect(url_for("main.library_edit", slug=lib.public_slug))
     return render_template("library_form.html", library=lib)
 
 
@@ -16078,7 +16174,7 @@ def reading_new(slug):
                 flash("Add at least one category to this Intergroup library before uploading.", "danger")
             else:
                 flash("Pick at least one category for this upload.", "danger")
-            return redirect(url_for("main.library_detail", slug=lib.public_slug))
+            return redirect(url_for("main.reading_new", slug=lib.public_slug))
         r = LibraryItem(library_id=lib.id, title=request.form["title"].strip(),
                     created_by=current_user.id)
         _apply_reading_form(r, request.form, request.files)
@@ -16090,7 +16186,7 @@ def reading_new(slug):
         activity.log("reading.create", entity_type="reading", entity_id=r.id,
                      summary=f"Added reading “{r.title}” to library “{lib.name}”")
         flash("Item added to library", "success")
-        return redirect(url_for("main.library_detail", slug=lib.public_slug))
+        return redirect(_library_browse_url(lib))
     return render_template("reading_form.html", library=lib, reading=None)
 
 
@@ -16375,13 +16471,23 @@ def reading_edit(rid):
         if (r.library.is_intergroup and r.library.categories_required
                 and picker_present and not cats):
             flash("Pick at least one category for this upload.", "danger")
-            return redirect(url_for("main.library_detail", slug=r.library.public_slug))
+            if _post_save_wants_json():
+                return _editor_save_failed()
+            return redirect(url_for("main.reading_edit", rid=r.id))
+        before = (r.stored_filename, r.thumbnail_filename, r.url, bool(r.body))
         _apply_reading_form(r, request.form, request.files)
         if picker_present:
             r.categories = cats
         db.session.commit()
         flash("Item updated", "success")
-        return redirect(url_for("main.library_detail", slug=r.library.public_slug))
+        if _post_save_wants_json():
+            payload = _editor_save_payload(None, None)
+            # A new or removed file or thumbnail, or a switch of what it
+            # opens, changes what the page shows: reload it.
+            if (r.stored_filename, r.thumbnail_filename, r.url, bool(r.body)) != before:
+                payload["redirect"] = url_for("main.reading_edit", rid=r.id)
+            return jsonify(payload)
+        return redirect(url_for("main.reading_edit", rid=r.id))
     return render_template("reading_form.html", library=r.library, reading=r)
 
 
@@ -16394,130 +16500,6 @@ def _library_browse_url(lib):
         from .colors import slugify
         return url_for("main.intergroup_library_detail", slug=slugify(lib.name))
     return url_for("main.library_detail", slug=lib.public_slug)
-
-
-@bp.route("/libraries/<slug>/readings/bulk-categories", methods=["POST"])
-@login_required
-def library_readings_bulk_categories(slug):
-    """Apply a category change to a multi-select set of readings.
-
-    Form fields:
-      ``reading_ids``  — repeated; ids of selected readings
-      ``category_ids`` — repeated; categories to add/remove/replace with
-      ``action``       — ``add`` | ``remove`` | ``replace``
-
-    Per-row authorization mirrors ``User.can_bulk_edit_categories``:
-    rows the user couldn't delete are silently skipped, with a flash
-    summary reporting both the applied + skipped counts so the user
-    knows when their edit was scoped down. Categories from another
-    library (a tampered POST) are silently dropped at the query layer
-    via the ``library_id`` filter."""
-    lib = _resolve_library_by_slug(slug) or abort(404)
-    deny = _require_can_edit_library(lib)
-    if deny is not None:
-        return deny
-    action = request.form.get("action") or "add"
-    if action not in ("add", "remove", "replace"):
-        action = "add"
-    rids = set(request.form.getlist("reading_ids", type=int))
-    cat_ids = set(request.form.getlist("category_ids", type=int))
-    if not rids:
-        flash("Pick at least one file to edit.", "danger")
-        return redirect(_library_browse_url(lib))
-    cats = []
-    if cat_ids:
-        cats = LibraryCategory.query.filter(
-            LibraryCategory.library_id == lib.id,
-            LibraryCategory.id.in_(cat_ids),
-        ).all()
-    # Block "Replace with empty" on libraries that require categories —
-    # otherwise this single click would silently strip every selected
-    # row of its tags, violating the upload-time invariant.
-    if (action == "replace" and not cats and lib.categories_required
-            and lib.is_intergroup):
-        flash("This library requires at least one category — pick one before replacing.", "danger")
-        return redirect(_library_browse_url(lib))
-    readings = LibraryItem.query.filter(
-        LibraryItem.library_id == lib.id,
-        LibraryItem.id.in_(rids),
-    ).all()
-    applied = 0
-    skipped = 0
-    for r in readings:
-        if not current_user.can_bulk_edit_categories(r):
-            skipped += 1
-            continue
-        if action == "add":
-            existing = {c.id for c in r.categories}
-            for c in cats:
-                if c.id not in existing:
-                    r.categories.append(c)
-        elif action == "remove":
-            r.categories = [c for c in r.categories if c.id not in cat_ids]
-        else:  # replace
-            r.categories = list(cats)
-        applied += 1
-    db.session.commit()
-    if applied:
-        word = "file" if applied == 1 else "files"
-        msg = f"Categories updated on {applied} {word}"
-        if skipped:
-            msg += f" ({skipped} skipped — not your uploads)"
-        flash(msg, "success")
-    elif skipped:
-        flash(f"None of the {skipped} selected files are yours to edit.", "warning")
-    else:
-        flash("No matching files found.", "warning")
-    return redirect(_library_browse_url(lib))
-
-
-@bp.route("/libraries/<slug>/readings/bulk-delete", methods=["POST"])
-@login_required
-def library_readings_bulk_delete(slug):
-    """Delete a multi-select set of readings. Per-row authorization
-    mirrors ``User.can_delete_library_item`` (Editors can only delete rows
-    whose creator was another Editor; admin / intergroup_member
-    free-and-clear within a library they can edit; viewers can't
-    delete at all). Stored files + thumbnails are cleaned up via
-    ``_delete_upload`` before the DB row is removed. Skipped rows are
-    silently filtered with a flash summary so the user sees when
-    authorization scoped their action down."""
-    lib = _resolve_library_by_slug(slug) or abort(404)
-    deny = _require_can_edit_library(lib)
-    if deny is not None:
-        return deny
-    rids = set(request.form.getlist("reading_ids", type=int))
-    if not rids:
-        flash("Pick at least one file to delete.", "danger")
-        return redirect(_library_browse_url(lib))
-    readings = LibraryItem.query.filter(
-        LibraryItem.library_id == lib.id,
-        LibraryItem.id.in_(rids),
-    ).all()
-    deleted = 0
-    skipped = 0
-    for r in readings:
-        if not current_user.can_delete_library_item(r):
-            skipped += 1
-            continue
-        if r.stored_filename:
-            _delete_upload(r.stored_filename)
-        if r.thumbnail_filename:
-            _delete_upload(r.thumbnail_filename)
-        db.session.delete(r)
-        deleted += 1
-    db.session.commit()
-    if deleted:
-        word = "file" if deleted == 1 else "files"
-        msg = f"Deleted {deleted} {word}"
-        if skipped:
-            msg += f" ({skipped} skipped — not your uploads)"
-        flash(msg, "success")
-    elif skipped:
-        flash(f"None of the {skipped} selected files are yours to delete.", "warning")
-    else:
-        flash("No matching files found.", "warning")
-    return redirect(_library_browse_url(lib))
 
 
 @bp.route("/libraries/<slug>/readings/reorder", methods=["POST"])
@@ -16541,6 +16523,72 @@ def library_readings_reorder(slug):
             r.position = pos
     db.session.commit()
     return jsonify({"ok": True})
+
+
+@bp.route("/libraries/<slug>/readings/bulk", methods=["POST"])
+@login_required
+def library_readings_bulk(slug):
+    """The library list's bulk bar: add, remove or replace a category,
+    show or hide on the public Literature Library, or delete. Each row
+    keeps its own gate (``can_bulk_edit_categories`` for categories and
+    visibility, ``can_delete_library_item`` for deleting); rows the user
+    can't change are skipped and counted."""
+    lib = _resolve_library_by_slug(slug) or abort(404)
+    deny = _require_can_edit_library(lib)
+    if deny is not None:
+        return deny
+    action = request.form.get("action") or ""
+    ids = [int(i) for i in request.form.getlist("ids") if str(i).isdigit()]
+    rows = LibraryItem.query.filter(LibraryItem.library_id == lib.id, LibraryItem.id.in_(ids)).all() if ids else []
+    cat = None
+    if action in ("add_category", "remove_category", "replace_categories"):
+        cid = request.form.get("cat") or ""
+        cat = next((c for c in lib.categories if str(c.id) == cid), None)
+        if cat is None:
+            flash("Pick a category first.", "danger")
+            return redirect(_safe_referrer() or _library_browse_url(lib))
+    done = skipped = 0
+    for r in rows:
+        if action == "delete":
+            if not current_user.can_delete_library_item(r):
+                skipped += 1
+                continue
+            # Into the Delete Log, like a single delete: restorable.
+            from . import trash, activity
+            activity.log("reading.delete", entity_type="reading", entity_id=r.id,
+                         summary=f"Deleted reading “{r.title}” (recoverable for {trash.RETENTION_DAYS} days)")
+            trash.soft_delete_library_item(r, current_user.id)
+        else:
+            if not current_user.can_bulk_edit_categories(r):
+                skipped += 1
+                continue
+            if action == "add_category" and cat not in r.categories:
+                r.categories.append(cat)
+            elif action == "remove_category":
+                if (lib.is_intergroup and lib.categories_required
+                        and [c for c in r.categories if c.id != cat.id] == []):
+                    skipped += 1
+                    continue
+                r.categories = [c for c in r.categories if c.id != cat.id]
+            elif action == "replace_categories":
+                r.categories = [cat]
+            elif action in ("show", "hide"):
+                r.public_visible = action == "show"
+            else:
+                continue
+        done += 1
+    db.session.commit()
+    verb = {"delete": "Moved to the Delete Log:", "add_category": "Added the category to",
+            "remove_category": "Removed the category from", "replace_categories": "Set the category on",
+            "show": "Showing", "hide": "Hid"}.get(action, "Changed")
+    if done:
+        msg = f"{verb} {done} file{'' if done == 1 else 's'}."
+        if skipped:
+            msg += f" {skipped} skipped: not yours to change{', or it would leave a file with no category' if action == 'remove_category' else ''}."
+        flash(msg, "success")
+    elif skipped:
+        flash(f"None of the {skipped} selected files are yours to change.", "warning")
+    return redirect(_safe_referrer() or _library_browse_url(lib))
 
 
 @bp.route("/readings/<int:rid>/public-visible", methods=["POST"])
@@ -16582,9 +16630,15 @@ def reading_delete(rid):
     from . import trash, activity
     activity.log("reading.delete", entity_type="reading", entity_id=r.id,
                  summary=f"Deleted reading “{title}” (recoverable for {trash.RETENTION_DAYS} days)")
+    lib = r.library
     trash.soft_delete_library_item(r, current_user.id)
     flash("Item moved to the Delete Log — restorable for 30 days.", "success")
-    return redirect(url_for("main.library_detail", slug=parent_slug))
+    # Back to the list it came from (its search and filters), not to the
+    # deleted item's own page.
+    ref = _safe_referrer()
+    if ref and not re.search(r"/readings/%d(?:[/?#]|$)" % rid, ref):
+        return redirect(ref)
+    return redirect(_library_browse_url(lib) if lib else url_for("main.library_detail", slug=parent_slug))
 
 
 # --- helpers ---

@@ -1,102 +1,165 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
-{% block heading %}{{ "Edit Item" if reading else "Add to Library" }}{% endblock %}
-{% block content %}
-{# Default content mode mirrors the modal in library_detail.html:
-   pick whichever content slot is non-empty, falling back to upload
-   when the row is empty. #}
-{% if reading and reading.stored_filename %}
-  {% set _default_mode = 'upload' %}
-{% elif reading and reading.body %}
-  {% set _default_mode = 'paste' %}
-{% elif reading and reading.url %}
-  {% set _default_mode = 'link' %}
-{% else %}
-  {% set _default_mode = 'upload' %}
-{% endif %}
-<form method="post" class="form card" enctype="multipart/form-data" data-content-mode-form>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="muted small">Library: {{ library.name }}</div>
-  <label>Title<input name="title" required value="{{ reading.title if reading else '' }}"></label>
-  <label>{% call hrow('Summary') %}Optional · up to 500 characters{% endcall %}
-    <textarea name="summary" rows="3" maxlength="500" data-summary-input
-              placeholder="Short blurb shown next to the title in lists and previews.">{{ reading.summary if reading and reading.summary else '' }}</textarea>
-    <div class="summary-counter" data-summary-counter>
-      <span data-summary-count>500</span>/500 remaining
-    </div></label>
-
-  <div class="content-mode-toggle content-mode-seg-wrap" data-content-mode-toggle>
-    <input type="hidden" name="content_mode" value="{{ _default_mode }}" data-content-mode-input>
-    <div class="content-mode-seg" role="tablist" aria-label="Content source">
-      <button type="button" class="content-mode-seg-btn{% if _default_mode == 'upload' %} is-active{% endif %}"
-              data-content-mode-option="upload" aria-pressed="{{ 'true' if _default_mode == 'upload' else 'false' }}">Upload file / file browser</button>
-      <button type="button" class="content-mode-seg-btn{% if _default_mode == 'paste' %} is-active{% endif %}"
-              data-content-mode-option="paste" aria-pressed="{{ 'true' if _default_mode == 'paste' else 'false' }}">Paste / type content</button>
-      <button type="button" class="content-mode-seg-btn{% if _default_mode == 'link' %} is-active{% endif %}"
-              data-content-mode-option="link" aria-pressed="{{ 'true' if _default_mode == 'link' else 'false' }}">External link</button>
-    </div>
-  </div>
-
-  <fieldset class="fieldset" data-content-panel="upload"{% if _default_mode != 'upload' %} hidden{% endif %}>
-    <legend>File <span class="muted small">(PDF, DOC, JPG, PNG, MP4, MOV, or other)</span></legend>
-    {% if reading and reading.stored_filename %}
-    <div class="logo-current">
-      <span class="muted small">{{ reading.original_filename }}</span>
-      <label class="check"><input type="checkbox" name="remove_file" value="1"> <span>Remove</span></label>
-    </div>
+{% from "_md_toolbar.html" import md_toolbar %}
+{% set _new = reading is none %}
+{% set _lib_url = url_for('main.intergroup_library_detail', slug=library.public_slug) if library.is_intergroup else url_for('main.library_detail', slug=library.public_slug) %}
+{% block heading %}{{ 'Add a file' if _new else reading.title }}{% endblock %}
+{% block heading_help %}{% if _new %}Add a file, a link or a text document to {{ library.name }}.{% else %}In {{ library.name }}. Change the title, what it opens, its picture or its categories, then save with the yellow bar.{% endif %}{% endblock %}
+{% block top_actions %}
+  <a class="btn" href="{{ _lib_url }}">← {{ library.name }}</a>
+  {% if _new %}
+  <button type="submit" form="reading-form" class="btn btn-primary">{{ icon('plus') }} Add to the library</button>
+  {% else %}
+    {% if reading.stored_filename %}<a class="btn" href="{{ url_for('public.public_file', filename=reading.original_filename) }}" target="_blank" rel="noopener">Open ↗</a>
+    {% elif reading.url %}<a class="btn" href="{{ reading.url }}" target="_blank" rel="noopener">Open ↗</a>{% endif %}
+    {% if current_user.can_delete_library_item(reading) %}
+    <form method="post" action="{{ url_for('main.reading_delete', rid=reading.id) }}" style="display:inline"
+          data-confirm-title="Delete “{{ reading.title }}”?" data-confirm-label="Delete"
+          data-confirm="It moves to the Delete Log, where it can be restored for 30 days.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-danger">Delete</button>
+    </form>
     {% endif %}
-    <input type="file" name="file"
-           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4,.mov,application/pdf,image/*,video/*">
-  </fieldset>
-
-  <div data-content-panel="paste"{% if _default_mode != 'paste' %} hidden{% endif %}>
-    <label>{% call hrow('Body') %}Markdown supported, opens as a document{% endcall %}
-      <textarea name="body" rows="10">{{ reading.body if reading else '' }}</textarea>
-    </label>
-  </div>
-
-  <fieldset class="fieldset" data-content-panel="link"{% if _default_mode != 'link' %} hidden{% endif %}>
-    <legend>External link</legend>
-    <label>URL
-      <input name="url" type="url" placeholder="https://…" value="{{ reading.url if reading and reading.url else '' }}">
-    </label>
-  </fieldset>
-
-  <fieldset class="fieldset">
-    <legend>Thumbnail <span class="muted small">(optional)</span></legend>
-    {% if reading and reading.thumbnail_filename %}
-    <div class="logo-current">
-      <img src="{{ url_for('main.reading_thumbnail', rid=reading.id) }}" alt="">
-      <label class="check"><input type="checkbox" name="remove_thumbnail" value="1"> <span>Remove</span></label>
-    </div>
-    {% endif %}
-    <input type="file" name="thumbnail" accept="image/*">
-  </fieldset>
-
-  {% if library.is_intergroup %}
-  <fieldset class="fieldset">
-    <legend>Categories <span class="muted small">{% if library.categories_required %}(at least one required){% else %}(optional){% endif %}</span></legend>
-    <input type="hidden" name="category_picker" value="1">
-    {% if library.categories %}
-    {% set _selected = (reading.categories | map(attribute='id') | list) if reading else [] %}
-    <div class="ig-cat-picker">
-      {% for c in library.categories %}
-      <label class="check ig-cat-check">
-        <input type="checkbox" name="category_ids" value="{{ c.id }}"
-               {% if c.id in _selected %}checked{% endif %}>
-        <span>{{ c.name }}</span>
-      </label>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="muted small">No categories defined yet — add some via the library Edit modal before uploading.</p>
-    {% endif %}
-  </fieldset>
   {% endif %}
+{% endblock %}
+{% block content %}
+{# What the item opens: whichever is filled in, file first (a row with
+   both a file and a link opens in upload mode; saving as a link clears
+   the file, see _apply_reading_form). #}
+{% if reading and reading.stored_filename %}{% set _mode = 'upload' %}
+{% elif reading and reading.body %}{% set _mode = 'paste' %}
+{% elif reading and reading.url %}{% set _mode = 'link' %}
+{% else %}{% set _mode = 'upload' %}{% endif %}
+{% set _cat_ids = (reading.categories | map(attribute='id') | list) if reading else [] %}
+{# Laid out like the other editors (story_edit.html): what the item is
+   on the left, its picture, categories and details on the right in a
+   segmented control (fe_studio.js), and the yellow save bar
+   (content_editor.js) once it exists. #}
+<form id="reading-form" class="form post-form" method="post" enctype="multipart/form-data"
+      action="{{ url_for('main.reading_new', slug=library.public_slug) if _new else url_for('main.reading_edit', rid=reading.id) }}"
+      data-content-mode-form data-content-editor>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <section class="card st-studio post-studio" data-studio="library-item" data-no-collapse>
+    <div class="st-body st-body--split">
+      <div class="post-studio-main">
+        <label class="post-title-field">Title
+          <input type="text" name="title" required class="post-title-input" value="{{ reading.title if reading else '' }}"
+                 placeholder="Twelve Steps" {% if _new %}autofocus{% endif %}>
+        </label>
+        <label>{% call hrow('Summary') %}Optional, up to 500 characters: shown under the title in lists and previews.{% endcall %}
+          <textarea name="summary" rows="2" maxlength="500" data-summary-input
+                    placeholder="A sentence about what's in it.">{{ (reading.summary if reading else '') or '' }}</textarea>
+          <div class="summary-counter" data-summary-counter><span data-summary-count>500</span>/500 remaining</div>
+        </label>
 
-  <div class="form-actions">
-    <a href="{{ url_for('main.library_detail', slug=library.public_slug) }}" class="btn">Cancel</a>
-    <button class="btn btn-primary">{{ "Save" if reading else "Add item" }}</button>
-  </div>
+        <div class="form-field-block">{% call hrow('What it opens') %}A file, a text document written here, or a link to another site. Switching to a text document or a link removes the file when you save.{% endcall %}
+          <div class="ds-seg-btns reading-mode" data-content-mode-toggle role="group" aria-label="What it opens">
+            <input type="hidden" name="content_mode" value="{{ _mode }}" data-content-mode-input>
+            <button type="button" class="content-mode-seg-btn{{ ' is-active' if _mode == 'upload' }}"
+                    data-content-mode-option="upload" aria-pressed="{{ 'true' if _mode == 'upload' else 'false' }}">{{ icon('upload') }}<span>A file</span></button>
+            <button type="button" class="content-mode-seg-btn{{ ' is-active' if _mode == 'paste' }}"
+                    data-content-mode-option="paste" aria-pressed="{{ 'true' if _mode == 'paste' else 'false' }}">{{ icon('type') }}<span>Text written here</span></button>
+            <button type="button" class="content-mode-seg-btn{{ ' is-active' if _mode == 'link' }}"
+                    data-content-mode-option="link" aria-pressed="{{ 'true' if _mode == 'link' else 'false' }}">{{ icon('link') }}<span>A link</span></button>
+          </div>
+
+          <div class="reading-panel" data-content-panel="upload"{% if _mode != 'upload' %} hidden{% endif %}>
+            {% if reading and reading.stored_filename %}
+            <div class="reading-current">
+              <span class="reading-current-name">{{ icon('file') }}<a href="{{ url_for('public.public_file', filename=reading.original_filename) }}" target="_blank" rel="noopener">{{ reading.original_filename }}</a></span>
+              <label class="check"><input type="checkbox" name="remove_file" value="1"> <span>Remove</span></label>
+            </div>
+            {% endif %}
+            <div class="file-input-row">
+              <input type="file" name="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4,.mov,application/pdf,image/*,video/*"
+                     aria-label="{{ 'Replace the file' if reading and reading.stored_filename else 'Upload a file' }}">
+              <button type="button" class="btn btn-sm" data-media-picker="reading-form">{{ icon('folder') }} File Browser</button>
+            </div>
+            <div class="media-picked-label muted small"></div>
+          </div>
+
+          <div class="reading-panel" data-content-panel="paste"{% if _mode != 'paste' %} hidden{% endif %}>
+            <div class="md-editor md-editor-live post-body-md" data-md-editor data-md-live="1">
+              {{ md_toolbar() }}
+              <div class="md-editor-pane md-editor-pane-write active">
+                <textarea name="body" rows="14" placeholder="Type or paste the text. It opens as a document.">{{ (reading.body if reading else '') or '' }}</textarea>
+              </div>
+              <div class="md-editor-pane md-editor-pane-preview active">
+                <div class="md-editor-preview"><p class="muted smaller">Nothing to preview yet.</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="reading-panel" data-content-panel="link"{% if _mode != 'link' %} hidden{% endif %}>
+            <label>Address
+              <input name="url" type="url" placeholder="https://" value="{{ (reading.url if reading else '') or '' }}">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="st-controls">
+        <div class="st-seg-scroll" data-seg-scroll>
+          <nav class="st-seg" role="tablist" aria-label="File settings">
+            <button type="button" role="tab" data-studio-tab="picture">{{ icon('image') }}<span>Picture</span></button>
+            {% if library.categories or library.is_intergroup %}<button type="button" role="tab" data-studio-tab="categories">{{ icon('tag') }}<span>Categories</span></button>{% endif %}
+            {% if reading %}<button type="button" role="tab" data-studio-tab="details">{{ icon('file-text') }}<span>Details</span></button>{% endif %}
+          </nav>
+        </div>
+
+        <div class="st-panel" data-studio-panel="picture">
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('image') }}Thumbnail {% call chip('Thumbnail') %}Optional. Shown beside the title in the library and on the public Literature Library.{% endcall %}</h3>
+            {% if reading and reading.thumbnail_filename %}
+            <div class="reading-thumb-current">
+              <img src="{{ url_for('main.reading_thumbnail', rid=reading.id) }}" alt="">
+              <label class="check"><input type="checkbox" name="remove_thumbnail" value="1"> <span>Remove</span></label>
+            </div>
+            {% endif %}
+            <input type="file" name="thumbnail" accept="image/*" aria-label="Upload a thumbnail">
+          </div>
+        </div>
+
+        {% if library.categories or library.is_intergroup %}
+        <div class="st-panel" data-studio-panel="categories" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('tag') }}Categories {% call chip('Categories') %}{% if library.categories_required %}Pick at least one: this library needs every file in a category.{% else %}Optional. The library can be filtered by them.{% endif %}{% endcall %}</h3>
+            <input type="hidden" name="category_picker" value="1">
+            {% if library.categories %}
+            <div class="reading-cats">
+              {% for c in library.categories %}
+              <label class="check"><input type="checkbox" name="category_ids" value="{{ c.id }}" {% if c.id in _cat_ids %}checked{% endif %}> <span>{{ c.name }}</span></label>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="muted small">This library has no categories yet. Add them in its settings.</p>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if reading %}
+        <div class="st-panel" data-studio-panel="details" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('file-text') }}Details</h3>
+            <dl class="pe-facts">
+              <dt>Library</dt><dd><a href="{{ _lib_url }}">{{ library.name }}</a></dd>
+              <dt>Added</dt><dd>{{ reading.created_at|fmt_site_local('%b %-d, %Y') if reading.created_at else '—' }}</dd>
+              {% if library.public_visible %}<dt>Public</dt><dd>{{ 'Shown on the Literature Library' if reading.public_visible else 'Hidden from the Literature Library' }}</dd>{% endif %}
+            </dl>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
 </form>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+{% if not _new %}
+<div id="reading-save-bar" class="fe-save-bar fe-save-bar-content" hidden data-editor-save-bar>
+  <span class="fe-save-bar-msg">Unsaved changes</span>
+  <button type="button" class="btn fe-save-bar-btn">Save</button>
+</div>
+{% endif %}
+<script src="{{ url_for('static', filename='js/content_editor.js', v=app_build_id) }}"></script>
 {% endblock %}

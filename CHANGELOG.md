@@ -7,6 +7,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ## [Unreleased]
 
 ### Added
+- `library_readings_bulk` (`POST /libraries/<slug>/readings/bulk`: add_category, remove_category, replace_categories with `cat`, show, hide, delete), keeping each row's gate and skipping a removal that would leave a required-category file with none.
 - Contact Form: `contact_message` (`GET /contact-form/<id>`, marks the message read) and `contact_message.html`; `contact_submissions_bulk` (`POST /contact-form/bulk`: read, unread, archive, unarchive, delete).
 - Form submissions: `frontend_form_submissions_bulk` (`POST /frontend/forms/submissions/bulk`: archive, restore, read, unread, delete, skipping forms the user can't manage); `frontend_form_submission_seen` now sets read or, with `target=0`, unread.
 - Email List: `trusted_servants_new` (`GET /email-list/new`), `trusted_servants_editor` (`GET /email-list/<id>`) and `trusted_servant_edit.html` (`.post-studio`, Account and Notes tabs, `content_editor.js`); `trusted_servants_bulk` (`POST /email-list/bulk`, `action=delete`). `trusted_servants_edit` answers the save bar with JSON.
@@ -39,6 +40,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `User.theme_pref` (`system` / `light` / `dark`, empty until chosen; added by `_migrate_sqlite`) and `POST /tspro/account/theme` (`account_theme_save`). `base.html` and `setup.html` carry it as `data-theme-pref` and resolve `data-theme` before paint (falling back to the browser's `tsp-theme`, with old theme names mapped to light or dark, then `prefers-color-scheme`); `app.js` follows device changes under `system`, saves from `[data-theme-pref-value]` controls and `#theme-toggle`, and migrates a browser's old choice to the account once.
 
 ### Changed
+- `library_detail.html` uses the `.fb-pick--page` list layout, rendered by `_library_page` for both `library_detail` and `intergroup_library_detail`: `q` (title, file name, summary, link, categories), `cat`, `kind` (`_LIB_KINDS` from `_library_item_kind`), `public`, `sort` (custom/name/added/kind; custom by default, name for Intergroup libraries), `view` (cookie). Drag-reorder (`.file-list-sortable` on the `tbody`) only in custom order with no filter, so the saved order covers the whole library.
+- `reading_form.html` and `library_form.html` are `.post-studio` editor pages with the save bar. `reading_edit` answers it with JSON (a redirect when the file, thumbnail or content source changed) and returns to the editor; `reading_new` returns to the library; `library_edit` answers with JSON (a redirect on rename or new categories) and returns to the settings page. `reading_delete` and bulk delete use `trash.soft_delete_library_item` and return to the referrer.
+- `app.js`: the reading lightbox and the reorder save bar are delegated (they survive a live search); a File Browser pick and a content-mode switch fire `input` so an editor's save bar notices.
 - `contact_form.html` and `frontend_form_submissions.html` use the `.fb-pick--page` list layout through `_list_page.html`. `contact_form` takes `show` (inbox, unread, archived; the old `view=active|archived` still works), `delivery` (sent, failed), `sort` (received, name), `view` and `q`. `frontend_form_submissions` takes `show` (inbox, new, archived; `archived=1` still works), `sort` (received, name), `view` and `q`, searched over the decoded answers. Sort and view are kept in cookies.
 - `frontend_form_submission_detail.html` is laid out like `contact_message.html` (`.msg-studio`: `.msg-from` header, answers through `_submission_fields.html`, details in the side column). Single-item actions on both inboxes return to the referrer, or the list when they leave the item's own page (`_contact_back`, `_submission_back`).
 - `base.html`: the Web Frontend sidebar link is no longer active on `main.frontend_form_submission*` pages.
@@ -189,6 +193,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `#relayFields` and `#smtpFields` were plain blocks inside the flex `.form`, so their fields had no gap; they are now flex columns inheriting the form's gap.
 
 ### Removed
+- `library_readings_bulk_categories` and `library_readings_bulk_delete`; the library page's add, edit, bulk-categories and library-edit modals; the Intergroup library search/sort/filter and old bulk-bar scripts in `app.js`; the `.ig-lib-*`, `.ig-cat-chip*`, `.lib-bulk-*` and `.lib-row-select` rules.
 - `frontend_form_submissions_bulk_delete`, `frontend_form_submissions_bulk_archive` and `_submissions_redirect`; the submission modal, inline expand and their scripts; the `.contact-card*`, `.fe-submission-row*`, `.fe-subs-*`, `.fe-sub-modal*`, `.fe-sub-detail` card/hero/foot and `.fe-vis-roles` rules.
 - The Email List and Recovery Contacts add and edit modals, the Recovery Contacts client-side sort/filter script, and the `.rc-tbl`, `.rc-badge-*`, `.rc-match-*`, `.rc-filter*`, `.rc-modal-*`, `.ts-blast-*` and `.ts-row-actions` rules.
 - The Zoom Tech Training edit modal.

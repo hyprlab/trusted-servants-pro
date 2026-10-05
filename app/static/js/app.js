@@ -391,7 +391,11 @@
         });
       });
     }
-    buttons.forEach(b => b.addEventListener("click", () => apply(b.dataset.contentModeOption)));
+    buttons.forEach(b => b.addEventListener("click", () => {
+      apply(b.dataset.contentModeOption);
+      // An editor's save bar listens for edits.
+      if (hidden) hidden.dispatchEvent(new Event("input", { bubbles: true }));
+    }));
     if (check) check.addEventListener("change", () => apply(check.checked ? "paste" : "upload"));
     apply((hidden && hidden.value) || "upload");
   });
@@ -505,8 +509,10 @@
     const docTitleEl = modal.querySelector("[data-reading-lightbox-doc-title]");
     const contentEl = modal.querySelector("[data-reading-lightbox-content]");
     const pdfLink = modal.querySelector("[data-reading-lightbox-pdf]");
-    document.querySelectorAll("[data-reading-lightbox]").forEach(link => {
-      link.addEventListener("click", e => {
+    // Delegated, so links a live search brings in work too.
+    document.addEventListener("click", e => {
+        const link = e.target.closest && e.target.closest("[data-reading-lightbox]");
+        if (!link) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
         e.preventDefault();
         const rid = link.dataset.readingLightbox;
@@ -519,7 +525,6 @@
         openModal("reading-lightbox");
         const body = modal.querySelector(".reading-lightbox-body");
         if (body) body.scrollTop = 0;
-      });
     });
   })();
 
@@ -1859,6 +1864,8 @@
       form.insertBefore(label, form.querySelector(".form-actions") || null);
     }
     label.textContent = "Selected from library: " + item.original_filename;
+    // An editor's save bar listens for edits.
+    hidden.dispatchEvent(new Event("input", { bubbles: true }));
     // Close modal
     const m = document.getElementById("media-picker-modal");
     if (m) closeModal(m);
@@ -2081,23 +2088,23 @@
   // Used on the library detail page so admins reorder readings without
   // each individual drop firing a save.
   (function reorderSaveBar(){
-    const lists = document.querySelectorAll('[data-reorder-savebar="1"]');
-    if (!lists.length) return;
     const bar = document.getElementById('library-reorder-save-bar');
     const btn = document.getElementById('library-reorder-save-btn');
     if (!bar || !btn) return;
     const msg = bar.querySelector('.fe-save-bar-msg');
+    const idle = btn.textContent;
     let dirtyList = null;
 
-    lists.forEach(list => {
-      list.addEventListener('reorder-changed', () => {
-        dirtyList = list;
-        bar.hidden = false;
-        bar.classList.remove('is-leaving');
-        if (msg) msg.textContent = 'Unsaved changes';
-        btn.disabled = false;
-        btn.textContent = 'Save';
-      });
+    // Delegated: the list may arrive later, from a live search.
+    document.addEventListener('reorder-changed', (e) => {
+      const list = e.target.closest && e.target.closest('[data-reorder-savebar="1"]');
+      if (!list) return;
+      dirtyList = list;
+      bar.hidden = false;
+      bar.classList.remove('is-leaving');
+      if (msg) msg.textContent = 'Unsaved changes';
+      btn.disabled = false;
+      btn.textContent = idle;
     });
 
     btn.addEventListener('click', async () => {
@@ -2125,7 +2132,7 @@
         setTimeout(reload, 360);
       } catch (_) {
         btn.disabled = false;
-        btn.textContent = 'Save';
+        btn.textContent = idle;
         if (msg) msg.textContent = 'Save failed — try again';
       }
     });
@@ -5185,214 +5192,7 @@
   form.addEventListener("submit", serialize);
 })();
 
-// Intergroup library page controls: live search, category filter, sort.
-// All client-side over the rows the server already rendered. Each <li>
-// inside [data-ig-list] carries data-name / data-date / data-type /
-// data-search / data-categories that we read here.
-(function () {
-  document.querySelectorAll("[data-ig-library]").forEach(scope => {
-    const list = scope.querySelector("[data-ig-list]");
-    if (!list) return;
-    const search = scope.querySelector("[data-ig-search]");
-    const sort = scope.querySelector("[data-ig-sort]");
-    const filterBtns = Array.from(scope.querySelectorAll("[data-ig-filter]"));
-    const empty = scope.querySelector("[data-ig-empty]");
-    const rows = Array.from(list.children).filter(el => el.tagName === "LI");
-    const originalOrder = rows.slice();
-    let activeFilter = "all";
-    let activeQuery = "";
-
-    function applySort(mode) {
-      let sorted;
-      if (mode === "manual") {
-        sorted = originalOrder.slice();
-      } else if (mode === "name-asc") {
-        sorted = rows.slice().sort((a, b) =>
-          (a.dataset.name || "").localeCompare(b.dataset.name || ""));
-      } else if (mode === "name-desc") {
-        sorted = rows.slice().sort((a, b) =>
-          (b.dataset.name || "").localeCompare(a.dataset.name || ""));
-      } else if (mode === "date-desc") {
-        sorted = rows.slice().sort((a, b) =>
-          (b.dataset.date || "").localeCompare(a.dataset.date || ""));
-      } else if (mode === "date-asc") {
-        sorted = rows.slice().sort((a, b) =>
-          (a.dataset.date || "").localeCompare(b.dataset.date || ""));
-      } else if (mode === "type-asc") {
-        sorted = rows.slice().sort((a, b) => {
-          const ta = (a.dataset.type || "").localeCompare(b.dataset.type || "");
-          return ta !== 0 ? ta : (a.dataset.name || "").localeCompare(b.dataset.name || "");
-        });
-      } else {
-        sorted = originalOrder.slice();
-      }
-      // Reattach in the new order — appendChild moves existing nodes,
-      // it doesn't clone them, so event handlers on the rows survive.
-      sorted.forEach(li => list.appendChild(li));
-    }
-
-    function applyFilterAndSearch() {
-      const q = activeQuery.trim().toLowerCase();
-      let visible = 0;
-      rows.forEach(li => {
-        let show = true;
-        if (activeFilter !== "all") {
-          const ids = (li.dataset.categories || "")
-            .split(",").filter(Boolean);
-          show = ids.includes(activeFilter);
-        }
-        if (show && q) {
-          show = (li.dataset.search || "").includes(q);
-        }
-        li.hidden = !show;
-        if (show) visible++;
-      });
-      if (empty) empty.hidden = visible !== 0;
-    }
-
-    if (sort) {
-      sort.addEventListener("change", () => {
-        applySort(sort.value);
-      });
-      applySort(sort.value);
-    }
-
-    filterBtns.forEach(btn => {
-      btn.addEventListener("click", () => {
-        filterBtns.forEach(b => b.classList.toggle(
-          "chip-active", b === btn));
-        activeFilter = btn.dataset.igFilter || "all";
-        applyFilterAndSearch();
-      });
-    });
-
-    if (search) {
-      let t;
-      search.addEventListener("input", () => {
-        clearTimeout(t);
-        t = setTimeout(() => {
-          activeQuery = search.value;
-          applyFilterAndSearch();
-        }, 80);
-      });
-    }
-
-    applyFilterAndSearch();
-  });
-})();
-
-// Library file multi-select bar: per-row checkboxes + select-all +
-// count + bulk-edit-categories modal trigger. Only renders when the
-// user has edit authority and at least one row is bulk-editable.
-// Per-row authorization (which checkboxes get rendered) is decided
-// server-side in the Jinja template so we don't have to mirror the
-// ``can_bulk_edit_categories`` rule here.
-(function () {
-  const bar = document.querySelector("[data-bulk-bar]");
-  if (!bar) return;
-  const list = document.querySelector("[data-ig-list]") ||
-               document.querySelector(".file-list");
-  if (!list) return;
-  const selectAll = bar.querySelector("[data-bulk-select-all]");
-  const countEl = bar.querySelector("[data-bulk-count]");
-  const actionBtn = bar.querySelector("[data-bulk-action]");
-  const deleteBtn = bar.querySelector("[data-bulk-delete]");
-  const modal = document.querySelector("[data-bulk-modal]");
-  const modalCount = modal && modal.querySelector("[data-bulk-modal-count]");
-  const modalIdSink = modal && modal.querySelector("[data-bulk-modal-ids]");
-
-  // Hide the bar entirely if no row carries a checkbox — happens for
-  // editors viewing a library where every reading was admin-uploaded.
-  const checkboxes = () => Array.from(
-    list.querySelectorAll("input[data-bulk-select]"));
-
-  if (checkboxes().length === 0) {
-    bar.hidden = true;
-    return;
-  }
-
-  function selected() {
-    return checkboxes().filter(cb => cb.checked && !cb.disabled);
-  }
-
-  function refresh() {
-    const sel = selected();
-    const all = checkboxes();
-    if (countEl) {
-      countEl.textContent = sel.length === 1
-        ? "1 selected"
-        : sel.length + " selected";
-    }
-    if (actionBtn) actionBtn.disabled = sel.length === 0;
-    if (deleteBtn) deleteBtn.disabled = sel.length === 0;
-    if (selectAll) {
-      selectAll.checked = sel.length > 0 && sel.length === all.length;
-      selectAll.indeterminate = sel.length > 0 && sel.length < all.length;
-    }
-  }
-
-  list.addEventListener("change", e => {
-    if (e.target.matches("input[data-bulk-select]")) refresh();
-  });
-
-  if (selectAll) {
-    selectAll.addEventListener("change", () => {
-      checkboxes().forEach(cb => { cb.checked = selectAll.checked; });
-      refresh();
-    });
-  }
-
-  // When the user opens the bulk-edit modal, snapshot the selected
-  // ids into hidden inputs inside the form — saves us from having to
-  // collect them at submit time. The modal's open/close lifecycle
-  // is owned by the standard data-open-modal handler.
-  if (actionBtn && modal && modalIdSink) {
-    actionBtn.addEventListener("click", () => {
-      const ids = selected().map(cb => cb.value);
-      modalIdSink.innerHTML = ids
-        .map(id => '<input type="hidden" name="reading_ids" value="' +
-             id.replace(/"/g, "&quot;") + '">')
-        .join("");
-      if (modalCount) modalCount.textContent = String(ids.length);
-    });
-  }
-
-  // Bulk delete: confirm with a count, then submit a synthetic POST
-  // form. Per-row authorization is re-enforced server-side, so the
-  // user can't sneak unauthorized ids through even if they tampered
-  // with the DOM. Uses the page's CSRF meta token so the auto-attach
-  // header logic still finds it.
-  if (deleteBtn) {
-    deleteBtn.addEventListener("click", () => {
-      const ids = selected().map(cb => cb.value);
-      if (!ids.length) return;
-      const word = ids.length === 1 ? "file" : "files";
-      if (!confirm(
-        "Delete " + ids.length + " " + word + "? This can't be undone."
-      )) return;
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = deleteBtn.dataset.bulkDeleteUrl;
-      const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-      if (csrfMeta) {
-        const t = document.createElement("input");
-        t.type = "hidden"; t.name = "csrf_token"; t.value = csrfMeta.content;
-        form.appendChild(t);
-      }
-      ids.forEach(id => {
-        const i = document.createElement("input");
-        i.type = "hidden"; i.name = "reading_ids"; i.value = id;
-        form.appendChild(i);
-      });
-      document.body.appendChild(form);
-      form.submit();
-    });
-  }
-
-  refresh();
-})();
-
-// Intergroup category editor inside the library-edit modal: row
+// Category editor on a library's settings page: row
 // add/remove. New rows are cloned from a hidden template element so
 // the markup stays in the Jinja template.
 (function () {
