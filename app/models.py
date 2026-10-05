@@ -760,6 +760,19 @@ class SiteSetting(db.Model):
     # The page's look (zoom_tech_doc.DESIGN): colors, fonts, sizes.
     zoom_tech_design_json = db.Column(db.Text)
     zoom_tech_template = db.Column(db.String(16), nullable=False, default="standard")
+    # The alert bar every signed-in user sees (Settings > Alert bar): the
+    # message (Markdown), its tone (info, success, warning, danger), where
+    # it shows (a comma list of ALERT_PLACES keys), whether people can
+    # close it, and when it stops (site-local, blank for until turned
+    # off). ``alert_version`` goes up when the message changes or the bar
+    # is turned on again, so a closed alert shows once more.
+    alert_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    alert_message = db.Column(db.Text)
+    alert_tone = db.Column(db.String(16), nullable=False, default="info")
+    alert_places = db.Column(db.String(64), nullable=False, default="top")
+    alert_dismissible = db.Column(db.Boolean, nullable=False, default=True)
+    alert_until = db.Column(db.DateTime)
+    alert_version = db.Column(db.Integer, nullable=False, default=0)
     # Announcements & Events module toggle. Default True so existing
     # installs don't lose data the moment the column is added.
     posts_enabled = db.Column(db.Boolean, nullable=False, default=True)

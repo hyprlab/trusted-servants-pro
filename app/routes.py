@@ -412,6 +412,32 @@ def _attention_counts(*, include_dashboard=False):
     return counts
 
 
+# The alert bar (Settings > Alert bar): where it can show, and its tones.
+ALERT_PLACES = (("dashboard", "Dashboard", "Above the dashboard's widgets."),
+                ("top", "Above the top bar", "Across the top of every page."),
+                ("sidebar", "Sidebar footer", "At the foot of the sidebar, above the logo."))
+ALERT_TONES = (("info", "Information", "info"), ("success", "Good news", "check-circle"),
+               ("warning", "Warning", "alert-triangle"), ("danger", "Urgent", "alert-circle"))
+
+
+def _site_alert(site):
+    """The alert bar to show the signed-in user now, or None: turned on,
+    with a message, at least one place, and not past its end."""
+    if not (site and site.alert_enabled and (site.alert_message or "").strip()):
+        return None
+    places = [p for p in (site.alert_places or "").split(",") if p in dict((k, 1) for k, _l, _h in ALERT_PLACES)]
+    if not places:
+        return None
+    if site.alert_until:
+        from .timezone import now_local_naive
+        if now_local_naive(site) >= site.alert_until:
+            return None
+    tone = site.alert_tone if site.alert_tone in dict((k, 1) for k, _l, _i in ALERT_TONES) else "info"
+    return {"message": site.alert_message.strip(), "tone": tone, "places": places,
+            "icon": dict((k, i) for k, _l, i in ALERT_TONES)[tone],
+            "dismissible": bool(site.alert_dismissible), "version": site.alert_version or 0}
+
+
 @bp.app_context_processor
 def inject_globals():
     try:
@@ -453,6 +479,10 @@ def inject_globals():
         fe_sync_peer = FrontendSyncPeer.query.first()
     except Exception:
         fe_sync_peer = None
+    try:
+        site_alert = _site_alert(site) if current_user.is_authenticated else None
+    except Exception:
+        site_alert = None
     return {"CATEGORY_LABELS": CATEGORY_LABELS, "FILE_CATEGORIES": FILE_CATEGORIES,
             "DAYS_OF_WEEK": DAYS_OF_WEEK, "site": site, "nav_links": nav_links,
             "fe_sync_peer": fe_sync_peer,
@@ -464,7 +494,8 @@ def inject_globals():
             "pending_recovery_contacts_count": pending_recovery_contacts_count,
             "recovery_contacts_abuse_count": recovery_contacts_abuse_count,
             "notifications_count": notifications_count, "otp": otp,
-            "disk_warning": disk_warning}
+            "disk_warning": disk_warning, "site_alert": site_alert,
+            "ALERT_PLACES": ALERT_PLACES, "ALERT_TONES": ALERT_TONES}
 
 
 DASHBOARD_WIDGET_KEYS = ("server-metrics", "visitor-metrics", "currently-online", "backups", "trusted-servants", "release-notes", "meetings", "libraries", "files", "access-requests", "forms", "deletions")
@@ -16641,7 +16672,7 @@ def markdown_preview():
         # The Zoom Tech page: block Markdown plus video players.
         from .zoom_tech_doc import render as _render_doc
         return jsonify(html=str(_render_doc(body)[0]))
-    filter_name = "markdown_block" if mode == "block" else "markdown"
+    filter_name = {"block": "markdown_block", "inline": "markdown_inline"}.get(mode, "markdown")
     html = str(render_template_string("{{ body|" + filter_name + " }}", body=body))
     return jsonify(html=html)
 
@@ -17724,6 +17755,40 @@ def timezone_save():
     s.timezone = raw
     db.session.commit()
     flash("Timezone saved", "success")
+    return redirect(_safe_referrer() or url_for("main.index"))
+
+
+@bp.route("/settings/alert-save", methods=["POST"])
+@admin_required
+def alert_save():
+    """Settings > Alert bar. The version goes up when the message changes
+    or the bar is turned on again, so people who closed the old one see
+    the new one."""
+    s = _get_site_setting()
+    f = request.form
+    enabled = f.get("alert_enabled") == "1"
+    message = (f.get("alert_message") or "").strip()[:2000] or None
+    if (message or "") != (s.alert_message or "") or (enabled and not s.alert_enabled):
+        s.alert_version = (s.alert_version or 0) + 1
+    s.alert_enabled = enabled
+    s.alert_message = message
+    tone = f.get("alert_tone") or "info"
+    s.alert_tone = tone if tone in dict((k, 1) for k, _l, _i in ALERT_TONES) else "info"
+    keys = [k for k, _l, _h in ALERT_PLACES]
+    s.alert_places = ",".join(k for k in keys if k in f.getlist("alert_places"))
+    s.alert_dismissible = f.get("alert_dismissible") == "1"
+    until = (f.get("alert_until") or "").strip()
+    try:
+        s.alert_until = datetime.strptime(until, "%Y-%m-%dT%H:%M") if until else None
+    except ValueError:
+        s.alert_until = None
+    db.session.commit()
+    if enabled and not message:
+        flash("Alert bar saved; it shows once it has a message", "warning")
+    elif enabled and not s.alert_places:
+        flash("Alert bar saved; pick where it shows", "warning")
+    else:
+        flash("Alert bar saved", "success")
     return redirect(_safe_referrer() or url_for("main.index"))
 
 

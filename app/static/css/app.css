@@ -17912,6 +17912,51 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
    primary button looked ready). */
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 
+/* ── Alert bar (_site_alert.html, Settings > Alert Bar): a message every
+   signed-in user sees above the top bar, at the foot of the sidebar or
+   on the dashboard, in one of four tones. ─────────────────────────── */
+.site-alert { --sa-bg: var(--brand-soft); --sa-edge: var(--brand); --sa-ink: var(--text); --sa-icon: var(--brand);
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+  background: var(--sa-bg); color: var(--sa-ink); border: 1px solid color-mix(in srgb, var(--sa-edge) 35%, transparent);
+  border-radius: 10px; font-size: var(--fs-sm); line-height: 1.45; transition: opacity .2s ease, transform .2s ease; }
+.site-alert[hidden], .site-alert-closed .site-alert[data-closable] { display: none; }
+.site-alert.is-closing { opacity: 0; transform: translateY(-4px); }
+.site-alert.is-success { --sa-bg: #e7f8ee; --sa-edge: #16a34a; --sa-ink: #14532d; --sa-icon: #15803d; }
+.site-alert.is-warning { --sa-bg: #fff6e1; --sa-edge: #d97706; --sa-ink: #7c4a03; --sa-icon: #b45309; }
+.site-alert.is-danger { --sa-bg: #fdecec; --sa-edge: #dc2626; --sa-ink: #7f1d1d; --sa-icon: #b91c1c; }
+[data-theme="dark"] .site-alert.is-success { --sa-bg: #15341f; --sa-ink: #b7f5cf; --sa-icon: #4ade80; }
+[data-theme="dark"] .site-alert.is-warning { --sa-bg: #3a2808; --sa-ink: #ffdc99; --sa-icon: #fbbf24; }
+[data-theme="dark"] .site-alert.is-danger { --sa-bg: #381416; --sa-ink: #fecaca; --sa-icon: #f87171; }
+.site-alert-icon { flex: 0 0 auto; display: inline-flex; margin-top: 1px; color: var(--sa-icon); }
+.site-alert-icon > span { display: inline-flex; }
+.site-alert-icon > span[hidden] { display: none; }
+.site-alert-icon .icon { width: 18px; height: 18px; }
+.site-alert-msg { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.site-alert-msg p { margin: 0; }
+.site-alert-msg p + p { margin-top: 6px; }
+.site-alert-msg a { color: inherit; font-weight: 600; text-decoration: underline; }
+.site-alert-close { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  margin: -3px -6px -3px 0; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; opacity: .7; cursor: pointer; }
+.site-alert-close:hover { opacity: 1; background: color-mix(in srgb, var(--sa-edge) 14%, transparent); }
+.site-alert-close .icon { width: 16px; height: 16px; }
+.site-alert-close[hidden] { display: none; }
+/* Above the top bar: edge to edge; the top bar then drops the pull-up
+   that takes it into the content's top padding. */
+.content > .site-alert--top { margin: calc(var(--content-pt) * -1) calc(var(--content-px) * -1) 0;
+  padding: 10px var(--content-px); border-width: 0 0 1px; border-radius: 0; }
+.content > .site-alert--top:not([hidden]) ~ .topbar { margin-top: 0; }
+.site-alert-closed .content > .site-alert--top[data-closable] ~ .topbar { margin-top: calc(var(--content-pt) * -1); }
+/* The sidebar footer: compact, above the logo. */
+.sidebar-footer > .site-alert--sidebar { margin: 0 0 12px; padding: 8px 10px; gap: 8px; border-radius: 8px; font-size: var(--fs-xs); }
+.site-alert--sidebar .site-alert-icon .icon { width: 16px; height: 16px; }
+.site-alert--sidebar .site-alert-close { width: 22px; height: 22px; margin: -2px -4px -2px 0; }
+/* The dashboard: above the widgets. */
+.site-alert--dashboard { margin-bottom: 20px; }
+/* Settings > Alert Bar. */
+.alert-places { display: grid; gap: 8px; }
+.alert-form .check > span > span { display: block; font-weight: 400; }
+.alert-preview-label { display: block; margin-bottom: 6px; font-weight: 600; }
+
 /* ── Sending an update to the Email List (trusted_servants_blast.html):
    the message beside its audience, with how many it reaches. ── */
 .ts-msg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }

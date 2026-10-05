@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_help_chip.html" import chip, hrow %}
 {% from "_dash_widget.html" import dash_widget, dash_empty with context %}
+{% from "_site_alert.html" import site_alert_bar with context %}
 {% block heading %}Dashboard{% endblock %}
 {% block heading_help %}Your home view — see upcoming meetings, recent activity, and quick links to the areas of the portal you use most.{% endblock %}
 {% block top_actions %}
@@ -15,6 +16,7 @@
    styling class, and the dashboard customize toggle's label all read
    from one source. #}
 {% set _has_server = current_user.is_admin() %}
+{{ site_alert_bar('dashboard') }}
 <div class="dash-grid"
      {% if can_reorder %}data-dashboard-reorder data-order-url="{{ url_for('main.dashboard_order_save') }}"{% endif %}>
 {% for widget_key in dashboard_order %}

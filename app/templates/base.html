@@ -1,4 +1,5 @@
 {% from "_help_chip.html" import chip, hrow %}
+{% from "_site_alert.html" import site_alert_bar with context %}
 <!doctype html>
 <html lang="en" data-theme="light"{% if current_user.is_authenticated and current_user.theme_pref %} data-theme-pref="{{ current_user.theme_pref }}"{% endif %}>
 <head>
@@ -54,6 +55,11 @@
                  window.matchMedia('(prefers-color-scheme: dark)').matches);
       root.setAttribute('data-theme', dark ? 'dark' : 'light');
     })();
+    {% if site_alert and site_alert.dismissible %}
+    // The alert bar this browser closed stays closed until its message
+    // changes (its version goes up).
+    try { if (localStorage.getItem('tsp-alert-closed') === '{{ site_alert.version }}') document.documentElement.classList.add('site-alert-closed'); } catch (e) {}
+    {% endif %}
     // Visitor-metrics + Watchtower pages render both Unique-visitors
     // and Hits versions of every count; set the mode class on <html>
     // before paint so the inactive side never flashes.
@@ -270,6 +276,7 @@
       {% set _flogo = (site.footer_logo_filename if site else None) %}
       {% set _furl = (site.footer_logo_url if site else None) or '' %}
       {% set _fw = (site.footer_logo_width if site else None) or 32 %}
+      {{ site_alert_bar('sidebar') }}
       <a class="sidebar-footer-img-link" id="sidebar-footer-link" href="{{ _furl or '#' }}" target="_blank" rel="noopener"{% if not _flogo %} hidden{% endif %}>
         <img id="sidebar-footer-logo" src="{{ url_for('public.site_footer_logo') if _flogo else '' }}" alt=""{% if _fw %} style="width: {{ _fw }}px"{% endif %}>
       </a>
@@ -291,6 +298,7 @@
     </div>
   </aside>
   <main class="content">
+    {{ site_alert_bar('top') }}
     <header class="topbar">
       <button type="button" class="menu-btn" id="menu-toggle" aria-label="Toggle menu">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
@@ -377,6 +385,7 @@
         ('modules', 'Modules', 'puzzle', False),
         ('email', 'Domain / Email', 'mail', False),
         ('timezone', 'Timezone', 'clock', False),
+        ('alert', 'Alert Bar', 'megaphone', False),
         ('security', 'Security', 'shield', False),
         ('data', 'Data', 'database', False),
       ]),
@@ -1451,6 +1460,111 @@
         })();
         </script>
       </div>
+      <div class="settings-pane" data-pane="alert">
+
+        {# ── Alert bar: a message every signed-in user sees ──────────── #}
+        {% set _al_on = site.alert_enabled %}
+        {% set _al_places = (site.alert_places or '').split(',') %}
+        {% set _al_tone = site.alert_tone or 'info' %}
+        <section class="card data-card">
+          <div class="data-card-head">
+            {{ icon('megaphone') }}
+            <span>Alert Bar {% call chip('Alert Bar') %}A message every signed-in user sees, such as a server move or a change to how something works. Pick its style and where it shows. People can close it unless you turn that off; it shows again when you change the message.{% endcall %}</span>
+          </div>
+          <form class="form alert-form" method="post" action="{{ url_for('main.alert_save') }}" data-alert-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="special-page-row">
+              <div class="special-page-info">
+                <div class="u-name">Show the alert bar</div>
+                <div class="muted small" data-alert-status>
+                  {%- if site_alert %}Showing now to everyone signed in.
+                  {%- elif _al_on and site.alert_until and (site.alert_message or '').strip() %}Ended {{ site.alert_until.strftime('%b %-d, %Y at %-I:%M %p') }}.
+                  {%- elif _al_on %}On, but it needs a message and a place to show.
+                  {%- else %}Off.{% endif -%}
+                </div>
+              </div>
+              <label class="mode-toggle" title="Show the alert bar">
+                <input type="checkbox" name="alert_enabled" value="1" {% if _al_on %}checked{% endif %}>
+                <span class="mode-track"><span class="mode-thumb"></span></span>
+              </label>
+            </div>
+            <label>{% call hrow('Message') %}Markdown works: **bold**, *italic* and [a link](https://example.org).{% endcall %}
+              <textarea name="alert_message" rows="3" maxlength="2000" data-alert-message
+                        placeholder="The portal moves to a new server on Saturday at 9 PM. Save your work before then.">{{ site.alert_message or '' }}</textarea>
+            </label>
+            <div class="form-field-block">{% call hrow('Style') %}The bar's color and icon.{% endcall %}
+              <div class="ds-seg-btns alert-tone-seg" role="radiogroup" aria-label="Style">
+                {% for key, label, ic in ALERT_TONES %}
+                <label><input type="radio" name="alert_tone" value="{{ key }}" data-icon="{{ ic }}" {% if key == _al_tone %}checked{% endif %}><span>{{ label }}</span></label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="form-field-block">{% call hrow('Where it shows') %}Pick one or more.{% endcall %}
+              <div class="alert-places">
+                {% for key, label, hint in ALERT_PLACES %}
+                <label class="check"><input type="checkbox" name="alert_places" value="{{ key }}" {% if key in _al_places %}checked{% endif %}>
+                  <span><b>{{ label }}</b><span class="muted small">{{ hint }}</span></span></label>
+                {% endfor %}
+              </div>
+            </div>
+            <label class="check"><input type="checkbox" name="alert_dismissible" value="1" data-alert-closable {% if site.alert_dismissible %}checked{% endif %}>
+              <span><b>People can close it</b><span class="muted small">Closed, it stays away in that browser until the message changes.</span></span></label>
+            <label>{% call hrow('Stop showing after') %}Optional, in the portal's timezone ({{ site.timezone or 'UTC' }}). Leave it blank to show the bar until you turn it off.{% endcall %}
+              <input type="datetime-local" name="alert_until" value="{{ site.alert_until.strftime('%Y-%m-%dT%H:%M') if site.alert_until else '' }}">
+            </label>
+            <div class="form-field-block">
+              <span class="alert-preview-label muted small">Preview</span>
+              <div class="site-alert site-alert--preview is-{{ _al_tone }}" data-alert-preview>
+                <span class="site-alert-icon" aria-hidden="true">{% for key, label, ic in ALERT_TONES %}<span data-tone-icon="{{ key }}"{% if key != _al_tone %} hidden{% endif %}>{{ icon(ic) }}</span>{% endfor %}</span>
+                <div class="site-alert-msg" data-alert-preview-msg>{{ (site.alert_message or '')|markdown_inline }}</div>
+                <span class="site-alert-close" data-alert-preview-close aria-hidden="true"{% if not site.alert_dismissible %} hidden{% endif %}>{{ icon('x') }}</span>
+              </div>
+            </div>
+            <div class="data-card-actions"><button class="btn btn-primary">Save Alert Bar</button></div>
+          </form>
+        </section>
+
+        <script>
+        (function(){
+          // The preview follows the form; the message renders through the
+          // same Markdown as the bar. A save swaps the bars on the page
+          // behind Settings for the saved ones.
+          const form = document.querySelector('[data-alert-form]');
+          if (!form) return;
+          const box = form.querySelector('[data-alert-preview]');
+          const msg = form.querySelector('[data-alert-preview-msg]');
+          const ta = form.querySelector('[data-alert-message]');
+          let timer;
+          function tone(){
+            const t = (form.querySelector('input[name=alert_tone]:checked') || {}).value || 'info';
+            box.className = box.className.replace(/\bis-\w+/, 'is-' + t);
+            box.querySelectorAll('[data-tone-icon]').forEach(el => { el.hidden = el.dataset.toneIcon !== t; });
+            box.querySelector('[data-alert-preview-close]').hidden = !form.querySelector('[data-alert-closable]').checked;
+          }
+          function render(){
+            const body = new FormData();
+            body.append('body', ta.value); body.append('mode', 'inline');
+            fetch('{{ url_for('main.markdown_preview') }}', { method: 'POST', body, credentials: 'same-origin' })
+              .then(r => r.ok ? r.json() : null).then(j => { if (j) msg.innerHTML = j.html || ''; }).catch(() => {});
+          }
+          form.addEventListener('change', tone);
+          ta.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(render, 250); });
+          form.addEventListener('settings:saved', () => {
+            fetch(location.href, { credentials: 'same-origin' }).then(r => r.ok ? r.text() : Promise.reject())
+              .then(html => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                document.querySelectorAll('[data-site-alert]').forEach(el => {
+                  const next = doc.querySelector('[data-site-alert="' + el.dataset.siteAlert + '"]');
+                  if (next) el.replaceWith(document.importNode(next, true));
+                });
+                const st = doc.querySelector('[data-alert-status]'), now = form.querySelector('[data-alert-status]');
+                if (st && now) now.textContent = st.textContent;
+                if (window.tspSiteAlertSync) window.tspSiteAlertSync();
+              }).catch(() => {});
+          });
+        })();
+        </script>
+      </div>
       <div class="settings-pane" data-pane="security">
 
         {# ── Zoom One-Time-Passcodes (OTP) ───────────────────────── #}
@@ -2357,14 +2471,45 @@
   // stack (.flashes) can sit just below the sticky topbar instead of over
   // its action buttons. The bar wraps taller on narrow viewports, so track
   // it with a ResizeObserver rather than hard-coding a height.
+  // An alert bar above the topbar pushes it down until the page scrolls,
+  // so its height counts too.
   (function(){
     var bar = document.querySelector('.content > .topbar');
     if (!bar) return;
     var root = document.documentElement;
-    function sync(){ root.style.setProperty('--topbar-h', bar.offsetHeight + 'px'); }
+    function sync(){
+      var top = document.querySelector('.content > .site-alert--top');
+      root.style.setProperty('--topbar-h', (bar.offsetHeight + (top ? top.offsetHeight : 0)) + 'px');
+    }
     sync();
+    window.tspTopbarSync = sync;
     if (window.ResizeObserver) new ResizeObserver(sync).observe(bar);
     else window.addEventListener('resize', sync);
+  })();
+
+  // The alert bar's Close: remembers the version closed in this browser
+  // and hides it in every place. tspSiteAlertSync re-reads the closed
+  // state after Settings swaps in a saved alert.
+  (function(){
+    var KEY = 'tsp-alert-closed', root = document.documentElement;
+    function closedVersion(){ try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+    window.tspSiteAlertSync = function(){
+      var a = document.querySelector('[data-site-alert][data-closable]');
+      root.classList.toggle('site-alert-closed', !!(a && closedVersion() === a.dataset.version));
+      if (window.tspTopbarSync) window.tspTopbarSync();
+    };
+    document.addEventListener('click', function(e){
+      var btn = e.target.closest('[data-site-alert-close]');
+      if (!btn) return;
+      var a = btn.closest('[data-site-alert]');
+      try { localStorage.setItem(KEY, a.dataset.version); } catch (x) {}
+      document.querySelectorAll('[data-site-alert]:not([hidden])').forEach(function(el){ el.classList.add('is-closing'); });
+      setTimeout(function(){
+        root.classList.add('site-alert-closed');
+        document.querySelectorAll('[data-site-alert].is-closing').forEach(function(el){ el.classList.remove('is-closing'); });
+        if (window.tspTopbarSync) window.tspTopbarSync();
+      }, 220);
+    });
   })();
 
   // ── Settings → Security: Two-Factor Authentication enrolment ──────
