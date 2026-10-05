@@ -56,6 +56,9 @@
                  window.matchMedia('(prefers-color-scheme: dark)').matches);
       root.setAttribute('data-theme', dark ? 'dark' : 'light');
     })();
+    // A page shown inside Settings (an iframe.settings-frame) spaces itself
+    // like the Settings sections around it (app.css, html.in-settings).
+    try { if (window.frameElement && window.frameElement.classList.contains('settings-frame')) document.documentElement.classList.add('in-settings'); } catch (e) {}
     {% if site_alert and site_alert.dismissible %}
     // The alert bar this browser closed stays closed until its message
     // changes (its version goes up).
@@ -1224,7 +1227,7 @@
           <li class="special-page-row">
             <div class="special-page-info">
               <div class="u-name">Trusted Servants Email List</div>
-              <p class="muted small">Admin-managed contact roster + blast email surface. When on, a sign-up widget appears on every signed-in user's dashboard inviting them to add their name, phone, and email; admins manage the roster and send updates from <code>/email-list</code>. The role gate below decides who can see the roster and send blasts — every signed-in user can self-subscribe via the dashboard widget regardless.</p>
+              <p class="muted small">A contact list of trusted servants and the updates sent to it. New portal users join it when they're created; others are added on the Email List page, where updates are written and sent. The access setting decides who can see the list and send updates.</p>
             </div>
             {{ module_role_picker('trusted_servants', site.trusted_servants_required_role if site else 'admin') }}
             <form method="post" action="{{ url_for('main.trusted_servants_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">

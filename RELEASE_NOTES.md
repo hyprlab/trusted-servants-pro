@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Settings is spaced the same in every section: 24px at the sides and 16px between cards on a computer, 14px and 14px on a phone, including Global and Users.
+- On a phone, each Intergroup Officer and Fellowship in Settings > Global folds to one line (position and name, or name and place) and opens to its fields with a tap. New ones start open.
 - On a phone, Settings uses the same spacing as the rest of the app: 14px around each section and 16px inside its cards, in place of wider desktop padding.
 - New users join the Trusted Servants Email List when they're created, with their name, email and phone; clear Add to the Email List on the Create user form to leave someone off. If their email is already on the list, that entry is linked to the account rather than doubled.
 - The dashboard's Join the email list widget is retired, since people no longer share accounts and new users join the list when they're created.

@@ -5172,6 +5172,20 @@ form.hide-zoom .zoom-only, form.hide-zoom .zoom-only-field { display: none; }
   overflow-y: auto; overflow-x: hidden; min-width: 0;
 }
 .settings-pane.active > * { max-width: 100%; min-width: 0; }
+/* Every section spaced alike: 24px at the sides and foot (the top
+   clears the close button), 16px between cards from the section's gap
+   alone, cards padded 18px 20px. By ID, so it outranks the per-pane
+   paddings below; a pane holding a page in an iframe keeps none, and
+   that page (html.in-settings, set in base.html) matches instead. The
+   phone values are in the 720px block. */
+#settings-modal .settings-pane.active:not(:has(> iframe.settings-frame)) { padding: 60px 24px 24px; gap: 16px; }
+#settings-modal .settings-pane .data-card,
+#settings-modal .settings-pane .data-card:last-child { margin-bottom: 0; }
+html.in-settings body.embed .embed-content { padding: 14px 24px 24px; }
+html.in-settings body.embed .card.data-card,
+html.in-settings body.embed .card.data-card:last-child { padding: 18px 20px; }
+html.in-settings body.embed .card.data-card { margin-bottom: 16px; }
+html.in-settings body.embed .card.data-card:last-child { margin-bottom: 0; }
 .settings-pane.active .u-name { font-size: var(--fs-base); font-weight: 700; line-height: 1.3; }
 .settings-pane.active .special-page-row { padding: 1rem; }
 .settings-pane.active:has(> iframe.settings-frame),
@@ -7367,8 +7381,11 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   #settings-modal .settings-nav-head { padding: 12px 14px; }
   #settings-modal .settings-pane.active:not(:has(> iframe.settings-frame)) { padding: 14px; gap: 14px; }
   #settings-modal .settings-pane .card { padding: 16px; }
-  #settings-modal .settings-pane .data-card { margin-bottom: 14px; }
-  #settings-modal .settings-pane .data-card:last-child { margin-bottom: 0; }
+  html.in-settings body.embed .embed-content { padding: 14px; }
+  html.in-settings body.embed .card.data-card,
+  html.in-settings body.embed .card.data-card:last-child { padding: 16px; }
+  html.in-settings body.embed .card.data-card { margin-bottom: 14px; }
+  html.in-settings body.embed .card.data-card:last-child { margin-bottom: 0; }
   .zoom-info dd:has(> .btn-primary) { grid-column: 1 / -1; }
   .zoom-info dt:has(+ dd > .btn-primary) { display: none; }
   .zoom-info .btn-primary { display: block; width: 100%; text-align: center; }
@@ -17032,6 +17049,8 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   grid-template-areas: "name virtual geo geo url rm"; }
 .fellowship-virtual-toggle { margin: 0; justify-self: start; gap: 8px; }
 .fellowship-virtual-toggle .erow-label--inline { display: none; margin: 0; font-size: var(--fs-sm); font-weight: 500; color: var(--text); }
+/* A row's fold-up summary (locations.html): only in a narrow pane. */
+.erow-summary { display: none; }
 .officers-actions, .fellowships-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 14px; }
 .officers-actions > button[type=submit], .fellowships-actions > button[type=submit] { margin-left: auto; }
 /* Narrow: each row is a small card, two fields a line, labelled. */
@@ -17047,15 +17066,27 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   .erow-label { display: block; }
   .fellowship-virtual-toggle .erow-label--inline { display: inline; }
   .officers-rows .erow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px;
-    grid-template-areas: "pos name rm" "phone email email"; }
+    grid-template-areas: "sum sum sum" "pos name rm" "phone email email"; }
   .fellowships-rows .erow { grid-template-columns: minmax(0, 1fr) max-content 34px;
-    grid-template-areas: "name virtual rm" "geo geo geo" "url url url"; }
+    grid-template-areas: "sum sum sum" "name virtual rm" "geo geo geo" "url url url"; }
   .fellowship-virtual-toggle { align-self: center; padding-top: 16px; }
+  /* Folded: the summary line alone; open, it heads the fields. */
+  .erow-summary { grid-area: sum; display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
+    margin: -2px 0; padding: 4px 0; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  .erow-sum-main { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+  .erow-sum-sub { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--fs-sm); }
+  .erow-summary .erow-sum-chev { flex: 0 0 auto; width: 16px; height: 16px; margin-left: auto; color: var(--muted); transition: transform 160ms ease; }
+  .erow.is-open .erow-sum-chev { transform: rotate(180deg); }
+  .erow:not(.is-open) { padding: 10px 12px; align-items: center; }
+  .officers-rows .erow:not(.is-open), .fellowships-rows .erow:not(.is-open) {
+    grid-template-columns: minmax(0, 1fr); grid-template-areas: "sum"; gap: 0; }
+  .erow:not(.is-open) > :not(.erow-summary) { display: none; }
+  .erow.is-open > .erow-summary { padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 2px; }
 }
 /* Phone: one field a line, but the switch still beside the name. */
 @media (max-width: 420px) {
   .officers-rows .erow { grid-template-columns: minmax(0, 1fr) 34px;
-    grid-template-areas: "pos rm" "name name" "phone phone" "email email"; }
+    grid-template-areas: "sum sum" "pos rm" "name name" "phone phone" "email email"; }
   .erow-geo { grid-template-columns: minmax(0, 1fr); }
 }
 

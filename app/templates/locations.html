@@ -92,6 +92,7 @@
         {% set _pic = o.id == pic_officer_id %}
         {% set _ro = ' readonly tabindex="-1" aria-readonly="true"'|safe if _pic else '' %}
         <div class="erow officer-row{% if _pic %} is-locked{% endif %}"{% if _pic %} data-pic-officer title="Set on the Public Information Chair card below"{% endif %}>
+          <button type="button" class="erow-summary" data-erow-toggle aria-expanded="false"><span class="erow-sum-main" data-sum-main></span><span class="erow-sum-sub" data-sum-sub></span>{{ icon('chevron-down', 'erow-sum-chev') }}</button>
           <input type="hidden" name="officer_id" value="{{ o.id }}">
           <label class="erow-field erow-pos"><span class="erow-label">Position</span>
             <input type="text" name="officer_role" value="{{ o.role or '' }}" placeholder="e.g. Chair" required{{ _ro }}{% if _pic %} data-pic-mirror="pic_title" data-pic-default="Public Information Chair"{% endif %}></label>
@@ -111,7 +112,8 @@
         {% endfor %}
         {# Hidden template row, cloned by Add officer. The server drops
            fully blank rows on save, so a stray empty one is a no-op. #}
-        <div class="erow officer-row officer-row-template" hidden data-officers-template>
+        <div class="erow officer-row officer-row-template is-open" hidden data-officers-template>
+          <button type="button" class="erow-summary" data-erow-toggle aria-expanded="true"><span class="erow-sum-main" data-sum-main></span><span class="erow-sum-sub" data-sum-sub></span>{{ icon('chevron-down', 'erow-sum-chev') }}</button>
           <input type="hidden" name="officer_id" value="">
           <label class="erow-field erow-pos"><span class="erow-label">Position</span>
             <input type="text" name="officer_role" value="" placeholder="e.g. Chair"></label>
@@ -301,6 +303,7 @@ function wireRowSort(rows, templateSel) {
       </div>
         {% for f in fellowships %}
         <div class="erow fellowship-row{% if f.is_virtual %} is-virtual{% endif %}" data-fellowship-row>
+          <button type="button" class="erow-summary" data-erow-toggle aria-expanded="false"><span class="erow-sum-main" data-sum-main></span><span class="erow-sum-sub" data-sum-sub></span>{{ icon('chevron-down', 'erow-sum-chev') }}</button>
           <input type="hidden" name="fellowship_id" value="{{ f.id }}">
           {# Exactly one virtual value per row (this hidden input) keeps the
              server's parallel arrays aligned; the switch mirrors it. #}
@@ -324,7 +327,8 @@ function wireRowSort(rows, templateSel) {
           <button type="button" class="erow-remove" data-fellowship-remove aria-label="Remove this fellowship" title="Remove this fellowship">{{ icon('trash') }}</button>
         </div>
         {% endfor %}
-        <div class="erow fellowship-row fellowship-row-template" hidden data-fellowships-template data-fellowship-row>
+        <div class="erow fellowship-row fellowship-row-template is-open" hidden data-fellowships-template data-fellowship-row>
+          <button type="button" class="erow-summary" data-erow-toggle aria-expanded="true"><span class="erow-sum-main" data-sum-main></span><span class="erow-sum-sub" data-sum-sub></span>{{ icon('chevron-down', 'erow-sum-chev') }}</button>
           <input type="hidden" name="fellowship_id" value="">
           {# Exactly one virtual value per row (this hidden input) keeps the
              server's parallel arrays aligned; the switch mirrors it. #}
@@ -536,4 +540,47 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 {% endfor %}
 
+<script>
+// Officers and Fellowships in a narrow pane (760px and under): each row
+// folds to a summary line (a summary button, hidden when wide) and opens
+// to its fields. The line follows the fields as they're typed; new rows
+// start open (their template is), and a row the browser flags on save
+// opens so its prompt shows.
+(function () {
+  const SUMMARY = {
+    officer: row => [row.querySelector('[name="officer_role"]').value.trim() || 'New officer',
+                     row.querySelector('[name="officer_name"]').value.trim()],
+    fellowship: row => {
+      const virtual = row.querySelector('[data-fellowship-virtual]');
+      const geo = ['fellowship_country', 'fellowship_state_region']
+        .map(n => row.querySelector('[name="' + n + '"]').value.trim()).filter(Boolean).join(', ');
+      return [row.querySelector('[name="fellowship_name"]').value.trim() || 'New fellowship',
+              virtual && virtual.checked ? 'Virtual' : geo];
+    },
+  };
+  const kindOf = row => row.classList.contains('officer-row') ? 'officer' : 'fellowship';
+  function sync(row) {
+    const sum = row.querySelector('[data-erow-toggle]');
+    if (!sum) return;
+    const [main, sub] = SUMMARY[kindOf(row)](row);
+    sum.querySelector('[data-sum-main]').textContent = main;
+    sum.querySelector('[data-sum-sub]').textContent = sub;
+  }
+  function setOpen(row, open) {
+    row.classList.toggle('is-open', open);
+    const sum = row.querySelector('[data-erow-toggle]');
+    if (sum) sum.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  document.querySelectorAll('.officers-rows .erow, .fellowships-rows .erow').forEach(sync);
+  document.querySelectorAll('[data-officers-rows], [data-fellowships-rows]').forEach(list => {
+    list.addEventListener('click', e => {
+      const sum = e.target.closest('[data-erow-toggle]');
+      if (sum) setOpen(sum.closest('.erow'), !sum.closest('.erow').classList.contains('is-open'));
+    });
+    list.addEventListener('input', e => { const row = e.target.closest('.erow'); if (row) sync(row); });
+    list.addEventListener('change', e => { const row = e.target.closest('.erow'); if (row) sync(row); });
+    list.addEventListener('invalid', e => { const row = e.target.closest('.erow'); if (row) setOpen(row, true); }, true);
+  });
+})();
+</script>
 {% endblock %}
