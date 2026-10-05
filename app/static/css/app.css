@@ -17583,6 +17583,13 @@ body.embed .fb-side .fb-search input { background: var(--panel); }
 .fb-side-link[aria-current="true"]::before { content: ""; position: absolute; left: -4px; top: 8px; bottom: 8px;
   width: 3px; border-radius: 2px; background: var(--brand); }
 .fb-side-link.is-empty:not([aria-current]) { opacity: .5; }
+/* Back to the level above (a library to the Libraries list): a quiet
+   link heading the sidebar, ruled off from the filters under it. */
+.fb-side-back { display: flex; align-items: center; gap: 8px; margin: -4px 0 0; padding: 8px 10px 12px;
+  border-bottom: 1px solid var(--border); color: var(--muted); font-size: var(--fs-sm); font-weight: 600; text-decoration: none; }
+.fb-side-back > .icon { width: 16px; height: 16px; flex: 0 0 auto; transition: transform 120ms ease; }
+.fb-side-back:hover { color: var(--access, var(--brand)); text-decoration: none; }
+.fb-side-back:hover > .icon { transform: translateX(-2px); }
 .fb-side-count { margin-left: auto; font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
 .fb-side-link[aria-current="true"] .fb-side-count { color: inherit; }
 .fb-side-sort { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 2px; }
