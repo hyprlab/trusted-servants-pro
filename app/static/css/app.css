@@ -17587,7 +17587,9 @@ body.embed .fb-side .fb-search input { background: var(--panel); }
    arrow button to the left of the count, on its row. */
 .fb-side-toprow { display: flex; align-items: center; gap: 8px; }
 .fb-side-toprow > .fb-side-top { flex: 1 1 auto; min-width: 0; }
-.fb-side-back { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 30px; height: 30px;
+/* The negative margins keep the row at the count's line height, so the
+   sidebar sits exactly where it does on pages without the button. */
+.fb-side-back { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 30px; height: 30px; margin: -6px 0;
   border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--muted); text-decoration: none;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease; }
 .fb-side-back > .icon { width: 16px; height: 16px; transition: transform 120ms ease; }
