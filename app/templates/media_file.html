@@ -55,7 +55,16 @@
           <p>This file is missing from storage, so it can't be shown or downloaded.</p>
         </div>
         {% elif t == 'img' %}
-        <div class="lightbox-body fb-file-stage"><img class="fb-file-media" src="{{ _pub }}" alt="{{ m.original_filename }}"></div>
+        {# Zooms in place (image_lightbox.js): click, wheel or pinch, the
+           buttons, or + - 0. #}
+        <div class="lightbox-body fb-file-stage" data-zoom-stage>
+          <img class="fb-file-media" src="{{ _pub }}" alt="{{ m.original_filename }}">
+          <div class="ilb-tools" data-zoom-tools hidden>
+            <button type="button" class="ilb-btn" data-zoom="out" title="Zoom out (-)" aria-label="Zoom out">{{ icon('minus') }}</button>
+            <button type="button" class="ilb-zoom" data-zoom="fit" title="Fit (0)" aria-label="Fit">100%</button>
+            <button type="button" class="ilb-btn" data-zoom="in" title="Zoom in (+)" aria-label="Zoom in">{{ icon('plus') }}</button>
+          </div>
+        </div>
         {% elif ext == 'pdf' %}
         <div class="lightbox-body fb-file-stage"><iframe class="fb-file-media fb-file-pdf" src="{{ _pub }}#toolbar=1&navpanes=0" title="{{ m.original_filename }}"></iframe></div>
         {% elif t == 'vid' %}

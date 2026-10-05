@@ -1576,6 +1576,8 @@
       const sel = KEYS[e.key];
       if (!sel || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       if (!document.querySelector("[data-fb-file]") || document.querySelector(".modal.open, .row-menu.is-open")) return;
+      // Esc on a zoomed image fits it again (image_lightbox.js) first.
+      if (e.key === "Escape" && document.querySelector("[data-zoom-stage].is-zoomed")) return;
       const t = e.target;
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT|VIDEO|AUDIO)$/.test(t.tagName))) return;
       const link = document.querySelector(sel);

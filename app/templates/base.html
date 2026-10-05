@@ -2976,6 +2976,9 @@
   <span class="fb-side-chip-x">{{ icon('x') }}</span>
 </template>
 <script src="{{ url_for('static', filename='js/app.js', v=app_build_id) }}"></script>
+{# Photo zoom: the lightbox (Zoom Tech Training) and in place (a File
+   Browser file's view). #}
+<script src="{{ url_for('static', filename='js/image_lightbox.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/tour.js', v=app_build_id) }}"></script>
 
 {% if current_user.is_authenticated %}

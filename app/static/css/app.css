@@ -17345,17 +17345,25 @@ html.ilb-open, html.ilb-open body { overflow: hidden; }
   opacity: 0; transition: opacity 160ms ease; touch-action: none; }
 .ilb.is-open { opacity: 1; }
 .ilb[hidden] { display: none; }
-.ilb-stage { position: absolute; inset: 0; overflow: hidden; cursor: zoom-in; }
-.ilb.is-zoomed .ilb-stage { cursor: grab; }
-.ilb.is-zoomed .ilb-stage:active { cursor: grabbing; }
-.ilb-img { position: absolute; left: 50%; top: 50%; max-width: none; max-height: none; margin: 0;
-  transform-origin: center; user-select: none; -webkit-user-drag: none; opacity: 0;
-  border-radius: var(--r-xs); box-shadow: 0 10px 40px rgba(0, 0, 0, .5); transition: opacity 140ms ease; }
+.ilb-stage { position: absolute; inset: 0; overflow: hidden; }
+/* The same zoom in place: an image in a [data-zoom-stage] (a File
+   Browser file's view) once image_lightbox.js has set it up. At fit
+   size a touch can still scroll the page. */
+.ilb-stage, [data-zoom-stage].is-zoomable { cursor: zoom-in; }
+[data-zoom-stage].is-zoomable { touch-action: pan-y; }
+.ilb.is-zoomed .ilb-stage, [data-zoom-stage].is-zoomed { cursor: grab; touch-action: none; }
+.ilb.is-zoomed .ilb-stage:active, [data-zoom-stage].is-zoomed:active { cursor: grabbing; }
+.ilb-img, [data-zoom-stage].is-zoomable > img { position: absolute; left: 50%; top: 50%; max-width: none; max-height: none; margin: 0;
+  transform-origin: center; user-select: none; -webkit-user-drag: none; }
+.ilb-img { opacity: 0; border-radius: var(--r-xs); box-shadow: 0 10px 40px rgba(0, 0, 0, .5); transition: opacity 140ms ease; }
 .ilb-img.is-ready { opacity: 1; }
 .ilb-bar { position: absolute; top: 0; left: 0; right: 0; height: 60px; pointer-events: none; display: flex; align-items: center;
   justify-content: space-between; gap: var(--gap-lg); padding: 0 12px 0 20px; }
 .ilb-count { font-size: var(--fs-sm); font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .75); padding: 4px 10px; border-radius: var(--r-md); background: rgba(8, 10, 16, .55); }
 .ilb-tools { display: flex; align-items: center; gap: var(--gap-2xs); pointer-events: auto; }
+/* In place, the zoom buttons float at the foot of the image. */
+[data-zoom-tools] { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 1; cursor: default; }
+[data-zoom-tools][hidden] { display: none; }
 .ilb-count:empty { display: none; }
 .ilb-btn, .ilb-zoom, .ilb-nav { display: inline-flex; align-items: center; justify-content: center; border: 0;
   background: rgba(40, 44, 56, .72); color: #fff; cursor: pointer; text-decoration: none; }
