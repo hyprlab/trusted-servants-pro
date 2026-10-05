@@ -536,6 +536,9 @@
    the standalone /submissionform URL. JS handler is in the inline
    block lower down. #}
 {% include "frontend/_submission_modal.html" %}
+{# Request Access popup, for signed-out visitors: opened from the Request
+   access link under Login in the mega menu and the footer. #}
+{% if not current_user.is_authenticated %}{% include "frontend/_request_access_modal.html" %}{% endif %}
 
 {# Global GSR Summary modal — opened by the utility-bar GSR button on any
    page. Self-contained (markup + style + JS in the partial). #}

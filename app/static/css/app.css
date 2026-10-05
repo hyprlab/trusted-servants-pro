@@ -17961,6 +17961,12 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
    primary button looked ready). */
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 
+/* The Request Access form's honeypot (login.html): off screen, out of
+   the tab order, for bots only. */
+.request-access-hp { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.request-access-turnstile { display: flex; justify-content: center; }
+
 /* ── Alert bar (_site_alert.html, Settings > Alert Bar): a message every
    signed-in user sees above the top bar, at the foot of the sidebar or
    on the dashboard, in one of four tones. ─────────────────────────── */

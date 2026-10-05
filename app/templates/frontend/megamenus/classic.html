@@ -120,6 +120,9 @@
                 <span>Login</span>
                 {% if link.icon_after %}<span class="fe-megamenu-classic-icon"{{ _icon_style(link.icon_after_color, link.icon_after_size)|safe }}>{{ icon(link.icon_after) }}</span>{% endif %}
               </a>
+              {# Request access: the public popup (frontend/_request_access_modal.html), or the sign-in page's form without JavaScript. #}
+              <a href="{{ url_for('auth.login') }}#request-access" class="fe-megamenu-request-access" data-fe-form-trigger="request-access"
+                 {{ _scale_style|safe }}>Request access</a>
               {%- endif -%}
             {% else %}
               {% set _link_cls = 'fe-megamenu-classic-link' %}

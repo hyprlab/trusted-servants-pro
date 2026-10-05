@@ -70,7 +70,9 @@
         </div>
         <label>Role
           <select name="role">
-            {% for r in roles %}<option value="{{ r }}">{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
+            {# Viewer unless changed: an account made in a hurry (an access
+               request's Create user) never starts with admin rights. #}
+            {% for r in roles %}<option value="{{ r }}"{% if r == 'viewer' %} selected{% endif %}>{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
           </select>
         </label>
         <label class="check welcome-email-check">

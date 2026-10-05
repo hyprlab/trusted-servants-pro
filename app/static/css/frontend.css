@@ -11990,6 +11990,35 @@ body.fe-footer-force-dark .fe-footer-admin-login--logout:focus-visible {
 .fe-custom-form-desc { margin: 0 0 1.25rem; color: var(--fe-color-text-soft, #475569); }
 .fe-custom-form { display: flex; flex-direction: column; gap: 1rem; position: relative; }
 
+/* ── Request access (frontend/_request_access_modal.html) ──────────
+   The link under Login in the mega menu and the footer: a plain text
+   link in the surrounding color, on its own line under the button.
+   The popup's thank-you and error reuse the form's colors. */
+.fe-megamenu-request-access,
+.fe-footer-request-access {
+  display: block; width: fit-content; margin-top: 8px;
+  font-size: 0.8125em; font-weight: 600; color: inherit;
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px;
+}
+/* In the mega menu, in line with the Login button above it, which
+   carries the menu buttons' 6px 10px margin. */
+.fe-megamenu-request-access { font-size: calc(0.8125rem * var(--fe-mm-link-scale, 1)); margin: 2px 10px 6px; }
+.fe-megamenu-request-access:hover,
+.fe-footer-request-access:hover { text-decoration-thickness: 2px; }
+.fe-request-access-error {
+  margin: 0; padding: 10px 12px; border-radius: 8px;
+  background: #fdecec; color: #7f1d1d; font-size: 0.875rem;
+}
+.fe-request-access-error[hidden] { display: none; }
+html[data-theme="dark"] .fe-request-access-error,
+body.fe-frontend-force-dark .fe-request-access-error { background: #381416; color: #fecaca; }
+.fe-request-access-done { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 32px 8px; text-align: center; }
+.fe-request-access-done[hidden] { display: none; }
+.fe-request-access-modal form[hidden] { display: none; }
+.fe-request-access-done h3 { margin: 4px 0 0; font-size: 1.125rem; }
+.fe-request-access-done p { margin: 0; }
+.fe-request-access-done-icon .icon { width: 40px; height: 40px; color: #16a34a; }
+
 /* ── Submit progress UX ─────────────────────────────────────────────
    Inline button spinner + a soft full-form overlay shown while the
    submission is in flight, so the visitor sees clear progress (and a

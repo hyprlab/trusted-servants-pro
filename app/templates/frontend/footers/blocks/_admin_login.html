@@ -23,5 +23,7 @@
   <a class="fe-footer-admin-login" href="{{ url_for('auth.login') }}">
     {{ icon('log-in') }}<span>Login</span>
   </a>
+  {# Request access: the public popup (frontend/_request_access_modal.html), or the sign-in page's form without JavaScript. #}
+  <a class="fe-footer-request-access" href="{{ url_for('auth.login') }}#request-access" data-fe-form-trigger="request-access">Request access</a>
   {% endif %}
 </div>

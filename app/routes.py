@@ -17904,27 +17904,55 @@ ACCESS_ROLE_OPTIONS = [
 ]
 
 
+@public_bp.app_context_processor
+def _inject_access_roles():
+    """The Request Access form's roles, for the sign-in page and the
+    public site's popup (frontend/_request_access_modal.html)."""
+    return {"ACCESS_ROLE_OPTIONS": ACCESS_ROLE_OPTIONS}
+
+
 @public_bp.route("/request-access", methods=["POST"])
 def request_access_submit():
     import json
     from flask import jsonify as _jsonify
     from .mail import send_mail
 
-    name = (request.form.get("name") or "").strip()
-    phone = (request.form.get("phone") or "").strip()
-    email = (request.form.get("email") or "").strip()
+    name = (request.form.get("name") or "").strip()[:200]
+    phone = (request.form.get("phone") or "").strip()[:64]
+    email = (request.form.get("email") or "").strip()[:255]
     roles = [r for r in request.form.getlist("roles") if r in ACCESS_ROLE_OPTIONS]
-    meeting_name = (request.form.get("meeting_name") or "").strip() or None
+    meeting_name = (request.form.get("meeting_name") or "").strip()[:200] or None
 
     wants_json = request.headers.get("X-Requested-With") == "fetch" \
                  or request.accept_mimetypes.best == "application/json"
+    thanks = "Thanks, your request has been submitted. An administrator will follow up by email."
 
-    if not name or not phone or not email or not roles:
-        msg = "Name, phone, email, and at least one role are required."
+    # The form is on the public site too (frontend/_request_access_modal
+    # .html), so it has the public forms' guards. A filled honeypot is a
+    # bot: answer as if it worked, write nothing, send nothing.
+    if (request.form.get("website") or "").strip():
+        if wants_json:
+            return _jsonify(ok=True, emailed=True, error=None)
+        flash(thanks, "success")
+        return redirect(url_for("auth.login"))
+
+    def _refuse(msg):
         if wants_json:
             return _jsonify(ok=False, error=msg), 400
         flash(msg, "danger")
         return redirect(url_for("auth.login"))
+
+    if not name or not phone or not email or not roles:
+        return _refuse("Name, phone, email, and at least one role are required.")
+    if "@" not in email or "." not in email.split("@", 1)[-1]:
+        return _refuse("That email address doesn't look right. Check it and try again.")
+
+    s = _get_site_setting()
+    if s.turnstile_enabled:
+        from .auth import _verify_turnstile
+        ok, err = _verify_turnstile(s, request.form.get("cf-turnstile-response", ""), request.remote_addr)
+        if not ok:
+            return _refuse(err or "The security check failed. Please try again.")
 
     from .frontend import _client_ip
     req = AccessRequest(name=name, phone=phone, email=email,
@@ -17933,7 +17961,6 @@ def request_access_submit():
     db.session.add(req)
     db.session.commit()
 
-    s = _get_site_setting()
     mail_error = None
     if s.mail_ready() and s.access_request_to:
         lines = [
@@ -17973,7 +18000,7 @@ def request_access_submit():
 
     if wants_json:
         return _jsonify(ok=True, emailed=mail_error is None, error=mail_error)
-    flash("Thanks — your request has been submitted. An administrator will follow up by email.", "success")
+    flash(thanks, "success")
     return redirect(url_for("auth.login"))
 
 

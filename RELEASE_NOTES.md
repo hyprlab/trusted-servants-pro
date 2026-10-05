@@ -9,6 +9,9 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Creating a user, including from an access request, now starts with the Viewer role instead of Admin, so no account gets admin rights by accident.
+- Visitors to the public site can request access without going to the sign-in page: a Request access link under the Login button in the mega menu and in the footer opens the form as a popup, and it thanks them in place when sent.
+- The Request Access form, on the public site and the sign-in page, now has the same spam protection as the other public forms: a hidden trap field for bots, and the Turnstile check when it's turned on.
 - On a phone, the top bar's menu button and page title are centered in the bar on pages with no buttons beside the title.
 - On a phone, list pages put the list first: the filters, sort and view fold away behind a Filters button beside the search, which counts the filters in use. Each filter in use shows as a chip under the search; tap its x to clear it. Zoom Accounts keeps its one-time passcode tools in view.
 - Every page has the same 20px of space around its content, on all four sides, matching the gap between a list's filter sidebar and the list (14px on phones, as before). The page heading and the yellow save bars line up with it.
