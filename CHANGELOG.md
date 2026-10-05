@@ -173,6 +173,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
 
 ### Fixed
+- Settings on a phone (720px and under): the active pane is padded 14px (gap 14px) and its cards 16px with 14px between them, and the pane and section-list heads 12px 14px, overriding each pane's desktop 20px 24px (or 2rem) and the cards' 18px 20px; iframe panes keep no padding.
 - An empty `.top-actions` is hidden (`:not(:has(*))`): on a phone it wrapped to a second line and its row gap left the top bar 10px taller under the heading.
 - Help tooltips (`.heading-help`) clipped by a scrolling or overflow-hidden ancestor, such as the list sidebar `.fb-side`, float: app.js moves the tooltip to `<body>` as `.help-tooltip.is-floating` (fixed, above modals) beside its button, flips it above when there is no room below, and puts it back on close, Escape, scroll or resize.
 - `zoom_account_delete` sets `zoom_account_id` to NULL on `MeetingSchedule` and `Meeting` rows itself: SQLite here doesn't enforce the `ON DELETE SET NULL`.

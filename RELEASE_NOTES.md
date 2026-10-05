@@ -9,6 +9,7 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- On a phone, Settings uses the same spacing as the rest of the app: 14px around each section and 16px inside its cards, in place of wider desktop padding.
 - New users join the Trusted Servants Email List when they're created, with their name, email and phone; clear Add to the Email List on the Create user form to leave someone off. If their email is already on the list, that entry is linked to the account rather than doubled.
 - The dashboard's Join the email list widget is retired, since people no longer share accounts and new users join the list when they're created.
 - Creating a user, including from an access request, now starts with the Viewer role instead of Admin, so no account gets admin rights by accident.

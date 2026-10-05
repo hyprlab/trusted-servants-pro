@@ -7358,6 +7358,17 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   }
   body:not(.frontend-body) .modal-panel > form { max-height: none; flex: 1 1 auto; min-height: 0; }
   #settings-modal .settings-body { flex: 1 1 auto; height: auto; min-height: 0; }
+  /* The same spacing as the rest of the app on a phone: 14px around a
+     section (the content's padding), 16px inside a card, 14px between
+     cards, and the heads padded like the top bar. The ID wins over each
+     pane's own desktop padding; a pane that holds a page in an iframe
+     keeps none. */
+  #settings-modal .settings-main-head,
+  #settings-modal .settings-nav-head { padding: 12px 14px; }
+  #settings-modal .settings-pane.active:not(:has(> iframe.settings-frame)) { padding: 14px; gap: 14px; }
+  #settings-modal .settings-pane .card { padding: 16px; }
+  #settings-modal .settings-pane .data-card { margin-bottom: 14px; }
+  #settings-modal .settings-pane .data-card:last-child { margin-bottom: 0; }
   .zoom-info dd:has(> .btn-primary) { grid-column: 1 / -1; }
   .zoom-info dt:has(+ dd > .btn-primary) { display: none; }
   .zoom-info .btn-primary { display: block; width: 100%; text-align: center; }
