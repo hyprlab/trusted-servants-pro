@@ -47,10 +47,10 @@ Typical runtime is 2–5 minutes on a fresh VM.
 
 The installer prints the portal URL when it's done (either `https://<your-domain>` or `https://<server-ip>`). Sign in with:
 
-- Username: `admin`
-- Password: `admin`
+- Username: `admin` (or your `TSP_ADMIN_USERNAME`)
+- Password: the one the installer printed. It generated a random one unless you passed `TSP_ADMIN_PASSWORD`, and it is also in `/opt/tspro/.env`.
 
-**Change the admin password immediately** from Settings → Users.
+The first sign-in walks the admin through setting up two-factor authentication. Then change the password from Settings → Users.
 
 ## 5. Optional: non-interactive installs
 
@@ -69,7 +69,7 @@ sudo TSP_DOMAIN=portal.example.org \
 | `TSP_IMAGE` | `hyprlab/tspro:latest` | Image tag to deploy. |
 | `TSP_DOMAIN` | _unset_ | Public hostname. If set, Caddy requests a Let's Encrypt cert. |
 | `TSP_ACME_EMAIL` | `admin@$TSP_DOMAIN` | Contact address for cert renewal notices. |
-| `TSP_ADMIN_USERNAME` / `TSP_ADMIN_PASSWORD` / `TSP_ADMIN_EMAIL` | `admin` / `admin` / `admin@example.com` | Seeded on first boot only. |
+| `TSP_ADMIN_USERNAME` / `TSP_ADMIN_PASSWORD` / `TSP_ADMIN_EMAIL` | `admin` / _random, printed at the end_ / `admin@example.com` | Seeded on first boot only. |
 
 ## 6. Upgrading and day-to-day commands
 
