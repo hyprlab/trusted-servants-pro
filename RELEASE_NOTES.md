@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- On a meeting's page in the Classic layout, there's more space between the meeting's heading and its cards.
+
 ## 3.0.1 — 2026-10-06 (latest)
 
 - A library item with no file, such as a reading written in the page, no longer breaks the public Literature Library page or a meeting's page.

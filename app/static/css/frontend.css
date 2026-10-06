@@ -3597,7 +3597,7 @@ html[data-theme="dark"] .fe-event-date-year { color: var(--fe-dm-text-muted, #94
    without any reserved gutter. */
 .fe-meeting-detail-head {
   display: flex; align-items: flex-start; gap: 28px;
-  margin-bottom: 32px;
+  margin-bottom: 4rem;
 }
 .fe-meeting-detail-head-logo { flex: 0 0 auto; }
 .fe-meeting-detail-head-logo .fe-meeting-logo {
