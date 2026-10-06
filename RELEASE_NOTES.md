@@ -9,13 +9,15 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
-- Every website theme except Recovery Blue is redesigned, in both light and dark mode, and now styles every public page, including stories, the blog and forms:
-  - Classic is quieter and more polished, with a deep ink dark mode.
-  - Modern Dark uses glass panels under a soft aurora light.
-  - Cyberpunk is a neon heads-up display with cut-corner panels.
-  - Sanctuary is warm and bookish, with a candlelit dark mode.
-  - Terminal looks like a terminal app, with windowed panels and bracketed buttons.
-  - Neobrutal gives each part of the site its own color.
+## 3.1.0 — 2026-10-06 (latest)
+
+- Every website theme except Recovery Blue is redesigned, in both light and dark mode, and now styles every public page, including stories, the blog and forms.
+- The Classic theme is quieter and more polished, with a deep ink dark mode.
+- The Modern Dark theme uses glass panels under a soft aurora light.
+- The Cyberpunk theme is a neon heads-up display with cut-corner panels.
+- The Sanctuary theme is warm and bookish, with a candlelit dark mode.
+- The Terminal theme looks like a terminal app, with windowed panels and bracketed buttons.
+- The Neobrutal theme gives each part of the site its own color.
 - JetBrains Mono and Space Grotesk are new choices in the font picker.
 - On phones, the menu in the Modern Dark, Cyberpunk, Sanctuary, Terminal and Neobrutal headers opens below the header instead of over the logo.
 - When someone requests access with an email that already has an account, that inbox is sent the username with a sign-in link and a password reset link. The form shows everyone the same reply, so it doesn't reveal who has an account.
@@ -26,7 +28,7 @@ release notes expanded by default and the changelog collapsed.
 - In Settings, the Users and Locations sections scroll all the way to the top edge like the other sections, instead of cutting off below the close button.
 - Pop-ups opened from Settings, such as Edit user, no longer dim or blur what's behind them.
 
-## 3.0.3 — 2026-10-06 (latest)
+## 3.0.3 — 2026-10-06
 
 - Werkzeug, the web library the app runs on, is updated to 3.1.9 for a security fix. The flaw affects only servers running on Windows, so Docker installs were not exposed.
 

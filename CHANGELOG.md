@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.1.0] — 2026-10-06
+
 ### Added
 - Vendored fonts: JetBrains Mono (variable, upright and italic) and Space Grotesk (variable), latin and latin-ext subsets under `app/static/fonts/`, with `@font-face` in `app.css` and `FONTS` entries `jetbrains-mono` and `space-grotesk`. Lora Italic (variable) is vendored beside Lora, its `@font-face` in `themes/sanctuary.css`.
 - `themes/classic.css`: Classic's own scoped stylesheet. `frontend/base.html` now loads `themes/<key>.css` for every theme but Recovery Blue, which still lives unscoped in `frontend.css`.
