@@ -19,6 +19,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The access request reply reads "Watch your email for next steps." on the sign-in page and the public popup, true whether or not the email already has an account.
 
 ### Fixed
+- Settings sections that are pages in an iframe (Users, Locations) had `padding-top: 46px` on the pane on wide screens, so the page scrolled out of sight below that line. The pane now has none, and the embedded page pads its `.embed-content` by the same `calc(46px + var(--content-px))` as the other sections when `html.in-settings-float-close` is set. `base.html` sets that class, and `.in-settings`, in an embedded page whose iframe is inside `#settings-modal`, following the Settings window's 721px breakpoint rather than the iframe's.
+- Modals opened from Settings, in its window or in a section's page, get a clear `.modal-backdrop` (no dim, no `backdrop-filter`) that still closes them on click.
 - `users.html`: the `@username` handle beside a name is left out when the username is the account's email, which the line below already shows.
 - `frontend.css`: the themed header's mobile `.fe-th-nav` drops from `top: 100%` instead of `var(--fe-header-h)`, which left out the utility bar inside `.fe-header-themed` and opened the menu over the logo row.
 

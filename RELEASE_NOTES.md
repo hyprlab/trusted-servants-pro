@@ -21,6 +21,8 @@ release notes expanded by default and the changelog collapsed.
 - When someone requests access with an email that already has an account, that inbox is sent the username with a sign-in link and a password reset link. The form shows everyone the same reply, so it doesn't reveal who has an account.
 - In Watchtower, a request from an email that already has an account shows that account, and its menu offers Reset Password instead of Create User. The admin notification says so too.
 - In Settings > Users, an account whose username is its email no longer shows the email twice.
+- In Settings, the Users and Locations sections scroll all the way to the top edge like the other sections, instead of cutting off below the close button.
+- Pop-ups opened from Settings, such as Edit user, no longer dim or blur what's behind them.
 
 ## 3.0.3 — 2026-10-06 (latest)
 

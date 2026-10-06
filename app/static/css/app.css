@@ -16188,9 +16188,18 @@ a.dash-stat--link .dash-stat-value { color: var(--access, var(--brand)); }
   /* Room for the close button above each section's first card. */
   #settings-modal .settings-pane.active,
   #settings-modal .settings-pane.active:not(:has(> iframe.settings-frame)) { padding-top: calc(46px + var(--content-px)); }
+  /* A section that is a page in an iframe runs to the pane's top edge and
+     scrolls there like the others; the page makes the same room itself
+     (the rule after this block). */
   #settings-modal .settings-pane.active:has(> iframe.settings-frame),
-  #settings-modal .settings-pane.active:has(> .settings-frame) { padding-top: 46px; }
+  #settings-modal .settings-pane.active:has(> .settings-frame) { padding-top: 0; }
 }
+html.in-settings-float-close body.embed .embed-content { padding-top: calc(46px + var(--content-px)); }
+/* Modals opened from Settings sit over it with no dim and no blur, whether
+   they open in the Settings window or in a section's page. The backdrop is
+   kept, clear, so a click outside still closes them. */
+body:has(#settings-modal.open) .modal.open:not(#settings-modal) > .modal-backdrop,
+html.in-settings .modal-backdrop { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
 #settings-modal .settings-body, .settings-frame, body.embed { background: var(--bg); }
 
 /* Meeting page: the Zoom card on a pale blue (a deep, quiet blue in dark
