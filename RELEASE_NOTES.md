@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- A library item with no file, such as a reading written in the page, no longer breaks the public Literature Library page or a meeting's page.
+
 ## 3.0.0 — 2026-10-05 (latest)
 
 - Opening a file in the File Browser shows it in the page instead of a pop-up, without reloading: the file on the left (images, PDFs and videos play in place, audio has a player) and a column of details on the right. The details give its full link (click it to copy), its kind, format, size, image dimensions (and, for photos, when and on what camera they were taken), when and by whom it was uploaded, and every meeting, library, post, story or page that uses it. A file missing from storage says so. The back arrow (or Esc) returns to the list where you left it; the arrows in the top bar (or the Left and Right keys) step through the files in the list's order, search and filters. In the picker, a file's view has a Select button.

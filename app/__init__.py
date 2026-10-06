@@ -251,7 +251,7 @@ def create_app():
         if ext in ("mp4", "mov", "avi", "mkv", "webm"): return "vid"
         if ext in ("mp3", "wav", "m4a", "ogg", "flac"): return "aud"
         if ext in ("txt", "md"): return "doc"
-        if not ext and getattr(reading, "url", None): return "link"
+        if not ext and getattr(src, "url", None): return "link"
         return "file"
 
     # HTML sanitisation runs through nh3 (Rust bindings for ammonia) —
