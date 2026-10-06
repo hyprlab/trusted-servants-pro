@@ -118,20 +118,29 @@ HEADER_TEMPLATES = [
     },
 ]
 
-# Each prebuilt footer's "shape" expressed as a synthetic block list, used
-# only by the layout-picker modal to render the stacked colour-chip preview
-# next to each card. The actual render still goes through the Jinja file
-# named in the corresponding FOOTER_TEMPLATES entry — these chips are pure
-# decoration so the picker modal can show what each prebuilt looks like
-# at-a-glance.
-_FOOTER_PREBUILT_PREVIEWS = {
-    "classic":      [{"type": "brand"}, {"type": "link_columns"}, {"type": "copyright"},
-                     {"type": "secondary_nav"}, {"type": "social_row"}],
-    "minimal":      [{"type": "copyright"}, {"type": "secondary_nav"}],
-    "stacked":      [{"type": "brand"}, {"type": "link_columns"}, {"type": "social_row"},
-                     {"type": "copyright"}],
-    "mega":         [{"type": "brand"}, {"type": "link_columns"}, {"type": "link_columns"},
-                     {"type": "copyright"}, {"type": "secondary_nav"}],
+# The blocks each prebuilt footer renders, in reading order, taken from
+# its Jinja file. The Footer admin marks content these layouts don't
+# show, and the layout picker's chips draw from it.
+FOOTER_PREBUILT_BLOCKS = {
+    "classic": ["brand", "link_columns", "copyright", "secondary_nav", "social_row"],
+    "minimal": ["copyright", "secondary_nav"],
+    "stacked": ["brand", "link_columns", "social_row", "secondary_nav", "copyright"],
+    "mega":    ["brand", "social_row", "link_columns", "copyright", "secondary_nav"],
+}
+_FOOTER_PREBUILT_PREVIEWS = {k: [{"type": t} for t in v] for k, v in FOOTER_PREBUILT_BLOCKS.items()}
+
+# A prebuilt's arrangement as custom-layout rows, the starting point when
+# the admin asks to customize it. An approximation: the prebuilt files
+# add their own alignment and spacing, which the custom renderer doesn't.
+def _r(*cols):
+    return {"type": "row", "cols": len(cols), "columns": [[{"type": t} for t in c] for c in cols]}
+
+
+FOOTER_PREBUILT_ROWS = {
+    "classic": [_r(["brand"], ["link_columns"], ["copyright"]), _r(["secondary_nav"], ["social_row"])],
+    "minimal": [_r(["copyright"], ["secondary_nav"])],
+    "stacked": [_r(["brand"]), _r(["link_columns"]), _r(["social_row"]), _r(["secondary_nav"]), _r(["copyright"])],
+    "mega":    [_r(["brand", "social_row"], ["link_columns"]), _r(["copyright"], ["secondary_nav"])],
 }
 
 
@@ -163,7 +172,7 @@ FOOTER_BLOCK_CATALOG = [
     {"key": "admin_login",   "name": "Admin login",    "icon": "log-in",
      "desc": "Pill-style link to the admin sign-in page. Authenticated users get redirected straight to the dashboard."},
     {"key": "privacy_links", "name": "Privacy & cookies", "icon": "shield",
-     "desc": "Privacy policy link + a \"Cookie settings\" button that re-prompts the cookie banner. Both pieces appear only when the matching feature is configured under Web Frontend → Cookie Compliance."},
+     "desc": "Privacy policy link + a \"Cookie settings\" button that re-prompts the cookie banner. Both pieces appear only when the matching feature is configured under Web Frontend → Privacy & cookies."},
 ]
 
 
@@ -317,6 +326,20 @@ THEMES = [
 # visitor's own saved sun/moon choice still wins via localStorage). Themes
 # absent from this map leave the admin's existing default untouched.
 THEME_DEFAULT_MODE = {t["key"]: t["default_mode"] for t in THEMES if t.get("default_mode")}
+
+# Which light/dark modes draw the utility bar in its admin-chosen colors.
+# The other themes paint it themselves (themes/<key>.css), so Design →
+# Header marks the colors as unused there.
+# Themes whose footer shows the Design → Footer background and colors.
+# The others paint the footer themselves (themes/<key>.css, with
+# !important), so the admin marks those settings as unused there.
+FOOTER_SURFACE_THEMES = {"classic", "recovery-blue"}
+
+UTILITY_BAR_COLOR_MODES = {
+    "classic": ("light", "dark"),
+    "recovery-blue": ("light", "dark"),
+    "modern-dark": ("light",),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -1070,7 +1093,14 @@ def template_settings(site, kind, key):
               "bg_dynbg_overlay_scope", "bg_dynbg_overlay_size",
               "bg_dynbg_overlay_intensity", "bg_dynbg_randomize_colors",
               "bg_dynbg_randomize_positions", "bg_dynbg_animate",
-              "bg_dynbg_pastel_light", "bg_dynbg_knobs",
+              "bg_dynbg_tone", "bg_dynbg_modes", "bg_dynbg_knobs",
+              # `bg_dynbg_v` marks a leaf written since the light/dark
+              # rework and `bg_dynbg_pastel_light` is the retired
+              # light-mode wash — the classic-recipe fallback reads both
+              # (see dynbg.render_key / _legacy_mode_from), so they have
+              # to survive this allowlist or every per-template surface
+              # would look un-migrated forever.
+              "bg_dynbg_v", "bg_dynbg_pastel_light",
               # Classic blog detail rail toggles — present only when
               # explicitly disabled, so a missing key means "show".
               "show_related_widget", "show_categories_widget",
@@ -1206,6 +1236,9 @@ def _accept_matches(rule, file_storage):
     return False
 
 
+from .widths import normalize_width_mode, resolve_width  # noqa: E402
+
+
 def _site():
     return SiteSetting.query.first()
 
@@ -1299,7 +1332,6 @@ def _frontend_context(site):
         "frontend_contact_heading": (site.frontend_contact_heading if site else None)
             or "Need Help Right Now?",
         "frontend_contact_body": (site.frontend_contact_body if site else None) or "",
-        "frontend_footer_text": (site.frontend_footer_text if site else None) or "",
     }
 
 
@@ -1361,7 +1393,10 @@ def _inject_cookie_compliance():
                 "Reject non-essential" if effective != "notice" else ""),
             "more_label": getattr(site, "cookie_compliance_more_label", None) or "Privacy policy",
             "policy_url": policy_url,
-            "remember_days": getattr(site, "cookie_compliance_remember_days", None) or 365,
+            # 0 is a real setting (a session cookie), so only a missing
+            # value falls back to the default.
+            "remember_days": (365 if getattr(site, "cookie_compliance_remember_days", None) is None
+                              else site.cookie_compliance_remember_days),
         }}
     except Exception:
         return {"cookie_compliance": {"enabled": False}}
@@ -1370,7 +1405,7 @@ def _inject_cookie_compliance():
 def _page_og(site, title=None, description=None, image_url=None):
     """Build the per-page Open Graph override context consumed by
     ``frontend/base.html``. Any arg left None / empty falls back to the
-    site-wide ``frontend_og_*`` defaults set under Branding & SEO.
+    site-wide ``frontend_og_*`` defaults set on Branding.
 
     Returns a dict ready to splat into ``render_template``::
 
@@ -1433,18 +1468,53 @@ def _frontend_gate(site):
     return None
 
 
-def _post_live_clause():
-    """Public-visibility gate for scheduled posts. A post whose
-    ``published_at`` is in the future is hidden from every public surface
-    (lists, detail pages, sitemap, calendar feeds) until that moment, when
-    it appears automatically. A NULL ``published_at`` (legacy / WP imports)
-    is always visible. Compared in site-local-naive to match how
-    ``published_at`` is stored and parsed from the editor's datetime input.
-    Chain it onto any public ``Post.query``."""
+def _post_live_clause(site=None):
+    """The complete public-visibility gate for posts. Chain it onto
+    **every** public ``Post.query`` — a query that omits it leaks
+    scheduled, draft, unreviewed, or admin-hidden posts, and because the
+    omission is invisible until someone actually uses one of those
+    states, it tends to go unnoticed. Callers add their own *topical*
+    filters on top (is_event / is_announcement / is_archived); this
+    clause owns "may the public see it at all".
+
+    Four rules, in precedence order:
+
+    1. ``is_pending_review`` — a visitor submission awaiting an admin
+       decision is never public, and nothing overrides that.
+    2. ``public_visibility == 'private'`` — the admin's explicit hide.
+       Wins over every lifecycle flag.
+    3. ``public_visibility == 'public'`` — the admin's explicit publish.
+       Overrides both the draft flag and the publish schedule.
+    4. otherwise ('auto', including the NULL legacy rows) — public once
+       it isn't a draft and its ``published_at`` has arrived. A NULL
+       ``published_at`` (legacy / WP imports) counts as arrived.
+
+    Note what is *absent*: ``is_archived``. Archiving files a post under
+    the public /archive — it doesn't unpublish it. Lists that want only
+    live posts filter ``is_archived`` themselves.
+
+    ``published_at`` is compared in site-local-naive to match how it's
+    stored and parsed from the editor's datetime input.
+
+    ``site`` is optional so callers that already hold the SiteSetting row
+    (blocks.py, search.py) can pass it instead of paying for another
+    lookup; omitting it falls back to ``_site()`` as before."""
     from .timezone import now_local_naive
-    from sqlalchemy import or_
-    return or_(Post.published_at.is_(None),
-               Post.published_at <= now_local_naive(_site()))
+    from sqlalchemy import and_, or_
+    scheduled_ok = or_(Post.published_at.is_(None),
+                       Post.published_at <= now_local_naive(
+                           site if site is not None else _site()))
+    # NULL-safe comparisons: `col != 'private'` is NULL (→ excluded) on a
+    # NULL row, so legacy rows are spelled out rather than relying on the
+    # column default having backfilled them.
+    not_private = or_(Post.public_visibility.is_(None),
+                      Post.public_visibility != "private")
+    forced_public = Post.public_visibility == "public"
+    return and_(
+        Post.is_pending_review.is_(False),
+        not_private,
+        or_(forced_public, and_(Post.is_draft.is_(False), scheduled_ok)),
+    )
 
 
 def _post_in_archive(post):
@@ -1649,7 +1719,13 @@ def meeting_detail(slug):
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     # Resolve the meeting's free-text location to a saved Location row
@@ -1958,8 +2034,7 @@ def meetings_list():
     tpl = _template_meta(MEETINGS_LIST_TEMPLATES,
                          (site.frontend_meetings_list_template if site else None) or "sidebar")
     width_mode = (site.frontend_meetings_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         pad_pct = int(site.frontend_meetings_list_padding_pct) if site else 5
     except (TypeError, ValueError):
@@ -1977,8 +2052,8 @@ def meetings_list():
     return render_template("frontend/meetings_list.html",
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            list_current_day=current_day,
                            list_heading=list_heading,
@@ -2102,8 +2177,7 @@ def story_submission_form():
     tpl = _template_meta(SUBMISSION_FORM_TEMPLATES,
                          (site.frontend_submission_form_template if site else None) or "classic")
     width_mode = (site.frontend_submission_form_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_submission_form_max_width) if site else 720
     except (TypeError, ValueError):
@@ -2120,8 +2194,8 @@ def story_submission_form():
         "frontend/submission.html",
         submission_partial=tpl["partial"],
         submission_template_key=tpl["key"],
-        submission_width_mode=width_mode,
-        submission_max_width=max_width,
+        submission_width_mode=resolve_width(site, width_mode, max_width)[0],
+        submission_max_width=resolve_width(site, width_mode, max_width)[1],
         submission_padding_pct=pad_pct,
         tpl_style=tpl_style,
         heading_override=(site.story_form_heading if site else None) or "Share your story",
@@ -2150,6 +2224,23 @@ _STORY_ATTACHMENT_MAX_BYTES = 200 * 1024 * 1024
 
 class _StoryAttachmentTooLarge(Exception):
     """Internal sentinel for the streaming size check below."""
+
+
+def _story_email_required(site):
+    """Whether the story form's email field is required: the field
+    builder's ``required`` flag on ``submitter_email`` when the builder
+    has been saved, else the legacy ``story_form_email_required`` column.
+    Mirrors what ``_story_form_body.html`` marks as required."""
+    import json as _json
+    raw = getattr(site, "story_form_blocks_json", None) or ""
+    try:
+        blocks = _json.loads(raw) if raw else []
+    except (ValueError, TypeError):
+        blocks = []
+    for b in blocks if isinstance(blocks, list) else []:
+        if isinstance(b, dict) and b.get("name") == "submitter_email":
+            return bool(b.get("required"))
+    return bool(getattr(site, "story_form_email_required", False))
 
 
 def _rc_token_hash(token):
@@ -2202,7 +2293,7 @@ def story_submission_submit():
     submitter_email = (f.get("submitter_email") or "").strip()[:255]
     body = (f.get("body") or "").strip()
     accepted = f.get("accept_terms") == "1"
-    email_required = bool(getattr(site, "story_form_email_required", False))
+    email_required = _story_email_required(site)
 
     if not submitter_name:
         flash("Please include your name so we can follow up.", "danger")
@@ -2417,12 +2508,17 @@ def submission_form():
         "randomize_colors": _tpl_settings.get("bg_dynbg_randomize_colors", False),
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     width_mode = (site.frontend_submission_form_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_submission_form_max_width) if site else 720
     except (TypeError, ValueError):
@@ -2437,8 +2533,8 @@ def submission_form():
     return render_template("frontend/submission.html",
                            submission_partial=tpl["partial"],
                            submission_template_key=tpl["key"],
-                           submission_width_mode=width_mode,
-                           submission_max_width=max_width,
+                           submission_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           submission_max_width=resolve_width(site, width_mode, max_width)[1],
                            submission_padding_pct=pad_pct,
                            tpl_style=tpl_style,
                            tpl_dynbg_key=tpl_dynbg_key,
@@ -2868,6 +2964,9 @@ def literature_library():
     from .models import Library, LibraryItem
     libs = (Library.query
             .filter(Library.public_visible.is_(True))
+            # Archived libraries drop off the public page, the same way
+            # archived meetings do everywhere else in this module.
+            .filter(Library.archived_at.is_(None))
             .order_by(Library.name)
             .all())
     library_buckets = []
@@ -2913,8 +3012,7 @@ def literature_library():
     # as the archive page so the literature library inherits the same
     # horizontal geometry without yet another set of admin controls.
     width_mode = (site.frontend_events_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_events_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -2927,8 +3025,8 @@ def literature_library():
     pad_pct = max(0, min(20, pad_pct))
 
     return render_template("frontend/literature_library.html",
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            library_buckets=library_buckets,
                            total_items=total_items,
@@ -3054,13 +3152,18 @@ def fellowships_list():
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
 
     width_mode = (site.frontend_fellowships_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_fellowships_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3091,8 +3194,8 @@ def fellowships_list():
                            subheading=subheading,
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            tpl_style=tpl_style,
                            tpl_dynbg_key=tpl_dynbg_key,
@@ -3100,6 +3203,26 @@ def fellowships_list():
                            virtual_count=virtual_count,
                            regional_count=regional_count,
                            **ctx)
+
+
+def _submission_link(site):
+    """Resolve the public "Submit an announcement or event" URL used by
+    the Submit pill / CTA on the announcements list, the events list,
+    and the announcement / event / archive detail pages.
+
+    The admin-set URL (Templates -> Announcements list -> Submit button)
+    wins; otherwise it points at the built-in submission form, but only
+    while that form is enabled so the default never links to a 404.
+    Returns "" when there is nothing to link to, which is every
+    surface's signal to hide the affordance entirely."""
+    if not site:
+        return ""
+    url = (site.frontend_announcements_list_submit_url or "").strip()
+    if url:
+        return url
+    if getattr(site, "submission_form_enabled", True):
+        return url_for("frontend.submission_form")
+    return ""
 
 
 @bp.route("/events")
@@ -3133,9 +3256,7 @@ def events_list():
     _rows = (Post.query
              .filter(_post_live_clause())
              .filter(Post.is_event.is_(True),
-                     Post.is_archived.is_(False),
-                     Post.is_draft.is_(False),
-                     Post.is_pending_review.is_(False))
+                     Post.is_archived.is_(False))
              .order_by(_sql_func.coalesce(Post.published_at,
                                           Post.created_at).desc())
              .all())
@@ -3150,8 +3271,7 @@ def events_list():
     tpl = _template_meta(EVENTS_LIST_TEMPLATES,
                          (site.frontend_events_list_template if site else None) or "cards")
     width_mode = (site.frontend_events_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_events_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3165,10 +3285,11 @@ def events_list():
     list_heading = (site.frontend_events_list_heading if site else None) or ""
     list_subheading = (site.frontend_events_list_subheading if site else None) or ""
     return render_template("frontend/events_list.html",
+                           list_submit_url=_submission_link(site),
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            list_heading=list_heading,
                            list_subheading=list_subheading,
@@ -3202,9 +3323,7 @@ def archive():
     # Past events: ended OR is_archived. Skip the ones with no date.
     event_rows = (Post.query
                   .filter(_post_live_clause())
-                  .filter(Post.is_event.is_(True),
-                          Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
+                  .filter(Post.is_event.is_(True))
                   .order_by(Post.event_starts_at.desc().nulls_last())
                   .all())
     past_events = []
@@ -3221,9 +3340,7 @@ def archive():
                 .filter(_post_live_clause())
                 .filter(Post.is_announcement.is_(True),
                         Post.is_event.is_(False),
-                        Post.is_archived.is_(True),
-                        Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
+                        Post.is_archived.is_(True))
                 .order_by(Post.created_at.desc())
                 .all())
 
@@ -3305,8 +3422,7 @@ def archive():
     # is the visual successor to /events/archive so it inherits the
     # same horizontal geometry.
     width_mode = (site.frontend_events_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_events_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3343,8 +3459,8 @@ def archive():
     return render_template("frontend/archive.html",
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            archive_items=items,
                            year_buckets=year_buckets,
@@ -3379,8 +3495,6 @@ def archive_detail(slug):
         abort(404)
     candidates = (Post.query
                   .filter(_post_live_clause())
-                  .filter(Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
                   .order_by(Post.id)
                   .all())
     candidates = [p for p in candidates if p.is_event or p.is_announcement]
@@ -3423,7 +3537,13 @@ def archive_detail(slug):
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     og = _page_og(site, title=post.title,
@@ -3431,6 +3551,7 @@ def archive_detail(slug):
                   image_url=(url_for("public.post_featured_image", pid=post.id, _external=True)
                              if post.featured_image_filename else None))
     return render_template(tpl["partial"], event=post, tpl_style=tpl_style, tpl_dynbg_key=tpl_dynbg_key, tpl_dynbg_overlay=tpl_dynbg_overlay, tpl_dynbg_colors=tpl_dynbg_colors, tpl_dynbg_config=tpl_dynbg_config,
+                           submit_url=_submission_link(site),
                            is_in_archive=True, **og, **ctx)
 
 
@@ -3449,9 +3570,7 @@ def _active_announcements():
     return (Post.query
             .filter(_post_live_clause())
             .filter(Post.is_announcement.is_(True),
-                    Post.is_archived.is_(False),
-                    Post.is_draft.is_(False),
-                    Post.is_pending_review.is_(False))
+                    Post.is_archived.is_(False))
             .order_by(_sql_func.coalesce(Post.published_at,
                                          Post.created_at).desc())
             .all())
@@ -3497,8 +3616,7 @@ def announcements_list():
     tpl = _template_meta(ANNOUNCEMENTS_LIST_TEMPLATES,
                          (site.frontend_announcements_list_template if site else None) or "omni")
     width_mode = (site.frontend_announcements_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_announcements_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3511,19 +3629,15 @@ def announcements_list():
     pad_pct = max(0, min(20, pad_pct))
     list_heading = (site.frontend_announcements_list_heading if site else None) or ""
     list_subheading = (site.frontend_announcements_list_subheading if site else None) or ""
-    # "Submit" pill next to the Archive pill. Admin-set URL wins;
-    # otherwise link to the built-in submission form — but only while
-    # that form is enabled, so the default never points at a 404.
-    # Empty string hides the pill entirely.
-    list_submit_url = (site.frontend_announcements_list_submit_url or "").strip() if site else ""
-    if not list_submit_url and site and getattr(site, "submission_form_enabled", True):
-        list_submit_url = url_for("frontend.submission_form")
+    # "Submit" pill next to the Archive pill — shared resolver, so the
+    # events list and the detail pages link to the same place.
+    list_submit_url = _submission_link(site)
 
     return render_template("frontend/announcements_list.html",
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            list_heading=list_heading,
                            list_subheading=list_subheading,
@@ -3619,8 +3733,7 @@ def stories_list():
     tpl = _template_meta(STORIES_LIST_TEMPLATES,
                          (site.frontend_stories_list_template if site else None) or "paper-stack")
     width_mode = (site.frontend_stories_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_stories_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3643,8 +3756,8 @@ def stories_list():
     return render_template("frontend/stories_list.html",
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            list_heading=list_heading,
                            list_subheading=list_subheading,
@@ -3730,7 +3843,13 @@ def story_detail(slug):
                     if _story_cfg["animate"] is True
                     else _story_cfg["animate"]),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     og = _page_og(site, title=story.title,
@@ -3793,8 +3912,7 @@ def blog_list():
     tpl = _template_meta(BLOG_LIST_TEMPLATES,
                          (site.frontend_blog_list_template if site else None) or "magazine")
     width_mode = (site.frontend_blog_list_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_blog_list_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3810,8 +3928,8 @@ def blog_list():
     return render_template("frontend/blog_list.html",
                            list_partial=tpl["partial"],
                            list_template_key=tpl["key"],
-                           list_width_mode=width_mode,
-                           list_max_width=max_width,
+                           list_width_mode=resolve_width(site, width_mode, max_width)[0],
+                           list_max_width=resolve_width(site, width_mode, max_width)[1],
                            list_padding_pct=pad_pct,
                            list_heading=list_heading,
                            list_subheading=list_subheading,
@@ -3892,7 +4010,13 @@ def blog_post_detail(slug):
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
 
@@ -3927,8 +4051,7 @@ def blog_post_detail(slug):
     # Templates render either a boxed shell (max-width: Npx) or a
     # full-bleed shell (padding-left/right: Nvw).
     post_width_mode = (site.frontend_blog_post_width_mode if site else None) or "boxed"
-    if post_width_mode not in ("boxed", "full"):
-        post_width_mode = "boxed"
+    post_width_mode = normalize_width_mode(post_width_mode, "boxed")
     try:
         post_max_width = int(site.frontend_blog_post_max_width) if site else 1160
     except (TypeError, ValueError):
@@ -3955,8 +4078,8 @@ def blog_post_detail(slug):
                            all_categories=all_categories,
                            show_related_widget=show_related_widget,
                            show_categories_widget=show_categories_widget,
-                           post_width_mode=post_width_mode,
-                           post_max_width=post_max_width,
+                           post_width_mode=resolve_width(site, post_width_mode, post_max_width)[0],
+                           post_max_width=resolve_width(site, post_width_mode, post_max_width)[1],
                            post_padding_pct=post_padding_pct,
                            is_preview=is_preview,
                            preview_state=preview_state,
@@ -4057,9 +4180,7 @@ def event_detail(slug):
         abort(404)
     candidates = (Post.query
                   .filter(_post_live_clause())
-                  .filter(Post.is_event.is_(True),
-                          Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
+                  .filter(Post.is_event.is_(True))
                   .order_by(Post.id)
                   .all())
     ev = next((p for p in candidates if p.public_slug == slug), None)
@@ -4102,7 +4223,13 @@ def event_detail(slug):
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     og = _page_og(site, title=ev.title,
@@ -4110,6 +4237,7 @@ def event_detail(slug):
                   image_url=(url_for("public.post_featured_image", pid=ev.id, _external=True)
                              if ev.featured_image_filename else None))
     return render_template(tpl["partial"], event=ev, tpl_style=tpl_style, tpl_dynbg_key=tpl_dynbg_key, tpl_dynbg_overlay=tpl_dynbg_overlay, tpl_dynbg_colors=tpl_dynbg_colors, tpl_dynbg_config=tpl_dynbg_config,
+                           submit_url=_submission_link(site),
                            is_in_archive=False, **og, **ctx)
 
 
@@ -4127,9 +4255,7 @@ def event_calendar_ics(slug):
         abort(404)
     candidates = (Post.query
                   .filter(_post_live_clause())
-                  .filter(Post.is_event.is_(True),
-                          Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
+                  .filter(Post.is_event.is_(True))
                   .order_by(Post.id)
                   .all())
     ev = next((p for p in candidates if p.public_slug == slug), None)
@@ -4172,9 +4298,7 @@ def announcement_detail(slug):
         abort(404)
     candidates = (Post.query
                   .filter(_post_live_clause())
-                  .filter(Post.is_announcement.is_(True),
-                          Post.is_draft.is_(False),
-                          Post.is_pending_review.is_(False))
+                  .filter(Post.is_announcement.is_(True))
                   .order_by(Post.id)
                   .all())
     ann = next((p for p in candidates if p.public_slug == slug), None)
@@ -4217,7 +4341,13 @@ def announcement_detail(slug):
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     # Pass the post in as `event` so the existing event-detail templates
@@ -4227,6 +4357,7 @@ def announcement_detail(slug):
                   image_url=(url_for("public.post_featured_image", pid=ann.id, _external=True)
                              if ann.featured_image_filename else None))
     return render_template(tpl["partial"], event=ann, tpl_style=tpl_style, tpl_dynbg_key=tpl_dynbg_key, tpl_dynbg_overlay=tpl_dynbg_overlay, tpl_dynbg_colors=tpl_dynbg_colors, tpl_dynbg_config=tpl_dynbg_config,
+                           submit_url=_submission_link(site),
                            is_in_archive=False, **og, **ctx)
 
 
@@ -4288,19 +4419,37 @@ def contact_submit():
         flash(success_msg, "success")
         return redirect(url_for("frontend.contact"))
 
+    # The fields are the Contact form's builder (form_specs): name, email
+    # and message always; phone and subject unless removed; any extra
+    # fields ride along in the message and the email.
+    from .form_specs import resolve_fields
+    fields = resolve_fields("contact", getattr(site, "contact_form_blocks_json", None))
+    by_name = {b["name"]: b for b in fields}
     name = (f.get("name") or "").strip()[:200]
     email = (f.get("email") or "").strip()[:255]
-    phone = (f.get("phone") or "").strip()[:64] or None
-    subject = (f.get("subject") or "").strip()[:255] or None
+    phone = ((f.get("phone") or "").strip()[:64] or None) if "phone" in by_name else None
+    subject = ((f.get("subject") or "").strip()[:255] or None) if "subject" in by_name else None
     message = (f.get("message") or "").strip()[:6000]
-    subj_required = bool(getattr(site, "contact_form_subject_required", False))
 
-    if not name or not email or not message:
-        flash("Name, email, and message are required.", "danger")
+    missing = []
+    extras = []
+    for b in fields:
+        if b.get("core"):
+            val = {"name": name, "email": email, "phone": phone, "subject": subject,
+                   "message": message}.get(b["name"])
+        elif b["type"] == "checkboxes":
+            val = ", ".join(v.strip() for v in f.getlist(b["name"]) if v.strip())[:2000]
+        else:
+            val = (f.get(b["name"]) or "").strip()[:2000]
+        if b.get("required") and not val:
+            missing.append(b.get("label") or b["name"])
+        if not b.get("core") and val:
+            extras.append((b.get("label") or b["name"], val))
+    if missing:
+        flash("Please fill in: " + ", ".join(missing) + ".", "danger")
         return redirect(url_for("frontend.contact"))
-    if subj_required and not subject:
-        flash("Please include a subject for your message.", "danger")
-        return redirect(url_for("frontend.contact"))
+    if extras:
+        message = (message + "\n\n" + "\n".join(f"{k}: {v}" for k, v in extras))[:8000]
     # Cheap email sanity check — anything past this would be caught
     # by the SMTP server anyway, but we'd rather not write rows that
     # are obvious typos.
@@ -5123,8 +5272,7 @@ def _render_custom_form(cf, ctx, errors=None, values=None, success_message=None)
     tpl_dynbg_key = tpl_settings_dict.get("bg_dynamic_key") \
         or (site.frontend_submission_form_bg_dynamic_key if site else None)
     width_mode = (site.frontend_submission_form_width_mode if site else None) or "boxed"
-    if width_mode not in ("boxed", "full"):
-        width_mode = "boxed"
+    width_mode = normalize_width_mode(width_mode, "boxed")
     try:
         max_width = int(site.frontend_submission_form_max_width) if site else 720
     except (TypeError, ValueError):
@@ -5143,8 +5291,8 @@ def _render_custom_form(cf, ctx, errors=None, values=None, success_message=None)
         # in unchanged.
         submission_partial=tpl["partial"],
         submission_template_key=tpl["key"],
-        submission_width_mode=width_mode,
-        submission_max_width=max_width,
+        submission_width_mode=resolve_width(site, width_mode, max_width)[0],
+        submission_max_width=resolve_width(site, width_mode, max_width)[1],
         submission_padding_pct=pad_pct,
         tpl_style=tpl_style,
         tpl_dynbg_key=tpl_dynbg_key,
@@ -5680,7 +5828,13 @@ def site_index():
         "randomize_positions": _tpl_settings.get("bg_dynbg_randomize_positions", False),
         "animate": _tpl_settings.get("bg_dynbg_animate", True),
 
-        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light", False),
+        "tone": _tpl_settings.get("bg_dynbg_tone"),
+        # `v` marks a config written since the light/dark rework and
+        # `pastel_light` is the retired light-mode wash; both are read
+        # only by the classic-recipe fallback (see dynbg.render_key).
+        "v": _tpl_settings.get("bg_dynbg_v"),
+        "pastel_light": _tpl_settings.get("bg_dynbg_pastel_light"),
+        "modes": _tpl_settings.get("bg_dynbg_modes"),
         "knobs": _tpl_settings.get("bg_dynbg_knobs", {}),
     }
     sort_mode = (site.frontend_site_index_sort_mode or "grouped") if site else "grouped"
@@ -5775,7 +5929,7 @@ def _site_index_groups(site):
     # Events — published, non-archived event posts.
     if getattr(site, "frontend_site_index_show_events", True):
         items = []
-        q = (Post.query.filter_by(is_event=True, is_draft=False, is_pending_review=False)
+        q = (Post.query.filter_by(is_event=True)
              .filter(_post_live_clause())
              .filter(Post.is_archived.is_(False))
              .order_by(Post.title.asc()))
@@ -5796,7 +5950,7 @@ def _site_index_groups(site):
     # Announcements — published, non-archived announcement posts.
     if getattr(site, "frontend_site_index_show_announcements", True):
         items = []
-        q = (Post.query.filter_by(is_announcement=True, is_draft=False, is_pending_review=False)
+        q = (Post.query.filter_by(is_announcement=True)
              .filter(_post_live_clause())
              .filter(Post.is_archived.is_(False))
              .order_by(Post.title.asc()))
@@ -5836,6 +5990,7 @@ def _site_index_groups(site):
     if getattr(site, "frontend_site_index_show_library", True):
         items = []
         for lib in (Library.query.filter_by(public_visible=True)
+                    .filter(Library.archived_at.is_(None))
                     .order_by(Library.name.asc()).all()):
             items.append({
                 "title": lib.name,

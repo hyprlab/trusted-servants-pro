@@ -1,144 +1,104 @@
 {% extends "base.html" %}
-{% block heading %}{{ site.ig_page_title or 'Intergroup' }}{% endblock %}
-{% block heading_help %}Shared intergroup email accounts and mail-client setup instructions.{% endblock %}
+{% from "_help_chip.html" import chip %}
+{% block heading %}{{ site.ig_page_title or 'Intergroup Email' }}{% endblock %}
+{% block heading_help %}The intergroup's shared email accounts, and how to set them up in a mail app. Copy an address or a server name with its Copy button.{% endblock %}
 {% block top_actions %}
-{% if current_user.is_admin() %}
-<button type="button" class="btn" data-open-modal="intergroup-edit-modal">Edit</button>
-{% endif %}
+  {% if current_user.is_admin() %}<a class="btn" href="{{ url_for('main.intergroup_edit') }}">{{ icon('pencil') }} Edit</a>{% endif %}
+  {% if site.ig_webmail_url %}<a class="btn btn-primary" href="{{ site.ig_webmail_url|safe_url }}" target="_blank" rel="noopener">{{ icon('mail') }} Open webmail ↗</a>{% endif %}
 {% endblock %}
 {% block content %}
+{% if site.ig_intro %}<p class="ig-intro muted">{{ site.ig_intro }}</p>{% endif %}
 
-{% if site.ig_intro %}
-<p class="muted">{{ site.ig_intro }}</p>
-{% endif %}
-
-<div class="intergroup-grid">
-  <section class="card">
-    <div class="card-head"><h2>Intergroup Email Accounts</h2></div>
-    <ul class="ig-email-list">
+<div class="ig-layout">
+  {# ── The accounts: who each address belongs to, with Copy and Email. #}
+  <section class="card ig-accounts" data-ig-accounts>
+    <div class="ig-card-head">
+      <h2>{{ icon('inbox') }}Email accounts <span class="ig-count">{{ accounts|length }}</span></h2>
+      {% if accounts|length > 5 %}
+      <label class="ig-filter">
+        {{ icon('search') }}
+        <input type="search" placeholder="Find an account" aria-label="Find an account by role or address" data-ig-filter autocomplete="off">
+      </label>
+      {% endif %}
+    </div>
+    {% if accounts %}
+    <ul class="ig-acc-list">
       {% for a in accounts %}
-      <li>
-        <span class="ig-role">{{ a.role }}</span>
-        <span class="ig-sep">—</span>
-        <a href="mailto:{{ a.email }}" class="ig-addr">{{ a.email }}</a>
+      <li class="ig-acc" data-ig-acc="{{ (a.role ~ ' ' ~ a.email)|lower }}">
+        <span class="lst-thumb lst-thumb--person" aria-hidden="true">{{ a.role|initials }}</span>
+        <div class="ig-acc-text">
+          <div class="ig-acc-role">{{ a.role }}</div>
+          <a class="ig-acc-email" href="mailto:{{ a.email }}">{{ a.email }}</a>
+        </div>
+        <div class="ig-acc-actions">
+          <button type="button" class="btn btn-sm" data-copy-text="{{ a.email }}" title="Copy {{ a.email }}">{{ icon('copy') }}<span>Copy</span></button>
+          <a class="btn btn-sm ig-acc-mail" href="mailto:{{ a.email }}" title="Write to {{ a.role }}" aria-label="Write to {{ a.role }}">{{ icon('send') }}</a>
+        </div>
       </li>
       {% endfor %}
     </ul>
-    {% if site.ig_webmail_url %}
-    <div class="ig-webmail">
-      <a class="btn btn-primary" href="{{ site.ig_webmail_url|safe_url }}" target="_blank" rel="noopener">Web Mail Login</a>
+    <p class="ig-none muted small" data-ig-none hidden>No account matches.</p>
+    {% else %}
+    <div class="fb-empty">
+      <span class="fb-empty-icon" aria-hidden="true">{{ icon('inbox') }}</span>
+      <p>No email accounts listed yet.</p>
+      {% if current_user.is_admin() %}<a class="btn btn-sm btn-primary" href="{{ url_for('main.intergroup_edit') }}">{{ icon('plus') }} Add accounts</a>{% endif %}
     </div>
     {% endif %}
   </section>
 
+  {# ── Setting up a mail app: the servers, each with Copy, then the
+     notes as a list and the full guide. #}
   <section class="card ig-setup">
-    <div class="card-head"><h2>Email Client Setup</h2></div>
-    <p class="muted small">Quick-access instructions for setting up Apple/iPhone Mail, Android, Outlook, or any other mail client across different devices.</p>
-    {% if site.ig_learn_more_url %}
-    <p><a href="{{ site.ig_learn_more_url|safe_url }}" class="ig-learn" target="_blank" rel="noopener">Learn more</a></p>
+    <div class="ig-card-head">
+      <h2>{{ icon('settings') }}Set up a mail app {% call chip('Set up a mail app') %}For Apple Mail on a Mac, iPhone or iPad, Outlook, Gmail's app, or any other mail app: add an account and enter these settings.{% endcall %}</h2>
+    </div>
+    {% macro _server(ic, label, host, detail) %}
+    <div class="ig-server">
+      <span class="ig-server-icon ig-server-icon--{{ 'in' if ic == 'download' else 'out' }}" aria-hidden="true">{{ icon(ic) }}</span>
+      <div class="ig-server-text">
+        <div class="ig-server-label">{{ label }}</div>
+        {% if host %}<div class="ig-server-host">{{ host }}</div>{% endif %}
+        {% if detail %}<div class="ig-server-detail muted small">{{ detail }}</div>{% endif %}
+      </div>
+      {% if host %}<button type="button" class="btn btn-sm" data-copy-text="{{ host }}" title="Copy {{ host }}">{{ icon('copy') }}<span>Copy</span></button>{% endif %}
+    </div>
+    {% endmacro %}
+    {% if site.ig_incoming_host or site.ig_outgoing_host %}
+    <div class="ig-servers">
+      {% if site.ig_incoming_host or site.ig_incoming_port %}{{ _server('download', 'Incoming mail server', site.ig_incoming_host, site.ig_incoming_port) }}{% endif %}
+      {% if site.ig_outgoing_host or site.ig_outgoing_port %}{{ _server('upload', 'Outgoing mail server', site.ig_outgoing_host, site.ig_outgoing_port) }}{% endif %}
+    </div>
     {% endif %}
-
-    <div class="ig-setting">
-      <div class="ig-setting-icon ig-icon-incoming" aria-hidden="true">↓</div>
-      <div class="ig-setting-body">
-        <div class="ig-setting-title">Incoming Settings</div>
-        {% if site.ig_incoming_host %}<div class="mono small">{{ site.ig_incoming_host }}</div>{% endif %}
-        {% if site.ig_incoming_port %}<div class="mono small">{{ site.ig_incoming_port }}</div>{% endif %}
-      </div>
-    </div>
-
-    <div class="ig-setting">
-      <div class="ig-setting-icon ig-icon-outgoing" aria-hidden="true">↑</div>
-      <div class="ig-setting-body">
-        <div class="ig-setting-title">Outgoing Settings</div>
-        {% if site.ig_outgoing_host %}<div class="mono small">{{ site.ig_outgoing_host }}</div>{% endif %}
-        {% if site.ig_outgoing_port %}<div class="mono small">{{ site.ig_outgoing_port }}</div>{% endif %}
-      </div>
-    </div>
-
-    {% if site.ig_setup_notes %}
-    <div class="ig-setup-notes small" style="white-space:pre-line;">{{ site.ig_setup_notes }}</div>
+    {% set _notes = (site.ig_setup_notes or '').split('\n') | map('trim') | select | list %}
+    {% if _notes %}
+    <ul class="ig-notes">
+      {% for n in _notes %}<li>{{ n }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if site.ig_learn_more_url %}
+    <a class="ig-guide" href="{{ site.ig_learn_more_url|safe_url }}" target="_blank" rel="noopener">{{ icon('book-open') }}<span>Full setup guide</span>{{ icon('external-link') }}</a>
+    {% endif %}
+    {% if not (site.ig_incoming_host or site.ig_outgoing_host or _notes or site.ig_learn_more_url) %}
+    <p class="muted small">No setup details yet.{% if current_user.is_admin() %} <a href="{{ url_for('main.intergroup_edit') }}#servers">Add them</a>.{% endif %}</p>
     {% endif %}
   </section>
 </div>
 
-{% if current_user.is_admin() %}
-<div class="modal modal-lg" id="intergroup-edit-modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <form method="post" action="{{ url_for('main.intergroup_edit') }}" class="form">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="modal-head">
-        <h2>Edit Intergroup Page</h2>
-        <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-      </div>
-      <div class="modal-body">
-        <label>Page title
-          <input type="text" name="ig_page_title" value="{{ site.ig_page_title or '' }}" placeholder="Intergroup">
-        </label>
-        <label>Intro text
-          <textarea name="ig_intro" rows="3">{{ site.ig_intro or '' }}</textarea>
-        </label>
-
-        <h3>Email Accounts</h3>
-        <table class="tbl" id="ig-accounts">
-          <thead><tr><th>Role</th><th>Email</th><th></th></tr></thead>
-          <tbody>
-            {% for a in accounts %}
-            <tr>
-              <td><input type="hidden" name="account_id" value="{{ a.id }}">
-                  <input type="text" name="account_role" value="{{ a.role }}"></td>
-              <td><input type="email" name="account_email" value="{{ a.email }}"></td>
-              <td><button type="button" class="btn btn-small" onclick="this.closest('tr').remove()">Remove</button></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <button type="button" class="btn" onclick="addIgRow()">Add account</button>
-
-        <h3>Webmail</h3>
-        <label>Web mail URL
-          <input type="url" name="ig_webmail_url" value="{{ site.ig_webmail_url or '' }}">
-        </label>
-
-        <h3>Mail Server Settings</h3>
-        <label>Incoming host
-          <input type="text" name="ig_incoming_host" value="{{ site.ig_incoming_host or '' }}">
-        </label>
-        <label>Incoming port/label
-          <input type="text" name="ig_incoming_port" value="{{ site.ig_incoming_port or '' }}">
-        </label>
-        <label>Outgoing host
-          <input type="text" name="ig_outgoing_host" value="{{ site.ig_outgoing_host or '' }}">
-        </label>
-        <label>Outgoing port/label
-          <input type="text" name="ig_outgoing_port" value="{{ site.ig_outgoing_port or '' }}">
-        </label>
-        <label>Learn more URL
-          <input type="url" name="ig_learn_more_url" value="{{ site.ig_learn_more_url or '' }}">
-        </label>
-        <label>Setup notes
-          <textarea name="ig_setup_notes" rows="4">{{ site.ig_setup_notes or '' }}</textarea>
-        </label>
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Save</button>
-      </div>
-    </form>
-  </div>
-</div>
+{% if accounts|length > 5 %}
 <script>
-function addIgRow() {
-  var tbody = document.querySelector('#ig-accounts tbody');
-  var tr = document.createElement('tr');
-  tr.innerHTML = '<td><input type="hidden" name="account_id" value="">' +
-                 '<input type="text" name="account_role"></td>' +
-                 '<td><input type="email" name="account_email"></td>' +
-                 '<td><button type="button" class="btn btn-small" onclick="this.closest(\'tr\').remove()">Remove</button></td>';
-  tbody.appendChild(tr);
-}
+// Find an account: filters the list by role or address as you type.
+(function () {
+  var box = document.querySelector('[data-ig-filter]');
+  if (!box) return;
+  var rows = Array.prototype.slice.call(document.querySelectorAll('[data-ig-acc]'));
+  var none = document.querySelector('[data-ig-none]');
+  box.addEventListener('input', function () {
+    var q = box.value.trim().toLowerCase(), shown = 0;
+    rows.forEach(function (r) { var hit = !q || r.dataset.igAcc.indexOf(q) !== -1; r.hidden = !hit; if (hit) shown++; });
+    none.hidden = shown > 0;
+  });
+})();
 </script>
 {% endif %}
-
 {% endblock %}

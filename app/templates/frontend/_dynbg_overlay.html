@@ -18,6 +18,10 @@
 {%- set dynbg_overlay_scope = dynbg_overlay_scope|default(none, true) -%}
 {%- set dynbg_overlay_size = dynbg_overlay_size|default(none, true) -%}
 {%- set dynbg_overlay_intensity = dynbg_overlay_intensity|default(none, true) -%}
+{# Optional mode tag ('light' / 'dark'): the render-side apply partial
+   emits one overlay per configured mode and CSS shows the matching
+   one. Untagged (thumbnails, previews) = always visible. #}
+{%- set dynbg_overlay_mode = dynbg_overlay_mode|default(none, true) -%}
 {%- set _ok = dynbg_overlay_key or '' -%}
 {%- set _known = _ok in ('noise-grain', 'scanlines', 'linen',
                           'vignette', 'crosshatch', 'dot-weave') -%}
@@ -25,6 +29,7 @@
 {%- set _scope = dynbg_overlay_scope or 'all' -%}
 {%- set _classes = ['fe-dynbg-overlay', 'fe-dynbg-overlay-' ~ _ok] -%}
 {%- if _scope == 'bg' -%}{%- set _ = _classes.append('fe-dynbg-overlay--bg-only') -%}{%- endif -%}
+{%- if dynbg_overlay_mode in ('light', 'dark') -%}{%- set _ = _classes.append('fe-dynbg-overlay--' ~ dynbg_overlay_mode) -%}{%- endif -%}
 {%- set _inline = '' -%}
 {%- if _ok == 'noise-grain' -%}
   {%- if dynbg_overlay_size is not none or dynbg_overlay_intensity is not none -%}

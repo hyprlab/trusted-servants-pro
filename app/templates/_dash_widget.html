@@ -36,8 +36,7 @@
    reliably — Jinja's `{% set %}` inside a block doesn't always
    propagate into macros imported `with context` from outside the
    block. The macro is dashboard-only and every dashboard widget is
-   meant to be reorderable, so the draggable attribute and the handle
-   render unconditionally. #}
+   meant to be reorderable, so the grip renders unconditionally. #}
 {# The drag handle now sits inline inside the data-card-head, to the
    left of the leading title icon. The whole row uses the standard
    .data-card-head chrome so widgets read in the same visual language
@@ -47,16 +46,22 @@
    used inside the macro to render it. #}
 {% macro dash_widget(key, title, head_icon=None,
                      view_all_url=None, view_all_label='View all',
-                     badge_count=0, badge_title='', badge_key=None, wide=False) %}
+                     badge_count=0, badge_title='', badge_key=None, wide=False,
+                     help='', view_all_tab=None) %}
 <div class="dash-widget{% if wide %} dash-widget-wide{% endif %}"
-     data-widget-key="{{ key }}"
-     draggable="true">
+     data-widget-key="{{ key }}">
   <section class="card data-card">
     <div class="data-card-head dash-widget-head">
-      <span class="dash-drag-handle" aria-hidden="true">{{ icon('grip-vertical') }}</span>
+      <button type="button" class="dash-drag-handle" aria-label="Move this widget (arrow keys)" title="Drag to move, or use the arrow keys">{{ icon('grip-vertical') }}</button>
       {% if head_icon %}<span class="data-card-head-icon" aria-hidden="true">{{ icon(head_icon) }}</span>{% endif %}
       <span class="dash-widget-title">
         {{ title }}
+        {#- Optional "what is this widget" help, collapsed into the same
+            info chip the rest of the admin uses. Written out inline
+            rather than via the _help_chip macro because a macro can't
+            take a {% call %} body from a caller that is itself inside a
+            {% call %} block. -#}
+        {%- if help %} <span class="heading-help field-help"><button type="button" class="help-btn" tabindex="-1" aria-label="About {{ title }}">{{ icon('info') }}</button><span class="help-tooltip" role="tooltip">{{ help }}</span></span>{% endif %}
         {#- When a badge_key is given the chip always renders (hidden at 0)
             and carries data-live-chip so the /_live/counts poller can keep
             it in sync without a reload. Widgets with no badge_key (meetings,
@@ -68,11 +73,26 @@
             above plus Watchtower / Notifications in base.html. -#}
         {%- elif badge_count %} <span class="nav-badge"{% if badge_title %} title="{{ badge_title }}"{% endif %}>{{ badge_count }}</span>{% endif -%}
       </span>
-      {% if view_all_url %}
-      <a href="{{ view_all_url }}" class="link dash-widget-viewall">{{ view_all_label }} {{ icon('arrow-right') }}</a>
+      {#- view_all_tab opens that Settings tab instead of a page. -#}
+      {% if view_all_tab %}
+      <a href="#" class="link dash-widget-viewall" data-open-modal="settings-modal" data-settings-tab="{{ view_all_tab }}">{{ view_all_label }} {{ icon('chevron-right') }}</a>
+      {% elif view_all_url %}
+      <a href="{{ view_all_url }}" class="link dash-widget-viewall">{{ view_all_label }} {{ icon('chevron-right') }}</a>
       {% endif %}
     </div>
     {{ caller() }}
   </section>
 </div>
 {% endmacro %}
+
+{# A widget with nothing to show: one quiet line with its icon, and, as
+   the call body when there's a next step, a small action.
+     {% call dash_empty('No meetings yet.', 'calendar') %}{% endcall %} #}
+{% macro dash_empty(text, empty_icon='inbox') -%}
+<div class="dash-empty">
+  <span class="dash-empty-icon" aria-hidden="true">{{ icon(empty_icon) }}</span>
+  <span class="dash-empty-text">{{ text }}</span>
+  {%- set _act = caller() if caller else '' -%}
+  {%- if _act|trim %}<span class="dash-empty-action">{{ _act }}</span>{% endif %}
+</div>
+{%- endmacro %}

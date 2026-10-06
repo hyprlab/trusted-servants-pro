@@ -22,6 +22,14 @@
 {%- set _allow_announcement = _allowed in ('both', 'announcements') -%}
 {%- set _allow_event = _allowed in ('both', 'events') -%}
 {%- set _submit_label = (site.submission_form_submit_label if site else None) or 'Submit for review' -%}
+{# Each field's wording (label, help, placeholder) comes from the builder
+   on the form's settings page; the fields themselves are fixed
+   (form_specs.SPECS["submission"]). #}
+{%- set ff = builtin_field_map('submission', site.submission_form_blocks_json if site else None) -%}
+{%- macro lbl(n, req=False) -%}
+  <span>{{ ff[n].label }}{% if req %} <span class="req">*</span>{% endif %}{% if ff[n].get('help') %} <span class="muted smaller">({{ ff[n].help }})</span>{% endif %}</span>
+{%- endmacro -%}
+{%- macro ph(n) -%}{% if ff[n].get('placeholder') %} placeholder="{{ ff[n].placeholder }}"{% endif %}{%- endmacro -%}
 <form method="post" action="{{ url_for('frontend.submission_submit') }}"
       class="form fe-submission-form"
       data-submission-form
@@ -55,22 +63,22 @@
   {% endif %}
 
   <label>
-    <span>Title <span class="req">*</span></span>
-    <input name="title" type="text" maxlength="255" required>
+    {{ lbl('title', True) }}
+    <input name="title" type="text" maxlength="255" required{{ ph('title') }}>
   </label>
 
   <label>
-    <span>Summary <span class="muted smaller">(short blurb shown in lists)</span></span>
-    <textarea name="summary" rows="2" maxlength="500"></textarea>
+    {{ lbl('summary') }}
+    <textarea name="summary" rows="2" maxlength="500"{{ ph('summary') }}></textarea>
   </label>
 
   <label>
-    <span>Full content <span class="muted smaller">(Markdown supported)</span></span>
-    <textarea name="body" rows="6"></textarea>
+    {{ lbl('body') }}
+    <textarea name="body" rows="6"{{ ph('body') }}></textarea>
   </label>
 
   <label>
-    <span>Featured image <span class="muted smaller">(optional — JPG, PNG, or GIF, max 8 MB)</span></span>
+    {{ lbl('featured_image') }}
     <input name="featured_image" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
   </label>
 
@@ -84,11 +92,11 @@
     <legend>Event details</legend>
     <div class="fe-submission-grid-2">
       <label>
-        <span>Starts</span>
+        {{ lbl('event_starts_at') }}
         <input name="event_starts_at" type="datetime-local">
       </label>
       <label>
-        <span>Ends</span>
+        {{ lbl('event_ends_at') }}
         <input name="event_ends_at" type="datetime-local">
       </label>
     </div>
@@ -97,25 +105,25 @@
       <span>Online event (Zoom, video, etc.)</span>
     </label>
     <label>
-      <span>Location name <span class="muted smaller">(building, group, or "Online")</span></span>
-      <input name="location_name" type="text" maxlength="255">
+      {{ lbl('location_name') }}
+      <input name="location_name" type="text" maxlength="255"{{ ph('location_name') }}>
     </label>
     <label>
-      <span>Address</span>
-      <textarea name="location_address" rows="2"></textarea>
+      {{ lbl('location_address') }}
+      <textarea name="location_address" rows="2"{{ ph('location_address') }}></textarea>
     </label>
     <label>
-      <span>Google Maps URL <span class="muted smaller">(optional)</span></span>
-      <input name="google_maps_url" type="text" inputmode="url" maxlength="500">
+      {{ lbl('google_maps_url') }}
+      <input name="google_maps_url" type="text" inputmode="url" maxlength="500"{{ ph('google_maps_url') }}>
     </label>
     <div class="fe-submission-grid-2">
       <label>
-        <span>Website URL</span>
-        <input name="website_url" type="text" inputmode="url" maxlength="500">
+        {{ lbl('website_url') }}
+        <input name="website_url" type="text" inputmode="url" maxlength="500"{{ ph('website_url') }}>
       </label>
       <label>
-        <span>Website label</span>
-        <input name="website_label" type="text" maxlength="120" placeholder="Visit website">
+        {{ lbl('website_label') }}
+        <input name="website_label" type="text" maxlength="120"{{ ph('website_label') }}>
       </label>
     </div>
     {# Zoom fields only show when "Online event" is checked above —
@@ -144,17 +152,17 @@
       <p class="muted small fe-submission-public-warning"><strong>Heads up:</strong> anything you put here will be displayed publicly on the event's page once it's published. Leave blank if you don't want a contact shown.</p>
       <div class="fe-submission-grid-2">
         <label>
-          <span>Name</span>
-          <input name="contact_name" type="text" maxlength="120">
+          {{ lbl('contact_name') }}
+          <input name="contact_name" type="text" maxlength="120"{{ ph('contact_name') }}>
         </label>
         <label>
-          <span>Phone</span>
-          <input name="contact_phone" type="tel" maxlength="64">
+          {{ lbl('contact_phone') }}
+          <input name="contact_phone" type="tel" maxlength="64"{{ ph('contact_phone') }}>
         </label>
       </div>
       <label>
-        <span>Email</span>
-        <input name="contact_email" type="email" maxlength="255">
+        {{ lbl('contact_email') }}
+        <input name="contact_email" type="email" maxlength="255"{{ ph('contact_email') }}>
       </label>
     </fieldset>
   </fieldset>
@@ -164,21 +172,21 @@
     <p class="muted smaller fe-submission-submitter-help">An admin will reach out before publishing — make sure your email works.</p>
     <div class="fe-submission-grid-2">
       <label>
-        <span>Your name <span class="req">*</span></span>
-        <input name="submitter_name" type="text" maxlength="120" required>
+        {{ lbl('submitter_name', True) }}
+        <input name="submitter_name" type="text" maxlength="120" required{{ ph('submitter_name') }}>
       </label>
       <label>
-        <span>Your email <span class="req">*</span></span>
-        <input name="submitter_email" type="email" maxlength="255" required>
+        {{ lbl('submitter_email', True) }}
+        <input name="submitter_email" type="email" maxlength="255" required{{ ph('submitter_email') }}>
       </label>
     </div>
     <label>
-      <span>Your phone <span class="muted smaller">(optional)</span></span>
-      <input name="submitter_phone" type="tel" maxlength="64">
+      {{ lbl('submitter_phone') }}
+      <input name="submitter_phone" type="tel" maxlength="64"{{ ph('submitter_phone') }}>
     </label>
     <label>
-      <span>Anything else? <span class="muted smaller">(notes for the admin reviewing this submission)</span></span>
-      <textarea name="submitter_notes" rows="2" maxlength="2000"></textarea>
+      {{ lbl('submitter_notes') }}
+      <textarea name="submitter_notes" rows="2" maxlength="2000"{{ ph('submitter_notes') }}></textarea>
     </label>
   </fieldset>
 

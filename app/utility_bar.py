@@ -291,6 +291,8 @@ def utility_bar_context(site):
         "enabled":           bool(getattr(site, "utility_bar_enabled", True)),
         "bg_color":          getattr(site, "utility_bar_bg_color", None) or None,
         "text_color":        getattr(site, "utility_bar_text_color", None) or None,
+        "bg_color_dark":     getattr(site, "utility_bar_bg_color_dark", None) or None,
+        "text_color_dark":   getattr(site, "utility_bar_text_color_dark", None) or None,
         "left":              left,
         "right":             right,
         "show_live":         bool(getattr(site, "utility_bar_live_meetings", False)),

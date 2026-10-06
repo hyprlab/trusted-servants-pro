@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block heading %}Blog tags{% endblock %}
 {% block heading_help %}Free-form topic labels. A post can carry many tags; a frontend page block can scope a list to a single tag.{% endblock %}
 {% block top_actions %}
@@ -8,8 +9,7 @@
 {% block content %}
 <section class="card">
   <div class="card-head">
-    <h2>{% if tags %}Existing tags{% else %}No tags yet{% endif %}</h2>
-    <span class="muted smaller">Click a tag to rename. New tags are usually added inline from the post editor.</span>
+    <h2>{% if tags %}Existing tags{% else %}No tags yet{% endif %} {% call chip() %}Click a tag to rename. New tags are usually added inline from the post editor.{% endcall %}</h2>
   </div>
   {% if tags %}
   <div class="blog-tag-cloud">
@@ -60,7 +60,7 @@
     padding: 6px 12px; border-radius: 999px;
     border: 1px solid var(--border);
     background: var(--panel-2, var(--panel));
-    color: inherit; font-size: .9rem; cursor: pointer;
+    color: inherit; font-size: var(--fs-sm); cursor: pointer;
     transition: all .15s ease;
   }
   .blog-tag-chip-btn:hover {
@@ -68,7 +68,7 @@
   }
   .blog-tag-name { font-weight: 600; }
   .blog-tag-count {
-    font-size: .72rem; color: var(--muted);
+    font-size: var(--fs-2xs); color: var(--muted);
     background: var(--bg, transparent); border-radius: 999px;
     padding: 2px 7px; min-width: 1.5rem; text-align: center;
   }

@@ -11,7 +11,7 @@ is untouched by upgrades.
 
 ## Automatic updates (one-command installs)
 
-If you used the [one-command installer](/docs/installation#path-a-one-command-installer-production-https),
+If you used the [one-command installer](installation.md#path-a-one-command-installer-production-and-https),
 **Watchtower** is already running. It polls Docker Hub every 24 hours and
 restarts the `tspro` container whenever a new image is published. No action is
 required on your part.
@@ -21,7 +21,7 @@ Watchtower also removes the superseded image after each update
 image-prune janitor to catch anything that escapes — so a long-running host
 doesn't quietly fill its disk with stale images. If you installed an **older
 release** that predates those safeguards, see
-[Disk Space &amp; Housekeeping](/docs/disk-space) for how to reclaim space and
+[Disk Space &amp; Housekeeping](disk-space.md) for how to reclaim space and
 adopt them by re-running `install.sh` (your `.env` and `data/` are preserved).
 
 ## Forcing an upgrade
@@ -48,7 +48,7 @@ docker compose down                # stop everything (data is preserved)
 
 !!! tip "Back up before a major upgrade"
     Upgrades are designed to be safe and migrations are additive, but a quick
-    [export](/docs/backup-restore) before a big jump is cheap insurance.
+    [export](backup-restore.md) before a big jump is cheap insurance.
 
 ## Uninstalling
 
@@ -85,14 +85,14 @@ sudo bash uninstall.sh --nuke --yes
 
 !!! danger "Save your data before uninstalling"
     Unless you pass `--keep-data`, uninstalling removes `/opt/tspro/data/` — your
-    database, uploads, and encryption key. [Export](/docs/backup-restore) first
+    database, uploads, and encryption key. [Export](backup-restore.md) first
     if you might want any of it back.
 
 ## Next steps
 
-- [Backup &amp; Restore](/docs/backup-restore) — protect your data before any
+- [Backup &amp; Restore](backup-restore.md) — protect your data before any
   big change.
-- [Disk Space &amp; Housekeeping](/docs/disk-space) — keep an unattended server
+- [Disk Space &amp; Housekeeping](disk-space.md) — keep an unattended server
   from filling its disk.
-- [Configuration &amp; Security](/docs/configuration) — environment variables and
+- [Configuration &amp; Security](configuration.md) — environment variables and
   encryption.

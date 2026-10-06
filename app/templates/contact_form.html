@@ -1,167 +1,177 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
+{% from "_list_page.html" import search_form, side_link, sort_link, view_switch, bulk_bar %}
 {% block title %}Contact Form · Trusted Servants Pro{% endblock %}
 {% block heading %}Contact Form{% endblock %}
-{% block heading_help %}Messages from the public /contact form. Each submission also goes out by email to the configured recipient; this list is the persistent record so nothing is lost when the email lands in spam. Page settings (enable, recipient, copy) live in <a href="{{ url_for('main.frontend_form_contact') }}">Web Frontend → Forms</a>.{% endblock %}
-{% block top_actions %}
-<a class="btn" href="{{ url_for('main.frontend_form_contact') }}">{{ icon('settings') }} Manage form</a>
-<a class="btn" href="{{ url_for('frontend.contact') }}" target="_blank" rel="noopener">View page ↗</a>
-{% endblock %}
+{% block heading_help %}Messages from the public /contact page. Each one is also emailed to the form's recipient; this is the record, so nothing is lost when an email lands in spam. Open a message to read it, reply or file it.{% endblock %}
+{% block top_actions %}{% endblock %}
 {% block content %}
+{# Every link keeps the page's settings and changes only what it passes
+   in `over`. #}
+{% set _base = {'show': show if show != 'inbox' else None, 'delivery': delivery or None,
+                'sort': sort, 'q': q or None, 'view': view} %}
+{% macro _url(over={}) -%}
+  {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}{{ url_for('main.contact_form', **_u) }}
+{%- endmacro %}
+{% set _skey, _sdir = sort.rsplit('_', 1) %}
+{% set SORT_FIRST_DIR = {'received': 'desc', 'name': 'asc'} %}
+{% macro _sort(key, label) -%}
+  {%- set _on = _skey == key -%}
+  {{ sort_link(_url({'sort': key ~ '_' ~ ((('asc' if _sdir == 'desc' else 'desc') if _on else SORT_FIRST_DIR[key]))}), label, _on, _sdir) }}
+{%- endmacro %}
+{% macro _sort_th(key, label, cls='') -%}
+  <th class="{{ cls }}"{% if _skey == key %} aria-sort="{{ 'ascending' if _sdir == 'asc' else 'descending' }}"{% endif %}>{{ _sort(key, label) }}</th>
+{%- endmacro %}
+{% macro _plural(n, one, many) %}{{ n }} {{ one if n == 1 else many }}{% endmacro %}
+{% macro _open(c) %}{{ url_for('main.contact_message', cid=c.id) }}{% endmacro %}
+{% macro _avatar(c) %}<span class="lst-thumb lst-thumb--person" aria-hidden="true">{{ c.name|initials if c.name else '?' }}</span>{% endmacro %}
+{% macro _chips(c) %}
+  {% if not c.is_read %}<span class="post-chip post-chip-event">New</span>{% endif %}
+  {% if c.is_archived %}<span class="post-chip">Archived</span>{% endif %}
+  {% if not c.email_sent %}<span class="post-chip post-chip-danger" title="{{ c.email_error or 'Not emailed: no recipient, or email is not set up' }}">Not emailed</span>{% endif %}
+{% endmacro %}
+{% macro _reply(c) %}mailto:{{ c.email }}{% if c.subject %}?subject={{ ('Re: ' ~ c.subject)|urlencode }}{% endif %}{% endmacro %}
+{% macro _actions(c, compact=False) %}
+  {% call row_menu('Actions' if not compact else 'Actions for the message from ' ~ c.name, compact=compact) %}
+    <a class="row-menu-item" href="{{ _open(c) }}">{{ icon('eye') }}<span>Open</span></a>
+    <a class="row-menu-item" href="{{ _reply(c) }}">{{ icon('mail') }}<span>Reply by email</span></a>
+    <button type="submit" form="cf-read-{{ c.id }}-form" class="row-menu-item">{{ icon('eye-off' if c.is_read else 'check') }}<span>{{ 'Mark unread' if c.is_read else 'Mark read' }}</span></button>
+    {% if c.is_archived %}
+    <button type="submit" form="cf-unarchive-{{ c.id }}-form" class="row-menu-item">{{ icon('rotate-ccw') }}<span>Restore</span></button>
+    {% else %}
+    <button type="submit" form="cf-archive-{{ c.id }}-form" class="row-menu-item">{{ icon('box') }}<span>Archive</span></button>
+    {% endif %}
+    <div class="row-menu-sep" role="separator"></div>
+    <button type="submit" form="cf-delete-{{ c.id }}-form" class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+  {% endcall %}
+{% endmacro %}
 
-{# ── Submissions list ─────────────────────────────────────────────
-   Active vs Archived tabs match the Access Requests UX. Each row
-   shows the message inline so admins don't have to drill into a
-   detail page for short notes; the row also exposes the email
-   delivery status so failed sends are easy to spot.
-
-   Page configuration (visibility, recipient, copy, field options)
-   lives on the Forms admin under Web Frontend so this surface
-   stays focused on triage. #}
-<section class="card">
-  <div class="card-head ar-card-head">
-    <h2>Messages</h2>
-    <div class="ar-view-tabs" role="tablist">
-      <a href="{{ url_for('main.contact_form', view='active') }}"
-         class="ar-view-tab {% if view == 'active' %}is-active{% endif %}"
-         role="tab"
-         aria-selected="{{ 'true' if view == 'active' else 'false' }}">
-        Active
-        {% if active_count %}<span class="ar-view-count">{{ active_count }}</span>{% endif %}
-        {% if unread_count and view == 'active' %}<span class="ar-view-count" title="Unread">{{ unread_count }} new</span>{% endif %}
-      </a>
-      <a href="{{ url_for('main.contact_form', view='archived') }}"
-         class="ar-view-tab {% if view == 'archived' %}is-active{% endif %}"
-         role="tab"
-         aria-selected="{{ 'true' if view == 'archived' else 'false' }}">
-        Archived
-        {% if archived_count %}<span class="ar-view-count">{{ archived_count }}</span>{% endif %}
-      </a>
-    </div>
+<div class="fb-pick fb-pick--page lst-page">
+<aside class="fb-side" aria-label="Find a message">
+  <div class="fb-side-top" data-live="total">
+    <p class="fb-side-total" aria-live="polite">{{ _plural(items|length, 'message', 'messages') }}{% if q %} matching “{{ q }}”{% endif %}</p>
   </div>
+  {{ search_form(url_for('main.contact_form'), _base, q, 'Search messages', 'Search by name, email, phone, subject or message') }}
+  <a class="btn fb-side-upload" href="{{ url_for('main.frontend_form_contact') }}">{{ icon('settings') }} Form settings</a>
+  <div class="lst-side-live" data-live="side">
+    <nav class="fb-side-group" aria-label="Status">
+      <h3 class="fb-side-title">Status</h3>
+      {{ side_link(_url({'show': None}), 'inbox', 'Inbox', show_counts.inbox, show == 'inbox') }}
+      {{ side_link(_url({'show': 'unread'}), 'mail', 'Unread', show_counts.unread, show == 'unread', 'has-waiting' if show_counts.unread and show != 'unread') }}
+      {{ side_link(_url({'show': 'archived'}), 'box', 'Archived', show_counts.archived, show == 'archived') }}
+    </nav>
+    <nav class="fb-side-group" aria-label="Email">
+      <h3 class="fb-side-title">Email to the recipient</h3>
+      {{ side_link(_url({'delivery': None}), 'layout-grid', 'All', delivery_counts[''], not delivery) }}
+      {{ side_link(_url({'delivery': 'sent'}), 'send', 'Emailed', delivery_counts.sent, delivery == 'sent') }}
+      {{ side_link(_url({'delivery': 'failed'}), 'alert-triangle', 'Not emailed', delivery_counts.failed, delivery == 'failed') }}
+    </nav>
+    <div class="fb-side-group" role="group" aria-label="Sort messages">
+      <h3 class="fb-side-title">Sort by</h3>
+      <div class="fb-side-sort">{{ _sort('received', 'Received') }}{{ _sort('name', 'Name') }}</div>
+    </div>
+    {{ view_switch(_url({'view': 'list'}), _url({'view': 'grid'}), view) }}
+    <nav class="fb-side-group" aria-label="More">
+      <h3 class="fb-side-title">More</h3>
+      <a class="fb-side-link" href="{{ url_for('frontend.contact') }}" target="_blank" rel="noopener">{{ icon('external-link') }}<span>Public page ↗</span></a>
+    </nav>
+  </div>
+</aside>
+<div class="fb-pick-main" data-live="main">
+<form id="cf-bulk-form" method="post" action="{{ url_for('main.contact_submissions_bulk') }}" data-bulk-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="" data-bulk-action-field>
+</form>
+<section class="card fb lst" data-bulk-scope="cf-bulk-form">
   {% if not items %}
-  <p class="muted">
-    {% if view == 'archived' %}No archived messages yet. Click <i>Archive</i> on a handled message to move it here.{% else %}No messages yet. When a visitor submits the contact form, their message will appear here and be emailed to the recipient configured above.{% endif %}
-  </p>
-  {% else %}
-  <div class="contact-list">
+  <div class="fb-empty">
+    <span class="fb-empty-icon" aria-hidden="true">{{ icon('message-square') }}</span>
+    {% if q or delivery %}
+    <p>No messages here match{{ ' “' ~ q ~ '”' if q }}.</p>
+    <a class="btn btn-sm" href="{{ _url({'q': None, 'delivery': None}) }}">Show all</a>
+    {% elif show == 'archived' %}<p>Nothing archived. Archive a message once it's handled.</p>
+    {% elif show == 'unread' %}<p>No unread messages.</p>
+    {% else %}<p>No messages yet. What visitors send from the contact page lands here.</p>{% endif %}
+  </div>
+
+  {% elif view == 'grid' %}
+  <div class="lst-grid">
     {% for c in items %}
-    <article class="contact-card{% if not c.is_read %} is-unread{% endif %}">
-      <header class="contact-card-head">
-        <div class="contact-card-meta">
-          <h3 class="contact-card-name">
-            {{ c.name }}
-            {% if not c.is_read %}<span class="badge badge-warning contact-card-new">New</span>{% endif %}
-            {% if c.email_sent %}
-              <span class="badge badge-success" title="Notification email delivered">Emailed</span>
-            {% else %}
-              <span class="badge badge-muted" title="{% if c.email_error %}{{ c.email_error }}{% else %}Email not sent (no recipient or SMTP not configured){% endif %}">No email</span>
-            {% endif %}
-          </h3>
-          <div class="contact-card-contact muted small">
-            <a href="mailto:{{ c.email }}{% if c.subject %}?subject=Re: {{ c.subject|urlencode }}{% endif %}">{{ c.email }}</a>
-            {% if c.phone %}<span class="contact-card-sep">·</span><a href="tel:{{ c.phone }}">{{ c.phone }}</a>{% endif %}
-            <span class="contact-card-sep">·</span>
-            <span>{{ c.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-            {% if c.ip_address %}<span class="contact-card-sep">·</span><span title="IP">{{ c.ip_address }}</span>{% endif %}
-          </div>
-        </div>
-        <div class="contact-card-actions">
-          {% if view == 'active' %}
-          <form method="post" action="{{ url_for('main.contact_submission_toggle_read', cid=c.id) }}" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="view" value="{{ view }}">
-            <button class="btn btn-sm">{% if c.is_read %}Mark unread{% else %}Mark read{% endif %}</button>
-          </form>
-          <form method="post" action="{{ url_for('main.contact_submission_archive', cid=c.id) }}" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="view" value="{{ view }}">
-            <button class="btn btn-sm">Archive</button>
-          </form>
-          {% else %}
-          <form method="post" action="{{ url_for('main.contact_submission_unarchive', cid=c.id) }}" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="view" value="{{ view }}">
-            <button class="btn btn-sm btn-primary">Restore</button>
-          </form>
-          {% endif %}
-          <form method="post" action="{{ url_for('main.contact_submission_delete', cid=c.id) }}"
-                onsubmit="return confirm('Delete this message permanently?');" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="view" value="{{ view }}">
-            <button class="btn btn-sm btn-danger">Delete</button>
-          </form>
-        </div>
-      </header>
-      {% if c.subject %}<p class="contact-card-subject"><b>Subject:</b> {{ c.subject }}</p>{% endif %}
-      <div class="contact-card-message">{{ c.message }}</div>
-      {% if c.email_error %}
-      <p class="muted small contact-card-mailerr"><b>Mail delivery error:</b> {{ c.email_error }}</p>
-      {% endif %}
+    <article class="lst-card lst-card--person lst-card--message">
+      <label class="lst-card-check" title="Select"><input type="checkbox" name="ids" value="{{ c.id }}" form="cf-bulk-form" data-bulk-check aria-label="Select the message from {{ c.name }}"></label>
+      <div class="lst-card-head">
+        {{ _avatar(c) }}
+        <a class="lst-card-link" href="{{ _open(c) }}">{{ c.name }}</a>
+        {{ _actions(c, compact=True) }}
+      </div>
+      <div class="lst-card-body">
+        {% if c.subject %}<p class="lst-card-subject">{{ c.subject }}</p>{% endif %}
+        <p class="lst-card-desc">{{ c.message }}</p>
+      </div>
+      <div class="lst-card-foot">
+        <span class="lst-card-counts">{{ c.created_at|fmt_site_local('%b %-d, %Y') if c.created_at }}</span>
+        <span class="lst-card-chips">{{ _chips(c) }}</span>
+      </div>
     </article>
     {% endfor %}
   </div>
+
+  {% else %}
+  <table class="tbl fb-tbl lst-tbl lst-tbl--people lst-tbl--messages">
+    <thead>
+      <tr>
+        <th class="lst-check-col"><label class="lst-check" title="Select all"><input type="checkbox" data-bulk-all aria-label="Select all"></label></th>
+        <th class="fb-thumb-col"><span class="sr-only">Initials</span></th>
+        {{ _sort_th('name', 'From') }}
+        <th class="fb-col">Email</th>
+        {{ _sort_th('received', 'Received', 'fb-col') }}
+        <th class="fb-col">Status</th>
+        <th class="th-actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in items %}
+      <tr class="{{ 'is-unread' if not c.is_read }}">
+        <td class="lst-check-col"><label class="lst-check"><input type="checkbox" name="ids" value="{{ c.id }}" form="cf-bulk-form" data-bulk-check aria-label="Select the message from {{ c.name }}"></label></td>
+        <td class="fb-thumb-cell">{{ _avatar(c) }}</td>
+        <td class="media-name-cell">
+          <a class="fb-name" href="{{ _open(c) }}">{{ c.name }}</a>
+          <div class="fb-sub lst-msg-line">{% if c.subject %}<b>{{ c.subject }}</b> · {% endif %}{{ c.message }}</div>
+        </td>
+        <td class="fb-col"><a class="lst-email" href="{{ _reply(c) }}" title="{{ c.email }}">{{ c.email }}</a></td>
+        <td class="fb-col muted">{{ c.created_at|fmt_site_local('%b %-d, %Y') if c.created_at else '—' }}</td>
+        <td class="fb-col"><div class="lst-chips">{{ _chips(c) }}</div></td>
+        <td class="row-actions">{{ _actions(c) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if items %}
+  {% call bulk_bar() %}
+    <button type="button" class="btn btn-sm" data-bulk="read">Mark read</button>
+    <button type="button" class="btn btn-sm" data-bulk="unread">Mark unread</button>
+    {% if show == 'archived' %}<button type="button" class="btn btn-sm" data-bulk="unarchive">Restore</button>
+    {% else %}<button type="button" class="btn btn-sm" data-bulk="archive">Archive</button>{% endif %}
+    <button type="button" class="btn btn-sm btn-danger" data-bulk="delete" data-bulk-noun="message" data-bulk-nouns="messages"
+            data-bulk-confirm="They will be deleted for good.">Delete</button>
+  {% endcall %}
   {% endif %}
 </section>
 
-<style>
-.contact-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.contact-card {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 18px;
-  background: var(--card);
-}
-.contact-card.is-unread {
-  border-left: 3px solid var(--access);
-  background: color-mix(in srgb, var(--access) 4%, var(--card));
-}
-.contact-card-head {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin: 0 0 8px;
-}
-.contact-card-meta { min-width: 0; flex: 1 1 320px; }
-.contact-card-name {
-  margin: 0 0 4px;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.contact-card-new { background: color-mix(in srgb, var(--access) 18%, transparent); color: var(--access); }
-.contact-card-contact { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.contact-card-contact a { color: var(--access); text-decoration: none; }
-.contact-card-contact a:hover { text-decoration: underline; }
-.contact-card-sep { opacity: 0.5; }
-.contact-card-actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.contact-card-subject {
-  margin: 0 0 6px;
-  font-size: 0.95rem;
-}
-.contact-card-message {
-  margin: 4px 0 0;
-  white-space: pre-wrap;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--text);
-}
-.contact-card-mailerr {
-  margin: 8px 0 0;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: color-mix(in srgb, #ef4444 8%, transparent);
-}
-</style>
+{# Per-row action forms, matched by id from the row menus. #}
+{% for c in items %}
+<form id="cf-read-{{ c.id }}-form" method="post" action="{{ url_for('main.contact_submission_toggle_read', cid=c.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% if c.is_archived %}
+<form id="cf-unarchive-{{ c.id }}-form" method="post" action="{{ url_for('main.contact_submission_unarchive', cid=c.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% else %}
+<form id="cf-archive-{{ c.id }}-form" method="post" action="{{ url_for('main.contact_submission_archive', cid=c.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% endif %}
+<form id="cf-delete-{{ c.id }}-form" method="post" action="{{ url_for('main.contact_submission_delete', cid=c.id) }}"
+      data-confirm-title="Delete this message?" data-confirm-label="Delete"
+      data-confirm="The message from {{ c.name }} will be deleted for good."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% endfor %}
+</div>
+</div>
 {% endblock %}

@@ -4,12 +4,28 @@
    for visibility + ordering is app/sidebar.py — this template just
    loops the result.
 
-   Labelled sections (Intergroup / External / Admin) render as
-   collapsible groups: the divider becomes a button that toggles a
-   wrapper around the section's items. The first section ("main")
-   has no label and so is never collapsible. Collapsed/expanded
-   state is persisted per-section in localStorage by app.js. #}
+   Every section (Main / Forms / Intergroup / External) renders
+   as a collapsible group: the divider is a button that toggles a
+   wrapper around the section's items. Collapsed/expanded state is
+   persisted per-section in localStorage by app.js. #}
 {% set _sidebar = sidebar_data(site, nav_links) %}
+{# Each entry's icon, by key or key prefix (libraries, forms and links
+   are numbered); anything new falls back to a plain page. #}
+{% set _nav_icons = {
+  'meetings': 'calendar', 'libraries': 'book-open', 'media': 'folder',
+  'zoom_accounts': 'video', 'intergroup': 'building', 'zoom_tech': 'graduation-cap',
+  'posts': 'megaphone', 'stories': 'book', 'blog': 'newspaper',
+  'trusted_servants': 'users', 'recovery_contacts': 'phone', 'web_frontend': 'layout-grid',
+  'watchtower': 'shield', 'ig_email': 'mail', 'ig_add_library': 'plus',
+  'contact_form': 'message-square',
+} %}
+{% macro _nav_icon(key) -%}
+  {%- if key in _nav_icons %}{{ icon(_nav_icons[key]) }}
+  {%- elif key.startswith('ig_lib_') %}{{ icon('bookmark') }}
+  {%- elif key.startswith('form') %}{{ icon('inbox') }}
+  {%- elif key.startswith('ext-') %}{{ icon('external-link') }}
+  {%- else %}{{ icon('file') }}{% endif -%}
+{%- endmacro %}
 {% for _sec_key, _sec_label, _items in _sidebar %}
   {% if _sec_label %}
   <button type="button"
@@ -31,7 +47,9 @@
        {% if it.target %}target="{{ it.target }}" rel="noopener"{% endif %}
        {% if it.is_external %}data-nav-custom{% endif %}
        class="{% if it.active %}active{% endif %}{% if it.is_action %} sidebar-action{% endif %}">
-      {{ it.label }}{% if it.is_external %} ↗{% endif %}
+      <span class="nav-icon" aria-hidden="true">{{ _nav_icon(it.key or '') }}</span>
+      {#- Action rows' "+ " is drawn by their plus icon. -#}
+      <span class="nav-label">{{ it.label[2:] if it.is_action and it.label.startswith('+ ') else it.label }}</span>
       {#- Attention badges always render (hidden at 0) and carry a
           data-live-chip key so the /_live/counts poller can show, update,
           and re-hide them without a page reload. -#}

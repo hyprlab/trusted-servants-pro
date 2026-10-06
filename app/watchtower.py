@@ -289,6 +289,63 @@ def not_found_ips_for_path(path, days=30, limit=20):
             for ip, c, ls in rows]
 
 
+def top_404_ips(days=30, limit=100):
+    """Per-IP 404 leaderboard for the window — the "who is hammering us"
+    list. Returns dicts ordered by hit count desc::
+
+        {ip, count, distinct_paths, first_seen, last_seen,
+         top_path, is_blocked, trusted_user}
+
+    ``distinct_paths`` is the tell that separates a scanner from a
+    visitor following one stale bookmark: a single IP grinding through
+    hundreds of distinct dead URLs is probing for an exploitable path,
+    while a handful of hits on one path is just a broken inbound link.
+
+    Rows with NULL ip (events logged before 2.8.1, which didn't capture
+    the source IP) are excluded — there's nothing to show or block.
+    """
+    today = datetime.utcnow().date()
+    cutoff = (today - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    rows = (db.session.query(
+                NotFoundEvent.ip,
+                func.count(NotFoundEvent.id),
+                func.count(func.distinct(NotFoundEvent.path)),
+                func.min(NotFoundEvent.created_at),
+                func.max(NotFoundEvent.created_at))
+            .filter(NotFoundEvent.day >= cutoff)
+            .filter(NotFoundEvent.ip.isnot(None))
+            .group_by(NotFoundEvent.ip)
+            .order_by(func.count(NotFoundEvent.id).desc())
+            .limit(limit).all())
+    if not rows:
+        return []
+    ips = [r[0] for r in rows]
+    # Batch-resolve blocked state and the most-hit path per IP so the
+    # template doesn't N+1 down the list.
+    now = datetime.utcnow()
+    blocked = {b.ip for b in IPBlock.query
+               .filter(IPBlock.ip.in_(ips))
+               .filter((IPBlock.expires_at.is_(None)) |
+                       (IPBlock.expires_at > now)).all()}
+    trusted = recent_login_user_ips(ips)
+    top_path = {}
+    path_rows = (db.session.query(NotFoundEvent.ip, NotFoundEvent.path,
+                                  func.count(NotFoundEvent.id))
+                 .filter(NotFoundEvent.day >= cutoff)
+                 .filter(NotFoundEvent.ip.in_(ips))
+                 .group_by(NotFoundEvent.ip, NotFoundEvent.path)
+                 .order_by(func.count(NotFoundEvent.id).desc()).all())
+    for ip, path, _c in path_rows:
+        if ip not in top_path:
+            top_path[ip] = path or "/"
+    return [{"ip": ip, "count": int(c), "distinct_paths": int(dp),
+             "first_seen": fs, "last_seen": ls,
+             "top_path": top_path.get(ip),
+             "is_blocked": ip in blocked,
+             "trusted_user": trusted.get(ip)}
+            for ip, c, dp, fs, ls in rows]
+
+
 def recent_login_user_ips(ips, days=30):
     """Map ``ip -> username`` for any IP in ``ips`` from which a user
     successfully logged in (or stayed active) within the last ``days``

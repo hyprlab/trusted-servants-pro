@@ -17,6 +17,7 @@
    Caller passes:
      vals — dict with keys mirroring EVENTS_DEFAULTS
 #}
+{% from "_help_chip.html" import chip, hrow %}
 <div class="modal fe-page-edit-modal fe-page-edit-modal--wide" id="page-events-edit-modal" aria-hidden="true" data-page-events-modal>
   <div class="modal-backdrop" data-close></div>
   <div class="modal-panel fe-page-edit-modal-panel" role="dialog" aria-modal="true">
@@ -24,8 +25,7 @@
             aria-label="Close">{{ icon('x') }}</button>
 <section class="card">
   <div class="card-head">
-    <h2>Upcoming Events</h2>
-    <span class="muted smaller">Cards built from the Announcements &amp; Events module. Past events drop off automatically.</span>
+    <h2>Upcoming Events {% call chip('Upcoming Events') %}Cards built from the Announcements &amp; Events module. Past events drop off automatically.{% endcall %}</h2>
   </div>
   <label>Section heading
     <input type="text" data-events-field="heading" value="{{ vals.heading or '' }}" placeholder="Upcoming Events">
@@ -55,8 +55,7 @@
   </div>
   <li class="special-page-row" style="list-style:none; margin: 1rem 0 0;">
     <div class="special-page-info">
-      <div class="u-name">Show featured image</div>
-      <p class="muted small">Display the post's featured image on each event card.</p>
+      <div class="u-name">Show featured image {% call chip() %}Display the post's featured image on each event card.{% endcall %}</div>
     </div>
     <label class="mode-toggle">
       <input type="checkbox" data-events-field="show_image" value="1" {% if vals.show_image is not defined or vals.show_image %}checked{% endif %}>
@@ -65,8 +64,7 @@
   </li>
   <li class="special-page-row" style="list-style:none; margin: 0;">
     <div class="special-page-info">
-      <div class="u-name">Show summary text</div>
-      <p class="muted small">Show the short blurb under each event title (truncated to ~3 lines).</p>
+      <div class="u-name">Show summary text {% call chip() %}Show the short blurb under each event title (truncated to ~3 lines).{% endcall %}</div>
     </div>
     <label class="mode-toggle">
       <input type="checkbox" data-events-field="show_summary" value="1" {% if vals.show_summary is not defined or vals.show_summary %}checked{% endif %}>
@@ -75,8 +73,7 @@
   </li>
   <li class="special-page-row" style="list-style:none; margin: 0 0 1rem;">
     <div class="special-page-info">
-      <div class="u-name">Show location / online tag</div>
-      <p class="muted small">Display the venue name (or "Online event" tag) under the event time.</p>
+      <div class="u-name">Show location / online tag {% call chip() %}Display the venue name (or "Online event" tag) under the event time.{% endcall %}</div>
     </div>
     <label class="mode-toggle">
       <input type="checkbox" data-events-field="show_location" value="1" {% if vals.show_location is not defined or vals.show_location %}checked{% endif %}>

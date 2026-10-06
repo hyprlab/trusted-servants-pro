@@ -6,6 +6,1167 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-10-05
+
+### Added
+- In-place image zoom: `image_lightbox.js` now holds the zoom as `zoomer(stage, img, opts)` (fit, click or double-tap toward the pointer, wheel, pinch, drag, +/-/0), used by the photo lightbox and by any `[data-zoom-stage]` with its `[data-zoom]` buttons (a File Browser file's image, with the `.ilb-tools` / `.ilb-btn` / `.ilb-zoom` controls). Stages are set up on every page (`tspOnEachPage`) and follow their size with a `ResizeObserver`. The script loads on every admin page from `base.html` instead of `zoom_tech.html`, and builds the lightbox overlay on first use. The `.ilb-stage` / `.ilb-img` cursor and placement rules are shared with `[data-zoom-stage].is-zoomable`.
+- `app.js`: `a[data-swap]` links load in place through `tspSwapPage`, which also swaps `main.embed-content` so it works in an embedded page (the picker). In a file's view Left, Right and Esc click its Previous, Next and Back links; back in the list, the file just seen is scrolled into view.
+- `window.tspSwapPage(url, {push})` and `window.tspOnEachPage(fn)` in app.js: the page swap Settings used (heading, top actions, messages, `section.page`, sidebar pinned rows, title, history, inline scripts, then the page setups) moves out of the Settings block to be shared, and links inside a `[data-swap-nav]` use it on a plain click (falling back to a normal navigation if the fetch fails). Back and Forward after a swap swap again instead of reloading. Watchtower's tabs and the Requests Active / Archived switch are `data-swap-nav`.
+- `AccessRequest.message` (added by `_migrate_sqlite`): the Request Access form's optional message, on the public popup and the sign-in page, saved by `request_access_submit` (up to 2,000 characters), included in the notification email's text and branded versions, and shown as `.wt-req-message` under the name in `watchtower/requests.html`.
+- `auth.add_user_to_email_list(user)`, used by `users_create`, adds the new user to `TrustedServantSubscriber` (with `user_id`, name or username, email, phone) when the form's `add_to_email_list` box is ticked, its default; an entry already holding that email (case-insensitive) with no account gets the new `user_id` instead.
+- `frontend/_request_access_modal.html`, included in `frontend/base.html` for signed-out visitors: the Request Access form as a `data-fe-form-modal="request-access"` popup, posted with `X-Requested-With: fetch` and answered in place. A Request access button in the same recipe as Login sits beside it, in an auth row (`.fe-megamenu-authrow--guest`, all three mega menus) and the footer's `.fe-footer-admin-login-row` (`footers/blocks/_admin_login.html`), opening it (the panel 400px wide, its footer stacked), falling back to `auth.login#request-access`, which opens the sign-in page's form. `ACCESS_ROLE_OPTIONS` is a template global (`_inject_access_roles`).
+- `initSideFold` (app.js) and `#fb-side-fold-tpl` (base.html): at 760px and under, every `.fb-side` with filter groups gets a `.fb-side-bar` row (its `.fb-search` and a `.fb-side-fold` button with an in-use count) and `.fb-side-chips`; `.fb-side-group`s hide until the button opens the sidebar (`.is-open`), except `.fb-side-keep` (the Zoom passcode tools). A filter is in use when its group's current link isn't the group's first, and its chip links to that first link. Recounted on `live:updated`; wider screens are unchanged (`.fb-side-bar` is `display: contents`).
+- `library_detail.html`: `.fb-side-back`, an arrow button left of the file count in `.fb-side-toprow`, linking to `main.libraries` (`show=archived` for an archived library); not shown for Intergroup libraries, which aren't on that list.
+- The alert bar: `SiteSetting.alert_enabled`, `alert_message`, `alert_tone`, `alert_places`, `alert_dismissible`, `alert_until` and `alert_version` (added by `_migrate_sqlite`); `ALERT_PLACES` (dashboard, top, sidebar), `ALERT_TONES` and `_site_alert`, exposed as `site_alert` to signed-in pages; `alert_save` (`POST /settings/alert-save`, admins), which bumps the version when the message changes or the bar is turned on again. `_site_alert.html` renders each place (hidden where it doesn't show) in `base.html` and `index.html`; Close stores the version in `localStorage` (`tsp-alert-closed`) and a head script hides a closed alert before paint. The Settings pane previews through `/markdown-preview`, which takes `mode=inline`, and swaps the page's bars after a save. `--topbar-h` counts a bar above the top bar. With `alert_details_enabled`, `alert_title` and `alert_details` (Markdown; a change bumps the version), the bar gets `.has-details` and a Details button, and a click opens `#site-alert-modal` (`site_alert_modal()`), whose contents the Settings preview fills from the form and puts back on close. The message and details are `.md-editor-live` editors with `md_toolbar()` (the message previews in `mode=inline`), and `.site-alert-msg` styles headings, lists, quotes, rules and images at the bar's size. `SiteSetting.alert_posted_at` (site-local) and `alert_show_posted` (added by `_migrate_sqlite`): `alert_save` keeps a date the admin changed, otherwise sets now when the message changes, the bar is turned on or none is set; the window shows it as `[data-detail-posted]`.
+- `TrustedServantBlast.body_html`, `audience_json` and `recipients_json` (added by `_migrate_sqlite`), with `audience()` and `recipients()`: `trusted_servants_blast_send` stores the rendered message, the audience (`mode`, `groups`, `picked`) and each recipient's `name`, `email`, `group`, `ok` and `error`, and lands on the update it sent. `trusted_servants_blast_compose` takes `reuse=<id>`.
+- `library_readings_bulk` (`POST /libraries/<slug>/readings/bulk`: add_category, remove_category, replace_categories with `cat`, show, hide, delete), keeping each row's gate and skipping a removal that would leave a required-category file with none.
+- Contact Form: `contact_message` (`GET /contact-form/<id>`, marks the message read) and `contact_message.html`; `contact_submissions_bulk` (`POST /contact-form/bulk`: read, unread, archive, unarchive, delete).
+- Form submissions: `frontend_form_submissions_bulk` (`POST /frontend/forms/submissions/bulk`: archive, restore, read, unread, delete, skipping forms the user can't manage); `frontend_form_submission_seen` now sets read or, with `target=0`, unread.
+- Email List: `trusted_servants_new` (`GET /email-list/new`), `trusted_servants_editor` (`GET /email-list/<id>`) and `trusted_servant_edit.html` (`.post-studio`, Account and Notes tabs, `content_editor.js`); `trusted_servants_bulk` (`POST /email-list/bulk`, `action=delete`). `trusted_servants_edit` answers the save bar with JSON.
+- Recovery Contacts: `recovery_contacts_new`, `recovery_contacts_editor` (`GET /recovery-contacts/<id>`, with the entry's log by name and its abuse flags) and `recovery_contact_edit.html` (review card for waiting rows; Listing, Note and Activity tabs); `recovery_contacts_bulk` (`approve` for new submissions only, `unpublish`, `delete`). `recovery_contacts_update` answers the save bar with JSON and takes `then=approve` / `then=apply` to save first and then call the approve or apply-update route.
+- `initials` Jinja filter (up to two letters for a person's avatar), `.lst-thumb--person`, `.post-chip-danger`, `.lst-email`, `.pe-facts`.
+- `GET /tspro/zoom-tech/edit` (`zoom_tech_edit`, admins) and `zoom_tech_edit.html`: the Zoom Tech Training editor in the `.post-studio` layout with `content_editor.js` and `fe_studio.js` (Sections and Layout tabs, the settings sticky beside a block page). The Markdown version is a body (`.zt-md`) at the window height whose preview follows the editor section by section; the block version mounts `BlockEditor` in the page (`.zt-blocks`, `zoom_tech_doc.BLOCK_TYPES`). The Format group's buttons post the form with `then=convert` or `then=switch` after a neutral `tspConfirm`.
+- `SiteSetting.zoom_tech_body` (Markdown) and `zoom_tech_format` (`markdown` / `blocks`, blank meaning Markdown once saved, else blocks), added by `_migrate_sqlite`, and `app/zoom_tech_doc.py`: `page_format`, `sections_to_markdown` and `markdown_notes` (blocks to Markdown, through `blog_convert`), `markdown_to_sections` (Markdown to blocks: `#`/`##` start sections; images, videos, quotes as callouts, `###`+ headings, fenced code and rules become blocks, other text paragraph blocks), and `render`, which renders like `markdown_block`, turns an image of a video file into a `<video>` and anchors each `h2` for the contents. `/markdown-preview` takes `mode=doc` for it.
+- `SiteSetting.zoom_tech_design_json` (added by `_migrate_sqlite`) and the design in `zoom_tech_doc`: `DESIGN_COLORS` (each with `<key>_dark`), `DESIGN_CHOICES`, `DESIGN_SWITCHES`, `DESIGN_FONTS`, `clean_design` / `design_form` / `load_design`, and `design_css`, which writes `--zt-*` properties on `.zt-design` (colors scoped to the light or dark theme) and the content column's background; Jinja globals `zt_design_css` and `zt_design_fonts`, used by `_zt_design_head.html`. The editor's Design tab (`.zt-design-panel`, the `.ds-*` controls) posts `ztd_*` fields and sets the same properties on the Markdown preview as they change, `initial` for unset.
+- `static/js/image_lightbox.js`: a full-screen photo viewer for every `img` in a `[data-lightbox-scope]` (not inside a link), with zoom toward the pointer (click, wheel, pinch, double-tap, +/-), pan, previous/next, swipe, a focus trap and an open-in-tab link. Used on `zoom_tech.html`.
+- `BlockEditor.mount` takes `typographyFolded` to start the Typography panels closed. `tspConfirm` takes `tone: "neutral"` (info icon, primary button) for a question that isn't a deletion.
+- `is_offsite(url)` template global (an http(s) URL on another host than the request's); file and library-item links in `meeting_detail.html`, `meeting_edit.html` and `library_detail.html` end with `icon('external-link', 'link-out')` and a screen-reader "(opens another site)" when it holds.
+- `meeting_edit.html` and `static/js/meeting_editor.js`: the meeting editor page (`GET /meetings/new`, `GET /meetings/<slug>/edit`) in the `.post-studio` 60/40 layout with Meeting, Schedule, Online, Alerts, Libraries and Files tabs. The Files panel's own forms are rendered after the meeting form and moved into the settings column by script. `content_editor.js` gains `form.__editorBeforeSave` (scheduled changes sync before the meeting saves), an `editor:saved` event, `form_action` / `page_url` in the save answer, `[data-slug-source]`, and ignores edits owned by another form or inside `[data-editor-ignore]`.
+- `stories` takes `q` (title, summary or author, case-insensitive) and `featured=1`; `stories.html` gets the `.list-filters` row, and its column sort links carry both.
+- `media_list` filters by `kind` (`MEDIA_KINDS`: img, doc, vid, aud, other, from one SQL `type_case` now shared with the type sort) and `mine=1` (uploaded by the signed-in user), and passes `kind_counts`. In picker mode `media.html` puts search, upload, kind, uploader, sort and view in an `.fb-side` sidebar; every link goes through `_fb_url`, so filters, search and multi-select survive sorting, view changes and paging. `pointPicker` in `app.js` opens image pickers (featured image, gallery, Markdown image) on `kind=img`.
+- `app/blog_convert.py`: `blocks_to_markdown` turns a blog post's block list into Markdown and counts what it simplifies (`describe_notes`); `block_breaks`, which the `markdown_block` filter now imports, keeps converted paragraphs reading as they did. `BlogPost.body_blocks_backup_json` (migrated in `_migrate_sqlite`) keeps the block version of a converted post.
+- Blog conversion routes: `POST /blog/convert-preview` (Markdown, rendered HTML and notes for the editor's current blocks), `blog_save` with `convert_to_markdown=1`, `POST /blog/<id>/restore-blocks`, and the `markdown` action in `blog_bulk`. `_blog_convert_modal.html` is the editor's preview and confirm.
+- `static/js/content_editor.js`: the title-to-slug sync and the fetch save bar, shared by `post_edit.html`, `story_edit.html` and `blog_edit.html` (form `[data-content-editor]`, bar `[data-editor-save-bar]`). Widgets that build their own fields mark themselves `data-editor-own-changes` and report edits with an `editor:changed` event (`post_body_editor.js` does).
+- `_featured_image_field.html` (`featured_image_field(src, about)`) and `_md_toolbar.html` (`md_toolbar()`), used by all three editors.
+- `story_save` and `blog_save` answer `X-Requested-With: fetch` with JSON (`_editor_save_payload`, `_editor_save_failed`); featured images go through `_apply_featured_image` (upload, WebP conversion, File Browser pick).
+- Markdown toolbar (`[data-md-toolbar]` inside a `[data-md-editor]`, `initMdToolbars` in `app.js`), first used on the post body. Edits go through `execCommand("insertText")` so they join the undo stack, with a `setRangeText` fallback. Lists, headings and quotes add the blank lines Python-Markdown needs around them. The image button opens the File Browser picker in a new `md-image` mode and inserts `![alt](/pub/<file>)` via `window.tspMdInsertImage`.
+- `app/widths.py`: a `site` width mode beside `boxed` and `full`. `resolve_width()` draws `site` as boxed at the resolved `container_max_px`; public routes pass the resolved values and the header, footer, page, contact and Recovery Contacts templates use the `width_px` Jinja global, so templates still only know `boxed` and `full`. Save routes accept `site` (`WIDTH_MODES`), the page-level `*_width_mode` model defaults are now `site` (migrations still add `boxed`), and `_width_control.html` is the shared admin control. Design → Layout lists each surface's mode (`width_usage()`).
+- `forms_overview.form_rows()`: one row per built-in and custom form with its inbox URL and waiting count (pending posts, stories and Recovery Contacts, unread contact messages, unseen custom-form submissions). `forms_registry` entries gain `inbox_endpoint`.
+- Live previews for the Web Frontend studios: `POST /tspro/frontend/preview` (`staged_preview.render_staged`) runs the posted forms through their own save routes with the session's commits turned into flushes, renders the public path with a nested request carrying the admin's cookie, and rolls back. Only settings saves in `PREVIEWABLE` may run; file inputs and remove/clear fields are dropped. `_live_preview.html` and `fe_live_preview.js` draw it as a scaled iframe with light/dark and desktop/phone switches; `fe_studio.js` drives the studio tabs and asks before leaving with unsaved changes.
+- Design → Header (`header_appearance=1`, `_save_header_appearance`): header width through `_width_control.html`, height, logo width, and `utility_bar_*` and `header_alert_*` colors with new `*_dark` columns (empty means the light color). Dark colors render through `data-ub-dark` / `data-ab-dark` rules in `frontend.css`; `frontend.UTILITY_BAR_COLOR_MODES` lists the themes that honor the utility bar colors. The Header and Footer tabs swap the drawn stage for a live preview of the page.
+- `_icon_picker_modal.html`, the shared icon picker, used by Header and Footer. Secondary footer links store `open_in_new_tab`.
+- `app/form_specs.py`: specs for the built-in forms (`free` for Contact, `fixed` for Story and Announcements/Events) with `resolve_fields`, `normalize_fields` and `field_map`, exposed as the `builtin_form_fields` / `builtin_field_map` Jinja globals. `contact.html` renders its fields through the new `frontend/_form_field.html` macro (extracted from `_custom_form_body.html`); `contact_submit` validates required fields from the spec and appends extra answers to the message. `_submission_form_body.html` takes its labels, help and placeholders from `field_map`.
+- `_confirm_modal.html` and `window.tspConfirm({title, message, confirmLabel})` (`app.js`): an in-app confirmation dialog that resolves true or false. A form with `data-confirm` (plus optional `data-confirm-title`, `data-confirm-label`) asks before submitting, in place of a native `confirm()`. Settings → Global uses it for location deletes and officer / fellowship row removal.
+- Settings → Global sorting: `.erow-head` and `[data-glist-sort]` hold `.erow-sort` buttons (`wireSort` / `wireRowSort` in `locations.html`); officer and fellowship rows are reordered in the form, so a save stores the sorted order (`sort_order` follows the posted order).
+- `SiteSetting.pic_title` (`pic_role_label` falls back to "Public Information Chair") and `IntergroupOfficer.is_pic`, both added by `_migrate_sqlite`. `pic_save` stores the title; `_sync_pic_officer` writes it as the officer's position. `_pic_officer` finds the `is_pic` row, and adopts the existing row titled Public Information Chair (or the current title) on first use. The help modal, `frontend/contact.html` and `frontend/blocks/contact.html` show `pic_role_label`.
+- `User.theme_pref` (`system` / `light` / `dark`, empty until chosen; added by `_migrate_sqlite`) and `POST /tspro/account/theme` (`account_theme_save`). `base.html` and `setup.html` carry it as `data-theme-pref` and resolve `data-theme` before paint (falling back to the browser's `tsp-theme`, with old theme names mapped to light or dark, then `prefers-color-scheme`); `app.js` follows device changes under `system`, saves from `[data-theme-pref-value]` controls and `#theme-toggle`, and migrates a browser's old choice to the account once.
+
+### Changed
+- File Browser: a file opens in its own view, `GET /files/media/<id>` (`main.media_file`, `media_file.html`), in place of the `#file-lightbox` dialog, which is gone with its script and its `.file-lightbox`, `.lightbox-stage`, `.lightbox-nav*`, `.lightbox-counter`, `.lightbox-image` and `.lightbox-pdf` rules. The view reuses the editors' `.card.post-studio > .st-body--split` (file in `.st-preview`, details in `.st-controls` as `.ds-group`s with `.pe-facts`), the click-to-copy chip `.copy-btn` for the path, `.fb-side-back`, `.media-pagination-controls` and `.fb-empty`; new CSS is only its height (it fills the window like the list) and keeping the details beside the file down to a 700px card. Names and thumbnails in the list link to it with `data-swap`. `_media_browse()` (search, kind, uploader, sort) is shared by `media_list` and the view's Previous and Next; `_media_visible_query()` is the visibility filter both use, so a file a user can't see in the list 404s. `_media_usages()` lists meeting files and logos, library items and covers, posts (featured, gallery, body), stories, blog posts and pages that use the file; `_media_image_facts()` reads dimensions and EXIF date and camera with Pillow. The row menu moves to `_media_macros.html` (`media_actions`, with `back` for the delete's return and `download`); `media_size` too. Global search links a file to its view.
+- `_metric_toggle.html` is the shared `.ds-seg-btns` (`role=radio`, `aria-checked`, set by app.js in place of `aria-pressed`) with the shared `chip()` help; the `.metric-toggle` and `.metric-toggle-help` styles are gone (`.metric-toggle` stays as the script hook). The window `<select>` on Visitors and 404s takes `.btn`, and their top-bar buttons drop `.btn-sm` for the top bar's standard size; `.wt-window-form select` is gone.
+- The sliding highlight (`.st-seg-thumb`, app.js) also drives `.ds-seg-btns`, finding the chosen part by `aria-selected`, `aria-checked`, `aria-current` or a checked radio, following `change` events, and running again on pages brought in by `tspSwapPage`; on `.ds-seg-btns` the shape takes the raised-chip look and the chosen part drops its own.
+- Setups a swapped-in Watchtower page needs run again through `tspOnEachPage`, marking what they bind: the Show more expanders (`data-wt-expand`), the charts (`data-wtc`), Create User from a request; the Unique / Hits toggle is delegated and reapplied. The 404s and Requests pages' document-level listeners and the self-block dialog's are added once per document, the latter acting on whichever dialog is on the page.
+- The shared segmented control (`.ds-seg-btns`) styles link options (`> a`, current one by `[aria-checked="true"]` or `[aria-current="page"]`). Watchtower's tabs (`watchtower/_tabs.html`) use the accent segmented control `.st-seg`, which now also takes link parts (`> a`, the current one `[aria-current="page"]`), keeping only their spacing and phone swipe (`.wt-tabs > .wt-tabs-track`); the `.wt-tab` look and its dark variants are gone, as are `.fb-view > a` and `.ts-switch > a`, which restated the shared option for links.
+- Gap tokens `--gap-3xs` (2px) through `--gap-5xl` (32px): 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32. All 1,262 `gap` / `row-gap` / `column-gap` values in app.css use them; 1,154 matched a step exactly and 108 (odd pixel sizes and fractional rems such as .55rem) moved to the nearest one. 1px hairline gaps, 0 and computed values are unchanged.
+- 49 selectors written twice in app.css, in the same @media / @container context and setting different properties, are one rule each: the later copy's declarations (and its comment) moved into the first. A same-moment computed-style A/B showed one change: the live Markdown editor's `minmax(0, 1fr)` columns, which a later copy of `.md-editor` had overridden, now apply.
+- Corner radius tokens `--r-xs` (4px), `--r-sm` (6px), `--r-md` (8px), `--r-lg` (10px), `--r-xl` (12px), `--r-2xl` (14px) and `--r-pill` (999px); `--radius` and `--card-radius` point at `--r-xl` and `--r-2xl`. The 629 single-value `border-radius` declarations in app.css with one of those sizes use them.
+- `--card-pad` splits into `--card-pad-y` / `--card-pad-x`. Editor pages use them: `.post-studio-main` is padded `--card-pad` (was 20px 22px 24px) and the settings panels' side inset is `--card-pad-x` (`.ds-group`, `.st-panel-intro` and the `.st-controls` header, menu and page-settings sections, which each set 18px).
+- Spacing tokens on `:root`: `--content-px` / `--content-pt` (page padding), `--layout-gap` (between laid-out columns: `.fb-pick--page`, `.dash-grid`, `.mtg-layout`, `.mtg-main`/`.mtg-side`, `.ig-layout`), `--card-pad`, `--stack-gap`, `--card-radius`, with one 720px block that sets the phone values (it replaces the 480px `--content-px` change and its `.card` / `.stat` padding overrides). `.card` uses them (it was `padding: 2rem`), as do `.stat`, `.data-card`, `body.embed .embed-content`, the Settings panes and `.modal-head` / `.modal-body` / `.modal-foot` (now `--content-px` at the sides; were 18px, 24px and 18px). `.data-card-head` takes the tinted 30px icon tile and `.data-card` drops its 4px brand left edge.
+- Removed the per-context card copies those replace: `.dash-grid .card.data-card`, `.mtg-layout .card.data-card` and `.ig-layout > .card` padding, radius, border and shadow; `#settings-modal .data-card` and `body.embed .card` / `.card.data-card` / `.card:not(.data-card)` chrome; the `html.in-settings` rules and the base.html script that set that class; and the Settings phone card and pane paddings.
+- Settings panes are spaced uniformly by ID rules: `padding: 60px 24px 24px; gap: 16px` (phone 14px, gap 14px), with `.data-card` margins zeroed so the gap alone separates cards. Pages in a `.settings-frame` iframe get `html.in-settings` (set in base.html's head from `window.frameElement`) and match: `.embed-content` 14px 24px 24px (phone 14px), data cards 18px 20px with 16px between (phone 16px, 14px).
+- `locations.html`: at 760px and under, Officers and Fellowships rows fold to an `.erow-summary` button (position and name; name and Virtual or country and region) kept in step as fields are typed; rows open on click, new rows (cloned from `is-open` templates) start open, and a row with an invalid field opens on submit.
+- The Modules pane's Trusted Servants Email List description no longer mentions the retired dashboard widget.
+- `users.html`: the Create user role select defaults to `viewer` (it had no selection, so the first option, `admin`). `request_access_submit` turns away a filled `website` honeypot (answering as if sent), checks the email's shape, verifies Turnstile when it's on, and trims its fields; the sign-in page's form carries the honeypot and the Turnstile widget.
+- `--content-px` and `--content-pt` are set on `:root` (20px, 14px at 480px and under) instead of on `.content` (28px and 22px), and `.content`'s bottom padding is `--content-px` instead of 48px. `.fe-save-bar` uses them for `left` and `bottom` in place of a fixed 28px and 22px, and `.fb-pick--page`'s `--fb-h` subtracts two of them; the `.content:has(.fb-pick--page)` bottom-padding override is gone.
+- `zoom_accounts.html` uses the `.fb-pick--page` list layout: `tab` (accounts, calendar), `only=overlaps` (`_zoom_conflicts`), `sort` (name, uses), `view`, `q` (name, sign-in, notes); the OTP widget moves into the sidebar outside the live regions. Passwords reveal and copy through a delegated `[data-za-pw]` script. `zoom_account_new` and `zoom_account_edit` take GET (`zoom_account_edit.html`, `.post-studio`, the account's schedule slots with overlaps); `zoom_account_edit` answers the save bar with JSON and refuses a blank or duplicate name.
+- `trusted_servants_list.html`: a `.ts-switch` segmented control (People / Updates) at the top of the `.fb-side` sidebar; `tab=history` is a two-pane view (`.ts-upd-list` beside `.ts-upd-view`) of the update picked by `update=<id>` (else the latest), searchable by subject or message, with the People filters, sort and view hidden. The subject's `{name}` is filled per recipient.
+- `trusted_servants_blast.html` is a `.post-studio` page: the body in `.md-editor-live` with `md_toolbar`, the audience (same form fields) and recent updates in Audience and Sent before tabs, a live `.ts-reach` count, and a `tspConfirm` before posting. `_blast_compose_page(prefill, status)` renders it; `trusted_servants_blast_send` re-renders it with the posted values (400) instead of redirecting when it refuses a send, and returns to the Email List's Updates sent view after sending.
+- `.btn:disabled` is faded with a not-allowed cursor.
+- `intergroup.html` lists accounts (`.ig-acc`) with `data-copy-text` Copy buttons and a client-side filter over five accounts, and the setup as `.ig-server` rows and `.ig-notes`. `intergroup_edit` (`GET /intergroupemail/edit`) renders `intergroup_edit.html` (`.post-studio`, sortable account rows through the shared `.file-list-sortable`, Mail servers and Webmail tabs) and answers the save bar with JSON, with a redirect when new accounts need their ids. Copy buttons take `data-copy-text` (copied as is) beside `data-copy-url`.
+- `library_detail.html` uses the `.fb-pick--page` list layout, rendered by `_library_page` for both `library_detail` and `intergroup_library_detail`: `q` (title, file name, summary, link, categories), `cat`, `kind` (`_LIB_KINDS` from `_library_item_kind`), `public`, `sort` (custom/name/added/kind; custom by default, name for Intergroup libraries), `view` (cookie). Drag-reorder (`.file-list-sortable` on the `tbody`) only in custom order with no filter, so the saved order covers the whole library.
+- `reading_form.html` and `library_form.html` are `.post-studio` editor pages with the save bar. `reading_edit` answers it with JSON (a redirect when the file, thumbnail or content source changed) and returns to the editor; `reading_new` returns to the library; `library_edit` answers with JSON (a redirect on rename or new categories) and returns to the settings page. `reading_delete` and bulk delete use `trash.soft_delete_library_item` and return to the referrer.
+- `app.js`: the reading lightbox and the reorder save bar are delegated (they survive a live search); a File Browser pick and a content-mode switch fire `input` so an editor's save bar notices.
+- `contact_form.html` and `frontend_form_submissions.html` use the `.fb-pick--page` list layout through `_list_page.html`. `contact_form` takes `show` (inbox, unread, archived; the old `view=active|archived` still works), `delivery` (sent, failed), `sort` (received, name), `view` and `q`. `frontend_form_submissions` takes `show` (inbox, new, archived; `archived=1` still works), `sort` (received, name), `view` and `q`, searched over the decoded answers. Sort and view are kept in cookies.
+- `frontend_form_submission_detail.html` is laid out like `contact_message.html` (`.msg-studio`: `.msg-from` header, answers through `_submission_fields.html`, details in the side column). Single-item actions on both inboxes return to the referrer, or the list when they leave the item's own page (`_contact_back`, `_submission_back`).
+- `base.html`: the Web Frontend sidebar link is no longer active on `main.frontend_form_submission*` pages.
+- `trusted_servants_list.html` and `recovery_contacts.html` use the `.fb-pick--page` list layout through `_list_page.html`. `trusted_servants_list` takes `account` (portal/manual), `sort` (name/email/joined), `view`, `q` (name, email, phone, notes) and `tab=history`. `recovery_contacts` takes `show` (`_RC_SHOWS`: published, pending, updates, removals), `only` (sponsor/contact), `sort` (name/added/contacted), `view`, `q` (also phone digits) and `tab=log`, with counts per section that apply the other filters. Sort and view are kept in cookies.
+- Recovery Contacts actions return through `_rc_back`: to the referrer, or the list when the action deleted the entry whose page it came from. Email List and Recovery Contacts manual adds land on the new entry's page. The visibility switch posts `field` as a form field.
+- The Zoom Accounts calendar is a time grid (`.zcal`): `_zoom_week` places each schedule by its busy window (`_zoom_busy`: `opens_time` or start, to the end, capped at midnight) as a percentage of the hours shown (6 AM to 10 PM, widened to fit), Sunday first, one lane per account, overlapping times packed into columns, and a compact `_short_range` label. A block's lane comes in as `--zl` / `--zw`; on hover or focus it transitions to the full column width over an opaque background (no transition under `prefers-reduced-motion`). Accounts take one of six colors (`.za-c0`..`.za-c5`, with dark values); `acct=<id>` shows one account with meeting names, and the editor's calendar link uses it. A `.zcal-now` line marks the current time on today.
+- `_zoom_conflicts` compares busy windows, so a room's opening time counts toward an overlap.
+- `zoom_tech_edit.html` uses the standard `.st-body--split` 60/40 columns. The `.zt-doc` rules read the `--zt-*` design properties, each falling back to the admin theme.
+- `zoom_tech.html` renders `zoom_tech_doc.render` output in `.zt-page` / `.zt-wrap` (text at 46rem by default, centered) with a `.zt-toc` `<details>` beside it in the Wiki layout, folded above the text in a container under 820px, and a scroll-tracked current section. `zoom_tech_save` takes `zoom_tech_title`, `zoom_tech_template` and the version in use (`zoom_tech_body`, blank kept so an emptied page stays empty, or `blocks_json`), then `then=convert` (overwrite the other version with a conversion and switch) or `then=switch` (switch to the kept version); a plain save answers the save bar with JSON. The block version renders through `render_sections` in the same layout.
+- `posts.html`, `stories.html` and `blog_list.html` use the `.fb-pick--page` list layout through the new `_list_page.html` macros (`search_form`, `side_link`, `sort_link`, `view_switch`, `bulk_bar`). `posts` takes `q` (title, summary or place) and `view`, and passes `status_counts` / `kind_counts` from `_post_status_filter` / `_post_kind_filter`; `stories` stores its sort and view in cookies, adds `author_desc` and `updated_asc`, and passes `status_counts` / `featured_counts`; `blog_index` adds `author_desc` and `updated_asc`, stores sort and view, and passes `cat_counts` / `tag_counts`. Every filter's counts apply the other filters.
+- Bulk selection is one delegated script in `app.js` (`initBulkSelect`: `[data-bulk-scope]`, `[data-bulk-check]`, `[data-bulk-all]`, `[data-bulk-bar]`, `[data-bulk]` with `data-bulk-confirm` / `data-bulk-needs`), replacing three inline copies; confirms go through `tspConfirm`.
+- Live search: `form[data-live-search]` (`initLiveSearch` in `app.js`) fetches the page as the box changes and swaps each `[data-live]` part, then fires `live:updated`. The File Browser's rename, select, filename-preview and Preview handlers are delegated so swapped rows keep working. The Search page runs its query as you type.
+- `meetings.html` and `libraries.html` use the File Browser's `.fb-pick--page` layout (`.fb-side` sidebar, `.card.fb` scroll area, sticky `.fb-tbl` headings) with new `.lst-*` thumbnails, day picker and grid cards; the topbar view, status and sort controls and the New button moved into the sidebar. `meetings` takes `q` (name or location), `type` and `day` (0 to 6) and passes per-filter counts, file counts and `runs` from the new `_schedule_runs` (days sharing a time merged); it sorts by `libraries` and `files` too. `libraries` takes `q` (name or description) and `public` (`shown` / `hidden`) and sorts by `meetings`. Both store the view as `list` / `grid`, reading the old `table` / `cards` cookies. Table rows keep the hover-revealed Actions button (`.lst-tbl` overrides the File Browser's always-visible menu); grid cards use the compact menu. Archive and Delete in the row menus use the confirm modal.
+- `.st-seg` controls get a `.st-seg-thumb` (added by `app.js`) that moves with `transform`, width and height to whichever button has `aria-selected="true"`, watched with a MutationObserver and ResizeObserver; the chosen button drops its own fill. No motion under `prefers-reduced-motion`.
+- New `--hover` colour token (`#f2f3f8` light; the same as `--panel-2` in dark), used by every `:hover` rule that had a `--panel-2` background (33 rules).
+- `meeting_detail.html` is a `.mtg-layout` grid: `.mtg-main` (about, schedule as `.mtg-sched` rows with `today_dow` from `meeting_detail`, queued `schedule_changes`, and a `.mtg-files` card whose libraries and categories are `fe_studio.js` tabs, so `#<category>` links open them) and a sticky `.mtg-side` (the platform cards and `.mtg-location`). The description renders through `markdown_block`. The `.tabs` row, per-category cards and the old `.meeting-info` / `.meeting-details-grid` / `.schedule-table` / `.zg-maps-link` styles are gone.
+- `meeting_new` and `meeting_edit` take GET (the editor) as well as POST; `meeting_edit` answers the save bar with JSON (`_editor_save_payload` plus `form_action`, `page_url`, `logo`), and creating a meeting redirects to its editor. `file_new`, `file_edit` and `file_delete` return to the editor's Files tab when posted with `return_to=editor` (`_meeting_file_return`). The meetings list, its row menu and the meeting page link to the editor.
+- File Browser: the count moved into `.fb-side` (`.fb-side-total`); the files `.card.fb` is its own scroll area sized to the window (`--fb-h` on the page, `100vh` in the picker), with sticky `.fb-tbl thead th`. The page drops its bottom padding so it doesn't scroll as well.
+- `media.html` renders the `.fb-side` sidebar on the page as well (`.fb-pick--page`, a sticky card), replacing the `.fb-toolbar` row (search, count, `.fb-sortbar`, view) and the top-bar Upload; the embed-only pane rules are scoped to `body.embed`. Removed the `.fb-toolbar`, `.fb-count` and `.fb-sortbar` styles.
+- The blog list filter card became a `.list-filters` row (styled in `app.css`); `[data-auto-submit]` forms (`initAutoSubmitFilters` in `app.js`) submit when a menu changes or the search box is cleared.
+- `#media-picker-modal` has no `.modal-head`: the frame fills a 90vh panel and `.media-picker-close` floats over its corner. In picker mode the embed page drops its padding, the `.fb-side` sidebar runs the full height (sticky, titled "File Browser"), and the files sit in `.fb-pick-main` on `--bg`; the multi-select bar moved to the foot of the files so it sticks to the bottom.
+- `input[type="file"]::file-selector-button` (and `::-webkit-file-upload-button`) styled as `.btn-primary` across the admin.
+- `blog_edit.html` shows the Markdown editor (`md_toolbar`, live preview in `markdown` mode, as the public templates render `body`) unless the post has blocks; only then does it load `post_body_editor.js` and the block palette.
+- `_cleanup_retired_asset` also counts `/pub/` references in `BlogPost.body_blocks_json` and `body_blocks_backup_json`, so an image a block post or a kept block version uses isn't deleted with another post.
+- `story_edit.html` and `blog_edit.html` are `.st-studio.post-studio` cards (`data-studio="story"` / `"blog"`, driven by `fe_studio.js`) in the post editor's 60/40 layout. Top-of-page Publish / Move to Drafts submit the form with `action`. Delete forms in all three editors use `data-confirm`.
+- `_slug_history.html` takes a `slug_kind` ("story", "blog") and links the matching public path.
+- `.fe-save-bar-content` sizes to its contents.
+- Light admin `--bg` is `#f2f3f8` (was `#f6f7fb`), and so is the unstyled-page guard background in `base.html`.
+- The floating Settings close button (`#settings-modal .settings-main-head [data-close]`) is transparent at rest and takes its panel background, border and shadow on hover or keyboard focus.
+- Row-menu columns in `.tbl` tables carry an "Actions" heading (`th.th-actions`, or `th.posts-th-actions` on the post, story and blog lists), right-aligned over the menu.
+- The admin `.page` body has no `max-width` (was `calc(1400px - 2 * var(--content-px))`); the `.page:has(.fe-admin-layout)` and `.page:has(.admin-404)` opt-outs went with it.
+- `post_edit.html` is one `.st-studio.post-studio` card (`data-studio="post"`, driven by `fe_studio.js`) split 60/40: the writing in `.post-studio-main`, the settings in `.st-controls` with Publish, Event, Links and Images panels. The Event tab button (`data-post-event-tab`) hides while Event is unticked; `public_visibility` is a radio `.ds-seg-btns`; the Zoom group hides while Online is off. Removed the unused `.post-subhead`, `.post-zoom-block` and `.post-form > .card` rules.
+
+- Design page rebuilt: `frontend_design.html` with `static/js/design_studio.js` and `static/css/design_preview.css`. Tabbed controls beside a sticky preview cloned from a `<template>` into a shadow root, so admin theme rules (neobrutal borders, link and heading styles) can't reach it. Controls are grouped by element: link and nav colors under Links, card colors, card radius and `card_shadow` under Cards, container settings under Layout. The card colors no longer render twice with a mirror sync.
+- Scale tokens use stepped sliders labelled from the new `design.SCALE_UI`; on/off tokens use switches; decoration and case use segmented controls; CSS lengths get a slider plus a text box. The form contract is unchanged (`design_<key>`, plus `design_<key>_enabled` for colors), and an unedited form posts the saved overrides exactly.
+- `design.design_studio_data()` gives the page the theme defaults, the valid saved overrides, the scales and `SHADOW_SCALE_COMPONENTS`; the preview composes shadows and the mega-menu `dark_variant` in JS the same way the emitter does.
+- The dark preview mirrors `frontend.css`: fixed dark button colors, `.fe-th-nav-link` in `--fe-dm-text`, and mega-menu links through `dark_variant`.
+- `section_gap` has no control: `--fe-section-gap` is emitted but no stylesheet reads it. A saved value is carried through a hidden input.
+- Default appearance is a compact segmented control, saved through the save bar.
+- `color_text`, `color_text_dark` and `color_text_soft` render on the Colors tab and again on the Text tab as unnamed `data-mirror` copies; `design_studio.js` routes a mirror's edits and resets to the original and repaints every copy, so each token still posts once.
+- The Navigation page's Mega menu appearance card moved to a Mega menu tab on the Design page, with the `megamenu_link_*` tokens from Links. `frontend_nav_appearance_save` became `_save_mega_appearance()`, which `frontend_design_save` runs when the post carries `mega_appearance=1`; the `/frontend/nav-appearance` route is gone. The field names and clamps are unchanged.
+- `frontend_design` passes the active mega menu style (`mm_name`, `mm_kind` from the template partial). Settings that style's partial doesn't read are dimmed with a note: colors and text sizes are read by `classic.html` and `recovery-blue.html` only, the stagger by `recovery-blue.html` only, and the `color_megamenu_link*` tokens only take effect in `themed.html`, since the other two set `--fe-color-megamenu-link` inline from the panel text color.
+- The Site theme picker draws a per-theme thumbnail (`.theme-thumb-<key>` in `app.css`): a miniature homepage in each theme's default palette, heading face and card shape, in place of the shared `homepage` sketch. The other template pickers are unchanged.
+- The Site theme modal's `restore_mode` radios are a `.ds-seg-btns` segmented control with one hint line; the active segment and hint follow the checked radio through `:has()`, since the picker runs without `design_studio.js`. The modal form drops the 2rem `.form` gap. The posted values are unchanged.
+- One set of segmented-control rules in `app.css` (9px track, 6px options, raised active option) now draws `.ds-seg-btns`, `.ds-kind`, `.nav-megalink-seg`, `.view-toggle`, `.ar-view-tabs`, `.fe-mlist-link-type`, `.dynbg-modal-tabs`, `.pbe-segmented`, `.content-mode-seg`, `.ts-aud-submode` and the `.fe-template-picker` pill. Each component keeps only its layout rules; the pill, brand-fill and accent-fill variants and the dark-mode overrides of `.content-mode-seg` are gone. `wp_import_map.html` gives `.wp-target-pillgroup` the same shape and keeps its per-target colors.
+- `_frontend_subnav.html` renders both the desktop list and the phone `<select>` from one list, `fe_admin_nav._SECTIONS`, exposed as the `fe_subnav(site)` Jinja global. Groups are Look, Structure, Content and Site; Visitor metrics is marked as leaving the area.
+- The `template_picker(frontend_themes, …)` pill is removed from every Web Frontend page header except Design.
+- `frontend_dashboard` renders a fixed status strip (`frontend_enabled`, theme and default mode, cookie banner, caching) and the staging sync card above the widget grid. `FE_DASHBOARD_WIDGET_KEYS` drops `fe-status`, `fe-branding` and `fe-header-footer`; their `fe_dash_show_*` columns are no longer read. `fe_dashboard_customize` also saves `fe_admin_autohide_sidebar`.
+- `frontend_header.html` is a studio (`fe_studio.js` tabs, `live_preview` of `/`, with `?__mm=<id>` holding a mega panel open through `data-fe-open-megamenu`). `frontend_navigation` and `frontend_nav_megamenu` redirect to it; their templates are gone. Nav item CRUD redirects to `#menu`, nav reorder saves on drop, and `frontend_nav_column_new` refuses a fourth column (`MEGAMENU_MAX_COLUMNS`).
+- `_nav_megalink.html` puts the text fields in the block's top row and the options in a `data-megalink-more-panel`; `_nav_item_fields.html` posts the same `style` values through a shape and corners control. `app.js` exposes `tspMegaCollect` so the preview posts unsaved mega blocks as JSON to `frontend_nav_megamenu_save_all` (`render_staged` accepts `json` entries).
+- `frontend_branding.html` is a tabbed studio with client-side previews. `frontend_branding_save` also handles `frontend_logo` / `clear_frontend_logo`; the `/frontend/logo-save` route is gone.
+- `frontend_footer.html` is a studio: the seven content modals became `st-panel` tabs (same field names, still parsed by `parse_footer`), the layout is a `frontend_footer_template` radio in the form, the row builder shows only for a custom layout, and a prebuilt shows its `FOOTER_PREBUILT_BLOCKS` slots. `frontend_footer_save` delegates to `_apply_footer_form`, which only rewrites a custom layout's rows; `/frontend/footer/customize` copies `FOOTER_PREBUILT_ROWS` into a new `CustomLayout`.
+- Design → Footer (`footer_appearance=1`, `_save_footer_appearance`): width through `_width_control.html`, min height, font scale, `frontend_footer_bg_mode`, and the background via the new `blocks.parse_footer_bg` (controls in `_footer_bg_controls.html` with `footer_bg_controls.js`). New tokens `color_footer_dark_{bg,line,text,muted,chip,chip_hover}` (defaults are the old hard-coded values) replace the literals in the dark footer rules of `frontend.css`; `frontend.FOOTER_SURFACE_THEMES` marks where they apply.
+- `frontend_form_studio.html` replaces the five form settings templates; `_form_studio_ctx` describes each form. `_field_builder.html` replaces `_form_field_builder.html` and the custom form's inline copy, with `custom`, `free` and `fixed` modes and in-place editing. `frontend_forms` renders `forms_overview.form_rows`. Contact and Recovery Contacts page copy is saved by their form routes; the Page templates routes only write it when posted.
+- `frontend_templates.html` rebuilt around `app/page_templates.py` (`GROUPS`, `KINDS`, `appearance_support`, `sample_path`): one kind at a time (`?kind=`), its layout radios and page fields in one form posting to the kind's existing save route, and Appearance in a second form posting to `frontend_template_settings_save` for the chosen layout. `appearance_support` reads each layout template for the `--tpl-*` variables it uses and knows which routes emit `template_css_vars`; unsupported groups are hidden and disabled so they don't post. The per-kind extras moved to `_tpl_extras.html`; CSS thumbnails are replaced by the live preview. Template save routes return to the referring kind.
+- `frontend_page_edit.html`: the settings card is an `st-studio` with a `live_preview` of `frontend.page_preview` (GET) that posts the form with `save_action=publish` (new `overrides` option) and `watch=True`, which re-renders when the posted fields change without an event (the block builder's hidden `blocks_json`). Width uses `_width_control.html`. Pill labels come from `_PAGE_BLOCK_CATALOG`.
+- `frontend_page_layout_save` applies a preset to the draft (`draft_json.blocks_json`, with a revision) for published pages. `frontend_page_save` adds a redirect from the old slug of a published page and forces the homepage public; `frontend_page_status`, the bulk action and `frontend_page_delete` refuse to unpublish or delete the homepage.
+- `frontend_popup_edit.html` and `frontend_404.html` rebuilt as studios. New `frontend_404_show_sub`, `frontend_404_show_art` and `frontend_404_show_home` columns (default on) read by `frontend/404.html`. `block_editor.js` only shows a section title input for sections that already have a title.
+
+- Font choices move to the design form (`fonts_present` marker in `frontend_design_save`); `frontend_fonts_icons_save` redirects to Design → Text and the fonts page becomes the Font & icon library.
+- Caching page rebuilt with master switches that disable their dependent settings via `:has()`.
+- Privacy & cookies page rebuilt as a studio with a staged banner preview; region presets apply client-side and `frontend_cookie_compliance_apply_preset` is removed. Overlay previews run with `document.cookie` stubbed so the admin's own consent cookie neither hides nor answers the banner.
+- Redirects page rebuilt list-first with add/edit modals; renamed-item rows resolve their current URL (`_history_entity_url`) and `new_slug` is read-only.
+- Admin search registry labels match the current subnav.
+
+- Live previews take `only` (selector list), `fit` and `pad`: the frame hides everything but the matched parts before first paint and, with `fit`, sizes the stage to them (`LP_HEADER`, `LP_FOOTER`, `LP_MAIN`, `LP_FORM` in `_live_preview.html`). The stage reserves its height server-side.
+- `.st-body--split` (preview 60%, settings 40%) for Header and Footer; `.st-body--side` now puts the preview on the left too.
+- `static/js/fe_rows.js`: compact rows that open to edit (`data-ol-row`, `data-ol-toggle`, `data-ol-body`, `data-ol-sum`), used by menu items, mega menu blocks and utility bar items; menu item forms are inline (`.hdr-item-form`) and `frontend_nav_item_edit` is previewable.
+- Footer page: a `home` panel lists the parts with their status; `fs_missing` offers the palette add (custom layouts) or Customize (built-in). Copyright builder writes the same `footer_copyright` string.
+- `base.html` pre-paint: a style for the remembered studio tab (`tsp-studio-preload`, removed by `fe_studio.js` / `design_studio.js`), panes marked `data-studio-pane`, and `html.tsp-preload` disabling sidebar transitions until load. Footer and design-token picker styles moved from end-of-body `<style>` blocks into `app.css`.
+- `fe_studio.js` follows `hashchange`. The modal reopen memory forgets a modal whose form submits for real.
+- Page and popup editors render their settings form before the structure card.
+
+- All studios use `.st-body--split` with an `.st-seg` segmented control (a wrapping grid) inside the settings column; the `.ds-tabs` strips are gone from Web Frontend studios.
+- Page templates: the left rail is replaced by a `details` picker (`.tp-pick`) in the card head.
+- Footer parts render through `fs_part` (a `fe_rows.js` row) instead of `fe_studio` panels; `data-ol-goto` opens a row by key.
+- `fe_live_preview.js` double-buffers: each render loads into a hidden iframe that replaces the shown one after load, isolation, sizing and fonts.
+- `?__mm=` previews add `body.fe-mm-instant`, which finishes mega menu transitions and animations at once.
+
+- `_item_picker.html` (`item_picker` macro) for selector card heads, used by Page templates, the page and popup editors and the form pages; routes pass `_picker_pages`, `_picker_popups` and `fs.picker` (`_picker_forms`). Picker actions can open a dialog (`modal`).
+- `frontend_pages`, `frontend_popups` and `frontend_forms` redirect to the editor of the last item edited (session `fe_last_page`, `fe_last_popup`, `fe_last_form`) or the first; `frontend_section_empty.html` covers no pages or popups. New page and New popup dialogs moved to `_new_page_modal.html` and `_new_popup_modal.html`.
+- Staged previews follow up to four redirects within the site; isolation skips matches that aren't rendered.
+
+- `layout_picker` takes `show_trigger=False` to print only its dialogs; the page editor puts them after its form and opens them from a Layout field on the Page part.
+
+- `_layout_thumb.html` draws layout-card thumbnails from a layout's `blocks_json` (recursive over `container` children, `split` panels and grid containers); used by `layout_picker` and `_new_page_modal.html`.
+
+- `structure_block_palette` renders a docked, grouped, searchable library (`.fe-block-library`) inside the structure card (`structure_card(..., library=catalog)`, or a `.fe-structure-split` on the popup editor) instead of the floating FAB panel. `page_structure.js` adds blocks through one `insertBlock(type, zone, clientY)` for drops and clicks; a click appends to the root zone.
+- Live previews accept `overlays='popups'`, which keeps popups and hides the cookie banner (the popup editor).
+
+- Structure rows (`.fe-page-structure-row--split`) are inline-size containers with a one-line head and icon-only actions; container queries stack 3- and 4-column rows under 640px and all rows under 440px. Pill actions are absolutely positioned. The block library folds (`.is-lib-folded`, localStorage `fe-block-library-folded`).
+- The `submission_form` page template kind (`page_templates.KINDS`), its `widths.py` entry and the form studios' `template_label` / `template_name` read Submission form instead of Forms.
+- `_item_picker.html` menus: groups are bordered boxes with a ruled, tinted heading; entries are single rows with the sub text right-aligned and truncated (full text in `title`).
+- `frontend_footer.html`: the controls column is two studio panels, `layout` (layout choice and rows, formerly the Layout row) and `options` (the `fs_part` rows). `fe_rows.js` `data-ol-goto` shows a row's hidden studio panel before opening it.
+- Branding: the identity pane is a header live preview (`LP_HEADER`). `frontend_branding_save` is in `PREVIEWABLE`; `render_staged` sets `g.staged_preview`, and the route then reads the preview-only `preview_logo` field (`none` drops the logo, `new` stands one in). `fe_live_preview.js` fires `lp:load` with the frame's document before showing it; Branding swaps in the chosen file's object URL there.
+- Design page: the `.ds-tabs` strip (and its scroll fades in `design_studio.js`) is replaced by an `.st-seg.ds-seg` control at the top of `.ds-controls`; `.ds-body` uses the studios' 3fr/2fr split and the card head gets the studios' rule.
+- `.st-seg-scroll` / `[data-seg-scroll]` (`app.js`): a segmented control that scrolls on one row, with edge fades as a mask driven by registered `--seg-fade-l` / `--seg-fade-r` properties, wheel-to-sideways scrolling and the selected part kept in view (a MutationObserver on `aria-selected`, so jumps made from script scroll it too). Every studio's `.st-seg` now sits in one; its parts grow to fill the row (`flex: 1 0 auto`) and keep their labels in narrow columns.
+- `.sidebar nav a.active`: weight 650 and a 3px brand bar (`::before`); `.sidebar nav` reaches 6px left (negative margin, matching padding) so its sideways clip doesn't cut the bar. `.settings-tab.active` gets the same bar and weight on desktop (not in the phone list view).
+- Sidebar top (`base.html`): `.sidebar-dash-btn`, `.sidebar-quicknav` (Web / View / Watchtower), `.sidebar-notif-btn` and `.sidebar-search-btn` are replaced by one `.side-top` group of `.side-item` rows sharing the nav links' metrics and active style; the public-site link is `.side-item-end` inside Web Frontend's `.side-item-row`, with `.side-live-dot`. Hooks are unchanged (`data-open-search`, `data-notifications-trigger`, `data-live-chip`, `data-live-chip-group`). `tspSwapPage` swaps `.side-top` whole.
+- Sidebar: `.side-top` and `#sidebar-nav` share one scroll container, `#sidebar-scroll` (the brand stays pinned above it) (scroll memory and the live nav refresh now track it); the nav no longer scrolls on its own. `_sidebar_nav.html` gives every link a `.nav-icon` (`_nav_icons` by key, with prefixes for Intergroup libraries, forms and external links) and a `.nav-label`; links are flex rows. Action rows drop their leading "+ " for the plus icon.
+- `build_sidebar` labels the `main` section "Main", so it renders with a collapsible divider like the others; the first section's divider drops its top rule under `.side-top`.
+- `users.html`: the users table is a `.ulist` of grid rows (check, avatar, main, role, actions) that wrap at 700px and 420px; the row's inline Reset password button moves to its row menu and its Self-reset / Two-factor switches to the Edit dialog only (the save bar's toggle queues stay, unused). Sorting is a `[data-users-sort]` select. Old `.users-tbl`, `td.users-actions`, `.users-th-*`, `.users-reset-allow-*` and `.users-mfa-*` styles are removed.
+- `locations.html` (Settings → Global): locations render as a `.glist`; the officers and fellowships editors are `.erows` grids of `.erow` rows (`grid-template-areas`, column headings in `.erow-head`, field labels shown below 760px) instead of tables, with country and region grouped in `.erow-geo` (the element Virtual hides). Field names, the hidden template rows and the save routes are unchanged. The old `.locations-tbl`, `.officers-tbl` and `.fellowships-tbl` styles are removed.
+- Settings save bar: `#settings-save-bar` is the last child of `.settings-nav` (moved into `.settings-main` below 720px). `window.tspSettingsHost.dirty(pane, key, on, save)` lets iframe panes add their unsaved changes to the bar's count; the bar's Save awaits each pane's `save()` after the modal's own forms. In an iframe, `window.tspSettingsPane` (`app.js`) reports to it and withdraws on `pagehide`. Users (`users.html` `saveAll`) and Global (`locations.html`, officers and fellowships forms posted with fetch) use it and hide their own save bar and buttons when attached.
+- The Public Information Chair form (`main.pic_save`) moved from `users.html` to `locations.html` (`.pic-form`, rendered for admins only since the route is `admin_required`), saved through Global's settings-bar hook.
+- `PIC_OFFICER_ROLE` / `_pic_officer()` / `_sync_pic_officer()` (`routes.py`): the officer whose position is "Public Information Chair" mirrors `SiteSetting.pic_*`. It is created if missing (on the Global page and on either save), re-synced by `pic_save` and `officers_save`, and `officers_save` ignores its posted fields (keeping only its position in the list) and never deletes it. `locations.html` renders it read-only with a lock (`.erow.is-locked`, `data-pic-mirror`).
+- Dashboard (`index.html`, `_dash_widget.html`, `app.css`): shared `.dash-widget-head` / list / `.dash-empty` / `.dash-stat` styling under `.dash-grid`; the grip is absolutely placed and shown on hover. `dash_widget` takes `view_all_tab` (opens a Settings tab) and `dash_empty(text, icon)` renders empty states. The server widget is a `.dash-stats--6` strip (admins) or a `.dash-role-caps` list (other roles); load average is split into `load_1` / `load_rest` fields in `initServerMetrics`. Access requests uses the macro, with locked accounts as a sub-section. Unused role-panel, metric-tile, vm-widget-stat, access-requests-card and relnotes CTA styles are removed.
+- Dashboard reorder (`initDashboardReorder`): pointer events instead of HTML5 drag and drop (`draggable` attributes removed). The widget is lifted (`position: fixed`, `.is-lifted`) above a `.dash-placeholder`; each move tries the placeholder at every index and keeps the slot nearest the card (masonry `dense` packing makes DOM-neighbour placement unpredictable), re-packs and FLIP-animates the others. Drop animates into the slot, Escape or `pointercancel` restores, and grips are buttons that move their widget with the arrow keys. Touch drags start only from the grip.
+- `--shadow` is now the Dashboard widget shadow in the light, dark and solarpunk themes, and a new `--shadow-hover` covers hover lifts; resting and hover card shadows that were hard-coded (block library, officer roster, page-builder blocks, Watchtower KPIs, backup hero, template and dynbg cards and others) use the tokens. Overlays (menus, dialogs, toasts, dragging) keep their own elevation.
+- Settings dialog (desktop): `.settings-main-head` is reduced to the floating close button (the title stays for screen readers), panes get top padding for it, `.settings-body`, `.settings-frame` and `body.embed` use `--bg`, and `.data-card` (and every `body.embed .card`) takes the Dashboard widget chrome, replacing the brand left border.
+- `.topbar` uses `var(--shadow)`.
+- `meeting_detail.html`: the Zoom card carries `.zoom-card--brand`, a pale blue background (`--zc-bg`, with a dark-mode value) and matching dividers, with white chips and OTP panel; buttons are the defaults. The Google Meet and Teams cards are unchanged.
+- `media.html`: a single `.fb-toolbar` (search, count, sort, `.fb-view` segmented List / Grid) replaces the top-bar view and sort controls and the picker's copy of them; list rows (`.fb-tbl`) gain an Uploaded column and `_size()` formatting, with columns folding into `.fb-sub--narrow` under 760px; grid cards (`.fb-card`) show name, size and date with a compact `row_menu` (new `compact` option, icon-only). File actions share an `_actions` macro, and delete uses `data-confirm`. Thumbnails fall back to the type icon on image load errors (`.is-broken`). Adds a global `.sr-only` utility. The old phone `.media-tbl` rules are removed.
+- File Browser sorting: list headings are `_sort_th` links (`aria-sort`, `.erow-sort` arrows) and the grid (and the list under 760px) gets a `.fb-sortbar`; the sort select and direction button are gone. A new column starts ascending for text and descending for size and upload date. `media_list` adds `sort=by` (outer join on the uploader, unknown uploaders last).
+
+### Fixed
+- `media_download` moves to `/files/media/<id>/download`: `/files/<id>/download` belonged to `file_download` (a meeting file), registered first, so the File Browser's Download served the meeting file with the same id. `media_delete` returns to the list it came from when the form carries a `back` list URL.
+- `app.js`: click-to-copy chips (`.copy-btn`) are delegated and copy through `copyText`, which falls back to a hidden textarea where the clipboard API is off; the File Browser's upload input is delegated, the phone filter fold runs on every page setup, and the picker's multi-select looks up its bar each time and marks picked files again on every page, so all of them survive a swapped-in page.
+- On a phone, Watchtower's tab strip jumped back to its start after each switch (moving the kept nav out and back in reset its sideways scroll), hiding the chosen tab. `tspSwapPage` puts the scroll back, and the chosen part is scrolled to the middle of its strip when tapped and after each swap (`revealCurrent`), Back and Forward included.
+- The alert bar's Details and Close sat at the top of a two-line message; they are centered in the bar (`align-self: center`), the icon staying by the first line.
+- A phone's top-bar swipe strip brought in by `tspSwapPage` (a Watchtower section) had no edge fade: `topActionsSwipeFade` runs through `tspOnEachPage`, wiring each strip once and watching its children's sizes, and centers the current tab by `aria-current`.
+- The sliding highlight covered Watchtower's tab labels: `.st-seg.has-thumb` now lifts every part, links included, above the shape, and a chosen link drops its own fill.
+- Moving between Watchtower's sections shifted the page: `.topbar h1` has a 34px minimum (the top-bar controls' height), and on a phone a `[data-swap-nav]` page keeps its top-bar controls on the title's row (the same swipe strip), so the bar is one row on every section. `tspSwapPage` keeps a `[data-swap-nav]` the new page shares (same `aria-label`) as the same element, taking the new links' content and `aria-current`, so its highlight slides instead of being redrawn.
+- `.badge-success` and `.dynbg-modal-preview-surface--dark` sat above the base rules (`.badge`, `.dynbg-modal-preview-surface`) that, at equal specificity, overrode their colors; they now follow them.
+- Settings > Alert Bar's Markdown editors use the editor pages' single-shell look (`:is(.post-studio-main, .alert-form) .md-editor-live`, `.alert-form` a size container): the text box and preview without their own borders, the text box in the body font, and, stacked, the Preview label in the preview pane instead of the toolbar.
+- Settings on a phone (720px and under): the active pane is padded 14px (gap 14px) and its cards 16px with 14px between them, and the pane and section-list heads 12px 14px, overriding each pane's desktop 20px 24px (or 2rem) and the cards' 18px 20px; iframe panes keep no padding.
+- An empty `.top-actions` is hidden (`:not(:has(*))`): on a phone it wrapped to a second line and its row gap left the top bar 10px taller under the heading.
+- Help tooltips (`.heading-help`) clipped by a scrolling or overflow-hidden ancestor, such as the list sidebar `.fb-side`, float: app.js moves the tooltip to `<body>` as `.help-tooltip.is-floating` (fixed, above modals) beside its button, flips it above when there is no room below, and puts it back on close, Escape, scroll or resize.
+- `zoom_account_delete` sets `zoom_account_id` to NULL on `MeetingSchedule` and `Meeting` rows itself: SQLite here doesn't enforce the `ON DELETE SET NULL`.
+- File Browser picker: `body.embed .fb-pick-main` loses the 58px right gutter and has a 20px margin on every side; `.media-picker-close` sits inside the files card's top-right corner (28px, 28px), over the empty end of its header row. Esc inside the frame posts `media-picker-close` to the parent.
+- `.alert-banner` had no dark-mode colors and showed light-mode yellow on the dark page; `[data-theme="dark"] .alert-banner` tints it instead.
+- A meeting saved with every library unticked kept its libraries: `library_ids` wasn't posted at all, so `_apply_library_selections` never ran. The editor always posts an empty `library_ids`.
+- `.avif` files counted as images in the File Browser's type sort but showed as plain files (`_media_type`).
+- The File Browser's sort, view and page links dropped the multi-select picker mode.
+- The blog editor included `_slug_history.html` with the blog post as a `post`, so it looked up announcement / event history under the blog post's id.
+- A File Browser pick for a featured image set its hidden field without an event, so the save bar didn't appear.
+- `.help-tooltip` resets `text-transform`, `letter-spacing`, `text-align` and `white-space`, so it no longer inherits an uppercase label's styling. The overview's `.fe-status-card` and its strip drop `overflow: hidden` while a help chip inside is open, so the tooltip isn't clipped.
+- `.tbl` row menus: the reveal rule used `tr:focus-within`, so a trigger focused by a mouse click stayed visible after the pointer left the row; it now uses `tr:has(:focus-visible)`.
+
+- The `page-marketing` preset stamped two empty containers; it now carries the hero, the three-column feature grid and the closing button its description lists (refreshed by `_seed_page_layouts`).
+- Firefox painted admin pages with a live preview before `app.css` applied. The preview `<iframe>` is now created by `fe_live_preview.js` instead of being in the markup, and `base.html` hides `<html>` (on the theme background) until `app.css` sets it visible, with a 3 s fallback.
+- `frontend_page_delete` clears `cookie_compliance_policy_page_id` when it points at the deleted page.
+- The Design page preview in a dark admin theme (`dark`, `neobrutal-dark`, `cyberpunk`) painted light card colors under the admin's light text. The preview now has a Light/Dark switch that starts from the admin theme, and it uses the site's own text tokens.
+- A `dotted` link, mega-menu or button decoration was emitted as `text-decoration: dotted`, which sets only the line style and draws no line. `design.text_decoration()` now emits `underline dotted`.
+- `ArchivoBlack-Regular.woff2` was the Google Fonts latin-ext subset, with no basic Latin glyphs, so every Neobrutal heading fell back to Arial Black. It is now `ArchivoBlack-latin-ext.woff2` beside a new `ArchivoBlack-latin.woff2`, split by `unicode-range` like Fraunces.
+- The template-picker pill showed the theme key (`recovery-blue`): the name lookup set a variable inside a Jinja `for` loop, which does not leave the loop. It now uses a `namespace`.
+- `frontend_form_contact` wrote `contact_form_show_phone` and `contact_form_subject_required` from inputs the page no longer has, so every save set both False. `frontend_form_story` blanked the eleven legacy `story_form_*` wording columns the same way. Both writes are gone. `story_submission_submit` takes "email required" from the builder's `submitter_email` block (`_story_email_required`), falling back to the column, matching the public form.
+- `frontend_meetings_list_template_save` rewrote `frontend_meetings_list_protips_json` and `_sidebar_links_json` on every post, including the layout grid's, which carries neither. The sections now carry `protips_section` / `sidebar_links_section` markers and are only rewritten when present.
+- The footer background's Solid and Gradient panes both posted `footer_bg_color`, so `parse_footer` read the Solid picker for the gradient start. The gradient start is now `footer_bg_gradient_start`. The Solid picker showed `#0b1026` for an empty color and saved it on any footer save; a `footer_bg_color_custom` flag now keeps the color empty until it is picked.
+- `cookie_compliance_remember_days` of 0 fell back to 365 through `or 365` in `_inject_cookie_compliance` and the admin template. Only a missing value falls back now.
+- `frontend_cookie_compliance_generate_policy` created the page with `is_published=True`. It is now a draft; the policy picker lists public published pages plus the linked page, marked when it is a draft, so saving the settings doesn't unlink it.
+- `headers/classic.html` hard-coded its links and never read `nav_items`, so Navigation, the mega menu editor and Design → Mega menu had no effect on the Classic theme, and its mega menu panels rendered with no trigger. It now renders `nav_items` with the same `data-megamenu` wiring as `themed.html`, falling back to the fixed links when there are none.
+- `base.html` kept the app sidebar on every `main.frontend_form*` and `main.frontend_custom_form*` endpoint, which caught the form settings pages as well as the inbox. The exception now covers only the inbox routes (`main.frontend_form_submission*` other than `main.frontend_form_submission` itself).
+- `_normalize_redirect_pair` rejects sources under `/tspro`, `/static` and `/pub`, and the `before_request` redirect lookup skips `/tspro` as well as the asset prefixes, so a stored rule can't lock the admin out.
+- `contact.html` and `recovery_contacts.html` fall back to `aurora-blobs` when no key is stored, so clearing the picker could never remove it. `frontend_template_settings_save` now stores `none` for those two kinds when the picker posts blank, and the templates treat it as no backdrop.
+- The mega menu Search block rendered an input nothing handled; it now hands its text to the site search modal. Nav and mega-menu links offered every form as a trigger, but only the Announcements/Events form has a modal (`forms_registry` `has_modal`).
+- `frontend/base.html` emitted `<meta name="description">` only inside the `frontend_og_enabled` branch. It is now emitted from the page or site description (falling back to `frontend_tagline`) regardless, and `og:url` / `og:image` are built from `SiteSetting.site_url` when set instead of the request host.
+- `_FOOTER_PREBUILT_BLOCK_TYPES` was referenced but never defined, so `frontend_footer` raised NameError whenever a prebuilt footer was active. It is now `frontend.FOOTER_PREBUILT_BLOCKS`, which also drives the picker previews (Stacked lacked secondary nav, Mega listed link columns twice and no social icons).
+- `_normalise_module_form_slug` passed a blank value to `_slugify_form_title`, which returns `form`, so clearing a built-in form's address saved `/form`.
+- Settings modal saves (`submitSettingsForm` in `app.js`): a save whose redirect lands on a 404 (the referrer page of a module just disabled) counts as saved instead of throwing `HTTP 404`, and turning off any module (`.special-page-toggle-form` with its switch off) swaps the Dashboard in behind the open modal: `swapPage()` fetches `/tspro/`, replaces the topbar heading and actions, flashes, `section.page` and the sidebar's pinned buttons, pushes the address, runs the new content's scripts and re-runs `app.js` page setups registered with `onEachPage` (`window.tspRunPageSetups`: modal openers and closers, dashboard reorder, masonry, server metrics, online users). Those setups mark their elements so nothing binds twice, and pollers stop once their element is gone. `_online_widget.html` guards on its element instead of a page-wide flag. The Web Frontend toggle no longer reloads the page (`data-reload-on-save` removed from use); turning a module on refreshes the pinned buttons in place.
+- `.users-bulkbar[hidden]` now hides; its `display: flex` kept the bar on screen after Clear.
+- Settings → Modules appended "Email" to `ig_page_title` (default "Intergroup Email"), doubling the word in the Email Accounts row, its switch title and the Intergroup module description; they now say Email Accounts.
+- `#relayFields` and `#smtpFields` were plain blocks inside the flex `.form`, so their fields had no gap; they are now flex columns inheriting the form's gap.
+
+### Removed
+- 181 superseded declarations in app.css (26 rules emptied): each never set an element's style on any of 89 screens in desktop, phone and dark against two databases, every class in its selector is used only in templates those runs loaded (and is not built in JS, Python or stored content), and the rule that beat it is a plain app.css rule applying at least as broadly. A same-moment A/B of computed styles, old and new stylesheet, showed no difference on any of those screens.
+- 68 CSS declarations (50 in app.css, 18 in frontend.css) that a later rule with the identical selector, in the same @media / @container context, sets again or covers with a shorthand; 15 rules emptied by this went too.
+- 374 CSS rules no page uses (372 in app.css, 2 in frontend.css; about 1,000 lines): rules whose every selector names a class that no template, script, Python module or stored content refers to, directly or by a built-up name. Shared rules lost only those selectors. Screenshots of 57 admin and public screens at desktop, phone and dark showed no change.
+- The dashboard's Join the email list widget (`trusted-servants` in `DASHBOARD_WIDGET_KEYS`, its Customize toggle, `trusted_servants_subscribe` at `POST /email-list/subscribe`, and the `.ts-widget-*` rules). `User.dash_show_trusted_servants` stays, unused, so older databases and backups load.
+- The unused `.zoom-cal` table and `.cal-slot`, `.cal-time`, `.cal-link` rules.
+- The Zoom account add and edit modals and the `.zoom-accounts-*`, `.zoom-otp-widget`, `.zoom-otp-title` and `.notes-*` rules.
+- The `.ts-page-wrap`, `.ts-page-toolbar`, `.ts-blast-form`, `.ts-blast-actions`, `.ts-aud-*` (outside the shared segmented-control lists), `#ts-add-modal` / `ts-edit-*` modal and `.rc-settings-grid` rules.
+- The Intergroup Email edit modal and the `.intergroup-grid`, `.ig-email-list`, `.ig-setting*`, `.ig-webmail` and `.ig-learn` rules.
+- `library_readings_bulk_categories` and `library_readings_bulk_delete`; the library page's add, edit, bulk-categories and library-edit modals; the Intergroup library search/sort/filter and old bulk-bar scripts in `app.js`; the `.ig-lib-*`, `.ig-cat-chip*`, `.lib-bulk-*` and `.lib-row-select` rules.
+- `frontend_form_submissions_bulk_delete`, `frontend_form_submissions_bulk_archive` and `_submissions_redirect`; the submission modal, inline expand and their scripts; the `.contact-card*`, `.fe-submission-row*`, `.fe-subs-*`, `.fe-sub-modal*`, `.fe-sub-detail` card/hero/foot and `.fe-vis-roles` rules.
+- The Email List and Recovery Contacts add and edit modals, the Recovery Contacts client-side sort/filter script, and the `.rc-tbl`, `.rc-badge-*`, `.rc-match-*`, `.rc-filter*`, `.rc-modal-*`, `.ts-blast-*` and `.ts-row-actions` rules.
+- The Zoom Tech Training edit modal.
+- The `.list-filters` filter row and `initAutoSubmitFilters` (`[data-auto-submit]`), unused once Stories and Blog moved their filters to the sidebar; the Search page's Search and Clear buttons.
+- The meeting create / edit modal (`_meeting_modal.html`), its `marked` preview, `.fe-modal-save-bar`, `.public-alert-expiry*`, `.otp-toggle`, `.md-editor-input`, `.schedule-change-form-row` and the extended-content fieldset styles, and the zoom-account, location and library lookups the meetings list and meeting page made only for it.
+- The story edit modal: `story_modal_close.html`, `_story_embed` / `_story_embed_kwargs` and every `embed=1` story redirect, the `story-modal-close` message listener and `story-edit-frame` handling in `app.js`, and the stories list's modal markup and styles.
+- The blog editor's own featured-image picker (`blog-fi`, via `pbeOpenImageBrowser`) and sidebar card layout.
+- `frontend_pages.html`, `frontend_popups.html` and `frontend_forms.html`, and the routes only they used: `frontend_pages_bulk`, `frontend_page_rename`, `frontend_popup_status`.
+- The `/frontend/header-save`, `/frontend/header-template` and `/frontend/megamenu-template` routes, which nothing used.
+- The unused `frontend/footers/recovery-blue.html` (not in `FOOTER_TEMPLATES`), the `frontend_footer_text` context value only it read, the `/frontend/footer-template` route and the footer page's own second save bar.
+- The unused `frontend_form_submission_import_to_story` route and the `_default_*_form_blocks` / `_resolve_module_form_fields` helpers.
+- The site index "Sort order" setting from the admin: no layout read it. Contact and Recovery Contacts page copy is no longer on Page templates (it is on their forms).
+- The Neobrutal Light, Neobrutal Dark, Cyberpunk and Solarpunk admin themes: their `[data-theme]` tokens and rules in `app.css`, the `.theme-picker` swatches in Settings → Appearance and the setup wizard, and their unstyled-page guard backgrounds. Web Frontend themes are unaffected.
+- The `.brand-version` badge from the sidebar footer and its rule in `app.css`; the version stays in the About modal.
+- The sidebar `.brand` text (`.brand-title`, `.brand-sub`) and the unused `.brand-logo-lg`; the sidebar now shows `logo_tspro_about.svg` at 64px wide.
+- The sidebar's Admin section: `_ADMIN_CATALOG` (Watchtower only, already hidden from the list) and `_DYNAMIC_SECTION_ITEMS` from `app/sidebar.py`. Every catalog item renders in Main, gated by `_is_visible` as before. `sidebar_order_json` no longer saves an `admin` list; a stored one is read as the tail of Main (`_main_order`) and a stored `admin` section key is ignored.
+
+## [2.20.2] — 2026-09-30
+
+### Changed
+
+- The detail-page featured image (`.fe-event-detail-cover`, `.fe-event-time-cover`) uses the primary card shadow tokens (`--fe-card-primary-shadow`, `-hover-shadow` and their `-dark` pairs) in place of its own lg/xl recipe. The raw `--fe-color-card-{primary,secondary}-shadow` vars it alone used are no longer emitted.
+
+## [2.20.1] — 2026-09-29
+
+### Changed
+
+- Settings rows put the switch first: `order: -1` on the switch (or its `.special-page-toggle-form`) in `.special-page-row`, `.special-page-subrow`, `.post-toggle-row`, `.fe-og-toggle-row`, `.cc-row` and `.fe-cache-row`, with the last three left-justified.
+
+### Fixed
+
+- `.form label { flex-direction: column }` outranked `.mode-toggle`, stacking and centering switches inside forms. A `.form label.mode-toggle` rule keeps every such switch on one left-aligned row, replacing the one-off Fellowships Index override.
+
+## [2.20.0] — 2026-09-27
+
+### Added
+
+- **Password generator on Create User** (Settings → Users). Generate, a length picker (16 / 20 / 24 / 32), Show / Hide, Copy, a strength readout with the generated password's entropy, and a live checklist mirroring `validate_password_policy`, including the no-username / no-email rule; the field's custom validity blocks submit until it passes. `autocomplete="new-password"` so password managers offer to save it.
+
+### Changed
+
+- **`_generate_password` hardened.** Independent `secrets.choice` draws over a 70-character alphabet without look-alikes (`0 O 1 l I`), default length 20 (about 122 bits), clamped to 16 to 32, and whole-password rejection until `validate_password_policy` passes for the account, instead of one forced character per class plus a shuffle. `/users/generate-password` accepts `length`, `username` and `email` and returns `Cache-Control: no-store`. The Reset password modal passes the account's username and email.
+- **Watchtower → Requests row actions use the shared `row_menu` dropdown.** Create User, Mark Handled / Reopen, Archive / Restore and Delete moved from inline buttons into one Actions menu, matching the other admin list tables. The IP column's Block / Unblock button is unchanged. Below 720px the table (`.wt-req-table`) stacks into labelled cards, with the status badge and Actions trigger on the first line and the trigger always visible, instead of scrolling sideways with Actions off-screen.
+- **Watchtower → Requests roles stack one per line** (`.wt-req-roles`) at every width, so a request with several roles no longer makes the Roles column the widest in the table.
+- **Watchtower tab strip swipes on phones.** Below 720px the tabs sit in one row inside a new `.wt-tabs-track` that scrolls sideways, instead of wrapping to three rows. The edges fade only where tabs are hidden past them (`topActionsSwipeFade` in app.js now also drives `.wt-tabs-track`), and the strip opens scrolled to the current tab.
+- **Settings modal uses a sidebar.** The horizontal `.settings-tabs` strip is now a vertical `.settings-nav` with icons, grouped Account / Administration / About, and each pane has a `.settings-main-head` with the section title and close button. `.settings-tab[data-tab]` is kept, so deep links, search results and the users-prefill path work unchanged. Below 720px the nav and the pane are two screens that slide: picking a section adds `.settings-show-pane`, the back button removes it, and closing the modal resets to the list. The save bar now sits in the pane column.
+- **About → Release notes shows the running X.Y line only.** New `load_release_notes_for_line()` in `app/about_docs.py` (Jinja global `app_release_notes_for_line`) keeps entries whose version shares `app_version`'s major.minor, falling back to every entry when the line has none. The summary row gains an "All release notes on GitHub" button linking to `RELEASE_NOTES.md` on main; the changelog below is unchanged.
+
+### Removed
+
+- **Changelog section in About.** The `<details class="about-changelog">` block, its CSS, `load_changelog()` / `_parse_changelog()` and the `app_changelog` Jinja global are gone, and the image no longer copies `CHANGELOG.md`. The file stays in the repo for the release tooling.
+
+### Fixed
+
+- **Boxed checkboxes stacked above their label inside forms.** `.form label` (a column flex) outranks `.check`, so every `label.check` inside a `.form` without its own override put the box, centered, above its text. `.form label.check` is now a row with the box top-aligned to the first line of text, and the 16 labels whose text was loose (bare text, or text plus a muted note) now wrap it in one `<span>`, so it wraps as a block beside the box.
+
+## [2.19.10] — 2026-09-23
+
+### Added
+
+- **Dates on posts in search.** Announcements & events, stories, and blog posts show a right-aligned date in the ⌘K palette and on the full search page. Events show their event date (`Event May 26, 2026`); everything else shows when it was posted (`Posted Mar 1, 2026`).
+- **Live side-by-side preview on the announcement / event Body** (same layout as the meeting description; stacks on narrow screens). The preview renders through the same `markdown_block` filter as the public page, so Markdown and inline HTML both show as visitors will see them. `{event_*}` tags resolve against the Starts / Ends fields as currently typed, and the preview refreshes when those fields change. `/markdown-preview` accepts `event_tokens=1` plus `event_start` / `event_end` for this.
+- **Past-event warning on duplicated drafts.** A draft made with Duplicate (`Post.duplicated_from_id`, new column) now asks for confirmation before **Save draft** or **Publish** if its event has already ended, going by Ends, or Starts when Ends is blank. You can choose **Change the date**, which jumps to Starts, or save / publish anyway.
+- **Edit a queued meeting schedule change.** Each scheduled change in the meeting modal now has **Edit**, which loads it back into the editor, alongside **Cancel**.
+
+### Changed
+
+- **Scheduled changes are staged in the meeting modal and saved by the modal's Save.** **Queue schedule change**, Edit, and Cancel update the list right away, with a "not saved yet" / "will be cancelled on save" badge, and show the save bar. Save commits everything in one pass: first the queued changes through the new `POST /meetings/<id>/schedule-changes/sync` (validated as one batch, all or nothing), then the meeting's own fields. Anything typed into the editor but never queued gets queued on Save instead of being dropped. Before this, queuing posted on its own and cleared the save bar, so other unsaved edits in the modal were silently skipped. Queued changes also didn't show up until the page was reloaded. The single-change `schedule-changes/new` and `…/delete` routes were removed.
+
+### Fixed
+
+- **Tabbed Markdown editors split into two columns.** A later side-by-side `.md-editor` rule (meeting description) was also applying to the library reading body's Write / Preview editor, splitting it into columns. Tabbed editors now show one pane at a time as intended.
+
+## [2.19.9] — 2026-09-17
+
+### Added
+
+- **`app/charts.py` — chart geometry as a module.** Every Watchtower chart was previously its own hand-written SVG path built with arithmetic inside Jinja (`namespace()` accumulators, inline `'%.1f'|format` coordinate maths), which is why none of them carried an axis. `time_chart()` and `bar_chart()` take the roll-up rows `watchtower.py` already produces and return pure numbers: plot box, tick positions, label stride, per-series path `d` strings, and a `points` payload for the hover layer. Templates now render, they don't calculate.
+- **`nice_axis(data_max, ticks=4)`** snaps an axis maximum to a readable step drawn from a 1/1.5/2/2.5/3/4/5/6/8/10 ladder × a power of ten — 28,855 → 32,000 in 8k steps. The ladder is deliberately finer than the usual 1/2/5, which would put a max of 480 on an 800 axis and waste 40% of the plot height. Steps are integers (these are counts); `compact()` formats ticks as 8k / 1.5M.
+- **`templates/watchtower/_chart.html` — shared `line_chart` / `bar_chart` macros.** Labelled y-axis + hairline gridlines, x-axis ticks at a stride from `_x_label_stride()` (every day ≤10 points, monthly past 130), a horizontal unit caption, crosshair, and a `<details>` table-view twin. Both chart types emit the same `points` contract, so one hover implementation covers both.
+- **Chart hover layer in `app.js`.** Crosshair + tooltip listing every series at the pointer; nearest-x lookup over the emitted point coordinates, so the pointer only has to be *closest* to a date, never land on a 2px line. Bars get a full-plot-height transparent hit rect per slot. Keyboard parity (←/→/Home/End/Escape) because the tooltip must never be the only route to a value. Tooltip content is inserted with `textContent` — labels originate in logged request data.
+- **Table-view twin under every chart**, and a legend on the two-series visitor chart. Both are required relief: `#10b981` measures 2.47:1 against the card, under the 3:1 floor, so identity and value have to be reachable as text rather than colour alone.
+
+### Changed
+
+- **Watchtower 404s, Overview visitor traffic, and Overview failed logins** now render through the shared macros. The failed-login severity thresholds moved out of the template into a `color_fn` passed from the route. Hits and unique visitors share one y-axis — never a second scale.
+- **Visitors tab gridlines are solid** (`.vm-grid-line`). A dashed rule reads as a projection or a threshold when it is only a ruler.
+- **Dashboard sparkline keeps its form** but names its own range in `aria-label` and a `<title>`, so the trend isn't shape-only for a screen reader. It sits beside labelled stat tiles, so it isn't in the "no way to read a value" category the other charts were.
+
+### Fixed
+
+- **`preserveAspectRatio="none"` removed from the charts that carry text.** It scales x and y independently, stretching every glyph along with the plot — the reason these charts had to stay wordless in the first place. `.vm-chart`'s `max-height: 360px` went with it; with the aspect ratio locked, a cap letterboxes the plot on a wide monitor instead of shortening it.
+- **`el.hidden = false` doesn't work on SVG elements.** `hidden` is an `HTMLElement` IDL property, so assigning it to an `SVGLineElement` sets a JS expando and leaves the attribute (and the UA `display: none`) in place. The crosshair and focus dots toggle the attribute directly.
+- **Tooltip rode the top of the plot** and drifted into the card heading on tall cards. It now sits above the topmost series value at the crosshair and flips below the point when there isn't headroom, so it never leaves the card.
+
+## [2.19.8] — 2026-09-16
+
+### Added
+
+- **Watchtower → 404s: "Top source IPs" panel.** Per-IP 404 leaderboard for the selected window, between the Top missing URLs / Top referrers pair and the Recent 404s table. `watchtower.top_404_ips(days, limit)` groups `NotFoundEvent` by `ip` for count / distinct-path count / first-seen / last-seen in one query, then batch-resolves active `IPBlock` rows, recent-login usernames (`recent_login_user_ips`) and each IP's most-hit path — no per-row queries. Rows with a NULL `ip` (pre-2.8.1 events, logged before the column existed) are excluded. Route passes `top_ips=wt.top_404_ips(days=window, limit=300)`; the list reuses the shared `wt-rank-list--expandable` contract (30 rows, "Show 30 more").
+- **`scanning` chip at ≥10 distinct paths per IP.** The distinct-path count is what separates an automated probe from link rot — one address on one path is a stale bookmark, one address across a wordlist is recon. Amber, mixed toward `--text` so it stays legible on both panels.
+- **Self-block guard (`templates/watchtower/_self_block_modal.html`).** The `_ip_block_gate` before_request in `create_app()` is unconditional — a blocked IP is 403'd ahead of routing with no exemption for signed-in admins — so banning your own address locks you out of the portal with no in-app recovery. New partial, included by `overview.html` / `access.html` / `requests.html` / `not_found.html`, contributing a confirmation modal plus a **capture-phase** `submit` listener matched on the form's action path (`…/watchtower/ban-ip`), not a marker class, so every current and future Block form is covered without opting in. Capture phase lets it pre-empt the 404s tab's own bubble-phase fetch handler; on confirm it injects `confirm_self=1`, sets `dataset.selfBlockConfirmed` and re-dispatches via `requestSubmit()` so the page's normal handler still runs. `window.confirm` is stubbed for that one synchronous dispatch to swallow the now-redundant native confirm those handlers raise.
+- **`self_ip` in the 404s contexts + "your IP" row chips** on the Top source IPs panel, the Recent 404s table, and the lazily-fetched per-path IP fragment. Sourced from `_requester_ip()` (`request.remote_addr`, ProxyFix-corrected — the same value `_ip_block_gate` compares against, so the match is correct by construction).
+
+### Changed
+
+- **`watchtower_ban_ip` refuses to ban the requester's own IP** unless `confirm_self` is present. JSON callers get `409 {ok: false, self_ip: true}`; form posts get a flash + redirect. Single choke point, so it covers all six Block forms across the four tabs.
+- **A confirmed self-block bypasses the `protect_known_users` guard.** That guard refuses to ban an IP a user signed in from within 30 days, to stop an admin locking out a real user. Your own IP is necessarily a recent-login IP, so leaving it armed made the confirmation unreachable. Gated on `ip == _requester_ip() and confirm_self` only.
+- **Own-IP branch precedes the `trusted_user` branch** in all three 404s Block surfaces and renders a live button rather than the greyed protected one — same reason: the modal is a far more specific warning than the trusted-user tooltip, and greying it out would remove the choice entirely.
+
+### Fixed
+
+- **Ranked-list columns staggered row to row.** The action track was `auto`, and every `<li>` is its own grid, so the track sized to that row's own content: a "Blocked" chip (84 px) pushed the bar and count 17 px left of rows showing a "Block" button (67 px), and a "redirected" chip (147 px) did the same by 14 px against "Redirect" (133 px). Both tracks are now fixed (`90px` / `150px`). Costs the label column ~17 px in the common state, visible only on the narrower Top missing URLs card.
+- **Sidebar Watchtower button one type-step small.** It inherited `--fs-xs` from the shared `.sidebar-quicknav-btn` rule while the Dashboard and Notifications buttons it stacks with are `--fs-sm`. Overridden on `.sidebar-quicknav-watchtower` only, matching the existing precedent that bumps that button's icon to 16px; the narrow Web/View pair keeps `--fs-xs`.
+
+## [2.19.7] — 2026-09-16
+
+### Fixed
+
+- **Hairline seams through the Pattern tile background.** Each mask was one tile
+  stamped out by `mask-repeat: repeat` at `w * scale` by `h * scale` — sizes that
+  are almost always fractional (waves-11 at scale 2.5 is 66.375 x 62.5), so the
+  tiles never landed on whole device pixels and the compositor's per-tile quads
+  seamed wherever the rounding error accumulated. One visible line every N tiles,
+  and N moved as the Scale knob changed the fractional part. Each layer is now a
+  single full-size mask that tiles ITSELF through an SVG `<pattern>`
+  (`mask-size: 100% 100%; mask-repeat: no-repeat`): one paint with a tiling
+  shader, so there are no per-tile edges to seam. `scale` consequently moves out
+  of the stylesheet and into the image's `patternTransform`, so
+  `pattern_mask_layers()` takes it and the `scale` knob drops its `css_var`; the
+  picker preview, trigger chips and hero-block preview pass it through. Side
+  effect: the tiling grid was centred by `mask-position` and is now anchored at
+  the mask box's corner, so an existing surface's pattern shifts phase once.
+- **`waves-15` left a slack band once per tile.** Its two ribbons are the same
+  wave stacked 9.6675 apart, but the tile was 30 tall — not a whole number of
+  pitches — so every wrap opened a 20.335 gap where the others are 9.6675, which
+  read as a break line between tiles. The tile is now cut to the motif's own
+  pitch (2 x 9.6675) with the geometry that crosses the shorter boundary
+  re-entering from the other side (`PATTERN_TILE_FIXES` / `wrap_y`, which travels
+  to the picker through `/dynbg/patterns.json` so both renderers agree). Checking
+  every motif whose layers are one shape at a uniform pitch, waves-15 was the
+  only one of 330 whose tile didn't divide evenly; the other eight already did,
+  and motifs built from different shapes have an uneven rhythm by design.
+
+## [2.19.6] — 2026-09-16
+
+### Fixed
+
+- **Container blocks dropped every per-preset knob and the Freeze-movement
+  flag.** Unlike the other surfaces, a container block doesn't hand the renderer
+  its saved JSON — `_blocks.html` and `frontend/page.html` rebuild the config as
+  a Jinja dict literal, and that literal never listed `knobs` or `animate`.
+  `decode_config` reads both off the top level, so knobs arrived as `{}`: the
+  pattern preset's `pattern` key came back `None`, `normalize_pattern(None)`
+  resolved it to `'random'`, and the motif re-rolled on every request no matter
+  which one the admin pinned. Scale, line weight, rotation, dot size / gap and
+  motion speed fell back to the recipes' defaults for the same reason, and
+  "Freeze movement" never applied. Both literals now carry `'animate'` and
+  `'knobs'`, matching the twelve `frontend/*_list.html` builders that had them
+  all along. Nothing to re-save — the values were stored correctly, only the
+  render dropped them.
+
+## [2.19.5] — 2026-09-16
+
+### Added
+
+- **Dynamic backgrounds: a per-mode "Shade lightness" limiter on the colour
+  randomiser.** The generator rolled one mid-lightness band (0.45-0.65) for both
+  modes, so a dark-mode column with "random colours" on came back as bright as
+  the light one and the section stopped reading as dark. `random_colors()` now
+  takes a lightness centre and draws from ±`RND_LIGHT_SPREAD` around it, and the
+  new `rnd_light` mode key feeds it — defaulting to 55 in light mode (the band
+  it always had) and 26 in dark. The picker exposes it as a slider in each
+  mode's Randomize fieldset, governing the per-page-load shuffle and the "Roll
+  colours" button alike. `random_color_seed()` splits the hue/saturation roll
+  from the shading so both modes still share one roll: same hues, each in its
+  own band.
+- **…and the same slider dims a FIXED palette.** One `rnd_light` value per mode,
+  rendered wherever it's the live control: in the Randomize fieldset while
+  "Colours" is on (where it limits the generator), and again at the head of the
+  Colours fieldset while it's off (where it lightens / darkens every filled slot
+  together, and "Roll colours" draws its palette at that shade). The copy that isn't live
+  greys out rather than vanishing, so the value stays readable but there's only
+  ever one place to set it. The chip nudge is a lightness *shift* from the
+  palette as last rolled or typed, not an absolute — a hand-mixed palette keeps
+  its internal contrast and returning the slider returns the colours.
+- **Dynamic backgrounds: the pattern motif has its own randomise toggle.**
+  "Random each load" was entry #1 of a 330-option `<select>`, where a pinned
+  motif and a shuffling one looked identical. The `pattern` knob now declares
+  `random_value`, and the picker renders it the way colours and positions
+  already are: a checkbox, the motif `<select>` it gates, and one button for the
+  state you're in — **Shuffle sample** while randomising, **Roll** (pick one and
+  keep it) while pinned. Turning the checkbox off pins whatever the preview was
+  showing rather than snapping to the top of the list. Stored shape is
+  unchanged (`knobs.pattern`, absent = random).
+
+### Changed
+
+- **The pattern preset's backdrop controls moved into the Colours fieldset.**
+  "Background" (solid / linear gradient) and "Gradient direction" now sit
+  directly under the Background and Gradient end colour chips they act on,
+  instead of in the per-mode Pattern fieldset — choosing a gradient while the
+  second colour it reads lived in a different fieldset made the pair impossible
+  to set as one decision. The Pattern fieldset keeps the motif's Opacity. Stored
+  shape is unchanged (`pat_bg` / `pat_bg_angle` on the mode block).
+- **Every label in the dynbg picker folds its helper prose into a `chip()`
+  tooltip.** The Options tab was labels + inputs + a line or three of grey prose
+  each; it now reads as `Name ⓘ` + control, with the explanation one click away.
+  Covers Freeze movement, both Randomize toggles, both Shade lightness sliders,
+  Saturation / Brightness / Colour fill / Pastel wash, motif Opacity, Gradient
+  direction, the overlay scope pair, and the per-slot Colours blurb (now a chip
+  on that fieldset's legend — the JS still rewrites it per preset). The JS-built
+  "Randomize pattern" row gets the same treatment via a new `makeChip()` that
+  clones the template's info glyph. Button-adjacent notes ("Preview another of
+  the palettes visitors will get") and slider scale hints ("0.1 = coarse · 2.0 =
+  fine") stay inline — they annotate an action or an axis, not a heading.
+- **"Roll colours" and "Shade lightness" lead the Colours fieldset.** Both were
+  below six colour slots, where the two controls you reach for *before* mixing
+  anything read as an afterthought you had to scroll past the chips to find.
+- **The dynbg picker's preview and tab bar stay put while the panel scrolls.**
+  The tab strip moved out of `.modal-body` to sit beside the preview band as a
+  non-shrinking child of `.modal-panel`, so scrolling the preset grid no longer
+  carries the Background / Options tabs off-screen.
+
+## [2.19.4] — 2026-09-16
+
+### Added
+
+- **Hero particle layer takes a colour and an opacity, per theme.** `login_fx.js`
+  painted `rgba(255,255,255,…)` in twelve places; those now resolve through an
+  `ink(alpha)` helper fed by new `color` / `opacity` options, with `setInk()` /
+  `setOpacity()` for live updates. Defaults (opaque white) are byte-identical to
+  the previous output, so the login screen, its appearance preview and the
+  footer's particle layer are unchanged. The hero block stores
+  `particle_color` / `particle_color_dark` / `particle_opacity` /
+  `particle_opacity_dark`; the public canvas carries them as data attributes and
+  re-tints in place on theme toggle. Dark values fall back to light, so blocks
+  saved before the split render unchanged.
+- **`.fe-btn-blue` ("Blue (filled)") hero button style.** Rides the
+  `.fe-btn-primary` light-mode rules (same selectors, not a copy) and overrides
+  only dark mode, where it mutes toward slate —
+  `color-mix(--fe-color-btn-primary-bg 55%, #475569)`, 70% on hover — instead of
+  primary's near-black navy. Carries all three dark signals.
+- **Dynamic backgrounds: kept layouts.** Each mode block accepts a `positions`
+  dict alongside `randomize_positions`. `dynbg.normalize_positions()` filters it
+  against `POSITION_VARS` and a strict length/angle value pattern, so a stored
+  layout can't inject arbitrary CSS into an inline style;
+  `resolve_positions_css()` stamps it for any mode that isn't randomising,
+  filtered to the active preset's var family. The picker gains "Roll positions"
+  / "Reset layout" beside the Positions toggle, and "Roll colours" inside the
+  Colours fieldset.
+- **Hero subheading renders Markdown + inline HTML** via the existing
+  `markdown_inline` filter (nh3-sanitised). The element moved from `<p>` to
+  `<div>` so block-level markdown nests legally; frontend.css keeps block
+  children on the hero's rhythm. The modal previews it through the vendored
+  `marked`.
+- **Shared design-token picker exposes `window.tspDesignTokenPicker`**
+  (`scan` / `refresh`) plus a `tsp:design-tokens-refresh` event, for screens
+  that set colour-input values programmatically.
+- **`window.BlockEditor` exposes `iconCatalog` / `iconPaths`**, so the hero
+  modal renders real button icons instead of a `[name]` placeholder.
+
+### Changed
+
+- **Dynbg randomise panel refactored to one action per toggle.** The single
+  "Shuffle preview" button re-rolled the sample palette, the sample layout AND
+  the pattern motif, and reseeded the fixed colour slots — so shuffling to see a
+  layout silently discarded a hand-picked palette. Split into
+  `shuffleSamplePalette()` / `shuffleSampleLayout()` / `rollColors()`, each
+  wired to a button under its own checkbox. The Positions row keeps its place in
+  both states; only the button inside it swaps.
+- **Unticking "random colours" no longer overwrites populated colour slots** —
+  it seeds from the sample only when the slots are empty.
+- **Hero particle controls regrouped** into `.hero-part-mode` Light / Dark
+  columns (same treatment as the dynbg modal's split); the Size field greys out,
+  disables and explains itself for effects listed in `data-nosize-effects`
+  (`waves`).
+- **Hero preview contain-fits its content.** `.fe-hero-inner` gets a
+  JS-computed `scale()` (down only) recomputed on every sync, via
+  ResizeObserver on the content and frame, and on `document.fonts.ready` — the
+  admin shell fetches Fraunces lazily, so first paint could land in the wider
+  Georgia fallback and bake a wrong height into the fit.
+
+### Fixed
+
+- **Hero preview wrapped the heading earlier than the live page.** The admin
+  override pinned `.fe-hero-inner` to 820px; the public box is sized by
+  `.frontend-body .fe-container` (1400px max) and shrink-to-fits to 829.2px as a
+  flex item, leaving the heading 679px — a one-line fit with nothing to spare.
+  The override now sets no width at all and only prevents flex shrink.
+- **`.fe-btn-green` / `.fe-btn-yellow` had no dark variant under a forced-dark
+  hero or a forced-dark site** — their dark cluster keyed only on
+  `html[data-theme="dark"]`, so they kept light-mode colours in the hero modal's
+  Dark preview while the primary button beside them darkened.
+- **Native colour inputs drew a square swatch inside a rounded chip**, so every
+  rounded colour control in the admin read as a broken outline. One base rule
+  now rounds `::-webkit-color-swatch` / `::-moz-color-swatch` to the chip's own
+  radius and drops the UA border.
+- **Colour chips stacked under the token picker didn't share an edge** with the
+  picker's injected controls (its inline-layout left margins pushed each row
+  right) and a page-level input padding squeezed the swatch into a thin bar.
+- **Token badge / hex caption went stale** when a modal populated its colour
+  inputs in code (no `input` event) — the hero modal now calls the picker's
+  refresh after populating. Both also gained contextual tooltips naming the
+  control and distinguishing "matches a token" from "bound to a token".
+- **Dashboard widget empty states mixed two sizes in one card**; the eight
+  `<p class="muted">` states in `index.html` now carry `smaller`, and the Access
+  Requests card's titles take the widget-title size inside a `.dash-widget`.
+- **Settings/toggle row labels truncated instead of wrapping**
+  (`.u-name` inherits nowrap + ellipsis from the sidebar user chip), which ate
+  the tail of "Auto-hide app sidebar in Web Frontend" and its help chip in a
+  narrow column.
+- **The last boxed row in a `.list` lost its bottom border** —
+  `.list li:last-child { border-bottom: none }` outranks `.special-page-row`'s
+  own four-sided border.
+- **"Show tagline in hero" looked like a dead switch** when the Tagline field is
+  empty; the toggle now says so.
+- **`.hero-typo-color-row` bottom-aligned its columns**, staggering a pair when
+  only one carried a token badge.
+
+## [2.19.3] — 2026-09-15
+
+### Changed
+
+- **The admin type scale steps up ~5%, anchored on a 0.9rem base.** Ten values
+  in `:root` and nothing else: `--fs-3xs` 0.575rem, `--fs-2xs` 0.65, `--fs-xs`
+  0.75, `--fs-sm` 0.825, `--fs-base` 0.9 (was 0.85), `--fs-md` 0.95, `--fs-lg`
+  1.05, `--fs-xl` 1.3, `--fs-2xl` 1.7, `--fs-3xl` 2.1. Steps were re-rounded to
+  clean rem values rather than multiplied through, so each moved 4–7% and the
+  ratios between them hold. Every `font-size` in the admin already resolved to a
+  token, so no rule outside the `:root` block changed.
+
+## [2.19.2] — 2026-09-15
+
+### Changed
+
+- **Admin typography runs off a ten-step scale.** `app.css` carried 64 distinct
+  `font-size` values across 708 declarations (12.4 / 12.48 / 12.8 / 13 / 13.12 /
+  13.4 / 13.6px all coexisting). Every numeric size in the admin stylesheet and
+  in the 19 admin templates that carry inline `<style>` blocks now resolves to
+  one of ten `--fs-*` tokens declared in `:root`: `3xs` 8.8px, `2xs` 10px, `xs`
+  11.2px (`.smaller`), `sm` 12.4px (buttons), `base` 13.6px (body, inputs,
+  table cells, nav), `md` 14.4px (card/widget titles), `lg` 16px (app title,
+  section headings), `xl` 20px, `2xl` 25.6px, `3xl` 32px. Sizes snapped to the
+  nearest step by ratio; the largest shift was ~11%. Two decorative glyphs (a
+  2.4rem drag affordance, a 100px file-picker hit target) and all `em`-based
+  sizes keep literal values. Net effect is a step down in size overall from
+  pre-2.19.2 — the base was 1rem, it is now 0.85rem.
+- **`.btn` and its contextual overrides use `--fs-sm`**, one step below body
+  text, across the base component, topbar top-actions (and the `select` paired
+  with them), modal buttons rendered from a `top_actions` block, the frontend /
+  footer save bars, the template picker, the nav mega-link delete form, tour
+  actions and the two upload `label.btn` rules. `.btn-sm` stays at `--fs-2xs`;
+  the oversized login and Zoom guide CTAs keep their own sizes.
+
+### Fixed
+
+- **Dashboard widget empty states no longer mix two sizes in one card.** The
+  eight `<p class="muted">` empty states in `index.html` inherited the body size
+  while their neighbours (Locked Accounts, Forms, Currently online) spelled out
+  `smaller`; they now all carry `smaller`. The Access Requests card's `.ar-title`
+  / `.locked-accounts-title` take the widget-title size when rendered inside a
+  `.dash-widget`, matching every other widget head.
+- **Settings/toggle row labels wrap instead of truncating.** `.u-name` inherits
+  `white-space: nowrap` + ellipsis from the fixed-width sidebar user chip; in a
+  narrow column (the Web Frontend Status widget below ~1030px) that silently ate
+  the tail of "Auto-hide app sidebar in Web Frontend" *and* the help chip riding
+  at the end of the label. `.special-page-info .u-name` now wraps.
+- **The last boxed row in a `.list` keeps its bottom border.** `.list
+  li:last-child { border-bottom: none }` outranks `.special-page-row`'s own
+  four-sided `border`, erasing the bottom edge of the final card — visible on
+  the Web Frontend Status widget's auto-hide toggle.
+- **The Status widget's two toggle cards have room between them.** Spacing moved
+  from a 4px bottom margin on each row to a 12px flex `gap` on the list, so the
+  last card stays flush with the divider below it.
+
+## [2.19.1] — 2026-09-15
+
+### Fixed
+
+- **Staging sync no longer reports a healthy peer as "Unreachable".** The Web
+  Frontend dashboard's sync widget pings the peer on every page load, and a
+  single dropped DNS query — routine for a containerised install resolving
+  through Docker's embedded resolver once the record's TTL lapses — was enough
+  to paint the pairing as unreachable until the admin re-tested by hand in
+  Settings → Data. Outbound sync requests (ping / pull / push) now retry once
+  when the first attempt never reached the peer, i.e. a temporary name
+  resolution failure or a refused connection; a definitively unknown host
+  (a typo in the peer URL) still fails immediately, and TLS errors are never
+  retried. A failed lookup now says so instead of blaming reachability, the
+  raw network error is logged for diagnosis, the widget states the reason
+  inline rather than hiding it in a tooltip, and its status pill is clickable
+  to re-check. Sync requests also identify themselves with a proper
+  `trusted-servants-pro/<version>` user agent, which CDN/WAF-fronted peers are
+  less likely to challenge.
+
+## [2.19.0] — 2026-09-15
+
+### Added
+
+- **Dynamic backgrounds are now configured per mode.** The picker's Options tab
+  is a Light | Dark split: each mode owns its palette (six slots), its
+  random-colours / random-positions toggles, its tone (saturation, brightness,
+  colour fill) and its texture overlay. Rendering goes through `-light` /
+  `-dark` CSS-var swaps, so a surface follows the visitor's theme with no
+  per-preset CSS. Config moves to `{modes: {light: {…}, dark: {…}}}`; flat
+  pre-split configs expand on decode. The live preview splits the same way,
+  with a per-mode "Shuffle preview" that seeds the colour chips from the sample
+  palette when random colours is off.
+- **New "Pattern tile" preset** — 330 seamless SVG patterns vendored from
+  Pattern Monster (MIT; licence text and a reproducible importer included),
+  rendered as per-layer CSS masks so multi-colour tiles take their inks from
+  the palette. Grouped motif select, scale / line weight / rotation knobs, and
+  a per-mode opacity + solid-or-gradient backdrop. The catalogue is served
+  lazily from `/dynbg/patterns.json`.
+- **Colour fill slider** paints the soft recipes' base with the palette, so a
+  surface can dial out the page's white / black entirely, and a **speed knob**
+  for aurora blobs (proportional `cq`-unit drift, so it reads at hero scale).
+- **Classic recipes, for moving an existing site over on its own schedule.**
+  The rework changes how the soft presets render — it pulled their hard-coded
+  pale layer opacities out (they were what kept every palette washed out and
+  made the new tone sliders no-ops) and retired `aurora-bands`. The old CSS
+  lives on verbatim as its own catalog entries: `aurora-blobs-classic`,
+  `mesh-gradient-classic`, and `aurora-bands` under its original key.
+  - **Surfaces configured before the rework resolve to them automatically.**
+    Configs written since carry a version stamp (`v`, or `bg_dynbg_v` on the
+    per-template leaves and block data, which store discrete keys rather than
+    one blob). `dynbg.render_key()` reads it: a selection carrying neither the
+    stamp nor a per-mode block can only have been made against the old
+    recipes, so it renders the `-classic` twin. One call in
+    `frontend/_dynbg_apply.html` covers every public surface; one in the
+    picker macro keeps the admin chip, the picker's selected card and the page
+    in agreement. Migrating is then deliberate: the resolved key is what the
+    hidden input posts, so the first save through the picker writes the choice
+    down explicitly and stamps the version.
+  - **`pastel_light` is restored** as `pastelize()` plus a per-mode `pastel`
+    tone knob — the classic opacities alone don't reproduce the old look,
+    because the wash softened the palette itself. A legacy config's saved
+    strength decodes into its light mode, and the classic presets show a
+    "Pastel wash" slider carrying that value rather than leaving it as
+    invisible state.
+- **The utility bar folds its side items into an overflow popover when the row
+  won't fit.** The bar is a `1fr auto 1fr` grid whose sides are wrapping flex
+  rows, so each side's min-content width is only its widest pill — a long
+  live-meeting name grew the centre column until the remaining pills overflowed
+  their own column and collided with the message. A fit pass measures the row
+  (behind a transient `is-measuring` class that puts every column at
+  max-content) and folds whole items into a per-side `⋯` popover until it fits:
+  innermost-first, always from the currently wider side, skipping items already
+  collapsed to a single icon. The requirement is `2 × max(left, right) +
+  centre`, not the plain sum, because the `1fr` sides split what the centre
+  leaves. Last resort is an ellipsis on the meeting name. Every pass restarts
+  from the expanded row, so items return on resize or when the meeting ends.
+  Mobile is untouched — the swipe strip already handles it.
+
+### Changed
+
+- **~470 verbose admin subheadings collapsed into click-to-open info chips**
+  across 70 templates, via new shared `chip` / `hrow` macros in
+  `_help_chip.html` that emit the markup the topbar heading help already used.
+  Empty states, live status lines, interpolated data rows and radio/preset
+  cards whose description is what you read to make the choice were left inline.
+  The Settings modal's Modules and Data panes keep their descriptions inline
+  too (all 31) — there, the blurb is what tells you what a module or data
+  operation is.
+- **Auto-archive is event-owned in the Announcements & Events editor.** Tagging
+  a post as an Event locks the toggle on, shows the archive moment computed
+  from the event's end date (recomputed live), and clears the hand-set
+  announcement deadline on save, so the date on screen is the only one that can
+  fire.
+- **The yellow save bar POSTs through fetch** instead of submitting, so a
+  routine save no longer costs the admin their scroll position; `post_save`
+  answers `X-Requested-With: fetch` with JSON the page reconciles in place.
+- **The save bar docks to an open modal**, pinning to the panel's lower-left
+  corner rather than sitting in the subnav column behind the backdrop.
+  Positioned by writing coordinates from the panel's rect — not by reparenting
+  — so the existing save handler, leave animation and Save Draft / Publish
+  augmentation keep working on the same element.
+- **The editor reopens the modal you were in after a reload**, by replaying the
+  original trigger click with real coordinates (a bare `.click()` reads as a
+  card-header click and collapses the card).
+- Topbar action buttons run at 13px to match the save bar's, block-edit modal
+  panels keep their 14px radius on the scrollbar side via `clip-path`, and the
+  Web Frontend subnav narrows 248px → 198px, giving the content column 50px
+  back.
+- **Dotted grid and Diagonal lines moved below the picker's divider** and are
+  marked "Retiring" — Pattern tile covers the same ground with a far wider
+  motif library. Nothing changes for a surface already on either: same keys,
+  caps and knobs, rendered as before.
+- The picker's preset grid is split in two (current presets, then the
+  kept-for-continuity ones) with `auto-fit` tracks, so a short row's cards
+  stretch across the full width instead of stranding empty tracks on the right.
+
+### Fixed
+
+- **Saved dynamic-background config was being truncated in the markup — and
+  wiped on the next save.** `|tojson` returns markup that escapes `<`, `>`, `&`
+  and `'` for a `<script>` body but deliberately leaves `"` alone, and being
+  safe it bypasses autoescaping too. In a double-quoted attribute the value
+  ended at the JSON's first quote, so every trigger rendered
+  `data-dynbg-modes="{"` and posted a bare `{` in its hidden input. Both that
+  and the footer's sinewave-wave input are `forceescape`d now.
+- **Every dynamic-background preview chip painted as an empty box.** The
+  thumbnail centred itself with negative margins, but a margin percentage
+  resolves against the containing block's *width* on both axes — so
+  `margin-top: calc(-50% / 0.18)` pulled the recipe up by half the chip's width
+  and landed it above a chip that clips its overflow. Centring is
+  `translate(-50%, -50%)` now.
+- **Server-rendered trigger chips are hydrated on load.** The Jinja macro can't
+  do palette maths or resolve a motif, so a chip showed brand defaults — or
+  nothing at all with a randomised palette — until the picker was opened once.
+  `paintTrigger` is split out of `applyToTrigger` and run over every trigger at
+  `DOMContentLoaded`, without touching inputs or firing change events.
+- The trigger's status line read `_mb.intensity`, a key that no longer exists,
+  so every chip printed a bare "% intensity" with no number.
+- **The Templates page ran each card's help text into its title.** Collapsing
+  admin help into info chips moved the blurb inside the `<h2>` as the chip's
+  tooltip body, and the index builder reads its row titles with
+  `h2.textContent` — which doesn't care that the tooltip is visually hidden. The
+  whole paragraph came back glued to the title in the heading's own weight and
+  size, in the row name and the modal title, while the blurb row vanished with
+  its old selector. The heading is read from a clone with `.heading-help`
+  stripped, and the blurb comes from the chip's tooltip.
+- `form.action` returned a `<button>`, not the URL — `HTMLFormElement` is
+  `[LegacyOverrideBuiltIns]` and the top-of-page `name="action"` buttons shadow
+  the property.
+- The featured-image preview only rendered one of its two states, so an AJAX
+  clear had no placeholder to reveal; both are always present now with `hidden`
+  picking between them.
+- The floating "Add block" palette drops beneath any open modal instead of
+  floating crisp and clickable over the dialog.
+- Web Frontend → Header → Utility bar: item rows are a fixed two-column form
+  instead of a five-across strip that wrapped raggedly; "Open in new tab" is a
+  plain inline checkbox again (it had been picking up the row's
+  `input { width: 100% }` rule and the `.check` pill chrome); the remove ✕ stays
+  top-right at every width.
+- The frontend admin save bar is anchored to the frontend subnav column by id
+  rather than inheriting the main sidebar's width, which spilled 50px into the
+  content column.
+- Hints inside `.form label` were blockified onto their own line by the column
+  flex direction; `.field-label-row` puts them back beside the label.
+- Recovery Contacts hides the Pending review card when nothing is waiting.
+
+## [2.18.10] — 2026-09-14
+
+### Added
+
+- **Libraries can be archived.** New `Library.archived_at` (NULL = active),
+  mirroring `Meeting.archived_at`, with `library_archive` / `library_unarchive`
+  routes gated to admins like library delete already is. Archiving hides the
+  library without touching its items or its meeting associations, so restoring
+  puts it back exactly where it was.
+  - The Libraries list gains **Active / Archived** tabs in the toolbar, with a
+    count on the Archived tab. The tab pair only appears once something has
+    been archived, so the toolbar doesn't carry a permanently empty tab, and
+    `show` is deliberately not persisted in a cookie — Archived is somewhere
+    you visit on purpose, and a sticky one would strand you on an empty list
+    after restoring the last archived library.
+  - Archive / Restore sit in the row's Actions menu and on the library's own
+    detail page, which also shows an "Archived" chip beside its title.
+  - **Archived libraries drop off the public side**, the same way archived
+    meetings do: the Literature Library page, the Site Index, and public
+    search. Without that last one a search result would link to a section
+    that no longer renders.
+  - `_migrate_sqlite` gains the matching `archived_at` column so existing
+    installs pick it up on boot (this project has no Alembic).
+
+### Fixed
+
+- **The sidebar no longer jumps back to the top on every page load.**
+  `#sidebar-nav` is its own scroll container and every admin navigation is a
+  full page load, so anyone working in a section near the bottom had to
+  re-scroll after each click. The offset is kept per tab in `sessionStorage`
+  and restored before paint, clamped to the new page's nav height. The
+  live-badge poller re-renders the nav in place (`innerHTML = html`), which
+  resets `scrollTop` just as hard, so that path preserves it across the swap.
+- **The Forms sidebar links stopped dumping you in an empty Pending review
+  tab.** "Announcements/Events Form" and "Story Submission Form" forced
+  `?show=pending`, so they opened an empty list whenever nothing was awaiting
+  review — and did it inconsistently, since the same two pages reached from
+  the Admin sub-group opened on Active. They now land on the default tab like
+  every other link. The pending count still shows as the sidebar badge, and
+  the Pending review tab itself turns amber while it has items, so it's
+  findable without hijacking every visit.
+- **The File Browser's row rule no longer breaks under the actions column.**
+  `.row-actions` sets `display: flex`, and when that lands on the `<td>`
+  itself the cell drops out of the table's row-height contract: it sized to
+  its own content (52px against its siblings' 61px), so its bottom border sat
+  above theirs and the line under each row read as stepped. Table cells stay
+  `table-cell` now and lay their contents out inline. Same trap the
+  `users-actions` CSS has a comment warning about.
+- **Stories with a live post showed a blank Status column.** The cell only
+  had chips for pending / draft / archived / featured, so the most common
+  state — published — rendered nothing at all. It gets a "Published" chip.
+
+### Changed
+
+- **Actions menus extended to the remaining lists.** Custom Forms, Libraries
+  (table view) and Meetings (table view). Libraries and Meetings had no row
+  actions at all before — reaching Edit, Archive or Delete meant opening the
+  record first. Both menus mirror the permission gates their detail pages
+  already apply, so the menu can't offer something the target route would
+  refuse. Meetings' Edit links to the detail page, where the edit modal lives
+  (`meeting_edit` is POST-only). The Custom Forms enable/disable switch stays
+  inline — it's live state the admin scans down the column, not an action.
+
+- **Every admin table's row buttons now sit behind the shared Actions
+  menu.** The dropdown built for the Web Frontend Pages list is now the
+  pattern everywhere: 13 more tables converted, so a row reads as data with
+  one trigger at its end instead of a strip of three-to-five buttons.
+  Announcements & Events, Blog, Stories, Popups, Redirects, Navigation, File
+  Browser, Locations, Zoom Accounts, Recovery Contacts, Email List, Users.
+  Each item keeps its original wiring — `form=` references, nested
+  single-purpose forms, confirm dialogs, modal triggers and JS hooks are
+  unchanged; only the wrapper and classes moved.
+  - The picker view of the File Browser keeps its inline Preview / Select
+    buttons — those are the primary choice in a file-picker modal, not row
+    admin.
+  - Fixed a latent bug the move exposed: the `[data-copy-url]` handler set
+    `btn.textContent` for its "Copied!" flash, which inside a menu item would
+    have deleted the icon and label permanently (the restore only put text
+    back). It now swaps an inner `<span>` when there is one and falls back to
+    the button otherwise, so plain text copy buttons behave exactly as before.
+  - Stories' "Download attachment" asked for a `paperclip` icon that isn't in
+    the catalogue, so it had been silently rendering no icon at all; it uses
+    `download` now.
+
+- **Every row-level delete control in the admin now uses the same red trash
+  button.** Row deletes were split three ways — a text "Delete", an `x` icon,
+  or a trash icon — sometimes within one screen. All of them now match the
+  Recovery Contacts pattern: `btn btn-sm btn-danger`, icon-only
+  `icon('trash')`, with a `title` naming what's being removed (the tooltip
+  also supplies the accessible name, since the button has no text). 24 controls
+  across 19 templates: blog posts / categories, contact messages, nav items and
+  links, mega-menu columns and blocks, popups, redirects (both tables), library
+  files, locations, officers, fellowships, media (grid and list), meeting-modal
+  files, posts, stories, users, Zoom accounts, backup targets, sidebar order.
+  - Both "you don't have permission" disabled twins (library detail, media)
+    were switched too, so they still mirror their enabled siblings.
+  - Deliberately left alone: bulk-action toolbar buttons ("Delete selected"),
+    which need a text label; full-size deletes on a record's own editor page;
+    the icon-picker "Remove icon" controls; repeater-row and gallery-item
+    removes inside editor forms, which discard an unsaved input row rather
+    than a stored record; and the Stories list's **Reject** button, which is a
+    distinct action from Delete and sits beside it.
+
+## [2.18.9] — 2026-09-14
+
+### Changed
+
+- **WeasyPrint 69.0 → 70.0.** The PDF engine behind the printable meeting
+  list, the recovery-contacts contact sheet, and reading PDFs. Every
+  transitive pin already satisfied 70.0's floors (`pydyf>=0.11`,
+  `tinyhtml5>=2.0.0b1`, `tinycss2>=1.5`, `cssselect2>=0.8`, `fonttools>=4.59.2`,
+  `Pillow>=9.1`), so `weasyprint` is the only line that moved.
+  - Verified against 69.0 output: `/printlist.pdf` and `/contactlist.pdf`
+    render the same page counts with byte-identical extracted text;
+    `/contactlist.pdf` is pixel-identical. `/printlist.pdf` differs in 0.19%
+    of pixels, all of it sub-pixel glyph shaping inside the day-header pills
+    — same strings, same positions. Its ~6% smaller file is compression, not
+    dropped content.
+
+## [2.18.8] — 2026-09-14
+
+### Changed
+
+- **Admin list tables stopped overflowing on narrow viewports.** The Pages
+  list forced the document to ~1476px wide and dragged a horizontal scrollbar
+  onto every viewport below that, down to the 720px breakpoint. Root cause: a
+  nowrap flex row's min-content width is the SUM of its buttons, and a table
+  cell can never render narrower than its min-content — six row actions put a
+  ~1135px floor under the table.
+  - **Row actions collapse into an Actions dropdown** (`templates/_row_menu.html`,
+    a reusable `{% call row_menu() %}` macro + `initRowMenus` in `app.js`). The
+    panel is `position: fixed` and placed on open, so the card's overflow can't
+    clip it; it flips above the trigger near the viewport bottom, closes on
+    Escape with focus restored, and follows scroll.
+  - **The trigger is revealed on row hover**, with three fallbacks so it isn't
+    stranded for non-mouse users: `:focus-within`, `.is-open`, and
+    `@media (hover: none)` for touch. It fades with `opacity`, not `display`,
+    so the column never changes width and rows don't jump under the pointer.
+  - **Phone layout** turns each Pages row into a three-line card — title, slug,
+    then status chip and date on one line — with Actions on the right. The
+    generic `.card .tbl { overflow-x: auto }` rule otherwise made the table its
+    own scroll container and pushed Actions off the right edge.
+  - **Web Frontend subnav now collapses at 1000px, not 900px.** Between those
+    it claimed 280px the viewport didn't have. Benefits every Web Frontend page.
+  - **Layout column is hidden below 1200px** on the Pages list — it renders
+    "Standard" for every row since the wiki template was retired.
+  - Shared fixes: `.row-actions` and `.top-actions` wrap, `.view-controls`
+    wraps (it was one ~490px unbreakable child overflowing the Posts and
+    Announcements headers), long tokens in `<code>`/mailto cells break instead
+    of setting a floor, and chips are `nowrap` so they never split mid-word.
+  - **Locations**: the Officers and Fellowships tables are grids of text
+    inputs, and a bare `<input>` carries a ~211px intrinsic min-content width —
+    four of them put a ~1060px floor under the table. They're fluid now, and
+    both tables stack into labelled cards on phones with the remove button
+    bottom-aligned to the first field via a row grid (not absolute
+    positioning, which had it floating level with the field's label). One
+    shared `--stack-field-h` makes inputs and button the same height, which is
+    also what stops iOS zooming in on focus.
+  - The Fellowships remove control is now the same `x` icon button the
+    Officers table and the rest of the admin use, instead of a text "Delete".
+  - The current-homepage row no longer gets a background tint; the Homepage
+    chip already says it.
+
+### Added
+
+- **Rename a page from the Pages list.** Changing a page's name previously
+  meant opening the editor and scrolling past the layout, structure and
+  Unplaced-blocks cards to reach Page settings → Title. Each row in Web
+  Frontend → Pages now carries a **Rename** action opening a small modal with
+  Title + URL slug, posting to a new `frontend_page_rename` route. Renames are
+  recorded in the page's revision history under a violet "Renamed" chip.
+  - **Moving the slug offers a 301.** When the slug actually changes, the
+    modal surfaces a pre-ticked "Redirect the old URL to the new one", which
+    mints a `UrlRedirect` row — the same table Structure → Redirects manages
+    and the `before_request` hook matches, so old inbound links keep working.
+    The offer is suppressed for the homepage, which is served at `/` and whose
+    slug therefore isn't a public URL.
+  - **Renaming back reclaims the slug.** A redirect whose source is the page's
+    *new* path would shadow the page outright (the redirect hook runs before
+    routing), so any such row is dropped on rename. Without this, renaming
+    A→B→A would leave the page unreachable at `/A`.
+  - **A pending draft follows the rename.** `draft_json` carries its own
+    `title`/`slug`; left alone, publishing a stashed draft would silently
+    revert the rename. The snapshot is patched to match.
+
+- **List block items are drag-reorderable in the Web Frontend page editor.**
+  A List block's rows previously offered only add and remove — changing the
+  order meant retyping every item. Each row in the BlockEditor modal now
+  carries a `grip-vertical` handle wired to SortableJS (the same library and
+  handle idiom the section / block / footer-column sorters already use), and a
+  drop splices the moved entry into its new slot in `data.items`, marking the
+  page dirty. Applies anywhere the BlockEditor mounts: Pages, Popups, and the
+  Zoom-tech content editor.
+  - The per-row `oninput` / remove handlers no longer close over the loop
+    counter. A drag rearranges the DOM without a re-render, so those closures
+    went stale the moment a row moved — typing in a dragged row would have
+    written to the slot it occupied *before* the drag, and × would have
+    deleted the wrong item. Both now resolve the index from the row's live
+    position in the container.
+
+## [2.18.7] — 2026-09-01
+
+### Fixed
+
+- **Card styles columns overflowed the card in the Web Frontend design
+  editor.** A grid item's automatic minimum size is its content's min-content
+  width, and a `<select>`'s min-content is its widest `<option>` — the
+  transition presets (`normal · 200ms cubic-bezier(0.2, 0.8, 0.2, 1)`) measure
+  ~364px, which put a 436px floor under each `.fe-card-style-col`. The
+  `1fr 1fr` tracks therefore refused to shrink: the pair stayed 890px wide
+  inside a card only ~700px across, and the Secondary column spilled past its
+  right edge (the Primary column overflowed identically, hidden behind its
+  neighbour). Reproduced from 1280px down to 920px, and again below ~470px in
+  single-column mode. `.fe-design-field-control select` already carried
+  `min-width: 0`, but that only governs flex shrinking *inside* the tile —
+  nothing let the grid track itself shrink. Fixes, all in `app.css`:
+  - `min-width: 0` on `.fe-card-style-col`, plus the same guard on
+    `.fe-btn-style-col` — structurally identical and one long preset away from
+    the same failure, though not currently triggered.
+  - `min-width: 0` on `.fe-design-field` and `max-width: 100%` on its
+    select / text / number controls, so nothing inside a tile can re-impose an
+    intrinsic width.
+  - `padding-right: 62px` on a mirror tile's title. The absolutely-positioned
+    "Synced" badge sits over the top-right corner; once the columns could
+    actually get narrow, wrapped titles ran underneath it.
+  - Two-column → one-column breakpoint raised 900px → 1100px. The old value was
+    written to keep field tiles readable but was never exercised — below 1100px
+    the tracks were overflowing rather than shrinking, so the ~250px columns it
+    would have produced never appeared.
+
+## [2.18.6] — 2026-09-01
+
+### Added
+
+- **"Submit an announcement or event" now reachable from the events list and
+  every post detail page, not just the announcements list.** The Submit pill
+  introduced on the announcements omni bar was the only entry point to the
+  submission form outside the nav, so a visitor reading an event page had no
+  way to find it. One resolver now feeds every surface:
+  `frontend._submission_link(site)` returns the admin's custom URL
+  (`SiteSetting.frontend_announcements_list_submit_url`), else the built-in
+  submission form while `submission_form_enabled` is on, else `""` — which is
+  each surface's signal to render nothing. The announcements list's own inline
+  copy of that logic was replaced by the call. No new columns, no migration.
+  - **Events list, all five layouts.** `events_list/omni.html` grows a Submit
+    pill beside the Archive pill, plus the `fe-events-omni-scrollwrap` shell and
+    scroll-hint JS the announcements bar already had, so both pills swipe in
+    from the right under 600px. The four layouts with no omni bar
+    (`cards` / `calendar` / `timeline` / `magazine`) include a new
+    `events_list/_submit_pill.html` under their heading; it reuses the omni
+    Archive/Submit pill classes so the button reads identically everywhere.
+    `events_list()` passes `list_submit_url`.
+  - **Announcement / event / archive detail pages.** New
+    `events/_submit_cta.html`, included by all four `EVENT_TEMPLATES` partials
+    (`classic` / `poster` / `minimal` / `timeline`) *below* the detail card grid
+    so it reads as a footer band rather than another panel of the post's own
+    content. Because those partials are shared, the one include covers
+    `event_detail`, `announcement_detail`, and `archive_detail`, which each pass
+    `submit_url`. Styled as a dashed outline over the page background — no fill,
+    no elevation, no hover lift — with the secondary (`fe-btn-ghost`) button, so
+    it stays visibly subordinate to the post's filled `.fe-event-detail-card`s.
+  - The admin help text under **Templates → Announcements list → Submit button**
+    now states that the one URL drives all three surfaces and that they hide
+    together when it resolves empty.
+
+### Changed
+
+- **The public-site live dot moved from the sidebar's Web button to the View
+  button.** The green pulsing dot reports `site.frontend_enabled`, and View is
+  the button that opens the public site — so the state and the thing it opens
+  are now the same control. The state text moved with it into View's tooltip.
+  One fallback kept: a non-privileged user with the public site off gets no View
+  button at all, so in that single case the dot stays on the Web indicator
+  rather than vanishing. Dot styling is unchanged.
+
+## [2.18.5] — 2026-08-11
+
+### Added
+
+- **Per-post public visibility, as its own axis.** New `Post.public_visibility`
+  column (`auto` / `public` / `private`; added to `_migrate_sqlite`, existing
+  rows take `auto` and behave exactly as before). `auto` follows the lifecycle,
+  `public` keeps a post on the public site even as a draft or scheduled ahead,
+  `private` takes it off entirely — no lists, no detail page, no images, no
+  search index. Pending-review submissions are never public under any of the
+  three. Enforcement is centralized rather than per-surface:
+  `frontend._post_live_clause()` grew from "scheduled-post gate" into the
+  complete public gate (pending + private + forced-public + draft + schedule),
+  and since it was already chained onto every public `Post.query`, the fourteen
+  now-redundant `is_draft` / `is_pending_review` filters across `frontend.py`,
+  `search.py`, and `blocks.py` came out — which is also what makes the
+  forced-public state hold on every surface instead of one. `is_archived` is
+  deliberately *not* in the clause: archiving decides where a post is filed, not
+  whether the public may see it, so lists that want only live posts keep
+  filtering it themselves. `Post.is_publicly_visible` is the Python-side twin,
+  used where a row is already in hand. Admin surface: a **Public visibility**
+  picker in the post editor, an **Always public** / **Hidden** chip in the editor
+  header and the Announcements & Events list, `View on Frontend` now offered on a
+  forced-public draft, and `post_duplicate` resets the copy to `auto` so a
+  duplicate can't inherit its way onto the public site.
+- **Portrait featured images render whole on the announcement / event / archive
+  detail page.** `thumbnails.image_dimensions()` reads an upload's pixel size
+  from the image header only (no pixel decode), honors EXIF orientation, and
+  caches on `(filename, mtime, size)`; the `image_shape` Jinja global wraps it.
+  `frontend/events/classic.html` stamps the image's own ratio as an inline
+  `aspect-ratio` and an `is-portrait` class when it's taller than wide, so a
+  movie-poster-shaped flyer keeps its top and bottom instead of losing them to
+  the fixed 4:3 frame. Landscape and near-square art (0.95 tolerance) are
+  untouched. CSS adds a 720px height guard, `object-fit: contain` as the backstop
+  for extreme ratios, and a 340px width cap on the single-column mobile hero. The
+  `timeline` layout already sized covers naturally; `poster` is a background-image
+  hero by design and `minimal` has no cover.
+
+### Fixed
+
+- **Archived posts' featured images 404'd for every logged-out visitor.**
+  `routes._public_image_visible()` treated `is_archived` as "not public" for all
+  content types, but an archived *post* keeps a public page at `/archive/<slug>`
+  — so every archived announcement and event rendered a broken featured image to
+  anyone not signed in. Rows publishing their own `is_publicly_visible` rule
+  (Post) are now asked directly, so the image routes always agree with what the
+  public site renders. Stories and blog posts have no public archive and keep the
+  previous rule. Side effect of routing through the same rule: a *scheduled*
+  post's image is now gated too, where before it was fetchable ahead of its
+  publish date.
+- **Fresh-install boot race between the two gunicorn workers.** On an empty DB
+  both workers run `create_app` concurrently. `db.create_all()` reflects the DB
+  then issues `CREATE TABLE` per missing table, so the loser could have its
+  reflection go stale mid-run and abort on "table already exists" with only part
+  of the schema built — and that error was swallowed, letting the worker carry on
+  into `_migrate_sqlite` and the seeders against a half-built DB. `create_all()`
+  now retries (three attempts); re-reflecting creates whatever is still missing
+  and a repeat loss is a no-op. `_migrate_sqlite` is hardened for the same
+  window: `PRAGMA table_info` on a not-yet-created table returns no rows, which
+  used to read as "column absent" and drive an `ALTER TABLE` into "no such
+  table", killing the worker. An empty PRAGMA now means "not my table to
+  migrate", and "no such table" joins "duplicate column" as a tolerated race
+  error.
+
+## [2.18.4] — 2026-08-11
+
+### Fixed
+
+- **Scheduled posts leaked past `published_at` on four public surfaces.** Every
+  public `Post.query` is supposed to chain `_post_live_clause()`; three files
+  never did. `blocks.py::filtered_events` — which feeds the homepage Upcoming
+  Events block and the per-page events blocks — decided "upcoming" purely from
+  `event_starts_at`, so a post scheduled a month out but dated sooner appeared
+  immediately. A post tagged both announcement *and* event exposed this: the
+  announcement side was gated, the event side was not.
+- **Same gap in the public search index, with a content leak.**
+  `search.py::_events_source`, `_announcements_source`, and `_archive_source`
+  omitted the clause. `build_search_index()` feeds `/api/search-index`, an
+  unauthenticated JSON endpoint whose rows carry each post's title, summary, and
+  body text — so a scheduled post disclosed its content, not merely its
+  existence, ahead of publication.
+- **Pending visitor submissions were in the public search index.**
+  `_events_source` also omitted `is_pending_review`, so a post submitted through
+  the public form appeared in site search before any admin decision.
+- `_post_live_clause()` now accepts an optional `site` so callers already holding
+  the `SiteSetting` row skip a redundant lookup; the no-arg form is unchanged and
+  the eight existing call sites in `frontend.py` were already correct. Its
+  docstring now states that *every* public `Post` query needs it — the omission
+  is invisible until someone actually schedules a post, which is why it survived.
+
+### Security
+
+- **cryptography 49.0.0 → 50.0.0** (PYSEC-2026-3552), flagged by the weekly
+  `pip-audit --strict` workflow. No API changes: Fernet (`app/crypto.py`,
+  `app/backup.py`) and PBKDF2HMAC + AES-GCM (`app/bundle_crypto.py`) were
+  exercised on 50.0.0, `pip check` is clean with `paramiko==5.0.0`, and the key
+  derivation is untouched so existing encrypted credentials and backup bundles
+  still decrypt.
+
 ## [2.18.3] — 2026-08-10
 
 ### Added

@@ -1,49 +1,59 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Locations{% endblock %}
 {% block content %}
 
 <section class="card data-card">
   <div class="data-card-head">
     {{ icon('map-pin') }}
-    <span>Locations</span>
+    <span>Locations {% call chip('Locations') %}Physical and online venues used by meetings. Each row defines a name, type, and (for in-person) a postal address with an optional Google Maps link.{% endcall %}</span>
     <div class="data-card-head-actions">
       <button type="button" class="btn btn-primary" data-open-modal="location-new-modal">{{ icon('plus') }} New Location</button>
     </div>
   </div>
-  <p class="muted small data-card-lead">
-    Physical and online venues used by meetings. Each row defines a name, type, and (for in-person) a postal address with an optional Google Maps link.
-  </p>
   {% if locations %}
-  <table class="tbl locations-tbl">
-    <thead><tr><th>Name</th><th>Type</th><th>Address</th><th></th></tr></thead>
-    <tbody>
-      {% for l in locations %}
-      <tr>
-        <td data-label="Name">{{ l.name }}</td>
-        <td data-label="Type">{{ 'Online' if l.location_type == 'online' else 'In-Person' }}</td>
-        <td data-label="Address">
-          {% if l.location_type == 'in_person' %}
-            {% for line in l.address_lines() %}<div>{{ line }}</div>{% endfor %}
-            {% if l.maps_url %}<a href="{{ l.maps_url|safe_url }}" target="_blank" rel="noopener" class="smaller">Open in Maps</a>{% endif %}
-          {% else %}
-            <span class="muted smaller">—</span>
-          {% endif %}
-        </td>
-        <td class="locations-actions">
-          <div class="row-actions">
-            <button type="button" class="btn btn-sm" data-open-modal="location-edit-{{ l.id }}">Edit</button>
-            <form method="post" action="{{ url_for('main.location_delete', lid=l.id) }}"
-                  onsubmit="return confirm('Delete this location?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-              <button class="btn btn-sm btn-danger">{{ icon('x') }}</button>
-            </form>
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {# One row per venue: its kind, name and address, and its actions. #}
+  <div class="glist-sort" role="group" aria-label="Sort locations" data-glist-sort>
+    <span class="glist-sort-label">Sort by</span>
+    <button type="button" class="erow-sort" data-sort="name">Name</button>
+    <button type="button" class="erow-sort" data-sort="type">Type</button>
+    <button type="button" class="erow-sort" data-sort="address">Address</button>
+  </div>
+  <ul class="glist" data-glist>
+    {% for l in locations %}
+    {% set _online = l.location_type == 'online' %}
+    <li class="glist-row" data-sort-name="{{ l.name|lower }}" data-sort-type="{{ 'online' if _online else 'in person' }}"
+        data-sort-address="{{ (l.address_lines()|join(', ') if not _online else '')|lower }}">
+      <span class="glist-icon" aria-hidden="true">{{ icon('video' if _online else 'map-pin') }}</span>
+      <div class="glist-main">
+        <div class="glist-title"><b>{{ l.name }}</b>
+          <span class="badge badge-muted">{{ 'Online' if _online else 'In person' }}</span></div>
+        {% if not _online %}
+        <div class="glist-meta">
+          <span>{{ l.address_lines()|join(', ') }}</span>
+          {% if l.maps_url %}<a href="{{ l.maps_url|safe_url }}" target="_blank" rel="noopener">Open in Maps {{ icon('external-link') }}</a>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="glist-actions">
+        {% call row_menu() %}
+          <button type="button" class="row-menu-item" data-open-modal="location-edit-{{ l.id }}">
+            {{ icon('pencil') }}<span>Edit</span></button>
+          <div class="row-menu-sep" role="separator"></div>
+          <form method="post" action="{{ url_for('main.location_delete', lid=l.id) }}"
+                data-confirm-title="Delete this location?"
+                data-confirm="“{{ l.name }}” will be removed from the list of locations. This can't be undone.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+            <button class="row-menu-item row-menu-item-danger" title="Delete location">
+              {{ icon('trash') }}<span>Delete</span></button>
+          </form>
+        {% endcall %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
   {% else %}
   <p class="muted">No locations yet.</p>
   {% endif %}
@@ -59,54 +69,131 @@
 <section class="card data-card officers-card">
   <div class="data-card-head">
     {{ icon('users') }}
-    <span>Intergroup Officers</span>
+    <span>Intergroup Officers {% call chip('Intergroup Officers') %}Contact roster surfaced through the Intergroup Member page block. Edit or remove rows here and save — every page block referencing an officer renders the latest values.{% endcall %}</span>
   </div>
-  <p class="muted small data-card-lead">
-    Contact roster surfaced through the Intergroup Member page block. Edit or remove rows here and save — every page block referencing an officer renders the latest values.
-  </p>
   <form method="post" action="{{ url_for('main.officers_save') }}" class="form officers-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-    <table class="tbl officers-tbl">
-      <thead>
-        <tr>
-          <th class="officer-col-pos">Position</th>
-          <th class="officer-col-name">Name</th>
-          <th class="officer-col-phone">Phone</th>
-          <th class="officer-col-email">Email</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody data-officers-rows>
+    {# One editable row per officer: a grid with headings above the
+       columns in a wide pane, and small labels on each field when the
+       rows wrap in a narrow one. #}
+    <div class="erows officers-rows" data-officers-rows>
+      <div class="erow-head" role="group" aria-label="Sort officers">
+        <button type="button" class="erow-sort" data-sort="officer_role">Position</button>
+        <button type="button" class="erow-sort" data-sort="officer_name">Name</button>
+        <button type="button" class="erow-sort" data-sort="officer_phone">Phone</button>
+        <button type="button" class="erow-sort" data-sort="officer_email">Email</button>
+        <span></span>
+      </div>
         {% for o in officers %}
-        <tr class="officer-row">
-          <td><input type="hidden" name="officer_id" value="{{ o.id }}">
-              <input type="text" name="officer_role" value="{{ o.role }}" placeholder="e.g. Chair" required></td>
-          <td><input type="text" name="officer_name" value="{{ o.name or '' }}" placeholder="e.g. Chris C."></td>
-          <td><input type="tel" name="officer_phone" value="{{ o.phone or '' }}" placeholder="e.g. 202-555-0118"></td>
-          <td><input type="email" name="officer_email" value="{{ o.email or '' }}" placeholder="e.g. chair@dccma.com"></td>
-          <td><button type="button" class="btn btn-sm btn-danger" data-officer-remove aria-label="Remove this officer">{{ icon('x') }}</button></td>
-        </tr>
+        {#- The Public Information Chair's row mirrors the card below it:
+            read-only here, kept in step as the card is typed in, and it
+            can't be removed (the server enforces both). -#}
+        {% set _pic = o.id == pic_officer_id %}
+        {% set _ro = ' readonly tabindex="-1" aria-readonly="true"'|safe if _pic else '' %}
+        <div class="erow officer-row{% if _pic %} is-locked{% endif %}"{% if _pic %} data-pic-officer title="Set on the Public Information Chair card below"{% endif %}>
+          <button type="button" class="erow-summary" data-erow-toggle aria-expanded="false"><span class="erow-sum-main" data-sum-main></span><span class="erow-sum-sub" data-sum-sub></span>{{ icon('chevron-down', 'erow-sum-chev') }}</button>
+          <input type="hidden" name="officer_id" value="{{ o.id }}">
+          <label class="erow-field erow-pos"><span class="erow-label">Position</span>
+            <input type="text" name="officer_role" value="{{ o.role or '' }}" placeholder="e.g. Chair" required{{ _ro }}{% if _pic %} data-pic-mirror="pic_title" data-pic-default="Public Information Chair"{% endif %}></label>
+          <label class="erow-field erow-name"><span class="erow-label">Name</span>
+            <input type="text" name="officer_name" value="{{ o.name or '' }}" placeholder="{{ 'Not set' if _pic else 'e.g. Chris C.' }}"{{ _ro }}{% if _pic %} data-pic-mirror="pic_name"{% endif %}></label>
+          <label class="erow-field erow-phone"><span class="erow-label">Phone</span>
+            <input type="tel" name="officer_phone" value="{{ o.phone or '' }}" placeholder="{{ 'Not set' if _pic else 'e.g. 202-555-0118' }}"{{ _ro }}{% if _pic %} data-pic-mirror="pic_phone"{% endif %}></label>
+          <label class="erow-field erow-email"><span class="erow-label">Email</span>
+            <input type="email" name="officer_email" value="{{ o.email or '' }}" placeholder="{{ 'Not set' if _pic else 'e.g. chair@dccma.com' }}"{{ _ro }}{% if _pic %} data-pic-mirror="pic_email"{% endif %}></label>
+          {% if _pic %}
+          <span class="erow-remove erow-lock" role="img" aria-label="Required: set on the Public Information Chair card"
+                title="Required. Its details are set on the Public Information Chair card.">{{ icon('lock') }}</span>
+          {% else %}
+          <button type="button" class="erow-remove" data-officer-remove aria-label="Remove this officer" title="Remove this officer">{{ icon('trash') }}</button>
+          {% endif %}
+        </div>
         {% endfor %}
-        {# Hidden template row — cloned by the +Add button. The server
-           strips fully-blank rows on save, so a stray empty row is a
-           no-op rather than a corrupt record. #}
-        <tr class="officer-row officer-row-template" hidden data-officers-template>
-          <td><input type="hidden" name="officer_id" value="">
-              <input type="text" name="officer_role" placeholder="e.g. Chair"></td>
-          <td><input type="text" name="officer_name" placeholder="e.g. Chris C."></td>
-          <td><input type="tel" name="officer_phone" placeholder="e.g. 202-555-0118"></td>
-          <td><input type="email" name="officer_email" placeholder="e.g. chair@dccma.com"></td>
-          <td><button type="button" class="btn btn-sm btn-danger" data-officer-remove aria-label="Remove this officer">{{ icon('x') }}</button></td>
-        </tr>
-      </tbody>
-    </table>
+        {# Hidden template row, cloned by Add officer. The server drops
+           fully blank rows on save, so a stray empty one is a no-op. #}
+        <div class="erow officer-row officer-row-template is-open" hidden data-officers-template>
+          <button type="button" class="erow-summary" data-erow-toggle aria-expanded="true"><span class="erow-sum-main" data-sum-main></span><span class="erow-sum-sub" data-sum-sub></span>{{ icon('chevron-down', 'erow-sum-chev') }}</button>
+          <input type="hidden" name="officer_id" value="">
+          <label class="erow-field erow-pos"><span class="erow-label">Position</span>
+            <input type="text" name="officer_role" value="" placeholder="e.g. Chair"></label>
+          <label class="erow-field erow-name"><span class="erow-label">Name</span>
+            <input type="text" name="officer_name" value="" placeholder="e.g. Chris C."></label>
+          <label class="erow-field erow-phone"><span class="erow-label">Phone</span>
+            <input type="tel" name="officer_phone" value="" placeholder="e.g. 202-555-0118"></label>
+          <label class="erow-field erow-email"><span class="erow-label">Email</span>
+            <input type="email" name="officer_email" value="" placeholder="e.g. chair@dccma.com"></label>
+          <button type="button" class="erow-remove" data-officer-remove aria-label="Remove this officer" title="Remove this officer">{{ icon('trash') }}</button>
+        </div>
+    </div>
     <div class="officers-actions">
-      <button type="button" class="btn btn-sm" data-officers-add>+ Add officer</button>
+      <button type="button" class="btn btn-sm" data-officers-add>{{ icon('plus') }} Add officer</button>
+      <span class="erow-order-note" data-order-note hidden>New order. Save to keep it.</span>
       <button type="submit" class="btn btn-primary">Save officers</button>
     </div>
   </form>
 </section>
+
+<script>
+// Shared by the three lists on this page.
+// confirmRemove: a row with anything in it asks first (an untouched new
+// row just goes); it leaves the list now and from the saved data when
+// its form is saved.
+function confirmRemove(row, title, parts, what) {
+  const filled = Array.from(row.querySelectorAll('input:not([type=hidden]):not([type=checkbox])')).some(i => i.value.trim());
+  if (!filled || !window.tspConfirm) { row.remove(); return; }
+  const label = parts.map(p => (p || '').trim()).filter(Boolean).join(', ');
+  window.tspConfirm({
+    title: title,
+    message: (label ? '“' + label + '” will be removed' : 'This row will be removed') + ' when you save ' + what + '.',
+    confirmLabel: 'Remove',
+  }).then(yes => { if (yes) row.remove(); });
+}
+// Sort buttons: click to sort by that column, again to reverse. Empty
+// values go last either way. ``valueOf(item, key)`` reads an item's
+// value; ``after`` runs once the items are back in place.
+function wireSort(bar, items, place, valueOf, after) {
+  bar.addEventListener('click', e => {
+    const b = e.target.closest('[data-sort]');
+    if (!b) return;
+    const dir = b.dataset.dir === 'asc' ? 'desc' : 'asc';
+    bar.querySelectorAll('[data-sort]').forEach(x => { delete x.dataset.dir; x.removeAttribute('aria-pressed'); });
+    b.dataset.dir = dir;
+    b.setAttribute('aria-pressed', 'true');
+    const sign = dir === 'asc' ? 1 : -1;
+    const sorted = items().sort((x, y) => {
+      const a = valueOf(x, b.dataset.sort), c = valueOf(y, b.dataset.sort);
+      if (a === c) return 0;
+      if (!a) return 1;
+      if (!c) return -1;
+      return a.localeCompare(c, undefined, { numeric: true, sensitivity: 'base' }) * sign;
+    });
+    sorted.forEach(place);
+    if (after) after();
+  });
+}
+(function () {
+  const list = document.querySelector('[data-glist]');
+  const bar = document.querySelector('[data-glist-sort]');
+  if (!list || !bar) return;
+  wireSort(bar, () => Array.from(list.children), li => list.appendChild(li),
+           (li, key) => li.getAttribute('data-sort-' + key) || '');
+})();
+// Officers and fellowships: the order on screen is the order saved.
+function wireRowSort(rows, templateSel) {
+  const head = rows.querySelector('.erow-head');
+  const note = rows.closest('form').querySelector('[data-order-note]');
+  const template = rows.querySelector(templateSel);
+  wireSort(head, () => Array.from(rows.querySelectorAll('.erow')).filter(r => r !== template),
+    r => rows.insertBefore(r, template),
+    (r, key) => {
+      if (key === 'virtual') { const cb = r.querySelector('[data-fellowship-virtual]'); return cb && cb.checked ? '1' : '0'; }
+      const f = r.querySelector('[name="' + key + '"]');
+      return f ? f.value.trim() : '';
+    },
+    () => { if (note) note.hidden = false; });
+}
+</script>
 
 <script>
 (function () {
@@ -129,14 +216,61 @@
     const first = clone.querySelector('input[name="officer_role"]');
     if (first) first.focus();
   });
+  wireRowSort(rows, '[data-officers-template]');
   rows.addEventListener('click', e => {
     const btn = e.target.closest('[data-officer-remove]');
     if (!btn) return;
-    const row = btn.closest('tr.officer-row');
-    if (row && !row.hasAttribute('data-officers-template')) row.remove();
+    const row = btn.closest('.officer-row');
+    if (!row || row.hasAttribute('data-officers-template')) return;
+    confirmRemove(row, 'Remove this officer?',
+      [row.querySelector('[name="officer_role"]').value, row.querySelector('[name="officer_name"]').value],
+      'the officers');
   });
 })();
 </script>
+
+{# ── Public Information Chair ─────────────────────────────────────
+   The contact shown on the dashboard for members who need help.
+   Admin-only (its save route is), though the rest of Global is open to
+   frontend editors. #}
+{% if current_user.is_admin() %}
+<section class="card data-card">
+  <div class="data-card-head">
+    {{ icon('phone') }}
+    <span>Public Information Chair {% call chip('Public Information Chair') %}Contact information shown on the dashboard for members who need help, and in the Intergroup Officers list above. The title is what your fellowship calls the position.{% endcall %}</span>
+  </div>
+  <form class="form pic-form" method="post" action="{{ url_for('main.pic_save') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+    <label class="pic-title-field">Title
+      <input type="text" name="pic_title" maxlength="200" value="{{ (site.pic_title if site else '') or '' }}"
+             placeholder="Public Information Chair">
+      <small class="muted">Left blank, it's Public Information Chair. Shown as the position in Intergroup Officers.</small>
+    </label>
+    <div class="pic-form-row">
+      <label>Name<input type="text" name="pic_name" value="{{ (site.pic_name if site else '') or '' }}"></label>
+      <label>Email<input type="email" name="pic_email" value="{{ (site.pic_email if site else '') or '' }}"></label>
+      <label>Phone<input type="tel" name="pic_phone" value="{{ (site.pic_phone if site else '') or '' }}"></label>
+    </div>
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Save</button></div>
+  </form>
+</section>
+<script>
+// Typing in the card shows straight away in the Public Information
+// Chair's (read-only) row of the officers list.
+(function () {
+  const card = document.querySelector('.pic-form');
+  if (!card) return;
+  card.addEventListener('input', e => {
+    const name = e.target.name;
+    if (!name) return;
+    document.querySelectorAll('[data-pic-mirror="' + name + '"]').forEach(f => {
+      f.value = e.target.value.trim() || f.dataset.picDefault || e.target.value;
+    });
+  });
+})();
+</script>
+{% endif %}
 
 {# ── Fellowships Index ───────────────────────────────────────────
    Repeatable list of peer recovery fellowships shown on the public
@@ -151,87 +285,76 @@
 <section class="card data-card fellowships-card">
   <div class="data-card-head">
     {{ icon('globe') }}
-    <span>Fellowships Index</span>
+    <span>Fellowships Index {% call chip('Fellowships Index') %}Sister fellowships surfaced on the public /fellowships page. Toggle Virtual for online-only fellowships (geography hidden); leave it off and fill in the country + state/region for in-region fellowships. Its public layout is set under Web Frontend → Page templates.{% endcall %}</span>
   </div>
-  <p class="muted small data-card-lead">
-    Sister fellowships surfaced on the public /fellowships page. Toggle Virtual for online-only fellowships (geography hidden); leave it off and fill in the country + state/region for in-region fellowships. The Web Frontend → Templates panel controls the public layout.
-  </p>
   <form method="post" action="{{ url_for('main.fellowships_save') }}" class="form fellowships-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-    <table class="tbl fellowships-tbl">
-      <thead>
-        <tr>
-          <th class="fellowship-col-name">Name</th>
-          <th class="fellowship-col-virtual">Virtual</th>
-          <th class="fellowship-col-country">Country</th>
-          <th class="fellowship-col-region">State / Province / Region</th>
-          <th class="fellowship-col-url">Website</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody data-fellowships-rows>
+    <div class="erows fellowships-rows" data-fellowships-rows>
+      <div class="erow-head" role="group" aria-label="Sort fellowships">
+        <button type="button" class="erow-sort" data-sort="fellowship_name">Name</button>
+        <button type="button" class="erow-sort" data-sort="virtual">Virtual</button>
+        <span class="erow-geo">
+          <button type="button" class="erow-sort" data-sort="fellowship_country">Country</button>
+          <button type="button" class="erow-sort" data-sort="fellowship_state_region">State / Province / Region</button>
+        </span>
+        <button type="button" class="erow-sort" data-sort="fellowship_url">Website</button>
+        <span></span>
+      </div>
         {% for f in fellowships %}
-        <tr class="fellowship-row{% if f.is_virtual %} is-virtual{% endif %}" data-fellowship-row>
-          <td data-label="Name">
-            <input type="hidden" name="fellowship_id" value="{{ f.id }}">
-            <input type="text" name="fellowship_name" value="{{ f.name or '' }}" placeholder="e.g. Crystal Meth Anonymous" required>
-          </td>
-          <td class="fellowship-cell-virtual" data-label="Virtual">
-            {# Hidden input is the one that actually submits the row's
-               virtual flag — exactly one value per row, so the server-
-               side zip(ids, names, virtuals) stays aligned regardless
-               of how many rows are checked. The visible checkbox is a
-               pure UI element kept in sync via JS. #}
-            <input type="hidden" name="fellowship_is_virtual"
-                   value="{{ '1' if f.is_virtual else '0' }}"
-                   data-fellowship-virtual-state>
-            <label class="mode-toggle fellowship-virtual-toggle"
-                   title="On = virtual / online-only (country + region ignored). Off = regional.">
-              <input type="checkbox" data-fellowship-virtual {% if f.is_virtual %}checked{% endif %}>
-              <span class="mode-track"><span class="mode-thumb"></span></span>
-            </label>
-          </td>
-          <td class="fellowship-cell-region-field" data-label="Country"{% if f.is_virtual %} hidden{% endif %}>
-            <input type="text" name="fellowship_country" value="{{ f.country or '' }}" placeholder="e.g. United States">
-          </td>
-          <td class="fellowship-cell-region-field" data-label="State / Province / Region"{% if f.is_virtual %} hidden{% endif %}>
-            <input type="text" name="fellowship_state_region" value="{{ f.state_region or '' }}" placeholder="e.g. California">
-          </td>
-          <td data-label="Website">
-            <input type="url" name="fellowship_url" value="{{ f.url or '' }}" placeholder="https://example.org">
-          </td>
-          <td><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship">Delete</button></td>
-        </tr>
+        <div class="erow fellowship-row{% if f.is_virtual %} is-virtual{% endif %}" data-fellowship-row>
+          <button type="button" class="erow-summary" data-erow-toggle aria-expanded="false"><span class="erow-sum-main" data-sum-main></span><span class="erow-sum-sub" data-sum-sub></span>{{ icon('chevron-down', 'erow-sum-chev') }}</button>
+          <input type="hidden" name="fellowship_id" value="{{ f.id }}">
+          {# Exactly one virtual value per row (this hidden input) keeps the
+             server's parallel arrays aligned; the switch mirrors it. #}
+          <input type="hidden" name="fellowship_is_virtual" value="{{ '1' if f.is_virtual else '0' }}" data-fellowship-virtual-state>
+          <label class="erow-field erow-name"><span class="erow-label">Name</span>
+            <input type="text" name="fellowship_name" value="{{ f.name or '' }}" placeholder="e.g. Crystal Meth Anonymous" required></label>
+          <label class="mode-toggle fellowship-virtual-toggle erow-virtual"
+                 title="On: virtual, online only (country and region are ignored). Off: regional.">
+            <input type="checkbox" data-fellowship-virtual {% if f.is_virtual %}checked{% endif %}>
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+            <span class="erow-label erow-label--inline">Virtual</span>
+          </label>
+          <div class="erow-geo fellowship-cell-region-field"{% if f.is_virtual %} hidden{% endif %}>
+            <label class="erow-field erow-country"><span class="erow-label">Country</span>
+              <input type="text" name="fellowship_country" value="{{ f.country or '' }}" placeholder="e.g. United States"></label>
+            <label class="erow-field erow-region"><span class="erow-label">State / Province / Region</span>
+              <input type="text" name="fellowship_state_region" value="{{ f.state_region or '' }}" placeholder="e.g. California"></label>
+          </div>
+          <label class="erow-field erow-url"><span class="erow-label">Website</span>
+            <input type="url" name="fellowship_url" value="{{ f.url or '' }}" placeholder="https://example.org"></label>
+          <button type="button" class="erow-remove" data-fellowship-remove aria-label="Remove this fellowship" title="Remove this fellowship">{{ icon('trash') }}</button>
+        </div>
         {% endfor %}
-        <tr class="fellowship-row fellowship-row-template" hidden data-fellowships-template data-fellowship-row>
-          <td data-label="Name">
-            <input type="hidden" name="fellowship_id" value="">
-            <input type="text" name="fellowship_name" placeholder="e.g. Crystal Meth Anonymous">
-          </td>
-          <td class="fellowship-cell-virtual" data-label="Virtual">
-            <input type="hidden" name="fellowship_is_virtual" value="0"
-                   data-fellowship-virtual-state>
-            <label class="mode-toggle fellowship-virtual-toggle">
-              <input type="checkbox" data-fellowship-virtual>
-              <span class="mode-track"><span class="mode-thumb"></span></span>
-            </label>
-          </td>
-          <td class="fellowship-cell-region-field" data-label="Country">
-            <input type="text" name="fellowship_country" placeholder="e.g. United States">
-          </td>
-          <td class="fellowship-cell-region-field" data-label="State / Province / Region">
-            <input type="text" name="fellowship_state_region" placeholder="e.g. California">
-          </td>
-          <td data-label="Website">
-            <input type="url" name="fellowship_url" placeholder="https://example.org">
-          </td>
-          <td><button type="button" class="btn btn-sm btn-danger" data-fellowship-remove aria-label="Remove this fellowship">Delete</button></td>
-        </tr>
-      </tbody>
-    </table>
+        <div class="erow fellowship-row fellowship-row-template is-open" hidden data-fellowships-template data-fellowship-row>
+          <button type="button" class="erow-summary" data-erow-toggle aria-expanded="true"><span class="erow-sum-main" data-sum-main></span><span class="erow-sum-sub" data-sum-sub></span>{{ icon('chevron-down', 'erow-sum-chev') }}</button>
+          <input type="hidden" name="fellowship_id" value="">
+          {# Exactly one virtual value per row (this hidden input) keeps the
+             server's parallel arrays aligned; the switch mirrors it. #}
+          <input type="hidden" name="fellowship_is_virtual" value="0" data-fellowship-virtual-state>
+          <label class="erow-field erow-name"><span class="erow-label">Name</span>
+            <input type="text" name="fellowship_name" value="" placeholder="e.g. Crystal Meth Anonymous"></label>
+          <label class="mode-toggle fellowship-virtual-toggle erow-virtual"
+                 title="On: virtual, online only (country and region are ignored). Off: regional.">
+            <input type="checkbox" data-fellowship-virtual >
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+            <span class="erow-label erow-label--inline">Virtual</span>
+          </label>
+          <div class="erow-geo fellowship-cell-region-field">
+            <label class="erow-field erow-country"><span class="erow-label">Country</span>
+              <input type="text" name="fellowship_country" value="" placeholder="e.g. United States"></label>
+            <label class="erow-field erow-region"><span class="erow-label">State / Province / Region</span>
+              <input type="text" name="fellowship_state_region" value="" placeholder="e.g. California"></label>
+          </div>
+          <label class="erow-field erow-url"><span class="erow-label">Website</span>
+            <input type="url" name="fellowship_url" value="" placeholder="https://example.org"></label>
+          <button type="button" class="erow-remove" data-fellowship-remove aria-label="Remove this fellowship" title="Remove this fellowship">{{ icon('trash') }}</button>
+        </div>
+    </div>
     <div class="fellowships-actions">
-      <button type="button" class="btn btn-sm" data-fellowships-add>+ Add fellowship</button>
+      <button type="button" class="btn btn-sm" data-fellowships-add>{{ icon('plus') }} Add fellowship</button>
+      <span class="erow-order-note" data-order-note hidden>New order. Save to keep it.</span>
       <button type="submit" class="btn btn-primary">Save fellowships</button>
     </div>
   </form>
@@ -278,19 +401,61 @@
     if (first) first.focus();
   });
 
+  wireRowSort(rows, '[data-fellowships-template]');
   rows.addEventListener('click', e => {
     const btn = e.target.closest('[data-fellowship-remove]');
     if (!btn) return;
-    const row = btn.closest('tr.fellowship-row');
-    if (row && !row.hasAttribute('data-fellowships-template')) row.remove();
+    const row = btn.closest('.fellowship-row');
+    if (!row || row.hasAttribute('data-fellowships-template')) return;
+    confirmRemove(row, 'Remove this fellowship?',
+      [row.querySelector('[name="fellowship_name"]').value], 'the fellowships');
   });
 
   rows.addEventListener('change', e => {
     if (!e.target.matches('[data-fellowship-virtual]')) return;
-    const row = e.target.closest('tr.fellowship-row');
+    const row = e.target.closest('.fellowship-row');
     if (row) syncRow(row);
   });
 })();
+</script>
+
+<script>
+// Inside Settings, the officers, Public Information Chair and
+// fellowships forms are saved by the sidebar's yellow bar: their own Save buttons go, and any edit (typing,
+// a switch, adding, removing or sorting rows) is reported to the bar,
+// which saves each changed list in the background. On its own the page
+// keeps its buttons.
+document.addEventListener('DOMContentLoaded', () => {
+  const pane = window.tspSettingsPane;
+  if (!pane || !pane.attached) return;
+  const forms = Array.from(document.querySelectorAll('.officers-form, .fellowships-form, .pic-form'));
+  const dirty = new Set();
+  async function save() {
+    for (const f of Array.from(dirty)) {
+      const r = await fetch(f.action, {
+        method: 'POST', body: new FormData(f), credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'fetch' },
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      dirty.delete(f);
+    }
+    // Show the saved lists as the server now has them.
+    setTimeout(() => window.location.reload(), 400);
+  }
+  function mark(f) { dirty.add(f); pane.dirty('global', true, save); }
+  forms.forEach(f => {
+    const submit = f.querySelector('button[type="submit"]');
+    if (submit) submit.style.display = 'none';
+    f.addEventListener('input', () => mark(f));
+    f.addEventListener('change', () => mark(f));
+    // Enter in a field saves through the bar rather than reloading here.
+    f.addEventListener('submit', e => { e.preventDefault(); mark(f); });
+    const rows = f.querySelector('.erows');
+    if (rows && window.MutationObserver) {
+      new MutationObserver(() => mark(f)).observe(rows, { childList: true });
+    }
+  });
+});
 </script>
 
 {# New location modal #}
@@ -322,8 +487,8 @@
           </div>
           <label>Google Maps Link<input name="maps_url" type="url"></label>
         </div>
-        <label>Website URL <span class="muted smaller">(optional)</span><input name="website_url" type="url"></label>
-        <label>Notes <span class="muted smaller">(shown italicized under the address on the public footer)</span><textarea name="notes" rows="2"></textarea></label>
+        <label><span class="field-label-row">Website URL <span class="muted smaller">(optional)</span></span><input name="website_url" type="url"></label>
+        <label>{% call hrow('Notes') %}Shown italicized under the address on the public footer{% endcall %}<textarea name="notes" rows="2"></textarea></label>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn" data-close>Cancel</button>
@@ -363,8 +528,8 @@
           </div>
           <label>Google Maps Link<input name="maps_url" type="url" value="{{ l.maps_url or '' }}"></label>
         </div>
-        <label>Website URL <span class="muted smaller">(optional)</span><input name="website_url" type="url" value="{{ l.website_url or '' }}"></label>
-        <label>Notes <span class="muted smaller">(shown italicized under the address on the public footer)</span><textarea name="notes" rows="2">{{ l.notes or '' }}</textarea></label>
+        <label><span class="field-label-row">Website URL <span class="muted smaller">(optional)</span></span><input name="website_url" type="url" value="{{ l.website_url or '' }}"></label>
+        <label>{% call hrow('Notes') %}Shown italicized under the address on the public footer{% endcall %}<textarea name="notes" rows="2">{{ l.notes or '' }}</textarea></label>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn" data-close>Cancel</button>
@@ -375,4 +540,47 @@
 </div>
 {% endfor %}
 
+<script>
+// Officers and Fellowships in a narrow pane (760px and under): each row
+// folds to a summary line (a summary button, hidden when wide) and opens
+// to its fields. The line follows the fields as they're typed; new rows
+// start open (their template is), and a row the browser flags on save
+// opens so its prompt shows.
+(function () {
+  const SUMMARY = {
+    officer: row => [row.querySelector('[name="officer_role"]').value.trim() || 'New officer',
+                     row.querySelector('[name="officer_name"]').value.trim()],
+    fellowship: row => {
+      const virtual = row.querySelector('[data-fellowship-virtual]');
+      const geo = ['fellowship_country', 'fellowship_state_region']
+        .map(n => row.querySelector('[name="' + n + '"]').value.trim()).filter(Boolean).join(', ');
+      return [row.querySelector('[name="fellowship_name"]').value.trim() || 'New fellowship',
+              virtual && virtual.checked ? 'Virtual' : geo];
+    },
+  };
+  const kindOf = row => row.classList.contains('officer-row') ? 'officer' : 'fellowship';
+  function sync(row) {
+    const sum = row.querySelector('[data-erow-toggle]');
+    if (!sum) return;
+    const [main, sub] = SUMMARY[kindOf(row)](row);
+    sum.querySelector('[data-sum-main]').textContent = main;
+    sum.querySelector('[data-sum-sub]').textContent = sub;
+  }
+  function setOpen(row, open) {
+    row.classList.toggle('is-open', open);
+    const sum = row.querySelector('[data-erow-toggle]');
+    if (sum) sum.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  document.querySelectorAll('.officers-rows .erow, .fellowships-rows .erow').forEach(sync);
+  document.querySelectorAll('[data-officers-rows], [data-fellowships-rows]').forEach(list => {
+    list.addEventListener('click', e => {
+      const sum = e.target.closest('[data-erow-toggle]');
+      if (sum) setOpen(sum.closest('.erow'), !sum.closest('.erow').classList.contains('is-open'));
+    });
+    list.addEventListener('input', e => { const row = e.target.closest('.erow'); if (row) sync(row); });
+    list.addEventListener('change', e => { const row = e.target.closest('.erow'); if (row) sync(row); });
+    list.addEventListener('invalid', e => { const row = e.target.closest('.erow'); if (row) setOpen(row, true); }, true);
+  });
+})();
+</script>
 {% endblock %}

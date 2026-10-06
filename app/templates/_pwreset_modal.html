@@ -53,7 +53,7 @@
             <button type="button" class="btn btn-sm" id="pwreset-copy" title="Copy to clipboard">Copy</button>
             <button type="button" class="btn btn-sm" id="pwreset-reroll" title="Generate a new one">Re-roll</button>
           </div>
-          <p class="muted smaller pwreset-hint">16 characters · uppercase, lowercase, digits, and symbols. The value shown here is what gets saved when you submit.</p>
+          <p class="muted smaller pwreset-hint">20 random characters · uppercase, lowercase, digits, and symbols, without look-alikes such as 0 and O. The value shown here is what gets saved when you submit.</p>
         </div>
 
         <div class="pwreset-pane" data-pwpane="custom" hidden>
@@ -132,8 +132,10 @@
     try {
       const fd = new FormData();
       fd.append('csrf_token', csrf);
+      fd.append('username', usernameEl.textContent || '');
+      fd.append('email', emailEl.textContent || '');
       const r = await fetch("{{ url_for('auth.users_generate_password') }}", {
-        method: 'POST', body: fd, credentials: 'same-origin'
+        method: 'POST', body: fd, credentials: 'same-origin', cache: 'no-store'
       });
       if (!r.ok) return;
       const data = await r.json();

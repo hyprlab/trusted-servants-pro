@@ -1,0 +1,542 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% from "_md_toolbar.html" import md_toolbar %}
+{% set _is_new = meeting is none %}
+{% set _m = meeting %}
+{% block heading %}{{ 'New meeting' if _is_new else 'Edit meeting' }}{% endblock %}
+{% block heading_help %}{% if _is_new %}Set up a meeting: its name and description on the left, and where, when, how to join and what it shares on the right. Files can be added once it's created.{% else %}Update the meeting's description, place, schedule, online details, alerts, libraries or files.{% endif %}{% endblock %}
+{% block top_actions %}
+  {% if _is_new %}
+    <a class="btn" href="{{ url_for('main.meetings') }}">← All</a>
+    <button type="submit" form="meeting-edit-form" class="btn btn-primary">Create meeting</button>
+  {% else %}
+    <a class="btn" href="{{ url_for('main.meeting_detail', slug=_m.public_slug) }}">← Meeting</a>
+    {% if _m.archived_at %}<span class="post-chip post-chip-header">Archived</span>{% endif %}
+    {% if site and site.frontend_module_enabled %}
+    <a class="btn" href="{{ url_for('frontend.meeting_detail', slug=_m.public_slug) }}" target="_blank" rel="noopener">View on Frontend ↗</a>
+    {% endif %}
+  {% endif %}
+{% endblock %}
+{% block content %}
+{# One row of the Extended content editor: an optional title and a
+   Markdown body. Field names are scoped by `idx`; the script clones the
+   <template> below for new rows, and the save walks `ext_block_present`
+   markers in order. #}
+{% macro _ext_block_row(idx, block) %}
+<div class="fe-meeting-extended-card" data-extended-item data-item-index="{{ idx }}">
+  <input type="hidden" name="ext_block_present" value="{{ idx }}">
+  <div class="fe-meeting-extended-card-fields">
+    <input type="text" name="ext_block_{{ idx }}_title"
+           value="{{ (block.title if block else '') or '' }}" placeholder="Block title (optional)">
+    <textarea name="ext_block_{{ idx }}_body" rows="5"
+              placeholder="Markdown: ## headings, **bold**, *italic*, [links](https://...), - lists.">{{ (block.body if block else '') or '' }}</textarea>
+  </div>
+  <button type="button" class="fe-meeting-extended-card-remove" data-extended-remove
+          title="Remove block" aria-label="Remove block">{{ icon('trash') }}</button>
+</div>
+{% endmacro %}
+{% set _module_on = site and site.frontend_module_enabled %}
+{% set _can_public = current_user.is_authenticated and current_user.can_edit_frontend() %}
+{% set mtype = _m.meeting_type if _m else 'in_person' %}
+
+{# Two columns, as in the announcement / event editor: the meeting's
+   words on the left; on the right its settings, switched with a
+   segmented control (fe_studio.js): Meeting, Schedule, Online (not for
+   in-person meetings), Alerts, Libraries and Files (once it exists). #}
+<form id="meeting-edit-form" class="form post-form" method="post"
+      action="{{ url_for('main.meeting_new') if _is_new else url_for('main.meeting_edit', slug=_m.public_slug) }}"
+      enctype="multipart/form-data" data-meeting-form data-content-editor>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="card st-studio post-studio" data-studio="meeting" data-no-collapse>
+    <div class="st-body st-body--split">
+
+      {# ── Writing ─────────────────────────────────────────────── #}
+      <div class="post-studio-main">
+        <label class="post-title-field">Name
+          <input type="text" name="name" required maxlength="255" class="post-title-input" data-slug-source
+                 value="{{ (_m.name if _m else '') or '' }}" placeholder="Saturday Morning Serenity">
+        </label>
+
+        <div class="form-field-block">{% call hrow('Description') %}Shown on the public meeting page. Use the toolbar, or type Markdown: headings, <code>**bold**</code>, lists and links.{% endcall %}
+          <div class="md-editor md-editor-live post-body-md" data-md-editor data-md-live="1" data-md-mode="block">
+            {{ md_toolbar() }}
+            <div class="md-editor-pane md-editor-pane-write active">
+              <textarea name="description" rows="12"
+                        placeholder="What the meeting is about, its format, who it's for.">{{ (_m.description if _m else '') or '' }}</textarea>
+            </div>
+            <div class="md-editor-pane md-editor-pane-preview active">
+              <div class="md-editor-preview"><p class="muted smaller">Nothing to preview yet.</p></div>
+            </div>
+          </div>
+        </div>
+
+        {# Extended content: Markdown blocks shown on the public meeting
+           page below its schedule, online and file cards. The switch
+           keeps drafts off the page. #}
+        {%- set _ext_enabled = _m.extended_content_enabled if _m else false -%}
+        {%- set _ext_blocks = _m.extended_blocks() if _m else [] -%}
+        <fieldset class="meeting-extended" data-extended>
+          <div class="post-toggle-row post-toggle-row--panel">
+            <div class="post-toggle-info">
+              <div class="post-toggle-title">Extended content {% call chip('Extended content') %}More blocks of text for the public meeting page, shown below its schedule, online details and files. Turn it off to keep them as drafts.{% endcall %}</div>
+            </div>
+            <label class="mode-toggle">
+              <input type="checkbox" name="extended_content_enabled" value="1"
+                     {% if _ext_enabled %}checked{% endif %} data-extended-toggle>
+              <span class="mode-track"><span class="mode-thumb"></span></span>
+            </label>
+          </div>
+          <div class="fe-meeting-extended-editor" data-extended-editor>
+            <div class="fe-meeting-extended-list" data-extended-list>
+              {% for blk in _ext_blocks %}{{ _ext_block_row(loop.index0, blk) }}{% endfor %}
+            </div>
+            <template data-extended-template>{{ _ext_block_row('__INDEX__', None) }}</template>
+            <button type="button" class="btn" data-extended-add>{{ icon('plus') }} <span>Add block</span></button>
+          </div>
+        </fieldset>
+      </div>
+
+      {# ── Settings ────────────────────────────────────────────── #}
+      <div class="st-controls">
+        <div class="st-seg-scroll" data-seg-scroll>
+          <nav class="st-seg" role="tablist" aria-label="Meeting settings">
+            <button type="button" role="tab" data-studio-tab="meeting">{{ icon('map-pin') }}<span>Meeting</span></button>
+            <button type="button" role="tab" data-studio-tab="schedule">{{ icon('calendar-clock') }}<span>Schedule</span></button>
+            <button type="button" role="tab" data-studio-tab="online" data-meeting-online-tab{% if mtype == 'in_person' %} hidden{% endif %}>{{ icon('video') }}<span>Online</span></button>
+            <button type="button" role="tab" data-studio-tab="alerts">{{ icon('alert-triangle') }}<span>Alerts</span>{% if _m and (_m.alert_message or _m.public_alert_message) %}<i class="st-seg-dot" title="An alert is showing"></i>{% endif %}</button>
+            <button type="button" role="tab" data-studio-tab="libraries">{{ icon('book-open') }}<span>Libraries</span></button>
+            {% if not _is_new %}<button type="button" role="tab" data-studio-tab="files">{{ icon('folder') }}<span>Files</span></button>{% endif %}
+          </nav>
+        </div>
+
+        {# ── Meeting: what kind, where, its logo and its web address. #}
+        <div class="st-panel" data-studio-panel="meeting">
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('users') }}Type</h3>
+            <div class="ds-seg-btns meeting-type-seg" role="radiogroup" aria-label="Meeting type">
+              {% for val, lbl in [('in_person','In person'),('online','Online'),('hybrid','Hybrid')] %}
+              <label><input type="radio" name="meeting_type" value="{{ val }}" class="meeting-type-radio"
+                            {% if mtype == val %}checked{% endif %}><span>{{ lbl }}</span></label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('map-pin') }}Location</h3>
+            {% set chosen = _m.location if _m else '' %}
+            {% set is_preset = chosen and locations|selectattr('name','equalto',chosen)|list %}
+            <label>{% call hrow('Place') %}Pick a saved location (Settings → Locations), or Custom to type one.{% endcall %}
+              <select name="location_choice" class="location-select">
+                <option value="">None</option>
+                {% for l in locations %}
+                <option value="{{ l.name }}" {% if chosen == l.name %}selected{% endif %}>{{ l.name }}</option>
+                {% endfor %}
+                <option value="__custom__" {% if chosen and not is_preset %}selected{% endif %}>Custom…</option>
+              </select>
+            </label>
+            <label class="location-custom-wrap" {% if not (chosen and not is_preset) %}style="display:none"{% endif %}>Custom location
+              <input name="location_custom" class="location-custom"
+                     value="{% if chosen and not is_preset %}{{ chosen }}{% endif %}">
+            </label>
+            <label>{% call hrow('Location notes') %}For signed-in users only: getting in, parking, who to ask. Plain text.{% endcall %}
+              <textarea name="location_notes" rows="3" placeholder="Side entrance off Main St. Ring buzzer #4.">{{ (_m.location_notes if _m else '') or '' }}</textarea>
+            </label>
+          </div>
+          <div class="ds-group st-group-body" data-meeting-logo>
+            <h3 class="ds-group-title">{{ icon('image') }}Logo</h3>
+            <div class="meeting-logo-field">
+              <img class="meeting-logo-preview" alt="Meeting logo" data-meeting-logo-img
+                   {% if _m and _m.logo_filename %}src="{{ url_for('main.meeting_logo', mid=_m.id) }}"{% else %}hidden{% endif %}>
+              <label class="post-featured-clear" data-meeting-logo-clear {% if not (_m and _m.logo_filename) %}hidden{% endif %}>
+                <input type="checkbox" name="remove_logo" value="1">
+                <span>{{ icon('x') }} Remove logo</span>
+              </label>
+            </div>
+            <label>{% call hrow('Upload a logo') %}Shown on the meeting's pages. Any image; it replaces the current logo when you save.{% endcall %}
+              <input type="file" name="logo" accept="image/*" data-meeting-logo-upload>
+            </label>
+          </div>
+          {% if current_user.is_authenticated and current_user.can_edit_frontend() %}
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('globe') }}Web address</h3>
+            <label>{% call hrow('Public URL') %}Leave blank to derive it from the name. Lowercase letters, numbers and hyphens.{% endcall %}
+              <div class="slug-input-row">
+                <span class="slug-input-prefix" aria-hidden="true">/meetings/</span>
+                <input name="slug" type="text" class="slug-input-field"
+                       value="{{ _m.slug if (_m and _m.slug) else '' }}"
+                       placeholder="{{ _m.public_slug if _m else 'auto-derived from name' }}"
+                       pattern="[a-z0-9\-]*" maxlength="200">
+              </div>
+            </label>
+            {% if _m %}
+            {% set meeting = _m %}
+            {% include "_slug_history.html" %}
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        {# ── Schedule: the days and times, and changes queued for later. #}
+        <div class="st-panel" data-studio-panel="schedule" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('clock') }}Days and times {% call chip('Days and times') %}Turn on each day the meeting runs and set its start and end. For online and hybrid meetings, Opens is when the room opens.{% endcall %}</h3>
+            <div class="day-list">
+              <div class="day-row day-row-head">
+                <span class="day-col-label">Day</span>
+                <span class="day-col-label">Start</span>
+                <span class="day-col-label">End</span>
+                <span class="day-col-label zoom-only-field">Opens</span>
+              </div>
+              {% for d in DAYS_OF_WEEK %}
+                {% set idx = loop.index0 %}
+                {% set ns = namespace(sched=None) %}
+                {% if _m %}{% for s in _m.schedules %}{% if s.day_of_week == idx %}{% set ns.sched = s %}{% endif %}{% endfor %}{% endif %}
+                {% set sched = ns.sched %}
+                <div class="day-row {% if sched %}on{% endif %}">
+                  <label class="mode-toggle day-check">
+                    <input type="checkbox" class="day-toggle" {% if sched %}checked{% endif %} data-day="{{ idx }}">
+                    <span class="mode-track"><span class="mode-thumb"></span></span>
+                    <span class="day-label">{{ d[:3] }}</span>
+                  </label>
+                  <input type="hidden" class="day-hidden" name="schedule_day" value="{{ idx }}" {% if not sched %}disabled{% endif %}>
+                  <input type="time" class="day-field" name="schedule_time" value="{{ sched.start_time if sched else '' }}"
+                         title="Start time" aria-label="{{ d }} start" {% if not sched %}disabled{% endif %}>
+                  <input type="time" class="day-field" name="schedule_end" value="{{ sched.end_time if sched else '' }}"
+                         title="End time" aria-label="{{ d }} end" {% if not sched %}disabled{% endif %}>
+                  <input type="time" class="day-field zoom-only-field" name="schedule_opens"
+                         value="{{ sched.opens_time if sched and sched.opens_time else '' }}"
+                         title="Opens at" aria-label="{{ d }} opens" {% if not sched %}disabled{% endif %}>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% if _m %}
+          {# Future schedule swaps, staged here and saved with the save bar
+             (meeting_editor.js saves them before the meeting). The editor's
+             inputs have no name: the script reads them. #}
+          <div class="ds-group st-group-body schedule-change-fieldset" data-sched-chg
+               data-sync-url="{{ url_for('main.meeting_schedule_changes_sync', mid=_m.id) }}">
+            <h3 class="ds-group-title">{{ icon('calendar-clock') }}Scheduled changes {% call chip('Scheduled changes') %}Set up a future schedule and forget about it: on the date you pick, the new days and times replace the current ones.{% endcall %}</h3>
+            <script type="application/json" data-sched-chg-seed>{{ _m.schedule_changes|map('serialize_schedule_change')|list|tojson }}</script>
+            <ul class="schedule-change-list" data-sched-chg-list hidden></ul>
+            <details class="schedule-change-add" data-sched-chg-editor>
+              <summary>{{ icon('plus') }} <span data-sched-chg-summary>Schedule a future change</span></summary>
+              <div class="schedule-change-form">
+                <div class="post-stack">
+                  <label>Effective date <input type="date" data-sched-chg-date></label>
+                  <label>Optional note <input type="text" maxlength="500" data-sched-chg-note placeholder="Summer schedule: earlier start."></label>
+                </div>
+                <div class="day-list day-list-change">
+                  <div class="day-row day-row-head">
+                    <span class="day-col-label">Day</span>
+                    <span class="day-col-label">Start</span>
+                    <span class="day-col-label">End</span>
+                    <span class="day-col-label zoom-only-field">Opens</span>
+                  </div>
+                  {% for d in DAYS_OF_WEEK %}
+                  <div class="day-row" data-sched-chg-day="{{ loop.index0 }}">
+                    <label class="mode-toggle day-check">
+                      <input type="checkbox" class="day-toggle" data-day="{{ loop.index0 }}">
+                      <span class="mode-track"><span class="mode-thumb"></span></span>
+                      <span class="day-label">{{ d[:3] }}</span>
+                    </label>
+                    <input type="time" class="day-field" data-sched-chg-start title="Start time" disabled>
+                    <input type="time" class="day-field" data-sched-chg-end title="End time" disabled>
+                    <input type="time" class="day-field zoom-only-field" data-sched-chg-opens title="Opens at" disabled>
+                  </div>
+                  {% endfor %}
+                </div>
+                <p class="schedule-change-error" data-sched-chg-error role="alert" hidden></p>
+                <div class="form-actions">
+                  <button type="button" class="btn" data-sched-chg-discard>Discard</button>
+                  <button type="button" class="btn btn-primary" data-sched-chg-queue>Queue schedule change</button>
+                </div>
+              </div>
+            </details>
+          </div>
+          {% endif %}
+        </div>
+
+        {# ── Online: one group per platform, each with its own switch. A
+           platform that's off keeps its details for later and shows
+           nowhere on the public site. #}
+        <div class="st-panel" data-studio-panel="online" hidden>
+          {% set _zoom_on = _m.zoom_enabled if _m else True %}
+          <fieldset class="ds-group st-group-body conf-fieldset zoom-only">
+            <h3 class="ds-group-title">{{ icon('video') }}Zoom</h3>
+            <div class="post-toggle-row post-toggle-row--panel">
+              <div class="post-toggle-info"><div class="post-toggle-title">Use Zoom for this meeting</div></div>
+              <label class="mode-toggle"><input type="checkbox" name="zoom_enabled" value="1" data-conf-toggle {% if _zoom_on %}checked{% endif %}>
+                <span class="mode-track"><span class="mode-thumb"></span></span></label>
+            </div>
+            <div class="conf-fields post-stack" data-conf-fields>
+              <label>Zoom account
+                <select name="zoom_account_id">
+                  <option value="">None</option>
+                  {% for a in zoom_accounts %}
+                  <option value="{{ a.id }}" {% if _m and _m.zoom_account_id == a.id %}selected{% endif %}>{{ a.name }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>Meeting ID <input name="zoom_meeting_id" value="{{ (_m.zoom_meeting_id if _m else '') or '' }}"></label>
+              <label>Passcode <input name="zoom_passcode" value="{{ (_m.zoom_passcode if _m else '') or '' }}"></label>
+              <label>Meeting link <input name="zoom_link" type="url" placeholder="https://zoom.us/j/..."
+                     value="{{ _m.zoom_link if _m and _m.zoom_link else '' }}"></label>
+              {% set _show_otp = _m.show_otp if _m else True %}
+              <div class="post-toggle-row post-toggle-row--panel">
+                <div class="post-toggle-info"><div class="post-toggle-title">Show sign-in codes {% call chip('Show sign-in codes') %}Shows the OTP Codes section on the meeting page, with the one-time codes Zoom emails when the host signs in.{% endcall %}</div></div>
+                <label class="mode-toggle"><input type="checkbox" name="show_otp" value="1" {% if _show_otp %}checked{% endif %}>
+                  <span class="mode-track"><span class="mode-thumb"></span></span></label>
+              </div>
+            </div>
+          </fieldset>
+          {% for key, label, link_ph in [('gmeet', 'Google Meet', 'https://meet.google.com/...'), ('teams', 'Microsoft Teams', 'https://teams.microsoft.com/l/...')] %}
+          {% set _on = (_m[key ~ '_enabled'] if _m else False) %}
+          <fieldset class="ds-group st-group-body conf-fieldset zoom-only">
+            <h3 class="ds-group-title">{{ icon('video') }}{{ label }}</h3>
+            <div class="post-toggle-row post-toggle-row--panel">
+              <div class="post-toggle-info"><div class="post-toggle-title">Use {{ label }} for this meeting</div></div>
+              <label class="mode-toggle"><input type="checkbox" name="{{ key }}_enabled" value="1" data-conf-toggle {% if _on %}checked{% endif %}>
+                <span class="mode-track"><span class="mode-thumb"></span></span></label>
+            </div>
+            <div class="conf-fields post-stack" data-conf-fields>
+              <label>Meeting ID <input name="{{ key }}_meeting_id" value="{{ (_m[key ~ '_meeting_id'] if _m else '') or '' }}"></label>
+              <label>Passcode <input name="{{ key }}_passcode" value="{{ (_m[key ~ '_passcode'] if _m else '') or '' }}"></label>
+              <label>Meeting link <input name="{{ key }}_link" type="url" placeholder="{{ link_ph }}"
+                     value="{{ (_m[key ~ '_link'] if _m else '') or '' }}"></label>
+            </div>
+          </fieldset>
+          {% endfor %}
+        </div>
+
+        {# ── Alerts: a note for signed-in users, and a notice on the
+           public page that can hide itself at a set time. #}
+        <div class="st-panel" data-studio-panel="alerts" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('lock') }}For signed-in users</h3>
+            <label>{% call hrow('Backend alert') %}Shown on this meeting's page in the admin only. Leave blank to hide it.{% endcall %}
+              <textarea name="alert_message" rows="3" placeholder="Internal note for users.">{{ (_m.alert_message if _m else '') or '' }}</textarea>
+            </label>
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('globe') }}On the public site</h3>
+            <label>{% call hrow('Public alert') %}Shown prominently on the public meeting page, such as a cancellation or a change of venue. Leave blank to hide it.{% endcall %}
+              <textarea name="public_alert_message" rows="3" placeholder="Notice for the public.">{{ (_m.public_alert_message if _m else '') or '' }}</textarea>
+            </label>
+            {# Hides itself after the chosen moment: the message and the
+               expiry are cleared on the next page load past it
+               (_expire_meeting_alerts). Site-local wall clock. #}
+            {%- set _alert_expiry = _m.public_alert_expires_at if _m else none -%}
+            <div class="post-announcement-expiry" data-public-alert-expiry>
+              <div class="post-toggle-row">
+                <div class="post-toggle-info"><div class="post-toggle-title">Hide it automatically {% call chip('Hide it automatically') %}At the date and time you pick{% if site and site.timezone %} ({{ site.timezone }}){% endif %}, the alert disappears from the public page and is cleared here.{% endcall %}</div></div>
+                <label class="mode-toggle">
+                  <input type="checkbox" name="public_alert_expires_enabled" value="1"
+                         {% if _alert_expiry %}checked{% endif %} data-public-alert-expiry-toggle>
+                  <span class="mode-track"><span class="mode-thumb"></span></span>
+                </label>
+              </div>
+              <div class="post-announcement-expiry-field" data-public-alert-expiry-field {% if not _alert_expiry %}hidden{% endif %}>
+                <label class="post-announcement-expiry-input"><span class="muted smaller">Hide on</span>
+                  <input type="datetime-local" name="public_alert_expires_at" data-public-alert-expiry-input
+                         value="{% if _alert_expiry %}{{ _alert_expiry.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# ── Libraries: which libraries the meeting shares, all of one or
+           some of its items, and which show on the public page. #}
+        <div class="st-panel" data-studio-panel="libraries" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('book-open') }}Libraries {% call chip('Libraries') %}Tick a library to share it with this meeting: all of its items, or switch to Granular to pick some.{% if _module_on %} Public shows it on the public meeting page.{% endif %}{% endcall %}</h3>
+            {# Always posted, so unticking every library saves too. #}
+            <input type="hidden" name="library_ids" value="">
+            {% if all_libraries %}
+            <div class="library-picker">
+              {% set _public_reading_ids = (_m.public_library_items|map(attribute='id')|list) if _m else [] %}
+              {% for lib in all_libraries %}
+                {% set included = _m and lib in _m.libraries %}
+                {% set mode = _m.library_mode(lib) if included else 'all' %}
+                {% set sel_ids = _m.selected_ids_for_library(lib) if included else [] %}
+                {% set whole_public = _m.public_library_visible(lib) if included else false %}
+                <div class="library-row" data-lib="{{ lib.id }}">
+                  <div class="library-head-wrap">
+                    <label class="library-head">
+                      <input type="checkbox" name="library_ids" value="{{ lib.id }}" class="library-include" {% if included %}checked{% endif %}>
+                      <span class="library-name">{{ lib.name }}</span>
+                      <span class="muted smaller">{{ lib.items.count() }} files</span>
+                    </label>
+                    {% if _module_on %}
+                    <label class="mode-toggle file-public-row-toggle library-public-toggle{% if not _can_public %} is-disabled{% endif %}"
+                           data-library-public-toggle
+                           title="{{ 'Show this library on the public meeting page' if _can_public else 'Only admins and frontend editors can change public visibility' }}">
+                      <input type="checkbox" name="library_public_{{ lib.id }}" value="1" {% if whole_public %}checked{% endif %}
+                             {% if not _can_public %}disabled aria-disabled="true"{% endif %}>
+                      <span class="mode-track"><span class="mode-thumb"></span></span>
+                      <span class="muted smaller">Public</span>
+                    </label>
+                    {% endif %}
+                  </div>
+                  <div class="library-detail" {% if not included %}style="display:none"{% endif %}>
+                    <label class="mode-toggle">
+                      <span class="mode-label-all">All files</span>
+                      <input type="checkbox" name="library_mode_{{ lib.id }}" value="granular" class="library-mode-switch" {% if mode == 'granular' %}checked{% endif %}>
+                      <span class="mode-track"><span class="mode-thumb"></span></span>
+                      <span class="mode-label-granular">Granular</span>
+                    </label>
+                    <div class="library-readings" {% if mode != 'granular' %}style="display:none"{% endif %}>
+                      {% for r in lib.items %}
+                      <div class="reading-row">
+                        <label class="reading-check">
+                          <input type="checkbox" name="library_readings_{{ lib.id }}" value="{{ r.id }}" {% if r.id in sel_ids %}checked{% endif %}>
+                          <span>{{ r.title }}</span>
+                        </label>
+                        {% if _module_on %}
+                        <label class="mode-toggle file-public-row-toggle reading-public-toggle{% if not _can_public %} is-disabled{% endif %}"
+                               title="{{ 'Show this reading on the public meeting page' if _can_public else 'Only admins and frontend editors can change public visibility' }}">
+                          <input type="checkbox" name="library_public_library_items_{{ lib.id }}" value="{{ r.id }}"
+                                 {% if r.id in _public_reading_ids %}checked{% endif %} {% if not _can_public %}disabled aria-disabled="true"{% endif %}>
+                          <span class="mode-track"><span class="mode-thumb"></span></span>
+                          <span class="muted smaller">Public</span>
+                        </label>
+                        {% endif %}
+                      </div>
+                      {% else %}
+                      <p class="muted small">No files in this library yet.</p>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="muted small">No libraries yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</form>
+
+{% if not _is_new %}
+{# ── Files: each category's files with their own forms, which save at
+   once rather than with the save bar. Forms can't sit inside the meeting
+   form, so this panel is written here and meeting_editor.js moves it
+   into the settings column; a form moved by script keeps its own
+   fields, and the editor ignores their edits. #}
+<div class="st-panel meeting-files-panel" data-studio-panel="files" hidden data-meeting-files-panel data-editor-ignore>
+  {% for cat in FILE_CATEGORIES %}
+  <div class="ds-group st-group-body file-cat">
+    <div class="file-cat-head">
+      <h3 class="ds-group-title">{{ CATEGORY_LABELS[cat] }}</h3>
+      <button type="button" class="btn btn-sm" data-file-add-toggle="add-{{ cat }}">{{ icon('plus') }} Add</button>
+    </div>
+    {% set items = _m.files_by_category(cat) %}
+    {% if items %}
+    <ul class="file-list file-list-sortable"
+        data-reorder-url="{{ url_for('main.meeting_files_reorder', slug=_m.public_slug) }}"
+        data-reorder-category="{{ cat }}">
+      {% for f in items %}
+      {% set f_edit_id = 'edit-file-' ~ f.id %}
+      <li data-item-id="{{ f.id }}" draggable="true">
+        <span class="drag-handle" aria-hidden="true">{{ icon('grip-vertical') }}</span>
+        <div class="file-main">
+          <a href="{{ url_for('main.file_view', fid=f.id) }}" target="_blank" rel="noopener">{{ f.title }}{% if is_offsite(f.url if not f.stored_filename else '') %}{{ icon('external-link', 'link-out') }}<span class="sr-only"> (opens another site)</span>{% endif %}</a>
+          {% if f.original_filename %}<div class="muted smaller">{{ f.original_filename }}</div>{% endif %}
+        </div>
+        <div class="row-actions">
+          {% if _module_on %}
+          <label class="mode-toggle file-public-row-toggle{% if not _can_public %} is-disabled{% endif %}"
+                 title="{{ 'Show on the public meeting page' if _can_public else 'Only admins and frontend editors can change public visibility' }}">
+            <input type="checkbox" data-file-public-toggle="{{ f.id }}" value="1" {% if f.public_visible %}checked{% endif %}
+                   {% if not _can_public %}disabled aria-disabled="true"{% endif %}>
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+            <span class="muted smaller">Public</span>
+          </label>
+          {% endif %}
+          <button type="button" class="btn btn-sm" data-file-add-toggle="{{ f_edit_id }}">Edit</button>
+          <form method="post" action="{{ url_for('main.file_delete', fid=f.id) }}"
+                data-confirm="“{{ f.title }}” is removed from this meeting." data-confirm-title="Delete this file?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="return_to" value="editor">
+            <button class="btn btn-sm btn-danger" title="Delete file" aria-label="Delete file">{{ icon('trash') }}</button>
+          </form>
+        </div>
+        <form id="{{ f_edit_id }}" method="post" class="file-add-form collapsed" enctype="multipart/form-data"
+              action="{{ url_for('main.file_edit', fid=f.id) }}" data-inline-save>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="return_to" value="editor">
+          <label>Title<input name="title" required value="{{ f.title }}"></label>
+          <label>Description<textarea name="description" rows="2">{{ f.description or '' }}</textarea></label>
+          {% if cat in ('external_links', 'videos') %}
+          <label>URL<input name="url" type="url" required placeholder="https://..." value="{{ f.url or '' }}"></label>
+          {% else %}
+          <label>Replace file</label>
+          <div class="file-input-row">
+            <input type="file" name="file">
+            <button type="button" class="btn btn-sm" data-media-picker="{{ f_edit_id }}">File Browser</button>
+          </div>
+          <label>Or URL<input name="url" type="url" placeholder="https://..." value="{{ f.url or '' }}"></label>
+          {% endif %}
+          {% if _module_on %}
+          <label class="mode-toggle file-public-toggle{% if not _can_public %} is-disabled{% endif %}">
+            <input type="checkbox" name="public_visible" value="1" {% if f.public_visible %}checked{% endif %}
+                   {% if not _can_public %}disabled aria-disabled="true"{% endif %}>
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+            <span>Show on the public meeting page</span>
+          </label>
+          {% endif %}
+          <div class="form-actions">
+            <button type="button" class="btn btn-sm" data-file-add-cancel="{{ f_edit_id }}">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-primary">Save</button>
+          </div>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted small">No {{ CATEGORY_LABELS[cat]|lower }} yet.</p>
+    {% endif %}
+    <form id="add-{{ cat }}" method="post" class="file-add-form collapsed" enctype="multipart/form-data"
+          action="{{ url_for('main.file_new', slug=_m.public_slug, category=cat) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="return_to" value="editor">
+      <label>Title<input name="title" required></label>
+      <label>Description<textarea name="description" rows="2"></textarea></label>
+      {% if cat in ('external_links', 'videos') %}
+      <label>URL<input name="url" type="url" required placeholder="https://..."></label>
+      {% else %}
+      <label>File</label>
+      <div class="file-input-row">
+        <input type="file" name="file">
+        <button type="button" class="btn btn-sm" data-media-picker="add-{{ cat }}">File Browser</button>
+      </div>
+      <label>Or URL<input name="url" type="url" placeholder="https://..."></label>
+      {% endif %}
+      {% if _module_on %}
+      <label class="mode-toggle file-public-toggle{% if not _can_public %} is-disabled{% endif %}">
+        <input type="checkbox" name="public_visible" value="1" {% if not _can_public %}disabled aria-disabled="true"{% endif %}>
+        <span class="mode-track"><span class="mode-thumb"></span></span>
+        <span>Show on the public meeting page</span>
+      </label>
+      {% endif %}
+      <div class="form-actions">
+        <button type="button" class="btn btn-sm" data-file-add-cancel="add-{{ cat }}">Cancel</button>
+        <button type="submit" class="btn btn-sm btn-primary">Upload</button>
+      </div>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+
+<div id="meeting-edit-save-bar" class="fe-save-bar fe-save-bar-content" hidden data-editor-save-bar>
+  <span class="fe-save-bar-msg">Unsaved changes</span>
+  <button type="button" class="btn fe-save-bar-btn">Save meeting</button>
+</div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/meeting_editor.js', v=app_build_id) }}"
+        data-day-names="{{ DAYS_OF_WEEK|tojson|forceescape }}"></script>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/content_editor.js', v=app_build_id) }}"></script>
+{% endblock %}

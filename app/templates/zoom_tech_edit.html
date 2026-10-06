@@ -1,0 +1,536 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% from "_md_toolbar.html" import md_toolbar %}
+{% set _name = site.zoom_tech_title or 'Zoom Tech Training' %}
+{% set _tmpl = site.zoom_tech_template or 'standard' %}
+{% set _md = fmt == 'markdown' %}
+{# One color of the design, light or dark: the posted value in a hidden
+   field (blank = the theme's color), a swatch over a color picker, the
+   hex, and a reset. #}
+{% macro zcolor(key, label, cap, ico) %}
+  {% set v = design.get(key, '') %}
+  <div class="ds-ctl ds-color{% if v %} is-custom{% endif %}" data-zt-color
+       data-mode-part="{{ 'light' if ico == 'sun' else 'dark' }}">
+    <span class="ds-cap">{{ icon(ico) }}{{ cap }}</span>
+    <input type="hidden" name="ztd_{{ key }}" value="{{ v }}">
+    <label class="ds-swatch" title="Pick a color" style="--ds-sw: {{ v or 'transparent' }}">
+      <input type="color" class="ds-picker" value="{{ v or '#ffffff' }}" data-no-token-picker
+             aria-label="{{ label }} ({{ cap|lower }})">
+    </label>
+    <input type="text" class="ds-hex" value="{{ v }}" placeholder="Theme" maxlength="7" spellcheck="false"
+           autocomplete="off" aria-label="{{ label }} ({{ cap|lower }}) hex value">
+    <button type="button" class="ds-reset" data-zt-reset title="Use the theme's color"
+            aria-label="Use the theme's {{ label|lower }} ({{ cap|lower }})">{{ icon('rotate-ccw') }}</button>
+  </div>
+{% endmacro %}
+{# A named choice as a segmented control. #}
+{% macro zchoice(key, inline=False) %}
+  {% set label, help, default, opts = design_choices[key] %}
+  {% set cur = design.get(key, default) %}
+  <div class="ds-row{{ ' ds-row--inline' if inline }}">
+    <span class="ds-label">{{ label }}{% call chip(label) %}{{ help }}{% endcall %}</span>
+    <div class="ds-seg-btns" role="radiogroup" aria-label="{{ label }}" data-default="{{ default }}">
+      {% for val, lab, css in opts %}
+      <label><input type="radio" name="ztd_{{ key }}" value="{{ val }}" {% if cur == val %}checked{% endif %}>{{ lab }}</label>
+      {% endfor %}
+    </div>
+  </div>
+{% endmacro %}
+{% block heading %}Edit {{ _name }}{% endblock %}
+{% block heading_help %}The page's title and text on the left, and its layout and sections on the right. Save with the yellow bar.{% endblock %}
+{% block top_actions %}
+  {% if site.zoom_tech_enabled %}
+  <a class="btn" href="{{ url_for('main.zoom_tech') }}">← Page</a>
+  {% else %}
+  <span class="post-chip post-chip-draft post-chip-header" title="Turn it on in Settings → Modules">Page is off</span>
+  {% endif %}
+{% endblock %}
+{% block content %}
+{% include "_zt_design_head.html" %}
+{# Laid out like the story and blog editors (story_edit.html): the
+   writing on the left, the settings on the right in a segmented
+   control (fe_studio.js), and the yellow save bar (content_editor.js).
+   The page is Markdown, each ## heading starting a section, or blocks
+   in sections (block_editor.js); the Format group converts between
+   them or goes back to the kept version (app/zoom_tech_doc.py). #}
+<form id="zoom-tech-edit-form" class="form post-form" method="post"
+      action="{{ url_for('main.zoom_tech_save') }}" data-content-editor>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="then" value="" data-zt-then-field>
+
+  <section class="card st-studio post-studio zt-editor{{ ' zt-editor--blocks' if not _md }}" data-studio="zoom-tech" data-no-collapse>
+    <div class="st-body st-body--split">
+
+      {# ── Writing ─────────────────────────────────────────────── #}
+      <div class="post-studio-main">
+        <label class="post-title-field">Page title
+          <input type="text" name="zoom_tech_title" maxlength="120" class="post-title-input"
+                 value="{{ site.zoom_tech_title or '' }}" placeholder="Zoom Tech Training">
+        </label>
+        {% if _md %}
+        <div class="form-field-block">{% call hrow('Page text') %}Use the toolbar, or type Markdown. Each <code>## Heading</code> starts a section, listed on the Sections tab and beside the page in the Wiki layout. An image line pointing at a video file, such as <code>![Video](/uploads/clip.mp4)</code>, shows a player.{% endcall %}
+          <div class="md-editor md-editor-live post-body-md zt-md" data-md-editor data-md-live="1" data-md-mode="doc">
+            {{ md_toolbar() }}
+            <div class="md-editor-pane md-editor-pane-write active">
+              <textarea name="zoom_tech_body" rows="24" spellcheck="true" data-zt-body
+                        placeholder="## Introduction&#10;&#10;What a Zoom Tech does, and who to ask for help.">{{ body }}</textarea>
+            </div>
+            <div class="md-editor-pane md-editor-pane-preview active">
+              <div class="md-editor-preview rich-content zt-doc zt-design" data-zt-preview><p class="muted smaller">Nothing to preview yet.</p></div>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        {# The block editor, in the page rather than a popup. Its own
+           re-renders aren't edits (data-editor-own-changes); its fields'
+           input events are. `blocks_json` is written before a save. #}
+        <div class="form-field-block">{% call hrow('Page content') %}Sections of blocks. Each section's title starts a section, listed on the Sections tab and beside the page in the Wiki layout. Add blocks with the buttons under a section, and drag a block's handle to move it.{% endcall %}
+          <input type="hidden" name="blocks_json" data-zt-blocks-json>
+          <div class="zt-blocks" data-zt-blocks data-editor-own-changes data-initial='{{ blocks_json|e }}'></div>
+        </div>
+        {% endif %}
+      </div>
+
+      {# ── Settings ────────────────────────────────────────────── #}
+      <div class="st-controls">
+       {# Stays in view beside a long block page. #}
+       <div class="zt-controls">
+        <div class="st-seg-scroll" data-seg-scroll>
+          <nav class="st-seg" role="tablist" aria-label="Page settings">
+            <button type="button" role="tab" data-studio-tab="sections">{{ icon('list') }}<span>Sections</span></button>
+            <button type="button" role="tab" data-studio-tab="design">{{ icon('sliders') }}<span>Design</span></button>
+            <button type="button" role="tab" data-studio-tab="layout">{{ icon('columns') }}<span>Layout</span></button>
+          </nav>
+        </div>
+
+        {# ── Sections: the ## headings, kept in step with the text.
+           A click puts the editor and the preview at that section. #}
+        <div class="st-panel" data-studio-panel="sections">
+          {# ── Format: Markdown or blocks. Both buttons save first. ── #}
+          {% set _other = 'block' if _md else 'Markdown' %}
+          {% set _kept = has_blocks if _md else has_markdown %}
+          <div class="ds-group st-group-body zt-format">
+            <h3 class="ds-group-title">{{ icon('file-text') }}Format {% call chip('Format') %}The page is Markdown or blocks. Converting writes it out in the other format and keeps the version you leave, so you can go back to it.{% endcall %}</h3>
+            <p class="muted small">{% if _md %}Written in Markdown.{% else %}Built with the block editor.{% endif %}{% if _kept %} The {{ _other }} version is kept too.{% endif %}</p>
+            <div class="zt-format-actions">
+              {% if _kept %}
+              <button type="button" class="btn" data-zt-then="switch"
+                      data-zt-title="Go back to the {{ _other }} version?"
+                      data-zt-message="Your changes are saved first. The {{ _other }} version kept from before becomes the page, as it was, and this {{ 'Markdown' if _md else 'block' }} version is kept to come back to."
+                      data-zt-label="Go back">{{ icon('rotate-ccw') }} Go back to the {{ _other }} version</button>
+              {% endif %}
+              {% if _md %}
+              <button type="button" class="btn" data-zt-then="convert"
+                      data-zt-title="Convert to blocks?"
+                      data-zt-message="Your changes are saved first. Each ## heading then starts a section, and each paragraph, image, video, quote, smaller heading, code and divider becomes a block; quotes become callouts. The Markdown version is kept to go back to.{% if has_blocks %} This replaces the block version kept from before.{% endif %}"
+                      data-zt-label="Convert">{{ icon('layout-grid') }} Convert to blocks</button>
+              {% else %}
+              <button type="button" class="btn" data-zt-then="convert"
+                      data-zt-title="Convert to Markdown?"
+                      data-zt-message="Your changes are saved first. Each section title then becomes a ## heading, and the page is edited like a blog post.{% for n in markdown_notes %} {{ n }}{% endfor %} The block version is kept to go back to.{% if has_markdown %} This replaces the Markdown version kept from before.{% endif %}"
+                      data-zt-label="Convert">{{ icon('file-text') }} Convert to Markdown</button>
+              {% endif %}
+            </div>
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('list') }}Sections {% call chip('Sections') %}{% if _md %}Each <code>## Heading</code> in the text starts a section.{% else %}Each section's title.{% endif %} Click one to go to it in the editor.{% endcall %}</h3>
+            <ol class="zt-outline" data-zt-outline></ol>
+            <p class="muted small zt-outline-empty" data-zt-outline-empty hidden>No sections yet.{% if _md %} Start a line with <code>## </code> to add one.{% endif %}</p>
+          </div>
+        </div>
+
+        {# ── Design: the page's colors, fonts, text and photos. Blank
+           or default follows the admin theme (zoom_tech_doc.DESIGN_*);
+           the Markdown preview shows changes as they're made. ── #}
+        <div class="st-panel ds-studio zt-design-panel" data-studio-panel="design" data-zt-design hidden>
+          <input type="hidden" name="ztd_present" value="1">
+          {% if not _md %}<p class="muted small zt-design-note">Save to see changes on the page: the block editor has no preview.</p>{% endif %}
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('droplet') }}Colors {% call chip('Colors') %}Each color has a value for the light theme and one for the dark theme. Leave one blank to keep the theme's own color.{% endcall %}</h3>
+            {% for key, label, help in design_colors %}
+            <div class="ds-row">
+              <span class="ds-label">{{ label }}{% call chip(label) %}{{ help }}{% endcall %}</span>
+              <div class="ds-pair">
+                {{ zcolor(key, label, 'Light', 'sun') }}
+                {{ zcolor(key ~ '_dark', label, 'Dark', 'moon') }}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('type') }}Text</h3>
+            {% for key, label, help in design_fonts %}
+            <label class="ds-row zt-font-row">
+              <span class="ds-label">{{ label }}{% call chip(label) %}{{ help }}{% endcall %}</span>
+              <select name="ztd_{{ key }}" data-zt-font>
+                <option value="" data-stack="">Same as the admin</option>
+                {% for f in frontend_fonts() %}
+                <option value="{{ f.key }}" data-stack="{{ f.stack }}" {% if design.get(key) == f.key %}selected{% endif %}>{{ f.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            {% endfor %}
+            {{ zchoice('text_size', inline=True) }}
+            {{ zchoice('line_height') }}
+            {{ zchoice('width') }}
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('image') }}Photos {% call chip('Photos') %}Photos and videos on the page. Clicking a photo opens it full screen, where it can be zoomed.{% endcall %}</h3>
+            {{ zchoice('img_radius') }}
+            {% for key, label, help, default in design_switches %}
+            <div class="ds-row ds-row--inline">
+              <label class="mode-toggle">
+                <input type="checkbox" name="ztd_{{ key }}" value="1" data-default="{{ '1' if default else '0' }}" {% if design_switch(design, key) %}checked{% endif %}>
+                <span class="mode-track"><span class="mode-thumb"></span></span>
+                <span class="ds-label">{{ label }}</span>
+              </label>
+              {% call chip(label) %}{{ help }}{% endcall %}
+            </div>
+            {% endfor %}
+          </div>
+          <div class="ds-group st-group-body">
+            <button type="button" class="btn" data-zt-design-reset>{{ icon('rotate-ccw') }} Back to the theme's design</button>
+          </div>
+        </div>
+
+        {# ── Layout ── #}
+        <div class="st-panel" data-studio-panel="layout" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('columns') }}Layout</h3>
+            <div class="zt-layouts" role="radiogroup" aria-label="Layout">
+              <label class="post-type-pill zt-layout">
+                <input type="radio" name="zoom_tech_template" value="standard" {% if _tmpl != 'wiki' %}checked{% endif %}>
+                <span class="post-type-pill-body">
+                  <span class="post-type-pill-title">Standard</span>
+                  <span class="muted small">The text on its own.</span>
+                </span>
+                <span class="zt-layout-art" aria-hidden="true"><i></i></span>
+              </label>
+              <label class="post-type-pill zt-layout">
+                <input type="radio" name="zoom_tech_template" value="wiki" {% if _tmpl == 'wiki' %}checked{% endif %}>
+                <span class="post-type-pill-body">
+                  <span class="post-type-pill-title">Wiki</span>
+                  <span class="muted small">The sections listed beside the text, marking the one being read.</span>
+                </span>
+                <span class="zt-layout-art zt-layout-art--wiki" aria-hidden="true"><i></i><b></b></span>
+              </label>
+            </div>
+          </div>
+        </div>
+       </div>
+      </div>
+    </div>
+  </section>
+</form>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+
+{% if _md %}
+{# Sections list, jumping, and the preview following the editor. #}
+<script>
+(function () {
+  var ta = document.querySelector('[data-zt-body]');
+  var preview = document.querySelector('[data-zt-preview]');
+  var outline = document.querySelector('[data-zt-outline]');
+  var empty = document.querySelector('[data-zt-outline-empty]');
+  if (!ta || !preview || !outline) return;
+
+  // The ## headings outside fenced code: [{title, offset}].
+  function headings() {
+    var out = [], pos = 0, fence = false;
+    ta.value.split('\n').forEach(function (line) {
+      if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+      var m = !fence && /^##\s+(.+?)\s*#*\s*$/.exec(line);
+      if (m) out.push({ title: m[1], offset: pos });
+      pos += line.length + 1;
+    });
+    return out;
+  }
+
+  // Where each heading sits in the textarea, in pixels from its top:
+  // measured on a copy of the textarea with a marker at each heading.
+  // The copy sits in a fixed box of no size, so its height adds no
+  // scrolling to the page.
+  var box = document.createElement('div');
+  box.setAttribute('aria-hidden', 'true');
+  box.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;visibility:hidden;pointer-events:none;';
+  var mirror = document.createElement('div');
+  mirror.style.cssText = 'position:absolute;top:0;left:0;white-space:pre-wrap;overflow-wrap:break-word;';
+  box.appendChild(mirror);
+  document.body.appendChild(box);
+  var tops = null;
+  function measure() {
+    if (tops) return tops;
+    var cs = getComputedStyle(ta);
+    ['boxSizing', 'width', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+     'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+     'fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'tabSize']
+      .forEach(function (k) { mirror.style[k] = cs[k]; });
+    mirror.style.width = ta.clientWidth + 'px';
+    mirror.style.borderWidth = '0';
+    mirror.textContent = '';
+    var last = 0, marks = [];
+    headings().forEach(function (h) {
+      mirror.appendChild(document.createTextNode(ta.value.slice(last, h.offset)));
+      var mark = document.createElement('span');
+      mirror.appendChild(mark);
+      marks.push(mark);
+      last = h.offset;
+    });
+    mirror.appendChild(document.createTextNode(ta.value.slice(last) + ' '));
+    tops = marks.map(function (m) { return m.offsetTop; });
+    return tops;
+  }
+
+  function previewTops() {
+    return Array.prototype.map.call(preview.querySelectorAll('h2'), function (h) {
+      return h.offsetTop;
+    });
+  }
+
+  // The preview follows the editor section by section: the same
+  // fraction of the way through the same section.
+  var following = true;
+  function follow() {
+    if (!following) return;
+    var a = measure(), b = previewTops();
+    var n = Math.min(a.length, b.length);
+    var src = [0].concat(a.slice(0, n), [Math.max(ta.scrollHeight - ta.clientHeight, 1)]);
+    var dst = [0].concat(b.slice(0, n), [Math.max(preview.scrollHeight - preview.clientHeight, 0)]);
+    var y = ta.scrollTop, i = 0;
+    while (i < src.length - 2 && y >= src[i + 1]) i++;
+    var span = src[i + 1] - src[i];
+    var f = span > 0 ? Math.min(Math.max((y - src[i]) / span, 0), 1) : 0;
+    preview.scrollTop = dst[i] + f * (dst[i + 1] - dst[i]);
+  }
+  var queued = false;
+  ta.addEventListener('scroll', function () {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () { queued = false; follow(); });
+  });
+
+  function go(i) {
+    var h = headings()[i];
+    if (!h) return;
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(h.offset, h.offset);
+    ta.scrollTop = Math.max(measure()[i] - 8, 0);
+    var b = preview.querySelectorAll('h2')[i];
+    if (b) {
+      following = false;
+      preview.scrollTop = Math.max(b.offsetTop - 8, 0);
+      setTimeout(function () { following = true; }, 120);
+    }
+  }
+
+  var drawn = '';
+  function draw() {
+    var hs = headings();
+    var key = hs.map(function (h) { return h.title; }).join('\n');
+    if (key === drawn && outline.children.length === hs.length) return;
+    drawn = key;
+    outline.textContent = '';
+    hs.forEach(function (h, i) {
+      var li = document.createElement('li');
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'zt-outline-link';
+      b.textContent = h.title;
+      b.addEventListener('click', function () { go(i); });
+      li.appendChild(b);
+      outline.appendChild(li);
+    });
+    if (empty) empty.hidden = hs.length > 0;
+  }
+
+  var timer = null;
+  ta.addEventListener('input', function () {
+    tops = null;
+    clearTimeout(timer);
+    timer = setTimeout(draw, 200);
+  });
+  window.addEventListener('resize', function () { tops = null; });
+  // The preview re-renders after typing: keep its place.
+  new MutationObserver(function () { follow(); }).observe(preview, { childList: true });
+  draw();
+})();
+</script>
+{% else %}
+<script src="{{ url_for('static', filename='js/vendor/Sortable.min.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/block_editor.js', v=app_build_id) }}"></script>
+{# The block editor, its blocks written to the form before any save,
+   and the Sections list from its section titles. #}
+<script>
+(function () {
+  var root = document.querySelector('[data-zt-blocks]');
+  var hidden = document.querySelector('[data-zt-blocks-json]');
+  var outline = document.querySelector('[data-zt-outline]');
+  var empty = document.querySelector('[data-zt-outline-empty]');
+  if (!root || !hidden || !window.BlockEditor) return;
+  var initial = [];
+  try { initial = JSON.parse(root.dataset.initial || '[]'); } catch (_) {}
+  var editor = BlockEditor.mount(root, {
+    initial: initial,
+    allowedTypes: {{ block_types|tojson }},
+    typographyFolded: true
+  });
+  var form = root.closest('form');
+  function write() { hidden.value = editor.serialize(); }
+  write();
+  form.addEventListener('submit', write);
+  // The save bar reads the form when its button is clicked: write the
+  // blocks first, from the capture phase.
+  document.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('[data-editor-save-bar] .fe-save-bar-btn')) write();
+  }, true);
+
+  var drawn = null;
+  function draw() {
+    var titles = editor.getState().map(function (s) { return (s.title || '').trim() || 'Untitled section'; });
+    var key = titles.join('\n');
+    if (key === drawn) return;
+    drawn = key;
+    outline.textContent = '';
+    titles.forEach(function (t, i) {
+      var li = document.createElement('li');
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'zt-outline-link';
+      b.textContent = t;
+      b.addEventListener('click', function () {
+        var sec = root.querySelectorAll('.be-section')[i];
+        if (!sec) return;
+        // Scroll the page's own scroller: scrollIntoView would also
+        // nudge the app's fixed frame.
+        var box = sec.parentElement;
+        while (box && box !== document.body) {
+          var oy = getComputedStyle(box).overflowY;
+          if ((oy === 'auto' || oy === 'scroll') && box.scrollHeight > box.clientHeight) break;
+          box = box.parentElement;
+        }
+        var top = sec.getBoundingClientRect().top - 80;
+        if (box && box !== document.body) box.scrollBy({ top: top - box.getBoundingClientRect().top, behavior: 'smooth' });
+        else window.scrollBy({ top: top, behavior: 'smooth' });
+        var title = sec.querySelector('.be-section-title');
+        if (title) title.focus({ preventScroll: true });
+      });
+      li.appendChild(b);
+      outline.appendChild(li);
+    });
+    if (empty) empty.hidden = titles.length > 0;
+  }
+  var timer = null;
+  function later() { clearTimeout(timer); timer = setTimeout(draw, 150); }
+  root.addEventListener('input', later);
+  new MutationObserver(later).observe(root, { childList: true, subtree: true });
+  draw();
+})();
+</script>
+{% endif %}
+
+{# Design tab: the color controls, Back to the theme's design, and the
+   Markdown preview following every change. A blank setting is written
+   as `initial`, so the CSS falls back to the theme. #}
+<script>
+(function () {
+  var panel = document.querySelector('[data-zt-design]');
+  if (!panel) return;
+  var preview = document.querySelector('[data-zt-preview]');
+  var COLORS = {{ design_colors | map(attribute=0) | list | tojson }};
+  var CHOICES = {
+    {%- for key, (label, help, default, opts) in design_choices.items() %}
+    {{ key|tojson }}: { {% for val, lab, css in opts %}{{ val|tojson }}: {{ css|tojson }}{{ ', ' if not loop.last }}{% endfor %} }{{ ',' if not loop.last }}
+    {%- endfor %}
+  };
+  var isDark = function () { return document.documentElement.getAttribute('data-theme') === 'dark'; };
+  function field(name) { return panel.querySelector('[name="ztd_' + name + '"]'); }
+
+  panel.querySelectorAll('[data-zt-color]').forEach(function (c) {
+    var hidden = c.querySelector('input[type=hidden]');
+    var picker = c.querySelector('.ds-picker');
+    var hex = c.querySelector('.ds-hex');
+    var sw = c.querySelector('.ds-swatch');
+    function set(v, from) {
+      hidden.value = v;
+      c.classList.toggle('is-custom', !!v);
+      sw.style.setProperty('--ds-sw', v || 'transparent');
+      if (from !== 'hex') hex.value = v;
+      if (v && from !== 'picker') picker.value = v;
+      hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    picker.addEventListener('input', function () { set(picker.value, 'picker'); });
+    hex.addEventListener('input', function () {
+      var v = hex.value.trim();
+      if (v && v.charAt(0) !== '#') v = '#' + v;
+      if (/^#[0-9a-f]{6}$/i.test(v)) set(v.toLowerCase(), 'hex');
+      else if (!v) set('', 'hex');
+    });
+    hex.addEventListener('blur', function () { hex.value = hidden.value; });
+    c.querySelector('[data-zt-reset]').addEventListener('click', function () { set(''); });
+    c.__ztSet = set;
+  });
+
+  function apply() {
+    panel.setAttribute('data-mode', isDark() ? 'dark' : 'light');
+    if (!preview) return;
+    var st = preview.style;
+    COLORS.forEach(function (k) {
+      var f = field(isDark() ? k + '_dark' : k);
+      st.setProperty('--zt-' + k.replace(/_/g, '-'), (f && f.value) || 'initial');
+    });
+    Object.keys(CHOICES).forEach(function (k) {
+      var on = panel.querySelector('[name="ztd_' + k + '"]:checked');
+      st.setProperty('--zt-' + k.replace(/_/g, '-'), on ? CHOICES[k][on.value] : 'initial');
+    });
+    st.setProperty('--zt-img-border', field('img_border').checked ? 'initial' : 'none');
+    st.setProperty('--zt-img-shadow', field('img_shadow').checked ? '0 6px 24px rgba(15, 23, 42, .16)' : 'initial');
+    panel.querySelectorAll('[data-zt-font]').forEach(function (sel) {
+      var opt = sel.options[sel.selectedIndex];
+      st.setProperty('--zt-' + sel.name.slice(4).replace(/_/g, '-'), (opt && opt.dataset.stack) || 'initial');
+    });
+  }
+  panel.addEventListener('input', apply);
+  panel.addEventListener('change', apply);
+  new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  panel.querySelector('[data-zt-design-reset]').addEventListener('click', function () {
+    panel.querySelectorAll('[data-zt-color]').forEach(function (c) { c.__ztSet(''); });
+    panel.querySelectorAll('.ds-seg-btns[data-default]').forEach(function (g) {
+      g.querySelectorAll('input[type=radio]').forEach(function (r) { r.checked = r.value === g.dataset.default; });
+    });
+    panel.querySelectorAll('input[type=checkbox][data-default]').forEach(function (cb) { cb.checked = cb.dataset.default === '1'; });
+    panel.querySelectorAll('[data-zt-font]').forEach(function (sel) { sel.value = ''; });
+    panel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  apply();
+})();
+</script>
+
+{# Format buttons: confirm, then save with what follows. #}
+<script>
+(function () {
+  var form = document.getElementById('zoom-tech-edit-form');
+  var field = form && form.querySelector('[data-zt-then-field]');
+  if (!field) return;
+  document.querySelectorAll('[data-zt-then]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var ask = window.tspConfirm ? window.tspConfirm({
+        title: btn.dataset.ztTitle, message: btn.dataset.ztMessage, confirmLabel: btn.dataset.ztLabel,
+        tone: 'neutral'
+      }) : Promise.resolve(window.confirm(btn.dataset.ztMessage));
+      Promise.resolve(ask).then(function (ok) {
+        if (!ok) return;
+        field.value = btn.dataset.ztThen;
+        form.requestSubmit();
+      });
+    });
+  });
+})();
+</script>
+
+<div id="zoom-tech-save-bar" class="fe-save-bar fe-save-bar-content" hidden data-editor-save-bar>
+  <span class="fe-save-bar-msg">Unsaved changes</span>
+  <button type="button" class="btn fe-save-bar-btn">Save page</button>
+</div>
+<script src="{{ url_for('static', filename='js/content_editor.js', v=app_build_id) }}"></script>
+{% endblock %}

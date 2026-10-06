@@ -1,5 +1,8 @@
+{% from "_help_chip.html" import chip, hrow %}
+{% from "_site_alert.html" import site_alert_bar, site_alert_modal with context %}
+{% from "_md_toolbar.html" import md_toolbar %}
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light"{% if current_user.is_authenticated and current_user.theme_pref %} data-theme-pref="{{ current_user.theme_pref }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -29,9 +32,35 @@
 {% if site and site.apple_touch_icon_name %}<meta name="apple-mobile-web-app-title" content="{{ site.apple_touch_icon_name }}">{% endif %}
 <script>
   (function(){
-    var t = null;
-    try { t = localStorage.getItem('tsp-theme'); } catch(e){}
-    if (t) document.documentElement.setAttribute('data-theme', t);
+    // No transitions until the page has loaded: a browser that settles
+    // styles late would otherwise animate the hidden sidebar in and out.
+    document.documentElement.classList.add('tsp-preload');
+    setTimeout(function () { document.documentElement.style.visibility = 'visible'; }, 3000);
+    window.addEventListener('load', function () {
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        document.documentElement.classList.remove('tsp-preload');
+      }); });
+    });
+    // Light or dark before the first paint: the account's choice
+    // (data-theme-pref); signed out, or not chosen yet, what this browser
+    // last used (older theme names map to light or dark), else the
+    // device. app.js keeps it in step after that.
+    (function () {
+      var root = document.documentElement, pref = root.getAttribute('data-theme-pref'), t = null;
+      if (!pref) {
+        try { t = localStorage.getItem('tsp-theme'); } catch (e) {}
+        pref = !t ? 'system' : (t === 'system' || t === 'light' || t === 'dark') ? t
+             : (/dark|cyberpunk/.test(t) ? 'dark' : 'light');
+      }
+      var dark = pref === 'dark' || (pref === 'system' && window.matchMedia &&
+                 window.matchMedia('(prefers-color-scheme: dark)').matches);
+      root.setAttribute('data-theme', dark ? 'dark' : 'light');
+    })();
+    {% if site_alert and site_alert.dismissible %}
+    // The alert bar this browser closed stays closed until its message
+    // changes (its version goes up).
+    try { if (localStorage.getItem('tsp-alert-closed') === '{{ site_alert.version }}') document.documentElement.classList.add('site-alert-closed'); } catch (e) {}
+    {% endif %}
     // Visitor-metrics + Watchtower pages render both Unique-visitors
     // and Hits versions of every count; set the mode class on <html>
     // before paint so the inactive side never flashes.
@@ -44,6 +73,43 @@
       if (sessionStorage.getItem('tsp-login-fade') === '1') {
         sessionStorage.removeItem('tsp-login-fade');
         document.documentElement.classList.add('login-fade-in');
+      }
+    } catch(e){}
+    // Studio tabs (fe_studio.js, design_studio.js) remember the open tab.
+    // Show that tab from the first paint rather than flashing the first
+    // one (or every panel) until the scripts at the end of the page run.
+    // The scripts remove this style once they take over.
+    try {
+      var h = (location.hash || '').slice(1).replace(/[^a-zA-Z0-9_-]/g, '');
+      var css = '';
+      var one = function (scope, attr, v) {
+        var css = scope + ':has([' + attr + '="' + v + '"]) [' + attr + ']:not([' + attr + '="' + v + '"]){display:none!important}' +
+                  scope + ' [' + attr + '="' + v + '"][hidden]{display:block!important}';
+        // Per-tab preview panes follow their tab (data-studio-pane).
+        if (attr === 'data-studio-panel') {
+          css += scope + ':has([' + attr + '="' + v + '"]) [data-studio-pane]:not([data-studio-pane="' + v + '"]){display:none!important}' +
+                 scope + ' [data-studio-pane="' + v + '"][hidden]{display:flex!important}';
+        }
+        return css;
+      };
+      if (h) css += one('[data-studio]', 'data-studio-panel', h);
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i) || '';
+        if (k.indexOf('fe-studio-tab:') !== 0) continue;
+        var name = k.slice(14).replace(/[^a-zA-Z0-9_-]/g, '');
+        var v = (localStorage.getItem(k) || '').replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!name || !v) continue;
+        var scope = '[data-studio="' + name + '"]' + (h ? ':not(:has([data-studio-panel="' + h + '"]))' : '');
+        css += one(scope, 'data-studio-panel', v);
+      }
+      var ds = (localStorage.getItem('ds-tab') || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (h) css += one('.ds-studio', 'data-ds-panel', h);
+      if (ds) css += one('.ds-studio' + (h ? ':not(:has([data-ds-panel="' + h + '"]))' : ''), 'data-ds-panel', ds);
+      if (css) {
+        var st = document.createElement('style');
+        st.id = 'tsp-studio-preload';
+        st.textContent = css;
+        (document.head || document.documentElement).appendChild(st);
       }
     } catch(e){}
     // Collapsed sidebar sections — hide them via an injected stylesheet
@@ -72,6 +138,14 @@
     } catch(e){}
   })();
 </script>
+{# Until app.css has applied (its last rule makes <html> visible again),
+   show only the theme's background: a browser that paints before the
+   stylesheet arrives (Firefox can) would otherwise flash the bare page.
+   The script above reveals it after 3 s whatever happens. #}
+<style id="tsp-unstyled-guard">
+  html { visibility: hidden; background: #f2f3f8; }
+  html[data-theme="dark"] { background: #0f1117; }
+</style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css', v=app_build_id) }}">
 {# dynbg recipe library — shared with the frontend. Loaded here too so the
    dynamic-background picker modal's live preview + thumbnails render in the
@@ -85,14 +159,16 @@
    chromeless instead of leaking the sidebar + header back in. #}
 {% set embed = request.args.get('embed') == '1'
                or (request.method == 'POST' and request.form.get('embed') == '1') %}
-{# The form-submission / custom-form pages share the ``main.frontend_``
-   endpoint prefix but are NOT part of the Web Frontend editor — they're
-   the Forms inbox, reachable by non-admins who were granted a form and
-   who have no web-frontend access at all. Excluding them keeps the
-   normal app sidebar in place there instead of auto-hiding it. #}
+{# The form inbox pages (``main.frontend_form_submissions`` and the
+   per-submission routes) share the ``main.frontend_`` endpoint prefix
+   but are NOT part of the Web Frontend editor: non-admins who were
+   granted a form reach them without any web-frontend access. Excluding
+   them keeps the normal app sidebar in place there. The form settings
+   pages (``main.frontend_form_submission`` is the Announcements/Events
+   form's) are editor pages and auto-hide like the rest. #}
 {%- set _ep = request.endpoint or '' -%}
-{%- set _is_forms_page = _ep.startswith('main.frontend_form')
-                         or _ep.startswith('main.frontend_custom_form') -%}
+{%- set _is_forms_page = _ep.startswith('main.frontend_form_submission')
+                         and _ep != 'main.frontend_form_submission' -%}
 {%- set _fe_admin = _ep.startswith('main.frontend_')
                     and not _is_forms_page
                     and current_user.is_authenticated
@@ -103,98 +179,63 @@
 {% if not embed %}
 <div class="layout">
   <aside class="sidebar">
+    {# The logo stays put at the top. #}
     <div class="brand">
-      <img class="brand-logo" src="{{ url_for('static', filename='img/logo.svg') }}" alt="">
-      <div>
-        <div class="brand-title">Trusted Servants</div>
-        <div class="brand-sub">Pro</div>
-      </div>
+      <img class="brand-logo" src="{{ url_for('static', filename='img/logo_tspro_about.svg') }}" alt="Trusted Servants Pro">
     </div>
-    {# Dashboard — pinned button (styled like the Notifications / Watchtower
-       buttons) rather than a regular nav link, so the home view always has
-       a fixed entry point at the top. Its catalog entry is hidden from the
-       nav list via _is_visible('dashboard') → False in app/sidebar.py. #}
-    <a class="sidebar-dash-btn{% if request.endpoint == 'main.index' %} is-active{% endif %}"
-       href="{{ url_for('main.index') }}" title="Dashboard — your home view">
-      <span class="sidebar-dash-icon" aria-hidden="true">{{ icon('home') }}</span>
-      <span class="sidebar-dash-label">Dashboard</span>
-    </a>
-    {# Sidebar quick-jump cluster — pinned buttons that replace their
-       regular sidebar links. Each button's gate matches the legacy
-       link's visibility predicate in app/sidebar.py so the user
-       always sees exactly one entry point for the corresponding
-       module / surface.
+    {# Between the brand and the footer, everything scrolls together: the
+       rows at the top and the nav (app.js remembers the offset per tab). #}
+    <div class="sidebar-scroll" id="sidebar-scroll">
+    {# The top of the sidebar: the portal-wide places and tools, as rows
+       styled like the nav links below them (icon, label, a count or
+       status on the right), set off from the nav by a rule. Each row's
+       gate matches the legacy link's visibility in app/sidebar.py, so
+       there is exactly one way in to each.
 
-       The Web Frontend pair (admin panel + public-site preview)
-       renders only when the module is on AND the user can edit; the
-       live dot reflects `site.frontend_enabled` (the public-access
-       toggle) so admins see at a glance whether the site is live.
-       The Watchtower button below renders for every admin, with two
-       attention chips (pending access requests + locked accounts)
-       so they don't have to open the page just to check counts. #}
+       Web Frontend: admins (can_edit_frontend) get a link into its
+       admin panel; everyone else a non-clickable row. The round button
+       at its end opens the public site, with the live dot on it: admins
+       always (it serves a preview while the site is off), others only
+       when the site is live. Without that button the dot sits in the
+       row so the live state is never missing. Swapped whole by
+       tspSwapPage in app.js. #}
     {% set _can_fe = current_user.can_edit_frontend() %}
     {% set _fe_on = site and site.frontend_module_enabled %}
     {% set _fe_live = site and site.frontend_enabled %}
-    {# The Web button + live dot render whenever the module is on, so
-       non-admins can see at a glance whether the public site is live.
-       Only admins (can_edit_frontend) get a working link into the admin
-       panel; everyone else sees a non-clickable indicator. The View
-       button opens the public site: admins always (it serves a preview
-       even while the public toggle is off), other signed-in users only
-       when the site is actually live (otherwise the public frontend
-       bounces them straight back to /tspro). Watchtower stays admin-only. #}
     {% set _show_view = _fe_on and (_can_fe or _fe_live) %}
-    {% set _has_quicknav = _fe_on or current_user.is_admin() %}
-    {% if _has_quicknav %}
-    <div class="sidebar-quicknav" role="group" aria-label="Quick navigation">
-      {% if _fe_on %}
-        {% if _can_fe %}
-        <a class="sidebar-quicknav-btn{% if not _show_view %} sidebar-quicknav-btn--full{% endif %}{% if request.endpoint and request.endpoint.startswith('main.frontend_') %} is-active{% endif %}"
-           href="{{ url_for('main.frontend_dashboard') }}"
-           title="Open the Web Frontend admin panel">
-          <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
-          <span class="sidebar-quicknav-label">Web</span>
-          <span class="sidebar-quicknav-status{% if _fe_live %} is-live{% endif %}"
-                title="{{ 'Public site is LIVE — visible to everyone' if _fe_live else 'Public site is OFF — visible only to signed-in admins and frontend editors' }}"
-                aria-label="{{ 'Live' if _fe_live else 'Off' }}"></span>
-        </a>
-        {% else %}
-        {# Non-privileged: a non-clickable Web indicator (rendered as a
-           <span>, not a link). Keeps the live dot so the user can still
-           see whether the public site is live, but offers no way into the
-           admin panel they're not allowed to open. #}
-        <span class="sidebar-quicknav-btn is-disabled{% if not _show_view %} sidebar-quicknav-btn--full{% endif %}"
-              aria-disabled="true"
-              title="{{ 'Web Frontend is LIVE — managed by admins' if _fe_live else 'Web Frontend — managed by admins' }}">
-          <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
-          <span class="sidebar-quicknav-label">Web</span>
-          <span class="sidebar-quicknav-status{% if _fe_live %} is-live{% endif %}"
-                aria-label="{{ 'Live' if _fe_live else 'Off' }}"></span>
-        </span>
-        {% endif %}
-        {% if _show_view %}
-        <a class="sidebar-quicknav-btn"
-           href="{{ url_for('frontend.index') }}"
-           target="_blank" rel="noopener"
-           title="Open the public frontend in a new tab">
-          <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('external-link') }}</span>
-          <span class="sidebar-quicknav-label">View</span>
-        </a>
-        {% endif %}
+    <div class="side-top" role="group" aria-label="Portal">
+      <a class="side-item{% if _ep == 'main.index' %} is-active{% endif %}" href="{{ url_for('main.index') }}"
+         {% if _ep == 'main.index' %}aria-current="page"{% endif %}>
+        <span class="side-item-icon" aria-hidden="true">{{ icon('home') }}</span>
+        <span class="side-item-label">Dashboard</span>
+      </a>
+      {# Opens the floating search; on narrow viewports its script first
+         hides the sidebar overlay so the search isn't covered by it. #}
+      <button type="button" class="side-item" data-open-search title="Search the portal (⌘K)">
+        <span class="side-item-icon" aria-hidden="true">{{ icon('search') }}</span>
+        <span class="side-item-label">Search</span>
+        <kbd class="side-item-kbd" aria-hidden="true">⌘K</kbd>
+      </button>
+      {# Editors and up: opens the notifications modal, with a live count
+         of uncleared items. #}
+      {% if current_user.can_edit() %}
+      <button type="button" class="side-item" data-open-modal="notifications-modal" data-notifications-trigger>
+        <span class="side-item-icon" aria-hidden="true">{{ icon('bell') }}</span>
+        <span class="side-item-label">Notifications</span>
+        <span class="nav-badge sidebar-notif-chip" data-notif-chip data-live-chip="notifications"
+              {% if not notifications_count %}hidden{% endif %}>{{ notifications_count or 0 }}</span>
+      </button>
       {% endif %}
       {% if current_user.is_admin() %}
+      {#- The chips always render (hidden at 0) so the /_live/counts poller
+          can reveal, update and hide each one, and the group, without a
+          reload. data-live-chip-group lists the keys it sums. -#}
       {%- set _watchtower_total = (pending_access_count or 0) + (locked_accounts_count or 0) + (recovery_contacts_abuse_count or 0) -%}
-      <a class="sidebar-quicknav-btn sidebar-quicknav-watchtower{% if request.endpoint and 'watchtower' in request.endpoint %} is-active{% endif %}"
-         href="{{ url_for('main.watchtower') }}"
-         title="Watchtower — security, access requests, deletions, and user activity">
-        <span class="sidebar-quicknav-icon" aria-hidden="true">{{ icon('shield') }}</span>
-        <span class="sidebar-quicknav-label">Watchtower</span>
-        {#- Always render the chip group (hidden at 0) so the /_live/counts
-            poller can reveal/update/hide each chip — and the group wrapper —
-            without a page reload. data-live-chip-group lists the keys it
-            sums to decide its own visibility + aria-label. -#}
-        <span class="sidebar-quicknav-chips"
-              data-live-chip-group="recovery_contacts_abuse pending_access locked_accounts"
+      <a class="side-item{% if 'watchtower' in _ep %} is-active{% endif %}" href="{{ url_for('main.watchtower') }}"
+         title="Security, access requests, deletions and user activity">
+        <span class="side-item-icon" aria-hidden="true">{{ icon('shield') }}</span>
+        <span class="side-item-label">Watchtower</span>
+        <span class="side-item-chips" data-live-chip-group="recovery_contacts_abuse pending_access locked_accounts"
               aria-label="{{ _watchtower_total }} item{{ 's' if _watchtower_total != 1 else '' }} need attention"
               {% if not _watchtower_total %}hidden{% endif %}>
           <span class="nav-badge nav-badge-danger" data-live-chip="recovery_contacts_abuse" title="Flagged Recovery Contacts requests" {% if not recovery_contacts_abuse_count %}hidden{% endif %}>{{ recovery_contacts_abuse_count or 0 }}</span>
@@ -203,42 +244,44 @@
         </span>
       </a>
       {% endif %}
+      {% if _fe_on %}
+      <div class="side-item-row">
+        {% if _can_fe %}
+        <a class="side-item{% if _ep.startswith('main.frontend_') and not _ep.startswith('main.frontend_form_submission') %} is-active{% endif %}" href="{{ url_for('main.frontend_dashboard') }}"
+           title="The public website's admin">
+          <span class="side-item-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
+          <span class="side-item-label">Web Frontend</span>
+        </a>
+        {% else %}
+        <span class="side-item is-static" title="{{ 'The public website is live; admins manage it' if _fe_live else 'The public website; admins manage it' }}">
+          <span class="side-item-icon" aria-hidden="true">{{ icon('layout-grid') }}</span>
+          <span class="side-item-label">Web Frontend</span>
+          {% if not _show_view %}<span class="side-live-dot{% if _fe_live %} is-live{% endif %}" aria-label="{{ 'Live' if _fe_live else 'Off' }}"></span>{% endif %}
+        </span>
+        {% endif %}
+        {% if _show_view %}
+        <a class="side-item-end" href="{{ url_for('frontend.index') }}" target="_blank" rel="noopener"
+           title="{{ 'Open the public site in a new tab. It is live, visible to everyone.' if _fe_live else 'Open the public site in a new tab. It is off, visible only to signed-in admins and frontend editors.' }}"
+           aria-label="Open the public site ({{ 'live' if _fe_live else 'off' }})">
+          <span class="side-live-dot{% if _fe_live %} is-live{% endif %}" aria-hidden="true"></span>
+          {{ icon('external-link') }}
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-
-    {# Notifications Center button. Shown to anyone who can act on the
-       attention sources (editors and up); opens the notifications modal
-       and carries a live count chip of uncleared items. #}
-    {% if current_user.can_edit() %}
-    <button type="button" class="sidebar-notif-btn" data-open-modal="notifications-modal"
-            data-notifications-trigger title="Notifications">
-      <span class="sidebar-notif-icon" aria-hidden="true">{{ icon('bell') }}</span>
-      <span class="sidebar-notif-label">Notifications</span>
-      <span class="nav-badge sidebar-notif-chip" data-notif-chip
-            data-live-chip="notifications"
-            {% if not notifications_count %}hidden{% endif %}>{{ notifications_count or 0 }}</span>
-    </button>
-    {% endif %}
-
-    {# Sidebar Search button. Opens the floating search modal; on
-       narrow viewports the JS first hides the sidebar overlay so the
-       modal isn't covered by it. #}
-    <button type="button" class="sidebar-search-btn" data-open-search title="Search the portal (⌘K)">
-      <span class="sidebar-search-icon" aria-hidden="true">{{ icon('search') }}</span>
-      <span class="sidebar-search-label">Search</span>
-      <kbd class="sidebar-search-kbd" aria-hidden="true">⌘K</kbd>
-    </button>
     <nav id="sidebar-nav">
       {% include "_sidebar_nav.html" %}
     </nav>
+    </div>
     <div class="sidebar-footer">
       {% set _flogo = (site.footer_logo_filename if site else None) %}
       {% set _furl = (site.footer_logo_url if site else None) or '' %}
       {% set _fw = (site.footer_logo_width if site else None) or 32 %}
+      {{ site_alert_bar('sidebar') }}
       <a class="sidebar-footer-img-link" id="sidebar-footer-link" href="{{ _furl or '#' }}" target="_blank" rel="noopener"{% if not _flogo %} hidden{% endif %}>
         <img id="sidebar-footer-logo" src="{{ url_for('public.site_footer_logo') if _flogo else '' }}" alt=""{% if _fw %} style="width: {{ _fw }}px"{% endif %}>
       </a>
-      <div class="brand-version">v{{ app_version }}</div>
       <div class="user-chip">
         <div class="avatar">{{ current_user.username[:1].upper() }}</div>
         <div class="user-chip-name" title="{{ current_user.username }}">
@@ -257,6 +300,7 @@
     </div>
   </aside>
   <main class="content">
+    {{ site_alert_bar('top') }}
     <header class="topbar">
       <button type="button" class="menu-btn" id="menu-toggle" aria-label="Toggle menu">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
@@ -267,7 +311,7 @@
       <h1>{% block heading %}{% endblock %}
         {%- set _help = self.heading_help()|trim -%}
         {% if _help %}<span class="heading-help">
-          <button type="button" class="help-btn" aria-label="About this section">?</button>
+          <button type="button" class="help-btn" aria-label="About this section">{{ icon('info') }}</button>
           <span class="help-tooltip" role="tooltip">{{ _help }}</span>
         </span>{% endif %}
       </h1>
@@ -326,55 +370,79 @@
 {# Settings modal #}
 <div class="modal modal-lg" id="settings-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <div class="modal-head">
-      <h2>Settings</h2>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+    {# Sidebar navigation. On phones the nav and the panes are two
+       screens: the nav is the list, picking a section slides to its
+       pane, and the back button returns (app.js toggles
+       .settings-show-pane on the modal). #}
+    {% set _settings_nav = [
+      ('Account', [
+        ('appearance', 'Appearance', 'sun', True),
+        ('your-access', 'Your Access', 'key', True),
+      ]),
+      ('Administration', [
+        ('users', 'Users', 'users', False),
+        ('locations', 'Global', 'globe', False),
+        ('sidebar', 'Sidebar', 'panel-left', False),
+        ('modules', 'Modules', 'puzzle', False),
+        ('email', 'Domain / Email', 'mail', False),
+        ('timezone', 'Timezone', 'clock', False),
+        ('alert', 'Alert Bar', 'megaphone', False),
+        ('security', 'Security', 'shield', False),
+        ('data', 'Data', 'database', False),
+      ]),
+      ('', [
+        ('about', 'About', 'info', True),
+      ]),
+    ] %}
+    <nav class="settings-nav" aria-label="Settings sections">
+      <div class="settings-nav-head">
+        <h2 id="settings-modal-title">Settings</h2>
+        <button type="button" class="icon-btn settings-nav-close" data-close aria-label="Close">{{ icon('x') }}</button>
+      </div>
+      <div class="settings-tabs" role="tablist" aria-orientation="vertical">
+        {% for group, items in _settings_nav %}
+        {% set _visible = items if current_user.is_admin() else items | selectattr(3) | list %}
+        {% if _visible %}
+        {% if group %}<div class="settings-nav-group" role="presentation">{{ group }}</div>{% else %}<div class="settings-nav-sep" role="presentation"></div>{% endif %}
+        {% for key, label, ic, _everyone in _visible %}
+        <button type="button" class="settings-tab{% if key == 'appearance' %} active{% endif %}" data-tab="{{ key }}" role="tab" aria-selected="{{ 'true' if key == 'appearance' else 'false' }}">
+          <span class="settings-tab-icon" aria-hidden="true">{{ icon(ic) }}</span>
+          <span class="settings-tab-label">{{ label }}</span>
+          <span class="settings-tab-chev" aria-hidden="true">{{ icon('chevron-right') }}</span>
+        </button>
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+      </div>
+      {# Yellow save bar, at the foot of the section list: shown while any
+         pane has unsaved changes (the panes in iframes report theirs);
+         Save commits them all in the background. On a phone app.js moves
+         it to the foot of the open pane. #}
+      <div class="fe-save-bar settings-save-bar" id="settings-save-bar" hidden>
+        <span class="fe-save-bar-msg">Unsaved changes</span>
+        <button type="button" class="btn fe-save-bar-btn" id="settings-save-bar-btn">Save</button>
+      </div>
+    </nav>
+    <div class="settings-main">
+    <div class="modal-head settings-main-head">
+      <button type="button" class="icon-btn settings-back" aria-label="Back to settings">{{ icon('arrow-left') }}</button>
+      <h2 class="settings-pane-title">Appearance</h2>
       <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-    </div>
-    <div class="settings-tabs" role="tablist">
-      <button type="button" class="settings-tab active" data-tab="appearance">Appearance</button>
-      <button type="button" class="settings-tab" data-tab="your-access">Your Access</button>
-      {% if current_user.is_admin() %}
-      <button type="button" class="settings-tab" data-tab="users">Users</button>
-      <button type="button" class="settings-tab" data-tab="locations">Global</button>
-      <button type="button" class="settings-tab" data-tab="sidebar">Sidebar</button>
-      <button type="button" class="settings-tab" data-tab="modules">Modules</button>
-      <button type="button" class="settings-tab" data-tab="email">Domain / Email</button>
-      <button type="button" class="settings-tab" data-tab="timezone">Timezone</button>
-      <button type="button" class="settings-tab" data-tab="security">Security</button>
-      <button type="button" class="settings-tab" data-tab="data">Data</button>
-      {% endif %}
-      <button type="button" class="settings-tab" data-tab="about">About</button>
     </div>
     <div class="settings-body">
       <div class="settings-pane active" data-pane="appearance">
 
-        {# ── Theme picker (visible to everyone) ──────────────────── #}
+        {# ── Light or dark (everyone, saved to their account) ─────── #}
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('sun') }}
-            <span>Theme</span>
+            <span>Appearance {% call chip('Appearance') %}How the portal looks for your account, on any device you sign in from. Follow system matches your device's light or dark setting and switches with it. The sun and moon button at the foot of the sidebar switches too.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Choose how the admin portal looks for your account. The setting is per-user, not global.
-          </p>
-          <div class="theme-picker" role="radiogroup" aria-label="Theme">
-            {% for t in [
-              ('light', 'Light', '#f6f7fb', '#ffffff', '#5b6ef4'),
-              ('dark', 'Dark', '#0f1117', '#171923', '#7d8dff'),
-              ('neobrutal-light', 'Neobrutal Light', '#fef9c3', '#ffffff', '#ec4899'),
-              ('neobrutal-dark', 'Neobrutal Dark', '#18181b', '#27272a', '#f472b6'),
-              ('cyberpunk', 'Cyberpunk', '#05050a', '#0f0a1f', '#ff2bd6'),
-              ('solarpunk', 'Solarpunk', '#f5f7e8', '#ffffff', '#1e9e6a'),
-            ] %}
-            <button type="button" class="theme-swatch" data-theme-value="{{ t[0] }}" role="radio" aria-checked="false">
-              <span class="swatch-preview" style="background: {{ t[2] }};">
-                <span class="sw-panel" style="background: {{ t[3] }};"></span>
-                <span class="sw-accent" style="background: {{ t[4] }};"></span>
-              </span>
-              <span class="swatch-label">{{ t[1] }}</span>
-            </button>
-            {% endfor %}
+          <div class="ds-seg-btns theme-mode" role="radiogroup" aria-label="Light or dark">
+            <button type="button" role="radio" aria-checked="false" data-theme-pref-value="system">{{ icon('monitor') }}Follow system</button>
+            <button type="button" role="radio" aria-checked="false" data-theme-pref-value="light">{{ icon('sun') }}Light</button>
+            <button type="button" role="radio" aria-checked="false" data-theme-pref-value="dark">{{ icon('moon') }}Dark</button>
           </div>
         </section>
 
@@ -384,11 +452,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('image') }}
-            <span>Sidebar Footer Logo</span>
+            <span>Sidebar Footer Logo {% call chip('Sidebar Footer Logo') %}Replaces the logo shown at the bottom of the sidebar and the link it opens.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Replaces the logo shown at the bottom of the sidebar and the link it opens.
-          </p>
           <form class="form appearance-branding-form" method="post" action="{{ url_for('main.site_branding_save') }}" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% set _has_logo = site and site.footer_logo_filename %}
@@ -427,11 +492,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('sparkles') }}
-            <span>Login Screen</span>
+            <span>Login Screen {% call chip('Login Screen') %}Choose the animated background effect, speed, and accent color shown on the login page.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Choose the animated background effect, speed, and accent color shown on the login page.
-          </p>
           <form class="form login-appearance-form" method="post" action="{{ url_for('main.login_appearance_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -508,8 +570,7 @@
 
             <li class="special-page-row login-fx-toggle-row">
               <div class="special-page-info">
-                <div class="u-name">Login transition</div>
-                <p class="muted small">Play a 3D door-opening animation with rainbow warp after a successful login.</p>
+                <div class="u-name">Login transition {% call chip() %}Play a 3D door-opening animation with rainbow warp after a successful login.{% endcall %}</div>
               </div>
               <label class="mode-toggle" title="Enable login transition animation">
                 <input type="checkbox" name="login_transition_enabled" value="1" {% if site.login_transition_enabled %}checked{% endif %}>
@@ -527,17 +588,13 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('external-link') }}
-            <span>Open Graph / Link Previews</span>
+            <span>Open Graph / Link Previews {% call chip('Open Graph / Link Previews') %}Controls the title, description, and image other sites show when someone pastes a link to this portal into Slack, iMessage, Facebook, Twitter/X, or similar. Image is served publicly so crawlers can fetch it.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Controls the title, description, and image other sites show when someone pastes a link to this portal into Slack, iMessage, Facebook, Twitter/X, or similar. Image is served publicly so crawlers can fetch it.
-          </p>
           <form class="form appearance-og-form" method="post" action="{{ url_for('main.og_save') }}" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="special-page-row og-toggle-row">
               <div class="special-page-info">
-                <div class="u-name">Enable link previews</div>
-                <p class="muted small">When off, no Open Graph or Twitter Card tags are emitted.</p>
+                <div class="u-name">Enable link previews {% call chip() %}When off, no Open Graph or Twitter Card tags are emitted.{% endcall %}</div>
               </div>
               <label class="mode-toggle" title="Enable Open Graph link previews">
                 <input type="checkbox" name="og_enabled" value="1" {% if site and site.og_enabled %}checked{% endif %}>
@@ -574,11 +631,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('smartphone') }}
-            <span>Home Screen Icon (iOS / iPadOS)</span>
+            <span>Home Screen Icon (iOS / iPadOS) {% call chip('Home Screen Icon (iOS / iPadOS)') %}Icon and label used when this admin portal (<code>/tspro</code>) is pinned to an iPhone or iPad home screen via Safari's "Add to Home Screen." Independent from the public site's home-screen icon.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Icon and label used when this admin portal (<code>/tspro</code>) is pinned to an iPhone or iPad home screen via Safari's "Add to Home Screen." Independent from the public site's home-screen icon.
-          </p>
           <form class="form appearance-apple-touch-form" method="post" action="{{ url_for('main.apple_touch_icon_save') }}" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="branding-row">
@@ -763,16 +817,13 @@
                  data-regen-url="{{ url_for('main.mfa_regenerate_recovery') }}">
           <div class="data-card-head">
             {{ icon('shield') }}
-            <span>Two-Factor Authentication</span>
+            <span>Two-Factor Authentication {% call chip('Two-Factor Authentication') %}Add a one-time code from an authenticator app (2FAS, Google
+            Authenticator, Aegis, 1Password…) on top of your password for this
+            account.{% endcall %}</span>
             <span class="mfa-status-pill {{ 'on' if current_user.mfa_enabled else ('warn' if _mfa_pending else 'off') }}">
               {{ 'Enabled' if current_user.mfa_enabled else ('Setup required' if _mfa_pending else 'Off') }}
             </span>
           </div>
-          <p class="muted small data-card-lead">
-            Add a one-time code from an authenticator app (2FAS, Google
-            Authenticator, Aegis, 1Password…) on top of your password for this
-            account.
-          </p>
 
           {# State: OFF / setup-pending — the enrol entry point #}
           <div class="mfa-off" {% if current_user.mfa_enabled %}hidden{% endif %}>
@@ -842,11 +893,8 @@
 
           {# Recovery codes — shown once after enable / regenerate #}
           <div class="mfa-recovery" hidden>
-            <div class="mfa-recovery-head">{{ icon('key') }} <strong>Save your recovery codes</strong></div>
-            <p class="muted small">
-              Each code works once if you lose access to your authenticator.
-              Store them somewhere safe — they won't be shown again.
-            </p>
+            <div class="mfa-recovery-head">{{ icon('key') }} <strong>Save your recovery codes</strong> {% call chip() %}Each code works once if you lose access to your authenticator.
+              Store them somewhere safe — they won't be shown again.{% endcall %}</div>
             <ul class="mfa-recovery-list"></ul>
             <div class="mfa-recovery-actions">
               <button type="button" class="btn mfa-recovery-copy">Copy codes</button>
@@ -910,8 +958,7 @@
           'viewer': 'perm-badge-viewer',
         } %}
 
-        <div class="u-name">Permission matrix</div>
-        <p class="muted small">Each role's capabilities at a glance. Your row is highlighted.</p>
+        <div class="u-name">Permission matrix {% call chip() %}Each role's capabilities at a glance. Your row is highlighted.{% endcall %}</div>
         <div class="access-matrix-wrap">
           <table class="access-matrix">
             <thead>
@@ -960,11 +1007,8 @@
         </p>
 
         <hr class="settings-sep">
-        <div class="u-name">Need a different role?</div>
-        <p class="muted small">
-          Role assignments are managed by an admin. If your access needs to change, contact an admin via the
-          <a href="#" data-open-modal="pic-help-modal">Need Help?</a> popup.
-        </p>
+        <div class="u-name">Need a different role? {% call chip() %}Role assignments are managed by an admin. If your access needs to change, contact an admin via the
+          <a href="#" data-open-modal="pic-help-modal">Need Help?</a> popup.{% endcall %}</div>
       </div>
       {% if current_user.is_admin() %}
       <div class="settings-pane" data-pane="users">
@@ -991,7 +1035,7 @@
               </div>
             </div>
             <p class="muted small data-card-lead">
-              Reorder the items in the main sidebar and manage external links inline. Dashboard, Watchtower, and Web Frontend sit in the fixed button cluster at the top and aren't part of this list. Auto modes alphabetise items inside each section (Main → External → Admin order); pick Manual to drag any item or section to a new position.
+              Reorder the items in the main sidebar and manage external links inline. Dashboard, Watchtower, and Web Frontend sit in the fixed button cluster at the top and aren't part of this list. Auto modes put the items inside each section in alphabetical order; pick Manual to drag any item or section to a new position.
             </p>
 
             <fieldset class="sidebar-mode-fieldset">
@@ -1089,7 +1133,7 @@
           <li class="special-page-row special-page-row-with-children">
             <div class="special-page-info">
               <div class="u-name">Intergroup module</div>
-              <p class="muted small">Show or hide the <b>Intergroup</b> sidebar subsection. When on, the section surfaces the {{ site.ig_page_title or 'Intergroup' }} Email page (toggled separately below) plus shortcuts to the <i>Intergroup Minutes</i> and <i>Intergroup Documents</i> libraries (when those libraries exist). Editing Documents &amp; Minutes is gated to admins and the new <b>Intergroup Member</b> role; Email Accounts stays admin-only.</p>
+              <p class="muted small">Show or hide the <b>Intergroup</b> sidebar subsection. When on, the section surfaces the Email Accounts page (toggled separately below) plus shortcuts to the <i>Intergroup Minutes</i> and <i>Intergroup Documents</i> libraries (when those libraries exist). Editing Documents &amp; Minutes is gated to admins and the new <b>Intergroup Member</b> role; Email Accounts stays admin-only.</p>
             </div>
             {{ module_role_picker('intergroup_module', site.intergroup_module_required_role if site else 'viewer') }}
             <form method="post" action="{{ url_for('main.intergroup_module_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1106,7 +1150,7 @@
               <li class="special-page-subrow" title="{{ _ig_perm_tooltip }}">
                 <div class="special-page-info">
                   <div class="u-name">
-                    {{ site.ig_page_title or 'Intergroup' }} Email Accounts
+                    Email Accounts
                     <span class="perm-info-badge" tabindex="0"
                           title="{{ _ig_perm_tooltip }}"
                           aria-label="{{ _ig_perm_tooltip }}">Admin &amp; Intergroup Member only</span>
@@ -1116,7 +1160,7 @@
                 {{ module_role_picker('intergroup', site.intergroup_required_role if site else 'viewer') }}
                 <form method="post" action="{{ url_for('main.intergroup_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <label class="mode-toggle" title="Enable {{ site.ig_page_title or 'Intergroup' }} Email Accounts">
+                  <label class="mode-toggle" title="Show Email Accounts in the Intergroup section">
                     <input type="checkbox" name="intergroup_enabled" value="1"
                            onchange="this.form.submit()"
                            {% if site and site.intergroup_enabled %}checked{% endif %}>
@@ -1181,7 +1225,7 @@
           <li class="special-page-row">
             <div class="special-page-info">
               <div class="u-name">Trusted Servants Email List</div>
-              <p class="muted small">Admin-managed contact roster + blast email surface. When on, a sign-up widget appears on every signed-in user's dashboard inviting them to add their name, phone, and email; admins manage the roster and send updates from <code>/email-list</code>. The role gate below decides who can see the roster and send blasts — every signed-in user can self-subscribe via the dashboard widget regardless.</p>
+              <p class="muted small">A contact list of trusted servants and the updates sent to it. New portal users join it when they're created; others are added on the Email List page, where updates are written and sent. The access setting decides who can see the list and send updates.</p>
             </div>
             {{ module_role_picker('trusted_servants', site.trusted_servants_required_role if site else 'admin') }}
             <form method="post" action="{{ url_for('main.trusted_servants_toggle') }}" class="special-page-toggle-form" data-refresh-sidebar="1">
@@ -1254,20 +1298,14 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('globe') }}
-            <span>Public Domain</span>
+            <span>Public Domain {% call chip('Public Domain') %}Canonical URL used in outbound emails and any other absolute link this portal sends out. Without this set, links fall back to whatever <code>Host</code> header the request carried — which is usually a Docker bridge IP for portals behind a reverse proxy. Save this once and every welcome email / access-request notification picks up the right hostname.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Canonical URL used in outbound emails and any other absolute link this portal sends out. Without this set, links fall back to whatever <code>Host</code> header the request carried — which is usually a Docker bridge IP for portals behind a reverse proxy. Save this once and every welcome email / access-request notification picks up the right hostname.
-          </p>
           <form class="form appearance-site-url-form" method="post" action="{{ url_for('main.site_url_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Site URL
+            <label>{% call hrow('Site URL') %}Tip: omit the trailing slash. Bare domains (<code>example.com</code>) are auto-prefixed with <code>https://</code>.{% endcall %}
               <input name="site_url" type="url" value="{{ (site.site_url if site else '') or '' }}"
                      placeholder="example.com">
             </label>
-            <p class="muted smaller" style="margin-top:6px;">
-              Tip: omit the trailing slash. Bare domains (<code>example.com</code>) are auto-prefixed with <code>https://</code>.
-            </p>
             <div class="data-card-actions"><button class="btn btn-primary">Save Domain</button></div>
           </form>
         </section>
@@ -1276,19 +1314,15 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('mail') }}
-            <span>SMTP Server</span>
+            <span>SMTP Server {% call chip('SMTP Server') %}Used for sending notification emails, including access requests from the login screen.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Used for sending notification emails, including access requests from the login screen.
-          </p>
           <form class="form" method="post" action="{{ url_for('main.email_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label>Sending method
+            <label>{% call hrow('Sending method') %}Use <b>API relay</b> when your host blocks outbound SMTP ports (e.g. DigitalOcean). The app sends each message over HTTPS to a relay container that does the SMTP delivery. <b>From email / From name</b> and access-request recipients apply to both modes.{% endcall %}
               <select name="mail_transport" id="mailTransportSelect">
                 <option value="smtp" {% if (site.mail_transport or 'smtp') != 'relay' %}selected{% endif %}>Direct SMTP</option>
                 <option value="relay" {% if (site.mail_transport or 'smtp') == 'relay' %}selected{% endif %}>API relay (HTTPS)</option>
               </select>
-              <span class="muted smaller">Use <b>API relay</b> when your host blocks outbound SMTP ports (e.g. DigitalOcean). The app sends each message over HTTPS to a relay container that does the SMTP delivery. <b>From email / From name</b> and access-request recipients apply to both modes.</span>
             </label>
             <div id="relayFields">
               <div class="row">
@@ -1350,9 +1384,8 @@
               <label>From email<input name="smtp_from_email" type="email" value="{{ site.smtp_from_email or '' }}" placeholder="noreply@example.com"></label>
               <label>From name<input name="smtp_from_name" type="text" value="{{ site.smtp_from_name or '' }}" placeholder="Trusted Servants Pro"></label>
             </div>
-            <label>Send access requests to
+            <label>{% call hrow('Send access requests to') %}Access-request submissions from the login page are emailed here. Separate multiple recipients with commas.{% endcall %}
               <input name="access_request_to" type="text" value="{{ site.access_request_to or '' }}" placeholder="admin@example.com">
-              <span class="muted smaller">Access-request submissions from the login page are emailed here. Separate multiple recipients with commas.</span>
             </label>
             <div class="data-card-actions"><button class="btn btn-primary">Save Email Settings</button></div>
           </form>
@@ -1362,11 +1395,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('send') }}
-            <span>Send test email</span>
+            <span>Send test email {% call chip('Send test email') %}Verifies the SMTP credentials above by sending a test message.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Verifies the SMTP credentials above by sending a test message.
-          </p>
           <form class="form" method="post" action="{{ url_for('main.email_test') }}"
                 data-savebar-skip="1" data-email-test-form>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1382,11 +1412,8 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('clock') }}
-            <span>Server Timezone</span>
+            <span>Server Timezone {% call chip('Server Timezone') %}Determines what the portal calls "today" and "now" — used by the public meetings block and any other time-dependent display. Set this to your fellowship's local timezone, regardless of where the server is hosted.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Determines what the portal calls "today" and "now" — used by the public meetings block and any other time-dependent display. Set this to your fellowship's local timezone, regardless of where the server is hosted.
-          </p>
           {% set _tz_current = site.timezone or 'UTC' %}
           {% set _tz_now = now_in_timezone(_tz_current) %}
           <form class="form" method="post" action="{{ url_for('main.timezone_save') }}">
@@ -1435,23 +1462,233 @@
         })();
         </script>
       </div>
+      <div class="settings-pane" data-pane="alert">
+
+        {# ── Alert bar: a message every signed-in user sees ──────────── #}
+        {% set _al_on = site.alert_enabled %}
+        {% set _al_places = (site.alert_places or '').split(',') %}
+        {% set _al_tone = site.alert_tone or 'info' %}
+        <section class="card data-card">
+          <div class="data-card-head">
+            {{ icon('megaphone') }}
+            <span>Alert Bar {% call chip('Alert Bar') %}A message every signed-in user sees, such as a server move or a change to how something works. Pick its style and where it shows. People can close it unless you turn that off; it shows again when you change the message.{% endcall %}</span>
+          </div>
+          <form class="form alert-form" method="post" action="{{ url_for('main.alert_save') }}" data-alert-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="special-page-row">
+              <div class="special-page-info">
+                <div class="u-name">Show the alert bar</div>
+                <div class="muted small" data-alert-status>
+                  {%- if site_alert %}Showing now to everyone signed in.
+                  {%- elif _al_on and site.alert_until and (site.alert_message or '').strip() %}Ended {{ site.alert_until.strftime('%b %-d, %Y at %-I:%M %p') }}.
+                  {%- elif _al_on %}On, but it needs a message and a place to show.
+                  {%- else %}Off.{% endif -%}
+                </div>
+              </div>
+              <label class="mode-toggle" title="Show the alert bar">
+                <input type="checkbox" name="alert_enabled" value="1" {% if _al_on %}checked{% endif %}>
+                <span class="mode-track"><span class="mode-thumb"></span></span>
+              </label>
+            </div>
+            <div class="form-field-block">{% call hrow('Message') %}What the bar says. Use the toolbar, or type Markdown: headings, <code>**bold**</code>, lists and links. The preview beside it shows the Markdown; the bar below shows it in place.{% endcall %}
+              <div class="md-editor md-editor-live alert-message-md" data-md-editor data-md-live="1" data-md-mode="inline">
+                {{ md_toolbar() }}
+                <div class="md-editor-pane md-editor-pane-write active">
+                  <textarea name="alert_message" rows="4" maxlength="2000" data-alert-message aria-label="Message"
+                            placeholder="The portal moves to a new server on Saturday at 9 PM. Save your work before then.">{{ site.alert_message or '' }}</textarea>
+                </div>
+                <div class="md-editor-pane md-editor-pane-preview active">
+                  <div class="md-editor-preview site-alert-msg"><p class="muted smaller">Nothing to preview yet.</p></div>
+                </div>
+              </div>
+            </div>
+            <div class="form-field-block">
+              <span class="alert-preview-label muted small">Preview<span data-alert-preview-hint{% if not (site.alert_details_enabled and (site.alert_details or '').strip()) %} hidden{% endif %}>: click it to see the window</span></span>
+              <div class="site-alert site-alert--preview is-{{ _al_tone }}" data-alert-preview>
+                <span class="site-alert-icon" aria-hidden="true">{% for key, label, ic in ALERT_TONES %}<span data-tone-icon="{{ key }}"{% if key != _al_tone %} hidden{% endif %}>{{ icon(ic) }}</span>{% endfor %}</span>
+                <div class="site-alert-msg" data-alert-preview-msg>{{ (site.alert_message or '')|markdown_inline }}</div>
+                <button type="button" class="site-alert-more" data-alert-preview-more{% if not (site.alert_details_enabled and (site.alert_details or '').strip()) %} hidden{% endif %}>Details{{ icon('chevron-right') }}</button>
+                <span class="site-alert-close" data-alert-preview-close aria-hidden="true"{% if not site.alert_dismissible %} hidden{% endif %}>{{ icon('x') }}</span>
+              </div>
+            </div>
+            <div class="special-page-row">
+              <div class="special-page-info">
+                <div class="u-name">Open details when clicked</div>
+                <div class="muted small">Clicking the bar opens a window with a title and more about it.</div>
+              </div>
+              <label class="mode-toggle" title="Open details when the bar is clicked">
+                <input type="checkbox" name="alert_details_enabled" value="1" data-alert-details-on {% if site.alert_details_enabled %}checked{% endif %}>
+                <span class="mode-track"><span class="mode-thumb"></span></span>
+              </label>
+            </div>
+            <div class="alert-details-fields" data-alert-details-fields{% if not site.alert_details_enabled %} hidden{% endif %}>
+              <label>{% call hrow('Window title') %}Optional. Left blank, the window is titled with the style's name, such as Warning.{% endcall %}
+                <input type="text" name="alert_title" maxlength="200" value="{{ site.alert_title or '' }}" data-alert-title placeholder="Server move this Saturday">
+              </label>
+              <div class="form-field-block">{% call hrow('Posted') %}Set to now when you post a new message or turn the bar on; change it to show another date. In the portal's timezone ({{ site.timezone or 'UTC' }}).{% endcall %}
+                <div class="alert-posted-row">
+                  <input type="datetime-local" name="alert_posted_at" data-alert-posted aria-label="Posted"
+                         value="{{ site.alert_posted_at.strftime('%Y-%m-%dT%H:%M') if site.alert_posted_at else '' }}">
+                  <button type="button" class="btn" data-alert-posted-now data-tz="{{ site.timezone or 'UTC' }}" title="Set to now, in the portal's timezone">{{ icon('clock') }} Today</button>
+                  <label class="check"><input type="checkbox" name="alert_show_posted" value="1" data-alert-show-posted {% if site.alert_show_posted %}checked{% endif %}>
+                    <span>Show the posted date in the window</span></label>
+                </div>
+              </div>
+              <div class="form-field-block">{% call hrow('Details') %}Shown in the window under the message. Use the toolbar, or type Markdown: headings, <code>**bold**</code>, lists and links. The preview shows it as it will look.{% endcall %}
+                <div class="md-editor md-editor-live alert-details-md" data-md-editor data-md-live="1">
+                  {{ md_toolbar() }}
+                  <div class="md-editor-pane md-editor-pane-write active">
+                    <textarea name="alert_details" rows="8" maxlength="20000" data-alert-details aria-label="Details"
+                              placeholder="What is changing, when, and what people need to do.">{{ site.alert_details or '' }}</textarea>
+                  </div>
+                  <div class="md-editor-pane md-editor-pane-preview active">
+                    <div class="md-editor-preview site-alert-detail-body"><p class="muted smaller">Nothing to preview yet.</p></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-field-block">{% call hrow('Style') %}The bar's color and icon.{% endcall %}
+              <div class="ds-seg-btns alert-tone-seg" role="radiogroup" aria-label="Style">
+                {% for key, label, ic in ALERT_TONES %}
+                <label><input type="radio" name="alert_tone" value="{{ key }}" data-icon="{{ ic }}" {% if key == _al_tone %}checked{% endif %}><span>{{ label }}</span></label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="form-field-block">{% call hrow('Where it shows') %}Pick one or more.{% endcall %}
+              <div class="alert-places">
+                {% for key, label, hint in ALERT_PLACES %}
+                <label class="check"><input type="checkbox" name="alert_places" value="{{ key }}" {% if key in _al_places %}checked{% endif %}>
+                  <span><b>{{ label }}</b><span class="muted small">{{ hint }}</span></span></label>
+                {% endfor %}
+              </div>
+            </div>
+            <label class="check"><input type="checkbox" name="alert_dismissible" value="1" data-alert-closable {% if site.alert_dismissible %}checked{% endif %}>
+              <span><b>People can close it</b><span class="muted small">Closed, it stays away in that browser until the message changes.</span></span></label>
+            <label>{% call hrow('Stop showing after') %}Optional, in the portal's timezone ({{ site.timezone or 'UTC' }}). Leave it blank to show the bar until you turn it off.{% endcall %}
+              <input type="datetime-local" name="alert_until" value="{{ site.alert_until.strftime('%Y-%m-%dT%H:%M') if site.alert_until else '' }}">
+            </label>
+            <div class="data-card-actions"><button class="btn btn-primary">Save Alert Bar</button></div>
+          </form>
+        </section>
+
+        <script>
+        (function(){
+          // The preview follows the form; the message renders through the
+          // same Markdown as the bar. A save swaps the bars on the page
+          // behind Settings for the saved ones.
+          const form = document.querySelector('[data-alert-form]');
+          if (!form) return;
+          const box = form.querySelector('[data-alert-preview]');
+          const msg = form.querySelector('[data-alert-preview-msg]');
+          const ta = form.querySelector('[data-alert-message]');
+          let timer;
+          const detailsOn = form.querySelector('[data-alert-details-on]');
+          const detailsTa = form.querySelector('[data-alert-details]');
+          const toneNow = () => (form.querySelector('input[name=alert_tone]:checked') || {}).value || 'info';
+          const hasDetails = () => detailsOn.checked && detailsTa.value.trim() !== '';
+          function tone(){
+            const t = toneNow();
+            box.className = box.className.replace(/\bis-\w+/, 'is-' + t);
+            box.querySelectorAll('[data-tone-icon]').forEach(el => { el.hidden = el.dataset.toneIcon !== t; });
+            box.querySelector('[data-alert-preview-close]').hidden = !form.querySelector('[data-alert-closable]').checked;
+            form.querySelector('[data-alert-details-fields]').hidden = !detailsOn.checked;
+            box.querySelector('[data-alert-preview-more]').hidden = !hasDetails();
+            form.querySelector('[data-alert-preview-hint]').hidden = !hasDetails();
+            box.classList.toggle('has-details', hasDetails());
+          }
+          detailsTa.addEventListener('input', tone);
+          // Today: the posted date and time now, in the portal's timezone.
+          form.querySelector('[data-alert-posted-now]').addEventListener('click', e => {
+            const input = form.querySelector('[data-alert-posted]');
+            let parts;
+            try {
+              parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+                timeZone: e.currentTarget.dataset.tz, year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date()).map(p => [p.type, p.value]));
+            } catch (_) { return; }
+            input.value = parts.year + '-' + parts.month + '-' + parts.day + 'T' + parts.hour + ':' + parts.minute;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          });
+          // The preview opens the details window filled from the form; it
+          // puts the saved one back on close (base.html).
+          function md(text, mode){
+            const body = new FormData();
+            body.append('body', text); if (mode) body.append('mode', mode);
+            return fetch('{{ url_for('main.markdown_preview') }}', { method: 'POST', body, credentials: 'same-origin' })
+              .then(r => r.ok ? r.json() : { html: '' }).then(j => j.html || '').catch(() => '');
+          }
+          box.addEventListener('click', e => {
+            if (!hasDetails() || e.target.closest('a')) return;
+            e.preventDefault();
+            const modal = document.getElementById('site-alert-modal');
+            const slot = modal && modal.querySelector('[data-site-alert-detail]');
+            if (!slot) return;
+            Promise.all([md(ta.value), md(detailsTa.value)]).then(([lead, body]) => {
+              if (modal._saved == null) modal._saved = slot.outerHTML;
+              const t = toneNow();
+              slot.className = slot.className.replace(/\bis-\w+/, 'is-' + t);
+              slot.querySelectorAll('[data-tone-icon]').forEach(el => { el.hidden = el.dataset.toneIcon !== t; });
+              const custom = form.querySelector('[data-alert-title]').value.trim();
+              const lbl = form.querySelector('input[name=alert_tone]:checked + span');
+              slot.querySelector('[data-detail-title]').textContent = custom || (lbl ? lbl.textContent : '');
+              slot.querySelector('[data-detail-lead]').innerHTML = lead;
+              // Posted: the date in the field, or now for a new message.
+              const postedOn = form.querySelector('[data-alert-show-posted]').checked;
+              const raw = form.querySelector('[data-alert-posted]').value;
+              const when = raw ? new Date(raw) : new Date();
+              slot.querySelector('[data-detail-posted]').hidden = !postedOn;
+              slot.querySelector('[data-detail-posted-text]').textContent =
+                when.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + ' at ' +
+                when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+              slot.querySelector('[data-detail-body]').innerHTML = body;
+              slot.querySelector('.modal-foot [data-site-alert-close]').hidden = !form.querySelector('[data-alert-closable]').checked;
+              window.tspSiteAlertOpen(box);
+            });
+          });
+          function render(){
+            const body = new FormData();
+            body.append('body', ta.value); body.append('mode', 'inline');
+            fetch('{{ url_for('main.markdown_preview') }}', { method: 'POST', body, credentials: 'same-origin' })
+              .then(r => r.ok ? r.json() : null).then(j => { if (j) msg.innerHTML = j.html || ''; }).catch(() => {});
+          }
+          form.addEventListener('change', tone);
+          ta.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(render, 250); });
+          form.addEventListener('settings:saved', () => {
+            fetch(location.href, { credentials: 'same-origin' }).then(r => r.ok ? r.text() : Promise.reject())
+              .then(html => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                document.querySelectorAll('[data-site-alert]').forEach(el => {
+                  const next = doc.querySelector('[data-site-alert="' + el.dataset.siteAlert + '"]');
+                  if (next) el.replaceWith(document.importNode(next, true));
+                });
+                const detail = document.querySelector('#site-alert-modal [data-site-alert-detail]');
+                const nextDetail = doc.querySelector('#site-alert-modal [data-site-alert-detail]');
+                if (detail && nextDetail) detail.replaceWith(document.importNode(nextDetail, true));
+                const posted = doc.querySelector('[data-alert-posted]');
+                if (posted) form.querySelector('[data-alert-posted]').value = posted.value;
+                const st = doc.querySelector('[data-alert-status]'), now = form.querySelector('[data-alert-status]');
+                if (st && now) now.textContent = st.textContent;
+                if (window.tspSiteAlertSync) window.tspSiteAlertSync();
+              }).catch(() => {});
+          });
+        })();
+        </script>
+      </div>
       <div class="settings-pane" data-pane="security">
 
         {# ── Zoom One-Time-Passcodes (OTP) ───────────────────────── #}
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('key') }}
-            <span>Zoom One-Time-Passcodes (OTP)</span>
+            <span>Zoom One-Time-Passcodes (OTP) {% call chip('Zoom One-Time-Passcodes (OTP)') %}Shared inbox where Zoom sends one-time-password codes. These credentials are shown to users on Online/Hybrid meeting pages so they can retrieve OTP codes when logging into Zoom.{% endcall %}</span>
           </div>
-          <p class="muted small data-card-lead">
-            Shared inbox where Zoom sends one-time-password codes. These credentials are shown to users on Online/Hybrid meeting pages so they can retrieve OTP codes when logging into Zoom.
-          </p>
           <form class="form" method="post" action="{{ url_for('main.otp_email_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="has_imap_fields" value="1">
             <label>Email Address<input name="email" type="email" value="{{ otp.email or '' }}"></label>
             <label>Login URL<input name="login_url" type="url" value="{{ otp.login_url or '' }}" placeholder="https://mail.example.com"></label>
-            <label>Password <span class="muted smaller">(leave blank to keep current)</span>
+            <label>{% call hrow('Password') %}Leave blank to keep current{% endcall %}
               <input name="password" type="password" placeholder="{% if otp.password_enc %}••••••••{% endif %}">
             </label>
             {% if otp.password_enc %}
@@ -1472,10 +1709,10 @@
             </div>
             <label class="check"><input type="checkbox" name="imap_ssl" value="1" {% if otp.imap_ssl is none or otp.imap_ssl %}checked{% endif %}><span>Use SSL/TLS (recommended)</span></label>
             <div class="otp-imap-grid">
-              <label>IMAP Username <span class="muted smaller">(optional)</span><input name="imap_username" type="text" value="{{ otp.imap_username or '' }}" placeholder="defaults to email above" autocomplete="off"></label>
+              <label><span class="field-label-row">IMAP Username <span class="muted smaller">(optional)</span></span><input name="imap_username" type="text" value="{{ otp.imap_username or '' }}" placeholder="defaults to email above" autocomplete="off"></label>
               <label>Mailbox / Folder<input name="imap_mailbox" type="text" value="{{ otp.imap_mailbox or 'INBOX' }}" placeholder="INBOX"></label>
             </div>
-            <label>IMAP Password <span class="muted smaller">(optional — leave blank to reuse the password above)</span>
+            <label>{% call hrow('IMAP Password') %}Optional — leave blank to reuse the password above{% endcall %}
               <input name="imap_password" type="password" placeholder="{% if otp.imap_password_enc %}•••••••• (saved){% else %}app password{% endif %}" autocomplete="new-password">
             </label>
             {% if otp.imap_password_enc %}
@@ -1490,13 +1727,10 @@
         <section class="card data-card">
           <div class="data-card-head">
             {{ icon('shield') }}
-            <span>Login Bot Protection</span>
-          </div>
-          <p class="muted small data-card-lead">
-            Require a Cloudflare Turnstile challenge on the login screen.
+            <span>Login Bot Protection {% call chip('Login Bot Protection') %}Require a Cloudflare Turnstile challenge on the login screen.
             Create a site at <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener">Cloudflare → Turnstile</a>
-            (widget mode: Managed), add your portal hostname to its domain list, then paste the keys below.
-          </p>
+            (widget mode: Managed), add your portal hostname to its domain list, then paste the keys below.{% endcall %}</span>
+          </div>
           <form class="form turnstile-form" method="post" action="{{ url_for('main.turnstile_save') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label>Site key
@@ -1513,8 +1747,7 @@
             {% endif %}
             <li class="special-page-row login-fx-toggle-row">
               <div class="special-page-info">
-                <div class="u-name">Enable on login screen</div>
-                <p class="muted small">When on, successful Turnstile verification is required before credentials are checked.</p>
+                <div class="u-name">Enable on login screen {% call chip() %}When on, successful Turnstile verification is required before credentials are checked.{% endcall %}</div>
               </div>
               <label class="mode-toggle" title="Enable Turnstile on login">
                 <input type="checkbox" name="turnstile_enabled" value="1" {% if site.turnstile_enabled %}checked{% endif %}>
@@ -1533,27 +1766,20 @@
             {{ icon('database') }}
             <span>All data</span>
           </div>
-          <p class="muted small data-card-lead">
-            The complete portal — SQLite database, every uploaded file, and the
+          <p class="muted small data-card-lead">The complete portal — SQLite database, every uploaded file, and the
             Fernet key (<code>zoom.key</code>) used to decrypt stored Zoom
             credentials. Use this to migrate the whole install or roll back to
-            a known-good archive.
-          </p>
+            a known-good archive.</p>
           <div class="data-card-grid">
             <div class="data-card-col">
               <div class="u-name">Import</div>
-              <p class="muted small">
-                Replaces this portal's database and uploads with the contents of an
+              <p class="muted small">Replaces this portal's database and uploads with the contents of an
                 export archive. The current database and uploads are moved to a
                 timestamped <code>backup-YYYYMMDD-HHMMSS/</code> folder inside the
                 data directory before the import is applied. You will be signed out
-                when the import completes. Type <code>REPLACE</code> to confirm.
-              </p>
-              <p class="muted small">
-                Large bundles are sliced into ~90 MB chunks in the browser, so
+                when the import completes. Type <code>REPLACE</code> to confirm. Large bundles are sliced into ~90 MB chunks in the browser, so
                 this works behind proxies that cap request bodies at 100 MB
-                (e.g. Cloudflare Free).
-              </p>
+                (e.g. Cloudflare Free).</p>
               <form class="form" method="post"
                     action="{{ url_for('main.data_import') }}"
                     enctype="multipart/form-data"
@@ -1563,10 +1789,10 @@
                     data-finalize-action="{{ url_for('main.data_import_finalize') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>Export archive (.zip or .zip.enc)<input type="file" name="archive" accept=".zip,.enc,application/zip,application/octet-stream" required></label>
-                <label>Decryption passphrase <span class="muted smaller">(legacy <code>.zip.enc</code> passphrase bundles only; leave blank otherwise)</span>
+                <label><span class="field-label-row">Decryption passphrase <span class="muted small">Legacy <code>.zip.enc</code> passphrase bundles only; leave blank otherwise</span></span>
                   <input type="password" name="passphrase" autocomplete="off" placeholder="Only for passphrase-encrypted bundles">
                 </label>
-                <label>Private key <span class="muted smaller">(end-to-end-encrypted TS&nbsp;Pro Backup <code>.enc</code> files only)</span>
+                <label><span class="field-label-row">Private key <span class="muted small">End-to-end-encrypted TS&nbsp;Pro Backup <code>.enc</code> files only</span></span>
                   <input type="password" name="private_key" autocomplete="off" placeholder="tspsk_… — leave blank for ordinary .zip imports">
                 </label>
                 <p class="muted smaller">
@@ -1746,20 +1972,15 @@
             </div>
             <div class="data-card-col">
               <div class="u-name">Export</div>
-              <p class="muted small">
-                Download a complete archive of this portal — database, uploads, and
-                the Fernet key. Use the Import side on a fresh instance to restore.
-              </p>
-              <p class="muted small">
-                Optional: encrypt the bundle with a passphrase (AES-256-GCM,
+              <p class="muted small">Download a complete archive of this portal — database, uploads, and
+                the Fernet key. Use the Import side on a fresh instance to restore. Optional: encrypt the bundle with a passphrase (AES-256-GCM,
                 PBKDF2-derived key). The downloaded file becomes
                 <code>.zip.enc</code>. The destination needs the same passphrase
                 to import it. Recommended when transmitting through Cloudflare or
-                any other TLS-terminating proxy — the edge only sees ciphertext.
-              </p>
+                any other TLS-terminating proxy — the edge only sees ciphertext.</p>
               <form method="post" action="{{ url_for('main.data_export') }}" class="form" data-no-ajax="1" data-export-bundle-form>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label>Encryption passphrase <span class="muted smaller">(leave blank for plain .zip)</span>
+                <label><span class="field-label-row">Encryption passphrase <span class="muted small">Leave blank for plain .zip</span></span>
                   <div class="passphrase-row">
                     <input type="password" name="passphrase" autocomplete="new-password"
                            placeholder="Optional — encrypts the bundle"
@@ -1884,20 +2105,16 @@
             {{ icon('layout-grid') }}
             <span>Frontend bundle</span>
           </div>
-          <p class="muted small data-card-lead">
-            Just the public frontend — content, navigation (nav items, mega-menu
+          <p class="muted small data-card-lead">Just the public frontend — content, navigation (nav items, mega-menu
             columns and blocks), template choices, colors, alerts, and referenced
             logos / assets. Use this to drop your frontend into a fresh install
-            without touching users, meetings, libraries, or meeting uploads.
-          </p>
+            without touching users, meetings, libraries, or meeting uploads.</p>
           <div class="data-card-grid">
             <div class="data-card-col">
               <div class="u-name">Import frontend</div>
-              <p class="muted small">
-                Overwrites all frontend settings, nav items, and referenced assets
+              <p class="muted small">Overwrites all frontend settings, nav items, and referenced assets
                 with the bundle's contents. Other data (users, meetings, libraries)
-                is left alone. Type <code>REPLACE</code> to confirm.
-              </p>
+                is left alone. Type <code>REPLACE</code> to confirm.</p>
               <form class="form" method="post" action="{{ url_for('main.data_frontend_import') }}" enctype="multipart/form-data" data-no-ajax="1">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>Frontend bundle (.zip)<input type="file" name="archive" accept=".zip,application/zip" required></label>
@@ -1907,11 +2124,9 @@
             </div>
             <div class="data-card-col">
               <div class="u-name">Export frontend</div>
-              <p class="muted small">
-                Download a scoped <code>.zip</code> containing
+              <p class="muted small">Download a scoped <code>.zip</code> containing
                 <code>frontend.json</code> (settings + nav tree) and an
-                <code>assets/</code> folder with every file the frontend references.
-              </p>
+                <code>assets/</code> folder with every file the frontend references.</p>
               <div class="form-actions">
                 <a class="btn btn-primary" href="{{ url_for('main.data_frontend_export') }}">Export frontend bundle (.zip)</a>
               </div>
@@ -1931,14 +2146,12 @@
             {{ icon('layout-grid') }}
             <span>Frontend staging sync</span>
           </div>
-          <p class="muted small data-card-lead">
-            Build your public website on a separate <strong>Staging</strong> copy, then
+          <p class="muted small data-card-lead">Build your public website on a separate <strong>Staging</strong> copy, then
             move it to your <strong>Live</strong> site over the network — no bundle to
             download and re-upload. This wizard pairs the two installs. Only the frontend
             travels (presentation, navigation, page-builder Pages, and the assets they
             use); recovery <em>Stories</em>, users, meetings, and libraries are never
-            touched, and the receiving side auto-saves a rollback snapshot first.
-          </p>
+            touched, and the receiving side auto-saves a rollback snapshot first.</p>
           {% if _fs_has_token %}
           <div class="fe-sync-snap-row">
             <button type="button" class="btn btn-sm"
@@ -1956,10 +2169,8 @@
           {# ── Step: choose this install's role ─────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="role">
             <div class="u-name">Which install is this?</div>
-            <p class="muted small">
-              Staging sync links two installs. <strong>Set up your Live site first</strong> —
-              it mints the shared token you'll paste into Staging.
-            </p>
+            <p class="muted small">Staging sync links two installs. <strong>Set up your Live site first</strong> —
+              it mints the shared token you'll paste into Staging.</p>
             <div class="fe-sync-roles">
               <button type="button" class="fe-sync-role-card" data-fe-sync-role="live">
                 <span class="fe-sync-role-name">This is my Live site</span>
@@ -1986,10 +2197,8 @@
           {# ── Live: create the shared token ────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="live-token">
             <div class="u-name">Create the shared token</div>
-            <p class="muted small">
-              This secret lets your Staging copy sync with this Live site. Generate it
-              here, then paste it into Staging.
-            </p>
+            <p class="muted small">This secret lets your Staging copy sync with this Live site. Generate it
+              here, then paste it into Staging.</p>
             <form class="form" method="post" action="{{ url_for('main.frontend_sync_save') }}"
                   data-no-ajax="1" data-fe-sync-action="save" data-fe-sync-land="live-done">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2010,11 +2219,9 @@
           {# ── Live: handoff / done ─────────────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="live-done">
             <div class="u-name">Live site ready ✓</div>
-            <p class="muted small">
-              This site will now serve and accept syncs from your Staging copy. To finish,
+            <p class="muted small">This site will now serve and accept syncs from your Staging copy. To finish,
               open this wizard on your <strong>Staging</strong> install, choose
-              <em>“This is my Staging copy”</em>, and give it:
-            </p>
+              <em>“This is my Staging copy”</em>, and give it:</p>
             <div class="fe-sync-handoff">
               <div class="fe-sync-handoff-row">
                 <span class="fe-sync-handoff-label">Shared token</span>
@@ -2041,10 +2248,8 @@
           {# ── Staging: paste the token ─────────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="stg-token">
             <div class="u-name">Paste the token from your Live site</div>
-            <p class="muted small">
-              On your Live site you generated a shared token. Paste it here so the two
-              installs match.
-            </p>
+            <p class="muted small">On your Live site you generated a shared token. Paste it here so the two
+              installs match.</p>
             <form class="form" method="post" action="{{ url_for('main.frontend_sync_save') }}"
                   data-no-ajax="1" data-fe-sync-action="save" data-fe-sync-land="stg-url">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2063,10 +2268,8 @@
           {# ── Staging: Live site address ───────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="stg-url">
             <div class="u-name">Your Live site's address</div>
-            <p class="muted small">
-              The address of your Live site — what you'd type in a browser to reach it.
-              An <code>https://</code> address is strongly recommended.
-            </p>
+            <p class="muted small">The address of your Live site — what you'd type in a browser to reach it.
+              An <code>https://</code> address is strongly recommended.</p>
             <form class="form" method="post" action="{{ url_for('main.frontend_sync_save') }}"
                   data-no-ajax="1" data-fe-sync-action="save" data-fe-sync-land="stg-test">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2085,10 +2288,8 @@
           {# ── Staging: test ────────────────────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="stg-test">
             <div class="u-name">Check the connection</div>
-            <p class="muted small">
-              Confirm this Staging copy can reach your Live site with the shared token
-              before moving anything.
-            </p>
+            <p class="muted small">Confirm this Staging copy can reach your Live site with the shared token
+              before moving anything.</p>
             <form class="form" method="post" action="{{ url_for('main.frontend_sync_test') }}"
                   data-no-ajax="1" data-fe-sync-action="test">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -2108,10 +2309,8 @@
           {# ── Staging: sync ────────────────────────────────────── #}
           <div class="fe-sync-panel" data-fe-sync-panel="stg-sync">
             <div class="u-name">Sync the frontend</div>
-            <p class="muted small">
-              Each direction overwrites one side and saves a rollback snapshot on the
-              receiving side first. Type <code>REPLACE</code> to confirm.
-            </p>
+            <p class="muted small">Each direction overwrites one side and saves a rollback snapshot on the
+              receiving side first. Type <code>REPLACE</code> to confirm.</p>
             <div class="data-card-grid">
               <div class="data-card-col">
                 <div class="fe-sync-subhead">Pull&nbsp;&nbsp;Live&nbsp;→&nbsp;here</div>
@@ -2150,12 +2349,10 @@
             {{ icon('cloud-upload') }}
             <span>Off-site backups</span>
           </div>
-          <p class="muted small data-card-lead">
-            Push the full app (database + uploads + Fernet key) to a remote
+          <p class="muted small data-card-lead">Push the full app (database + uploads + Fernet key) to a remote
             destination on a schedule you control. Local snapshots below
             protect against accidents — off-site backups protect against
-            disasters that take the whole machine with them.
-          </p>
+            disasters that take the whole machine with them.</p>
           {% set _backup_targets = backup_targets() %}
           {% if _backup_targets %}
           <ul class="data-snapshot-list">
@@ -2201,11 +2398,9 @@
             {{ icon('save') }}
             <span>Database snapshots</span>
           </div>
-          <p class="muted small data-card-lead">
-            One snapshot of <code>tsp.db</code> is taken automatically each day at
+          <p class="muted small data-card-lead">One snapshot of <code>tsp.db</code> is taken automatically each day at
             app start. The most recent 14 are kept; older ones are pruned. Use
-            these to roll back from an accidental delete or a broken migration.
-          </p>
+            these to roll back from an accidental delete or a broken migration.</p>
           {% set _snaps = db_snapshots() %}
           {% if _snaps %}
           <ul class="data-snapshot-list">
@@ -2234,12 +2429,10 @@
             {{ icon('globe') }}
             <span>WordPress importer</span>
           </div>
-          <p class="muted small data-card-lead">
-            Pull recovery stories, announcements, or events out of an existing
+          <p class="muted small data-card-lead">Pull recovery stories, announcements, or events out of an existing
             WordPress site. Connect over the WP REST API or upload a posts CSV.
             The wizard previews exactly what will be created — including slug
-            clashes and image downloads — before anything is saved.
-          </p>
+            clashes and image downloads — before anything is saved.</p>
           <p class="muted smaller data-card-sub">
             Maps each post (or every post in a category) onto <b>Stories</b>,
             <b>Announcements</b>, <b>Events</b>, or skip. Featured images are
@@ -2307,19 +2500,18 @@
             </div>
           </div>
 
-          {# Release notes + Changelog both render from the same parsed
-             Markdown — RELEASE_NOTES.md / CHANGELOG.md at the repo
-             root, loaded via app/about_docs.py. Editing those Markdown
-             files is the only step needed to update this view.
-             Release notes default open so the About tab leads with
-             what's new; the changelog sits behind a closed <details>. #}
+          {# Release notes render from RELEASE_NOTES.md at the repo root,
+             parsed by app/about_docs.py; editing that file is the only
+             step needed to update this view. They list only the running
+             X.Y line (X.Y.0 to now); the button links to the whole file
+             on GitHub. #}
           <details class="about-rel-notes" open>
             <summary class="about-sub-summary">
-              <h3 class="about-sub">Release notes</h3>
-              <span class="muted smaller">What's new in each version, in plain English.</span>
+              <h3 class="about-sub">Release notes {% call chip('Release notes') %}What's new in this version and the earlier releases of the same line, in plain English.{% endcall %}</h3>
+              <a class="btn btn-sm about-sub-link" href="https://github.com/hyprlab/trusted-servants-pro/blob/main/RELEASE_NOTES.md" target="_blank" rel="noopener">{{ icon('external-link') }} <span>All release notes on GitHub</span></a>
             </summary>
             <ul class="release-notes">
-              {% for e in app_release_notes() %}
+              {% for e in app_release_notes_for_line(app_version) %}
               <li>
                 <div class="u-name">{{ e.version }}{% if e.is_latest %} (latest){% endif %}</div>
                 <div class="muted smaller">
@@ -2333,34 +2525,15 @@
             </ul>
           </details>
 
-          <details class="about-changelog">
-            <summary class="about-sub-summary">
-              <h3 class="about-sub">Changelog</h3>
-              <span class="muted smaller">The full implementation log — every change in technical detail.</span>
-            </summary>
-            <ul class="changelog">
-              {% for e in app_changelog() %}
-              <li>
-                <div class="u-name">{{ e.version }}</div>
-                {% if e.date_label %}<div class="muted smaller">{{ e.date_label }}</div>{% endif %}
-                {{ e.body_html|safe }}
-              </li>
-              {% endfor %}
-            </ul>
-          </details>
         </div>
       </div>
     </div>
-    {# Yellow save bar — JS shows it whenever any tracked form inside the
-       settings modal becomes dirty. Click commits all dirty forms via the
-       same AJAX path the per-form save buttons used to use. #}
-    <div class="fe-save-bar settings-save-bar" id="settings-save-bar" hidden>
-      <span class="fe-save-bar-msg">Unsaved changes</span>
-      <button type="button" class="btn fe-save-bar-btn" id="settings-save-bar-btn">Save</button>
     </div>
   </div>
 </div>
 {# Help popup: tour replay + Public Info Chair contact #}
+{{ site_alert_modal() }}
+
 <div class="modal" id="pic-help-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
   <div class="modal-panel" role="dialog" aria-modal="true">
@@ -2371,14 +2544,13 @@
     <div class="modal-body">
       <div class="help-tour-row">
         <div class="help-tour-copy">
-          <div class="u-name">Guided tour</div>
-          <p class="muted small">Replay the portal walkthrough — the sidebar, dashboard, files, and Zoom calendar.</p>
+          <div class="u-name">Guided tour {% call chip() %}Replay the portal walkthrough — the sidebar, dashboard, files, and Zoom calendar.{% endcall %}</div>
         </div>
         <button type="button" class="btn btn-primary" id="help-tour-btn" data-close>Take the tour</button>
       </div>
       {% if site and (site.pic_name or site.pic_email or site.pic_phone) %}
       <hr class="settings-sep">
-      <p class="muted small">Reach out to our Public Information Chair for questions, concerns, or guidance.</p>
+      <p class="muted small">Reach out to our {{ site.pic_role_label }} for questions, concerns, or guidance.</p>
       <div class="pic-contact">
         {% if site.pic_name %}
         <div class="pic-row"><span class="pic-icon">{{ icon('user') }}</span>{{ site.pic_name }}</div>
@@ -2411,14 +2583,87 @@
   // stack (.flashes) can sit just below the sticky topbar instead of over
   // its action buttons. The bar wraps taller on narrow viewports, so track
   // it with a ResizeObserver rather than hard-coding a height.
+  // An alert bar above the topbar pushes it down until the page scrolls,
+  // so its height counts too.
   (function(){
     var bar = document.querySelector('.content > .topbar');
     if (!bar) return;
     var root = document.documentElement;
-    function sync(){ root.style.setProperty('--topbar-h', bar.offsetHeight + 'px'); }
+    function sync(){
+      var top = document.querySelector('.content > .site-alert--top');
+      root.style.setProperty('--topbar-h', (bar.offsetHeight + (top ? top.offsetHeight : 0)) + 'px');
+    }
     sync();
+    window.tspTopbarSync = sync;
     if (window.ResizeObserver) new ResizeObserver(sync).observe(bar);
     else window.addEventListener('resize', sync);
+  })();
+
+  // The alert bar's Close: remembers the version closed in this browser
+  // and hides it in every place. tspSiteAlertSync re-reads the closed
+  // state after Settings swaps in a saved alert.
+  (function(){
+    var KEY = 'tsp-alert-closed', root = document.documentElement;
+    function closedVersion(){ try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+    window.tspSiteAlertSync = function(){
+      var a = document.querySelector('[data-site-alert][data-closable]');
+      root.classList.toggle('site-alert-closed', !!(a && closedVersion() === a.dataset.version));
+      if (window.tspTopbarSync) window.tspTopbarSync();
+    };
+    // The details window: a click anywhere on a bar with details opens
+    // it, except on a link or the Close button; its Details button is
+    // the way in from the keyboard.
+    var modal = document.getElementById('site-alert-modal');
+    // app.js may have closed it already (its [data-close] and Escape
+    // handlers), so this only finishes the job.
+    function closeDetails(){
+      if (!modal) return;
+      modal._isOpen = false;
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      // The Settings preview filled it from the form: put the saved one back.
+      if (modal._saved != null) { modal.querySelector('[data-site-alert-detail]').outerHTML = modal._saved; modal._saved = null; }
+      if (modal._opener && modal._opener.isConnected) modal._opener.focus();
+    }
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && modal && modal._isOpen) closeDetails(); });
+    window.tspSiteAlertOpen = function(opener){
+      if (!modal) return;
+      modal._opener = opener || null;
+      modal._isOpen = true;
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      var btn = modal.querySelector('.modal-foot .btn-primary');
+      if (btn) setTimeout(function(){ btn.focus(); }, 50);
+    };
+    document.addEventListener('click', function(e){
+      if (modal && modal.contains(e.target) && e.target.closest('[data-close]')) {
+        if (e.target.closest('[data-site-alert-close]') && modal._saved == null) {
+          try { localStorage.setItem(KEY, modal.querySelector('[data-site-alert-detail]').dataset.version); } catch (x) {}
+          root.classList.add('site-alert-closed');
+          if (window.tspTopbarSync) window.tspTopbarSync();
+        }
+        closeDetails();
+        return;
+      }
+      var bar = e.target.closest('.site-alert.has-details[data-site-alert]');
+      if (bar && !e.target.closest('a, [data-site-alert-close]')) {
+        window.tspSiteAlertOpen(bar.querySelector('[data-site-alert-open]'));
+        return;
+      }
+      var btn = e.target.closest('[data-site-alert-close]');
+      if (!btn) return;
+      var a = btn.closest('[data-site-alert]');
+      if (!a) return;
+      try { localStorage.setItem(KEY, a.dataset.version); } catch (x) {}
+      document.querySelectorAll('[data-site-alert]:not([hidden])').forEach(function(el){ el.classList.add('is-closing'); });
+      setTimeout(function(){
+        root.classList.add('site-alert-closed');
+        document.querySelectorAll('[data-site-alert].is-closing').forEach(function(el){ el.classList.remove('is-closing'); });
+        if (window.tspTopbarSync) window.tspTopbarSync();
+      }, 220);
+    });
   })();
 
   // ── Settings → Security: Two-Factor Authentication enrolment ──────
@@ -2613,15 +2858,14 @@
   </div>
 </div>
 
-{# Media picker modal (shared) #}
+{# Media picker modal (shared). Two panes like Settings, with no title
+   bar: the File Browser's sidebar (titled inside the frame) and its
+   files fill the panel, and the close button floats over the corner. #}
 <div class="modal modal-lg" id="media-picker-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <div class="modal-head">
-      <h2>File Browser</h2>
-      <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-    </div>
-    <iframe class="settings-frame" id="media-picker-frame" src="about:blank"></iframe>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-label="File Browser">
+    <iframe class="settings-frame" id="media-picker-frame" src="about:blank" title="File Browser"></iframe>
+    <button type="button" class="icon-btn media-picker-close" data-close aria-label="Close">{{ icon('x') }}</button>
   </div>
 </div>
 
@@ -2724,7 +2968,18 @@
    login page too), so guard on is_authenticated before calling
    can_edit() — current_user is Anonymous there. #}
 {% if current_user.is_authenticated and current_user.can_edit() %}{% include "_notifications_modal.html" %}{% endif %}
+{% include "_confirm_modal.html" %}
+{# The filter sidebar on a phone (app.js initSideFold): the Filters
+   button that sits beside the search, and the icon for each in-use
+   filter's chip. #}
+<template id="fb-side-fold-tpl">
+  <button type="button" class="btn fb-side-fold" aria-expanded="false">{{ icon('sliders') }}<span>Filters</span><span class="fb-side-fold-n" hidden></span>{{ icon('chevron-down', 'fb-side-fold-chev') }}</button>
+  <span class="fb-side-chip-x">{{ icon('x') }}</span>
+</template>
 <script src="{{ url_for('static', filename='js/app.js', v=app_build_id) }}"></script>
+{# Photo zoom: the lightbox (Zoom Tech Training) and in place (a File
+   Browser file's view). #}
+<script src="{{ url_for('static', filename='js/image_lightbox.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/tour.js', v=app_build_id) }}"></script>
 
 {% if current_user.is_authenticated %}
@@ -2894,7 +3149,10 @@
         const tabAttr = item.settings_tab
           ? ' data-settings-tab="' + escapeHtml(item.settings_tab) + '"' : '';
         html += '<li><a class="search-result" href="' + href + '" data-search-result' + tabAttr + '>'
+          + '<span class="search-result-top">'
           + '<span class="search-result-label">' + highlight(item.label || '', tokens) + '</span>'
+          + (item.date ? '<span class="search-result-date muted smaller">' + escapeHtml(item.date) + '</span>' : '')
+          + '</span>'
           + (item.snippet
               ? '<span class="search-result-snippet muted smaller">' + highlight(item.snippet, tokens) + '</span>'
               : '')
@@ -2988,6 +3246,34 @@
 
    Catalog comes from app/dynbg.py via the dynbg_catalog() global,
    so adding a preset there appears here automatically. #}
+{# One catalog card per entry — shared by the picker's two grids
+   (current presets, then the kept-for-continuity ones). #}
+{% macro dynbg_cards(entries) -%}
+  {% for entry in entries %}
+  {# Each thumb carries a fresh random palette + positions
+     (dynbg_thumb_style) so the grid reads as a lively sampler;
+     re-rolled server-side on every page load. #}
+  <label class="fe-dynbg-picker-card" data-dynbg-modal-card data-dynbg-key="{{ entry.key }}">
+    <input type="radio" name="__dynbg_modal_pick" value="{{ entry.key }}">
+    <span class="fe-dynbg-picker-thumb" style="{{ dynbg_thumb_style(entry.key) }}">
+      {% with dynbg_key=entry.key %}{% include "frontend/_dynbg.html" %}{% endwith %}
+    </span>
+    <span class="fe-dynbg-picker-info">
+      {# Badge sits OUTSIDE `.fe-dynbg-picker-name`: the JS reads that
+         element's textContent for the trigger chip's label and the
+         live preview's caption, so a badge nested inside it shows up
+         as "Aurora blobs (classic) Classic". #}
+      <span class="fe-dynbg-picker-name-row">
+        <span class="fe-dynbg-picker-name">{{ entry.name }}</span>
+        {%- if entry.legacy %}<span class="fe-dynbg-picker-badge
+          {{- ' fe-dynbg-picker-badge--retiring' if entry.badge == 'Retiring' }}">{{ entry.badge or 'Classic' }}</span>{% endif %}
+      </span>
+      <span class="fe-dynbg-picker-desc muted small">{{ entry.description }}</span>
+    </span>
+  </label>
+  {% endfor %}
+{%- endmacro %}
+
 <div class="modal modal-lg" id="dynbg-picker-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
   <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="dynbg-picker-modal-title">
@@ -3002,56 +3288,111 @@
        NOT inside the scroll area — so the modal content scrolls beneath
        it and no objects ever appear above it. The dynbg recipes load in
        the admin via dynbg.css so this renders the genuine effect. #}
-    <div class="dynbg-modal-preview" aria-hidden="true">
-      <div class="dynbg-modal-preview-surface fe-dynbg-host"
-           id="dynbg-picker-modal-preview" data-dynbg-preview>
-        <span class="dynbg-modal-preview-empty" data-dynbg-preview-empty>
-          <span class="dynbg-modal-preview-empty-icon">∅</span>
-          <span>No dynamic background</span>
-        </span>
-        <span class="dynbg-modal-preview-badge" data-dynbg-preview-badge></span>
+    {# Split preview: the same recipe painted twice — once with the
+       light-mode tone (admin shell is light), once inside a
+       `.fe-megamenu-force-dark` wrapper so the recipes' dark rules
+       + the dark-mode tone apply. Lets the admin tune both modes
+       side by side without flipping the site theme. #}
+    <div class="dynbg-modal-preview dynbg-modal-preview--split" aria-hidden="true">
+      <div class="dynbg-modal-preview-pane">
+        <div class="dynbg-modal-preview-surface fe-dynbg-host"
+             id="dynbg-picker-modal-preview" data-dynbg-preview data-dynbg-preview-mode="light">
+          <span class="dynbg-modal-preview-empty" data-dynbg-preview-empty>
+            <span class="dynbg-modal-preview-empty-icon">∅</span>
+            <span>No dynamic background</span>
+          </span>
+          <span class="dynbg-modal-preview-badge" data-dynbg-preview-badge></span>
+          <span class="dynbg-modal-preview-mode">Light</span>
+        </div>
+      </div>
+      <div class="dynbg-modal-preview-pane fe-megamenu-force-dark">
+        <div class="dynbg-modal-preview-surface dynbg-modal-preview-surface--dark fe-dynbg-host"
+             id="dynbg-picker-modal-preview-dark" data-dynbg-preview data-dynbg-preview-mode="dark">
+          <span class="dynbg-modal-preview-empty" data-dynbg-preview-empty>
+            <span class="dynbg-modal-preview-empty-icon">∅</span>
+            <span>No dynamic background</span>
+          </span>
+          <span class="dynbg-modal-preview-badge" data-dynbg-preview-badge></span>
+          <span class="dynbg-modal-preview-mode">Dark</span>
+        </div>
+      </div>
+    </div>
+    {# ── Tabs: Background / Options. Background is the preset grid;
+       Options folds in the per-preset knobs, colours, randomize,
+       light/dark tone, and the texture overlay (grid + scope + noise).
+
+       Sits OUTSIDE .modal-body, next to the preview band — both are
+       non-shrinking children of the flex-column .modal-panel, so the
+       preview and the tab bar together form a fixed header and only
+       the panel content below scrolls. Scrolling the preset grid used
+       to carry the tabs off-screen, which left no way back to the
+       other panel without scrolling up again. #}
+    {# Each tab is a wrapper (carries the active/accent styling and
+       is the click target) holding the tab <button> plus, for
+       Background, the help chip pinned right after the label — the
+       chip contains its own <button>, so it can't nest inside the
+       tab button itself. #}
+    <div class="dynbg-modal-tabbar">
+      <div class="dynbg-modal-tabs" role="tablist" data-dynbg-modal-tabs>
+        <div class="dynbg-modal-tab-wrap is-active" data-dynbg-modal-tab-wrap="background">
+          <button type="button" role="tab" class="dynbg-modal-tab is-active"
+                  data-dynbg-modal-tab="background" aria-selected="true">Background</button>{% call chip('Dynamic backgrounds') %}CSS-driven backdrops that animate or sit static behind the surface. Each preset is dark-mode aware and respects <code>prefers-reduced-motion</code>. The chosen background paints behind any solid colour or uploaded image you've also configured. Each tile previews a fresh random palette — your saved colours and texture live on the <b>Options</b> tab.{% endcall %}
+        </div>
+        <div class="dynbg-modal-tab-wrap" data-dynbg-modal-tab-wrap="options">
+          <button type="button" role="tab" class="dynbg-modal-tab"
+                  data-dynbg-modal-tab="options" aria-selected="false">Options</button>
+        </div>
       </div>
     </div>
     <div class="modal-body">
       {%- set _dyn = dynbg_defaults() -%}
-      {# ── Tabs: Background / Options. Background is the preset grid;
-         Options folds in the per-preset knobs, colours, randomize,
-         pastel, and the texture overlay (grid + scope + noise). #}
-      <div class="dynbg-modal-tabs" role="tablist" data-dynbg-modal-tabs>
-        <button type="button" role="tab" class="dynbg-modal-tab is-active"
-                data-dynbg-modal-tab="background" aria-selected="true">Background</button>
-        <button type="button" role="tab" class="dynbg-modal-tab"
-                data-dynbg-modal-tab="options" aria-selected="false">Options</button>
-      </div>
-
       <section class="dynbg-modal-panel is-active" data-dynbg-modal-panel="background">
-        <p class="muted small dynbg-modal-blurb">CSS-driven backdrops that animate or sit static behind the surface. Each preset is dark-mode aware and respects <code>prefers-reduced-motion</code>. The chosen background paints behind any solid colour or uploaded image you've also configured. Each tile previews a fresh random palette — your saved colours and texture live on the <b>Options</b> tab.</p>
-        <div class="fe-dynbg-picker fe-dynbg-picker-md" id="dynbg-picker-modal-grid" role="radiogroup">
-          <label class="fe-dynbg-picker-card" data-dynbg-modal-card data-dynbg-key="">
-            <input type="radio" name="__dynbg_modal_pick" value="">
-            <span class="fe-dynbg-picker-thumb fe-dynbg-picker-thumb-none" aria-hidden="true">
-              <span class="fe-dynbg-picker-none-icon">∅</span>
-            </span>
-            <span class="fe-dynbg-picker-info">
-              <span class="fe-dynbg-picker-name">None</span>
-              <span class="fe-dynbg-picker-desc muted small">Solid colour or uploaded image only — no dynamic backdrop.</span>
-            </span>
-          </label>
-          {% for entry in dynbg_catalog() %}
-          {# Each thumb carries a fresh random palette + positions
-             (dynbg_thumb_style) so the grid reads as a lively sampler;
-             re-rolled server-side on every page load. #}
-          <label class="fe-dynbg-picker-card" data-dynbg-modal-card data-dynbg-key="{{ entry.key }}">
-            <input type="radio" name="__dynbg_modal_pick" value="{{ entry.key }}">
-            <span class="fe-dynbg-picker-thumb" style="{{ dynbg_thumb_style(entry.key) }}">
-              {% with dynbg_key=entry.key %}{% include "frontend/_dynbg.html" %}{% endwith %}
-            </span>
-            <span class="fe-dynbg-picker-info">
-              <span class="fe-dynbg-picker-name">{{ entry.name }}</span>
-              <span class="fe-dynbg-picker-desc muted small">{{ entry.description }}</span>
-            </span>
-          </label>
-          {% endfor %}
+        {# Two grids, one radiogroup: the presets to pick from, then the
+           kept-for-continuity ones behind a divider. They're separate
+           grids so each row's cards stretch across the full width on
+           their own — a single grid sizes its columns once for every
+           row, so a 4-card section stranded two empty tracks on the
+           right of the picker. `auto-fit` (not `auto-fill`) is the other
+           half: it collapses the tracks a row doesn't use so the `1fr`
+           spreads across the cards that exist.
+
+           The `dynbg-picker-modal-grid` id moves to the wrapper — the
+           block editor looks up catalog entries through it with a
+           DESCENDANT selector, so it still resolves. #}
+        <div id="dynbg-picker-modal-grid" role="radiogroup">
+          <div class="fe-dynbg-picker fe-dynbg-picker-md">
+            <label class="fe-dynbg-picker-card" data-dynbg-modal-card data-dynbg-key="">
+              <input type="radio" name="__dynbg_modal_pick" value="">
+              <span class="fe-dynbg-picker-thumb fe-dynbg-picker-thumb-none" aria-hidden="true">
+                <span class="fe-dynbg-picker-none-icon">∅</span>
+              </span>
+              <span class="fe-dynbg-picker-info">
+                <span class="fe-dynbg-picker-name">None</span>
+                <span class="fe-dynbg-picker-desc muted small">Solid colour or uploaded image only — no dynamic backdrop.</span>
+              </span>
+            </label>
+            {{ dynbg_cards(dynbg_catalog() | rejectattr('legacy') | list) }}
+          </div>
+
+          {# The catalog's `legacy` entries get their own heading + badge,
+             so nobody picks one by accident thinking it's a current
+             preset. Two things land here: the pre-rework versions of the
+             soft recipes, and presets on their way out. Each entry's
+             `badge` says which. #}
+          {%- set _legacy_entries = dynbg_catalog() | selectattr('legacy') | list -%}
+          {% if _legacy_entries %}
+          <p class="fe-dynbg-picker-divider muted small">
+            <b>Classic &amp; retiring</b> — kept so existing surfaces keep rendering,
+            not a first choice for new work. <b>Classic</b> marks the version a preset
+            had before the light/dark rework, so a site designed against it can be
+            moved over one surface at a time; <b>Retiring</b> marks one being phased
+            out. Everything else (per-mode colours, tone, texture) works on them the
+            same way.
+          </p>
+          <div class="fe-dynbg-picker fe-dynbg-picker-md">
+            {{ dynbg_cards(_legacy_entries) }}
+          </div>
+          {% endif %}
         </div>
       </section>
 
@@ -3061,8 +3402,9 @@
          as JSON so the modal handler reads it without a round-trip. #}
       <section class="dynbg-modal-panel" data-dynbg-modal-panel="options"
                data-dynbg-preset-caps='{{ dynbg_preset_caps() | tojson }}'
-               data-dynbg-overlay-knobs='{{ dynbg_overlay_knobs() | tojson }}'>
-        <p class="muted small dynbg-modal-blurb">Fine-tune the selected background, paint a custom palette, and layer an optional texture overlay. The live preview above updates as you go.</p>
+               data-dynbg-overlay-knobs='{{ dynbg_overlay_knobs() | tojson }}'
+               data-dynbg-patterns-url="{{ url_for('main.dynbg_patterns_json') }}">
+        <p class="muted small dynbg-modal-blurb">Fine-tune the selected background, then style light mode and dark mode independently — palette, tone and texture per mode. The split preview above updates as you go.</p>
 
         {# "Disable animation" gate. Visible only when the active
            preset is one of the keyframe-animated ones (hidden by JS
@@ -3073,7 +3415,7 @@
           <legend>Animation</legend>
           <label class="check dynbg-modal-randomize">
             <input type="checkbox" id="dynbg-picker-modal-animate-off" value="1">
-            <span><b>Freeze movement</b> <span class="muted smaller">— stops the keyframe animation on this preset (blobs / bands stay where they're first painted). Useful for marketing screenshots, low-power devices, or visitors who find motion distracting.</span></span>
+            <span><b>Freeze movement</b>{% call chip('Freeze movement') %}Stops the keyframe animation on this preset (blobs / bands stay where they're first painted). Useful for marketing screenshots, low-power devices, or visitors who find motion distracting.{% endcall %}</span>
           </label>
         </fieldset>
 
@@ -3088,149 +3430,291 @@
           <button type="button" class="btn btn-sm" id="dynbg-picker-modal-knobs-reset" style="align-self: flex-start; margin-top: 4px;">Reset to default</button>
         </fieldset>
 
-        <fieldset class="dynbg-modal-fieldset" id="dynbg-picker-modal-colors-row">
-          <legend>Custom colours</legend>
-          <p class="muted small" style="margin: 0 0 8px;">Override the brand-token colours each preset uses with up to three custom hexes. Unset slots (shown ∅) fall through to the brand accent. Colour 1 is the primary glow, Colour 2 the secondary accent, Colour 3 the tertiary highlight.</p>
-          <div class="dynbg-modal-colors">
-            {% for slot in [1, 2, 3] %}
-            <label class="dynbg-modal-color-row">
-              <span class="dynbg-modal-color-label">Colour {{ slot }}</span>
-              <span class="dynbg-modal-color-controls">
-                {# A native <input type=color> can't be empty, so an
-                   UNSET slot is shown by overlaying a ∅ glyph over a
-                   neutral swatch (CSS) — never the misleading brand
-                   blue. The overlay is absolutely positioned over the
-                   swatch (always the row's first, left-edge item) so it
-                   does NOT wrap the input: the shared design-token
-                   picker injects its 🎨 button / hex caption / chip
-                   right after the input, and those must stay as normal
-                   flex siblings in the row (wrapping the input made
-                   them cram into the 44×44 chip). JS toggles `is-shown`
-                   on the overlay on open / pick / clear. #}
-                <input type="color" id="dynbg-picker-modal-c{{ slot }}-color"
-                       data-dynbg-modal-color="{{ slot }}" value="#cccccc">
-                <span class="dynbg-modal-color-null is-shown"
-                      data-dynbg-color-null="{{ slot }}" aria-hidden="true">∅</span>
-                <input type="text" id="dynbg-picker-modal-c{{ slot }}-text"
-                       data-dynbg-modal-color-text="{{ slot }}"
-                       placeholder="none" maxlength="9"
-                       pattern="^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
-                       autocomplete="off">
-                <button type="button" class="btn btn-sm dynbg-modal-color-clear"
-                        data-dynbg-modal-color-clear="{{ slot }}">Clear</button>
-              </span>
-            </label>
-            {% endfor %}
-          </div>
-        </fieldset>
+        {# ── Per-mode columns. Light mode on the left, dark mode on the
+           right, each fully independent: its own colours (hidden while
+           "random colours" is on), saturation + intensity, and texture
+           overlay. Everything inside a column is addressed by
+           data-dynbg-mode so the JS is mode-generic. #}
+        <div class="dynbg-modal-modes" id="dynbg-picker-modal-modes">
+          {% for _mode, _mode_label in (('light', 'Light mode'), ('dark', 'Dark mode')) %}
+          <section class="dynbg-modal-mode dynbg-modal-mode--{{ _mode }}" data-dynbg-mode="{{ _mode }}" aria-labelledby="dynbg-picker-modal-mode-{{ _mode }}-title">
+            <h3 class="dynbg-modal-mode-title" id="dynbg-picker-modal-mode-{{ _mode }}-title">{{ _mode_label }}</h3>
 
-        <fieldset class="dynbg-modal-fieldset" id="dynbg-picker-modal-randomize-row">
-          <legend>Randomize on every page load</legend>
-          <label class="check dynbg-modal-randomize" id="dynbg-picker-modal-randomize-colors-label">
-            <input type="checkbox" id="dynbg-picker-modal-randomize-colors" value="1">
-            <span><b>Colours</b> <span class="muted smaller">— ignores the slots above; picks a fresh brand-friendly palette each render so the surface re-tints every visit.</span></span>
-          </label>
-          <label class="check dynbg-modal-randomize" id="dynbg-picker-modal-randomize-positions-label">
-            <input type="checkbox" id="dynbg-picker-modal-randomize-positions" value="1">
-            <span><b>Positions</b> <span class="muted smaller" data-dynbg-randpos-hint>— blobs / gradients / bands spawn at fresh coordinates each render.</span></span>
-          </label>
-        </fieldset>
-
-        <fieldset class="dynbg-modal-fieldset" id="dynbg-picker-modal-pastel-row">
-          <legend>Light-mode tone</legend>
-          <div class="dynbg-modal-pastel-row">
-            <label for="dynbg-picker-modal-pastel-light" class="dynbg-modal-pastel-label">
-              <b>Light-mode pastel strength</b>
-              <span class="muted smaller">— softens whichever colours are in play (slots above OR a randomised palette) when the visitor is viewing the site in light mode. <b>0</b> leaves the colours at full saturation; <b>100</b> drops them into a soft pastel band (cream / blush / mint territory). Dark mode is unaffected.</span>
-            </label>
-            <div class="dynbg-modal-pastel-slider">
-              <input type="range"
-                     id="dynbg-picker-modal-pastel-light"
-                     min="0" max="100" step="1" value="0"
-                     aria-describedby="dynbg-picker-modal-pastel-light-out">
-              <output id="dynbg-picker-modal-pastel-light-out"
-                      for="dynbg-picker-modal-pastel-light"
-                      aria-live="off">0</output>
-            </div>
-          </div>
-        </fieldset>
-
-        {# ── Texture overlay (merged from the old Overlay tab) ──── #}
-        <fieldset class="dynbg-modal-fieldset">
-          <legend>Texture overlay</legend>
-          <p class="muted small" style="margin: 0 0 10px;">A texture pass that paints over the base background AND content (subtle by default; click-through). Compose with any base background or use standalone over a solid colour.</p>
-          <div class="fe-dynbg-picker fe-dynbg-picker-md" id="dynbg-picker-modal-overlay-grid" role="radiogroup">
-            <label class="fe-dynbg-picker-card" data-dynbg-modal-overlay-card data-dynbg-overlay-key="">
-              <input type="radio" name="__dynbg_modal_overlay_pick" value="">
-              <span class="fe-dynbg-picker-thumb fe-dynbg-picker-thumb-none" aria-hidden="true">
-                <span class="fe-dynbg-picker-none-icon">∅</span>
-              </span>
-              <span class="fe-dynbg-picker-info">
-                <span class="fe-dynbg-picker-name">None</span>
-                <span class="fe-dynbg-picker-desc muted small">No texture overlay.</span>
-              </span>
-            </label>
-            {% for entry in dynbg_overlays() %}
-            <label class="fe-dynbg-picker-card" data-dynbg-modal-overlay-card data-dynbg-overlay-key="{{ entry.key }}">
-              <input type="radio" name="__dynbg_modal_overlay_pick" value="{{ entry.key }}">
-              <span class="fe-dynbg-picker-thumb fe-dynbg-overlay-thumb">
-                {# Overlays render against the surface they're on top
-                   of — paint a soft brand-tinted plate behind so the
-                   recipe reads in isolation. #}
-                <span class="fe-dynbg-overlay-thumb-plate"></span>
-                {% with dynbg_overlay_key=entry.key %}{% include "frontend/_dynbg_overlay.html" %}{% endwith %}
-              </span>
-              <span class="fe-dynbg-picker-info">
-                <span class="fe-dynbg-picker-name">{{ entry.name }}</span>
-                <span class="fe-dynbg-picker-desc muted small">{{ entry.description }}</span>
-              </span>
-            </label>
-            {% endfor %}
-          </div>
-
-          {# Texture Size + Intensity — shown for ANY active overlay
-             (not just noise-grain). The JS sets each slider's bounds /
-             step / default from the overlay-knob spec stamped on the
-             modal, and reads them back into overlay_size /
-             overlay_intensity. Placed directly under the overlay cards
-             per the requested order; Scope sits at the bottom. #}
-          <div class="dynbg-modal-subgroup" id="dynbg-picker-modal-overlay-knobs" hidden>
-            <span class="dynbg-modal-subgroup-label" data-dynbg-overlay-knobs-title>Texture knobs</span>
-            <p class="muted small" style="margin: 0 0 8px;" data-dynbg-overlay-knobs-blurb>Fine-tune the texture's scale and how strongly it reads.</p>
-            <label class="dynbg-modal-slider-row">
-              <span class="dynbg-modal-slider-label"><span data-dynbg-ovsize-label>Size</span> <output id="dynbg-picker-modal-noise-size-out">{{ _dyn.noise_size }}</output></span>
-              <input type="range" id="dynbg-picker-modal-noise-size"
-                     min="{{ _dyn.noise_size_min }}" max="{{ _dyn.noise_size_max }}"
-                     step="0.05" value="{{ _dyn.noise_size }}">
-              <span class="muted smaller" data-dynbg-ovsize-hint>{{ _dyn.noise_size_min }} = coarse · {{ _dyn.noise_size_max }} = fine</span>
-            </label>
-            <label class="dynbg-modal-slider-row">
-              <span class="dynbg-modal-slider-label"><span data-dynbg-ovint-label>Intensity</span> <output id="dynbg-picker-modal-noise-intensity-out">{{ '%.3f' % _dyn.noise_intensity }}</output></span>
-              <input type="range" id="dynbg-picker-modal-noise-intensity"
-                     min="{{ _dyn.noise_intensity_min }}" max="{{ _dyn.noise_intensity_max }}"
-                     step="0.005" value="{{ _dyn.noise_intensity }}">
-              <span class="muted smaller" data-dynbg-ovint-hint>{{ _dyn.noise_intensity_min }} = whisper · {{ _dyn.noise_intensity_max }} = heavy</span>
-            </label>
-            <button type="button" class="btn btn-sm" id="dynbg-picker-modal-noise-reset" style="align-self: flex-start; margin-top: 4px;">Reset to default</button>
-          </div>
-
-          <div class="dynbg-modal-subgroup">
-            <span class="dynbg-modal-subgroup-label">Scope</span>
-            <p class="muted small" style="margin: 0 0 8px;">Where the texture lays down. <b>All</b> rides over backgrounds AND content for a consistent surface finish. <b>Background only</b> tucks it under the content (cards / typography stay clean).</p>
-            <div class="dynbg-modal-scope-row" role="radiogroup">
-              <label class="dynbg-modal-scope-opt">
-                <input type="radio" name="__dynbg_modal_scope_pick" value="all"
-                       id="dynbg-picker-modal-scope-all" checked>
-                <span><b>All page elements</b> <span class="muted smaller">— textures bg + content</span></span>
+            <fieldset class="dynbg-modal-fieldset" data-dynbg-mode-randomize-row>
+              <legend>Randomize on every page load</legend>
+              {# Each toggle owns the button directly under it, and that
+                 button only ever touches its own concern — shuffling a
+                 sample palette never rewrites the fixed colour slots,
+                 rolling a layout never touches colours. A row keeps its
+                 place whether the toggle is on or off; only the button
+                 inside it changes, because "randomising" and "fixed"
+                 genuinely are two different actions:
+                   · randomising → shuffle the SAMPLE the preview shows
+                   · fixed       → roll a value and KEEP it #}
+              <label class="check dynbg-modal-randomize" data-dynbg-mode-randomize-colors-label>
+                <input type="checkbox" data-dynbg-mode-randomize-colors value="1">
+                <span><b>Colours</b>{% call chip('Randomize colours') %}Picks a fresh brand-friendly palette each page load.{% endcall %}</span>
               </label>
-              <label class="dynbg-modal-scope-opt">
-                <input type="radio" name="__dynbg_modal_scope_pick" value="bg"
-                       id="dynbg-picker-modal-scope-bg">
-                <span><b>Background only</b> <span class="muted smaller">— texture sits under content</span></span>
+              <div class="dynbg-modal-roll-row" data-dynbg-mode-colors-row-actions hidden>
+                <button type="button" class="btn btn-sm dynbg-modal-roll" data-dynbg-mode-colors-shuffle>
+                  {{ icon('refresh') }} Shuffle sample palette
+                </button>
+                <span class="muted smaller">Preview another of the palettes visitors will get.</span>
+              </div>
+
+              {# The limiter on the roller. Without it both modes drew
+                 from one mid-lightness band, so a dark-mode column with
+                 "Colours" on came back as bright as the light one and
+                 the section stopped reading as dark. This is the centre
+                 of the band the generator picks from, so it governs the
+                 per-page-load shuffle AND the "Roll colours" button. It
+                 sits here rather than under Tone because it shapes what
+                 gets rolled, not how a picked colour is displayed. #}
+              <label class="dynbg-modal-tone-field dynbg-modal-rndlight"
+                     for="dynbg-picker-modal-{{ _mode }}-rnd-light"
+                     data-dynbg-mode-rndlight-row>
+                <span class="dynbg-modal-tone-label"><b>Shade lightness</b>{% call chip('Shade lightness') %}
+                  {%- if _mode == 'dark' %}The ceiling on how bright a randomised colour can be, so dark mode stays dark. Lower = deeper shades.
+                  {%- else %}Where randomised colours land: lower = deeper, higher = paler.
+                  {%- endif %} Only in play while <b>Colours</b> is on — with it off, the same slider leads the Colours section.{% endcall %}</span>
+                <span class="dynbg-modal-tone-slider">
+                  <input type="range" id="dynbg-picker-modal-{{ _mode }}-rnd-light"
+                         data-dynbg-mode-tone="rnd_light" min="0" max="100" step="1"
+                         value="{{ dynbg_tone_default('rnd_light', _mode) }}">
+                  <output for="dynbg-picker-modal-{{ _mode }}-rnd-light" aria-live="off">{{ dynbg_tone_default('rnd_light', _mode) }}</output>
+                </span>
               </label>
-            </div>
-          </div>
-        </fieldset>
+
+              <label class="check dynbg-modal-randomize" data-dynbg-mode-randomize-positions-label>
+                <input type="checkbox" data-dynbg-mode-randomize-positions value="1">
+                <span><b>Positions</b>{% call chip('Randomize positions') %}Blobs / gradients / bands spawn at fresh coordinates each page load.{% endcall %}</span>
+              </label>
+              <div class="dynbg-modal-roll-row" data-dynbg-mode-pos-row-actions hidden>
+                {# Randomising: the layout changes per page load, so the
+                   only useful action is previewing another sample. #}
+                <button type="button" class="btn btn-sm dynbg-modal-roll"
+                        data-dynbg-mode-pos-shuffle hidden>
+                  {{ icon('refresh') }} Shuffle sample layout
+                </button>
+                <span class="muted smaller" data-dynbg-mode-pos-shuffle-note hidden>Preview another of the layouts visitors will get.</span>
+                {# Fixed: roll a layout and keep it — the positional twin
+                   of "Roll colours" in the Colours fieldset below. #}
+                <button type="button" class="btn btn-sm dynbg-modal-roll"
+                        data-dynbg-mode-pos-roll hidden>
+                  {{ icon('refresh') }} Roll positions
+                </button>
+                <button type="button" class="btn btn-sm dynbg-modal-roll"
+                        data-dynbg-mode-pos-reset hidden>Reset layout</button>
+                <span class="muted smaller" data-dynbg-mode-pos-note hidden>Using a kept layout.</span>
+              </div>
+            </fieldset>
+
+            <fieldset class="dynbg-modal-fieldset" data-dynbg-mode-colors-row>
+              <legend>Colours {% call chip('Colours') %}<span data-dynbg-mode-colors-blurb>Leave a slot blank to fall through to the brand accent.</span>{% endcall %}</legend>
+              <div class="dynbg-modal-colors" data-dynbg-mode-color-slots>
+                {# Re-rolls the slots with a fresh brand-friendly palette
+                   without turning "random colours" on — the admin keeps a
+                   fixed palette, they just want help finding one. Same
+                   generator the randomise preview uses. Sits ABOVE the
+                   chips: it's the starting move for a palette you haven't
+                   mixed yet, and at the bottom of six slots it read as an
+                   afterthought you had to scroll past them to find. #}
+                <button type="button" class="btn btn-sm dynbg-modal-roll dynbg-modal-roll--lead" data-dynbg-mode-roll>
+                  {{ icon('refresh') }} Roll colours
+                </button>
+                {# The SAME `rnd_light` value as the slider in the
+                   Randomize fieldset — one shade setting per mode, shown
+                   wherever it's the live control. Here it acts on the
+                   fixed chips directly: dragging it lightens / darkens
+                   every filled slot together (relative to the palette as
+                   last rolled or typed, so returning the slider returns
+                   the colours), and Roll colours draws its palette at
+                   this shade. Up there it limits the generator instead,
+                   which is why that copy is a ceiling and this one is a
+                   dimmer. Leads the fieldset alongside Roll colours: the
+                   two are the "get me a palette" pair, and you reach for
+                   them before touching individual chips. #}
+                <label class="dynbg-modal-tone-field dynbg-modal-rndlight"
+                       for="dynbg-picker-modal-{{ _mode }}-shade"
+                       data-dynbg-mode-shade-row>
+                  <span class="dynbg-modal-tone-label"><b>Shade lightness</b>{% call chip('Shade lightness') %}Lightens or darkens every colour below together{% if _mode == 'dark' %}; keep it low so the section reads as dark{% endif %}. <b>Roll colours</b> picks a fresh palette at this shade.{% endcall %}</span>
+                  <span class="dynbg-modal-tone-slider">
+                    <input type="range" id="dynbg-picker-modal-{{ _mode }}-shade"
+                           data-dynbg-mode-tone="rnd_light" min="0" max="100" step="1"
+                           value="{{ dynbg_tone_default('rnd_light', _mode) }}">
+                    <output for="dynbg-picker-modal-{{ _mode }}-shade" aria-live="off">{{ dynbg_tone_default('rnd_light', _mode) }}</output>
+                  </span>
+                </label>
+                {% for slot in [1, 2, 3, 4, 5, 6] %}
+                <label class="dynbg-modal-color-row" data-dynbg-mode-color-slot="{{ slot }}">
+                  <span class="dynbg-modal-color-label" data-dynbg-mode-color-label="{{ slot }}">Colour {{ slot }}</span>
+                  <span class="dynbg-modal-color-controls">
+                    {# Native <input type=color> can't be empty, so an
+                       UNSET slot shows a ∅ glyph over a neutral swatch
+                       (never the misleading brand blue). The overlay
+                       sits absolutely over the swatch so the shared
+                       design-token picker's injected 🎨 button / hex
+                       caption stay normal flex siblings. #}
+                    <input type="color" id="dynbg-picker-modal-{{ _mode }}-c{{ slot }}-color"
+                           data-dynbg-mode-color="{{ slot }}" value="#cccccc" data-dt-no-caption>
+                    <span class="dynbg-modal-color-null is-shown"
+                          data-dynbg-mode-color-null="{{ slot }}" aria-hidden="true">∅</span>
+                    {# The editable hex chip — type or paste a hex here; it
+                       is the slot's source of truth (the swatch mirrors it). #}
+                    <input type="text" id="dynbg-picker-modal-{{ _mode }}-c{{ slot }}-text"
+                           data-dynbg-mode-color-text="{{ slot }}"
+                           placeholder="#hex" maxlength="9" spellcheck="false"
+                           title="Type or paste a hex colour (blank = brand default)"
+                           pattern="^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                           autocomplete="off">
+                    <button type="button" class="btn btn-sm dynbg-modal-color-clear"
+                            data-dynbg-mode-color-clear="{{ slot }}">Clear</button>
+                  </span>
+                </label>
+                {% endfor %}
+                {# Pattern-tile only: how the backdrop behind the motif is
+                   painted. Lives here because it reads the Background and
+                   Gradient end chips directly above it — "Linear gradient"
+                   is a statement about those two slots. Shown / hidden by
+                   the same preset gate that shows slots 5-6. #}
+                <div class="dynbg-modal-colors-bg" data-dynbg-mode-colors-bg hidden>
+                  <label class="dynbg-modal-slider-row dynbg-modal-select-row" for="dynbg-picker-modal-{{ _mode }}-pat-bg">
+                    <span class="dynbg-modal-slider-label">Background</span>
+                    <select id="dynbg-picker-modal-{{ _mode }}-pat-bg" data-dynbg-mode-pat="bg">
+                      <option value="solid">Solid colour</option>
+                      <option value="gradient">Linear gradient</option>
+                    </select>
+                  </label>
+                  <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-pat-bg-angle" data-dynbg-mode-pat-angle>
+                    <span class="dynbg-modal-tone-label"><b>Gradient direction</b>{% call chip('Gradient direction') %}The angle the Background chip blends into Gradient end.{% endcall %}</span>
+                    <span class="dynbg-modal-tone-slider">
+                      <input type="range" id="dynbg-picker-modal-{{ _mode }}-pat-bg-angle"
+                             data-dynbg-mode-pat="bg_angle" min="0" max="355" step="5" value="135">
+                      <output for="dynbg-picker-modal-{{ _mode }}-pat-bg-angle" aria-live="off">135</output>°
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset class="dynbg-modal-fieldset dynbg-modal-tone" data-dynbg-mode-tone-row>
+              <legend>Tone</legend>
+              <div class="dynbg-modal-tone-grid dynbg-modal-tone-grid--stack">
+                <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-sat">
+                  <span class="dynbg-modal-tone-label"><b>Saturation</b>{% call chip('Saturation') %}100 = fully vivid, 0 = greyscale.{% endcall %}</span>
+                  <span class="dynbg-modal-tone-slider">
+                    <input type="range" id="dynbg-picker-modal-{{ _mode }}-sat"
+                           data-dynbg-mode-tone="sat" min="0" max="100" step="1" value="100">
+                    <output for="dynbg-picker-modal-{{ _mode }}-sat" aria-live="off">100</output>
+                  </span>
+                </label>
+                <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-bright">
+                  <span class="dynbg-modal-tone-label"><b>Brightness</b>{% call chip('Brightness') %}100 = colours as picked; lower darkens toward black, higher lightens toward white.{% endcall %}</span>
+                  <span class="dynbg-modal-tone-slider">
+                    <input type="range" id="dynbg-picker-modal-{{ _mode }}-bright"
+                           data-dynbg-mode-tone="bright" min="0" max="200" step="1" value="100">
+                    <output for="dynbg-picker-modal-{{ _mode }}-bright" aria-live="off">100</output>
+                  </span>
+                </label>
+                <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-fill" data-dynbg-mode-tone-soft>
+                  <span class="dynbg-modal-tone-label"><b>Colour fill</b>{% call chip('Colour fill') %}How much of the surface is painted with the palette vs left as the page's {{ 'white' if _mode == 'light' else 'black' }}. 0 = page colour shows through; 100 = full colour, no {{ 'white' if _mode == 'light' else 'black' }} at all.{% endcall %}</span>
+                  <span class="dynbg-modal-tone-slider">
+                    <input type="range" id="dynbg-picker-modal-{{ _mode }}-fill"
+                           data-dynbg-mode-tone="fill" min="0" max="100" step="1" value="0">
+                    <output for="dynbg-picker-modal-{{ _mode }}-fill" aria-live="off">0</output>
+                  </span>
+                </label>
+                {# Classic recipes only: the pre-rework light-mode wash.
+                   It's restored as a real, visible slider rather than
+                   hidden compatibility state, so a surface that came
+                   over from the old build shows exactly what it's doing
+                   and the admin can dial it out on their own schedule. #}
+                <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-pastel" data-dynbg-mode-tone-pastel hidden>
+                  <span class="dynbg-modal-tone-label"><b>Pastel wash</b>{% call chip('Pastel wash') %}The classic recipes' softening: 0 = colours as picked, 100 = full cream / blush pastel.{% endcall %}</span>
+                  <span class="dynbg-modal-tone-slider">
+                    <input type="range" id="dynbg-picker-modal-{{ _mode }}-pastel"
+                           data-dynbg-mode-tone="pastel" min="0" max="100" step="1" value="0">
+                    <output for="dynbg-picker-modal-{{ _mode }}-pastel" aria-live="off">0</output>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
+            {# Pattern-tile only: this mode's motif opacity. The backdrop
+               controls that used to sit here moved into the Colours
+               fieldset, next to the Background / Gradient end chips they
+               act on — choosing "Linear gradient" here while the second
+               colour it reads lived in another fieldset made the pair
+               impossible to set as one decision. #}
+            <fieldset class="dynbg-modal-fieldset dynbg-modal-tone" data-dynbg-mode-pat-row hidden>
+              <legend>Pattern</legend>
+              <div class="dynbg-modal-tone-grid dynbg-modal-tone-grid--stack">
+                <label class="dynbg-modal-tone-field" for="dynbg-picker-modal-{{ _mode }}-pat-opacity">
+                  <span class="dynbg-modal-tone-label"><b>Opacity</b>{% call chip('Motif opacity') %}How strongly the motif paints over the backdrop.{% endcall %}</span>
+                  <span class="dynbg-modal-tone-slider">
+                    <input type="range" id="dynbg-picker-modal-{{ _mode }}-pat-opacity"
+                           data-dynbg-mode-pat="opacity" min="5" max="100" step="5" value="100">
+                    <output for="dynbg-picker-modal-{{ _mode }}-pat-opacity" aria-live="off">100</output>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="dynbg-modal-fieldset" data-dynbg-mode-overlay-row>
+              <legend>Texture overlay {% call chip('Texture overlay') %}A texture pass painted over the base background (and optionally the content) in this mode only. Compose with any base background or use standalone over a solid colour.{% endcall %}</legend>
+              <div class="fe-dynbg-picker fe-dynbg-picker-sm" data-dynbg-mode-overlay-grid role="radiogroup">
+                <label class="fe-dynbg-picker-card" data-dynbg-mode-overlay-card data-dynbg-overlay-key="">
+                  <input type="radio" name="__dynbg_modal_overlay_pick_{{ _mode }}" value="">
+                  <span class="fe-dynbg-picker-thumb fe-dynbg-picker-thumb-none" aria-hidden="true">
+                    <span class="fe-dynbg-picker-none-icon">∅</span>
+                  </span>
+                  <span class="fe-dynbg-picker-info"><span class="fe-dynbg-picker-name">None</span></span>
+                </label>
+                {% for entry in dynbg_overlays() %}
+                <label class="fe-dynbg-picker-card" data-dynbg-mode-overlay-card data-dynbg-overlay-key="{{ entry.key }}" title="{{ entry.description }}">
+                  <input type="radio" name="__dynbg_modal_overlay_pick_{{ _mode }}" value="{{ entry.key }}">
+                  <span class="fe-dynbg-picker-thumb fe-dynbg-overlay-thumb">
+                    <span class="fe-dynbg-overlay-thumb-plate"></span>
+                    {% with dynbg_overlay_key=entry.key %}{% include "frontend/_dynbg_overlay.html" %}{% endwith %}
+                  </span>
+                  <span class="fe-dynbg-picker-info"><span class="fe-dynbg-picker-name">{{ entry.name }}</span></span>
+                </label>
+                {% endfor %}
+              </div>
+
+              {# Size + Intensity for the active overlay (bounds / labels
+                 set by JS from the overlay-knob spec) + scope. #}
+              <div class="dynbg-modal-subgroup" data-dynbg-mode-overlay-knobs hidden>
+                <label class="dynbg-modal-slider-row">
+                  <span class="dynbg-modal-slider-label"><span data-dynbg-mode-ovsize-label>Size</span> <output data-dynbg-mode-ovsize-out>{{ _dyn.noise_size }}</output></span>
+                  <input type="range" data-dynbg-mode-ovsize
+                         min="{{ _dyn.noise_size_min }}" max="{{ _dyn.noise_size_max }}"
+                         step="0.05" value="{{ _dyn.noise_size }}">
+                  <span class="muted smaller" data-dynbg-mode-ovsize-hint>{{ _dyn.noise_size_min }} = coarse · {{ _dyn.noise_size_max }} = fine</span>
+                </label>
+                <label class="dynbg-modal-slider-row">
+                  <span class="dynbg-modal-slider-label"><span data-dynbg-mode-ovint-label>Intensity</span> <output data-dynbg-mode-ovint-out>{{ '%.3f' % _dyn.noise_intensity }}</output></span>
+                  <input type="range" data-dynbg-mode-ovint
+                         min="{{ _dyn.noise_intensity_min }}" max="{{ _dyn.noise_intensity_max }}"
+                         step="0.005" value="{{ _dyn.noise_intensity }}">
+                  <span class="muted smaller" data-dynbg-mode-ovint-hint>{{ _dyn.noise_intensity_min }} = whisper · {{ _dyn.noise_intensity_max }} = heavy</span>
+                </label>
+                <div class="dynbg-modal-scope-row" role="radiogroup">
+                  <label class="dynbg-modal-scope-opt">
+                    <input type="radio" name="__dynbg_modal_scope_pick_{{ _mode }}" value="all" data-dynbg-mode-scope="all" checked>
+                    <span><b>All page elements</b>{% call chip('All page elements') %}The texture pass covers the background and the content sitting on it.{% endcall %}</span>
+                  </label>
+                  <label class="dynbg-modal-scope-opt">
+                    <input type="radio" name="__dynbg_modal_scope_pick_{{ _mode }}" value="bg" data-dynbg-mode-scope="bg">
+                    <span><b>Background only</b>{% call chip('Background only') %}The texture sits under the content, so text and cards stay clean.{% endcall %}</span>
+                  </label>
+                </div>
+                <button type="button" class="btn btn-sm" data-dynbg-mode-ovreset style="align-self: flex-start; margin-top: 4px;">Reset to default</button>
+              </div>
+            </fieldset>
+          </section>
+          {% endfor %}
+        </div>
       </section>
     </div>
     <div class="modal-foot">

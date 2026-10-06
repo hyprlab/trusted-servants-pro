@@ -18,48 +18,62 @@
 })();
 
 (function () {
+  // ── Light or dark ──
+  // Each account chooses Follow system, Light or Dark (Settings →
+  // Appearance, or the sidebar's sun/moon button); it's saved to the
+  // account (/tspro/account/theme) and kept in localStorage for the
+  // signed-out pages. The <head> script has already applied it.
   const root = document.documentElement;
-  const THEME_MODE = {
-    "light": "light", "dark": "dark",
-    "neobrutal-light": "light", "neobrutal-dark": "dark",
-    "cyberpunk": "dark", "solarpunk": "light",
+  const darkQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  const PREFS = ["system", "light", "dark"];
+  const fromBrowser = () => {
+    let t = null;
+    try { t = localStorage.getItem("tsp-theme"); } catch (_) {}
+    if (!t) return "system";
+    if (PREFS.includes(t)) return t;
+    return /dark|cyberpunk/.test(t) ? "dark" : "light";  // the old theme names
   };
-  const stored = localStorage.getItem("tsp-theme");
-  if (stored && THEME_MODE[stored]) root.setAttribute("data-theme", stored);
-
-  function syncThemePicker() {
-    const cur = root.getAttribute("data-theme") || "light";
-    document.querySelectorAll(".theme-swatch").forEach(el => {
-      el.setAttribute("aria-checked", el.dataset.themeValue === cur ? "true" : "false");
+  let themePref = root.dataset.themePref || fromBrowser();
+  const resolveTheme = p => (p === "dark" || (p === "system" && darkQuery && darkQuery.matches)) ? "dark" : "light";
+  function applyTheme() {
+    root.setAttribute("data-theme", resolveTheme(themePref));
+    document.querySelectorAll("[data-theme-pref-value]").forEach(b => {
+      b.setAttribute("aria-checked", b.dataset.themePrefValue === themePref ? "true" : "false");
     });
   }
-  function setTheme(next, {remember = true} = {}) {
-    if (!THEME_MODE[next]) next = "light";
-    root.setAttribute("data-theme", next);
-    localStorage.setItem("tsp-theme", next);
-    if (remember) localStorage.setItem("tsp-theme-last-" + THEME_MODE[next], next);
-    syncThemePicker();
+  function saveTheme(p) {
+    if (!PREFS.includes(p)) return;
+    themePref = p;
+    root.dataset.themePref = p;
+    try { localStorage.setItem("tsp-theme", p); } catch (_) {}
+    applyTheme();
+    if (window.tspUser && window.tspUser.role) {
+      fetch("/tspro/account/theme", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
+        body: JSON.stringify({ pref: p }),
+      }).catch(() => {});
+    }
   }
-  const THEME_PAIR = {
-    "light": "dark", "dark": "light",
-    "neobrutal-light": "neobrutal-dark", "neobrutal-dark": "neobrutal-light",
-    "solarpunk": "cyberpunk", "cyberpunk": "solarpunk",
-  };
-  function toggleLightDark() {
-    const cur = root.getAttribute("data-theme") || "light";
-    setTheme(THEME_PAIR[cur] || "dark");
+  if (darkQuery) {
+    const onDevice = () => { if (themePref === "system") applyTheme(); };
+    if (darkQuery.addEventListener) darkQuery.addEventListener("change", onDevice);
+    else if (darkQuery.addListener) darkQuery.addListener(onDevice);
   }
-  const sidebarToggle = document.getElementById("theme-toggle");
-  if (sidebarToggle) sidebarToggle.addEventListener("click", toggleLightDark);
-  document.querySelectorAll(".theme-swatch").forEach(el => {
-    el.addEventListener("click", () => setTheme(el.dataset.themeValue));
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-theme-pref-value]");
+    if (b) saveTheme(b.dataset.themePrefValue);
   });
-  // Seed "last" memory from current theme on first load
-  const curInit = root.getAttribute("data-theme") || "light";
-  const curMode = THEME_MODE[curInit] || "light";
-  if (!localStorage.getItem("tsp-theme-last-" + curMode))
-    localStorage.setItem("tsp-theme-last-" + curMode, curInit);
-  syncThemePicker();
+  const sidebarToggle = document.getElementById("theme-toggle");
+  if (sidebarToggle) sidebarToggle.addEventListener("click", () => {
+    saveTheme(root.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+  // Signed in but never chosen on the account: keep what this browser
+  // had (an old theme becomes light or dark) by saving it once.
+  if (!root.dataset.themePref && window.tspUser && window.tspUser.role) {
+    try { if (localStorage.getItem("tsp-theme")) saveTheme(themePref); } catch (_) {}
+  }
+  applyTheme();
 
   const menu = document.getElementById("menu-toggle");
   const side = document.querySelector(".sidebar");
@@ -140,21 +154,85 @@
   });
   applySidebarSectionState();
 
+  // A tooltip that a scrolling or clipping box would cut off (a list
+  // page's sidebar, a card) floats instead: moved to <body>, fixed beside
+  // its button, and put back when it closes. Scrolling closes it, since
+  // it no longer moves with the page.
+  function clipsTip(tip) {
+    const r = tip.getBoundingClientRect();
+    for (let el = tip.parentElement; el && el !== document.body; el = el.parentElement) {
+      const cs = getComputedStyle(el);
+      if (cs.overflowX === "visible" && cs.overflowY === "visible") continue;
+      const b = el.getBoundingClientRect();
+      if (r.left < b.left - 1 || r.right > b.right + 1 || r.top < b.top - 1 || r.bottom > b.bottom + 1) return true;
+    }
+    return false;
+  }
+  function floatTip(wrap, tip) {
+    const btnR = wrap.querySelector(".help-btn").getBoundingClientRect();
+    tip._home = wrap;
+    tip.classList.add("is-floating");
+    document.body.appendChild(tip);
+    const pad = 8, w = tip.offsetWidth, h = tip.offsetHeight;
+    let left = Math.min(btnR.left, window.innerWidth - pad - w);
+    left = Math.max(pad, left);
+    let top = btnR.bottom + 6;
+    if (top + h > window.innerHeight - pad && btnR.top - 6 - h >= pad) top = btnR.top - 6 - h;
+    tip.style.left = Math.round(left) + "px";
+    tip.style.top = Math.round(top) + "px";
+  }
+  function closeTips() {
+    document.querySelectorAll(".help-tooltip.is-floating").forEach(tip => {
+      tip.classList.remove("is-floating");
+      tip.style.left = tip.style.top = "";
+      if (tip._home && tip._home.isConnected) tip._home.appendChild(tip); else tip.remove();
+    });
+    document.querySelectorAll(".heading-help.open").forEach(el => el.classList.remove("open"));
+  }
+  window.addEventListener("scroll", () => {
+    if (document.querySelector(".help-tooltip.is-floating")) closeTips();
+  }, true);
+  window.addEventListener("resize", () => {
+    if (document.querySelector(".help-tooltip.is-floating")) closeTips();
+  });
+
   document.addEventListener("click", (e) => {
     const btn = e.target.closest(".help-btn");
-    const openEls = document.querySelectorAll(".heading-help.open");
     if (btn) {
       const wrap = btn.closest(".heading-help");
       const wasOpen = wrap.classList.contains("open");
-      openEls.forEach(el => el.classList.remove("open"));
-      if (!wasOpen) wrap.classList.add("open");
+      closeTips();
+      if (!wasOpen) {
+        wrap.classList.add("open");
+        // Inline field chips sit wherever their label does, including
+        // the right-hand column of a two-up row and, on a phone, a spot
+        // where a 360px panel can't fit on either side of the anchor.
+        // So nudge rather than flip: measure once opened, then slide the
+        // panel back inside the viewport. Right edge first, left second,
+        // so a tooltip wider than the gap lands flush left rather than
+        // half off-screen.
+        const tip = wrap.querySelector(".help-tooltip");
+        if (tip) {
+          tip.style.transform = "";
+          const r = tip.getBoundingClientRect();
+          const pad = 8;
+          let shift = 0;
+          if (r.right > window.innerWidth - pad) shift = window.innerWidth - pad - r.right;
+          if (r.left + shift < pad) shift = pad - r.left;
+          if (shift) tip.style.transform = "translateX(" + Math.round(shift) + "px)";
+          if (clipsTip(tip)) { tip.style.transform = ""; floatTip(wrap, tip); }
+        }
+      }
+      // Chips live inside <label> and <summary> elements; without this
+      // the click would also focus the field or collapse the section.
+      e.preventDefault();
       e.stopPropagation();
     } else if (!e.target.closest(".help-tooltip")) {
-      openEls.forEach(el => el.classList.remove("open"));
+      closeTips();
     }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") document.querySelectorAll(".heading-help.open").forEach(el => el.classList.remove("open"));
+    if (e.key === "Escape") closeTips();
   });
 
   // Branding: live-preview footer logo width + selected file
@@ -247,17 +325,158 @@
     // When the closed modal hosts a lazy-loaded iframe, blank it out so
     // the next open starts a clean wizard / form session — otherwise
     // the iframe would resume on whatever step it last landed on.
-    // Match by id (not by [data-src]) since the story modal repoints
-    // the iframe per-trigger via data-modal-src, not via data-src.
+    // Match by id, not by [data-src].
     m.querySelectorAll("iframe").forEach(f => {
-      if (f.id === "wp-import-frame" || f.id === "story-edit-frame"
+      if (f.id === "wp-import-frame"
           || f.id === "backup-wizard-frame" || f.id === "backups-frame"
           || f.id === "ts-import-frame") {
         f.src = "about:blank";
       }
     });
   }
-  document.querySelectorAll("[data-open-modal]").forEach(el => {
+  // Page setup that must run again when the page behind an open modal is
+  // replaced (tspSwapPage, below): each runs once now and again on the
+  // new content. Bindings mark their element so none is bound twice.
+  const pageSetups = [];
+  function onEachPage(fn) { pageSetups.push(fn); fn(); }
+  window.tspRunPageSetups = () => pageSetups.forEach(fn => {
+    try { fn(); } catch (err) { console.error(err); }
+  });
+  window.tspOnEachPage = onEachPage;
+
+  // Replace the page with another without reloading (window.tspSwapPage):
+  // the page behind Settings when a module is turned off, links in a
+  // [data-swap-nav] (Watchtower's sections) and links marked data-swap
+  // (the File Browser's files). It swaps the heading, its actions,
+  // messages and content (in an embedded page, all of it), the
+  // sidebar's pinned buttons, the tab title and the address. The page's app.js setups then run again
+  // (tspRunPageSetups). Scripts inside the new content are not run, so
+  // this suits pages whose behavior lives in app.js, as the Dashboard's
+  // does.
+  function swapParts(doc, sels) {
+    sels.forEach(sel => {
+      const now = document.querySelector(sel), next = doc.querySelector(sel);
+      if (now && next) now.replaceWith(document.importNode(next, true));
+    });
+  }
+  // The rows at the top of the sidebar (Dashboard, Watchtower, Web
+  // Frontend) follow the modules that are on and which page is open.
+  function swapPinned(doc) {
+    swapParts(doc, [".sidebar > .side-top"]);
+  }
+  async function fetchPage(url) {
+    const r = await fetch(url, { credentials: "same-origin" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return { url: r.url, doc: new DOMParser().parseFromString(await r.text(), "text/html") };
+  }
+  let swapped = false;
+  // A [data-swap-nav] that the new page has too (matched by aria-label)
+  // stays the same element: its links and current mark take the new
+  // page's, so its sliding highlight moves rather than being redrawn.
+  function keepNavs(doc) {
+    const kept = [];
+    document.querySelectorAll("[data-swap-nav][aria-label]").forEach(nav => {
+      const twin = doc.querySelector('[data-swap-nav][aria-label="' + CSS.escape(nav.getAttribute("aria-label")) + '"]');
+      if (!twin) return;
+      const mine = nav.querySelectorAll("a[href]"), theirs = twin.querySelectorAll("a[href]");
+      if (mine.length !== theirs.length) return;
+      mine.forEach((a, i) => {
+        a.innerHTML = theirs[i].innerHTML;
+        if (theirs[i].hasAttribute("aria-current")) a.setAttribute("aria-current", theirs[i].getAttribute("aria-current"));
+        else a.removeAttribute("aria-current");
+      });
+      const slot = doc.createElement("span");
+      slot.setAttribute("data-swap-keep", String(kept.length));
+      twin.replaceWith(slot);
+      kept.push(nav);
+    });
+    return kept;
+  }
+  // A nav's current part, scrolled to the middle of the strip it sits in
+  // when that strip scrolls sideways (Watchtower's tabs on a phone).
+  function revealCurrent(nav, smooth) {
+    const on = nav.querySelector('[aria-current="page"]');
+    if (!on) return;
+    let strip = on.parentElement;
+    while (strip && strip !== nav.parentElement && strip.scrollWidth <= strip.clientWidth) strip = strip.parentElement;
+    if (!strip || strip.scrollWidth <= strip.clientWidth) return;
+    const s = strip.getBoundingClientRect(), a = on.getBoundingClientRect();
+    strip.scrollTo({ left: strip.scrollLeft + (a.left - s.left) - (s.width - a.width) / 2,
+                     behavior: smooth ? "smooth" : "auto" });
+  }
+  async function swapPage(url, opts) {
+    const { url: landed, doc } = await fetchPage(url);
+    // Moving a kept nav out and back in resets its strip's sideways
+    // scroll: note it, to put it back.
+    const scrolls = [];
+    document.querySelectorAll("[data-swap-nav]").forEach(nav => {
+      [nav, ...nav.querySelectorAll("*")].forEach(el => { if (el.scrollLeft) scrolls.push([el, el.scrollLeft]); });
+    });
+    const kept = keepNavs(doc);
+    swapParts(doc, [".topbar > h1", ".topbar > .top-actions",
+                    "main.content > .flashes", "main.content > section.page", "main.embed-content"]);
+    kept.forEach((nav, i) => {
+      const slot = document.querySelector('[data-swap-keep="' + i + '"]');
+      if (slot) slot.replaceWith(nav);
+    });
+    scrolls.forEach(([el, left]) => { if (el.isConnected) el.scrollLeft = left; });
+    kept.forEach(nav => revealCurrent(nav, true));
+    swapPinned(doc);
+    document.title = doc.title;
+    document.body.classList.toggle("fe-admin-autohide", doc.body.classList.contains("fe-admin-autohide"));
+    document.querySelector(".sidebar")?.classList.remove("open");
+    if ((!opts || opts.push !== false) && landed !== location.href) history.pushState(null, "", landed);
+    swapped = true;
+    (document.scrollingElement || document.documentElement).scrollTop = 0;
+    runScripts(document.querySelector("main.content > section.page, main.embed-content"));
+    window.tspRunPageSetups();
+  }
+  // Scripts in swapped-in content don't run on their own: run each
+  // inline one, and load each external one this document hasn't yet.
+  function runScripts(root) {
+    if (!root) return;
+    const loaded = new Set(Array.from(document.scripts)
+      .filter(sc => sc.src && !root.contains(sc)).map(sc => sc.src));
+    root.querySelectorAll("script").forEach(old => {
+      if (old.src && loaded.has(old.src)) return;
+      const sc = document.createElement("script");
+      Array.from(old.attributes).forEach(a => sc.setAttribute(a.name, a.value));
+      if (!old.src) sc.textContent = old.textContent;
+      old.replaceWith(sc);
+    });
+  }
+  // Back or Forward after a swap: the address changed without its page,
+  // so bring in the page it names the same way.
+  window.addEventListener("popstate", () => {
+    if (swapped) swapPage(location.href, { push: false }).catch(() => window.location.reload());
+  });
+  window.tspSwapPage = swapPage;
+  // Links in a [data-swap-nav], and links marked data-swap, load in
+  // place: a plain click swaps the page (a nav's clicked part turns
+  // current at once); anything else, or a failed fetch, is an ordinary
+  // navigation.
+  document.addEventListener("click", e => {
+    const a = e.target.closest("[data-swap-nav] a[href], a[data-swap][href]");
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (a.target && a.target !== "_self") return;
+    const url = new URL(a.href, location.href);
+    if (url.origin !== location.origin) return;
+    e.preventDefault();
+    if (url.href === location.href) return;
+    const nav = a.closest("[data-swap-nav]");
+    if (nav) {
+      nav.querySelectorAll('[aria-current="page"]').forEach(x => x.removeAttribute("aria-current"));
+      a.setAttribute("aria-current", "page");
+      revealCurrent(nav, true);
+    }
+    document.documentElement.classList.add("is-live-loading");
+    swapPage(url.href).catch(() => location.assign(url.href))
+      .finally(() => document.documentElement.classList.remove("is-live-loading"));
+  });
+
+  onEachPage(() => document.querySelectorAll("[data-open-modal]").forEach(el => {
+    if (el._tspOpener) return;
+    el._tspOpener = true;
     el.addEventListener("click", (e) => {
       // Allow data-settings-tab="<key>" alongside data-open-modal to
       // deep-link a specific tab inside the settings modal — e.g. the
@@ -283,7 +502,7 @@
         if (tabBtn) tabBtn.click();
       }
     });
-  });
+  }));
 
   // Live character counter for summary textareas on library-item
   // forms. Counts down from the textarea's `maxlength` (500) so the
@@ -345,7 +564,11 @@
         });
       });
     }
-    buttons.forEach(b => b.addEventListener("click", () => apply(b.dataset.contentModeOption)));
+    buttons.forEach(b => b.addEventListener("click", () => {
+      apply(b.dataset.contentModeOption);
+      // An editor's save bar listens for edits.
+      if (hidden) hidden.dispatchEvent(new Event("input", { bubbles: true }));
+    }));
     if (check) check.addEventListener("change", () => apply(check.checked ? "paste" : "upload"));
     apply((hidden && hidden.value) || "upload");
   });
@@ -369,19 +592,38 @@
     if (!writePane || !previewPane || !textarea) return;
     if (!isLive && !tabs.length) return;
 
+    // `data-md-event-tokens` (the announcement / event body) resolves
+    // {event_*} tags against the form's Starts / Ends inputs as typed,
+    // so the preview matches what the public page will print.
+    const eventTokens = editor.hasAttribute("data-md-event-tokens");
+    const hostForm = textarea.form || editor.closest("form");
+    function eventWindow() {
+      if (!eventTokens || !hostForm) return null;
+      const s = hostForm.querySelector("[data-event-start]");
+      const e = hostForm.querySelector("[data-event-end]");
+      return { start: (s && s.value) || "", end: (e && e.value) || "" };
+    }
+
     let lastRendered = null;
     let pending = null;
     async function renderPreview() {
       const content = textarea.value || "";
-      if (content === lastRendered) return;
+      const win = eventWindow();
+      const key = content + (win ? "\u0000" + win.start + "\u0000" + win.end : "");
+      if (key === lastRendered) return;
       if (!content.trim()) {
         previewEl.innerHTML = '<p class="muted smaller">Nothing to preview yet.</p>';
-        lastRendered = content;
+        lastRendered = key;
         return;
       }
       const fd = new FormData();
       fd.append("body", content);
       if (mode) fd.append("mode", mode);
+      if (win) {
+        fd.append("event_tokens", "1");
+        fd.append("event_start", win.start);
+        fd.append("event_end", win.end);
+      }
       try {
         const r = await fetch("/tspro/markdown-preview", {
           method: "POST", body: fd, credentials: "same-origin",
@@ -390,7 +632,7 @@
         if (!r.ok) return;
         const data = await r.json();
         previewEl.innerHTML = data.html || '<p class="muted smaller">(empty)</p>';
-        lastRendered = content;
+        lastRendered = key;
       } catch (_) {}
     }
 
@@ -411,6 +653,16 @@
       }, 250);
     });
 
+    // Event-tag editors re-render when Starts / Ends change, so the
+    // resolved dates in the preview follow the fields.
+    if (eventTokens && hostForm) {
+      hostForm.querySelectorAll("[data-event-start], [data-event-end]").forEach(inp => {
+        inp.addEventListener("change", () => {
+          if (isLive || previewPane.classList.contains("active")) renderPreview();
+        });
+      });
+    }
+
     // Initial paint for live editors so the user sees what's saved before
     // touching the textarea (tabbed editors render lazily on tab click).
     if (isLive) renderPreview();
@@ -430,8 +682,10 @@
     const docTitleEl = modal.querySelector("[data-reading-lightbox-doc-title]");
     const contentEl = modal.querySelector("[data-reading-lightbox-content]");
     const pdfLink = modal.querySelector("[data-reading-lightbox-pdf]");
-    document.querySelectorAll("[data-reading-lightbox]").forEach(link => {
-      link.addEventListener("click", e => {
+    // Delegated, so links a live search brings in work too.
+    document.addEventListener("click", e => {
+        const link = e.target.closest && e.target.closest("[data-reading-lightbox]");
+        if (!link) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
         e.preventDefault();
         const rid = link.dataset.readingLightbox;
@@ -444,7 +698,6 @@
         openModal("reading-lightbox");
         const body = modal.querySelector(".reading-lightbox-body");
         if (body) body.scrollTop = 0;
-      });
     });
   })();
 
@@ -554,7 +807,9 @@
   // pre-populated. Email seeds username + email; name and phone are
   // forwarded so the admin doesn't have to retype anything from the
   // request row they just clicked.
-  document.querySelectorAll("[data-create-user-from-request]").forEach(btn => {
+  onEachPage(() => document.querySelectorAll("[data-create-user-from-request]").forEach(btn => {
+    if (btn._tspCreateUser) return;
+    btn._tspCreateUser = true;
     btn.addEventListener("click", () => {
       const email = btn.dataset.email || "";
       const name = btn.dataset.name || "";
@@ -581,11 +836,14 @@
         iframe.src = base + sep + params.toString();
       }
     });
-  });
-  document.querySelectorAll(".modal").forEach(m => {
-    m.querySelectorAll("[data-close]").forEach(el =>
-      el.addEventListener("click", () => closeModal(m)));
-  });
+  }));
+  onEachPage(() => document.querySelectorAll(".modal").forEach(m => {
+    m.querySelectorAll("[data-close]").forEach(el => {
+      if (el._tspCloser) return;
+      el._tspCloser = true;
+      el.addEventListener("click", () => closeModal(m));
+    });
+  }));
   document.addEventListener("keydown", e => {
     if (e.key === "Escape") {
       document.querySelectorAll(".modal.open").forEach(closeModal);
@@ -630,8 +888,20 @@
   if (settingsModal) {
     const tabs = settingsModal.querySelectorAll(".settings-tab");
     const panes = settingsModal.querySelectorAll(".settings-pane");
+    const paneTitle = settingsModal.querySelector(".settings-pane-title");
     const activate = name => {
-      tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+      tabs.forEach(t => {
+        const on = t.dataset.tab === name;
+        t.classList.toggle("active", on);
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        if (on && paneTitle) {
+          const label = t.querySelector(".settings-tab-label");
+          paneTitle.textContent = (label || t).textContent.trim();
+        }
+      });
+      // Phones show the nav and the pane as two screens; picking a
+      // section moves to its pane.
+      settingsModal.classList.add("settings-show-pane");
       panes.forEach(p => {
         const on = p.dataset.pane === name;
         p.classList.toggle("active", on);
@@ -649,6 +919,23 @@
       }
     };
     tabs.forEach(t => t.addEventListener("click", () => activate(t.dataset.tab)));
+    const backBtn = settingsModal.querySelector(".settings-back");
+    if (backBtn) backBtn.addEventListener("click", () => {
+      settingsModal.classList.remove("settings-show-pane");
+      const cur = settingsModal.querySelector(".settings-tab.active");
+      if (cur) cur.focus();
+    });
+    // A plain open lands on the section list on phones. Deep links
+    // (data-settings-tab) click a tab right after opening, which moves
+    // to that pane again.
+    new MutationObserver(() => {
+      // Guarded: classList.remove writes the attribute even when the
+      // class is absent, which would re-trigger this observer forever.
+      if (!settingsModal.classList.contains("open")
+          && settingsModal.classList.contains("settings-show-pane")) {
+        settingsModal.classList.remove("settings-show-pane");
+      }
+    }).observe(settingsModal, { attributes: true, attributeFilter: ["class"] });
 
     // Submit top-level settings forms via fetch so the page never reloads.
     // Forms inside iframes are untouched (they already reload only the iframe).
@@ -684,6 +971,13 @@
         credentials: "same-origin",
         redirect: "follow",
       });
+      // The save went through and sent us back to this page, which the
+      // change has closed (a module turned off while on one of its
+      // pages): it saved, and the page to leave for is the dashboard.
+      if (!r.ok && r.redirected && r.status === 404) {
+        f.dispatchEvent(new CustomEvent("settings:saved", { bubbles: true, detail: null }));
+        return { pageGone: true };
+      }
       if (!r.ok) throw new Error("HTTP " + r.status);
       let data = null;
       const ct = r.headers.get("content-type") || "";
@@ -693,6 +987,7 @@
       f.dispatchEvent(new CustomEvent("settings:saved", { bubbles: true, detail: data }));
       return data;
     }
+
 
     // Email transport toggle: the <select> is the SMTP-vs-relay switch.
     // Show only the field group for the chosen transport — relay fields
@@ -816,26 +1111,33 @@
             if (smtpForm && sbDirty.has(smtpForm)) {
               await submitSettingsForm(smtpForm);
               sbDirty.delete(smtpForm);
-              if (sbDirty.size === 0) {
-                if (sbBar) sbBar.hidden = true;
-              } else {
-                sbShow();
-              }
+              sbShow();
             }
           }
           const data = await submitSettingsForm(f);
-          // If the endpoint returned JSON with a `message`, surface it
-          // verbatim. ``ok: false`` is treated as a soft error and
-          // shown via the danger toast even though the HTTP status
-          // is 200 — matches the pattern used by email-test, where
-          // an SMTP failure isn't an HTTP failure.
-          if (data && typeof data.message === "string") {
+          // A module turned off: its pages are gone, so the page behind
+          // Settings becomes the Dashboard, which is always on (fetched
+          // afresh if it is already there, so its widgets follow).
+          // Settings stays open.
+          // Otherwise, if the endpoint returned JSON with a `message`,
+          // surface it verbatim. ``ok: false`` is treated as a soft
+          // error and shown via the danger toast even though the HTTP
+          // status is 200 — matches the pattern used by email-test,
+          // where an SMTP failure isn't an HTTP failure.
+          const moduleOff = f.matches(".special-page-toggle-form") &&
+            !f.querySelector('input[type="checkbox"]:checked');
+          if (moduleOff || (data && data.pageGone)) {
+            showSettingsToast("Saved");
+            swapPage("/tspro/").catch(() => { window.location.href = "/tspro/"; });
+          } else if (data && typeof data.message === "string") {
             showSettingsToast(data.message, data.ok === false ? "danger" : "success");
           } else {
             showSettingsToast(isTestForm ? "Test sent" : "Saved");
           }
-          if (f.dataset.reloadOnSave === "1") {
-            setTimeout(() => window.location.reload(), 400);
+          // A module turned on: this page stays; the pinned buttons
+          // (Web, View) follow.
+          if (f.matches(".special-page-toggle-form") && !moduleOff && !(data && data.pageGone)) {
+            fetchPage(window.location.href).then(({ doc }) => swapPinned(doc)).catch(() => {});
           }
         } catch (err) {
           showSettingsToast(
@@ -884,8 +1186,17 @@
         }).then(r => r.ok ? r.text() : Promise.reject(r))
           .then(html => {
             const nav = document.getElementById("sidebar-nav");
+            const scroller = document.getElementById("sidebar-scroll") || nav;
+            // Replacing the nav's content can move the sidebar's
+            // scroll — keep the admin's place across the refresh (see
+            // initSidebarScrollMemory).
+            const keepScroll = scroller ? scroller.scrollTop : 0;
             if (nav) nav.innerHTML = html;
             applySidebarSectionState();
+            if (scroller) {
+              const max = scroller.scrollHeight - scroller.clientHeight;
+              if (max > 0) scroller.scrollTop = Math.min(keepScroll, max);
+            }
           }),
         refreshManual ? fetch("/tspro/_sidebar/order-manual", {
           credentials: "same-origin",
@@ -916,16 +1227,42 @@
     const sbBtn = document.getElementById("settings-save-bar-btn");
     const sbMsg = sbBar && sbBar.querySelector(".fe-save-bar-msg");
     const sbDirty = new Set();
+    // Panes that are pages of their own (Users, Global, in iframes)
+    // report unsaved changes here through window.tspSettingsHost, with
+    // the function that saves them: "<pane>:<key>" → save().
+    const sbPanes = new Map();
+    const sbCount = () => sbDirty.size + sbPanes.size;
+    function sbHide() {
+      if (sbBar) { sbBar.hidden = true; sbBar.classList.remove("is-leaving"); }
+    }
     function sbShow() {
       if (!sbBar || !sbMsg || !sbBtn) return;
+      if (!sbCount()) { sbHide(); return; }
       sbBar.hidden = false;
       sbBar.classList.remove("is-leaving");
-      sbMsg.textContent = sbDirty.size > 1
-        ? "Unsaved changes (" + sbDirty.size + " sections)"
+      sbMsg.textContent = sbCount() > 1
+        ? "Unsaved changes (" + sbCount() + " sections)"
         : "Unsaved changes";
       sbBtn.disabled = false;
       sbBtn.textContent = "Save";
     }
+    // The bar is the foot of the section list; on a phone, where the
+    // list and the open pane are separate screens, it moves to the pane.
+    if (sbBar && window.matchMedia) {
+      const phone = window.matchMedia("(max-width: 720px)");
+      const nav = settingsModal.querySelector(".settings-nav");
+      const main = settingsModal.querySelector(".settings-main");
+      const place = () => { const to = phone.matches ? main : nav; if (to && sbBar.parentElement !== to) to.appendChild(sbBar); };
+      place();
+      if (phone.addEventListener) phone.addEventListener("change", place);
+    }
+    window.tspSettingsHost = {
+      dirty(pane, key, on, save) {
+        const id = pane + ":" + key;
+        if (on) sbPanes.set(id, save); else sbPanes.delete(id);
+        sbShow();
+      },
+    };
     if (sbBar && sbBtn) {
 
       function sbTrackable(form) {
@@ -943,10 +1280,9 @@
         sbMsg.textContent = "Saved";
         sbBar.classList.add("is-leaving");
         setTimeout(() => {
-          sbBar.hidden = true;
-          sbBar.classList.remove("is-leaving");
           sbBar.style.width = "";  // release the locked width set on click
           sbDirty.clear();
+          if (!sbCount()) sbHide(); else sbShow();
         }, 320);
       }
 
@@ -966,7 +1302,7 @@
       });
 
       sbBtn.addEventListener("click", async () => {
-        if (!sbDirty.size) { sbBar.hidden = true; return; }
+        if (!sbCount()) { sbHide(); return; }
         // Pin the bar's current pixel width before changing the message
         // so it doesn't shrink leftward as text moves "Unsaved changes
         // (N sections)" → "Saving…" → "Saved". Width is released in
@@ -976,9 +1312,16 @@
         sbBtn.textContent = "Saving…";
         sbMsg.textContent = "Saving…";
         const forms = [...sbDirty];
+        const panes = [...sbPanes.entries()];
         const failures = [];
         for (const f of forms) {
           try { await submitSettingsForm(f); }
+          catch (err) { failures.push(err); }
+        }
+        // Each pane saves its own changes in the background; one that
+        // saves drops out of the list (it reports again if edited).
+        for (const [id, save] of panes) {
+          try { await save(); sbPanes.delete(id); }
           catch (err) { failures.push(err); }
         }
         if (!failures.length) {
@@ -1065,36 +1408,39 @@
     });
   });
 
-// Media library: upload input
-  const mediaUploadInput = document.getElementById("media-upload-input");
-  if (mediaUploadInput) {
-    mediaUploadInput.addEventListener("change", async (e) => {
-      const files = Array.from(e.target.files || []);
-      for (const file of files) {
-        const fd = new FormData();
-        fd.append("file", file);
-        try {
-          const res = await fetch("/tspro/files/upload", {
-            method: "POST", body: fd, credentials: "same-origin",
-            headers: { "X-Requested-With": "XMLHttpRequest" },
-          });
-          if (!res.ok) throw new Error("upload failed");
-          const data = await res.json();
-          if (window.parent !== window && window.parent.postMessage) {
-            // inside picker: hand the item to parent
-            window.parent.postMessage({ type: "media-uploaded", item: data.item }, window.location.origin);
-          }
-        } catch (err) { alert("Upload failed: " + err.message); }
-      }
-      // refresh listing
-      window.location.reload();
-    });
-  }
+  // Media library: upload input. Delegated, so the list brought back in
+  // from a file's own view (tspSwapPage) still uploads.
+  document.addEventListener("change", async (e) => {
+    if (e.target.id !== "media-upload-input") return;
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append("file", file);
+      try {
+        const res = await fetch("/tspro/files/upload", {
+          method: "POST", body: fd, credentials: "same-origin",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        });
+        if (!res.ok) throw new Error("upload failed");
+        const data = await res.json();
+        if (window.parent !== window && window.parent.postMessage) {
+          // inside picker: hand the item to parent
+          window.parent.postMessage({ type: "media-uploaded", item: data.item }, window.location.origin);
+        }
+      } catch (err) { alert("Upload failed: " + err.message); }
+    }
+    // refresh listing
+    window.location.reload();
+  });
 
-  // Media library: rename
-  document.querySelectorAll(".media-rename").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const row = btn.closest("[data-media-id]");
+  // Media library: rename. Delegated, so rows a live search swaps in
+  // still answer.
+  document.addEventListener("click", e => {
+    const btn = e.target.closest && e.target.closest(".media-rename");
+    if (!btn || btn.disabled) return;
+    (async () => {
+      // In a file's own view the menu is in the top bar.
+      const row = btn.closest("[data-media-id]") || document.querySelector("[data-fb-file]");
       const id = row?.dataset.mediaId;
       const current = row?.dataset.original || "";
       const next = prompt("Rename file:", current);
@@ -1106,11 +1452,13 @@
       });
       if (res.ok) {
         const data = await res.json();
+        // The view shows the name in its heading and path: bring it in again.
+        if (row.matches("[data-fb-file]")) { window.tspSwapPage(location.href, { push: false }); return; }
         row.dataset.original = data.original_filename;
         const nameEl = row.querySelector(".media-name, strong");
         if (nameEl) { nameEl.textContent = data.original_filename; nameEl.title = data.original_filename; }
       }
-    });
+    })();
   });
 
   // Media library: select (inside picker iframe). Two modes:
@@ -1127,9 +1475,11 @@
   // ``closest('[data-media-id]')`` walks UP to either the card
   // article OR the table row, fixing the prior bug where only card
   // view worked — list view rows are <tr>, not .media-card.
+  // The picked set outlives the page: a file's own view and the list
+  // swap in and out (tspSwapPage), so the bar and buttons are looked up
+  // each time and marked again on every page.
   (function () {
-    var multiBar = document.querySelector('[data-media-multi-bar]');
-    var multi = !!multiBar;
+    function bar() { return document.querySelector('[data-media-multi-bar]'); }
     var selected = new Map();  // id → {id, stored_filename, original_filename}
     function captureItem(host) {
       return {
@@ -1139,6 +1489,7 @@
       };
     }
     function refreshBar() {
+      var multiBar = bar();
       if (!multiBar) return;
       var count = selected.size;
       multiBar.hidden = count === 0;
@@ -1149,24 +1500,37 @@
         ? 'Add 1 item'
         : ('Add ' + count + ' items');
     }
+    function mark(host, on) {
+      host.classList.toggle('is-selected', on);
+      // Update the Select button label so the operator can see
+      // what state each row is in at a glance.
+      host.querySelectorAll('.media-select').forEach(function (btn) {
+        btn.textContent = on ? 'Selected ✓' : 'Select';
+      });
+    }
     function setSelected(host, on) {
       if (!host) return;
       var id = host.dataset.mediaId;
       if (!id) return;
       if (on) selected.set(id, captureItem(host));
       else selected.delete(id);
-      host.classList.toggle('is-selected', on);
-      // Update the Select button label so the operator can see
-      // what state each row is in at a glance.
-      var btn = host.querySelector('.media-select');
-      if (btn) btn.textContent = on ? 'Selected ✓' : 'Select';
+      mark(host, on);
       refreshBar();
     }
-    document.querySelectorAll('.media-select').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+    function markAll() {
+      selected.forEach(function (_v, id) {
+        var host = document.querySelector('[data-media-id="' + id + '"]');
+        if (host) mark(host, true);
+      });
+      refreshBar();
+    }
+    // Delegated, so rows a live search swaps in still answer.
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('.media-select');
+      if (btn) {
         var host = btn.closest('[data-media-id]');
         if (!host) return;
-        if (multi) {
+        if (bar()) {
           var id = host.dataset.mediaId;
           setSelected(host, !selected.has(id));
           return;
@@ -1176,39 +1540,59 @@
         if (window.parent !== window) {
           window.parent.postMessage(payload, window.location.origin);
         }
-      });
+        return;
+      }
+      if (e.target.closest && e.target.closest('[data-multi-done]')) {
+        if (!selected.size) return;
+        if (window.parent !== window) {
+          window.parent.postMessage(
+            { type: 'media-selected-batch', items: Array.from(selected.values()) },
+            window.location.origin
+          );
+        }
+        return;
+      }
+      if (e.target.closest && e.target.closest('[data-multi-clear]')) {
+        selected.forEach(function (_v, id) {
+          var host = document.querySelector('[data-media-id="' + id + '"]');
+          if (host) mark(host, false);
+        });
+        selected.clear();
+        refreshBar();
+      }
     });
-    if (multiBar) {
-      var doneBtn = multiBar.querySelector('[data-multi-done]');
-      if (doneBtn) {
-        doneBtn.addEventListener('click', function () {
-          if (!selected.size) return;
-          var items = Array.from(selected.values());
-          if (window.parent !== window) {
-            window.parent.postMessage(
-              { type: 'media-selected-batch', items: items },
-              window.location.origin
-            );
-          }
-        });
-      }
-      var clearBtn = multiBar.querySelector('[data-multi-clear]');
-      if (clearBtn) {
-        clearBtn.addEventListener('click', function () {
-          selected.forEach(function (_v, id) {
-            var host = document.querySelector('[data-media-id="' + id + '"]');
-            if (host) {
-              host.classList.remove('is-selected');
-              var btn = host.querySelector('.media-select');
-              if (btn) btn.textContent = 'Select';
-            }
-          });
-          selected.clear();
-          refreshBar();
-        });
-      }
-      refreshBar();
-    }
+    document.addEventListener('live:updated', markAll);
+    onEachPage(markAll);
+  })();
+
+  // A file's own view (media_file.html): Left and Right step to the
+  // previous and next file and Esc goes back to the files, by clicking
+  // the view's own links. Back in the list, the file just seen is
+  // scrolled into view.
+  (function () {
+    let lastFile = null;
+    const KEYS = { ArrowLeft: "[data-fb-prev]", ArrowRight: "[data-fb-next]", Escape: "[data-fb-back]" };
+    document.addEventListener("keydown", e => {
+      const sel = KEYS[e.key];
+      if (!sel || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      if (!document.querySelector("[data-fb-file]") || document.querySelector(".modal.open, .row-menu.is-open")) return;
+      // Esc on a zoomed image fits it again (image_lightbox.js) first.
+      if (e.key === "Escape" && document.querySelector("[data-zoom-stage].is-zoomed")) return;
+      const t = e.target;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT|VIDEO|AUDIO)$/.test(t.tagName))) return;
+      const link = document.querySelector(sel);
+      if (!link) return;
+      e.preventDefault();
+      link.click();
+    });
+    onEachPage(() => {
+      const view = document.querySelector("[data-fb-file]");
+      if (view) { lastFile = view.dataset.mediaId; return; }
+      if (!lastFile) return;
+      const host = document.querySelector('.fb [data-media-id="' + CSS.escape(lastFile) + '"]');
+      lastFile = null;
+      if (host) host.scrollIntoView({ block: "center" });
+    });
   })();
 
   // Auto-dismiss flash toasts after 3s
@@ -1286,22 +1670,6 @@
     }
   });
 
-  // Story modal iframe → parent: close the new/edit story modal and
-  // reload the stories list so saved/deleted rows reflect immediately.
-  // Sent by the story_edit.html Cancel button or the post-delete
-  // close stub. Accepts both the legacy "story-new-close" type and
-  // the canonical "story-modal-close" so older iframe loads keep
-  // working until the next refresh.
-  window.addEventListener("message", (e) => {
-    if (e.origin !== window.location.origin) return;
-    if (!e.data || (e.data.type !== "story-modal-close" && e.data.type !== "story-new-close")) return;
-    const m = document.getElementById("story-edit-modal");
-    if (m && m.classList.contains("open")) closeModal(m);
-    // Reload so the saved/deleted row reflects in the list. Defer one
-    // frame so the modal close animation can start before navigation.
-    setTimeout(() => { window.location.reload(); }, 50);
-  });
-
   // Live-update sidebar custom nav links when edited in Settings
   window.addEventListener("message", (e) => {
     if (e.origin !== window.location.origin) return;
@@ -1330,18 +1698,24 @@
   // dedicated preview area instead of the generic "set media_id on
   // form" path used by the library + meeting modals.
   let currentMediaMode = null;
+  // Point the shared picker frame at the File Browser for this kind of
+  // pick: single or multi-select, and any file or images only (the
+  // sidebar's Kind filter, which the writer can still change). Reopened
+  // for the same kind of pick, it keeps its place (search, page).
+  function pointPicker(multi, kind) {
+    const frame = document.getElementById("media-picker-frame");
+    if (!frame) return;
+    const key = (multi ? "multi" : "single") + ":" + (kind || "any");
+    if (frame.dataset.pickerKey === key && frame.getAttribute("src") !== "about:blank") return;
+    frame.dataset.pickerKey = key;
+    frame.src = "/tspro/files?picker=1&embed=1" + (multi ? "&multi=1" : "") + (kind ? "&kind=" + kind : "");
+  }
+
   document.querySelectorAll("[data-media-picker]").forEach(btn => {
     btn.addEventListener("click", () => {
       currentMediaTarget = btn.dataset.mediaPicker;
       currentMediaMode = "form";
-      const frame = document.getElementById("media-picker-frame");
-      // Force the iframe back to single-select mode in case the
-      // gallery picker (which uses ?multi=1) opened previously and
-      // left it on the multi-select URL.
-      const singleUrl = "/tspro/files?picker=1&embed=1";
-      if (frame && (frame.src === "about:blank" || frame.src.indexOf("multi=1") > -1)) {
-        frame.src = singleUrl;
-      }
+      pointPicker(false, "");
       openModal("media-picker-modal");
     });
   });
@@ -1353,11 +1727,7 @@
     btn.addEventListener("click", () => {
       currentMediaTarget = null;
       currentMediaMode = "post-featured";
-      const frame = document.getElementById("media-picker-frame");
-      const singleUrl = "/tspro/files?picker=1&embed=1";
-      if (frame && (frame.src === "about:blank" || frame.src.indexOf("multi=1") > -1)) {
-        frame.src = singleUrl;
-      }
+      pointPicker(false, "img");
       openModal("media-picker-modal");
     });
   });
@@ -1372,20 +1742,24 @@
     btn.addEventListener("click", () => {
       currentMediaTarget = null;
       currentMediaMode = "post-gallery";
-      const frame = document.getElementById("media-picker-frame");
-      // Gallery picker opens the file browser in multi-select mode
-      // so the operator can grab several images in one round-trip.
-      // ``multi=1`` toggles the bottom action bar inside the iframe
-      // and changes Select clicks to toggle-into-set instead of
-      // immediate post-back; the parent handles the batch message
-      // below by iterating the items array.
-      const multiUrl = "/tspro/files?picker=1&embed=1&multi=1";
-      if (frame && (frame.src === "about:blank" || frame.src.indexOf("multi=1") < 0)) {
-        frame.src = multiUrl;
-      }
+      // Multi-select, so several images come back in one go: the
+      // iframe shows a bottom bar and Select toggles items into a set,
+      // handed back as one batch message (handled below).
+      pointPicker(true, "img");
       openModal("media-picker-modal");
     });
   });
+
+  // Markdown toolbar "Image" button: the same picker, single-select;
+  // the pick is written into the editor as ![name](/pub/file).
+  let currentMdTextarea = null;
+  window.tspMdPickImage = function (textarea) {
+    currentMediaTarget = null;
+    currentMediaMode = "md-image";
+    currentMdTextarea = textarea;
+    pointPicker(false, "img");
+    openModal("media-picker-modal");
+  };
 
   // Gallery — per-tile remove buttons + upload tally so the
   // 10-image cap is reflected live. Uploads count as soon as the
@@ -1485,6 +1859,10 @@
       }
       refresh();
     };
+    // The post editor's save bar rebuilds the tile list from the
+    // server's response after an AJAX save; it needs the tally re-run
+    // so the "(n / 6)" chip matches the tiles that are actually there.
+    section.__galleryRefresh = refresh;
     refresh();
   })();
   // Featured image — instant local preview when a file is chosen via
@@ -1536,6 +1914,11 @@
     // with the full items array on Done. Route it through the same
     // gallery handler one item at a time so the existing per-pick
     // optimistic-tile logic + count cap still apply.
+    if (e.data && e.data.type === "media-picker-close") {
+      const mb = document.getElementById("media-picker-modal");
+      if (mb) closeModal(mb);
+      return;
+    }
     if (e.data && e.data.type === "media-selected-batch") {
       if (currentMediaMode === "post-gallery") {
         const gallerySection = document.querySelector("[data-post-gallery]");
@@ -1551,6 +1934,17 @@
     }
     if (!e.data || e.data.type !== "media-selected") return;
     const item = e.data.item;
+    if (currentMediaMode === "md-image") {
+      const ta = currentMdTextarea;
+      currentMdTextarea = null;
+      const mi = document.getElementById("media-picker-modal");
+      if (mi) closeModal(mi);
+      currentMediaMode = null;
+      if (ta && item && item.original_filename && window.tspMdInsertImage) {
+        window.tspMdInsertImage(ta, item.original_filename);
+      }
+      return;
+    }
     if (currentMediaMode === "post-gallery") {
       const gallerySection = document.querySelector("[data-post-gallery]");
       if (gallerySection && typeof gallerySection.__galleryAddPicked === "function") {
@@ -1565,7 +1959,11 @@
       const section = document.querySelector("[data-post-featured-image]");
       if (section) {
         const hidden = section.querySelector("[data-featured-media-id]");
-        if (hidden) hidden.value = item.id;
+        if (hidden) {
+          hidden.value = item.id;
+          // A script-set value fires nothing; tell the page's save bar.
+          hidden.dispatchEvent(new Event("change", { bubbles: true }));
+        }
         // Clear any pending file-upload selection so the browser-picked
         // item is what actually gets saved (uploads otherwise win on
         // the server side).
@@ -1613,6 +2011,8 @@
       form.insertBefore(label, form.querySelector(".form-actions") || null);
     }
     label.textContent = "Selected from library: " + item.original_filename;
+    // An editor's save bar listens for edits.
+    hidden.dispatchEvent(new Event("input", { bubbles: true }));
     // Close modal
     const m = document.getElementById("media-picker-modal");
     if (m) closeModal(m);
@@ -1664,7 +2064,11 @@
           credentials: "same-origin",
           body: JSON.stringify(payload),
         });
-        if (res.ok) showToast(label ? (label + " saved") : "Order saved");
+        if (res.ok) {
+          showToast(label ? (label + " saved") : "Order saved");
+          // A live preview on the page shows the new order.
+          document.dispatchEvent(new Event("lp:refresh"));
+        }
         else showToast("Save failed — retry", "error");
       } catch (_) {
         showToast("Save failed — retry", "error");
@@ -1831,23 +2235,23 @@
   // Used on the library detail page so admins reorder readings without
   // each individual drop firing a save.
   (function reorderSaveBar(){
-    const lists = document.querySelectorAll('[data-reorder-savebar="1"]');
-    if (!lists.length) return;
     const bar = document.getElementById('library-reorder-save-bar');
     const btn = document.getElementById('library-reorder-save-btn');
     if (!bar || !btn) return;
     const msg = bar.querySelector('.fe-save-bar-msg');
+    const idle = btn.textContent;
     let dirtyList = null;
 
-    lists.forEach(list => {
-      list.addEventListener('reorder-changed', () => {
-        dirtyList = list;
-        bar.hidden = false;
-        bar.classList.remove('is-leaving');
-        if (msg) msg.textContent = 'Unsaved changes';
-        btn.disabled = false;
-        btn.textContent = 'Save';
-      });
+    // Delegated: the list may arrive later, from a live search.
+    document.addEventListener('reorder-changed', (e) => {
+      const list = e.target.closest && e.target.closest('[data-reorder-savebar="1"]');
+      if (!list) return;
+      dirtyList = list;
+      bar.hidden = false;
+      bar.classList.remove('is-leaving');
+      if (msg) msg.textContent = 'Unsaved changes';
+      btn.disabled = false;
+      btn.textContent = idle;
     });
 
     btn.addEventListener('click', async () => {
@@ -1875,7 +2279,7 @@
         setTimeout(reload, 360);
       } catch (_) {
         btn.disabled = false;
-        btn.textContent = 'Save';
+        btn.textContent = idle;
         if (msg) msg.textContent = 'Save failed — try again';
       }
     });
@@ -1978,24 +2382,25 @@
     });
   });
 
-  // Click-to-copy buttons
-  document.querySelectorAll(".copy-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      try {
-        let value = btn.dataset.copy;
-        if (!value && btn.dataset.copyUrl) {
-          const r = await fetch(btn.dataset.copyUrl);
-          const j = await r.json();
-          value = j.password || j.value || "";
-        }
-        if (!value) throw new Error("empty");
-        await navigator.clipboard.writeText(value);
-        const original = btn.dataset.tip;
-        btn.dataset.tip = "Copied!";
-        btn.classList.add("copied");
-        setTimeout(() => { btn.dataset.tip = original; btn.classList.remove("copied"); }, 1200);
-      } catch (e) { btn.dataset.tip = "Copy failed"; }
-    });
+  // Click-to-copy buttons. Delegated, so chips on a page swapped in
+  // (a File Browser file's path) copy too. copyText (below) falls back
+  // to a hidden textarea where the clipboard API is off (plain http).
+  document.addEventListener("click", async e => {
+    const btn = e.target.closest && e.target.closest(".copy-btn");
+    if (!btn) return;
+    try {
+      let value = btn.dataset.copy;
+      if (!value && btn.dataset.copyUrl) {
+        const r = await fetch(btn.dataset.copyUrl);
+        const j = await r.json();
+        value = j.password || j.value || "";
+      }
+      if (!value || !(await copyText(value))) throw new Error("not copied");
+      const original = btn.dataset.tip;
+      btn.dataset.tip = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => { btn.dataset.tip = original; btn.classList.remove("copied"); }, 1200);
+    } catch (err) { btn.dataset.tip = "Copy failed"; }
   });
 
   // Reveal Zoom password
@@ -2229,7 +2634,8 @@
     });
   });
 
-  // Copy-to-clipboard buttons: <button data-copy-url="/pub/...">
+  // Copy-to-clipboard buttons: <button data-copy-url="/pub/..."> or
+  // <button data-copy-text="imap.example.com">
   function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       return navigator.clipboard.writeText(text).then(() => true).catch(() => fallbackCopy(text));
@@ -2248,102 +2654,206 @@
     return ok;
   }
   document.addEventListener("click", e => {
-    const btn = e.target.closest("[data-copy-url]");
+    // data-copy-url copies a full address; data-copy-text, the text as is.
+    const btn = e.target.closest("[data-copy-url], [data-copy-text]");
     if (!btn) return;
     e.preventDefault();
     e.stopPropagation();
-    const url = new URL(btn.dataset.copyUrl, window.location.origin).href;
-    copyText(url).then(ok => {
-      const orig = btn.textContent;
-      btn.textContent = ok ? "Copied!" : "Failed";
-      setTimeout(() => { btn.textContent = orig; }, 1500);
+    const value = btn.hasAttribute("data-copy-text") ? btn.dataset.copyText
+      : new URL(btn.dataset.copyUrl, window.location.origin).href;
+    copyText(value).then(ok => {
+      // Swap only the label, never the button's whole textContent: a
+      // copy control inside a row-actions menu is `<svg> + <span>`, and
+      // setting textContent on the button would delete the icon and the
+      // span for good (the restore below only puts text back). Plain
+      // text-only copy buttons have no inner span, so they fall through
+      // to the button itself and behave exactly as before.
+      const label = btn.querySelector("span") || btn;
+      const orig = label.textContent;
+      label.textContent = ok ? "Copied!" : "Failed";
+      setTimeout(() => { label.textContent = orig; }, 1500);
     });
   });
 
-  // Dashboard widget drag-and-drop reorder.
-  //
-  // Save signal lives on ``dragend`` (always fires) rather than
-  // ``drop`` (only fires when the cursor is over a valid drop target
-  // on release). Releasing in the gap between widgets, between the
-  // last widget and the modal, or just outside the grid would
-  // otherwise silently drop the save while leaving the widget
-  // visually in its new spot — refresh would snap it back. Same fix
-  // pattern as the library-reorder save in 1.7.16.
-  //
-  // dragstart snapshots the original order; dragend compares to the
-  // current DOM order and only fires the POST when they actually
-  // differ, so a click-and-cancel doesn't write a redundant row.
-  (function initDashboardReorder(){
+  // Dashboard reorder. Drag a widget by its head (any spot that isn't a
+  // link or button) or by its grip: the card lifts and follows the
+  // pointer, a dashed placeholder holds its place, and the others slide
+  // to make room (the masonry re-packs at once and each card animates
+  // from where it was). Dropping glides the card into the placeholder;
+  // Escape puts it back. With the grip focused, the arrow keys move the
+  // widget one place. The order is saved when it changes.
+  onEachPage(function initDashboardReorder(){
     const grid = document.querySelector("[data-dashboard-reorder]");
-    if (!grid) return;
+    if (!grid || grid._tspReorder) return;
+    grid._tspReorder = true;
     const url = grid.dataset.orderUrl;
-    let dragging = null;
-    let originalOrder = null;
+    const HEADS = ".dash-widget-head, .user-log-online > .card-head";
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const widgets = () => Array.from(grid.querySelectorAll(":scope > .dash-widget"));
+    const order = () => Array.from(grid.querySelectorAll(":scope > .dash-widget[data-widget-key]")).map(x => x.dataset.widgetKey);
+    const relayout = () => { if (typeof window.__tspDashLayout === "function") window.__tspDashLayout(); };
 
-    function currentOrder() {
-      return Array.from(grid.querySelectorAll(".dash-widget[data-widget-key]"))
-        .map(x => x.dataset.widgetKey);
-    }
-
-    async function commit() {
-      if (!url) return;
-      const order = currentOrder();
-      if (originalOrder && order.join("|") === originalOrder.join("|")) return;
+    async function commit(before) {
+      const now = order();
+      if (!url || now.join("|") === before.join("|")) return;
       try {
         await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
           credentials: "same-origin",
-          body: JSON.stringify({ order }),
+          body: JSON.stringify({ order: now }),
         });
       } catch (_) {}
     }
 
-    grid.querySelectorAll('.dash-widget[draggable="true"]').forEach(w => {
-      w.addEventListener("dragstart", (e) => {
-        if (e.target.closest("a, button, input, textarea, label, select, canvas")) {
-          if (!e.target.classList.contains("dash-drag-handle")) {
-            e.preventDefault();
-            return;
-          }
-        }
-        dragging = w;
-        originalOrder = currentOrder();
-        w.classList.add("dragging");
-        e.dataTransfer.effectAllowed = "move";
-        try { e.dataTransfer.setData("text/plain", w.dataset.widgetKey || ""); } catch(_) {}
+    // Move cards with a FLIP animation: note where each is, change the
+    // DOM, re-pack, then slide each from its old spot to its new one.
+    function animated(change, skip) {
+      const before = new Map();
+      widgets().forEach(el => { if (el !== skip) before.set(el, el.getBoundingClientRect()); });
+      change();
+      relayout();
+      if (reduced) return;
+      widgets().forEach(el => {
+        const a = before.get(el);
+        if (!a || el === skip) return;
+        const b = el.getBoundingClientRect();
+        const dx = a.left - b.left, dy = a.top - b.top;
+        if (!dx && !dy) return;
+        el.style.transition = "none";
+        el.style.transform = "translate(" + dx + "px," + dy + "px)";
+        el.getBoundingClientRect();
+        el.style.transition = "transform 220ms cubic-bezier(.2,.8,.2,1)";
+        el.style.transform = "";
+        el.addEventListener("transitionend", function done() {
+          el.style.transition = ""; el.removeEventListener("transitionend", done);
+        });
       });
-      w.addEventListener("dragend", () => {
-        w.classList.remove("dragging");
-        grid.querySelectorAll(".dash-widget.drag-over").forEach(x => x.classList.remove("drag-over"));
-        dragging = null;
-        commit();
-        originalOrder = null;
-        // Reorder may have changed which widget is now at which
-        // column position — recompute spans so the masonry repacks
-        // cleanly around the new arrangement.
-        if (typeof window.__tspDashLayout === "function") window.__tspDashLayout();
+    }
+
+    let drag = null;
+    function begin(e) {
+      const w = drag.w, r = w.getBoundingClientRect();
+      drag.started = true;
+      drag.before = order();
+      drag.offX = drag.x0 - r.left;
+      drag.offY = drag.y0 - r.top;
+      drag.home = w.nextElementSibling;
+      const ph = document.createElement("div");
+      ph.className = "dash-widget dash-placeholder" + (w.classList.contains("dash-widget-wide") ? " dash-widget-wide" : "");
+      ph.style.height = r.height + "px";
+      ph.style.gridRowEnd = w.style.gridRowEnd;
+      drag.ph = ph;
+      grid.insertBefore(ph, w);
+      Object.assign(w.style, { position: "fixed", left: r.left + "px", top: r.top + "px",
+                               width: r.width + "px", height: r.height + "px", margin: "0" });
+      w.classList.add("is-lifted");
+      document.body.classList.add("dash-dragging");
+      relayout();
+    }
+    function moveTo(e) {
+      const w = drag.w;
+      w.style.left = (e.clientX - drag.offX) + "px";
+      w.style.top = (e.clientY - drag.offY) + "px";
+      // Scroll when near the top or bottom of the window.
+      const edge = 60;
+      if (e.clientY < edge) window.scrollBy(0, -12);
+      else if (e.clientY > window.innerHeight - edge) window.scrollBy(0, 12);
+      // Where the slot goes: the masonry packs widgets into whichever gap
+      // fits, so "after the card under the pointer" can land in the other
+      // column. Instead, try the placeholder at each place in the order
+      // (no paint happens in between), keep the one whose slot sits
+      // nearest the lifted card, and slide everything there. At most
+      // every 90ms, and only once the card has moved a little.
+      const now = performance.now();
+      const lr = w.getBoundingClientRect();
+      const cx = lr.left + lr.width / 2, cy = lr.top + lr.height / 2;
+      if (now - (drag.lastTry || 0) < 90 || Math.hypot(cx - (drag.lastX || 0), cy - (drag.lastY || 0)) < 12) return;
+      drag.lastTry = now; drag.lastX = cx; drag.lastY = cy;
+      const ph = drag.ph;
+      const others = widgets().filter(el => el !== ph && el !== w);
+      const start = ph.nextElementSibling;
+      const dist = () => {
+        const r = ph.getBoundingClientRect();
+        return Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy);
+      };
+      let best = start, bestD = dist();
+      others.concat([null]).forEach(ref => {
+        if (ref === start) return;
+        grid.insertBefore(ph, ref);
+        const d = dist();
+        if (d < bestD - 4) { best = ref; bestD = d; }
       });
-      w.addEventListener("dragover", (e) => {
-        if (!dragging || dragging === w) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        const rect = w.getBoundingClientRect();
-        const after = (e.clientY - rect.top) > rect.height / 2;
-        w.classList.add("drag-over");
-        if (after) grid.insertBefore(dragging, w.nextSibling);
-        else grid.insertBefore(dragging, w);
-      });
-      w.addEventListener("dragleave", () => w.classList.remove("drag-over"));
-      // ``drop`` no longer commits — left in place only to swallow the
-      // default browser navigation that some browsers fire on drop
-      // events when not preventDefault'd.
-      w.addEventListener("drop", (e) => {
-        e.preventDefault();
-        w.classList.remove("drag-over");
-      });
+      grid.insertBefore(ph, start);
+      if (best !== start) animated(() => grid.insertBefore(ph, best), w);
+    }
+    function settle(cancel) {
+      const d = drag; drag = null;
+      if (!d || !d.started) return;
+      const w = d.w, ph = d.ph;
+      if (cancel) {
+        animated(() => { if (d.home && d.home.parentElement === grid) grid.insertBefore(ph, d.home); else grid.appendChild(ph); }, w);
+      }
+      const target = ph.getBoundingClientRect();
+      const land = () => {
+        w.classList.remove("is-lifted", "is-landing");
+        ["position", "left", "top", "width", "height", "margin", "transition"].forEach(k => { w.style[k] = ""; });
+        grid.insertBefore(w, ph);
+        ph.remove();
+        document.body.classList.remove("dash-dragging");
+        relayout();
+        if (!cancel) commit(d.before);
+      };
+      if (reduced) { land(); return; }
+      w.classList.add("is-landing");
+      w.style.transition = "left 180ms ease, top 180ms ease";
+      w.style.left = target.left + "px";
+      w.style.top = target.top + "px";
+      setTimeout(land, 190);
+    }
+
+    grid.addEventListener("pointerdown", e => {
+      if (e.button !== 0 || drag) return;
+      const grip = e.target.closest(".dash-drag-handle");
+      const head = e.target.closest(HEADS);
+      if (!grip && !head) return;
+      // Touch drags only from the grip, so swiping a head still scrolls.
+      if (!grip && e.pointerType === "touch") return;
+      if (!grip && e.target.closest("a, button, input, select, textarea, label, .heading-help")) return;
+      const w = e.target.closest(".dash-widget");
+      if (!w || w.parentElement !== grid) return;
+      e.preventDefault();
+      drag = { w, x0: e.clientX, y0: e.clientY, started: false };
     });
-  })();
+    window.addEventListener("pointermove", e => {
+      if (!drag) return;
+      if (!drag.started) {
+        if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6) return;
+        begin(e);
+      }
+      moveTo(e);
+    });
+    window.addEventListener("pointerup", () => settle(false));
+    window.addEventListener("pointercancel", () => settle(true));
+    window.addEventListener("keydown", e => { if (e.key === "Escape" && drag && drag.started) settle(true); });
+
+    // Keyboard: arrow keys on a grip move its widget one place.
+    grid.addEventListener("keydown", e => {
+      const grip = e.target.closest(".dash-drag-handle");
+      if (!grip) return;
+      const back = e.key === "ArrowUp" || e.key === "ArrowLeft";
+      const fwd = e.key === "ArrowDown" || e.key === "ArrowRight";
+      if (!back && !fwd) return;
+      e.preventDefault();
+      const w = grip.closest(".dash-widget");
+      const before = order();
+      const sib = back ? w.previousElementSibling : w.nextElementSibling;
+      if (!sib || !sib.classList.contains("dash-widget")) return;
+      animated(() => grid.insertBefore(w, back ? sib : sib.nextElementSibling));
+      grip.focus();
+      commit(before);
+    });
+  });
 
   // Dashboard masonry layout. Companion to the CSS-Grid setup in
   // `.dash-grid` (app.css). The grid uses fine 8px row tracks plus
@@ -2367,9 +2877,10 @@
   //     as users sign in/out; visitor-metrics sparkline animates in)
   //   * after a drag/drop reorder commits (wired in the reorder block
   //     above via window.__tspDashLayout).
-  (function initDashboardMasonry(){
+  onEachPage(function initDashboardMasonry(){
     const grid = document.querySelector(".dash-grid");
-    if (!grid) return;
+    if (!grid || grid._tspMasonry) return;
+    grid._tspMasonry = true;
     if (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) {
       // Single-column layout — CSS handles spacing via normal row-gap.
       // Still expose the layout function so the resize handler can
@@ -2422,12 +2933,13 @@
       });
       grid.querySelectorAll(".dash-widget").forEach(w => ro.observe(w));
     }
-  })();
+  });
 
   // Server metrics widget
-  (function initServerMetrics(){
+  onEachPage(function initServerMetrics(){
     const widget = document.getElementById("server-metrics-widget");
-    if (!widget) return;
+    if (!widget || widget._tspMetrics) return;
+    widget._tspMetrics = true;
     if (!widget.querySelector(".server-metrics-column")) return;
     const endpoint = widget.dataset.endpoint;
     const MAX_SAMPLES = 60;
@@ -2493,6 +3005,8 @@
     }
 
     async function tick() {
+      // Replaced along with the page: stop polling for it.
+      if (!widget.isConnected) { clearInterval(h); return; }
       try {
         const r = await fetch(endpoint, { credentials: "same-origin", headers: { "X-Requested-With": "fetch" }});
         if (!r.ok) return;
@@ -2511,7 +3025,8 @@
         setField("disk_detail", fmtBytes(d.disk_used) + " / " + fmtBytes(d.disk_total));
         const diskTile = document.getElementById("disk-metric-tile");
         if (diskTile) diskTile.classList.toggle("metric-tile-alert", (d.disk_percent || 0) >= DISK_ALERT_PCT);
-        setField("load_avg", d.load_avg.map(n => n.toFixed(2)).join(" · "));
+        setField("load_1", d.load_avg[0].toFixed(2));
+        setField("load_rest", "5m " + d.load_avg[1].toFixed(2) + " · 15m " + d.load_avg[2].toFixed(2));
         setField("uptime", fmtUptime(d.uptime_seconds));
         setField("cpu_count", d.cpu_count + " core" + (d.cpu_count === 1 ? "" : "s") + " · " + d.hostname);
         widget.querySelectorAll(".metric-spark").forEach(c => {
@@ -2520,14 +3035,15 @@
       } catch (_) {}
     }
 
-    tick();
     const h = setInterval(tick, 5000);
+    tick();
     window.addEventListener("beforeunload", () => clearInterval(h));
-  })();
+  });
 
-  (function initOnlineUsers(){
+  onEachPage(function initOnlineUsers(){
     const tile = document.getElementById("online-users-tile");
-    if (!tile) return;
+    if (!tile || tile._tspOnline) return;
+    tile._tspOnline = true;
     const endpoint = tile.dataset.endpoint;
     const countEl = tile.querySelector('[data-field="online_count"]');
     const labelEl = tile.querySelector('[data-field="online_label"]');
@@ -2541,6 +3057,7 @@
     }
 
     async function tick() {
+      if (!tile.isConnected) { clearInterval(h); return; }
       try {
         const r = await fetch(endpoint, { credentials: "same-origin", headers: { "X-Requested-With": "fetch" }});
         if (!r.ok) return;
@@ -2551,7 +3068,7 @@
 
     const h = setInterval(tick, 30000);
     window.addEventListener("beforeunload", () => clearInterval(h));
-  })();
+  });
 })();
 
 // ── LIVE ATTENTION CHIPS ────────────────────────────────────────────────────
@@ -2568,8 +3085,10 @@
   // Ask for the dashboard-only chips (failed backups, forms attention) only
   // while the dashboard grid is on screen, so every other page's poll stays
   // cheap.
-  const onDashboard = !!document.querySelector(".dash-widget[data-widget-key]");
-  const endpoint = "/tspro/_live/counts" + (onDashboard ? "?dash=1" : "");
+  // Checked on every poll: the page behind a modal can become the
+  // dashboard (tspSwapPage).
+  const endpoint = () => "/tspro/_live/counts" +
+    (document.querySelector(".dash-widget[data-widget-key]") ? "?dash=1" : "");
 
   function setChip(el, n) {
     el.textContent = n;
@@ -2597,7 +3116,7 @@
   async function tick() {
     if (document.hidden) return;
     try {
-      const r = await fetch(endpoint, {
+      const r = await fetch(endpoint(), {
         credentials: "same-origin",
         headers: { "X-Requested-With": "fetch" },
       });
@@ -2666,9 +3185,15 @@
       if (!node) throw new Error("empty html");
       target.appendChild(node);
       if (typeof target.__tspBindItem === "function") target.__tspBindItem(node);
+      const menu = form.closest("details");
+      if (menu) menu.open = false;
+      const empty = target.parentElement && target.parentElement.querySelector(".nav-megacol-empty");
+      if (empty) empty.remove();
+      // A compact row (fe_rows.js) opens straight to its fields.
+      if (window.FeRows && node.hasAttribute("data-ol-row")) { window.FeRows.init(target); window.FeRows.open(node); }
       node.scrollIntoView({ behavior: "smooth", block: "nearest" });
       const labelInput = node.querySelector('input[data-block-field="label"]');
-      if (labelInput) { labelInput.focus(); labelInput.select(); }
+      if (labelInput && !labelInput.disabled && labelInput.offsetParent) { labelInput.focus(); labelInput.select(); }
     } catch (_) {
       toast("Could not add block — retry", "error");
     } finally {
@@ -2762,6 +3287,9 @@
     });
     return out;
   }
+
+  // The Header page's live preview renders unsaved mega menu text too.
+  window.tspMegaCollect = collectBlocks;
 
   function activeEditor() {
     return document.querySelector("[data-bulk-save-url]");
@@ -3980,7 +4508,8 @@
     // doesn't have a dead zone above it. Clicks inside the body still
     // interact with form fields normally instead of collapsing the card.
     card.addEventListener("click", (e) => {
-      const interactive = e.target.closest("button, a, input, select, textarea, label, .row-actions");
+      const interactive = e.target.closest(
+        "button, a, input, select, textarea, label, .row-actions, [data-page-block-id], [data-open-modal]");
       if (interactive && interactive !== btn) return;
       const isCollapsed = card.classList.contains("is-collapsed");
       if (isCollapsed) { toggle(); return; }
@@ -4186,6 +4715,105 @@
   });
 })();
 
+
+// ── SAVE BAR ⇄ OPEN MODAL DOCKING ──────────────────────────────────────────
+// The frontend admin's yellow bar is fixed to the subnav column, which is
+// exactly where you're NOT looking while a block-editor modal is open —
+// and it sits behind the backdrop blur besides. While a modal is open
+// and the bar is showing, pin it to the modal panel's lower-left corner
+// instead. Coordinates are written inline from the panel's rect (rather
+// than reparenting the bar into the modal) so the feSaveBar handler,
+// the is-leaving animation, and the `hidden` toggling all keep working
+// on the same element. Re-placed on: modal open/close, bar show/hide,
+// window resize, and the panel changing size as its content loads.
+(function feSaveBarModalDock(){
+  const bar = document.getElementById('fe-save-bar') || document.getElementById('footer-save-bar');
+  if (!bar) return;
+  const PAD = 16;
+  let ro = null, watched = null;
+
+  // Modals that carry their own Done/Cancel footer AND sit on top of a
+  // modal that owns the save (the dynbg picker opens from the hero /
+  // block modal, and its Done hands the config back to that modal's
+  // form). Showing the yellow bar there offers a second, redundant
+  // save affordance for a dialog the visitor hasn't finished with, so
+  // the bar is suppressed for as long as one is on top.
+  const SUPPRESS_IN = '#dynbg-picker-modal';
+  function topModal(){
+    const open = document.querySelectorAll('.modal.open');
+    // Last opened wins — pickers (icon / media) open on top of block modals.
+    return open[open.length - 1] || null;
+  }
+  function openPanel(){
+    const m = topModal();
+    return m ? m.querySelector('.modal-panel') : null;
+  }
+  function suppressed(){
+    const m = topModal();
+    return !!(m && m.matches(SUPPRESS_IN));
+  }
+  function watch(panel){
+    if (watched === panel) return;
+    if (ro) { ro.disconnect(); ro = null; }
+    if (watched) watched.removeEventListener('transitionend', place);
+    watched = panel;
+    if (!panel) return;
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver(place);
+      ro.observe(panel);
+    }
+    // The panel slides in on a transform transition when the modal
+    // opens; a rect read mid-slide lands the bar a few px low. Neither
+    // observer sees a transform settle, so re-place on transitionend
+    // (with a timer fallback for reduced-motion / no-transition cases).
+    panel.addEventListener('transitionend', place);
+    setTimeout(place, 260);
+  }
+  function undock(){
+    watch(null);
+    if (!bar.classList.contains('is-in-modal')) return;
+    bar.classList.remove('is-in-modal');
+    bar.style.left = '';
+    bar.style.bottom = '';
+  }
+  function place(){
+    // Hide (don't clear) the bar while a self-saving picker is on top;
+    // the dirty state is preserved, so it reappears intact on close.
+    const hide = suppressed();
+    if (bar.classList.contains('is-suppressed') !== hide) {
+      bar.classList.toggle('is-suppressed', hide);
+    }
+    if (hide) { undock(); return; }
+    const panel = openPanel();
+    if (!panel || bar.hidden) { undock(); return; }
+    const r = panel.getBoundingClientRect();
+    if (!r.width) { undock(); return; }
+    watch(panel);
+    // Only write when something actually changes. classList.add() of a
+    // token that's already present still rewrites the attribute — and
+    // that fires a mutation record — so an unconditional add here would
+    // re-trigger the observer below in a microtask loop and hang the
+    // page.
+    if (!bar.classList.contains('is-in-modal')) bar.classList.add('is-in-modal');
+    const left = Math.round(r.left + PAD) + 'px';
+    const bottom = Math.round(window.innerHeight - r.bottom + PAD) + 'px';
+    if (bar.style.left !== left) bar.style.left = left;
+    if (bar.style.bottom !== bottom) bar.style.bottom = bottom;
+  }
+
+  // Modal open/close is a class flip on the .modal; bar show/hide is the
+  // `hidden` attribute (plus is-leaving). One observer covers both.
+  const mo = new MutationObserver(records => {
+    for (const rec of records) {
+      const t = rec.target;
+      if (t === bar || (t.classList && t.classList.contains('modal'))) { place(); return; }
+    }
+  });
+  mo.observe(document.body, { attributes: true, subtree: true,
+                              attributeFilter: ['class', 'hidden'] });
+  window.addEventListener('resize', place);
+  place();
+})();
 
 // ── ICON PICKER MODAL ───────────────────────────────────────────────────────
 // Triggered by any button with [data-open-icon-picker]. The trigger stores
@@ -4629,7 +5257,7 @@
     const sections = [...sectionList.querySelectorAll(":scope > .sidebar-order-section")]
       .map(sec => sec.getAttribute("data-section-key"));
     const out = { sections };
-    ["main", "intergroup", "admin"].forEach(scope => {
+    ["main", "intergroup"].forEach(scope => {
       const ul = sectionList.querySelector('[data-section-items="' + scope + '"]');
       if (!ul) return;
       out[scope] = [...ul.querySelectorAll(':scope > .sidebar-order-item')]
@@ -4715,214 +5343,7 @@
   form.addEventListener("submit", serialize);
 })();
 
-// Intergroup library page controls: live search, category filter, sort.
-// All client-side over the rows the server already rendered. Each <li>
-// inside [data-ig-list] carries data-name / data-date / data-type /
-// data-search / data-categories that we read here.
-(function () {
-  document.querySelectorAll("[data-ig-library]").forEach(scope => {
-    const list = scope.querySelector("[data-ig-list]");
-    if (!list) return;
-    const search = scope.querySelector("[data-ig-search]");
-    const sort = scope.querySelector("[data-ig-sort]");
-    const filterBtns = Array.from(scope.querySelectorAll("[data-ig-filter]"));
-    const empty = scope.querySelector("[data-ig-empty]");
-    const rows = Array.from(list.children).filter(el => el.tagName === "LI");
-    const originalOrder = rows.slice();
-    let activeFilter = "all";
-    let activeQuery = "";
-
-    function applySort(mode) {
-      let sorted;
-      if (mode === "manual") {
-        sorted = originalOrder.slice();
-      } else if (mode === "name-asc") {
-        sorted = rows.slice().sort((a, b) =>
-          (a.dataset.name || "").localeCompare(b.dataset.name || ""));
-      } else if (mode === "name-desc") {
-        sorted = rows.slice().sort((a, b) =>
-          (b.dataset.name || "").localeCompare(a.dataset.name || ""));
-      } else if (mode === "date-desc") {
-        sorted = rows.slice().sort((a, b) =>
-          (b.dataset.date || "").localeCompare(a.dataset.date || ""));
-      } else if (mode === "date-asc") {
-        sorted = rows.slice().sort((a, b) =>
-          (a.dataset.date || "").localeCompare(b.dataset.date || ""));
-      } else if (mode === "type-asc") {
-        sorted = rows.slice().sort((a, b) => {
-          const ta = (a.dataset.type || "").localeCompare(b.dataset.type || "");
-          return ta !== 0 ? ta : (a.dataset.name || "").localeCompare(b.dataset.name || "");
-        });
-      } else {
-        sorted = originalOrder.slice();
-      }
-      // Reattach in the new order — appendChild moves existing nodes,
-      // it doesn't clone them, so event handlers on the rows survive.
-      sorted.forEach(li => list.appendChild(li));
-    }
-
-    function applyFilterAndSearch() {
-      const q = activeQuery.trim().toLowerCase();
-      let visible = 0;
-      rows.forEach(li => {
-        let show = true;
-        if (activeFilter !== "all") {
-          const ids = (li.dataset.categories || "")
-            .split(",").filter(Boolean);
-          show = ids.includes(activeFilter);
-        }
-        if (show && q) {
-          show = (li.dataset.search || "").includes(q);
-        }
-        li.hidden = !show;
-        if (show) visible++;
-      });
-      if (empty) empty.hidden = visible !== 0;
-    }
-
-    if (sort) {
-      sort.addEventListener("change", () => {
-        applySort(sort.value);
-      });
-      applySort(sort.value);
-    }
-
-    filterBtns.forEach(btn => {
-      btn.addEventListener("click", () => {
-        filterBtns.forEach(b => b.classList.toggle(
-          "chip-active", b === btn));
-        activeFilter = btn.dataset.igFilter || "all";
-        applyFilterAndSearch();
-      });
-    });
-
-    if (search) {
-      let t;
-      search.addEventListener("input", () => {
-        clearTimeout(t);
-        t = setTimeout(() => {
-          activeQuery = search.value;
-          applyFilterAndSearch();
-        }, 80);
-      });
-    }
-
-    applyFilterAndSearch();
-  });
-})();
-
-// Library file multi-select bar: per-row checkboxes + select-all +
-// count + bulk-edit-categories modal trigger. Only renders when the
-// user has edit authority and at least one row is bulk-editable.
-// Per-row authorization (which checkboxes get rendered) is decided
-// server-side in the Jinja template so we don't have to mirror the
-// ``can_bulk_edit_categories`` rule here.
-(function () {
-  const bar = document.querySelector("[data-bulk-bar]");
-  if (!bar) return;
-  const list = document.querySelector("[data-ig-list]") ||
-               document.querySelector(".file-list");
-  if (!list) return;
-  const selectAll = bar.querySelector("[data-bulk-select-all]");
-  const countEl = bar.querySelector("[data-bulk-count]");
-  const actionBtn = bar.querySelector("[data-bulk-action]");
-  const deleteBtn = bar.querySelector("[data-bulk-delete]");
-  const modal = document.querySelector("[data-bulk-modal]");
-  const modalCount = modal && modal.querySelector("[data-bulk-modal-count]");
-  const modalIdSink = modal && modal.querySelector("[data-bulk-modal-ids]");
-
-  // Hide the bar entirely if no row carries a checkbox — happens for
-  // editors viewing a library where every reading was admin-uploaded.
-  const checkboxes = () => Array.from(
-    list.querySelectorAll("input[data-bulk-select]"));
-
-  if (checkboxes().length === 0) {
-    bar.hidden = true;
-    return;
-  }
-
-  function selected() {
-    return checkboxes().filter(cb => cb.checked && !cb.disabled);
-  }
-
-  function refresh() {
-    const sel = selected();
-    const all = checkboxes();
-    if (countEl) {
-      countEl.textContent = sel.length === 1
-        ? "1 selected"
-        : sel.length + " selected";
-    }
-    if (actionBtn) actionBtn.disabled = sel.length === 0;
-    if (deleteBtn) deleteBtn.disabled = sel.length === 0;
-    if (selectAll) {
-      selectAll.checked = sel.length > 0 && sel.length === all.length;
-      selectAll.indeterminate = sel.length > 0 && sel.length < all.length;
-    }
-  }
-
-  list.addEventListener("change", e => {
-    if (e.target.matches("input[data-bulk-select]")) refresh();
-  });
-
-  if (selectAll) {
-    selectAll.addEventListener("change", () => {
-      checkboxes().forEach(cb => { cb.checked = selectAll.checked; });
-      refresh();
-    });
-  }
-
-  // When the user opens the bulk-edit modal, snapshot the selected
-  // ids into hidden inputs inside the form — saves us from having to
-  // collect them at submit time. The modal's open/close lifecycle
-  // is owned by the standard data-open-modal handler.
-  if (actionBtn && modal && modalIdSink) {
-    actionBtn.addEventListener("click", () => {
-      const ids = selected().map(cb => cb.value);
-      modalIdSink.innerHTML = ids
-        .map(id => '<input type="hidden" name="reading_ids" value="' +
-             id.replace(/"/g, "&quot;") + '">')
-        .join("");
-      if (modalCount) modalCount.textContent = String(ids.length);
-    });
-  }
-
-  // Bulk delete: confirm with a count, then submit a synthetic POST
-  // form. Per-row authorization is re-enforced server-side, so the
-  // user can't sneak unauthorized ids through even if they tampered
-  // with the DOM. Uses the page's CSRF meta token so the auto-attach
-  // header logic still finds it.
-  if (deleteBtn) {
-    deleteBtn.addEventListener("click", () => {
-      const ids = selected().map(cb => cb.value);
-      if (!ids.length) return;
-      const word = ids.length === 1 ? "file" : "files";
-      if (!confirm(
-        "Delete " + ids.length + " " + word + "? This can't be undone."
-      )) return;
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = deleteBtn.dataset.bulkDeleteUrl;
-      const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-      if (csrfMeta) {
-        const t = document.createElement("input");
-        t.type = "hidden"; t.name = "csrf_token"; t.value = csrfMeta.content;
-        form.appendChild(t);
-      }
-      ids.forEach(id => {
-        const i = document.createElement("input");
-        i.type = "hidden"; i.name = "reading_ids"; i.value = id;
-        form.appendChild(i);
-      });
-      document.body.appendChild(form);
-      form.submit();
-    });
-  }
-
-  refresh();
-})();
-
-// Intergroup category editor inside the library-edit modal: row
+// Category editor on a library's settings page: row
 // add/remove. New rows are cloned from a hidden template element so
 // the markup stays in the Jinja template.
 (function () {
@@ -5026,11 +5447,64 @@
     const c = $('[data-dynbg-modal-card].active');
     return c ? (c.dataset.dynbgKey || '') : '';
   }
-  // Currently-selected overlay key ('' for None).
-  function selectedOverlay () {
-    const c = $('[data-dynbg-modal-overlay-card].active');
+  // ── Per-mode column helpers ────────────────────────────────────
+  // Everything colour / tone / texture related lives twice in the
+  // Options tab — once per mode column (`[data-dynbg-mode="light"]` /
+  // `"dark"`). These helpers scope a lookup to one column.
+  const MODES = ['light', 'dark'];
+  // Palette width, mirroring dynbg.MAX_COLOR_SLOTS. Most presets show
+  // 1-3; the pattern preset uses all five (three inks + backdrop pair).
+  const SLOTS = [1, 2, 3, 4, 5, 6];
+  // The `*-classic` catalog entries are the pre-rework recipes kept
+  // under their own keys (see the "Classic recipes" block in
+  // app/dynbg.py). They render the same inner shape as the preset they
+  // mirror, so anything keyed off the SHAPE — random positions, the
+  // knob-row legend — resolves through the family, while anything keyed
+  // off the ENTRY (caps, catalog lookups, saved values) keeps the real
+  // key. Mirrors the same suffix strip in dynbg.random_positions.
+  function presetFamily (key) {
+    return String(key || '').replace(/-classic$/, '');
+  }
+  function modeCol (mode) { return $('[data-dynbg-mode="' + mode + '"]'); }
+  function m$ (mode, sel) { const c = modeCol(mode); return c ? c.querySelector(sel) : null; }
+  function m$$ (mode, sel) { const c = modeCol(mode); return c ? c.querySelectorAll(sel) : []; }
+  // Currently-selected overlay key for a mode ('' for None).
+  function selectedOverlay (mode) {
+    const c = m$(mode, '[data-dynbg-mode-overlay-card].active');
     return c ? (c.dataset.dynbgOverlayKey || '') : '';
   }
+  // ── Classic-recipe fallback (JS twin of dynbg.render_key) ──────
+  // A saved config with no version stamp and no per-mode block was
+  // written before the light/dark rework, so it renders with the
+  // `-classic` twin of whatever preset it names. Kept in step with the
+  // Python side by construction: the twin only counts if the catalog
+  // (rendered from dynbg.CATALOG) actually has a card for it.
+  const CONFIG_VERSION = 2;
+  function isLegacyConfig (raw) {
+    if (!raw) return true;
+    let o = raw;
+    if (typeof o === 'string') {
+      try { o = JSON.parse(o); } catch (_) { return true; }
+    }
+    if (!o || typeof o !== 'object') return true;
+    // Accept both the config shape (`v` / `modes`) and the block-data
+    // shape (`bg_dynbg_v` / `bg_dynbg_modes`) — same two facts, two
+    // storage layouts.
+    if (o.v || o.bg_dynbg_v) return false;
+    let modes = o.modes || o.bg_dynbg_modes;
+    if (typeof modes === 'string') {
+      try { modes = JSON.parse(modes); } catch (_) { modes = null; }
+    }
+    return !(modes && typeof modes === 'object' && (modes.light || modes.dark));
+  }
+  function renderKeyFor (key, rawCfg) {
+    key = String(key || '');
+    if (!key) return '';
+    const twin = key + '-classic';
+    if (!document.querySelector('[data-dynbg-key="' + CSS.escape(twin) + '"]')) return key;
+    return isLegacyConfig(rawCfg) ? twin : key;
+  }
+
   function entryByKey (key) {
     if (!key) return null;
     const card = $('[data-dynbg-key="' + CSS.escape(key) + '"]');
@@ -5070,7 +5544,59 @@
   // Live per-preset knob VALUES for the active preset, keyed by knob
   // key. Rebuilt by renderKnobs() on selection; read by getKnobs().
   let _knobState = {};
+  // Map a preset's knob VALUES onto its CSS custom properties, using the
+  // same unit rules as dynbg.knobs_to_css_vars on the server (so a live
+  // preview paints exactly what the saved render will). Returns an array
+  // of "--var: value;" strings — shared by the picker's own preview and,
+  // via window.dynbgKnobVars, by out-of-modal previews (the hero modal).
+  function knobVarParts (key, values) {
+    const spec = (capFor(key).knobs) || [];
+    const out = [];
+    spec.forEach(k => {
+      if (!k.css_var) return;
+      const v = values ? values[k.key] : null;
+      if (v == null) return;
+      // Enumerated knobs stamp whatever CSS their chosen option
+      // declares (e.g. "gradient" supplies the second gradient stop).
+      if (k.kind === 'select') {
+        const opt = (k.options || []).find(o => o.value === v);
+        if (opt && opt.css) out.push(k.css_var + ': ' + opt.css + ';');
+        return;
+      }
+      if (isNaN(v)) return;
+      if (k.unit === 'deg') out.push(k.css_var + ': ' + v + 'deg;');
+      else if (k.unit === 'px') out.push(k.css_var + ': ' + v + 'px;');
+      else if (k.unit === '%') out.push(k.css_var + ': ' + (v / 100) + ';');
+      else out.push(k.css_var + ': ' + v + ';');
+    });
+    return out;
+  }
+  // All CSS custom properties a preset's knobs can stamp — lets a
+  // consumer clear stale vars before re-applying.
+  function knobVarNames (key) {
+    return ((capFor(key).knobs) || []).map(k => k.css_var).filter(Boolean);
+  }
 
+  // Build a help chip matching _help_chip.html's `chip()` macro, for the
+  // knob rows this file renders in JS. The Lucide `info` glyph is only
+  // available server-side, so the button is cloned from a chip the
+  // template already rendered into this modal; without one (shouldn't
+  // happen — the tab strip has one) we fall back to the prose inline.
+  function makeChip (label, html) {
+    const proto = $('.heading-help .help-btn');
+    if (!proto) return null;
+    const wrap = document.createElement('span');
+    wrap.className = 'heading-help field-help';
+    const btn = proto.cloneNode(true);
+    btn.setAttribute('aria-label', 'About ' + label);
+    const tip = document.createElement('span');
+    tip.className = 'help-tooltip';
+    tip.setAttribute('role', 'tooltip');
+    tip.innerHTML = html;
+    wrap.appendChild(btn);
+    wrap.appendChild(tip);
+    return wrap;
+  }
   // Rebuild the per-preset knob sliders for `key` from its spec, seeding
   // each from `values` (saved) or the spec default. Hides the fieldset
   // when the preset declares no knobs.
@@ -5085,13 +5611,153 @@
     if (!spec.length) { row.hidden = true; return; }
     row.hidden = false;
     if (legend) legend.textContent = (key === 'dotted-grid') ? 'Dot pattern'
-      : (key === 'diagonal-lines') ? 'Line pattern' : 'Pattern';
+      : (key === 'diagonal-lines') ? 'Line pattern'
+      : (presetFamily(key) === 'aurora-blobs') ? 'Motion'
+      : 'Pattern';
     spec.forEach(k => {
+      // Enumerated knob (motif choice, background fill) → <select>.
+      if (k.kind === 'select') {
+        const sv = (values && k.key in values) ? String(values[k.key]) : k.default;
+        const known = (k.options || []).some(o => o.value === sv)
+          || (k.groups || []).some(g => (g.options || []).some(o => o.value === sv));
+        _knobState[k.key] = known ? sv : k.default;
+        // Knobs that declare `random_value` (the pattern motif) get the
+        // same shape every other randomisable control in this modal
+        // has: a checkbox for "shuffles per page load", and underneath
+        // it one button that does the single useful thing for the
+        // state you're in — preview another sample while randomising,
+        // roll-and-keep while pinned. Burying "Random each load" as
+        // entry #1 of a 330-option <select> made a pinned motif and a
+        // shuffling one look identical.
+        const rnd = k.random_value || '';
+        const box = document.createElement('div');
+        box.className = 'dynbg-modal-knob-group';
+        box.dataset.dynbgKnob = k.key;
+        // Every concrete (non-random) value the select offers — the
+        // roll pool. Read off the spec, so no catalogue fetch needed.
+        const pool = [];
+        (k.options || []).forEach(o => { if (o.value !== rnd) pool.push(o.value); });
+        (k.groups || []).forEach(g => (g.options || []).forEach(o => {
+          if (o.value !== rnd) pool.push(o.value);
+        }));
+        const wrap = document.createElement('label');
+        wrap.className = 'dynbg-modal-slider-row dynbg-modal-select-row';
+        if (!rnd) wrap.dataset.dynbgKnob = k.key;
+        const head = document.createElement('span');
+        head.className = 'dynbg-modal-slider-label';
+        head.textContent = k.label;
+        const sel = document.createElement('select');
+        const addOpt = (parent, o) => {
+          // With a checkbox owning the randomise state, the "random"
+          // entry would be a second, contradictable control for it.
+          if (rnd && o.value === rnd) return;
+          const opt = document.createElement('option');
+          opt.value = o.value; opt.textContent = o.label;
+          if (o.value === _knobState[k.key]) opt.selected = true;
+          parent.appendChild(opt);
+        };
+        (k.options || []).forEach(o => addOpt(sel, o));
+        // Grouped options (the 330-entry pattern catalogue by tag).
+        (k.groups || []).forEach(g => {
+          const og = document.createElement('optgroup');
+          og.label = g.label;
+          (g.options || []).forEach(o => addOpt(og, o));
+          sel.appendChild(og);
+        });
+        sel.addEventListener('change', () => {
+          _knobState[k.key] = sel.value;
+          // A fresh "random" pick should actually re-roll, not reuse
+          // whatever motif the last repaint happened to land on.
+          _previewPattern = null;
+          syncOptionVisibility(selectedKey());
+          updatePreview();
+        });
+        wrap.appendChild(head);
+        wrap.appendChild(sel);
+        if (!rnd) { host.appendChild(wrap); return; }
+
+        const rndLabel = document.createElement('label');
+        rndLabel.className = 'check dynbg-modal-randomize';
+        const rndBox = document.createElement('input');
+        rndBox.type = 'checkbox';
+        rndBox.checked = _knobState[k.key] === rnd;
+        const rndText = document.createElement('span');
+        const what = (k.random_label || k.label).toLowerCase();
+        rndText.innerHTML = '<b>Randomize ' + what + '</b>';
+        // Same treatment the template gives every other label in this
+        // modal: the name on the row, the explanation one click away.
+        const rndChip = makeChip('Randomize ' + what,
+          'A different ' + what + ' on every page load. Off = the one chosen below, on every visit.');
+        if (rndChip) rndText.appendChild(rndChip);
+        else rndText.innerHTML += ' <span class="muted smaller">— a different ' + what
+          + ' on every page load. Off = the one chosen below, on every visit.</span>';
+        rndLabel.appendChild(rndBox);
+        rndLabel.appendChild(rndText);
+
+        const actions = document.createElement('div');
+        actions.className = 'dynbg-modal-roll-row';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-sm dynbg-modal-roll';
+        const note = document.createElement('span');
+        note.className = 'muted smaller';
+        actions.appendChild(btn);
+        actions.appendChild(note);
+
+        const syncRnd = () => {
+          const on = _knobState[k.key] === rnd;
+          rndBox.checked = on;
+          wrap.hidden = on;
+          btn.textContent = on ? 'Shuffle sample' : 'Roll';
+          note.textContent = on
+            ? 'Preview another of the ones visitors will get.'
+            : 'Pick one at random and keep it.';
+        };
+        rndBox.addEventListener('change', () => {
+          if (rndBox.checked) {
+            _knobState[k.key] = rnd;
+            _previewPattern = null;
+          } else {
+            // Switching randomise OFF keeps whatever the preview was
+            // just showing (mirrors the colour / position toggles), so
+            // the admin pins the one they liked rather than snapping to
+            // the top of an alphabetical list.
+            _knobState[k.key] = _previewPattern
+              || (pool.length ? pool[Math.floor(Math.random() * pool.length)] : sel.value);
+            sel.value = _knobState[k.key];
+          }
+          syncRnd();
+          syncOptionVisibility(selectedKey());
+          updatePreview();
+        });
+        btn.addEventListener('click', () => {
+          if (_knobState[k.key] === rnd) {
+            _previewPattern = null;          // re-roll the sample only
+          } else if (pool.length) {
+            let next = _knobState[k.key];
+            for (let i = 0; i < 8 && next === _knobState[k.key]; i++) {
+              next = pool[Math.floor(Math.random() * pool.length)];
+            }
+            _knobState[k.key] = next;
+            sel.value = next;
+          }
+          syncRnd();
+          syncOptionVisibility(selectedKey());
+          updatePreview();
+        });
+        syncRnd();
+        box.appendChild(rndLabel);
+        box.appendChild(wrap);
+        box.appendChild(actions);
+        host.appendChild(box);
+        return;
+      }
       const saved = values && (k.key in values) ? Number(values[k.key]) : null;
       const val = (saved != null && !isNaN(saved)) ? saved : k.default;
       _knobState[k.key] = val;
       const label = document.createElement('label');
       label.className = 'dynbg-modal-slider-row';
+      label.dataset.dynbgKnob = k.key;
       const headRow = document.createElement('span');
       headRow.className = 'dynbg-modal-slider-label';
       const out = document.createElement('output');
@@ -5122,7 +5788,12 @@
     const out = {};
     spec.forEach(k => {
       const v = _knobState[k.key];
-      if (v == null || isNaN(v)) return;
+      if (v == null) return;
+      if (k.kind === 'select') {
+        if (v !== k.default) out[k.key] = v;
+        return;
+      }
+      if (isNaN(v)) return;
       if (Math.abs(v - k.default) < 1e-9) return;
       out[k.key] = v;
     });
@@ -5140,42 +5811,120 @@
     const cap = capFor(key);
     const hasBg = !!key;
     const setHidden = (sel, hide) => { const e = $(sel); if (e) e.hidden = hide; };
-    // Colours fieldset — hidden when the preset uses 0 custom colours
-    // (or no background at all). Surplus colour rows hidden per count.
-    setHidden('#dynbg-picker-modal-colors-row', !hasBg || (cap.colors || 0) < 1);
     const labels = cap.color_labels || null;
-    [1, 2, 3].forEach(slot => {
-      const r = $('#dynbg-picker-modal-c' + slot + '-text');
-      const rowEl = r ? r.closest('.dynbg-modal-color-row') : null;
-      if (rowEl) rowEl.hidden = (cap.colors || 0) < slot;
-      // Per-preset colour labels (e.g. "Dots" / "Background" for the
-      // pattern presets) replace the generic "Colour N" heading; fall
-      // back to the generic label when the preset declares none.
-      const labelEl = rowEl ? rowEl.querySelector('.dynbg-modal-color-label') : null;
-      if (labelEl) labelEl.textContent = (labels && labels[slot - 1]) ? labels[slot - 1] : ('Colour ' + slot);
+    // Per-mode columns: colours + tone need a preset with colours;
+    // the positions toggle only for presets with movable parts.
+    // Texture overlays apply to any surface (even with no base preset).
+    MODES.forEach(mode => {
+      const randRow = m$(mode, '[data-dynbg-mode-randomize-row]');
+      if (randRow) randRow.hidden = !hasBg || ((cap.colors || 0) < 1 && !cap.randomize_positions);
+      const rcLabel = m$(mode, '[data-dynbg-mode-randomize-colors-label]');
+      if (rcLabel) rcLabel.hidden = (cap.colors || 0) < 1;
+      const rpLabel = m$(mode, '[data-dynbg-mode-randomize-positions-label]');
+      if (rpLabel) rpLabel.hidden = !cap.randomize_positions;
+      // Shade lightness shapes what the colour roller produces, so it
+      // shows wherever this preset has colour slots at all — it feeds
+      // "Roll colours" as well as the per-page-load shuffle.
+      const rndLightRow = m$(mode, '[data-dynbg-mode-rndlight-row]');
+      if (rndLightRow) rndLightRow.hidden = (cap.colors || 0) < 1;
+      const colorsRow = m$(mode, '[data-dynbg-mode-colors-row]');
+      if (colorsRow) colorsRow.hidden = !hasBg || (cap.colors || 0) < 1;
+      SLOTS.forEach(slot => {
+        const rowEl = m$(mode, '[data-dynbg-mode-color-slot="' + slot + '"]');
+        // Ink slots beyond the chosen motif's layer count don't apply.
+        const spare = key === 'pattern-tile' && slot <= 4 && slot > patternInkCount();
+        if (rowEl) rowEl.hidden = (cap.colors || 0) < slot || spare;
+        // Per-preset colour labels (e.g. "Dots" / "Background" for the
+        // pattern presets) replace the generic "Colour N" heading.
+        const labelEl = m$(mode, '[data-dynbg-mode-color-label="' + slot + '"]');
+        if (labelEl) labelEl.textContent = (labels && labels[slot - 1]) ? labels[slot - 1] : ('Colour ' + slot);
+      });
+      const blurb = m$(mode, '[data-dynbg-mode-colors-blurb]');
+      if (blurb) {
+        blurb.textContent = labels
+          ? ('Set the ' + labels[0].toLowerCase() + ' colour and the ' + labels[1].toLowerCase()
+             + ' colour. Leave a slot blank to fall through to the site default.')
+          : 'Leave a slot blank to fall through to the brand accent. Colour 1 is the primary glow, 2 the secondary accent, 3 the tertiary highlight.';
+      }
+      // Presets can opt out of tone entirely (the pattern preset's
+      // colours are picked literally, so tinting them is noise).
+      const toneRow = m$(mode, '[data-dynbg-mode-tone-row]');
+      if (toneRow) toneRow.hidden = !hasBg || (cap.colors || 0) < 1 || cap.tone === false;
+      // Colour fill only for the soft blurred-layer recipes — dots /
+      // lines set their own background colour slot instead.
+      const fillField = m$(mode, '[data-dynbg-mode-tone-soft]');
+      if (fillField) fillField.hidden = !cap.soft;
+      // Pastel wash is the classic recipes' own control — the modern
+      // presets express the same idea through Saturation / Brightness.
+      const pastelField = m$(mode, '[data-dynbg-mode-tone-pastel]');
+      if (pastelField) pastelField.hidden = !cap.pastel;
+      const patRow = m$(mode, '[data-dynbg-mode-pat-row]');
+      if (patRow) patRow.hidden = key !== 'pattern-tile';
+      // The backdrop pair now lives inside the (always-present) Colours
+      // fieldset, so it needs the preset gate the Pattern fieldset used
+      // to give it for free.
+      const colorsBg = m$(mode, '[data-dynbg-mode-colors-bg]');
+      if (colorsBg) colorsBg.hidden = key !== 'pattern-tile';
+      syncColorSlotsVisibility(mode);
     });
-    // Swap the fieldset blurb for the pattern presets so the fg/bg
-    // intent reads clearly instead of the generic "primary glow" copy.
-    const blurb = $('#dynbg-picker-modal-colors-row .muted.small');
-    if (blurb) {
-      blurb.textContent = labels
-        ? ('Set the ' + labels[0].toLowerCase() + ' colour and the ' + labels[1].toLowerCase()
-           + ' colour. Leave a slot blank to fall through to the site default.')
-        : 'Override the brand-token colours each preset uses with up to three custom hexes. Unset slots (shown ∅) fall through to the brand accent. Colour 1 is the primary glow, Colour 2 the secondary accent, Colour 3 the tertiary highlight.';
+    // Line weight only applies to stroked motifs.
+    if (key === 'pattern-tile') {
+      const wrow = $('[data-dynbg-knob="weight"]');
+      if (wrow) wrow.hidden = !patternUsesWeight();
     }
-    // Randomize fieldset — show colours toggle whenever the preset has
-    // colours; show the positions toggle only when the preset has
-    // meaningfully-randomisable positions (blobs / mesh / bands).
-    setHidden('#dynbg-picker-modal-randomize-row', !hasBg);
-    setHidden('#dynbg-picker-modal-randomize-colors-label', (cap.colors || 0) < 1);
-    setHidden('#dynbg-picker-modal-randomize-positions-label', !cap.randomize_positions);
-    // Pastel only matters when colours are in play.
-    setHidden('#dynbg-picker-modal-pastel-row', !hasBg || (cap.colors || 0) < 1);
+  }
+  // "Random colours" on → the whole Colours fieldset is irrelevant;
+  // hide it. The Shuffle-preview button shows while anything in the
+  // column randomises.
+  function syncColorSlotsVisibility (mode) {
+    const row = m$(mode, '[data-dynbg-mode-colors-row]');
+    const cap = capFor(selectedKey());
+    if (row) row.hidden = !selectedKey() || (cap.colors || 0) < 1 || !!getRandomizeColors(mode);
+    // The sample-palette shuffle belongs to the Colours toggle and is
+    // only meaningful while that toggle is on.
+    const colActions = m$(mode, '[data-dynbg-mode-colors-row-actions]');
+    if (colActions) {
+      colActions.hidden = !selectedKey() || (cap.colors || 0) < 1 || !getRandomizeColors(mode);
+    }
+    // Shade lightness is one value with two homes, and only one of them
+    // is ever the live control: with Colours ON it limits the generator,
+    // so the copy in the Randomize fieldset is editable and the Colours
+    // fieldset (its twin included) is hidden; with Colours OFF the twin
+    // under the chips drives them, and this one greys out rather than
+    // vanishing — it still shows the value, it just isn't where you set
+    // it. Two enabled sliders for one number would be the real trap.
+    const rndLightRow = m$(mode, '[data-dynbg-mode-rndlight-row]');
+    if (rndLightRow) {
+      const live = !!getRandomizeColors(mode);
+      rndLightRow.classList.toggle('is-disabled', !live);
+      const input = rndLightRow.querySelector('input[type="range"]');
+      if (input) input.disabled = !live;
+    }
+    syncPosRowActions(mode);
+  }
+  // The Positions row keeps its place; only the button inside it swaps,
+  // because randomising and fixing are genuinely different actions.
+  // Randomising → shuffle the sample the preview shows. Fixed → roll a
+  // layout and keep it (Reset appears once one is being kept).
+  function syncPosRowActions (mode) {
+    const row = m$(mode, '[data-dynbg-mode-pos-row-actions]');
+    if (!row) return;
+    const cap = capFor(selectedKey());
+    const supported = !!selectedKey() && !!cap.randomize_positions;
+    const randomising = !!getRandomizePositions(mode);
+    const kept = !!getKeptPositions(mode);
+    row.hidden = !supported;
+    const show = (sel, on) => { const el = m$(mode, sel); if (el) el.hidden = !on; };
+    show('[data-dynbg-mode-pos-shuffle]', supported && randomising);
+    show('[data-dynbg-mode-pos-shuffle-note]', supported && randomising);
+    show('[data-dynbg-mode-pos-roll]', supported && !randomising);
+    show('[data-dynbg-mode-pos-reset]', supported && !randomising && kept);
+    show('[data-dynbg-mode-pos-note]', supported && !randomising && kept);
   }
 
   // ── Animation toggle ───────────────────────────────────────────
   // Only a subset of presets actually animate (aurora-blobs /
-  // aurora-bands). The toggle row is `hidden` for the others so the
+  // only). The toggle row is `hidden` for the others so the
   // admin never sees a useless checkbox. The `data-dynbg-animated-
   // keys` attribute on the row carries the comma-separated key set
   // so this JS doesn't need its own copy of the catalog.
@@ -5197,70 +5946,179 @@
     const el = $('#dynbg-picker-modal-animate-off');
     return el && el.checked ? '1' : '';
   }
-  // Pastel-strength slider. 0 = off; 1-100 = increasing pastelisation
-  // applied by the server when the visitor is in light mode. Dark mode
-  // is always served the full-saturation values. Accepts boolean (legacy
-  // back-compat) and string/number forms; clamps to 0-100.
-  function setPastelLight (v) {
-    const el = $('#dynbg-picker-modal-pastel-light');
+  // Tone: Saturation + Colour fill sliders per mode column (0-100).
+  // Sat defaults to 100 (full vivid); fill defaults to 0 (page white /
+  // black shows through the recipe's base). Mirrors dynbg.TONE_DEFAULTS.
+  const TONE_DEFAULT = 100;
+  // `rnd_light` is the centre of the lightness band the RANDOM palette
+  // is rolled from, and it is the one tone key whose default differs
+  // per mode: dark mode is capped at deep shades so "random colours"
+  // can't hand a dark section a light-mode-bright palette. Mirrors
+  // dynbg.RND_LIGHT_DEFAULTS / RND_LIGHT_SPREAD.
+  const RND_LIGHT_DEFAULTS = { light: 55, dark: 26 };
+  const RND_LIGHT_SPREAD = 10, RND_LIGHT_MIN = 3, RND_LIGHT_MAX_L = 97;
+  const TONE_DEFAULTS = { sat: 100, bright: 100, fill: 0, pastel: 0, rnd_light: RND_LIGHT_DEFAULTS.light };
+  const TONE_MAX = { sat: 100, bright: 200, fill: 100, pastel: 100, rnd_light: 100 };
+  const TONE_KEYS = Object.keys(TONE_DEFAULTS);
+  function toneDefault (key, mode) {
+    if (key === 'rnd_light') return RND_LIGHT_DEFAULTS[mode] != null ? RND_LIGHT_DEFAULTS[mode] : RND_LIGHT_DEFAULTS.light;
+    return TONE_DEFAULTS[key] != null ? TONE_DEFAULTS[key] : TONE_DEFAULT;
+  }
+  function toneMax (key) { return TONE_MAX[key] != null ? TONE_MAX[key] : 100; }
+  function toneSlider (mode, key) { return m$(mode, '[data-dynbg-mode-tone="' + key + '"]'); }
+  // A tone key may be rendered TWICE in one column — `rnd_light` appears
+  // in the Randomize fieldset (where it limits the generator) and again
+  // under the colour chips (where it dims a fixed palette), because
+  // which one is the live control depends on the randomise toggle. They
+  // are one value, so every write goes to all of them.
+  function toneSliders (mode, key) { return m$$(mode, '[data-dynbg-mode-tone="' + key + '"]'); }
+  function toneVal (mode, key) {
+    const el = toneSlider(mode, key);
+    if (!el) return toneDefault(key, mode);
+    const n = parseInt(el.value, 10);
+    return isFinite(n) ? Math.max(0, Math.min(toneMax(key), n)) : toneDefault(key, mode);
+  }
+  function setToneVal (mode, key, v) {
+    const els = toneSliders(mode, key);
+    if (!els.length) return;
+    const n = parseInt(v, 10);
+    const val = String(isFinite(n) ? Math.max(0, Math.min(toneMax(key), n)) : toneDefault(key, mode));
+    els.forEach(el => { el.value = val; });
+    syncToneOuts();
+  }
+  // Colour as the mode displays it: saturation + brightness applied.
+  // JS port of dynbg.pastelize — same lerp toward the pastel band, so
+  // the modal preview and the server render agree colour for colour.
+  function pastelizeHex (hex, strength) {
+    const st = Math.max(0, Math.min(100, strength | 0));
+    if (!st || !hex) return hex;
+    const m = String(hex).trim().replace(/^#/, '');
+    const full = m.length === 3 ? m.split('').map(c => c + c).join('') : m.slice(0, 6);
+    if (!/^[0-9a-fA-F]{6}$/.test(full)) return hex;
+    const r = parseInt(full.slice(0, 2), 16) / 255,
+          g = parseInt(full.slice(2, 4), 16) / 255,
+          b = parseInt(full.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    let h = 0, s = 0;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      h = max === r ? ((g - b) / d + (g < b ? 6 : 0))
+        : max === g ? ((b - r) / d + 2) : ((r - g) / d + 4);
+      h /= 6;
+    }
+    const t = st / 100;
+    const legacyS = Math.min(s, 0.339);
+    const legacyL = Math.max(0.69, Math.min(0.75, l * 0.24 + 0.53));
+    const ns = s * (1 - t) + (legacyS * 0.5) * t;
+    const nl = l * (1 - t) + (legacyL + (1 - legacyL) * 0.5) * t;
+    const hue2rgb = (p, q, tt) => {
+      if (tt < 0) tt += 1;
+      if (tt > 1) tt -= 1;
+      if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+      if (tt < 1 / 2) return q;
+      if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+      return p;
+    };
+    const q = nl < 0.5 ? nl * (1 + ns) : nl + ns - nl * ns, p = 2 * nl - q;
+    const out = [hue2rgb(p, q, h + 1 / 3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1 / 3)]
+      .map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+    return '#' + out;
+  }
+  function tonedHex (mode, hex) {
+    const ps = toneVal(mode, 'pastel');
+    const base = ps ? (pastelizeHex(hex, ps) || hex) : hex;
+    return saturateHex(base, toneVal(mode, 'sat'), toneVal(mode, 'bright')) || base;
+  }
+  // Pattern-tile per-mode settings (opacity / backdrop / direction).
+  const PAT_DEFAULTS = { opacity: 100, bg: 'solid', bg_angle: 135 };
+  function patEl (mode, key) { return m$(mode, '[data-dynbg-mode-pat="' + key + '"]'); }
+  function patVal (mode, key) {
+    const el = patEl(mode, key);
+    if (!el) return PAT_DEFAULTS[key];
+    if (key === 'bg') return el.value === 'gradient' ? 'gradient' : 'solid';
+    const n = parseInt(el.value, 10);
+    return isFinite(n) ? n : PAT_DEFAULTS[key];
+  }
+  function setPatVal (mode, key, v) {
+    const el = patEl(mode, key);
     if (!el) return;
-    let n;
-    if (v === true) n = 100;
-    else if (v === false || v == null || v === '') n = 0;
-    else { n = parseInt(v, 10); if (!isFinite(n)) n = 0; }
-    n = Math.max(0, Math.min(100, n));
-    el.value = String(n);
-    syncPastelOut();
+    if (key === 'bg') el.value = (v === 'gradient') ? 'gradient' : 'solid';
+    else { const n = parseInt(v, 10); el.value = String(isFinite(n) ? n : PAT_DEFAULTS[key]); }
+    syncPatOuts(mode);
   }
-  function getPastelLight () {
-    const el = $('#dynbg-picker-modal-pastel-light');
-    if (!el) return '';
-    const n = parseInt(el.value, 10) || 0;
-    return n > 0 ? String(n) : '';
+  function syncPatOuts (mode) {
+    const cols = mode ? [mode] : MODES;
+    cols.forEach(m => {
+      ['opacity', 'bg_angle'].forEach(k => {
+        const el = patEl(m, k); const out = el && el.parentElement && el.parentElement.querySelector('output');
+        if (out) out.textContent = el.value;
+      });
+      const angleField = m$(m, '[data-dynbg-mode-pat-angle]');
+      if (angleField) angleField.hidden = patVal(m, 'bg') !== 'gradient';
+    });
   }
-  // Mirror the slider's value into its <output> so admins see the
-  // numeric strength as they drag. Called from the input listener
-  // wired in `wireModalOnce`, and from `setPastelLight` so external
-  // setters (open / apply) refresh the readout too.
-  function syncPastelOut () {
-    const el = $('#dynbg-picker-modal-pastel-light');
-    const out = $('#dynbg-picker-modal-pastel-light-out');
-    if (el && out) out.textContent = el.value;
+  // CSS vars for one mode's pattern settings — the preview panes stamp
+  // these directly; the server stamps the -light/-dark pair.
+  function patVarParts (mode) {
+    const out = [];
+    const op = patVal(mode, 'opacity');
+    if (op !== 100) out.push('--fe-dynbg-pat-opacity: ' + (op / 100) + ';');
+    if (patVal(mode, 'bg') === 'gradient') out.push('--fe-dynbg-pat-bg2: var(--fe-dynbg-c6, var(--fe-dynbg-c5, #e2e8f0));');
+    const ang = patVal(mode, 'bg_angle');
+    if (ang !== 135) out.push('--fe-dynbg-pat-bg-angle: ' + ang + 'deg;');
+    return out;
+  }
+  function syncToneOuts () {
+    $$('[data-dynbg-mode-tone]').forEach(el => {
+      const out = el.parentElement && el.parentElement.querySelector('output');
+      if (out) out.textContent = el.value;
+    });
   }
 
   // ── Overlay grid ───────────────────────────────────────────────
-  function setSelectedOverlay (key) {
-    $$('[data-dynbg-modal-overlay-card]').forEach(card => {
+  // `snap` (manual card click) resets Size / Intensity to the NEW
+  // overlay's defaults so values left over from a previous overlay
+  // aren't silently persisted as custom; the programmatic seed path
+  // (writeMode) leaves them for the saved values to land on.
+  function setSelectedOverlay (mode, key, snap) {
+    const changed = key !== selectedOverlay(mode);
+    m$$(mode, '[data-dynbg-mode-overlay-card]').forEach(card => {
       const isMatch = (card.dataset.dynbgOverlayKey || '') === (key || '');
       card.classList.toggle('active', isMatch);
       const radio = card.querySelector('input[type="radio"]');
       if (radio) radio.checked = isMatch;
     });
-    // Texture Size/Intensity knobs apply to EVERY overlay now. Show the
-    // subgroup whenever an overlay is active and set the sliders' bounds
-    // / labels / defaults from that overlay's spec.
-    applyOverlayKnobBounds(key);
+    // Texture Size/Intensity + scope apply to EVERY overlay. Show the
+    // subgroup whenever an overlay is active and set the sliders'
+    // bounds / labels / defaults from that overlay's spec.
+    applyOverlayKnobBounds(mode, key);
+    if (snap && changed) {
+      const def = activeOverlayDefaults(mode);
+      setNoiseSize(mode, def.size); setNoiseIntensity(mode, def.intensity);
+    }
     updatePreview();
   }
 
-  // Configure the overlay Size/Intensity sliders for `key` from the
-  // per-overlay spec (different overlays have different ranges + the
-  // noise overlay labels them Grain size / Intensity vs Scale /
+  // Configure a mode's overlay Size/Intensity sliders for `key` from
+  // the per-overlay spec (different overlays have different ranges +
+  // the noise overlay labels them Grain size / Intensity vs Scale /
   // Intensity for patterns). Hides the subgroup when no overlay.
-  function applyOverlayKnobBounds (key) {
-    const sub = $('#dynbg-picker-modal-overlay-knobs');
+  function applyOverlayKnobBounds (mode, key) {
+    const sub = m$(mode, '[data-dynbg-mode-overlay-knobs]');
     if (!sub) return;
     const spec = overlayKnobSpec()[key];
     if (!key || !spec) { sub.hidden = true; return; }
     sub.hidden = false;
-    const sizeEl = $('#dynbg-picker-modal-noise-size');
-    const intEl = $('#dynbg-picker-modal-noise-intensity');
-    const sizeLab = $('[data-dynbg-ovsize-label]');
-    const intLab = $('[data-dynbg-ovint-label]');
-    const sizeHint = $('[data-dynbg-ovsize-hint]');
-    const intHint = $('[data-dynbg-ovint-hint]');
-    const sizeOut = $('#dynbg-picker-modal-noise-size-out');
-    const intOut = $('#dynbg-picker-modal-noise-intensity-out');
+    const sizeEl = m$(mode, '[data-dynbg-mode-ovsize]');
+    const intEl = m$(mode, '[data-dynbg-mode-ovint]');
+    const sizeLab = m$(mode, '[data-dynbg-mode-ovsize-label]');
+    const intLab = m$(mode, '[data-dynbg-mode-ovint-label]');
+    const sizeHint = m$(mode, '[data-dynbg-mode-ovsize-hint]');
+    const intHint = m$(mode, '[data-dynbg-mode-ovint-hint]');
+    const sizeOut = m$(mode, '[data-dynbg-mode-ovsize-out]');
+    const intOut = m$(mode, '[data-dynbg-mode-ovint-out]');
     if (sizeEl && spec.size) {
       sizeEl.min = spec.size.min; sizeEl.max = spec.size.max; sizeEl.step = spec.size.step;
       // Keep the current value if it's in-range, else snap to default.
@@ -5290,51 +6148,327 @@
   // the genuine effect rather than a static image.
   function overlayNameByKey (key) {
     if (!key) return '';
-    const c = $('#dynbg-picker-modal-overlay-grid [data-dynbg-overlay-key="' + CSS.escape(key) + '"]');
+    const c = $('[data-dynbg-mode-overlay-card][data-dynbg-overlay-key="' + CSS.escape(key) + '"]');
     const n = c && c.querySelector('.fe-dynbg-picker-name');
     return n ? n.textContent.trim() : key;
   }
-  function previewRandomColors (n) {
+  // JS port of dynbg.random_color_seed — the mode-independent half of
+  // a random palette: hue, saturation, and a 0-1 position within
+  // whatever lightness band the mode asks for. Rolled once so light and
+  // dark show the SAME hues, each shaded into its own band.
+  function previewRandomSeed (n) {
     const out = [];
     for (let i = 0; i < n; i++) {
-      const h = Math.floor(Math.random() * 360);
-      const s = Math.floor(55 + Math.random() * 35);  // 55–90%
-      const l = Math.floor(45 + Math.random() * 20);  // 45–65%
-      out.push('hsl(' + h + ' ' + s + '% ' + l + '%)');
+      out.push([Math.random(), 0.55 + Math.random() * 0.35, Math.random()]);
     }
     return out;
   }
-  // JS port of dynbg.pastelize — softens a #rrggbb toward a pastel
-  // band by `strength` 0-100 (matches the server so the live preview
-  // equals the saved render). Returns #rrggbb or null on bad input.
-  function pastelizeHex (hex, strength) {
+  // JS port of dynbg.random_colors — shade a seed into the lightness
+  // band centred on `lightness` (0-100). Returns #rrggbb (not hsl()) so
+  // saturateHex can retune the palette — the tone sliders must visibly
+  // act on random colours too, exactly as the server does via
+  // resolve_colors → saturate_hex.
+  function previewShadeSeed (seed, lightness) {
+    const lt = Math.max(0, Math.min(100, isFinite(+lightness) ? (lightness | 0) : RND_LIGHT_DEFAULTS.light));
+    const lo = Math.max(RND_LIGHT_MIN, lt - RND_LIGHT_SPREAD) / 100;
+    const hi = Math.min(RND_LIGHT_MAX_L, lt + RND_LIGHT_SPREAD) / 100;
+    return seed.map(([h, s, t]) => {
+      const l = lo + t * (hi - lo);
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const pp = 2 * l - q;
+      const ch = tt => {
+        if (tt < 0) tt += 1; if (tt > 1) tt -= 1;
+        if (tt < 1 / 6) return pp + (q - pp) * 6 * tt;
+        if (tt < 1 / 2) return q;
+        if (tt < 2 / 3) return pp + (q - pp) * (2 / 3 - tt) * 6;
+        return pp;
+      };
+      const hx = v => ('0' + Math.round(v * 255).toString(16)).slice(-2);
+      return '#' + hx(ch(h + 1 / 3)) + hx(ch(h)) + hx(ch(h - 1 / 3));
+    });
+  }
+  // The random roll is held stable for the life of a modal open
+  // (reshuffled when "random colours" is switched on) so dragging the
+  // tone / knob sliders shows their effect on ONE palette instead
+  // of re-rolling the colours on every tick. Shading happens per call,
+  // so the Shade-lightness slider repaints live off the same roll.
+  let _previewRandSeed = null;
+  function previewRandSeed () {
+    if (!_previewRandSeed) _previewRandSeed = previewRandomSeed(SLOTS.length);
+    return _previewRandSeed;
+  }
+  function previewRandPalette (mode) {
+    return previewShadeSeed(previewRandSeed(), toneVal(mode || 'light', 'rnd_light'));
+  }
+  // ── Shade lightness over a FIXED palette ───────────────────────
+  // While "random colours" is off the same rnd_light slider acts on the
+  // chips directly. It shifts each one's HSL lightness by the distance
+  // the slider has travelled since the palette was last rolled or typed
+  // — not to an absolute value — so a hand-mixed palette keeps its
+  // internal contrast, and returning the slider returns the colours.
+  // (Setting every chip to one lightness would flatten the palette and
+  // there'd be no way back.)
+  const _shadeBase = { light: null, dark: null };
+  function captureShadeBase (mode) {
+    _shadeBase[mode] = { colors: getColors(mode), at: toneVal(mode, 'rnd_light') };
+  }
+  // hex (#rgb / #rrggbb, with or without alpha) → same hue + saturation,
+  // lightness nudged by `delta` (-1..1) and clamped away from pure
+  // black / white. Alpha rides along untouched. null on bad input.
+  function shiftLightness (hex, delta) {
     if (typeof hex !== 'string') return null;
-    let h = hex.replace('#', '');
+    let h = hex.trim().replace('#', '');
+    let alpha = '';
+    if (h.length === 4) { alpha = h[3] + h[3]; h = h.slice(0, 3); }
+    else if (h.length === 8) { alpha = h.slice(6); h = h.slice(0, 6); }
     if (h.length === 3) h = h.split('').map(c => c + c).join('');
-    if (h.length === 8) h = h.slice(0, 6);
     if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
-    const s = Math.max(0, Math.min(100, strength | 0));
-    if (s === 0) return '#' + h;
-    const t = s / 100;
     const r = parseInt(h.slice(0, 2), 16) / 255,
           g = parseInt(h.slice(2, 4), 16) / 255,
           b = parseInt(h.slice(4, 6), 16) / 255;
-    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-    let hue = 0, sat = 0; const li = (mx + mn) / 2;
-    const d = mx - mn;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    const li = (mx + mn) / 2;
+    let hue = 0, sat = 0;
     if (d) {
       sat = li > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
       if (mx === r) hue = ((g - b) / d + (g < b ? 6 : 0)) / 6;
       else if (mx === g) hue = ((b - r) / d + 2) / 6;
       else hue = ((r - g) / d + 4) / 6;
     }
-    const legacyTS = Math.min(sat, 0.339);
-    const legacyTL = Math.max(0.69, Math.min(0.75, li * 0.24 + 0.53));
-    const targetS = legacyTS * 0.5;
-    const targetL = legacyTL + (1 - legacyTL) * 0.5;
-    const newS = sat * (1 - t) + targetS * t;
-    const newL = li * (1 - t) + targetL * t;
-    // HSL→RGB
+    const l2 = Math.max(RND_LIGHT_MIN / 100, Math.min(RND_LIGHT_MAX_L / 100, li + delta));
+    const q = l2 < 0.5 ? l2 * (1 + sat) : l2 + sat - l2 * sat;
+    const pp = 2 * l2 - q;
+    const ch = tt => {
+      if (tt < 0) tt += 1; if (tt > 1) tt -= 1;
+      if (tt < 1 / 6) return pp + (q - pp) * 6 * tt;
+      if (tt < 1 / 2) return q;
+      if (tt < 2 / 3) return pp + (q - pp) * (2 / 3 - tt) * 6;
+      return pp;
+    };
+    const hx = v => ('0' + Math.round(v * 255).toString(16)).slice(-2);
+    return '#' + hx(ch(hue + 1 / 3)) + hx(ch(hue)) + hx(ch(hue - 1 / 3)) + alpha;
+  }
+  // Re-stamp the chips from the captured base at the slider's current
+  // distance from it. No-op while the column randomises (the chips are
+  // hidden and unused then) or before a base exists.
+  function applyShade (mode) {
+    const base = _shadeBase[mode];
+    if (!base || getRandomizeColors(mode)) return;
+    const delta = (toneVal(mode, 'rnd_light') - base.at) / 100;
+    base.colors.forEach((c, i) => {
+      if (!c) return;
+      setColor(mode, i + 1, shiftLightness(c, delta) || c);
+    });
+  }
+  // JS port of dynbg.random_positions — fresh coordinates / sizes for
+  // the preset's movable parts, so the preview can show what "random
+  // positions" will do. Held stable per open (keyed by preset) and
+  // re-rolled by the Shuffle-preview button.
+  // Motif library (vendored from Pattern Monster, MIT). It's ~1MB, so
+  // it's fetched from /dynbg/patterns.json the first time a preview
+  // needs it rather than stamped into every admin page. Until it
+  // lands, patterns() returns [] and the preview repaints once it has.
+  let _patterns = null, _patternModeAttrs = null, _patternsLoading = null;
+  function patterns () {
+    if (_patterns) return _patterns;
+    if (!_patternsLoading) {
+      const el = $('[data-dynbg-patterns-url]');
+      const url = el ? el.dataset.dynbgPatternsUrl : '';
+      _patternsLoading = (url ? fetch(url, { credentials: 'same-origin' }).then(r => r.json()) : Promise.resolve({}))
+        .then(d => {
+          _patterns = (d && d.patterns) || [];
+          _patternModeAttrs = (d && d.mode_attrs) || {};
+          syncOptionVisibility(selectedKey());
+          updatePreview();
+        })
+        .catch(() => { _patterns = []; });
+    }
+    return [];
+  }
+  // Held stable between repaints so dragging a slider doesn't re-roll
+  // a "random" motif on every frame; cleared on shuffle / re-pick.
+  let _previewPattern = null;
+  // Resolve the selected motif, holding a "random" pick steady between
+  // repaints so dragging a slider doesn't re-roll it every frame.
+  function previewPatternEntry (patternKey) {
+    const lib = patterns();
+    if (!lib.length) return null;
+    const exact = lib.find(p => p.key === patternKey);
+    if (exact) return exact;
+    if (!_previewPattern || !lib.some(p => p.key === _previewPattern)) {
+      _previewPattern = lib[Math.floor(Math.random() * lib.length)].key;
+    }
+    return lib.find(p => p.key === _previewPattern) || null;
+  }
+  // How many ink slots the current motif actually uses (4 for
+  // "random", since any motif may spawn).
+  function patternInkCount () {
+    const chosen = _knobState && _knobState.pattern;
+    if (!chosen || chosen === 'random') return 4;
+    const e = (patterns() || []).find(p => p.key === chosen);
+    return e ? (e.layers || []).length : 4;
+  }
+  // Does the chosen motif take a line weight at all? Filled motifs
+  // ignore it, so the slider hides for them.
+  function patternUsesWeight () {
+    const chosen = _knobState && _knobState.pattern;
+    if (!chosen || chosen === 'random') return true;
+    const e = (patterns() || []).find(p => p.key === chosen);
+    return !e || e.mode !== 'fill';
+  }
+  // Mirrors dynbg.pattern_mask_layers — one mask URL per ink layer,
+  // plus the tile size for mask-size. Attributes are injected per the
+  // motif's render mode exactly as the server does.
+  function previewPatternLayers (patternKey, weight, scale) {
+    const entry = previewPatternEntry(patternKey);
+    if (!entry) return { urls: [], w: 0, h: 0 };
+    const w = Math.max(0.5, Math.min(14, parseFloat(weight)));
+    const wv = isFinite(w) ? (w === Math.round(w) ? String(Math.round(w)) : String(w)) : '2';
+    // Scale rides inside the image now (see dynbg.pattern_mask_layers),
+    // because the CSS tiling that used to apply it is what seamed.
+    const sc0 = parseFloat(scale);
+    const sc = isFinite(sc0) ? Math.max(0.25, Math.min(8, sc0)) : 1;
+    const attrs = ((_patternModeAttrs || {})[entry.mode] || '').split('{w}').join(wv);
+    // Mirrors dynbg.pattern_mask_layers' wrap step: a motif whose tile
+    // was corrected to its own pitch (PATTERN_TILE_FIXES — the entry
+    // carries `wrap_x` / `wrap_y` through /dynbg/patterns.json) is now
+    // shorter than it was drawn for, so each layer is emitted once per
+    // wrap step and what leaves one edge re-enters the other.
+    const wx = entry.wrap_x || 0, wy = entry.wrap_y || 0;
+    const REPS = 2;
+    const urls = (entry.layers || []).map(body => {
+      // Attributes go on before the copies, so every copy carries them.
+      let node = body.replace('/>', attrs + '/>');
+      if (wx || wy) {
+        let acc = '';
+        for (let k = -REPS; k <= REPS; k++) {
+          acc += "<g transform='translate(" + (k * wx) + "," + (k * wy) + ")'>" + node + "</g>";
+        }
+        node = acc;
+      }
+      const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'>"
+        + "<defs><pattern id='p' patternUnits='userSpaceOnUse' width='" + entry.w
+        + "' height='" + entry.h + "' patternTransform='scale(" + sc + ")'>"
+        + node + "</pattern></defs>"
+        + "<rect width='100%' height='100%' fill='url(#p)'/></svg>";
+      const enc = svg.replace(/%/g, '%25').replace(/#/g, '%23')
+        .replace(/</g, '%3C').replace(/>/g, '%3E')
+        .replace(/"/g, '%22').replace(/'/g, '%27');
+      return "data:image/svg+xml;utf8," + enc;
+    });
+    return { urls, w: entry.w, h: entry.h, key: entry.key };
+  }
+  function previewRandomPositions (key) {
+    const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+    const out = {};
+    // A `*-classic` recipe is the same shape as the preset it mirrors,
+    // so it randomises through the same vars (mirrors the server-side
+    // branch in dynbg.random_positions).
+    key = presetFamily(key);
+    if (key === 'aurora-blobs') {
+      ['a', 'b', 'c'].forEach(slot => {
+        out['--fe-dynbg-blob-' + slot + '-top'] = ri(-30, 60) + '%';
+        out['--fe-dynbg-blob-' + slot + '-left'] = ri(-30, 60) + '%';
+        out['--fe-dynbg-blob-' + slot + '-bottom'] = 'auto';
+        out['--fe-dynbg-blob-' + slot + '-right'] = 'auto';
+        out['--fe-dynbg-blob-' + slot + '-size'] = ri(220, 460) + 'px';
+      });
+    } else if (key === 'mesh-gradient') {
+      ['a', 'b', 'c'].forEach(slot => {
+        out['--fe-dynbg-mesh-' + slot + '-x'] = ri(15, 85) + '%';
+        out['--fe-dynbg-mesh-' + slot + '-y'] = ri(15, 85) + '%';
+        out['--fe-dynbg-mesh-' + slot + '-angle'] = ri(0, 360) + 'deg';
+      });
+    } else if (key === 'aurora-bands') {
+      ['a', 'b'].forEach(slot => {
+        out['--fe-dynbg-band-' + slot + '-angle'] = ri(40, 160) + 'deg';
+      });
+    }
+    return out;
+  }
+  // A layout the admin rolled and kept, per mode. Unlike the sample
+  // palette / layout above (preview-only, re-rolled per open) this is
+  // real config: it rides along in the mode block as `positions` and the
+  // server stamps it for any mode that isn't randomising.
+  const _modePositions = { light: null, dark: null };
+  function getKeptPositions (mode) {
+    const p = _modePositions[mode];
+    return (p && Object.keys(p).length) ? p : null;
+  }
+  function setKeptPositions (mode, pos) {
+    _modePositions[mode] = (pos && Object.keys(pos).length) ? pos : null;
+  }
+  let _previewRandPositions = null, _previewRandPositionsKey = '';
+  function previewRandPositions (key) {
+    if (!_previewRandPositions || _previewRandPositionsKey !== key) {
+      _previewRandPositions = previewRandomPositions(key);
+      _previewRandPositionsKey = key;
+    }
+    return _previewRandPositions;
+  }
+  // ── Per-concern actions ────────────────────────────────────────
+  // Each of these touches exactly one thing. The old combined
+  // "Shuffle preview" re-rolled the sample palette AND the sample
+  // layout AND rewrote the fixed colour slots, so shuffling to see a
+  // different layout silently threw away hand-picked colours.
+  //
+  // Randomising → shuffle the SAMPLE (preview-only; every page load
+  // rolls its own anyway). Fixed → roll a value and KEEP it.
+  function shuffleSamplePalette () {
+    _previewRandSeed = null;
+    updatePreview();
+  }
+  function shuffleSampleLayout () {
+    _previewRandPositions = null;
+    updatePreview();
+  }
+  // "Roll colours" (Colours fieldset, shown while the column is NOT
+  // randomising): roll a palette and write it into the slots, so what
+  // the preview shows is what every visitor gets.
+  function rollColors (mode) {
+    _previewRandSeed = null;
+    seedColorsFromSample(mode);
+    updatePreview();
+  }
+  function seedColorsFromSample (mode) {
+    const seed = previewRandPalette(mode);
+    const n = Math.min(SLOTS.length, capFor(selectedKey()).colors || 3);
+    for (let slot = 1; slot <= n; slot++) {
+      const c = seed[slot - 1] || '';
+      setColor(mode, slot, c ? tonedHex(mode, c) : '');
+    }
+    // The freshly-rolled palette IS the new base, at the shade it was
+    // rolled at — so the slider reads 0 distance and nudges from here.
+    captureShadeBase(mode);
+  }
+  // JS port of dynbg.saturate_hex — rewrites a #rrggbb's HSL
+  // saturation to `sat` (0-100) and scales its lightness by `bright`
+  // (0-200, 100 = untouched; <100 toward black, >100 toward white),
+  // keeping hue, so the live preview equals the saved render. Greys
+  // stay grey. Returns #rrggbb or null on bad input.
+  function saturateHex (hex, sat, bright) {
+    if (typeof hex !== 'string') return null;
+    let h = hex.replace('#', '');
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    if (h.length === 8) h = h.slice(0, 6);
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    const target = Math.max(0, Math.min(100, sat | 0)) / 100;
+    const r = parseInt(h.slice(0, 2), 16) / 255,
+          g = parseInt(h.slice(2, 4), 16) / 255,
+          b = parseInt(h.slice(4, 6), 16) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    let hue = 0, srcS = 0; const li = (mx + mn) / 2;
+    const d = mx - mn;
+    if (d) {
+      srcS = li > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      if (mx === r) hue = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+      else if (mx === g) hue = ((b - r) / d + 2) / 6;
+      else hue = ((r - g) / d + 4) / 6;
+    }
+    let li2 = li;
+    const bt = Math.max(0, Math.min(200, (bright == null || !isFinite(+bright)) ? 100 : (bright | 0))) / 100;
+    if (bt < 1) li2 = li * bt; else if (bt > 1) li2 = li + (1 - li) * (bt - 1);
+    const tgt = srcS < 0.02 ? srcS : target;
     const hue2rgb = (p, q, tt) => {
       if (tt < 0) tt += 1; if (tt > 1) tt -= 1;
       if (tt < 1 / 6) return p + (q - p) * 6 * tt;
@@ -5343,10 +6477,10 @@
       return p;
     };
     let nr, ng, nb;
-    if (newS === 0) { nr = ng = nb = newL; }
+    if (tgt === 0) { nr = ng = nb = li2; }
     else {
-      const q = newL < 0.5 ? newL * (1 + newS) : newL + newS - newL * newS;
-      const p = 2 * newL - q;
+      const q = li2 < 0.5 ? li2 * (1 + tgt) : li2 + tgt - li2 * tgt;
+      const p = 2 * li2 - q;
       nr = hue2rgb(p, q, hue + 1 / 3);
       ng = hue2rgb(p, q, hue);
       nb = hue2rgb(p, q, hue - 1 / 3);
@@ -5368,11 +6502,21 @@
       "%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23noise)%27 opacity=%27" + op + "%27/%3E" +
       "%3C/svg%3E";
   }
+  // Paint the split preview: the light pane gets the Light-mode tone,
+  // the dark pane (wrapped in .fe-megamenu-force-dark so the recipes'
+  // dark rules fire) gets the Dark-mode tone. Each host is stamped
+  // directly with the resolved per-mode colour + opacity vars, so no
+  // theme swap rule is needed inside the admin shell.
   function updatePreview () {
-    const host = $('#dynbg-picker-modal-preview');
-    if (!host) return;
+    $$('[data-dynbg-preview]').forEach(host => {
+      const mode = host.dataset.dynbgPreviewMode || 'light';
+      const colors = getRandomizeColors(mode) ? previewRandPalette(mode) : getColors(mode);
+      updatePreviewHost(host, mode, colors);
+    });
+  }
+  function updatePreviewHost (host, mode, colors) {
     const key = selectedKey();
-    const overlay = selectedOverlay();
+    const overlay = selectedOverlay(mode);
     // Strip prior injected layers (keep the empty placeholder + badge).
     host.querySelectorAll('.fe-dynbg, .fe-dynbg-overlay').forEach(e => e.remove());
     host.classList.remove('fe-dynbg-no-anim');
@@ -5385,33 +6529,33 @@
     }
     host.setAttribute('data-has-bg', '');
     // Colour vars: randomised palette when that toggle is on, else the
-    // admin's custom slots (blank slots fall through to brand tokens).
-    // The pastel slider softens whichever palette is in play so the
-    // preview matches the saved light-mode render (admin shell is
-    // light mode, so we apply pastel directly to --fe-dynbg-cN).
-    const rc = $('#dynbg-picker-modal-randomize-colors');
-    let colors = (rc && rc.checked) ? previewRandomColors(3) : getColors();
-    const pastel = parseInt((($('#dynbg-picker-modal-pastel-light') || {}).value) || '0', 10) || 0;
+    // admin's custom slots (blank slots fall through to brand tokens),
+    // re-saturated per this pane's mode. Base colour fill follows the
+    // mode's Colour fill slider.
     const parts = [];
     (colors || []).forEach((c, i) => {
       if (!c) return;
-      let out = c;
-      if (pastel > 0) { const p = pastelizeHex(c, pastel); if (p) out = p; }
-      parts.push('--fe-dynbg-c' + (i + 1) + ': ' + out + ';');
+      parts.push('--fe-dynbg-c' + (i + 1) + ': ' + tonedHex(mode, c) + ';');
     });
-    // Per-preset knob vars (dot size/gap/rotation, line angle/gap, …).
-    if (key) {
-      const spec = (capFor(key).knobs) || [];
-      spec.forEach(k => {
-        if (!k.css_var) return;
-        const v = _knobState[k.key];
-        if (v == null || isNaN(v)) return;
-        if (k.unit === 'deg') parts.push(k.css_var + ': ' + v + 'deg;');
-        else if (k.unit === 'px') parts.push(k.css_var + ': ' + v + 'px;');
-        else if (k.unit === '%') parts.push(k.css_var + ': ' + (v / 100) + ';');
-        else parts.push(k.css_var + ': ' + v + ';');
+    parts.push('--fe-dynbg-fill: ' + (toneVal(mode, 'fill') / 100) + ';');
+    if (key === 'pattern-tile') parts.push(...patVarParts(mode));
+    // Random positions: stamp a sample layout so the pane shows the
+    // preset's movable parts somewhere other than the hand-tuned default.
+    if (key && getRandomizePositions(mode)) {
+      const pos = previewRandPositions(key);
+      Object.keys(pos).forEach(k => parts.push(k + ': ' + pos[k] + ';'));
+    } else if (key && getKeptPositions(mode)) {
+      // Mirrors dynbg.resolve_positions_css: only vars this preset can
+      // actually use, so a layout kept under another preset doesn't
+      // leak in after the admin switches backgrounds.
+      const kept = getKeptPositions(mode);
+      const usable = previewRandomPositions(key);
+      Object.keys(kept).forEach(k => {
+        if (k in usable) parts.push(k + ': ' + kept[k] + ';');
       });
     }
+    // Per-preset knob vars (motion speed, dot size/gap, line angle, …).
+    if (key) parts.push(...knobVarParts(key, _knobState));
     if (parts.length) host.setAttribute('style', parts.join(' '));
     // Base preset recipe (clone the chosen card's .fe-dynbg markup).
     if (key) {
@@ -5422,20 +6566,40 @@
         const node = tmp.querySelector('.fe-dynbg');
         if (node) {
           // The cloned thumb carries its own randomised inline vars;
-          // strip them so the host's (pastel-aware) vars win.
+          // strip them so the host's (tone-aware) vars win.
           node.removeAttribute('style');
+          // The pattern preset's layers depend on the CHOSEN motif, so
+          // rebuild them rather than reusing whatever the catalog thumb
+          // was server-rendered with.
+          if (key === 'pattern-tile') {
+            node.innerHTML = '';
+            const pat = previewPatternLayers(_knobState.pattern,
+                                             _knobState.weight != null ? _knobState.weight : 2,
+                                             _knobState.scale != null ? _knobState.scale : 1);
+            if (pat.w) {
+              host.style.setProperty('--fe-dynbg-pat-w', pat.w + 'px');
+              host.style.setProperty('--fe-dynbg-pat-h', pat.h + 'px');
+            }
+            pat.urls.forEach((u, i) => {
+              const sp = document.createElement('span');
+              sp.className = 'fe-dynbg-pattern';
+              sp.style.setProperty('--_db-pat-url', "url('" + u + "')");
+              sp.style.setProperty('--_db-pat-ink', 'var(--_db-ink' + (i + 1) + ')');
+              node.appendChild(sp);
+            });
+          }
           host.insertBefore(node, host.firstChild);
         }
       }
       if (getAnimateOff()) host.classList.add('fe-dynbg-no-anim');
     }
-    // Texture overlay layer (+scope, +live size/intensity knobs).
+    // This mode's texture overlay layer (+scope, +live size/intensity).
     if (overlay) {
       const ov = document.createElement('div');
       ov.className = 'fe-dynbg-overlay fe-dynbg-overlay-' + overlay;
-      if (getSelectedScope() === 'bg') ov.classList.add('fe-dynbg-overlay--bg-only');
-      const ovSize = getNoiseSize();   // raw slider string ('' when default)
-      const ovInt = getNoiseIntensity();
+      if (getSelectedScope(mode) === 'bg') ov.classList.add('fe-dynbg-overlay--bg-only');
+      const ovSize = getNoiseSize(mode);   // raw slider string ('' when default)
+      const ovInt = getNoiseIntensity(mode);
       if (overlay === 'noise-grain') {
         ov.style.backgroundImage = "url('" + previewNoiseUrl(ovSize, ovInt) + "')";
       } else {
@@ -5453,36 +6617,33 @@
     }
   }
 
-  // ── Scope toggle ───────────────────────────────────────────────
-  function setSelectedScope (scope) {
+  // ── Scope toggle (per mode) ────────────────────────────────────
+  function setSelectedScope (mode, scope) {
     const value = scope === 'bg' ? 'bg' : 'all';
-    const all = $('#dynbg-picker-modal-scope-all');
-    const bg  = $('#dynbg-picker-modal-scope-bg');
-    if (all) all.checked = (value === 'all');
-    if (bg)  bg.checked  = (value === 'bg');
+    m$$(mode, '[data-dynbg-mode-scope]').forEach(r => { r.checked = (r.dataset.dynbgModeScope === value); });
   }
-  function getSelectedScope () {
-    const bg = $('#dynbg-picker-modal-scope-bg');
+  function getSelectedScope (mode) {
+    const bg = m$(mode, '[data-dynbg-mode-scope="bg"]');
     return bg && bg.checked ? 'bg' : 'all';
   }
 
-  // ── Noise-grain knobs ──────────────────────────────────────────
+  // ── Overlay Size / Intensity knobs (per mode) ──────────────────
   // Defaults match dynbg.NOISE_*_DEFAULT — the modal's slider html
   // already initialises them with the same values, so leaving them
   // at default means we omit the values from the saved config (they
   // round-trip through dynbg.encode_config which strips defaults).
   const NOISE_DEFAULTS = { size: 0.9, intensity: 0.03 };
-  function setNoiseSize (v) {
-    const el = $('#dynbg-picker-modal-noise-size');
-    const out = $('#dynbg-picker-modal-noise-size-out');
+  function setNoiseSize (mode, v) {
+    const el = m$(mode, '[data-dynbg-mode-ovsize]');
+    const out = m$(mode, '[data-dynbg-mode-ovsize-out]');
     const numeric = (v === '' || v == null || isNaN(parseFloat(v)))
       ? NOISE_DEFAULTS.size : parseFloat(v);
     if (el) el.value = numeric;
     if (out) out.textContent = numeric;
   }
-  function setNoiseIntensity (v) {
-    const el = $('#dynbg-picker-modal-noise-intensity');
-    const out = $('#dynbg-picker-modal-noise-intensity-out');
+  function setNoiseIntensity (mode, v) {
+    const el = m$(mode, '[data-dynbg-mode-ovint]');
+    const out = m$(mode, '[data-dynbg-mode-ovint-out]');
     const numeric = (v === '' || v == null || isNaN(parseFloat(v)))
       ? NOISE_DEFAULTS.intensity : parseFloat(v);
     if (el) el.value = numeric;
@@ -5491,49 +6652,50 @@
   // Default-drop the overlay Size / Intensity against the ACTIVE
   // overlay's own default (noise-grain vs pattern overlays differ), so
   // a slider left at the default persists nothing. '' = use default.
-  function activeOverlayDefaults () {
-    const spec = overlayKnobSpec()[selectedOverlay()];
+  function activeOverlayDefaults (mode) {
+    const spec = overlayKnobSpec()[selectedOverlay(mode)];
     return spec
       ? { size: spec.size.default, intensity: spec.intensity.default }
       : { size: NOISE_DEFAULTS.size, intensity: NOISE_DEFAULTS.intensity };
   }
-  function getNoiseSize () {
-    const el = $('#dynbg-picker-modal-noise-size');
+  function getNoiseSize (mode) {
+    const el = m$(mode, '[data-dynbg-mode-ovsize]');
     if (!el) return '';
     const v = parseFloat(el.value);
-    if (isNaN(v) || Math.abs(v - activeOverlayDefaults().size) < 1e-6) return '';
+    if (isNaN(v) || Math.abs(v - activeOverlayDefaults(mode).size) < 1e-6) return '';
     return String(v);
   }
-  function getNoiseIntensity () {
-    const el = $('#dynbg-picker-modal-noise-intensity');
+  function getNoiseIntensity (mode) {
+    const el = m$(mode, '[data-dynbg-mode-ovint]');
     if (!el) return '';
     const v = parseFloat(el.value);
-    if (isNaN(v) || Math.abs(v - activeOverlayDefaults().intensity) < 1e-6) return '';
+    if (isNaN(v) || Math.abs(v - activeOverlayDefaults(mode).intensity) < 1e-6) return '';
     return String(v);
   }
 
-  // ── Randomize toggles ──────────────────────────────────────────
-  // Two independent flags: colours (re-tints palette per render) and
-  // positions (blobs/gradients/bands spawn at fresh
-  // coordinates per render). Either can be on without the other.
-  function setRandomizeColors (on) {
-    const el = $('#dynbg-picker-modal-randomize-colors');
+  // ── Randomize toggles (per mode) ───────────────────────────────
+  // Colours re-tint that mode's palette per render; positions spawn
+  // the preset's movable parts at fresh coordinates per render.
+  function setRandomizeColors (mode, on) {
+    const el = m$(mode, '[data-dynbg-mode-randomize-colors]');
     if (el) el.checked = !!on;
+    syncColorSlotsVisibility(mode);
   }
-  function getRandomizeColors () {
-    const el = $('#dynbg-picker-modal-randomize-colors');
+  function getRandomizeColors (mode) {
+    const el = m$(mode, '[data-dynbg-mode-randomize-colors]');
     return el && el.checked ? '1' : '';
   }
-  function setRandomizePositions (on) {
-    const el = $('#dynbg-picker-modal-randomize-positions');
+  function setRandomizePositions (mode, on) {
+    const el = m$(mode, '[data-dynbg-mode-randomize-positions]');
     if (el) el.checked = !!on;
+    syncColorSlotsVisibility(mode);
   }
-  function getRandomizePositions () {
-    const el = $('#dynbg-picker-modal-randomize-positions');
+  function getRandomizePositions (mode) {
+    const el = m$(mode, '[data-dynbg-mode-randomize-positions]');
     return el && el.checked ? '1' : '';
   }
 
-  // ── Colour inputs ──────────────────────────────────────────────
+  // ── Colour inputs (per mode) ───────────────────────────────────
   // Each slot has a paired <input type=color> + <input type=text>.
   // The text input is the source-of-truth — admins can type a hex
   // (with or without alpha) or leave it blank to fall back to the
@@ -5543,13 +6705,13 @@
   // shown by toggling the ∅ overlay (`.dynbg-modal-color-null`) over
   // the swatch instead of seeding the misleading brand-blue.
   // markChipUnset() keeps that overlay in sync.
-  function markChipUnset (slot, unset) {
-    const nul = $('[data-dynbg-color-null="' + slot + '"]');
+  function markChipUnset (mode, slot, unset) {
+    const nul = m$(mode, '[data-dynbg-mode-color-null="' + slot + '"]');
     if (nul) nul.classList.toggle('is-shown', !!unset);
   }
-  function setColor (slot, hex) {
-    const colorEl = $('#dynbg-picker-modal-c' + slot + '-color');
-    const textEl  = $('#dynbg-picker-modal-c' + slot + '-text');
+  function setColor (mode, slot, hex) {
+    const colorEl = m$(mode, '[data-dynbg-mode-color="' + slot + '"]');
+    const textEl  = m$(mode, '[data-dynbg-mode-color-text="' + slot + '"]');
     if (textEl) textEl.value = hex || '';
     const m = (hex || '').match(/^#([0-9a-fA-F]{6})$/);
     if (colorEl) {
@@ -5557,14 +6719,153 @@
       // leave a neutral grey under the ∅ overlay (never brand-blue).
       colorEl.value = m ? hex : '#cccccc';
     }
-    markChipUnset(slot, !m);
+    markChipUnset(mode, slot, !m);
   }
-  function getColor (slot) {
-    const textEl = $('#dynbg-picker-modal-c' + slot + '-text');
+  function getColor (mode, slot) {
+    const textEl = m$(mode, '[data-dynbg-mode-color-text="' + slot + '"]');
     const v = textEl ? textEl.value.trim() : '';
     return /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v) ? v : '';
   }
-  function getColors () { return [getColor(1), getColor(2), getColor(3)]; }
+  function getColors (mode) { return SLOTS.map(slot => getColor(mode, slot)); }
+
+  // ── Whole-mode read / write ────────────────────────────────────
+  // The trigger contract carries the per-mode state as ONE JSON blob
+  // (`modes`), mirroring dynbg.normalize_modes(fill_defaults=False):
+  // only non-default keys are present, empty mode blocks are dropped,
+  // '' when nothing at all is configured.
+  function readMode (mode) {
+    const out = {};
+    const cols = getColors(mode);
+    while (cols.length && !cols[cols.length - 1]) cols.pop();
+    if (cols.some(Boolean)) out.colors = cols;
+    if (getRandomizeColors(mode)) out.randomize_colors = true;
+    if (getRandomizePositions(mode)) out.randomize_positions = true;
+    const kept = getKeptPositions(mode);
+    if (kept) out.positions = kept;
+    TONE_KEYS.forEach(k => { const v = toneVal(mode, k); if (v !== toneDefault(k, mode)) out[k] = v; });
+    if (patVal(mode, 'opacity') !== 100) out.pat_opacity = patVal(mode, 'opacity');
+    if (patVal(mode, 'bg') === 'gradient') out.pat_bg = 'gradient';
+    if (patVal(mode, 'bg_angle') !== 135) out.pat_bg_angle = patVal(mode, 'bg_angle');
+    const ov = selectedOverlay(mode);
+    if (ov) {
+      out.overlay = ov;
+      if (getSelectedScope(mode) === 'bg') out.overlay_scope = 'bg';
+      const sz = getNoiseSize(mode); if (sz !== '') out.overlay_size = parseFloat(sz);
+      const it = getNoiseIntensity(mode); if (it !== '') out.overlay_intensity = parseFloat(it);
+    }
+    return out;
+  }
+  function getModesStr () {
+    const out = {};
+    MODES.forEach(mode => { const b = readMode(mode); if (Object.keys(b).length) out[mode] = b; });
+    return Object.keys(out).length ? JSON.stringify(out) : '';
+  }
+  function parseModes (raw) {
+    let t = raw;
+    if (typeof t === 'string') { try { t = t ? JSON.parse(t) : {}; } catch (_) { t = {}; } }
+    return (t && typeof t === 'object') ? t : {};
+  }
+  function writeMode (mode, block) {
+    const b = (block && typeof block === 'object') ? block : {};
+    const cols = Array.isArray(b.colors) ? b.colors : [];
+    SLOTS.forEach(slot => setColor(mode, slot, cols[slot - 1] || ''));
+    setRandomizeColors(mode, !!b.randomize_colors);
+    setRandomizePositions(mode, !!b.randomize_positions);
+    setKeptPositions(mode, (b.positions && typeof b.positions === 'object') ? b.positions : null);
+    TONE_KEYS.forEach(k => setToneVal(mode, k, b[k]));
+    setPatVal(mode, 'opacity', b.pat_opacity != null ? b.pat_opacity : 100);
+    setPatVal(mode, 'bg', b.pat_bg || 'solid');
+    setPatVal(mode, 'bg_angle', b.pat_bg_angle != null ? b.pat_bg_angle : 135);
+    setSelectedOverlay(mode, b.overlay || '');
+    setSelectedScope(mode, b.overlay_scope || 'all');
+    // setSelectedOverlay configured the slider bounds; now seed the
+    // saved values within those bounds ('' → overlay default).
+    setNoiseSize(mode, b.overlay_size != null ? b.overlay_size : '');
+    setNoiseIntensity(mode, b.overlay_intensity != null ? b.overlay_intensity : '');
+    // Base the Shade-lightness nudge on the palette as saved, read
+    // AFTER the tone sliders land so `at` is the value it was saved at.
+    captureShadeBase(mode);
+  }
+  function setModes (raw) {
+    const t = parseModes(raw);
+    MODES.forEach(mode => writeMode(mode, t[mode]));
+  }
+  // Compact a modes object/JSON to the storage shape (non-default
+  // keys only) — used when a trigger is applied from block data.
+  function compactModes (raw) {
+    const t = parseModes(raw);
+    const out = {};
+    MODES.forEach(mode => {
+      const b = (t[mode] && typeof t[mode] === 'object') ? t[mode] : {};
+      const keep = {};
+      const cols = (Array.isArray(b.colors) ? b.colors : []).slice(0, SLOTS.length).map(c => (typeof c === 'string' && /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(c.trim())) ? c.trim() : '');
+      while (cols.length && !cols[cols.length - 1]) cols.pop();
+      if (cols.some(Boolean)) keep.colors = cols;
+      if (b.randomize_colors) keep.randomize_colors = true;
+      if (b.randomize_positions) keep.randomize_positions = true;
+      if (b.positions && typeof b.positions === 'object' && Object.keys(b.positions).length) {
+        keep.positions = b.positions;
+      }
+      TONE_KEYS.forEach(k => {
+        const n = parseInt(b[k], 10);
+        if (isFinite(n) && n !== toneDefault(k, mode)) keep[k] = Math.max(0, Math.min(toneMax(k), n));
+      });
+      const po = parseInt(b.pat_opacity, 10);
+      if (isFinite(po) && po !== 100) keep.pat_opacity = Math.max(0, Math.min(100, po));
+      if (b.pat_bg === 'gradient') keep.pat_bg = 'gradient';
+      const pa = parseInt(b.pat_bg_angle, 10);
+      if (isFinite(pa) && pa !== 135) keep.pat_bg_angle = Math.max(0, Math.min(355, pa));
+      if (b.overlay) {
+        keep.overlay = String(b.overlay);
+        if (b.overlay_scope === 'bg') keep.overlay_scope = 'bg';
+        if (b.overlay_size != null && b.overlay_size !== '' && isFinite(parseFloat(b.overlay_size))) keep.overlay_size = parseFloat(b.overlay_size);
+        if (b.overlay_intensity != null && b.overlay_intensity !== '' && isFinite(parseFloat(b.overlay_intensity))) keep.overlay_intensity = parseFloat(b.overlay_intensity);
+      }
+      if (Object.keys(keep).length) out[mode] = keep;
+    });
+    return Object.keys(out).length ? JSON.stringify(out) : '';
+  }
+  // Resolve a config's per-mode block for seeding a trigger: the
+  // `modes` object when present (with a transitional top-level
+  // `randomize_positions` folded into any mode that doesn't set it),
+  // else the legacy flat fields expanded into both modes, else null.
+  function modesFromConfig (cfg) {
+    cfg = cfg || {};
+    if (cfg.modes && typeof cfg.modes === 'object') {
+      const out = {};
+      MODES.forEach(mode => {
+        const b = Object.assign({}, (cfg.modes[mode] && typeof cfg.modes[mode] === 'object') ? cfg.modes[mode] : {});
+        if ((cfg.randomize_positions || cfg.randomize) && b.randomize_positions == null) b.randomize_positions = true;
+        out[mode] = b;
+      });
+      return out;
+    }
+    if (cfg.overlay || (cfg.colors || []).some(Boolean) || cfg.randomize_colors
+        || cfg.randomize_positions || cfg.randomize || cfg.tone) {
+      return legacyToModes(cfg);
+    }
+    return null;
+  }
+  // Legacy flat block / trigger data (single palette + overlay +
+  // tone) → a modes object with both modes populated. Lets container
+  // blocks and hero configs saved before the light/dark split open
+  // in the picker unchanged.
+  function legacyToModes (d) {
+    d = d || {};
+    const tone = (d.tone && typeof d.tone === 'object') ? d.tone : {};
+    const base = {
+      colors: d.colors || [], randomize_colors: !!(d.randomize_colors || d.randomize),
+      randomize_positions: !!(d.randomize_positions || d.randomize),
+      overlay: d.overlay || '', overlay_scope: d.overlay_scope || '',
+      overlay_size: d.overlay_size, overlay_intensity: d.overlay_intensity,
+    };
+    const out = {};
+    MODES.forEach(mode => {
+      const t = (tone[mode] && typeof tone[mode] === 'object') ? tone[mode] : {};
+      out[mode] = Object.assign({}, base, { sat: t.sat, bright: t.bright, fill: t.fill });
+    });
+    return out;
+  }
 
   // ── Tab switching ──────────────────────────────────────────────
   function setActiveTab (key) {
@@ -5573,8 +6874,75 @@
       t.classList.toggle('is-active', on);
       t.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+    $$('[data-dynbg-modal-tab-wrap]').forEach(w => {
+      w.classList.toggle('is-active', w.dataset.dynbgModalTabWrap === key);
+    });
     $$('[data-dynbg-modal-panel]').forEach(p => {
       p.classList.toggle('is-active', p.dataset.dynbgModalPanel === key);
+    });
+  }
+
+  // Paint a trigger chip's thumbnail from a saved config, so the chip
+  // shows the background the block actually has rather than the
+  // catalogue card's random sample. Stamps the light-mode palette and
+  // the preset's knob vars on the thumb; for the pattern preset it also
+  // rebuilds the layers for the chosen motif and shrinks the tile so a
+  // few repeats fit a 64px chip. Used by every trigger renderer.
+  function decorateThumb (thumbEl, key, modesObj, knobsObj) {
+    if (!thumbEl || !key) return;
+    const light = (modesObj && modesObj.light && typeof modesObj.light === 'object') ? modesObj.light : {};
+    ['--fe-dynbg-pat-opacity', '--fe-dynbg-pat-bg2', '--fe-dynbg-pat-bg-angle'].forEach(v => thumbEl.style.removeProperty(v));
+    if (key === 'pattern-tile') {
+      if (light.pat_opacity != null && light.pat_opacity !== 100) thumbEl.style.setProperty('--fe-dynbg-pat-opacity', String(light.pat_opacity / 100));
+      if (light.pat_bg === 'gradient') thumbEl.style.setProperty('--fe-dynbg-pat-bg2', 'var(--fe-dynbg-c6, var(--fe-dynbg-c5, #e2e8f0))');
+      if (light.pat_bg_angle != null && light.pat_bg_angle !== 135) thumbEl.style.setProperty('--fe-dynbg-pat-bg-angle', light.pat_bg_angle + 'deg');
+    }
+    // Randomised colours get a sample palette (as the previews do) so
+    // the chip shows *a* real rendering rather than brand fallbacks.
+    const cols = light.randomize_colors
+      ? previewShadeSeed(previewRandSeed(), light.rnd_light != null ? light.rnd_light : RND_LIGHT_DEFAULTS.light)
+      : (Array.isArray(light.colors) ? light.colors : []);
+    SLOTS.forEach(i => {
+      if (cols[i - 1]) thumbEl.style.setProperty('--fe-dynbg-c' + i, cols[i - 1]);
+      else thumbEl.style.removeProperty('--fe-dynbg-c' + i);
+    });
+    knobVarNames(key).forEach(v => thumbEl.style.removeProperty(v));
+    knobVarParts(key, knobsObj || {}).forEach(decl => {
+      const i = decl.indexOf(':');
+      if (i > 0) thumbEl.style.setProperty(decl.slice(0, i).trim(), decl.slice(i + 1).replace(/;$/, '').trim());
+    });
+    thumbEl.style.removeProperty('--fe-dynbg-pat-scale');
+    if (key !== 'pattern-tile') return;
+    const rec = thumbEl.querySelector('.fe-dynbg');
+    if (!rec) return;
+    const kn = knobsObj || {};
+    const token = (thumbEl.__dynbgThumbToken = (thumbEl.__dynbgThumbToken || 0) + 1);
+    // Chip-fit: show roughly two repeats of the tile whatever its native
+    // size, so the motif is recognisable at 64x44. This is a scale, and
+    // scale now lives inside the mask image, so the tile is resolved
+    // first (a 'random' pick isn't known until then) and the layers are
+    // rebuilt at the fitting scale — two string builds, no network.
+    const wgt = kn.weight != null ? kn.weight : 2;
+    window.dynbgPatternLayers(kn.pattern || 'random', wgt, 1)
+      .then(probe => {
+        const fit = probe.w ? Math.min(1, 26 / Math.max(probe.w, probe.h)) : 1;
+        return fit === 1 ? probe
+          : window.dynbgPatternLayers(probe.key || kn.pattern || 'random', wgt, fit);
+      })
+      .then(pat => {
+      if (thumbEl.__dynbgThumbToken !== token || !rec.isConnected) return;  // superseded
+      rec.innerHTML = '';
+      if (pat.w) {
+        rec.style.setProperty('--fe-dynbg-pat-w', pat.w + 'px');
+        rec.style.setProperty('--fe-dynbg-pat-h', pat.h + 'px');
+      }
+      pat.urls.forEach((u, i) => {
+        const sp = document.createElement('span');
+        sp.className = 'fe-dynbg-pattern';
+        sp.style.setProperty('--_db-pat-url', "url('" + u + "')");
+        sp.style.setProperty('--_db-pat-ink', 'var(--_db-ink' + (i + 1) + ')');
+        rec.appendChild(sp);
+      });
     });
   }
 
@@ -5582,13 +6950,6 @@
   function applyToTrigger (trigger, payload) {
     if (!trigger) return;
     const key       = payload.key       || '';
-    const overlay   = payload.overlay   || '';
-    const colors    = payload.colors    || ['', '', ''];
-    const scope     = payload.scope     || '';
-    const noiseSize = payload.noiseSize || '';
-    const noiseInt  = payload.noiseIntensity || '';
-    const randomColors    = payload.randomizeColors ? '1' : '';
-    const randomPositions = payload.randomizePositions ? '1' : '';
     const animateOff      = payload.animateOff ? '1' : '';
     // Per-preset knobs as a JSON string ('' when none). Accept either a
     // pre-serialised string or an object.
@@ -5599,59 +6960,40 @@
         knobsStr = JSON.stringify(payload.knobs);
       }
     }
-    // pastelLight is now a numeric strength 0-100 (legacy booleans
-    // still accepted: true → 100, false → 0). Empty string when off so
-    // the trigger's status-text "pastel" extra is suppressed.
-    let pastelLight;
-    if (payload.pastelLight === true) pastelLight = '100';
-    else if (payload.pastelLight === false || payload.pastelLight == null || payload.pastelLight === '') pastelLight = '';
-    else {
-      const n = Math.max(0, Math.min(100, parseInt(payload.pastelLight, 10) || 0));
-      pastelLight = n > 0 ? String(n) : '';
-    }
+    // Per-mode block (object or JSON) → compact storage JSON ('' when
+    // nothing is configured in either mode).
+    const modesStr = compactModes(payload.modes);
+    const modesObj = parseModes(modesStr);
     const inputBy = (camel) => {
       const sel = trigger.dataset[camel];
       return sel ? document.querySelector(sel) : null;
     };
     const baseInput      = inputBy('dynbgTriggerInput');
-    const overlayInput   = inputBy('dynbgTriggerOverlayInput');
-    const c1Input        = inputBy('dynbgTriggerC1Input');
-    const c2Input        = inputBy('dynbgTriggerC2Input');
-    const c3Input        = inputBy('dynbgTriggerC3Input');
-    const scopeInput     = inputBy('dynbgTriggerScopeInput');
-    const sizeInput      = inputBy('dynbgTriggerNoiseSizeInput');
-    const intensityIn    = inputBy('dynbgTriggerNoiseIntensityInput');
-    const randomColorsIn = inputBy('dynbgTriggerRandomizeColorsInput');
-    const randomPosIn    = inputBy('dynbgTriggerRandomizePositionsInput');
+    const modesIn        = inputBy('dynbgTriggerModesInput');
     const animateOffIn   = inputBy('dynbgTriggerAnimateOffInput');
-    const pastelLightIn  = inputBy('dynbgTriggerPastelLightInput');
     const knobsIn        = inputBy('dynbgTriggerKnobsInput');
     if (baseInput)      baseInput.value      = key;
-    if (overlayInput)   overlayInput.value   = overlay;
-    if (c1Input)        c1Input.value        = colors[0] || '';
-    if (c2Input)        c2Input.value        = colors[1] || '';
-    if (c3Input)        c3Input.value        = colors[2] || '';
-    if (scopeInput)     scopeInput.value     = scope;
-    if (sizeInput)      sizeInput.value      = noiseSize;
-    if (intensityIn)    intensityIn.value    = noiseInt;
-    if (randomColorsIn) randomColorsIn.value = randomColors;
-    if (randomPosIn)    randomPosIn.value    = randomPositions;
+    if (modesIn)        modesIn.value        = modesStr;
     if (animateOffIn)   animateOffIn.value   = animateOff;
-    if (pastelLightIn)  pastelLightIn.value  = pastelLight;
     if (knobsIn)        knobsIn.value        = knobsStr;
     trigger.dataset.dynbgCurrent = key;
-    trigger.dataset.dynbgOverlay = overlay;
-    trigger.dataset.dynbgC1 = colors[0] || '';
-    trigger.dataset.dynbgC2 = colors[1] || '';
-    trigger.dataset.dynbgC3 = colors[2] || '';
-    trigger.dataset.dynbgScope = scope;
-    trigger.dataset.dynbgNoiseSize = noiseSize;
-    trigger.dataset.dynbgNoiseIntensity = noiseInt;
-    trigger.dataset.dynbgRandomizeColors = randomColors;
-    trigger.dataset.dynbgRandomizePositions = randomPositions;
+    trigger.dataset.dynbgModes = modesStr;
     trigger.dataset.dynbgAnimateOff = animateOff;
-    trigger.dataset.dynbgPastelLight = pastelLight;
     trigger.dataset.dynbgKnobs = knobsStr;
+    paintTrigger(trigger, key, modesObj, knobsStr, !!animateOff);
+    // Notify consumers (block editor uses change events to mark the
+    // form dirty / re-serialise the block JSON). Fire on every input
+    // we touched so listeners pick up the consolidated change.
+    [baseInput, modesIn, animateOffIn, knobsIn].forEach(el => {
+      if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
+  // Paint a trigger's VISIBLE parts — name, status line, thumbnail —
+  // from a resolved config. Split out of applyToTrigger so a
+  // server-rendered trigger can be hydrated on load without touching
+  // its hidden inputs or firing change events (see hydrateTriggers).
+  function paintTrigger (trigger, key, modesObj, knobsStr, animateOff) {
     const entry = entryByKey(key);
     const nameEl = trigger.querySelector('[data-dynbg-trigger-name]');
     const statusEl = trigger.querySelector('[data-dynbg-trigger-status]');
@@ -5662,31 +7004,31 @@
       if (entry) bits.push('Click to change or clear');
       else bits.push('No dynamic background — click to add');
       const extras = [];
-      if (overlay) {
-        // Pull the overlay's display name from its catalog card so the
-        // status text reads "Noise grain overlay" rather than the
-        // generic "overlay set". The grid is the source of truth.
-        const overlayCard = document.querySelector(
-          '#dynbg-picker-modal-overlay-grid [data-dynbg-overlay-key="' + CSS.escape(overlay) + '"]');
-        const overlayNameEl = overlayCard && overlayCard.querySelector('.fe-dynbg-picker-name');
-        const overlayName = overlayNameEl ? overlayNameEl.textContent.trim() : overlay;
-        extras.push(overlayName + ' overlay');
-      }
-      if (randomColors) {
-        extras.push('random colours');
-      } else {
-        const colorCount = colors.filter(Boolean).length;
-        if (colorCount) extras.push(colorCount + ' colour' + (colorCount === 1 ? '' : 's'));
-      }
-      if (randomPositions) extras.push('random positions');
+      // One summary per mode, e.g. "light: random colours / Linen
+      // overlay / 70% sat" — only modes with something configured.
+      MODES.forEach(mode => {
+        const b = modesObj[mode] || {};
+        const mb = [];
+        if (b.randomize_colors) mb.push('random colours');
+        else if (Array.isArray(b.colors) && b.colors.filter(Boolean).length) {
+          const n = b.colors.filter(Boolean).length;
+          mb.push(n + ' colour' + (n === 1 ? '' : 's'));
+        }
+        if (b.randomize_positions) mb.push('random positions');
+        else if (b.positions && Object.keys(b.positions).length) mb.push('kept layout');
+        if (b.overlay) mb.push(overlayNameByKey(b.overlay) + ' overlay');
+        if (b.sat != null) mb.push(b.sat + '% sat');
+        if (b.bright != null) mb.push(b.bright + '% bright');
+        // Present only when it differs from THIS mode's default (the
+        // blob is the storage shape), so the chip stays quiet on the
+        // dark-mode limiter everyone gets.
+        if (b.rnd_light != null) mb.push(b.rnd_light + '% shade');
+        if (b.fill != null) mb.push(b.fill + '% fill');
+        if (b.pat_opacity != null) mb.push(b.pat_opacity + '% opacity');
+        if (b.pat_bg === 'gradient') mb.push('gradient');
+        if (mb.length) extras.push(mode + ': ' + mb.join(' / '));
+      });
       if (animateOff) extras.push('static');
-      if (pastelLight) {
-        // Show the percentage so the admin can tell whether the
-        // slider is dialed in lightly (e.g. "25% pastel") vs fully.
-        const n = parseInt(pastelLight, 10) || 0;
-        extras.push(n >= 100 ? 'pastel in light mode'
-                             : (n + '% pastel in light mode'));
-      }
       if (extras.length) bits.push('· ' + extras.join(', '));
       statusEl.textContent = bits.join(' ');
     }
@@ -5694,15 +7036,42 @@
       thumbEl.innerHTML = entry
         ? entry.thumbHtml
         : '<span class="fe-dynbg-trigger-thumb-none" aria-hidden="true">∅</span>';
+      let knobsObj = {};
+      try { knobsObj = knobsStr ? JSON.parse(knobsStr) : {}; } catch (_) { knobsObj = {}; }
+      decorateThumb(thumbEl, key, modesObj, knobsObj);
     }
-    // Notify consumers (block editor uses change events to mark the
-    // form dirty / re-serialise the block JSON). Fire on every input
-    // we touched so listeners pick up the consolidated change.
-    [baseInput, overlayInput, c1Input, c2Input, c3Input,
-     scopeInput, sizeInput, intensityIn,
-     randomColorsIn, randomPosIn, animateOffIn, pastelLightIn, knobsIn].forEach(el => {
-      if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // Hydrate every server-rendered trigger on the page.
+  //
+  // The Jinja macro (_dynbg_picker.html) can only emit the preset's
+  // BARE recipe — it has no palette maths, no motif resolution and no
+  // access to the catalogue's sample thumbnails — so a trigger rendered
+  // by a normal page load showed a washed-out brand-default chip (and,
+  // for a randomised palette, nothing at all) until the admin opened
+  // the picker once. The chips the page builder draws in JS
+  // (block_editor.js) have always gone through decorateThumb and
+  // therefore looked right, which is exactly the mismatch this closes:
+  // same painter, same result, wherever the trigger came from.
+  //
+  // Deliberately does NOT write the hidden inputs or fire change
+  // events — this is a repaint of what the server already rendered, and
+  // a stray `change` here would mark every form on the page dirty.
+  function hydrateTriggers (root) {
+    const scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('[data-dynbg-trigger]').forEach(trigger => {
+      const key = trigger.dataset.dynbgCurrent || '';
+      if (!key) return;
+      paintTrigger(trigger, key,
+                   parseModes(trigger.dataset.dynbgModes || ''),
+                   trigger.dataset.dynbgKnobs || '',
+                   trigger.dataset.dynbgAnimateOff === '1');
     });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => hydrateTriggers());
+  } else {
+    hydrateTriggers();
   }
 
   function closeSelf () {
@@ -5723,43 +7092,148 @@
     const clearBtn = modal.querySelector('#dynbg-picker-modal-clear');
     if (saveBtn) saveBtn.addEventListener('click', () => {
       const baseCard = modal.querySelector('[data-dynbg-modal-card].active');
-      const overlayCard = modal.querySelector('[data-dynbg-modal-overlay-card].active');
       const key = baseCard ? baseCard.dataset.dynbgKey || '' : '';
-      const overlay = overlayCard ? overlayCard.dataset.dynbgOverlayKey || '' : '';
       applyToTrigger(activeTrigger, {
-        key, overlay,
-        colors: getColors(),
-        scope: getSelectedScope(),
-        noiseSize: getNoiseSize(),
-        noiseIntensity: getNoiseIntensity(),
-        randomizeColors: !!getRandomizeColors(),
-        randomizePositions: !!getRandomizePositions(),
+        key,
+        modes: getModesStr(),
         animateOff: !!getAnimateOff(),
-        pastelLight: getPastelLight(),  // numeric string '0'..'100' (or '' off)
         knobs: getKnobs(key),
       });
       closeSelf();
     });
     if (clearBtn) clearBtn.addEventListener('click', () => {
       applyToTrigger(activeTrigger, {
-        key: '', overlay: '', colors: ['', '', ''],
-        scope: '', noiseSize: '', noiseIntensity: '',
-        randomizeColors: false, randomizePositions: false,
-        pastelLight: false,
-        animateOff: false,
-        knobs: {},
+        key: '', modes: '', animateOff: false, knobs: {},
       });
       closeSelf();
     });
-    // Scope radios + randomize/freeze toggles repaint the live preview.
-    modal.querySelectorAll('input[name="__dynbg_modal_scope_pick"]').forEach(r => {
-      r.addEventListener('change', updatePreview);
-    });
-    ['#dynbg-picker-modal-randomize-colors',
-     '#dynbg-picker-modal-randomize-positions',
-     '#dynbg-picker-modal-animate-off'].forEach(sel => {
-      const el = $(sel);
-      if (el) el.addEventListener('change', updatePreview);
+    // Shared toggles repaint the live preview.
+    const animEl = $('#dynbg-picker-modal-animate-off');
+    if (animEl) animEl.addEventListener('change', updatePreview);
+    // Per-mode column wiring.
+    MODES.forEach(mode => {
+      const rc = m$(mode, '[data-dynbg-mode-randomize-colors]');
+      if (rc) rc.addEventListener('change', () => {
+        if (rc.checked) {
+          // Re-roll the sample palette each time random colours is
+          // switched ON so the admin sees a fresh shuffle; the slot
+          // inputs hide while it's on.
+          _previewRandSeed = null;
+        } else if (!getColors(mode).some(Boolean)) {
+          // Switched OFF with nothing in the slots: seed them with the
+          // palette the preview was just showing, so the admin starts
+          // mixing from the colours they liked rather than from blank /
+          // brand defaults. Seeded AS DISPLAYED (sample re-saturated by
+          // this mode's Saturation) so the preview doesn't shift —
+          // saturateHex sets an absolute saturation, so re-applying it
+          // to these values is a no-op.
+          //
+          // Slots that ALREADY hold colours are left alone: ticking a
+          // randomise box and unticking it is not an instruction to
+          // throw away a hand-picked palette. Use "Roll colours" to
+          // overwrite them deliberately.
+          seedColorsFromSample(mode);
+        } else {
+          captureShadeBase(mode);
+        }
+        syncColorSlotsVisibility(mode);
+        updatePreview();
+      });
+      const rp = m$(mode, '[data-dynbg-mode-randomize-positions]');
+      if (rp) rp.addEventListener('change', () => {
+        if (rp.checked) _previewRandPositions = null;
+        // Switching randomise OFF leaves the preview on the layout it
+        // was just showing, so the admin keeps the one they liked
+        // rather than snapping back to the preset's default.
+        else if (!getKeptPositions(mode) && selectedKey()) {
+          setKeptPositions(mode, previewRandPositions(selectedKey()));
+        }
+        syncColorSlotsVisibility(mode);
+        updatePreview();
+      });
+      const colShuffle = m$(mode, '[data-dynbg-mode-colors-shuffle]');
+      if (colShuffle) colShuffle.addEventListener('click', () => shuffleSamplePalette());
+      const posShuffle = m$(mode, '[data-dynbg-mode-pos-shuffle]');
+      if (posShuffle) posShuffle.addEventListener('click', () => shuffleSampleLayout());
+      // "Roll colours" lives inside the Colours fieldset (on screen only
+      // while this column is NOT randomising colours), so the admin can
+      // audition palettes and keep the one they like as fixed slots.
+      const roll = m$(mode, '[data-dynbg-mode-roll]');
+      if (roll) roll.addEventListener('click', () => rollColors(mode));
+      // Roll / reset a KEPT layout. Rolling writes concrete position
+      // vars into this mode's config (the positional equivalent of
+      // writing hexes into the colour slots), so what the preview shows
+      // is what every visitor gets — not a fresh roll per page load.
+      const posRoll = m$(mode, '[data-dynbg-mode-pos-roll]');
+      if (posRoll) posRoll.addEventListener('click', () => {
+        const key = selectedKey();
+        if (!key) return;
+        setKeptPositions(mode, previewRandomPositions(key));
+        syncPosRowActions(mode);
+        updatePreview();
+      });
+      const posReset = m$(mode, '[data-dynbg-mode-pos-reset]');
+      if (posReset) posReset.addEventListener('click', () => {
+        setKeptPositions(mode, null);
+        syncPosRowActions(mode);
+        updatePreview();
+      });
+      m$$(mode, '[data-dynbg-mode-scope]').forEach(r => r.addEventListener('change', updatePreview));
+      // Colour input pairs — text input is canonical; <input type=color>
+      // syncs on change. Per-slot Clear button blanks both inputs.
+      SLOTS.forEach(slot => {
+        const colorEl = m$(mode, '[data-dynbg-mode-color="' + slot + '"]');
+        const textEl  = m$(mode, '[data-dynbg-mode-color-text="' + slot + '"]');
+        const clearEl = m$(mode, '[data-dynbg-mode-color-clear="' + slot + '"]');
+        if (colorEl) colorEl.addEventListener('input', () => {
+          if (textEl) textEl.value = colorEl.value;
+          markChipUnset(mode, slot, false);
+          captureShadeBase(mode);
+          updatePreview();
+        });
+        if (textEl) textEl.addEventListener('input', () => {
+          const m = textEl.value.match(/^#([0-9a-fA-F]{6})$/);
+          if (m && colorEl) colorEl.value = textEl.value;
+          markChipUnset(mode, slot, !m);
+          captureShadeBase(mode);
+          updatePreview();
+        });
+        if (clearEl) clearEl.addEventListener('click', () => {
+          setColor(mode, slot, '');
+          captureShadeBase(mode);
+          updatePreview();
+        });
+      });
+      // Overlay Size / Intensity live readout + reset.
+      const sizeEl = m$(mode, '[data-dynbg-mode-ovsize]');
+      const sizeOut = m$(mode, '[data-dynbg-mode-ovsize-out]');
+      if (sizeEl && sizeOut) sizeEl.addEventListener('input', () => { sizeOut.textContent = sizeEl.value; updatePreview(); });
+      const intEl = m$(mode, '[data-dynbg-mode-ovint]');
+      const intOut = m$(mode, '[data-dynbg-mode-ovint-out]');
+      if (intEl && intOut) intEl.addEventListener('input', () => { intOut.textContent = parseFloat(intEl.value).toFixed(3); updatePreview(); });
+      const ovReset = m$(mode, '[data-dynbg-mode-ovreset]');
+      if (ovReset) ovReset.addEventListener('click', () => {
+        const def = activeOverlayDefaults(mode);
+        setNoiseSize(mode, def.size); setNoiseIntensity(mode, def.intensity);
+        setSelectedScope(mode, 'all');
+        updatePreview();
+      });
+      // Tone sliders — live numeric readout + repaint. `rnd_light` has
+      // a twin in the other fieldset (see toneSliders) and, while the
+      // column isn't randomising, drives the chips themselves.
+      m$$(mode, '[data-dynbg-mode-tone]').forEach(el => {
+        el.addEventListener('input', () => {
+          const key = el.dataset.dynbgModeTone;
+          toneSliders(mode, key).forEach(t => { if (t !== el) t.value = el.value; });
+          if (key === 'rnd_light') applyShade(mode);
+          syncToneOuts();
+          updatePreview();
+        });
+      });
+      // Pattern settings (opacity / backdrop / direction).
+      m$$(mode, '[data-dynbg-mode-pat]').forEach(el => {
+        el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { syncPatOuts(mode); updatePreview(); });
+      });
     });
     // Card click -> mark active immediately on whichever grid the
     // click landed in. Delegated on the modal so we don't need to
@@ -5783,73 +7257,35 @@
           // The pattern presets (dots/lines) opt OUT — their point is a
           // deliberate fg/bg colour pair, which a random palette would
           // immediately override (the very bug this refactor fixes).
-          if (cap.randomize_default) {
-            if ((cap.colors || 0) >= 1) setRandomizeColors(true);
-            if (cap.randomize_positions) setRandomizePositions(true);
-          } else {
-            setRandomizeColors(false);
-            setRandomizePositions(false);
-          }
+          MODES.forEach(mode => {
+            if (cap.randomize_default) {
+              if ((cap.colors || 0) >= 1) setRandomizeColors(mode, true);
+              if (cap.randomize_positions) setRandomizePositions(mode, true);
+            } else {
+              setRandomizeColors(mode, false);
+              setRandomizePositions(mode, false);
+            }
+          });
           updatePreview();
         }
       }
-      const overlayCard = e.target.closest('[data-dynbg-modal-overlay-card]');
-      if (overlayCard) setSelectedOverlay(overlayCard.dataset.dynbgOverlayKey || '');
+      const overlayCard = e.target.closest('[data-dynbg-mode-overlay-card]');
+      if (overlayCard) {
+        const col = overlayCard.closest('[data-dynbg-mode]');
+        if (col) setSelectedOverlay(col.dataset.dynbgMode, overlayCard.dataset.dynbgOverlayKey || '', true);
+      }
     });
-    // Tab switching.
-    $$('[data-dynbg-modal-tab]').forEach(t => {
-      t.addEventListener('click', () => setActiveTab(t.dataset.dynbgModalTab));
-    });
-    // Colour input pairs — text input is canonical; <input type=color>
-    // syncs on change. Per-slot Clear button blanks both inputs.
-    [1, 2, 3].forEach(slot => {
-      const colorEl = $('#dynbg-picker-modal-c' + slot + '-color');
-      const textEl  = $('#dynbg-picker-modal-c' + slot + '-text');
-      const clearEl = modal.querySelector('[data-dynbg-modal-color-clear="' + slot + '"]');
-      if (colorEl) colorEl.addEventListener('input', () => {
-        // Actively picking from the native swatch SETS the slot.
-        if (textEl) textEl.value = colorEl.value;
-        markChipUnset(slot, false);
-        updatePreview();
+    // Tab switching — the whole wrapper half is the click target,
+    // except the help chip (which opens its tooltip instead).
+    $$('[data-dynbg-modal-tab-wrap]').forEach(w => {
+      w.addEventListener('click', e => {
+        if (e.target.closest('.heading-help')) return;
+        setActiveTab(w.dataset.dynbgModalTabWrap);
       });
-      if (textEl) textEl.addEventListener('input', () => {
-        const m = textEl.value.match(/^#([0-9a-fA-F]{6})$/);
-        if (m && colorEl) colorEl.value = textEl.value;
-        // Empty / invalid text → unset (∅); a full #rrggbb → set.
-        markChipUnset(slot, !m);
-        updatePreview();
-      });
-      if (clearEl) clearEl.addEventListener('click', () => { setColor(slot, ''); updatePreview(); });
-    });
-    // Noise-grain slider live-output sync. Save / reset buttons wire
-    // through the same setter helpers so a Reset event repopulates
-    // the live-output spans alongside the slider position.
-    const sizeEl = $('#dynbg-picker-modal-noise-size');
-    const sizeOut = $('#dynbg-picker-modal-noise-size-out');
-    if (sizeEl && sizeOut) sizeEl.addEventListener('input', () => {
-      sizeOut.textContent = sizeEl.value;
-      updatePreview();
-    });
-    const intensityEl = $('#dynbg-picker-modal-noise-intensity');
-    const intensityOut = $('#dynbg-picker-modal-noise-intensity-out');
-    if (intensityEl && intensityOut) intensityEl.addEventListener('input', () => {
-      intensityOut.textContent = parseFloat(intensityEl.value).toFixed(3);
-      updatePreview();
-    });
-    const noiseReset = $('#dynbg-picker-modal-noise-reset');
-    if (noiseReset) noiseReset.addEventListener('click', () => {
-      const def = activeOverlayDefaults();
-      setNoiseSize(def.size);
-      setNoiseIntensity(def.intensity);
-      updatePreview();
     });
     // Per-preset knobs reset → spec defaults.
     const knobsReset = $('#dynbg-picker-modal-knobs-reset');
     if (knobsReset) knobsReset.addEventListener('click', () => resetKnobs(selectedKey()));
-    // Pastel-strength slider — live numeric readout + live preview so
-    // the admin sees the softening applied as they drag.
-    const pastelEl = $('#dynbg-picker-modal-pastel-light');
-    if (pastelEl) pastelEl.addEventListener('input', () => { syncPastelOut(); updatePreview(); });
     // Close affordances — backdrop + X.
     modal.querySelectorAll('[data-close]').forEach(el => {
       el.addEventListener('click', closeSelf);
@@ -5875,22 +7311,10 @@
       if (_pendingKnobs && typeof _pendingKnobs !== 'object') _pendingKnobs = null;
     } catch (_) { _pendingKnobs = null; }
     setSelectedKey(trigger.dataset.dynbgCurrent || '');
-    setSelectedOverlay(trigger.dataset.dynbgOverlay || '');
-    setColor(1, trigger.dataset.dynbgC1 || '');
-    setColor(2, trigger.dataset.dynbgC2 || '');
-    setColor(3, trigger.dataset.dynbgC3 || '');
-    setSelectedScope(trigger.dataset.dynbgScope || 'all');
-    // setSelectedOverlay already configured the slider bounds for the
-    // active overlay; now seed the saved values within those bounds.
-    if (trigger.dataset.dynbgNoiseSize) setNoiseSize(trigger.dataset.dynbgNoiseSize);
-    if (trigger.dataset.dynbgNoiseIntensity) setNoiseIntensity(trigger.dataset.dynbgNoiseIntensity);
-    setRandomizeColors(trigger.dataset.dynbgRandomizeColors === '1');
-    setRandomizePositions(trigger.dataset.dynbgRandomizePositions === '1');
     setAnimateOff(trigger.dataset.dynbgAnimateOff === '1');
-    // The data attribute now carries the int strength as a string
-    // ('25', '100') instead of the legacy '1' boolean; setPastelLight
-    // accepts both forms.
-    setPastelLight(trigger.dataset.dynbgPastelLight || '');
+    _previewRandSeed = null;       // fresh sample palette / layout per open
+    _previewRandPositions = null;
+    setModes(trigger.dataset.dynbgModes || '');
     setActiveTab('background');
     updatePreview();
     modal.classList.add('open');
@@ -5914,6 +7338,47 @@
   // a trigger's hidden inputs + visual state without duplicating
   // the lookup logic for the catalog entry + thumbnail HTML.
   window.applyDynbgTrigger = applyToTrigger;
+  // Same for the saturation port so out-of-modal live previews (hero
+  // modal) retune colours exactly like the picker preview + server.
+  window.dynbgSaturateHex = saturateHex;
+  // Legacy flat data → per-mode object, for consumers seeding a
+  // trigger from pre-split block data.
+  window.dynbgLegacyToModes = legacyToModes;
+  window.dynbgModesFromConfig = modesFromConfig;
+  window.dynbgDecorateThumb = decorateThumb;
+  // Repaint server-rendered trigger chips inside a subtree that arrived
+  // after load (an AJAX-loaded settings pane, say).
+  window.dynbgHydrateTriggers = hydrateTriggers;
+  // Classic-recipe fallback for consumers that build their own triggers
+  // (the page builder's block editor) — keeps their chip showing the
+  // same recipe the public page renders.
+  window.dynbgRenderKey = renderKeyFor;
+  window.dynbgConfigVersion = CONFIG_VERSION;
+  // Per-preset knob CSS vars, for previews rendered outside this modal.
+  window.dynbgKnobVars = knobVarParts;
+  window.dynbgKnobVarNames = knobVarNames;
+  // Pattern-tile layers for a SAVED config (hero modal preview). The
+  // catalogue is lazy-loaded, so this resolves once it's available.
+  // A 'random' choice is resolved fresh here, matching what a page
+  // render would do.
+  // Catalogue entry for a motif key (null while the library is still
+  // loading, or for 'random'), so callers can size against its tile.
+  window.dynbgPatternEntry = function (patternKey) {
+    const lib = _patterns || [];
+    return lib.find(p => p.key === patternKey) || null;
+  };
+  window.dynbgPatternLayers = function (patternKey, weight, scale) {
+    const build = () => {
+      const lib = patterns();
+      let entry = lib.find(p => p.key === patternKey) || null;
+      if (!entry && lib.length) entry = lib[Math.floor(Math.random() * lib.length)];
+      if (!entry) return { urls: [], w: 0, h: 0 };
+      return previewPatternLayers(entry.key, weight, scale);
+    };
+    if (_patterns) return Promise.resolve(build());
+    patterns();  // kicks off the fetch
+    return (_patternsLoading || Promise.resolve()).then(build);
+  };
 })();
 
 // ── Expandable rank lists ─────────────────────────────────────────
@@ -5930,8 +7395,11 @@
 //   </ul>
 //   <button data-wt-expand-btn="<key>">Show 30 more</button>
 //   <span data-wt-expand-meta="<key>">base · meta</span>   (optional)
-(function () {
+// Runs again on a page brought in by tspSwapPage (Watchtower's tabs).
+(window.tspOnEachPage || (f => f()))(function () {
   document.querySelectorAll('[data-wt-expand]').forEach(list => {
+    if (list.dataset.wtExpandBound) return;
+    list.dataset.wtExpandBound = '1';
     const key = list.dataset.wtExpand;
     const step = parseInt(list.dataset.step, 10) || 30;
     const total = parseInt(list.dataset.total, 10) || 0;
@@ -5971,7 +7439,7 @@
       }
     });
   });
-})();
+});
 
 // ── Metric mode toggle (Unique visitors ⇄ Hits) ────────────────────
 // Shared toggle for the Visitor Metrics + Watchtower Visitors pages.
@@ -5999,26 +7467,24 @@
     document.querySelectorAll("[data-uniques][data-views]").forEach(el => {
       el.textContent = el.dataset[mode] || "";
     });
-    // Per-toggle aria-pressed state for the active button in each toggle.
+    // The chosen part of each toggle (the shared segmented control).
     document.querySelectorAll(".metric-toggle").forEach(group => {
       group.querySelectorAll("button[data-metric]").forEach(btn => {
-        btn.setAttribute("aria-pressed",
+        btn.setAttribute("aria-checked",
           btn.dataset.metric === mode ? "true" : "false");
       });
     });
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    if (!document.querySelector(".metric-toggle")) return;
-    applyMode(getMode());
-
-    document.querySelectorAll(".metric-toggle button[data-metric]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const mode = btn.dataset.metric;
-        localStorage.setItem(KEY, mode);
-        applyMode(mode);
-      });
-    });
+  // Delegated, and applied again to a page brought in by tspSwapPage.
+  document.addEventListener("click", e => {
+    const btn = e.target.closest(".metric-toggle button[data-metric]");
+    if (!btn) return;
+    localStorage.setItem(KEY, btn.dataset.metric);
+    applyMode(btn.dataset.metric);
+  });
+  (window.tspOnEachPage || (f => f()))(() => {
+    if (document.querySelector(".metric-toggle, [data-uniques][data-views]")) applyMode(getMode());
   });
 })();
 
@@ -6307,9 +7773,11 @@
       return el ? el.value : "";
     };
     function setPill(state, text, title) {
-      pill.className = "backup-status-pill backup-status-" + state;
+      // is-clickable is re-applied here because every state change rewrites
+      // className, and the pill doubles as the re-check button.
+      pill.className = "backup-status-pill backup-status-" + state + " is-clickable";
       pill.textContent = text;
-      pill.title = title || "";
+      pill.title = (title ? title + " " : "") + "(click to re-check)";
     }
     function showMsg(text, ok) {
       if (!msg) return;
@@ -6330,12 +7798,34 @@
       return r.json();
     }
 
-    // Live connection check on load (a real ping to the peer).
-    setPill("running", "Checking…");
-    post(root.dataset.pingUrl)
-      .then(d => d.ok ? setPill("ok", "Connected", d.message)
-                      : setPill("failed", "Unreachable", d.message))
-      .catch(() => setPill("failed", "Unreachable"));
+    // Live connection check on load (a real ping to the peer). A failure
+    // states its reason inline — the pill alone can't say whether the URL
+    // is wrong or the network just hiccuped — and the pill stays clickable
+    // so a transient blip is one click to re-check.
+    let checking = false;
+    function check() {
+      if (checking) return;
+      checking = true;
+      setPill("running", "Checking…");
+      if (msg) msg.hidden = true;
+      post(root.dataset.pingUrl)
+        .then(d => {
+          if (d.ok) { setPill("ok", "Connected", d.message); }
+          else { setPill("failed", "Unreachable", d.message); showMsg(d.message, false); }
+        })
+        .catch(err => {
+          setPill("failed", "Unreachable", err.message);
+          showMsg("Connection check failed: " + err.message, false);
+        })
+        .finally(() => { checking = false; });
+    }
+    pill.setAttribute("role", "button");
+    pill.setAttribute("tabindex", "0");
+    pill.addEventListener("click", check);
+    pill.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); check(); }
+    });
+    check();
 
     // Arm-then-confirm: first click reveals the danger label, second runs it.
     let armed = null, armTimer = null;
@@ -6460,31 +7950,50 @@
   }
 })();
 
-/* Mobile top-bar action strip — the buttons overflow into a horizontal
-   swipe strip below 720px (scrollbar hidden), so without a cue there's
-   no hint that more actions exist off-screen. Drive the CSS mask vars
-   (--swipe-fade-l / -r on .top-actions) from the live scroll position:
-   an edge only fades while content is actually hidden past it. */
+/* Mobile swipe strips — the top-bar actions and the Watchtower tabs
+   overflow into a horizontal swipe strip below 720px (scrollbar
+   hidden), so without a cue there's no hint that more exists
+   off-screen. Drive the CSS mask vars (--swipe-fade-l / -r) from the
+   live scroll position: an edge only fades while content is actually
+   hidden past it. */
 (function topActionsSwipeFade() {
   const FADE = "28px";
+  // Each strip once; the hook runs this again on a page brought in by
+  // tspSwapPage (Watchtower's sections), whose strips are new elements.
   function init() {
-    document.querySelectorAll(".top-actions").forEach(strip => {
+    // Open a tab strip scrolled to the current tab, so arriving on
+    // Requests doesn't leave it hidden past the right edge.
+    document.querySelectorAll(".wt-tabs-track").forEach(track => {
+      if (track._fadeCentered) return;
+      track._fadeCentered = true;
+      const active = track.querySelector('[aria-current="page"]');
+      if (!active || track.scrollWidth <= track.clientWidth) return;
+      const t = track.getBoundingClientRect(), a = active.getBoundingClientRect();
+      track.scrollLeft += (a.left - t.left) - (t.width - a.width) / 2;
+    });
+    document.querySelectorAll(".top-actions, .wt-tabs-track").forEach(strip => {
+      if (strip._swipeFade) return;
       const update = () => {
         const max = strip.scrollWidth - strip.clientWidth;
         strip.style.setProperty("--swipe-fade-l", max > 2 && strip.scrollLeft > 2 ? FADE : "0px");
         strip.style.setProperty("--swipe-fade-r", max > 2 && strip.scrollLeft < max - 2 ? FADE : "0px");
       };
+      strip._swipeFade = update;
       strip.addEventListener("scroll", update, { passive: true });
-      window.addEventListener("resize", update);
-      if (typeof ResizeObserver !== "undefined") new ResizeObserver(update).observe(strip);
+      if (typeof ResizeObserver !== "undefined") {
+        // The strip resizing, or anything inside it (a control appearing).
+        const ro = new ResizeObserver(update);
+        ro.observe(strip);
+        Array.from(strip.children).forEach(c => ro.observe(c));
+      } else {
+        window.addEventListener("resize", update);
+      }
       update();
     });
   }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  const run = window.tspOnEachPage || (fn => fn());
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => run(init));
+  else run(init);
 })();
 
 /* ── Click-to-reveal for abbreviated IPv6 in the Watchtower tables ──
@@ -6508,5 +8017,1021 @@
     btn.classList.toggle("is-open", !open);
     btn.title = open ? btn.dataset.ipFull + " — click to show in full"
                      : "Click to shorten";
+  });
+})();
+
+/* ── Row actions dropdown (templates/_row_menu.html) ───────────────
+   Collapses an admin table row's action buttons behind one trigger.
+   The panel is `position: fixed` and placed here on open rather than
+   absolutely positioned in the row: the card clips overflow, and below
+   720px `.card .tbl { overflow-x: auto }` makes the table its own
+   scroll container — either would cut an in-flow panel off.
+
+   Delegated off the document so it covers rows the client-side column
+   sort has re-ordered (the Pages list moves <tr> nodes around) and any
+   table that adopts the macro later, without per-page wiring. */
+/* ── Markdown toolbar ([data-md-toolbar] inside a [data-md-editor]) ──
+   Each button writes Markdown into the editor's textarea at the caret
+   or around the selection; pressing it again on already-formatted text
+   takes the formatting off. Edits go through execCommand("insertText")
+   where the browser has it, so Ctrl+Z undoes them like typing, and they
+   fire "input", so the live preview and the save bar follow.
+   Ctrl/Cmd+B, I and K are bold, italic and link. */
+(function initMdToolbars() {
+  function areaFor(el) {
+    var ed = el.closest("[data-md-editor]");
+    return ed && ed.querySelector(".md-editor-pane-write textarea, textarea");
+  }
+
+  // Replace [start, end) with text, then select [selStart, selEnd).
+  function put(ta, start, end, text, selStart, selEnd) {
+    ta.focus();
+    ta.setSelectionRange(start, end);
+    var done = false;
+    try { done = document.execCommand("insertText", false, text); } catch (_) {}
+    if (!done || ta.value.slice(start, start + text.length) !== text) {
+      ta.setRangeText(text, start, end, "end");
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    ta.setSelectionRange(selStart, selEnd);
+  }
+
+  // Bold, italic and inline code: wrap the selection, or a placeholder.
+  function wrap(ta, mark, placeholder) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    // A double-click can take the space after a word; leave it outside.
+    while (e > s && /\s/.test(v[e - 1])) e--;
+    while (s < e && /\s/.test(v[s])) s++;
+    var sel = v.slice(s, e), n = mark.length;
+    if (sel && v.slice(s - n, s) === mark && v.slice(e, e + n) === mark) {
+      put(ta, s - n, e + n, sel, s - n, e - n);
+    } else if (sel.length > 2 * n && sel.slice(0, n) === mark && sel.slice(-n) === mark) {
+      var inner = sel.slice(n, -n);
+      put(ta, s, e, inner, s, s + inner.length);
+    } else if (sel) {
+      put(ta, s, e, mark + sel + mark, s + n, e + n);
+    } else {
+      put(ta, s, e, mark + placeholder + mark, s + n, s + n + placeholder.length);
+    }
+  }
+
+  // The whole lines the selection touches.
+  function lineRange(ta) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    if (e > s && v[e - 1] === "\n") e--;
+    var ls = v.lastIndexOf("\n", s - 1) + 1;
+    var le = v.indexOf("\n", e);
+    if (le < 0) le = v.length;
+    return [ls, le];
+  }
+
+  // Headings, lists and quotes: prefix every line, or take it off when
+  // every line already has it. Python-Markdown needs a blank line
+  // between a paragraph and a list, heading or quote, so one is added
+  // on either side where the neighbouring line has text.
+  var LINE = {
+    heading: { re: /^#{1,6} /, add: function () { return "## "; } },
+    ul: { re: /^[-*+] /, add: function () { return "- "; } },
+    ol: { re: /^\d+\. /, add: function (i) { return (i + 1) + ". "; } },
+    quote: { re: /^> ?/, add: function () { return "> "; } },
+  };
+  function prefixLines(ta, kind) {
+    var spec = LINE[kind], v = ta.value, r = lineRange(ta);
+    var lines = v.slice(r[0], r[1]).split("\n");
+    var filled = lines.filter(function (l) { return l.trim(); });
+    var off = filled.length && filled.every(function (l) { return spec.re.test(l); });
+    var i = 0;
+    var out = lines.map(function (l) {
+      if (off) return l.replace(spec.re, "");
+      if (!l.trim() && lines.length > 1) return l;
+      // Switching list type (or heading level) replaces the old marker.
+      var bare = l.replace(LINE.ul.re, "").replace(LINE.ol.re, "").replace(LINE.heading.re, "");
+      return spec.add(i++) + bare;
+    }).join("\n");
+    var before = "", after = "";
+    if (!off) {
+      var prev = v.slice(0, r[0]);
+      if (prev && !/\n\s*\n$/.test(prev) && prev.replace(/\n$/, "").split("\n").pop().trim()) before = prev.endsWith("\n") ? "\n" : "\n\n";
+      var next = v.slice(r[1]);
+      if (next && next.replace(/^\n/, "").split("\n")[0].trim() && !/^\n\s*\n/.test(next)) after = next.startsWith("\n") ? "\n" : "\n\n";
+    }
+    var text = before + out + after;
+    var a = r[0] + before.length, b = a + out.length;
+    if (lines.length === 1) a = b;   // one line: caret at its end
+    put(ta, r[0], r[1], text, a, b);
+  }
+
+  function link(ta) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    var sel = v.slice(s, e).trim();
+    if (/^(https?:\/\/|\/|mailto:)\S*$/.test(sel)) {
+      var t = "[link text](" + sel + ")";
+      put(ta, s, e, t, s + 1, s + 10);
+    } else if (sel) {
+      var u = "[" + sel + "](https://)";
+      put(ta, s, e, u, s + sel.length + 3, s + sel.length + 11);
+    } else {
+      var w = "[link text](https://)";
+      put(ta, s, e, w, s + 1, s + 10);
+    }
+  }
+
+  function code(ta) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    var sel = v.slice(s, e);
+    if (sel.indexOf("\n") < 0) { wrap(ta, "`", "code"); return; }
+    var lead = s && v[s - 1] !== "\n" ? "\n" : "";
+    var t = lead + "```\n" + sel.replace(/\n$/, "") + "\n```\n";
+    put(ta, s, e, t, s + lead.length + 4, s + lead.length + 4 + sel.replace(/\n$/, "").length);
+  }
+
+  // A block (divider, image) on lines of its own.
+  function block(ta, body) {
+    var v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+    var prev = v.slice(0, s), next = v.slice(e);
+    var lead = !prev || /\n\n$/.test(prev) ? "" : (prev.endsWith("\n") ? "\n" : "\n\n");
+    var tail = /^\n\n/.test(next) ? "" : (next.startsWith("\n") ? "\n" : "\n\n");
+    var t = lead + body + tail;
+    put(ta, s, e, t, s + t.length, s + t.length);
+  }
+
+  window.tspMdInsertImage = function (ta, filename) {
+    var sel = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
+    var alt = (sel || filename.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ")).replace(/[\[\]]/g, "");
+    block(ta, "![" + alt + "](/pub/" + encodeURIComponent(filename) + ")");
+  };
+
+  function run(cmd, ta, btn) {
+    if (cmd === "bold") wrap(ta, "**", "bold text");
+    else if (cmd === "italic") wrap(ta, "_", "italic text");
+    else if (cmd === "code") code(ta);
+    else if (cmd === "link") link(ta);
+    else if (cmd === "hr") block(ta, "---");
+    else if (cmd === "image") {
+      if (window.tspMdPickImage) window.tspMdPickImage(ta);
+      else block(ta, "![description](https://)");
+    }
+    else if (LINE[cmd]) prefixLines(ta, cmd);
+  }
+
+  // mousedown keeps the textarea's selection from being lost to the
+  // button before the click runs.
+  document.addEventListener("mousedown", function (e) {
+    if (e.target.closest && e.target.closest("[data-md-toolbar] [data-md-cmd]")) e.preventDefault();
+  });
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("[data-md-toolbar] [data-md-cmd]");
+    if (!btn) return;
+    var ta = areaFor(btn);
+    if (ta) run(btn.getAttribute("data-md-cmd"), ta, btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+    var ta = e.target;
+    if (!ta || ta.tagName !== "TEXTAREA") return;
+    var ed = ta.closest("[data-md-editor]");
+    if (!ed || !ed.querySelector("[data-md-toolbar]")) return;
+    var k = (e.key || "").toLowerCase();
+    var cmd = k === "b" ? "bold" : k === "i" ? "italic" : k === "k" ? "link" : null;
+    if (!cmd) return;
+    e.preventDefault();
+    run(cmd, ta);
+  });
+})();
+
+(function initRowMenus() {
+  var GAP = 6;          // px between trigger and panel
+  var VIEWPORT_PAD = 8; // keep the panel this far from the viewport edge
+  var open = null;      // { menu, btn, panel }
+
+  function place() {
+    if (!open) return;
+    var r = open.btn.getBoundingClientRect();
+    var p = open.panel;
+    // Measure with the panel laid out but before committing a position.
+    var pw = p.offsetWidth, ph = p.offsetHeight;
+    // Right-align to the trigger (actions live at the row's right edge),
+    // then clamp so a narrow viewport can't push it off-screen.
+    var left = r.right - pw;
+    left = Math.max(VIEWPORT_PAD,
+                    Math.min(left, document.documentElement.clientWidth - pw - VIEWPORT_PAD));
+    // Below the trigger, flipping above when there isn't room.
+    var top = r.bottom + GAP;
+    if (top + ph > window.innerHeight - VIEWPORT_PAD && r.top - GAP - ph > VIEWPORT_PAD) {
+      top = r.top - GAP - ph;
+    }
+    top = Math.max(VIEWPORT_PAD, Math.min(top, window.innerHeight - ph - VIEWPORT_PAD));
+    p.style.left = Math.round(left) + "px";
+    p.style.top = Math.round(top) + "px";
+  }
+
+  function close(restoreFocus) {
+    if (!open) return;
+    var o = open;
+    open = null;
+    o.panel.hidden = true;
+    o.menu.classList.remove("is-open");
+    o.btn.setAttribute("aria-expanded", "false");
+    if (restoreFocus) o.btn.focus();
+  }
+
+  function openFor(menu) {
+    close(false);
+    var btn = menu.querySelector("[data-row-menu-btn]");
+    var panel = menu.querySelector("[data-row-menu-panel]");
+    if (!btn || !panel) return;
+    panel.hidden = false;
+    menu.classList.add("is-open");
+    btn.setAttribute("aria-expanded", "true");
+    open = { menu: menu, btn: btn, panel: panel };
+    place();
+  }
+
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target.closest && ev.target.closest("[data-row-menu-btn]");
+    if (btn) {
+      ev.preventDefault();
+      var menu = btn.closest("[data-row-menu]");
+      if (open && open.menu === menu) close(false);
+      else openFor(menu);
+      return;
+    }
+    // A click inside the open panel is an action (a link, a form submit,
+    // or the Rename button's `data-open-modal` handler). Never
+    // preventDefault it — just dismiss the menu so it isn't left hanging
+    // open behind a modal or a confirm. Those handlers are bound to the
+    // element itself, so they've already run by the time this
+    // document-level listener sees the event.
+    close(false);
+  });
+
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape" && open) close(true);
+  });
+
+  // Any scroll (page or a scrollable ancestor) moves the trigger out
+  // from under a fixed panel, so follow it. Capture phase catches
+  // scrolls on inner containers, which don't bubble.
+  window.addEventListener("scroll", function () { if (open) place(); }, true);
+  window.addEventListener("resize", function () { if (open) close(false); });
+})();
+
+/* ── Sidebar scroll memory ──────────────────────────────────────────
+   #sidebar-scroll (brand, top rows and nav) is its own scroll
+   container and every admin navigation
+   is a full page load, so the nav snapped back to the top on each one
+   — anyone working in a section near the bottom had to re-scroll after
+   every click. Persist the offset per tab (sessionStorage, so a new tab
+   starts fresh) and put it back before paint.
+
+   The nav is also re-rendered in place by the live-badge poller
+   (`nav.innerHTML = html`), which resets scrollTop just as hard; that
+   path calls save()/restore() around the swap via the hook below. */
+(function initSidebarScrollMemory() {
+  var KEY = "tsp-sidebar-scroll";
+  function nav() { return document.getElementById("sidebar-scroll"); }
+
+  function save() {
+    var n = nav();
+    if (!n) return;
+    try { sessionStorage.setItem(KEY, String(n.scrollTop)); } catch (e) {}
+  }
+  function restore() {
+    var n = nav();
+    if (!n) return;
+    var raw;
+    try { raw = sessionStorage.getItem(KEY); } catch (e) { return; }
+    if (raw == null) return;
+    var want = parseFloat(raw) || 0;
+    if (!want) return;
+    // The nav's height varies between pages (collapsed sections, badges
+    // appearing), so clamp rather than trusting the stored offset.
+    var max = n.scrollHeight - n.clientHeight;
+    if (max > 0) n.scrollTop = Math.min(want, max);
+  }
+
+  var pending = false;
+  document.addEventListener("scroll", function (e) {
+    if (!e.target || e.target.id !== "sidebar-scroll") return;
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function () { pending = false; save(); });
+  }, true);
+
+  // Belt and braces: a click that navigates away may beat the rAF.
+  window.addEventListener("pagehide", save);
+  window.addEventListener("beforeunload", save);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", restore);
+  } else {
+    restore();
+  }
+  // Section collapse state is applied after DOMContentLoaded and changes
+  // the nav's height, so re-apply once everything has settled.
+  window.addEventListener("load", restore);
+
+  window.tspSidebarScroll = { save: save, restore: restore };
+})();
+
+/* ── Modal reopen memory ────────────────────────────────────────────
+   Reloading the page — the browser's refresh, the update banner's
+   reload, the save bar's post-save reload — used to drop you back on
+   the bare page with whatever modal you were editing closed. That's
+   the wrong side of the trade for a block editor you live inside.
+
+   Remember which modal is open (per tab, via sessionStorage) and
+   replay the open on the next load of the same URL. The replay goes
+   through the ORIGINAL trigger — clicking the structure-card pill or
+   the [data-open-modal] button — so every handler that normally runs
+   on open (BlockEditor mount, hero-modal populate, dynbg trigger
+   decoration) runs exactly as if the admin had clicked it.
+
+   Cleared when the last open modal closes, so closing a modal and then
+   reloading stays a plain reload. Nested pickers on top of a block
+   modal (dynbg, icon, media) aren't remembered — they're transient. */
+(function initModalReopenMemory() {
+  var KEY = "tsp-reopen-modal";
+  var MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+  function read() {
+    try { return JSON.parse(sessionStorage.getItem(KEY) || "null"); } catch (e) { return null; }
+  }
+  function write(state) {
+    try {
+      if (state) sessionStorage.setItem(KEY, JSON.stringify(state));
+      else sessionStorage.removeItem(KEY);
+    } catch (e) {}
+  }
+
+  // Record the trigger that opened a modal. Capture phase so we see
+  // the click before any handler that might stop propagation.
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var pill = t.closest("[data-page-block-id]");
+    if (pill && !t.closest("[data-be-remove-block], [data-be-remove-row], "
+                           + "[data-be-duplicate-block], [data-be-duplicate-row]")) {
+      write({ path: location.pathname, blockId: pill.dataset.pageBlockId, ts: Date.now() });
+      return;
+    }
+    var trig = t.closest("[data-open-modal]");
+    if (trig) {
+      write({ path: location.pathname, modalId: trig.dataset.openModal,
+              modalSrc: trig.dataset.modalSrc || "", ts: Date.now() });
+    }
+  }, true);
+
+  // A modal's own form posting for real (not intercepted by a script)
+  // finishes that modal: the page it lands on shouldn't open it again.
+  // Bubble phase on window, so handlers that take the submit over have
+  // already called preventDefault.
+  window.addEventListener("submit", function (e) {
+    if (e.defaultPrevented) return;
+    var f = e.target;
+    if (f && f.closest && f.closest(".modal")) write(null);
+  });
+
+  // Forget it once the last modal closes.
+  if (window.MutationObserver) {
+    new MutationObserver(function (records) {
+      for (var i = 0; i < records.length; i++) {
+        var el = records[i].target;
+        if (!el.classList || !el.classList.contains("modal")) continue;
+        if (!el.classList.contains("open") && !document.querySelector(".modal.open")) {
+          write(null);
+          return;
+        }
+      }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"], subtree: true });
+  }
+
+  // Replay after everything that binds open handlers has run.
+  function replay() {
+    var state = read();
+    if (!state || state.path !== location.pathname) return;
+    if (!state.ts || Date.now() - state.ts > MAX_AGE_MS) { write(null); return; }
+    if (document.querySelector(".modal.open")) return;  // something already open
+    var target = null;
+    if (state.blockId) {
+      target = document.querySelector('[data-page-block-id="' + CSS.escape(state.blockId) + '"]');
+    } else if (state.modalId) {
+      var trigs = document.querySelectorAll('[data-open-modal="' + CSS.escape(state.modalId) + '"]');
+      for (var i = 0; i < trigs.length; i++) {
+        if (!state.modalSrc || (trigs[i].dataset.modalSrc || "") === state.modalSrc) { target = trigs[i]; break; }
+      }
+    }
+    if (!target) { write(null); return; }
+    // Dispatch a click carrying the trigger's real on-screen position.
+    // A bare element.click() reports clientX/Y = 0, and handlers that
+    // reason about where a click landed (the collapsible card's
+    // "was that the header?" check) would misread it. The click
+    // re-records the same state, which is what we want — the modal is
+    // open again, so a further reload restores it again.
+    var r = target.getBoundingClientRect();
+    target.dispatchEvent(new MouseEvent("click", {
+      bubbles: true, cancelable: true, view: window,
+      clientX: Math.round(r.left + r.width / 2), clientY: Math.round(r.top + r.height / 2),
+    }));
+  }
+  window.addEventListener("load", function () {
+    requestAnimationFrame(function () { requestAnimationFrame(replay); });
+  });
+})();
+
+// ── Watchtower chart hover layer ──────────────────────────────────────
+// Drives every chart rendered by templates/watchtower/_chart.html. The
+// markup contract:
+//
+//   <figure class="wtc" data-wtc="line|bar" tabindex="0">
+//     <svg class="wtc-svg" viewBox="0 0 W H"> … 
+//       <line class="wtc-crosshair" hidden/>
+//       <g class="wtc-focus-dots" hidden></g>
+//       <rect class="wtc-hit" …/>            (line: one over the plot)
+//       <rect class="wtc-hit--bar" data-i/>  (bar: one per bar)
+//     </svg>
+//     <div class="wtc-tooltip" hidden></div>
+//     <script type="application/json" class="wtc-data">[…points…]</script>
+//   </figure>
+//
+// Points carry their own SVG-space x, so finding the nearest is a scan
+// over numbers rather than any hit-testing against the marks: the
+// pointer only has to be *closest* to a date, never land on a 2px line.
+//
+// Keyboard gets the identical readout — arrow keys step the focus index,
+// which matters because the tooltip is a value's second home (the table
+// view under each chart is the first).
+// Runs again on a page brought in by tspSwapPage (Watchtower's tabs).
+(window.tspOnEachPage || (f => f()))(function () {
+  const charts = Array.from(document.querySelectorAll('[data-wtc]')).filter(fig => !fig.dataset.wtcBound);
+  if (!charts.length) return;
+
+  const fmt = (n) => Number(n).toLocaleString();
+
+  charts.forEach((fig) => {
+    fig.dataset.wtcBound = '1';
+    const svg = fig.querySelector('.wtc-svg');
+    const dataEl = fig.querySelector('.wtc-data');
+    const tip = fig.querySelector('.wtc-tooltip');
+    const hair = fig.querySelector('.wtc-crosshair');
+    const dots = fig.querySelector('.wtc-focus-dots');
+    if (!svg || !dataEl || !tip) return;
+
+    let points = [];
+    try {
+      points = JSON.parse(dataEl.textContent) || [];
+    } catch (err) {
+      return;
+    }
+    if (!points.length) return;
+
+    // SVG elements don't implement HTMLElement's `hidden` IDL property, so
+    // `el.hidden = false` silently sets a JS expando and leaves the
+    // attribute (and the UA's display:none) in place. Toggle the
+    // attribute directly.
+    const svgShow = (el) => el && el.removeAttribute('hidden');
+    const svgHide = (el) => el && el.setAttribute('hidden', '');
+
+    const isBar = fig.dataset.wtc === 'bar';
+    const vb = (svg.getAttribute('viewBox') || '').split(/\s+/).map(Number);
+    const vbW = vb[2] || 1;
+    const bars = isBar ? Array.from(svg.querySelectorAll('.wtc-bar')) : [];
+    let active = -1;
+
+    // Client x -> viewBox x. The SVG scales uniformly (no
+    // preserveAspectRatio="none"), so one ratio covers it.
+    function toViewBoxX(clientX) {
+      const r = svg.getBoundingClientRect();
+      if (!r.width) return 0;
+      return (clientX - r.left) * (vbW / r.width);
+    }
+
+    function nearestIndex(vx) {
+      let best = 0, bestD = Infinity;
+      for (let i = 0; i < points.length; i++) {
+        const d = Math.abs(points[i].x - vx);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      return best;
+    }
+
+    // Labels come from logged request data (paths, hours, dates), so
+    // every insertion is textContent — never innerHTML concatenation.
+    function renderTip(p) {
+      tip.textContent = '';
+      const head = document.createElement('div');
+      head.className = 'wtc-tt-label';
+      head.textContent = p.label;
+      tip.appendChild(head);
+      (p.values || []).forEach((v) => {
+        const row = document.createElement('div');
+        row.className = 'wtc-tt-row';
+        const key = document.createElement('span');
+        key.className = 'wtc-tt-key';
+        key.style.background = v.color || 'currentColor';
+        const val = document.createElement('span');
+        val.className = 'wtc-tt-value';
+        val.textContent = fmt(v.v);
+        const name = document.createElement('span');
+        name.className = 'wtc-tt-name';
+        name.textContent = v.name;
+        row.appendChild(key); row.appendChild(val); row.appendChild(name);
+        tip.appendChild(row);
+      });
+    }
+
+    function show(i) {
+      const p = points[i];
+      if (!p) return;
+      active = i;
+      renderTip(p);
+      tip.hidden = false;
+      fig.classList.add('is-hovering');
+
+      if (hair) { hair.setAttribute('x1', p.x); hair.setAttribute('x2', p.x); svgShow(hair); }
+      if (bars.length) {
+        bars.forEach((b) => b.classList.remove('is-active'));
+        if (bars[i]) bars[i].classList.add('is-active');
+      }
+      // Dots mark where each series sits at the crosshair.
+      if (dots) {
+        dots.textContent = '';
+        (p.values || []).forEach((v) => {
+          if (v.y === undefined || v.y === null) return;
+          const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          c.setAttribute('cx', p.x); c.setAttribute('cy', v.y); c.setAttribute('r', 4);
+          c.setAttribute('fill', v.color || 'currentColor');
+          c.setAttribute('class', 'wtc-focus-dot');
+          dots.appendChild(c);
+        });
+        svgShow(dots);
+      }
+
+      // Position the tooltip over the point, clamped inside the figure so
+      // the first and last dates don't push it off the card.
+      const r = svg.getBoundingClientRect();
+      const figR = fig.getBoundingClientRect();
+      const scale = r.width / vbW;
+      let left = (r.left - figR.left) + p.x * scale;
+      const halfW = tip.offsetWidth / 2;
+      left = Math.max(halfW + 2, Math.min(left, figR.width - halfW - 2));
+      tip.style.left = left + 'px';
+
+      // Ride just above the topmost series value rather than pinning to
+      // the top of the plot — a fixed-top tooltip drifts into the card
+      // heading on tall cards and hides the title.
+      const ys = (p.values || []).map((v) => v.y).filter((y) => typeof y === 'number');
+      const topY = ys.length ? Math.min.apply(null, ys) : 0;
+      const pointTop = (r.top - figR.top) + topY * scale;
+      const above = pointTop - 12;
+      if (above - tip.offsetHeight >= 0) {
+        tip.style.top = above + 'px';
+        tip.style.transform = 'translate(-50%, -100%)';
+      } else {
+        // Not enough headroom (a peak near the top of the plot) — flip
+        // below the point so the tooltip never leaves the card.
+        tip.style.top = (pointTop + 14) + 'px';
+        tip.style.transform = 'translate(-50%, 0)';
+      }
+    }
+
+    function hide() {
+      active = -1;
+      tip.hidden = true;
+      fig.classList.remove('is-hovering');
+      svgHide(hair);
+      if (dots) { svgHide(dots); dots.textContent = ''; }
+      bars.forEach((b) => b.classList.remove('is-active'));
+    }
+
+    svg.addEventListener('pointermove', (e) => show(nearestIndex(toViewBoxX(e.clientX))));
+    svg.addEventListener('pointerleave', hide);
+    fig.addEventListener('blur', hide);
+    fig.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' &&
+          e.key !== 'Home' && e.key !== 'End' && e.key !== 'Escape') return;
+      e.preventDefault();
+      if (e.key === 'Escape') return hide();
+      let i = active < 0 ? 0 : active;
+      if (e.key === 'ArrowLeft') i = Math.max(0, i - 1);
+      else if (e.key === 'ArrowRight') i = Math.min(points.length - 1, i + 1);
+      else if (e.key === 'Home') i = 0;
+      else if (e.key === 'End') i = points.length - 1;
+      show(i);
+    });
+  });
+});
+
+// Segmented controls (.st-seg, accent; .ds-seg-btns, raised chip): the
+// chosen part's highlight is one shape that slides to whichever part is
+// chosen, rather than each part lighting up on its own. It moves in both
+// directions, since a control with many parts wraps onto a second row,
+// and follows the parts when they resize or one is hidden. Whatever
+// chooses the part (fe_studio.js, design_studio.js, a link, a radio)
+// only has to mark it: aria-selected, aria-checked, aria-current, or a
+// checked radio inside a label.
+(function () {
+  var CHOSEN = '[aria-selected="true"], [aria-checked="true"], [aria-current="page"], label:has(> input:checked)';
+  function setup(nav) {
+    if (nav._segThumb) return;
+    var thumb = document.createElement('span');
+    thumb.className = 'st-seg-thumb is-still';
+    thumb.setAttribute('aria-hidden', 'true');
+    nav.insertBefore(thumb, nav.firstChild);
+    nav._segThumb = thumb;
+    nav.classList.add('has-thumb');
+    var shown = false;
+    function place(animate) {
+      var on = Array.prototype.find.call(nav.children, function (el) { return el !== thumb && el.matches(CHOSEN); });
+      if (!on || on.hidden || !on.offsetWidth) { thumb.style.opacity = '0'; shown = false; return; }
+      // The first placement (and one after a resize) lands without
+      // sliding in from wherever the shape last was.
+      var still = !animate || !shown;
+      thumb.classList.toggle('is-still', still);
+      thumb.style.width = on.offsetWidth + 'px';
+      thumb.style.height = on.offsetHeight + 'px';
+      thumb.style.transform = 'translate(' + on.offsetLeft + 'px, ' + on.offsetTop + 'px)';
+      thumb.style.opacity = '1';
+      shown = true;
+      if (still) requestAnimationFrame(function () { thumb.classList.remove('is-still'); });
+    }
+    place(false);
+    if (window.MutationObserver) {
+      new MutationObserver(function () { place(true); })
+        .observe(nav, { attributes: true, attributeFilter: ['aria-selected', 'aria-checked', 'aria-current', 'hidden'], subtree: true });
+    }
+    nav.addEventListener('change', function () { place(true); });
+    if (window.ResizeObserver) new ResizeObserver(function () { place(false); }).observe(nav);
+    window.addEventListener('load', function () { place(false); });
+  }
+  function init() { document.querySelectorAll('.st-seg, .ds-seg-btns').forEach(setup); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+  // Controls on a page brought in by tspSwapPage get theirs too.
+  if (window.tspOnEachPage) window.tspOnEachPage(init);
+})();
+
+// Segmented controls that scroll sideways ([data-seg-scroll] around the
+// .st-seg): fade the edge with parts out of view, let a vertical wheel
+// scroll it, and keep the chosen part in view.
+(function () {
+  function setup(wrap) {
+    var strip = wrap.querySelector('.st-seg');
+    if (!strip) return;
+    function fade() {
+      var max = strip.scrollWidth - strip.clientWidth;
+      wrap.toggleAttribute('data-fade-start', strip.scrollLeft > 1);
+      wrap.toggleAttribute('data-fade-end', strip.scrollLeft < max - 1);
+    }
+    function reveal(behavior) {
+      var on = strip.querySelector('[aria-selected="true"]');
+      if (!on) return;
+      var l = on.offsetLeft - strip.offsetLeft, r = l + on.offsetWidth, pad = 48;
+      if (l < strip.scrollLeft + pad) strip.scrollTo({ left: l - pad, behavior: behavior });
+      else if (r > strip.scrollLeft + strip.clientWidth - pad) strip.scrollTo({ left: r - strip.clientWidth + pad, behavior: behavior });
+    }
+    strip.addEventListener('scroll', fade, { passive: true });
+    strip.addEventListener('wheel', function (e) {
+      if (strip.scrollWidth <= strip.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      strip.scrollLeft += e.deltaY;
+    }, { passive: false });
+    // However the part changes (a click on it, or a jump from elsewhere
+    // on the page such as a preview's color swatch), slide it into view.
+    if (window.MutationObserver) {
+      new MutationObserver(function (recs) {
+        if (recs.some(function (r) { return r.target.getAttribute('aria-selected') === 'true'; })) reveal('smooth');
+      }).observe(strip, { attributes: true, attributeFilter: ['aria-selected'], subtree: true });
+    }
+    if (window.ResizeObserver) new ResizeObserver(fade).observe(strip);
+    reveal('auto');
+    fade();
+    // The page's own script may pick the remembered part after this runs.
+    window.addEventListener('load', function () { reveal('auto'); fade(); });
+  }
+  function init() { document.querySelectorAll('[data-seg-scroll]').forEach(setup); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+// ── Delete confirmation (_confirm_modal.html) ──────────────────────
+// window.tspConfirm({title, message, confirmLabel, tone}) shows the
+// dialog and resolves true (confirmed) or false; tone "neutral" is for
+// a question that isn't a deletion. A form carrying
+// data-confirm="<message>" asks first and submits only once confirmed
+// (data-confirm-title / data-confirm-label set the heading and button).
+(function () {
+  const modal = document.getElementById("tsp-confirm");
+  if (!modal) return;
+  const title = modal.querySelector("#tsp-confirm-title");
+  const msg = modal.querySelector("#tsp-confirm-msg");
+  const ok = modal.querySelector("[data-confirm-ok]");
+  let settle = null, lastFocus = null;
+
+  function close(result) {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+    if (!document.querySelector(".modal.open")) document.body.style.overflow = "";
+    const done = settle; settle = null;
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (_) {} }
+    if (done) done(result);
+  }
+  window.tspConfirm = function (opts) {
+    opts = opts || {};
+    if (settle) close(false);
+    title.textContent = opts.title || "Delete this?";
+    msg.textContent = opts.message || "This can't be undone.";
+    ok.textContent = opts.confirmLabel || "Delete";
+    const neutral = opts.tone === "neutral";
+    modal.classList.toggle("is-neutral", neutral);
+    ok.classList.toggle("btn-danger", !neutral);
+    ok.classList.toggle("btn-primary", neutral);
+    lastFocus = document.activeElement;
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    setTimeout(() => ok.focus(), 30);
+    return new Promise(resolve => { settle = resolve; });
+  };
+  ok.addEventListener("click", () => close(true));
+  modal.querySelectorAll("[data-confirm-cancel]").forEach(el => el.addEventListener("click", () => close(false)));
+  // Escape cancels this dialog only, not a modal open beneath it.
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && modal.classList.contains("open")) {
+      e.stopImmediatePropagation();
+      close(false);
+    }
+  }, true);
+
+  document.addEventListener("submit", e => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || !f.hasAttribute("data-confirm")) return;
+    if (f._tspConfirmed) { f._tspConfirmed = false; return; }
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const submitter = e.submitter || null;
+    window.tspConfirm({
+      title: f.dataset.confirmTitle,
+      message: f.dataset.confirm,
+      confirmLabel: f.dataset.confirmLabel,
+    }).then(yes => {
+      if (!yes) return;
+      f._tspConfirmed = true;
+      if (f.requestSubmit) f.requestSubmit(submitter && submitter.form === f ? submitter : undefined);
+      else f.submit();
+    });
+  }, true);
+})();
+
+// ── Settings panes that are pages of their own (Users, Global) ─────
+// window.tspSettingsPane.dirty(key, on, save) tells the Settings save
+// bar, in the page around this iframe, that this pane has unsaved
+// changes and how to save them (save() resolves when saved, throws if
+// not). .attached is false when the page isn't inside Settings; it then
+// keeps its own save buttons.
+(function () {
+  let host = null, pane = "frame";
+  try {
+    if (window.frameElement && window.parent.tspSettingsHost) {
+      host = window.parent.tspSettingsHost;
+      const p = window.frameElement.closest("[data-pane]");
+      if (p) pane = p.dataset.pane;
+    }
+  } catch (_) {}
+  const reported = new Set();
+  window.tspSettingsPane = {
+    attached: !!host,
+    dirty(key, on, save) {
+      if (!host) return;
+      if (on) reported.add(key); else reported.delete(key);
+      host.dirty(pane, key, on, save);
+    },
+  };
+  // A reload (after saving, or a dialog's own post) takes back what this
+  // page reported: its unsaved edits go with it.
+  window.addEventListener("pagehide", () => {
+    if (host) reported.forEach(k => host.dirty(pane, k, false));
+  });
+})();
+
+
+// ── Live search ─────────────────────────────────────────────────────
+// A GET form marked data-live-search (the list pages' sidebar search)
+// runs as its search box changes: the page is fetched with the form's
+// values and every [data-live="<name>"] part is swapped for the same
+// part of the answer, so the list and the sidebar's counts follow the
+// typing while the box keeps focus. Enter runs it at once. Parts that
+// are swapped lose listeners bound to their elements, so handlers for
+// anything inside one are delegated; "live:updated" fires after each
+// swap for anything that needs to look again.
+// The filter sidebar on a phone (760px and under, where it stacks above
+// the list): its groups fold away behind a Filters button beside the
+// search, so the list comes first. The button counts the filters in
+// use, and each shows as a chip that clears it. A filter in use is a
+// group whose current link isn't its first (the group's "All" or
+// default). Picking a filter loads the page folded again, showing the
+// result. Desktop is unchanged: the bar is display: contents there and
+// the button and chips are hidden.
+(function initSideFold() {
+  var tpl = document.getElementById("fb-side-fold-tpl");
+  if (!tpl) return;
+  function inUse(side) {
+    var out = [];
+    side.querySelectorAll(".fb-side-group").forEach(function (g) {
+      var links = g.querySelectorAll(".fb-side-link");
+      var cur = g.querySelector('.fb-side-link[aria-current="true"]');
+      if (links.length < 2 || !cur || cur === links[0]) return;
+      // The link's label: its first span with text (some lead with an
+      // empty swatch), not the count.
+      var span = Array.prototype.find.call(cur.querySelectorAll("span:not(.fb-side-count)"),
+        function (el) { return el.textContent.trim(); });
+      out.push({ label: (span || cur).textContent.trim(), href: links[0].getAttribute("href"),
+                 group: g.getAttribute("aria-label") || "" });
+    });
+    return out;
+  }
+  function refresh(side) {
+    var f = side._fold;
+    if (!f) return;
+    var used = inUse(side);
+    f.n.textContent = used.length;
+    f.n.hidden = !used.length;
+    f.btn.setAttribute("aria-label", "Filters" + (used.length ? ", " + used.length + " in use" : ""));
+    f.chips.textContent = "";
+    used.forEach(function (u) {
+      var a = document.createElement("a");
+      a.className = "fb-side-chip";
+      a.href = u.href;
+      a.title = "Clear " + (u.group ? u.group + ": " : "") + u.label;
+      var t = document.createElement("span");
+      t.textContent = u.label;
+      a.appendChild(t);
+      a.appendChild(f.x.cloneNode(true));
+      f.chips.appendChild(a);
+    });
+    f.chips.hidden = !used.length;
+  }
+  function setup(side) {
+    if (side._fold || !side.querySelector(".fb-side-group:not(.fb-side-keep)")) return;
+    var search = side.querySelector(".fb-search");
+    var frag = tpl.content.cloneNode(true);
+    var btn = frag.querySelector(".fb-side-fold");
+    var bar = document.createElement("div");
+    bar.className = "fb-side-bar";
+    if (search) { search.parentNode.insertBefore(bar, search); bar.appendChild(search); }
+    else side.insertBefore(bar, side.querySelector(".fb-side-group"));
+    bar.appendChild(btn);
+    var chips = document.createElement("div");
+    chips.className = "fb-side-chips";
+    chips.hidden = true;
+    bar.parentNode.insertBefore(chips, bar.nextSibling);
+    side.classList.add("is-foldable");
+    side._fold = { btn: btn, n: btn.querySelector(".fb-side-fold-n"), chips: chips,
+                   x: frag.querySelector(".fb-side-chip-x .icon") };
+    btn.addEventListener("click", function () {
+      var open = !side.classList.contains("is-open");
+      side.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    refresh(side);
+  }
+  // Again after a live search, and on a list brought back in from a
+  // file's own view (tspSwapPage).
+  function setupAll() {
+    document.querySelectorAll(".fb-side").forEach(function (side) { setup(side); refresh(side); });
+  }
+  window.tspOnEachPage(setupAll);
+  document.addEventListener("live:updated", setupAll);
+})();
+
+(function initLiveSearch() {
+  var DELAY = 200;
+  function urlFor(form) {
+    var url = new URL(form.getAttribute("action") || location.pathname, location.href);
+    var params = new URLSearchParams();
+    new FormData(form).forEach(function (v, k) { if (v !== "") params.append(k, v); });
+    url.search = params.toString();
+    return url;
+  }
+  function run(form) {
+    var url = urlFor(form);
+    var seq = (form._liveSeq || 0) + 1;
+    form._liveSeq = seq;
+    if (form._liveCtl) form._liveCtl.abort();
+    var ctl = window.AbortController ? new AbortController() : null;
+    form._liveCtl = ctl;
+    document.documentElement.classList.add("is-live-loading");
+    fetch(url, { credentials: "same-origin", signal: ctl ? ctl.signal : undefined })
+      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+      .then(function (html) {
+        if (seq !== form._liveSeq) return;
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        document.querySelectorAll("[data-live]").forEach(function (el) {
+          var next = doc.querySelector('[data-live="' + el.getAttribute("data-live") + '"]');
+          if (next) el.replaceWith(document.importNode(next, true));
+        });
+        if (history.replaceState) history.replaceState(history.state, "", url.pathname + url.search + location.hash);
+        document.dispatchEvent(new CustomEvent("live:updated", { detail: { form: form } }));
+      })
+      .catch(function (err) {
+        if (err && err.name === "AbortError") return;
+        location.assign(url.href);
+      })
+      .then(function () {
+        if (seq === form._liveSeq) document.documentElement.classList.remove("is-live-loading");
+      });
+  }
+  document.addEventListener("input", function (e) {
+    var el = e.target, form = el && el.form;
+    if (!form || el.type !== "search" || !form.hasAttribute("data-live-search")) return;
+    clearTimeout(form._liveTimer);
+    form._liveTimer = setTimeout(function () { run(form); }, DELAY);
+  });
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute("data-live-search")) return;
+    e.preventDefault();
+    clearTimeout(form._liveTimer);
+    run(form);
+  });
+})();
+
+// ── Ticking rows for a bulk action ──────────────────────────────────
+// On a list page, [data-bulk-scope="<form id>"] holds the rows'
+// checkboxes [data-bulk-check] (named ids, owned by that form through
+// form="…"), a select-all [data-bulk-all] and the bar [data-bulk-bar],
+// which shows while anything is ticked. A button [data-bulk="<action>"]
+// in the bar posts the form with that action:
+//   data-bulk-confirm   asks first, with this as the message; the title
+//                       is data-bulk-title ("{n}" becomes "3 posts") or
+//                       "<button text> 3 posts?"; data-bulk-noun /
+//                       data-bulk-nouns name the rows.
+//   data-bulk-needs=X   needs the menu [data-bulk-pick="X"] chosen; its
+//                       value goes in the form's [data-bulk-value="X"].
+// Delegated, so it survives a live search swapping the list.
+(function initBulkSelect() {
+  function scopeOf(el) { return el && el.closest && el.closest("[data-bulk-scope]"); }
+  function checks(scope) { return Array.prototype.slice.call(scope.querySelectorAll("[data-bulk-check]")); }
+  function refresh(scope) {
+    var all = checks(scope), n = all.filter(function (c) { return c.checked; }).length;
+    var bar = scope.querySelector("[data-bulk-bar]");
+    var count = scope.querySelector("[data-bulk-count]");
+    var sa = scope.querySelector("[data-bulk-all]");
+    if (bar) bar.hidden = n === 0;
+    if (count) count.textContent = n + " selected";
+    if (sa) { sa.checked = n > 0 && n === all.length; sa.indeterminate = n > 0 && n < all.length; }
+    all.forEach(function (c) {
+      var host = c.closest("tr, .lst-card");
+      if (host) host.classList.toggle("is-selected", c.checked);
+    });
+  }
+  document.addEventListener("change", function (e) {
+    var el = e.target, scope = scopeOf(el);
+    if (!scope) return;
+    if (el.hasAttribute("data-bulk-all")) {
+      checks(scope).forEach(function (c) { c.checked = el.checked; });
+      refresh(scope);
+    } else if (el.hasAttribute("data-bulk-check")) {
+      refresh(scope);
+    }
+  });
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest && e.target.closest("[data-bulk], [data-bulk-clear]");
+    var scope = scopeOf(t);
+    if (!scope) return;
+    if (t.hasAttribute("data-bulk-clear")) {
+      checks(scope).forEach(function (c) { c.checked = false; });
+      refresh(scope);
+      return;
+    }
+    var form = document.getElementById(scope.getAttribute("data-bulk-scope"));
+    var n = checks(scope).filter(function (c) { return c.checked; }).length;
+    if (!form || !n) return;
+    var needs = t.getAttribute("data-bulk-needs");
+    if (needs) {
+      var pick = scope.querySelector('[data-bulk-pick="' + needs + '"]');
+      if (!pick || !pick.value) { if (pick) pick.focus(); return; }
+      var field = form.querySelector('[data-bulk-value="' + needs + '"]');
+      if (field) field.value = pick.value;
+    }
+    var noun = n === 1 ? (t.dataset.bulkNoun || "item")
+      : (t.dataset.bulkNouns || (t.dataset.bulkNoun ? t.dataset.bulkNoun + "s" : "items"));
+    var what = n + " " + noun;
+    var go = function () {
+      form.querySelector("[data-bulk-action-field]").value = t.getAttribute("data-bulk");
+      form.submit();
+    };
+    if (!t.dataset.bulkConfirm) { go(); return; }
+    var title = t.dataset.bulkTitle ? t.dataset.bulkTitle.replace("{n}", what)
+      : t.textContent.trim() + " " + what + "?";
+    var ask = window.tspConfirm
+      ? window.tspConfirm({ title: title, message: t.dataset.bulkConfirm,
+                            confirmLabel: t.dataset.bulkLabel || t.textContent.trim() })
+      : Promise.resolve(window.confirm(title + " " + t.dataset.bulkConfirm));
+    ask.then(function (yes) { if (yes) go(); });
+  });
+  // Going back to a list restores ticked boxes; show the bar for them.
+  window.addEventListener("pageshow", function () {
+    document.querySelectorAll("[data-bulk-scope]").forEach(refresh);
   });
 })();

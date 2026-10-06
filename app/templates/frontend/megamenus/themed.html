@@ -14,8 +14,8 @@
 {% set _mega_br = (site.frontend_mega_radius_br if site else 18) %}
 {% set _panel_fade = (site is none) or site.frontend_megamenu_panel_fade %}
 {% set _panel_fade_ms = (site.frontend_megamenu_panel_fade_ms if site and site.frontend_megamenu_panel_fade_ms is not none else 200) %}
-{# Optional dynamic background for the panel (admin: Navigation → Mega menu
-   appearance). When set, the panel becomes a dynbg-host and its solid skin
+{# Optional dynamic background for the panel (admin: Design → Mega menu).
+   When set, the panel becomes a dynbg-host and its solid skin
    steps aside so the animated backdrop shows through behind the links. #}
 {%- set _mm_key = (site.frontend_mega_bg_dynamic_key if site else None) -%}
 {%- set _mm_cfg = dynbg_decode(site.frontend_mega_bg_dynbg_config_json if site else None) -%}
@@ -77,11 +77,20 @@
               </a>
             </div>
             {%- else -%}
+            {# Signed out: Login and Request access side by side. #}
+            <div class="fe-megamenu-block-authrow fe-megamenu-authrow--guest">
             <a href="{{ url_for('auth.login') }}"
                class="fe-megamenu-block-btn fe-megamenu-block-btn-{{ _btn_style }} fe-megamenu-block-btn--admin-auth">
               <span class="fe-megamenu-icon"{{ _icon_style(link.icon_before_color, link.icon_before_size)|safe }}>{{ icon(link.icon_before or 'log-in') }}</span>
               <span>Login</span>
             </a>
+            {# Request access: the public popup (frontend/_request_access_modal.html), or the sign-in page's form without JavaScript. #}
+            <a href="{{ url_for('auth.login') }}#request-access" data-fe-form-trigger="request-access"
+               class="fe-megamenu-block-btn fe-megamenu-block-btn-{{ _btn_style }} fe-megamenu-block-btn--admin-auth">
+              <span class="fe-megamenu-icon">{{ icon('user-plus') }}</span>
+              <span>Request access</span>
+            </a>
+            </div>
             {%- endif -%}
           {% else %}
             {% set _link_cls = 'fe-megamenu-link' %}

@@ -864,7 +864,8 @@ DESIGN_FIELDS = [
     {"key": "card_radius", "kind": "scale", "scale": "radius",
      "group": "Layout", "label": "Card radius"},
     {"key": "card_shadow", "kind": "scale", "scale": "shadow",
-     "group": "Layout", "label": "Card shadow"},
+     "group": "Layout", "label": "Card shadow",
+     "help": "Shadow on panels that use neither card style, such as the event poster's ticket and the actions panel on a meeting page."},
 
     # ----- Buttons -----
     {"key": "color_btn_primary_bg",     "kind": "color",
@@ -977,8 +978,37 @@ DESIGN_FIELDS = [
     {"key": "card_secondary_hover_transform", "kind": "scale", "scale": "transform",
      "group": "Card styles", "label": "Secondary card — hover transform"},
 ]
+# Dark footer colors (Design → Footer). The same defaults in every theme:
+# they are the values frontend.css hard-coded before they were settings,
+# and only the Classic and Recovery Blue footers read them (the other
+# themes paint their footer in themes/<key>.css).
+FOOTER_DARK_DEFAULTS = {
+    "color_footer_dark_bg":         "#0b1026",
+    "color_footer_dark_line":       "#1f2a44",
+    "color_footer_dark_text":       "#f1f5f9",
+    "color_footer_dark_muted":      "#94a3b8",
+    "color_footer_dark_chip":       "#131a33",
+    "color_footer_dark_chip_hover": "#7aa3ff",
+}
+for _defaults in THEME_DEFAULTS.values():
+    for _k, _v in FOOTER_DARK_DEFAULTS.items():
+        _defaults.setdefault(_k, _v)
+
+DESIGN_FIELDS += [
+    {"key": "color_footer_dark_bg", "kind": "color", "group": "Footer", "label": "Background",
+     "help": "Behind a dark footer when its background style doesn't paint one (a Solid style with no color picked)."},
+    {"key": "color_footer_dark_line", "kind": "color", "group": "Footer", "label": "Lines",
+     "help": "The top border and the rules between rows."},
+    {"key": "color_footer_dark_text", "kind": "color", "group": "Footer", "label": "Text on a light page",
+     "help": "Text and links of the always-dark footer while the rest of the page is light."},
+    {"key": "color_footer_dark_muted", "kind": "color", "group": "Footer", "label": "Text on a dark page",
+     "help": "Links, tagline and copyright when the whole page is in dark mode; kept quiet against the dark page."},
+    {"key": "color_footer_dark_chip", "kind": "color", "group": "Footer", "label": "Social icon",
+     "help": "The circle behind each social icon."},
+    {"key": "color_footer_dark_chip_hover", "kind": "color", "group": "Footer", "label": "Social icon on hover"},
+]
+
 DESIGN_FIELDS_BY_KEY = {f["key"]: f for f in DESIGN_FIELDS}
-DESIGN_GROUPS = ["Colors", "Layout", "Card styles", "Buttons", "Links", "Text"]
 
 # Map "scale" name → the actual scale dict.
 SCALES = {"spacing": SPACING_SCALE, "radius": RADIUS_SCALE, "shadow": SHADOW_SCALE,
@@ -1095,6 +1125,59 @@ def parse_design_form(form):
     return out
 
 
+# ----- Design page presentation ---------------------------------------
+# Slider stops for the admin Design page, per scale: (key, tick label
+# under the track, readout beside the label). Keys must match the scale
+# dicts above; "weight" covers WEIGHT_KEYS.
+SCALE_UI = {
+    "border_width": [("0", "0", "None"), ("1", "1", "1px"), ("2", "2", "2px"),
+                     ("3", "3", "3px"), ("4", "4", "4px")],
+    "shadow": [("none", "None", "None"), ("sm", "S", "Small"), ("md", "M", "Medium"),
+               ("lg", "L", "Large"), ("xl", "XL", "Extra large")],
+    "radius": [("none", "0", "Square"), ("sm", "4", "4px"), ("md", "8", "8px"),
+               ("lg", "16", "16px"), ("pill", "Pill", "Pill")],
+    "transition": [("none", "Off", "Instant"), ("fast", "Fast", "Fast, 120ms"),
+                   ("normal", "Normal", "Normal, 200ms"), ("slow", "Slow", "Slow, 320ms")],
+    "transform": [("none", "None", "No lift"), ("lift-sm", "1px", "Lifts 1px"),
+                  ("lift-md", "2px", "Lifts 2px"), ("lift-lg", "4px", "Lifts 4px")],
+    "weight": [("400", "400", "Regular"), ("500", "500", "Medium"), ("600", "600", "Semibold"),
+               ("700", "700", "Bold"), ("800", "800", "Extra bold")],
+}
+
+
+def design_studio_data(site):
+    """Everything the admin Design page needs: the active theme's
+    defaults, the valid saved overrides, and the scales and shadow parts
+    its live preview resolves tokens through."""
+    theme = (site.frontend_theme if site else None) or "classic"
+    defaults = THEME_DEFAULTS.get(theme) or THEME_DEFAULTS["classic"]
+    raw = (site.frontend_design_json if site else None) or ""
+    try:
+        saved = json.loads(raw) if raw else {}
+    except (ValueError, TypeError):
+        saved = {}
+    overrides = {}
+    for key, val in (saved or {}).items():
+        f = DESIGN_FIELDS_BY_KEY.get(key)
+        coerced = _coerce(f, val) if f else None
+        if coerced is not None:
+            overrides[key] = coerced
+    return {
+        "defaults": defaults,
+        "overrides": overrides,
+        "scales": SCALES,
+        "scale_ui": SCALE_UI,
+        "shadow_parts": SHADOW_SCALE_COMPONENTS,
+    }
+
+
+def text_decoration(key):
+    """CSS ``text-decoration`` value for a LINK_DECORATION_KEYS choice.
+    A bare ``dotted`` only sets the line style, so the shorthand drew no
+    line at all; it needs the ``underline`` line as well."""
+    return "underline dotted" if key == "dotted" else key
+
+
 def design_css_vars(site):
     """CSS custom-property string for the public ``<body>`` style.
 
@@ -1136,7 +1219,8 @@ def design_css_vars(site):
                 "color_card_secondary_bg", "color_card_secondary_bg_dark",
                 "color_card_secondary_border", "color_card_secondary_border_dark",
                 "color_card_primary_hover_border",
-                "color_card_secondary_hover_border"):
+                "color_card_secondary_hover_border",
+                *FOOTER_DARK_DEFAULTS):
         parts.append("--fe-{}: {};".format(key.replace("_", "-"), chosen[key]))
 
     # Auto-derived dark-mode variants for chrome links that sit on dark
@@ -1171,7 +1255,7 @@ def design_css_vars(site):
             )
     parts.append(f"--fe-btn-weight: {chosen['btn_weight']};")
     parts.append(f"--fe-btn-text-transform: {chosen['btn_text_transform']};")
-    parts.append(f"--fe-btn-decoration: {chosen['btn_decoration']};")
+    parts.append(f"--fe-btn-decoration: {text_decoration(chosen['btn_decoration'])};")
     # Primary-button effect tokens — empty/`none` when disabled so the
     # CSS rule's `box-shadow: var(--fe-btn-shadow)` resolves to no
     # shadow / no transform without needing a separate disabled rule.
@@ -1183,10 +1267,10 @@ def design_css_vars(site):
     parts.append(f"--fe-btn-hover-glow: {_hover_g};")
 
     # Links.
-    parts.append(f"--fe-link-decoration: {chosen['link_decoration']};")
-    parts.append(f"--fe-link-decoration-hover: {chosen['link_decoration_hover']};")
-    parts.append(f"--fe-megamenu-link-decoration: {chosen['megamenu_link_decoration']};")
-    parts.append(f"--fe-megamenu-link-decoration-hover: {chosen['megamenu_link_decoration_hover']};")
+    parts.append(f"--fe-link-decoration: {text_decoration(chosen['link_decoration'])};")
+    parts.append(f"--fe-link-decoration-hover: {text_decoration(chosen['link_decoration_hover'])};")
+    parts.append(f"--fe-megamenu-link-decoration: {text_decoration(chosen['megamenu_link_decoration'])};")
+    parts.append(f"--fe-megamenu-link-decoration-hover: {text_decoration(chosen['megamenu_link_decoration_hover'])};")
 
     # Text.
     parts.append(f"--fe-text-size-base: {chosen['text_size_base']};")
@@ -1214,20 +1298,6 @@ def design_css_vars(site):
         # SHADOW_SCALE value if the colour can't be parsed.
         _shadow_color_light = chosen.get('card_' + which + '_shadow_color', '#0f172a')
         _shadow_color_dark  = chosen.get('card_' + which + '_shadow_color_dark', _shadow_color_light)
-        # Raw shadow-colour vars (no alpha applied) so callers that need
-        # to compose a custom shadow size while STILL tracking the
-        # admin's shadow_color choice (e.g. the featured-image
-        # elevation on event/announcement/archive detail pages) can
-        # mix in their own alpha via color-mix(). The full
-        # `--fe-card-...-shadow` var below bakes the colour + the
-        # scale's offset/blur/alpha together; this raw pair gives a
-        # second handle for size-customised consumers.
-        parts.append(
-            f"--fe-color-card-{which}-shadow: {_shadow_color_light};"
-        )
-        parts.append(
-            f"--fe-color-card-{which}-shadow-dark: {_shadow_color_dark};"
-        )
         parts.append(
             f"--fe-card-{which}-shadow: "
             f"{shadow_with_color(chosen['card_' + which + '_shadow'], _shadow_color_light)};"

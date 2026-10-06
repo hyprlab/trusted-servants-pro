@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% from "_row_menu.html" import row_menu %}
 {% block heading %}Users{% endblock %}
 {% block content %}
 
@@ -14,11 +16,8 @@
 <section class="card data-card users-create-card"{% if _has_prefill %} data-autofocus-new-user{% endif %}>
   <div class="data-card-head">
     {{ icon('user-plus') }}
-    <span>Add a user</span>
+    <span>Add a user {% call chip('Add a user') %}Create a new account and review what each role can access before assigning one.{% endcall %}</span>
   </div>
-  <p class="muted small data-card-lead">
-    Create a new account and review what each role can access before assigning one.
-  </p>
   <div class="users-top-grid">
     <div class="users-new-card">
       <h3 class="users-subhead">Create user</h3>
@@ -30,11 +29,57 @@
         <label>Name<input name="name" value="{{ _prefill_name }}" placeholder="(optional)"></label>
         <label>Email<input name="email" type="email" value="{{ _prefill }}" required></label>
         <label>Phone<input name="phone" type="tel" value="{{ _prefill_phone }}" placeholder="(optional)"></label>
-        <label>Password<input name="password" type="password" required></label>
+        {# Password generator. "Generate" asks the server for a random
+           password (auth._generate_password: CSPRNG, no look-alike
+           characters, redrawn until it passes the policy for the
+           username and email typed above) and reveals it so it can be
+           copied. Typing your own works too; the checklist mirrors
+           validate_password_policy and blocks submit until it passes. #}
+        <div class="form-field-block pwgen" data-pwgen>
+          <label class="pwgen-label" for="new-user-password">Password</label>
+          <div class="pwgen-row">
+            <input id="new-user-password" name="password" type="password" required
+                   minlength="{{ pw_min_length }}" autocomplete="new-password"
+                   spellcheck="false" autocapitalize="off" data-pwgen-input>
+            <button type="button" class="btn btn-sm" data-pwgen-show aria-pressed="false"
+                    aria-controls="new-user-password">Show</button>
+            <button type="button" class="btn btn-sm" data-pwgen-copy
+                    title="Copy the password to the clipboard">Copy</button>
+          </div>
+          <div class="pwgen-controls">
+            <button type="button" class="btn btn-sm btn-secondary" data-pwgen-generate>
+              {{ icon('refresh') }}<span>Generate</span></button>
+            <label class="pwgen-length">Length
+              <select data-pwgen-length aria-label="Generated password length">
+                {% for n in pw_gen_lengths %}<option value="{{ n }}"{% if n == pw_gen_default %} selected{% endif %}>{{ n }}</option>{% endfor %}
+              </select>
+            </label>
+          </div>
+          <div class="pwreset-strength" aria-live="polite">
+            <div class="pwreset-strength-bar"><span data-pwgen-fill></span></div>
+            <div class="pwreset-strength-label" data-pwgen-label>Generate a password or type one</div>
+          </div>
+          <ul class="pwreset-policy" aria-label="Password requirements">
+            <li data-rule="length">At least {{ pw_min_length }} characters</li>
+            <li data-rule="lower">A lowercase letter</li>
+            <li data-rule="upper">An uppercase letter</li>
+            <li data-rule="digit">A digit</li>
+            <li data-rule="symbol">A symbol ({{ pw_symbols|list|join(' ') }})</li>
+            <li data-rule="personal">Not the username or email</li>
+          </ul>
+        </div>
         <label>Role
           <select name="role">
-            {% for r in roles %}<option value="{{ r }}">{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
+            {# Viewer unless changed: an account made in a hurry (an access
+               request's Create user) never starts with admin rights. #}
+            {% for r in roles %}<option value="{{ r }}"{% if r == 'viewer' %} selected{% endif %}>{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
           </select>
+        </label>
+        <label class="check welcome-email-check">
+          <input type="checkbox" name="add_to_email_list" value="1" checked>
+          <span>Add to the Email List
+            <span class="muted smaller">— their name, email and phone join the Trusted Servants Email List, for updates sent to everyone on it.</span>
+          </span>
         </label>
         <label class="check welcome-email-check">
           <input type="checkbox" name="send_welcome_email" value="1" checked>
@@ -47,8 +92,7 @@
     </div>
 
     <div class="users-perm-card">
-      <h3 class="users-subhead">Roles &amp; permissions</h3>
-      <p class="muted smaller users-subhead-lead">What each role can access. Module access is also gated per-module on the <b>Modules</b> tab.</p>
+      <h3 class="users-subhead">Roles &amp; permissions {% call chip('Roles and permissions') %}What each role can access. Module access is also gated per-module on the <b>Modules</b> tab.{% endcall %}</h3>
       <ul class="perm-list">
         <li class="perm-row perm-row-admin">
           <div class="perm-role">
@@ -105,9 +149,21 @@
   </form>
 
   <div class="users-toolbar">
+    <label class="users-check-wrap users-selectall" title="Select all shown">
+      <input type="checkbox" data-users-selectall aria-label="Select all shown">
+    </label>
     <input type="search" class="users-filter" data-users-filter autocomplete="off"
-           placeholder="Filter by username, name, email, phone, or role…"
+           placeholder="Filter by name, username, email, phone or role"
            aria-label="Filter users">
+    <label class="users-sort">
+      <select data-users-sort aria-label="Sort users">
+        <option value="">Sort: as listed</option>
+        <option value="name">Sort: name</option>
+        <option value="username">Sort: username</option>
+        <option value="email">Sort: email</option>
+        <option value="role">Sort: role</option>
+      </select>
+    </label>
     <div class="users-bulkbar" data-users-bulkbar hidden>
       <span class="users-bulkbar-count" data-users-bulk-count>0 selected</span>
       <button type="submit" form="users-bulk-form" class="btn btn-sm btn-danger">Delete selected</button>
@@ -115,22 +171,17 @@
     </div>
   </div>
 
-  <div class="users-tbl-scroll">
-  <table class="tbl users-tbl" data-users-table>
-    <thead><tr>
-      <th class="users-th-check"><label class="users-check-wrap" title="Select all shown"><input type="checkbox" data-users-selectall aria-label="Select all shown"></label></th>
-      <th class="users-th-sort" data-sort-key="username" tabindex="0" role="button" aria-label="Sort by username">Username</th>
-      <th class="users-th-sort" data-sort-key="name" tabindex="0" role="button" aria-label="Sort by name">Name</th>
-      <th class="users-th-sort" data-sort-key="email" tabindex="0" role="button" aria-label="Sort by email">Email</th>
-      <th class="users-th-sort" data-sort-key="phone" tabindex="0" role="button" aria-label="Sort by phone">Phone</th>
-      <th class="users-th-sort" data-sort-key="role" tabindex="0" role="button" aria-label="Sort by role">Role</th>
-      <th>Password</th>
-      <th></th>
-    </tr></thead>
-    <tbody data-users-tbody>
+  {# One row per user: who they are (name, username, badges, email and
+     phone), their role (changed in place, saved with the save bar) and
+     a menu of actions. Security switches (self-reset, two-factor,
+     disabled) are in the Edit dialog; the row shows their state as
+     badges. Rows wrap their role and actions under the name in a
+     narrow pane, so the list never scrolls sideways. #}
+  <ul class="ulist" data-users-table data-users-tbody>
     {% for u in users %}
     {% set _lock_seconds = lockouts.get(u.id, 0) %}
-    <tr{% if _lock_seconds or u.disabled %} class="{% if _lock_seconds %}user-locked-row{% endif %}{% if u.disabled %}{% if _lock_seconds %} {% endif %}user-disabled-row{% endif %}"{% endif %}
+    {% set _who = (u.name or u.username) %}
+    <li class="ulist-row{% if _lock_seconds %} user-locked-row{% endif %}{% if u.disabled %} user-disabled-row{% endif %}"
         data-user-row="{{ u.id }}"
         data-username="{{ u.username }}"
         data-name="{{ u.name or '' }}"
@@ -141,92 +192,75 @@
         data-reset-allowed="{{ '1' if u.password_reset_allowed else '0' }}"
         data-mfa-required="{{ '1' if u.mfa_required else '0' }}"
         data-mfa-enabled="{{ '1' if u.mfa_enabled else '0' }}">
-      <td class="users-td-check">
+      <span class="ulist-check">
         {% if u.id != current_user.id %}
         <label class="users-check-wrap"><input type="checkbox" name="ids" value="{{ u.id }}" form="users-bulk-form" data-users-row-check aria-label="Select {{ u.username }}"></label>
         {% endif %}
-      </td>
-      <td data-label="Username">
-        <span class="users-cell-text">{{ u.username }}</span>
-        {% if _lock_seconds %}
-        <span class="badge badge-warning user-locked-badge" title="Auto-unlocks in ~{{ (_lock_seconds // 60) + 1 }} min">Locked</span>
+      </span>
+      <span class="ulist-avatar" aria-hidden="true">{{ _who[:1]|upper }}</span>
+      <div class="ulist-main">
+        <div class="ulist-name">
+          <b class="users-cell-text" title="{{ _who }}">{{ _who }}</b>
+          {% if u.name %}<span class="ulist-handle">@{{ u.username }}</span>{% endif %}
+          {% if u.id == current_user.id %}<span class="badge badge-muted">You</span>{% endif %}
+          {% if _lock_seconds %}<span class="badge badge-warning user-locked-badge" title="Auto-unlocks in about {{ (_lock_seconds // 60) + 1 }} min">Locked</span>{% endif %}
+          {% if u.disabled %}<span class="badge badge-muted user-disabled-badge" title="Sign-ins for this account are blocked">Disabled</span>{% endif %}
+          {% if u.mfa_enabled %}<span class="badge badge-success" title="Two-factor authentication is set up">2FA</span>
+          {% elif u.mfa_required %}<span class="badge badge-warning" title="Two-factor is required; they set it up at their next sign-in">2FA pending</span>{% endif %}
+        </div>
+        {#- The email, unless it is already the name shown above. -#}
+        {% set _show_email = u.email and u.email|lower != _who|lower %}
+        {% if _show_email or u.phone or not u.email %}
+        <div class="ulist-meta">
+          {% if _show_email %}<span title="{{ u.email }}">{{ u.email }}</span>{% elif not u.email %}<span>No email</span>{% endif %}
+          {% if u.phone %}<span>{{ u.phone }}</span>{% endif %}
+        </div>
         {% endif %}
-        {% if u.disabled %}
-        <span class="badge badge-muted user-disabled-badge" title="Sign-ins for this account are blocked">Disabled</span>
-        {% endif %}
-      </td>
-      <td data-label="Name"><span class="users-cell-text">{{ u.name or '—' }}</span></td>
-      <td data-label="Email"><span class="users-cell-text">{{ u.email or '—' }}</span></td>
-      <td data-label="Phone"><span class="users-cell-text">{{ u.phone or '—' }}</span></td>
-      <td data-label="Role">
-        {# Inline role form — kept editable on the list per spec; the
-           Edit modal also exposes role so admins can change everything
-           in one place. #}
-        <form method="post" action="{{ url_for('auth.users_update', uid=u.id) }}"
-              data-savebar-row data-row-role-form>
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-          <select name="role" aria-label="Role for {{ u.username }}">
-            {% for r in roles %}<option value="{{ r }}" {% if u.role==r %}selected{% endif %}>{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
-          </select>
-        </form>
-      </td>
-      <td data-label="Password" class="users-pw-cell">
-        {% if u.email %}
-        <button type="button" class="btn btn-sm js-pwreset-open"
-                data-uid="{{ u.id }}"
-                data-username="{{ u.username }}"
-                data-email="{{ u.email }}"
-                title="Reset {{ u.username }}'s password and email them a fresh welcome message">Reset password</button>
-        {% else %}
-        <span class="muted smaller">No email on file</span>
-        {% endif %}
-        <label class="mode-toggle users-reset-allow-toggle"
-               title="Allow {{ u.username }} to use the public Forgot Password flow. Admins can always reset this account regardless of this switch.">
-          <input type="checkbox"
-                 class="js-reset-allow-toggle"
-                 data-uid="{{ u.id }}"
-                 {% if u.password_reset_allowed %}checked{% endif %}>
-          <span class="mode-track"><span class="mode-thumb"></span></span>
-          <span class="users-reset-allow-label">Self-reset</span>
-        </label>
-        <label class="mode-toggle users-reset-allow-toggle users-mfa-toggle"
-               title="{% if u.role == 'admin' %}Two-factor authentication is required for admin accounts and can't be turned off.{% else %}Require two-factor authentication for {{ u.username }}. They set it up via a one-time wizard at next login (and may skip it). Turning it off clears any existing 2FA.{% endif %}">
-          <input type="checkbox"
-                 class="js-mfa-toggle"
-                 data-uid="{{ u.id }}"
-                 {% if u.role == 'admin' and u.mfa_required %}disabled{% endif %}
-                 {% if u.mfa_required %}checked{% endif %}>
-          <span class="mode-track"><span class="mode-thumb"></span></span>
-          <span class="users-reset-allow-label">Two-factor{% if u.mfa_enabled %} <span class="users-mfa-enrolled" title="Enrolled">✓</span>{% elif u.mfa_required %} <span class="users-mfa-pending" title="Awaiting setup at next login">⏳</span>{% endif %}</span>
-        </label>
-      </td>
-      <td class="users-actions">
-        <div class="users-actions-row">
-          <button type="button" class="btn btn-sm js-user-edit-open"
-                  data-uid="{{ u.id }}"
-                  title="Edit {{ u.username }}'s account">Edit</button>
+      </div>
+      {# Role, changed in place: saved with the save bar. The Edit dialog
+         has it too, with everything else. #}
+      <form class="ulist-role" method="post" action="{{ url_for('auth.users_update', uid=u.id) }}"
+            data-savebar-row data-row-role-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+        <select name="role" aria-label="Role for {{ u.username }}">
+          {% for r in roles %}<option value="{{ r }}" {% if u.role==r %}selected{% endif %}>{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
+        </select>
+      </form>
+      <div class="ulist-actions">
+        {% call row_menu() %}
+          <button type="button" class="row-menu-item js-user-edit-open"
+                  data-uid="{{ u.id }}" title="Edit {{ u.username }}'s details, role and security">
+            {{ icon('pencil') }}<span>Edit</span></button>
+          {% if u.email %}
+          <button type="button" class="row-menu-item js-pwreset-open"
+                  data-uid="{{ u.id }}" data-username="{{ u.username }}" data-email="{{ u.email }}"
+                  title="Reset {{ u.username }}'s password and email them a fresh welcome message">
+            {{ icon('key') }}<span>Reset password</span></button>
+          {% endif %}
           {% if _lock_seconds %}
           <form method="post" action="{{ url_for('auth.users_unlock', uid=u.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-            <button class="btn btn-sm" title="Clear login lockout for {{ u.username }}">Unlock</button>
+            <button class="row-menu-item" title="Clear the sign-in lockout for {{ u.username }}">
+              {{ icon('unlock') }}<span>Unlock</span></button>
           </form>
           {% endif %}
           {% if u.id != current_user.id %}
+          <div class="row-menu-sep" role="separator"></div>
           <form method="post" action="{{ url_for('auth.users_delete', uid=u.id) }}" onsubmit="return confirm('Delete user {{ u.username }}?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-            <button class="btn btn-sm btn-danger">Delete</button>
+            <button class="row-menu-item row-menu-item-danger" title="Delete user">
+              {{ icon('trash') }}<span>Delete</span></button>
           </form>
           {% endif %}
-        </div>
-      </td>
-    </tr>
+        {% endcall %}
+      </div>
+    </li>
     {% endfor %}
-    </tbody>
-  </table>
-  </div>
+  </ul>
+  <p class="muted small ulist-empty" data-users-empty hidden>No users match the filter.</p>
 </section>
 
 {# ---- Edit user modal ----------------------------------------------
@@ -312,27 +346,7 @@
   </div>
 </div>
 
-<section class="card data-card">
-  <div class="data-card-head">
-    {{ icon('phone') }}
-    <span>Public Information Chair</span>
-  </div>
-  <p class="muted small data-card-lead">
-    Contact information shown on the dashboard for members who need help.
-  </p>
-  <form class="form" method="post" action="{{ url_for('main.pic_save') }}" data-savebar-row data-row-label="Public Information Chair">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-    <div class="pic-form-row">
-      <label>Name<input type="text" name="pic_name" value="{{ (site.pic_name if site else '') or '' }}"></label>
-      <label>Email<input type="email" name="pic_email" value="{{ (site.pic_email if site else '') or '' }}"></label>
-      <label>Phone<input type="tel" name="pic_phone" value="{{ (site.pic_phone if site else '') or '' }}"></label>
-    </div>
-  </form>
-</section>
-
-{# Iframe-local save bar — every user-row form and the Public
-   Information Chair form route through here. Per-row Save buttons
+{# Iframe-local save bar — every user-row form routes through here. Per-row Save buttons
    were removed; the bar pops in the moment any tracked input
    changes and commits all dirty forms in one click via fetch. The
    parent settings-save-bar deliberately skips iframes so this lives
@@ -468,7 +482,15 @@
       : 'Unsaved changes (' + n + ' pending)';
   }
 
+  // Inside Settings the sidebar's save bar shows these changes and saves
+  // them (saveAll); this page's own bar is only for the page on its own.
+  // (Looked up when used: app.js, which defines it, loads after this.)
+  const NO_PANE = { attached: false, dirty() {} };
+  const pane = { get attached(){ return (window.tspSettingsPane || NO_PANE).attached; },
+                 dirty(...a){ (window.tspSettingsPane || NO_PANE).dirty(...a); } };
   function show(){
+    pane.dirty('users', dirtyCount() > 0, saveAll);
+    if (pane.attached) return;
     bar.hidden = false;
     bar.classList.remove('is-leaving');
     btn.disabled = false;
@@ -529,7 +551,7 @@
         }
       }
       if (dirtyCount()) show();
-      else { bar.hidden = true; bar.classList.remove('is-leaving'); }
+      else { bar.hidden = true; bar.classList.remove('is-leaving'); pane.dirty('users', false); }
     });
   });
 
@@ -549,7 +571,7 @@
         }
       }
       if (dirtyCount()) show();
-      else { bar.hidden = true; bar.classList.remove('is-leaving'); }
+      else { bar.hidden = true; bar.classList.remove('is-leaving'); pane.dirty('users', false); }
     });
   });
 
@@ -598,25 +620,40 @@
     if (!r.ok) throw new Error('mfa toggle failed: ' + r.status);
   }
 
+  // Saves every pending change; resolves with the number that failed.
+  // Inside Settings the sidebar's bar calls it (and needs it to throw on
+  // a failure); after a clean save the page reloads to show the saved
+  // values.
+  async function saveEach(){
+    const forms = [...dirtyForms];
+    const toggles = [...dirtyToggles.entries()];
+    const mfaToggles = [...dirtyMfaToggles.entries()];
+    let failed = 0;
+    for (const f of forms) {
+      try { await submitForm(f); dirtyForms.delete(f); } catch (_) { failed += 1; }
+    }
+    for (const [uid, allowed] of toggles) {
+      try { await submitToggle(uid, allowed); dirtyToggles.delete(uid); } catch (_) { failed += 1; }
+    }
+    for (const [uid, required] of mfaToggles) {
+      try { await submitMfaToggle(uid, required); dirtyMfaToggles.delete(uid); } catch (_) { failed += 1; }
+    }
+    return failed;
+  }
+  async function saveAll(){
+    const failed = await saveEach();
+    if (failed) throw new Error(failed + ' change(s) not saved');
+    setTimeout(() => window.location.reload(), 400);
+  }
+
   btn.addEventListener('click', async () => {
     if (!dirtyCount()) { bar.hidden = true; return; }
     bar.style.width = bar.offsetWidth + 'px';
     btn.disabled = true;
     btn.textContent = 'Saving…';
     msg.textContent = 'Saving…';
-    const forms = [...dirtyForms];
-    const toggles = [...dirtyToggles.entries()];
-    const mfaToggles = [...dirtyMfaToggles.entries()];
-    let failed = 0;
-    for (const f of forms) {
-      try { await submitForm(f); } catch (_) { failed += 1; }
-    }
-    for (const [uid, allowed] of toggles) {
-      try { await submitToggle(uid, allowed); } catch (_) { failed += 1; }
-    }
-    for (const [uid, required] of mfaToggles) {
-      try { await submitMfaToggle(uid, required); } catch (_) { failed += 1; }
-    }
+    const total = dirtyCount();
+    const failed = await saveEach();
     if (!failed) {
       hideAfterSave();
       // Reload the iframe so server-side flashes + normalised values
@@ -627,7 +664,7 @@
     } else {
       btn.disabled = false;
       btn.textContent = 'Save';
-      msg.textContent = failed === (forms.length + toggles.length + mfaToggles.length)
+      msg.textContent = failed === total
         ? 'Save failed — try again'
         : 'Some changes failed — try again';
       bar.style.width = '';
@@ -636,8 +673,8 @@
 })();
 </script>
 
-{# Users list: live filter, column sorting, and checkbox multi-delete. All
-   client-side over the rows already in the DOM (each <tr> carries
+{# Users list: live filter, sorting, and checkbox multi-delete. All
+   client-side over the rows already in the DOM (each row carries
    data-username / data-name / data-email / data-phone / data-role). #}
 <script>
 (function () {
@@ -672,31 +709,23 @@
       const total = rows().length;
       countEl.textContent = q ? (shown + ' of ' + total + ' shown') : (total + ' total');
     }
+    const empty = document.querySelector('[data-users-empty]');
+    if (empty) empty.hidden = shown > 0;
     refreshBulk();
   }
 
-  // ── Sort ──
-  let sortKey = null, sortDir = 1;
+  // ── Sort ──  (the toolbar's menu; "as listed" is the server's order)
+  const original = rows();
+  const sortSel = document.querySelector('[data-users-sort]');
   function applySort(key) {
-    if (sortKey === key) sortDir = -sortDir; else { sortKey = key; sortDir = 1; }
-    const sorted = rows().sort((a, b) => {
-      const av = (a.dataset[key] || '').toLowerCase();
-      const bv = (b.dataset[key] || '').toLowerCase();
-      if (av === bv) return 0;
-      return (av < bv ? -1 : 1) * sortDir;
-    });
+    const sorted = key ? rows().sort((a, b) => {
+      const av = (a.dataset[key] || (key === 'name' ? a.dataset.username : '') || '').toLowerCase();
+      const bv = (b.dataset[key] || (key === 'name' ? b.dataset.username : '') || '').toLowerCase();
+      return av === bv ? 0 : (av < bv ? -1 : 1);
+    }) : original;
     sorted.forEach(tr => tbody.appendChild(tr));   // reorder in place
-    table.querySelectorAll('.users-th-sort').forEach(th => {
-      th.classList.toggle('sort-asc', th.dataset.sortKey === key && sortDir === 1);
-      th.classList.toggle('sort-desc', th.dataset.sortKey === key && sortDir === -1);
-    });
   }
-  table.querySelectorAll('.users-th-sort').forEach(th => {
-    th.addEventListener('click', () => applySort(th.dataset.sortKey));
-    th.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applySort(th.dataset.sortKey); }
-    });
-  });
+  if (sortSel) sortSel.addEventListener('change', () => applySort(sortSel.value));
 
   // ── Bulk selection ──
   function refreshBulk() {
@@ -747,6 +776,114 @@
   })();
 </script>
 {% endif %}
+
+<script>
+(function(){
+  const box = document.querySelector('[data-pwgen]');
+  if (!box) return;
+  const form = box.closest('form');
+  const input = box.querySelector('[data-pwgen-input]');
+  const showBtn = box.querySelector('[data-pwgen-show]');
+  const copyBtn = box.querySelector('[data-pwgen-copy]');
+  const genBtn = box.querySelector('[data-pwgen-generate]');
+  const lengthSel = box.querySelector('[data-pwgen-length]');
+  const fill = box.querySelector('[data-pwgen-fill]');
+  const label = box.querySelector('[data-pwgen-label]');
+  const rules = {};
+  box.querySelectorAll('[data-rule]').forEach(li => { rules[li.dataset.rule] = li; });
+  const MIN = {{ pw_min_length }};
+  const SYMBOLS = {{ pw_symbols|tojson }};
+  // Bits per character of the generator's alphabet, for the readout.
+  const GEN_BITS = Math.log2({{ pw_gen_alphabet_size }});
+  // The value last put in the field by Generate, so the label can
+  // tell a generated password (known entropy) from a typed one.
+  let generated = null;
+
+  function setShown(on){
+    input.type = on ? 'text' : 'password';
+    showBtn.textContent = on ? 'Hide' : 'Show';
+    showBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  // Same rules as auth.validate_password_policy; the server still
+  // checks on submit (and also rejects a short list of common weak
+  // passwords, which isn't worth shipping to the browser).
+  function evaluate(){
+    const v = input.value || '';
+    const low = v.toLowerCase();
+    const user = (form.elements.username.value || '').trim().toLowerCase();
+    const local = (form.elements.email.value || '').trim().toLowerCase().split('@')[0];
+    const checks = {
+      length: v.length >= MIN,
+      lower: /[a-z]/.test(v),
+      upper: /[A-Z]/.test(v),
+      digit: /[0-9]/.test(v),
+      symbol: [...v].some(c => SYMBOLS.includes(c)),
+      personal: !!v && !(user && low.includes(user)) && !(local.length >= 4 && low.includes(local)),
+    };
+    Object.keys(checks).forEach(k => rules[k].classList.toggle('is-met', checks[k]));
+    const passed = Object.values(checks).filter(Boolean).length;
+    const total = Object.keys(checks).length;
+    const ok = passed === total;
+    let tier = 'weak';
+    if (ok) tier = v.length >= 16 ? 'strong' : 'good';
+    else if (passed >= total - 1) tier = 'fair';
+    fill.style.width = (v ? Math.round(passed / total * 100) : 0) + '%';
+    fill.dataset.tier = tier;
+    if (!v) label.textContent = 'Generate a password or type one';
+    else if (!ok) label.textContent = 'Doesn’t meet the policy yet';
+    else if (v === generated) label.textContent = 'Strong · ' + v.length + ' random characters, about ' + Math.floor(v.length * GEN_BITS) + ' bits';
+    else label.textContent = tier === 'strong' ? 'Strong' : 'Meets the policy';
+    input.setCustomValidity(v && !ok ? 'This password doesn’t meet the policy yet.' : '');
+  }
+
+  async function generate(){
+    const fd = new FormData();
+    fd.append('csrf_token', {{ csrf_token()|tojson }});
+    fd.append('length', lengthSel.value);
+    fd.append('username', form.elements.username.value || '');
+    fd.append('email', form.elements.email.value || '');
+    genBtn.disabled = true;
+    try {
+      const r = await fetch({{ url_for('auth.users_generate_password')|tojson }}, {
+        method: 'POST', body: fd, credentials: 'same-origin', cache: 'no-store'
+      });
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      if (!data.password) throw new Error('empty');
+      generated = data.password;
+      input.value = generated;
+      setShown(true);
+      evaluate();
+    } catch (_) {
+      label.textContent = 'Couldn’t generate a password. Try again.';
+    } finally {
+      genBtn.disabled = false;
+    }
+  }
+
+  genBtn.addEventListener('click', generate);
+  lengthSel.addEventListener('change', () => { if (input.value && input.value === generated) generate(); });
+  showBtn.addEventListener('click', () => setShown(input.type === 'password'));
+  copyBtn.addEventListener('click', async () => {
+    if (!input.value) return;
+    try {
+      await navigator.clipboard.writeText(input.value);
+    } catch (_) {
+      const was = input.type;
+      input.type = 'text'; input.select();
+      document.execCommand && document.execCommand('copy');
+      input.type = was;
+    }
+    copyBtn.textContent = 'Copied';
+    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1200);
+  });
+  input.addEventListener('input', evaluate);
+  form.elements.username.addEventListener('input', evaluate);
+  form.elements.email.addEventListener('input', evaluate);
+  evaluate();
+})();
+</script>
 
 {% if _prefill %}
 <script>

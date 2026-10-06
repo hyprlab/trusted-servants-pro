@@ -1,577 +1,292 @@
 {% extends "base.html" %}
+{% from "_row_menu.html" import row_menu %}
+{% from "_list_page.html" import search_form, side_link, sort_link, view_switch, bulk_bar %}
 {% block heading %}Recovery Contacts{% endblock %}
-{% block heading_help %}Review entries people submit on the public <code>/contactlist</code> page. New submissions arrive under <b>Pending review</b> and stay hidden from the public until you approve them. Each approved entry has per-field toggles so you decide whether its phone, email, or both are displayed.{% endblock %}
-{% block top_actions %}
-<button type="button" class="btn" data-open-modal="rc-add-modal">{{ icon('user-plus') }} Add manually</button>
-<a class="btn" href="{{ url_for('main.frontend_form_recovery_contacts') }}">{{ icon('settings') }} Form settings</a>
-<a class="btn" href="{{ url_for('frontend.recovery_contacts') }}" target="_blank" rel="noopener">
-  {{ icon('external-link') }} View public page ↗
-</a>
-{% endblock %}
+{% block heading_help %}People listed on the public <code>/contactlist</code> page. Submissions from that page wait under New submissions until you approve them; requests to update or remove an entry wait under their own headings. Each published entry decides whether its phone and email are shown.{% endblock %}
+{% block top_actions %}{% endblock %}
 {% block content %}
+{# Every link keeps the page's settings (view, sort, search, filters and
+   tab) and changes only what it passes in `over`. #}
+{% set _base = {'show': show if show != 'published' else None, 'only': only or None, 'sort': sort,
+                'q': q or None, 'view': view, 'tab': 'log' if tab == 'log' else None} %}
+{% macro _url(over={}) -%}
+  {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}{{ url_for('main.recovery_contacts', **_u) }}
+{%- endmacro %}
+{% set _skey, _sdir = sort.rsplit('_', 1) %}
+{% set SORT_FIRST_DIR = {'name': 'asc', 'added': 'desc', 'contacted': 'desc'} %}
+{% macro _sort(key, label) -%}
+  {%- set _on = _skey == key -%}
+  {{ sort_link(_url({'sort': key ~ '_' ~ ((('asc' if _sdir == 'desc' else 'desc') if _on else SORT_FIRST_DIR[key])), 'tab': None}), label, _on, _sdir) }}
+{%- endmacro %}
+{% macro _sort_th(key, label, cls='') -%}
+  <th class="{{ cls }}"{% if _skey == key %} aria-sort="{{ 'ascending' if _sdir == 'asc' else 'descending' }}"{% endif %}>{{ _sort(key, label) }}</th>
+{%- endmacro %}
+{% macro _plural(n, one, many) %}{{ n }} {{ one if n == 1 else many }}{% endmacro %}
+{% macro _avatar(e) %}<span class="lst-thumb lst-thumb--person{{ ' is-pending' if not e.approved }}" aria-hidden="true">{{ e.name|initials if e.name else '?' }}</span>{% endmacro %}
+{% macro _edit(e) %}{{ url_for('main.recovery_contacts_editor', eid=e.id) }}{% endmacro %}
 
-<div class="ts-page-wrap rc-page-wrap">
+{# What the entry is: its status or request, then its badges. #}
+{% macro _chips(e) %}
+  {% if e.wants_removal %}<span class="post-chip post-chip-danger">{{ 'Removal confirmed' if e.removal_confirmed_at else 'Removal request' }}</span>
+  {% elif e.wants_update %}<span class="post-chip post-chip-warning">Update request</span>
+  {% elif not e.approved %}<span class="post-chip post-chip-warning">New</span>{% endif %}
+  {% if e.available_to_sponsor %}<span class="post-chip post-chip-announcement">Sponsor</span>{% endif %}
+  {% if e.contact_enabled %}<span class="post-chip" title="Contact through the site is on{% if e.contact_count %}: contacted {{ e.contact_count }} time{{ '' if e.contact_count == 1 else 's' }}{% endif %}">{{ icon('mail') }} Contact{% if e.contact_count %} · {{ e.contact_count }}{% endif %}</span>{% endif %}
+  {% set _ab = (abuse_by_entry or {}).get(e.id) %}
+  {% if _ab %}<span class="post-chip post-chip-danger" title="{{ _ab.count }} flagged request{{ '' if _ab.count == 1 else 's' }}: review in Watchtower">{{ icon('alert-triangle') }} Flagged</span>{% endif %}
+  {% if e.requests_locked_until and now and e.requests_locked_until > now %}<span class="post-chip" title="Update and removal requests are blocked until then">{{ icon('lock') }} Locked to {{ e.requests_locked_until|fmt_site_local('%b %-d') }}</span>{% endif %}
+{% endmacro %}
 
-  {# ── Pending review ──────────────────────────────────────────── #}
-  <section class="card data-card">
-    <div class="data-card-head">
-      {{ icon('clock') }}
-      <span>Pending review</span>
-      <div class="data-card-head-actions muted smaller">
-        <span data-rc-count data-rc-count-noun="waiting">{{ pending|length }} waiting</span>
-      </div>
-    </div>
-    <p class="muted small data-card-lead">
-      Entries submitted on the public page. Approve to publish them on the directory, or remove to discard. The “requested display” shows what the submitter asked to share — you can change it after approving.
-    </p>
-    {% if pending %}
-    {# Sorted newest-first by the server; the header cells re-sort client
-       side and the toolbar search filters both tables at once. #}
-    <table class="tbl rc-tbl" data-rc-table data-rc-sort-key="submitted" data-rc-sort-dir="-1">
-      <thead>
-        <tr>
-          <th class="rc-th-sort" data-sort-key="name" tabindex="0" role="button" aria-label="Sort by name">Name</th>
-          <th class="rc-th-sort" data-sort-key="phone" tabindex="0" role="button" aria-label="Sort by phone">Phone</th>
-          <th class="rc-th-sort" data-sort-key="email" tabindex="0" role="button" aria-label="Sort by email">Email</th>
-          <th class="rc-th-sort" data-sort-key="display" tabindex="0" role="button" aria-label="Sort by requested display">Requested display</th>
-          <th class="rc-th-sort" data-sort-key="submitted" tabindex="0" role="button" aria-label="Sort by submission date">Submitted</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for e in pending %}
-        <tr {% if e.wants_update or e.wants_removal %}class="rc-row-update"{% endif %}
-            data-rc-row="{{ e.id }}"
-            data-name="{{ e.name }}"
-            data-phone="{{ e.phone or '' }}"
-            data-email="{{ e.email or '' }}"
-            data-display="{% if e.wants_removal %}removal{% elif e.wants_update %}update{% else %}new {{ 'phone' if e.show_phone else '' }} {{ 'email' if e.show_email else '' }} {{ 'sponsor' if e.available_to_sponsor else '' }}{% endif %}"
-            data-submitted="{{ e.created_at.isoformat() if e.created_at else '' }}">
-          <td data-label="Name">
-            {{ e.name }}
-            {% if e.wants_removal %}
-              {% if e.removal_confirmed_at %}<span class="rc-badge rc-badge-remove">{{ icon('trash') }} Removal · confirmed</span>
-              {% else %}<span class="rc-badge rc-badge-pending">{{ icon('clock') }} Removal · awaiting confirmation</span>{% endif %}
-            {% elif e.wants_update %}<span class="rc-badge rc-badge-pending">{{ icon('clock') }} Update · awaiting confirmation</span>{% endif %}
-          </td>
-          <td data-label="Phone">{{ e.phone or '—' }}</td>
-          <td data-label="Email">{% if e.email %}<a href="mailto:{{ e.email }}">{{ e.email }}</a>{% else %}—{% endif %}</td>
-          <td data-label="Requested display">
-            {% if e.wants_removal %}
-            {% if e.removal_confirmed_at %}<span class="rc-badge rc-badge-remove">Confirmed removal</span>
-            {% else %}<span class="rc-badge rc-badge-pending">Awaiting confirmation</span>{% endif %}
-            {% else %}
-            <span class="rc-badge {% if e.show_phone %}rc-badge-on{% else %}rc-badge-off{% endif %}">Phone {{ 'shown' if e.show_phone else 'hidden' }}</span>
-            <span class="rc-badge {% if e.show_email %}rc-badge-on{% else %}rc-badge-off{% endif %}">Email {{ 'shown' if e.show_email else 'hidden' }}</span>
-            {% if e.available_to_sponsor %}<span class="rc-badge rc-badge-sponsor">Available to sponsor</span>{% endif %}
-            {% endif %}
-          </td>
-          <td data-label="Submitted" class="muted smaller">{{ e.created_at.strftime('%b %-d, %Y') if e.created_at else '—' }}</td>
-          <td class="rc-row-actions">
-            {% if e.wants_removal %}
-              {% if e.matched_entry %}
-              <form method="post" action="{{ url_for('main.recovery_contacts_apply_removal', eid=e.id) }}"
-                    onsubmit="return confirm('Remove “{{ e.matched_entry.name }}” from the list? This deletes their entry.');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-sm btn-danger" title="Delete the matched entry and clear this request">{{ icon('trash') }} Remove from list</button>
-              </form>
-              {% endif %}
-              <form method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}"
-                    onsubmit="return confirm('Dismiss this removal request? The entry stays on the list.');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-sm" title="Dismiss the request, keep the entry">Dismiss</button>
-              </form>
-            {% elif e.wants_update and e.matched_entry %}
-            <form method="post" action="{{ url_for('main.recovery_contacts_apply_update', eid=e.id) }}"
-                  onsubmit="return confirm('Overwrite the existing entry “{{ e.matched_entry.name }}” with this submission?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-primary" title="Overwrite the matched entry with this submission">{{ icon('rotate-cw') }} Apply update</button>
-            </form>
-            <form method="post" action="{{ url_for('main.recovery_contacts_approve', eid=e.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm" title="Publish this as a separate new entry instead">Approve as new</button>
-            </form>
-            <button type="button" class="btn btn-sm" data-open-modal="rc-edit-{{ e.id }}" title="Edit before approving">{{ icon('pencil') }}</button>
-            <form method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}"
-                  onsubmit="return confirm('Remove {{ e.name }}?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-danger" title="Remove submission">{{ icon('trash') }}</button>
-            </form>
-            {% else %}
-            <form method="post" action="{{ url_for('main.recovery_contacts_approve', eid=e.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-primary" title="Approve & publish">{{ icon('check-circle') }} Approve</button>
-            </form>
-            <button type="button" class="btn btn-sm" data-open-modal="rc-edit-{{ e.id }}" title="Edit before approving">{{ icon('pencil') }}</button>
-            <form method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}"
-                  onsubmit="return confirm('Remove {{ e.name }}?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-danger" title="Remove submission">{{ icon('trash') }}</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% if e.wants_update or e.wants_removal %}
-        <tr class="rc-update-detail" data-rc-detail="{{ e.id }}">
-          <td colspan="6">
-            {% if e.wants_removal %}
-              {% if e.matched_entry %}
-              <div class="rc-match {{ 'rc-match-remove' if e.removal_confirmed_at else 'rc-match-pending' }}">
-                {% if e.removal_confirmed_at %}
-                <span class="rc-match-title">{{ icon('trash') }} Removal request — <b>confirmed</b> by the submitter on {{ e.removal_confirmed_at.strftime('%b %-d, %Y') }}. Remove the matched entry, or dismiss to keep it.</span>
-                {% else %}
-                <span class="rc-match-title">{{ icon('clock') }} Removal request — <b>awaiting confirmation</b>. We emailed the submitter a link; no admin alert is sent until they click it. You can remove now or wait.</span>
-                {% endif %}
-                <div class="rc-match-grid">
-                  <div class="rc-match-col">
-                    <span class="rc-match-label">Entry to remove</span>
-                    <div class="rc-match-name">{{ e.matched_entry.name }}</div>
-                    <div class="muted smaller">{{ e.matched_entry.phone or 'no phone' }} · {{ e.matched_entry.email or 'no email' }}</div>
-                  </div>
-                </div>
-              </div>
-              {% else %}
-              <div class="rc-match rc-match-nomatch">
-                {{ icon('trash') }} Removal request{% if not e.removal_confirmed_at %} (awaiting confirmation){% endif %} — but no existing entry matched their email. Dismiss it, or remove the right entry by hand from the published list.
-              </div>
-              {% endif %}
-            {% elif e.matched_entry %}
-            <div class="rc-match rc-match-pending">
-              <span class="rc-match-title">{{ icon('clock') }} Update request — <b>awaiting confirmation</b>. We emailed the submitter a link; clicking it applies the update automatically. Apply it now to confirm on their behalf, or wait.</span>
-              <div class="rc-match-grid">
-                <div class="rc-match-col">
-                  <span class="rc-match-label">Existing entry</span>
-                  <div class="rc-match-name">{{ e.matched_entry.name }}</div>
-                  <div class="muted smaller">{{ e.matched_entry.phone or 'no phone' }} · {{ e.matched_entry.email or 'no email' }}{% if e.matched_entry.available_to_sponsor %} · sponsor{% endif %}</div>
-                </div>
-                <div class="rc-match-arrow" aria-hidden="true">{{ icon('arrow-right') }}</div>
-                <div class="rc-match-col">
-                  <span class="rc-match-label">New submission</span>
-                  <div class="rc-match-name">{{ e.name }}</div>
-                  <div class="muted smaller">{{ e.phone or 'no phone' }} · {{ e.email or 'no email' }}{% if e.available_to_sponsor %} · sponsor{% endif %}</div>
-                </div>
-              </div>
-            </div>
-            {% else %}
-            <div class="rc-match rc-match-nomatch">
-              {{ icon('rotate-cw') }} Update request — no existing entry matched their email. Approve it as a new entry, or wait for them to confirm (which will publish it).
-            </div>
-            {% endif %}
-          </td>
-        </tr>
-        {% endif %}
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="muted">Nothing waiting — new submissions from the public page will appear here.</p>
+{# The request's subject, under the name of an update or removal. #}
+{% macro _request_line(e) %}
+  {% if e.wants_update or e.wants_removal %}
+  <div class="fb-sub lst-submitter">
+    {% if e.matched_entry %}{{ 'Removes' if e.wants_removal else 'Updates' }} <a href="{{ _edit(e.matched_entry) }}">{{ e.matched_entry.name }}</a>
+    {% else %}Matches no entry{% endif %}{% if not e.removal_confirmed_at %} · awaiting their confirmation{% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{# Show phone / show email: switches on a published entry, the
+   submitter's choice on one waiting. #}
+{% macro _public(e) %}
+  {% if e.approved %}
+  <div class="rc-vis">
+    {% for field, has, on in (('phone', e.phone, e.show_phone), ('email', e.email, e.show_email)) %}
+    {% if has %}
+    <form method="post" action="{{ url_for('main.recovery_contacts_visibility', eid=e.id) }}" class="rc-vis-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="field" value="{{ field }}">
+      <label class="mode-toggle" title="Show the {{ field }} on the public list">
+        <input type="checkbox" name="value" value="1" onchange="this.form.submit()" {% if on %}checked{% endif %}>
+        <span class="mode-track"><span class="mode-thumb"></span></span>
+        <span>{{ field|capitalize }}</span>
+      </label>
+    </form>
     {% endif %}
-  </section>
+    {% endfor %}
+  </div>
+  {% elif not e.wants_removal %}
+  <div class="lst-chips">
+    <span class="post-chip {{ 'post-chip-online' if e.show_phone and e.phone else 'post-chip-draft' }}">Phone {{ 'shown' if e.show_phone and e.phone else 'hidden' }}</span>
+    <span class="post-chip {{ 'post-chip-online' if e.show_email and e.email else 'post-chip-draft' }}">Email {{ 'shown' if e.show_email and e.email else 'hidden' }}</span>
+  </div>
+  {% else %}<span class="muted">—</span>{% endif %}
+{% endmacro %}
 
-  {# ── Approved (live on the public directory) ─────────────────── #}
-  <section class="card data-card">
-    <div class="data-card-head">
-      {{ icon('phone') }}
-      <span>Published entries</span>
-      <div class="data-card-head-actions muted smaller">
-        {% if approved %}
-        <label class="rc-filter-wrap">
-          <span class="rc-filter-icon" aria-hidden="true">{{ icon('search') }}</span>
-          <input type="search" class="rc-filter" data-rc-filter autocomplete="off"
-                 placeholder="Search name, phone, or email…"
-                 aria-label="Filter published entries by name, phone, or email">
-        </label>
-        {% endif %}
-        <span data-rc-count data-rc-count-noun="live">{{ approved|length }} live</span>
-      </div>
-    </div>
-    <p class="muted small data-card-lead">
-      These show on the public Recovery Contacts page. Flip a toggle to show or hide that entry's phone or email instantly — the name always shows.
-    </p>
-    {% if approved %}
-    {# Sorted by name from the server; headers re-sort client side. #}
-    <table class="tbl rc-tbl" data-rc-table data-rc-sort-key="name" data-rc-sort-dir="1">
-      <thead>
-        <tr>
-          <th class="rc-th-sort" data-sort-key="name" tabindex="0" role="button" aria-label="Sort by name">Name</th>
-          <th class="rc-th-sort" data-sort-key="phone" tabindex="0" role="button" aria-label="Sort by phone">Phone</th>
-          <th class="rc-th-sort" data-sort-key="showphone" tabindex="0" role="button" aria-label="Sort by phone visibility">Show phone</th>
-          <th class="rc-th-sort" data-sort-key="email" tabindex="0" role="button" aria-label="Sort by email">Email</th>
-          <th class="rc-th-sort" data-sort-key="showemail" tabindex="0" role="button" aria-label="Sort by email visibility">Show email</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for e in approved %}
-        <tr data-rc-row="{{ e.id }}"
-            data-name="{{ e.name }}"
-            data-phone="{{ e.phone or '' }}"
-            data-email="{{ e.email or '' }}"
-            data-showphone="{{ '1' if (e.phone and e.show_phone) else '0' }}"
-            data-showemail="{{ '1' if (e.email and e.show_email) else '0' }}">
-          <td data-label="Name">{{ e.name }}{% if e.available_to_sponsor %} <span class="rc-badge rc-badge-sponsor">Sponsor</span>{% endif %}{% if e.contact_enabled %} <span class="rc-badge rc-badge-contact" title="Contacted {{ e.contact_count }} time{{ '' if e.contact_count == 1 else 's' }} via the site">{{ icon('mail') }} {{ e.contact_count }}</span>{% endif %}
-            {%- set _ab = (abuse_by_entry or {}).get(e.id) -%}
-            {%- if _ab %} <span class="rc-badge rc-badge-abuse" title="{{ _ab.count }} flagged update/removal request{{ '' if _ab.count == 1 else 's' }} — review in Watchtower">{{ icon('alert-triangle') }} Flagged</span>{% endif -%}
-            {%- if e.requests_locked_until and now and e.requests_locked_until > now %} <span class="rc-badge rc-badge-locked" title="A request was reported as not submitted by the owner — update/removal requests are blocked until this date">{{ icon('lock') }} Locked until {{ e.requests_locked_until|fmt_site_local("%b %-d") }}</span>{% endif -%}
-          </td>
-          <td data-label="Phone" class="{% if not (e.phone and e.show_phone) %}muted{% endif %}">{{ e.phone or '—' }}</td>
-          <td data-label="Show phone">
-            {% if e.phone %}
-            <form method="post" action="{{ url_for('main.recovery_contacts_visibility', eid=e.id, field='phone') }}" class="rc-vis-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <label class="mode-toggle" title="Show phone on the public list">
-                <input type="checkbox" name="value" value="1" onchange="this.form.submit()" {% if e.show_phone %}checked{% endif %}>
-                <span class="mode-track"><span class="mode-thumb"></span></span>
-              </label>
-            </form>
-            {% else %}<span class="muted smaller">no phone</span>{% endif %}
-          </td>
-          <td data-label="Email" class="{% if not (e.email and e.show_email) %}muted{% endif %}">
-            {% if e.email %}<a href="mailto:{{ e.email }}">{{ e.email }}</a>{% else %}—{% endif %}
-          </td>
-          <td data-label="Show email">
-            {% if e.email %}
-            <form method="post" action="{{ url_for('main.recovery_contacts_visibility', eid=e.id, field='email') }}" class="rc-vis-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <label class="mode-toggle" title="Show email on the public list">
-                <input type="checkbox" name="value" value="1" onchange="this.form.submit()" {% if e.show_email %}checked{% endif %}>
-                <span class="mode-track"><span class="mode-thumb"></span></span>
-              </label>
-            </form>
-            {% else %}<span class="muted smaller">no email</span>{% endif %}
-          </td>
-          <td class="rc-row-actions">
-            <button type="button" class="btn btn-sm" data-open-modal="rc-edit-{{ e.id }}" title="Edit entry">{{ icon('pencil') }}</button>
-            <form method="post" action="{{ url_for('main.recovery_contacts_unapprove', eid=e.id) }}" title="Move back to pending">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm" title="Unpublish (back to pending)">{{ icon('eye-off') }}</button>
-            </form>
-            <form method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}"
-                  onsubmit="return confirm('Remove {{ e.name }} from the list?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-danger" title="Remove from list">{{ icon('trash') }}</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-        <tr class="rc-nomatch" data-rc-nomatch hidden>
-          <td colspan="6" class="muted">No published entries match your search.</td>
-        </tr>
-      </tbody>
-    </table>
+{% macro _actions(e, compact=False) %}
+  {% call row_menu('Actions' if not compact else 'Actions for ' ~ e.name, compact=compact) %}
+    {% if e.wants_removal %}
+      {% if e.matched_entry %}<button type="submit" form="rc-removal-{{ e.id }}-form" class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Remove {{ e.matched_entry.name }}</span></button>{% endif %}
+      <a class="row-menu-item" href="{{ _edit(e) }}">{{ icon('eye') }}<span>Review</span></a>
+      <div class="row-menu-sep" role="separator"></div>
+      <button type="submit" form="rc-dismiss-{{ e.id }}-form" class="row-menu-item">{{ icon('x') }}<span>Dismiss the request</span></button>
+    {% elif e.wants_update %}
+      {% if e.matched_entry %}<button type="submit" form="rc-apply-{{ e.id }}-form" class="row-menu-item">{{ icon('rotate-cw') }}<span>Apply the update</span></button>{% endif %}
+      <button type="submit" form="rc-approve-{{ e.id }}-form" class="row-menu-item">{{ icon('check') }}<span>Publish as a new entry</span></button>
+      <a class="row-menu-item" href="{{ _edit(e) }}">{{ icon('pencil') }}<span>Review and edit</span></a>
+      <div class="row-menu-sep" role="separator"></div>
+      <button type="submit" form="rc-delete-{{ e.id }}-form" class="row-menu-item row-menu-item-danger">{{ icon('x') }}<span>Discard</span></button>
+    {% elif not e.approved %}
+      <button type="submit" form="rc-approve-{{ e.id }}-form" class="row-menu-item">{{ icon('check') }}<span>Approve and publish</span></button>
+      <a class="row-menu-item" href="{{ _edit(e) }}">{{ icon('pencil') }}<span>Review and edit</span></a>
+      <div class="row-menu-sep" role="separator"></div>
+      <button type="submit" form="rc-delete-{{ e.id }}-form" class="row-menu-item row-menu-item-danger">{{ icon('x') }}<span>Discard</span></button>
     {% else %}
-    <p class="muted">No published entries yet — approve a submission above to add the first one.</p>
+      <a class="row-menu-item" href="{{ _edit(e) }}">{{ icon('pencil') }}<span>Edit</span></a>
+      <button type="submit" form="rc-unpublish-{{ e.id }}-form" class="row-menu-item">{{ icon('eye-off') }}<span>Unpublish</span></button>
+      <div class="row-menu-sep" role="separator"></div>
+      <button type="submit" form="rc-delete-{{ e.id }}-form" class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
     {% endif %}
-    <p class="muted small data-card-lead" style="margin-top: 1rem;">
-      Page copy, the notification recipient, and layout for the public page live on the <a href="{{ url_for('main.frontend_form_recovery_contacts') }}">Recovery Contacts form settings</a> (Web Frontend → Forms).
-    </p>
-  </section>
+  {% endcall %}
+{% endmacro %}
 
-  {# ── Activity log ───────────────────────────────────────────── #}
-  <section class="card data-card">
-    <div class="data-card-head">
-      {{ icon('history') }}
-      <span>Activity log</span>
-      <div class="data-card-head-actions muted smaller">{{ logs|length }} recent</div>
-    </div>
-    <p class="muted small data-card-lead">
-      Submissions, email confirmations, relayed “Contact me” messages, and admin actions — newest first.
-    </p>
-    {% if logs %}
-    {%- set _log_cat = {
-      'submitted':'new', 'manual_add':'new',
-      'update_requested':'update', 'update_confirmed':'update', 'update_applied':'update', 'edited':'update',
-      'removal_requested':'removal', 'removal_confirmed':'removal', 'removal_applied':'removal',
-      'dismissed':'removal', 'deleted':'removal',
-      'approved':'ok', 'unapproved':'muted', 'visibility':'muted', 'contacted':'contact',
-      'update_rate_limited':'abuse', 'request_blocked':'abuse', 'disavowed':'abuse'} -%}
-    {%- set _log_icon = {
-      'submitted':'user-plus', 'manual_add':'user-plus',
-      'update_requested':'rotate-cw', 'update_confirmed':'rotate-cw', 'update_applied':'rotate-cw', 'edited':'pencil',
-      'removal_requested':'trash', 'removal_confirmed':'trash', 'removal_applied':'trash',
-      'dismissed':'x', 'deleted':'trash',
-      'approved':'check-circle', 'unapproved':'eye-off', 'visibility':'eye', 'contacted':'mail',
-      'update_rate_limited':'alert-triangle', 'request_blocked':'lock', 'disavowed':'shield'} -%}
-    <ul class="rc-log">
-      {% for l in logs %}
-      <li class="rc-log-row">
-        <span class="rc-log-icon rc-log-cat-{{ _log_cat.get(l.event, 'muted') }}" aria-hidden="true">{{ icon(_log_icon.get(l.event, 'circle')) }}</span>
-        <div class="rc-log-body">
-          <div class="rc-log-msg">{% if l.entry_name %}<b>{{ l.entry_name }}</b> — {% endif %}{{ l.message }}</div>
-          <div class="rc-log-meta muted smaller">
-            {% if l.created_at %}{{ l.created_at|fmt_site_local("%b %-d, %Y · %-I:%M %p %Z") }}{% endif %}{% if l.actor %} · {{ l.actor }}{% endif %}{% if l.ip_address %} · {{ l.ip_address }}{% endif %}
-          </div>
-        </div>
-      </li>
+<div class="fb-pick fb-pick--page lst-page">
+<aside class="fb-side" aria-label="Find a contact">
+  <div class="fb-side-top" data-live="total">
+    <p class="fb-side-total" aria-live="polite">{{ _plural(entries|length, 'entry', 'entries') }}{% if q %} matching “{{ q }}”{% endif %}</p>
+  </div>
+  {{ search_form(url_for('main.recovery_contacts'), _base, q, 'Search contacts', 'Search by name, phone, email or note') }}
+  <a class="btn btn-primary fb-side-upload" href="{{ url_for('main.recovery_contacts_new') }}">{{ icon('user-plus') }} Add a person</a>
+  <div class="lst-side-live" data-live="side">
+    <nav class="fb-side-group" aria-label="Status">
+      <h3 class="fb-side-title">Status</h3>
+      {{ side_link(_url({'show': None, 'tab': None}), 'users', 'Published', show_counts.published, show == 'published' and tab != 'log') }}
+      {% for key, ic, label in (('pending', 'inbox', 'New submissions'), ('updates', 'rotate-cw', 'Update requests'), ('removals', 'trash', 'Removal requests')) %}
+      {% set _cur = show == key and tab != 'log' %}
+      {{ side_link(_url({'show': key, 'tab': None}), ic, label, show_counts[key], _cur, 'has-waiting' if show_counts[key] and not _cur) }}
       {% endfor %}
-    </ul>
-    {% else %}
-    <p class="muted">No activity yet — submissions and admin actions will show up here.</p>
+    </nav>
+    <nav class="fb-side-group" aria-label="Listing">
+      <h3 class="fb-side-title">Listing</h3>
+      {{ side_link(_url({'only': None, 'tab': None}), 'layout-grid', 'Everyone', only_counts[''], not only and tab != 'log') }}
+      {{ side_link(_url({'only': 'sponsor', 'tab': None}), 'star', 'Available to sponsor', only_counts.sponsor, only == 'sponsor' and tab != 'log') }}
+      {{ side_link(_url({'only': 'contact', 'tab': None}), 'mail', 'Contact through the site', only_counts.contact, only == 'contact' and tab != 'log') }}
+    </nav>
+    <div class="fb-side-group" role="group" aria-label="Sort contacts">
+      <h3 class="fb-side-title">Sort by</h3>
+      <div class="fb-side-sort">{{ _sort('name', 'Name') }}{{ _sort('added', 'Added') }}{{ _sort('contacted', 'Contacted') }}</div>
+    </div>
+    {{ view_switch(_url({'view': 'list', 'tab': None}), _url({'view': 'grid', 'tab': None}), view if tab != 'log' else '') }}
+    <nav class="fb-side-group" aria-label="More">
+      <h3 class="fb-side-title">More</h3>
+      {{ side_link(_url({'tab': 'log'}), 'history', 'Activity log', None, tab == 'log') }}
+      {{ side_link(url_for('main.frontend_form_recovery_contacts'), 'settings', 'Form settings') }}
+      <a class="fb-side-link" href="{{ url_for('frontend.recovery_contacts') }}" target="_blank" rel="noopener">{{ icon('external-link') }}<span>Public page ↗</span></a>
+    </nav>
+  </div>
+</aside>
+<div class="fb-pick-main" data-live="main">
+<form id="rc-bulk-form" method="post" action="{{ url_for('main.recovery_contacts_bulk') }}" data-bulk-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="" data-bulk-action-field>
+</form>
+<section class="card fb lst" data-bulk-scope="rc-bulk-form">
+  {% if tab == 'log' %}
+  {# Submissions, confirmations, relayed messages and admin actions,
+     newest first. #}
+  {%- set _log_cat = {
+    'submitted':'new', 'manual_add':'new',
+    'update_requested':'update', 'update_confirmed':'update', 'update_applied':'update', 'edited':'update',
+    'removal_requested':'removal', 'removal_confirmed':'removal', 'removal_applied':'removal',
+    'dismissed':'removal', 'deleted':'removal',
+    'approved':'ok', 'unapproved':'muted', 'visibility':'muted', 'contacted':'contact',
+    'update_rate_limited':'abuse', 'request_blocked':'abuse', 'disavowed':'abuse'} -%}
+  {%- set _log_icon = {
+    'submitted':'user-plus', 'manual_add':'user-plus',
+    'update_requested':'rotate-cw', 'update_confirmed':'rotate-cw', 'update_applied':'rotate-cw', 'edited':'pencil',
+    'removal_requested':'trash', 'removal_confirmed':'trash', 'removal_applied':'trash',
+    'dismissed':'x', 'deleted':'trash',
+    'approved':'check-circle', 'unapproved':'eye-off', 'visibility':'eye', 'contacted':'mail',
+    'update_rate_limited':'alert-triangle', 'request_blocked':'lock', 'disavowed':'shield'} -%}
+  {% if logs %}
+  <ul class="rc-log lst-log">
+    {% for l in logs %}
+    <li class="rc-log-row">
+      <span class="rc-log-icon rc-log-cat-{{ _log_cat.get(l.event, 'muted') }}" aria-hidden="true">{{ icon(_log_icon.get(l.event, 'circle')) }}</span>
+      <div class="rc-log-body">
+        <div class="rc-log-msg">{% if l.entry_name %}<b>{{ l.entry_name }}</b>: {% endif %}{{ l.message }}</div>
+        <div class="rc-log-meta muted smaller">
+          {% if l.created_at %}{{ l.created_at|fmt_site_local("%b %-d, %Y · %-I:%M %p %Z") }}{% endif %}{% if l.actor %} · {{ l.actor }}{% endif %}{% if l.ip_address %} · {{ l.ip_address }}{% endif %}
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="fb-empty"><span class="fb-empty-icon" aria-hidden="true">{{ icon('history') }}</span><p>No activity yet.</p></div>
+  {% endif %}
+
+  {% elif not entries %}
+  <div class="fb-empty">
+    <span class="fb-empty-icon" aria-hidden="true">{{ icon('phone') }}</span>
+    {% if q or only %}
+    <p>No entries here match{{ ' “' ~ q ~ '”' if q }}.</p>
+    <a class="btn btn-sm" href="{{ _url({'q': None, 'only': None}) }}">Show all</a>
+    {% elif show == 'pending' %}<p>No new submissions waiting.</p>
+    {% elif show == 'updates' %}<p>No update requests waiting.</p>
+    {% elif show == 'removals' %}<p>No removal requests waiting.</p>
+    {% else %}<p>No one is listed yet.</p>
+    <a class="btn btn-sm btn-primary" href="{{ url_for('main.recovery_contacts_new') }}">{{ icon('user-plus') }} Add a person</a>
     {% endif %}
-  </section>
-</div>
-
-{# Add manually — admin-entered entry. Published immediately (no review
-   step) since the admin is entering trusted info directly. #}
-<div class="modal" id="rc-add-modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <form method="post" action="{{ url_for('main.recovery_contacts_manual_add') }}" class="form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="modal-head">
-        <h2>Add a person</h2>
-        <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-      </div>
-      <div class="modal-body">
-        <p class="muted small" style="margin: 0 0 1rem;">
-          Add someone to the directory yourself. Manually-added entries are published immediately — no approval step. You can edit or remove them anytime.
-        </p>
-        <label>Full name <span class="muted smaller">(required)</span>
-          <input type="text" name="name" required maxlength="200" placeholder="e.g. Jane D.">
-        </label>
-        <label>Phone <span class="muted smaller">(optional)</span>
-          <input type="tel" name="phone" maxlength="64">
-        </label>
-        <label>Email <span class="muted smaller">(optional)</span>
-          <input type="email" name="email" maxlength="255">
-        </label>
-        <p class="muted smaller" style="margin: 0 0 0.5rem;">Add a phone number, an email, or both.</p>
-        <div class="rc-modal-toggles">
-          <label class="rc-modal-check">
-            <input type="checkbox" name="show_phone" value="1" checked>
-            Show phone on the public list
-          </label>
-          <label class="rc-modal-check">
-            <input type="checkbox" name="show_email" value="1" checked>
-            Show email on the public list
-          </label>
-          <label class="rc-modal-check">
-            <input type="checkbox" name="available_to_sponsor" value="1">
-            Available to sponsor
-          </label>
-          <label class="rc-modal-check">
-            <input type="checkbox" name="contact_enabled" value="1">
-            Allow email contact through the site
-          </label>
-        </div>
-        <label>Admin note <span class="muted smaller">(never shown publicly)</span>
-          <textarea name="note" rows="2"></textarea>
-        </label>
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Add to list</button>
-      </div>
-    </form>
   </div>
-</div>
 
-{# Per-row edit modals — fix a typo, adjust contact fields, or set the
-   display toggles for any entry (pending or published). #}
-{% for e in (pending + approved) %}
-<div class="modal" id="rc-edit-{{ e.id }}" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <form method="post" action="{{ url_for('main.recovery_contacts_update', eid=e.id) }}" class="form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="modal-head">
-        <h2>Edit {{ e.name }}</h2>
-        <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
+  {% elif view == 'grid' %}
+  <div class="lst-grid">
+    {% for e in entries %}
+    <article class="lst-card lst-card--person">
+      <label class="lst-card-check" title="Select"><input type="checkbox" name="ids" value="{{ e.id }}" form="rc-bulk-form" data-bulk-check aria-label="Select {{ e.name }}"></label>
+      <div class="lst-card-head">
+        {{ _avatar(e) }}
+        <a class="lst-card-link" href="{{ _edit(e) }}">{{ e.name }}</a>
+        {{ _actions(e, compact=True) }}
       </div>
-      <div class="modal-body">
-        <label>Full name
-          <input type="text" name="name" required maxlength="200" value="{{ e.name }}">
-        </label>
-        <label>Phone <span class="muted smaller">(optional)</span>
-          <input type="tel" name="phone" maxlength="64" value="{{ e.phone or '' }}">
-        </label>
-        <label>Email <span class="muted smaller">(optional)</span>
-          <input type="email" name="email" maxlength="255" value="{{ e.email or '' }}">
-        </label>
-        <div class="rc-modal-toggles">
-          <label class="rc-modal-check">
-            <input type="checkbox" name="show_phone" value="1" {% if e.show_phone %}checked{% endif %}>
-            Show phone on the public list
-          </label>
-          <label class="rc-modal-check">
-            <input type="checkbox" name="show_email" value="1" {% if e.show_email %}checked{% endif %}>
-            Show email on the public list
-          </label>
-          <label class="rc-modal-check">
-            <input type="checkbox" name="available_to_sponsor" value="1" {% if e.available_to_sponsor %}checked{% endif %}>
-            Available to sponsor
-          </label>
-          <label class="rc-modal-check">
-            <input type="checkbox" name="contact_enabled" value="1" {% if e.contact_enabled %}checked{% endif %}>
-            Allow email contact through the site{% if e.contact_count %} <span class="muted smaller">· contacted {{ e.contact_count }}×</span>{% endif %}
-          </label>
-        </div>
-        <label>Admin note <span class="muted smaller">(never shown publicly)</span>
-          <textarea name="note" rows="2">{{ e.note or '' }}</textarea>
-        </label>
+      <div class="lst-card-body">
+        {% if e.phone %}<p class="lst-card-meta{{ ' is-hidden-field' if not e.show_phone }}" title="{{ 'Shown' if e.show_phone else 'Hidden' }} on the public list">{{ icon('phone') }}<span>{{ e.phone }}</span>{% if not e.show_phone %}{{ icon('eye-off') }}{% endif %}</p>{% endif %}
+        {% if e.email %}<p class="lst-card-meta{{ ' is-hidden-field' if not e.show_email }}" title="{{ 'Shown' if e.show_email else 'Hidden' }} on the public list">{{ icon('mail') }}<span>{{ e.email }}</span>{% if not e.show_email %}{{ icon('eye-off') }}{% endif %}</p>{% endif %}
+        {{ _request_line(e) }}
       </div>
-      <div class="modal-foot">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Save changes</button>
+      <div class="lst-card-foot">
+        <span class="lst-card-counts">{{ ('Added ' ~ e.created_at|fmt_site_local('%b %-d, %Y')) if e.created_at }}</span>
+        <span class="lst-card-chips">{{ _chips(e) }}</span>
       </div>
-    </form>
+    </article>
+    {% endfor %}
   </div>
-</div>
+
+  {% else %}
+  <table class="tbl fb-tbl lst-tbl lst-tbl--people">
+    <thead>
+      <tr>
+        <th class="lst-check-col"><label class="lst-check" title="Select all"><input type="checkbox" data-bulk-all aria-label="Select all"></label></th>
+        <th class="fb-thumb-col"><span class="sr-only">Initials</span></th>
+        {{ _sort_th('name', 'Name') }}
+        <th class="fb-col">Phone</th>
+        <th class="fb-col">Email</th>
+        <th class="fb-col">{{ 'On the public list' if show == 'published' else 'Asked to show' }}</th>
+        {{ _sort_th('added', 'Added', 'fb-col lst-col-date') }}
+        <th class="th-actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td class="lst-check-col"><label class="lst-check"><input type="checkbox" name="ids" value="{{ e.id }}" form="rc-bulk-form" data-bulk-check aria-label="Select {{ e.name }}"></label></td>
+        <td class="fb-thumb-cell">{{ _avatar(e) }}</td>
+        <td class="media-name-cell">
+          <a class="fb-name" href="{{ _edit(e) }}">{{ e.name }}</a>
+          {{ _request_line(e) }}
+          <div class="lst-chips rc-name-chips">{{ _chips(e) }}</div>
+          <div class="fb-sub fb-sub--narrow">{{ e.phone or '' }}{% if e.phone and e.email %} · {% endif %}{{ e.email or '' }}</div>
+        </td>
+        <td class="fb-col{{ ' muted' if not (e.phone and e.show_phone) }}">{{ e.phone or '—' }}</td>
+        <td class="fb-col{{ ' muted' if not (e.email and e.show_email) }}">{% if e.email %}<a class="lst-email" href="mailto:{{ e.email }}" title="{{ e.email }}">{{ e.email }}</a>{% else %}—{% endif %}</td>
+        <td class="fb-col">{{ _public(e) }}</td>
+        <td class="fb-col muted lst-col-date">{{ e.created_at|fmt_site_local('%b %-d, %Y') if e.created_at else '—' }}</td>
+        <td class="row-actions">{{ _actions(e) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if entries and tab != 'log' %}
+  {% call bulk_bar() %}
+    {% if show == 'pending' %}<button type="button" class="btn btn-sm btn-primary" data-bulk="approve">Approve and publish</button>{% endif %}
+    {% if show == 'published' %}<button type="button" class="btn btn-sm" data-bulk="unpublish">Unpublish</button>{% endif %}
+    <button type="button" class="btn btn-sm btn-danger" data-bulk="delete" data-bulk-noun="entry" data-bulk-nouns="entries"
+            data-bulk-confirm="{{ 'They come off the public list for good.' if show == 'published' else 'They will be deleted. The people who sent them are not told.' }}">{{ 'Delete' if show == 'published' else 'Discard' }}</button>
+  {% endcall %}
+  {% endif %}
+</section>
+
+{# Per-row action forms, matched by id from the row menus. #}
+{% for e in entries %}
+{% if e.wants_removal %}
+  {% if e.matched_entry %}
+  <form id="rc-removal-{{ e.id }}-form" method="post" action="{{ url_for('main.recovery_contacts_apply_removal', eid=e.id) }}"
+        data-confirm-title="Remove {{ e.matched_entry.name }}?" data-confirm-label="Remove"
+        data-confirm="Their entry comes off the public list for good, as they asked."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+  {% endif %}
+  <form id="rc-dismiss-{{ e.id }}-form" method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}"
+        data-confirm-title="Dismiss this request?" data-confirm-label="Dismiss"
+        data-confirm="The request is deleted and the entry stays on the list."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% else %}
+  {% if e.wants_update and e.matched_entry %}
+  <form id="rc-apply-{{ e.id }}-form" method="post" action="{{ url_for('main.recovery_contacts_apply_update', eid=e.id) }}"
+        data-confirm-title="Apply this update?" data-confirm-label="Apply"
+        data-confirm="{{ e.matched_entry.name }}'s entry takes the details sent in this request."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+  {% endif %}
+  {% if not e.approved %}
+  <form id="rc-approve-{{ e.id }}-form" method="post" action="{{ url_for('main.recovery_contacts_approve', eid=e.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+  {% else %}
+  <form id="rc-unpublish-{{ e.id }}-form" method="post" action="{{ url_for('main.recovery_contacts_unapprove', eid=e.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+  {% endif %}
+  <form id="rc-delete-{{ e.id }}-form" method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}"
+        data-confirm-title="{{ ('Delete ' ~ e.name ~ '?') if e.approved else 'Discard this submission?' }}" data-confirm-label="{{ 'Delete' if e.approved else 'Discard' }}"
+        data-confirm="{{ 'Their entry comes off the public list for good.' if e.approved else 'It is deleted. The person who sent it is not told.' }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% endif %}
 {% endfor %}
-
-{# Column sorting + live search over the rows already in the DOM. Each
-   <tr data-rc-row> carries the sortable values as data-* attributes; the
-   pending table's expanded detail row (data-rc-detail) travels with its
-   parent when rows are reordered or hidden. Both tables sort; the search
-   box only filters the card it sits in (Published entries), so the
-   pending queue above it never changes out from under you. The query and
-   sort state are kept in sessionStorage so flipping a show/hide toggle —
-   which posts and reloads the page — doesn't drop what you were looking at. #}
-<script>
-(function () {
-  const filterInput = document.querySelector('[data-rc-filter]');
-  const filterScope = filterInput ? filterInput.closest('section') : null;
-  const tables = Array.from(document.querySelectorAll('[data-rc-table]'));
-  if (!tables.length) return;
-
-  const STORE_Q = 'tsp:rc:query';
-  const STORE_SORT = 'tsp:rc:sort';
-  function store(key, val) {
-    try { val === null ? sessionStorage.removeItem(key) : sessionStorage.setItem(key, val); }
-    catch (e) {}
-  }
-  function recall(key) {
-    try { return sessionStorage.getItem(key); } catch (e) { return null; }
-  }
-
-  const savedSort = (function () {
-    try { return JSON.parse(recall(STORE_SORT) || '{}') || {}; } catch (e) { return {}; }
-  })();
-
-  const views = tables.map(function (table, idx) {
-    const tbody = table.querySelector('tbody');
-    const section = table.closest('section');
-    const countEl = section ? section.querySelector('[data-rc-count]') : null;
-    const nomatch = tbody.querySelector('[data-rc-nomatch]');
-    const rows = Array.from(tbody.querySelectorAll('[data-rc-row]'));
-
-    rows.forEach(function (tr) {
-      tr._detail = tbody.querySelector('[data-rc-detail="' + tr.dataset.rcRow + '"]');
-      tr._haystack = [tr.dataset.name, tr.dataset.phone, tr.dataset.email]
-        .join(' ').toLowerCase();
-      tr._digits = (tr.dataset.phone || '').replace(/\D+/g, '');
-    });
-
-    const saved = savedSort[idx] || {};
-    return {
-      idx: idx, table: table, tbody: tbody, rows: rows,
-      countEl: countEl, nomatch: nomatch,
-      filterable: !!(filterScope && section === filterScope),
-      total: rows.length,
-      key: saved.key || table.dataset.rcSortKey || null,
-      dir: saved.dir === -1 ? -1 : (saved.dir === 1 ? 1
-           : (table.dataset.rcSortDir === '-1' ? -1 : 1)),
-      resorted: !!saved.key,
-    };
-  });
-
-  // ── Sort ──
-  function compare(a, b, key, dir) {
-    const av = (a.dataset[key] || '').toLowerCase();
-    const bv = (b.dataset[key] || '').toLowerCase();
-    if (av === bv) return 0;
-    if (!av) return 1;      // blanks sink to the bottom either direction
-    if (!bv) return -1;
-    return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' }) * dir;
-  }
-
-  function paint(view) {
-    view.table.querySelectorAll('.rc-th-sort').forEach(function (th) {
-      const on = th.dataset.sortKey === view.key;
-      th.classList.toggle('sort-asc', on && view.dir === 1);
-      th.classList.toggle('sort-desc', on && view.dir === -1);
-      th.setAttribute('aria-sort', on ? (view.dir === 1 ? 'ascending' : 'descending') : 'none');
-    });
-  }
-
-  function reorder(view) {
-    if (!view.key) return;
-    const sorted = view.rows.slice().sort(function (a, b) {
-      return compare(a, b, view.key, view.dir);
-    });
-    sorted.forEach(function (tr) {
-      view.tbody.appendChild(tr);
-      if (tr._detail) view.tbody.appendChild(tr._detail);
-    });
-    if (view.nomatch) view.tbody.appendChild(view.nomatch);
-  }
-
-  function sortBy(view, key) {
-    if (view.key === key && view.resorted) view.dir = -view.dir;
-    else { view.key = key; view.dir = 1; }
-    view.resorted = true;
-    reorder(view);
-    paint(view);
-    savedSort[view.idx] = { key: view.key, dir: view.dir };
-    store(STORE_SORT, JSON.stringify(savedSort));
-  }
-
-  views.forEach(function (view) {
-    // Apply the starting sort (or one chosen before a reload) up front so the
-    // header arrow always matches the order actually on screen — the server's
-    // SQL name ordering is case-sensitive, this isn't.
-    reorder(view);
-    paint(view);
-    view.table.querySelectorAll('.rc-th-sort').forEach(function (th) {
-      th.addEventListener('click', function () { sortBy(view, th.dataset.sortKey); });
-      th.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          sortBy(view, th.dataset.sortKey);
-        }
-      });
-    });
-  });
-
-  // ── Live filter ──
-  function applyFilter() {
-    const q = (filterInput ? filterInput.value : '').trim().toLowerCase();
-    const qDigits = q.replace(/\D+/g, '');
-    views.filter(function (v) { return v.filterable; }).forEach(function (view) {
-      let shown = 0;
-      view.rows.forEach(function (tr) {
-        const hit = !q
-          || tr._haystack.indexOf(q) !== -1
-          || (qDigits.length >= 3 && tr._digits && tr._digits.indexOf(qDigits) !== -1);
-        tr.hidden = !hit;
-        if (tr._detail) tr._detail.hidden = !hit;
-        if (hit) shown++;
-      });
-      if (view.nomatch) view.nomatch.hidden = !(q && shown === 0 && view.total);
-      if (view.countEl) {
-        const noun = view.countEl.dataset.rcCountNoun || '';
-        view.countEl.textContent = (q && shown !== view.total)
-          ? (shown + ' of ' + view.total + ' ' + noun)
-          : (view.total + ' ' + noun);
-      }
-    });
-    store(STORE_Q, q || null);
-  }
-
-  if (filterInput) {
-    const restored = recall(STORE_Q);
-    if (restored) filterInput.value = restored;
-    filterInput.addEventListener('input', applyFilter);
-    filterInput.addEventListener('search', applyFilter);   // native ✕ clear
-    filterInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && filterInput.value) {
-        e.stopPropagation();                               // don't close the page
-        filterInput.value = '';
-        applyFilter();
-      }
-    });
-  }
-  applyFilter();
-})();
-</script>
+</div>
+</div>
 {% endblock %}

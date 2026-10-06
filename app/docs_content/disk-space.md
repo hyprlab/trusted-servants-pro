@@ -25,7 +25,7 @@ the disk is actually full. This guide explains each one and how to turn them on
 for an install that predates them.
 
 !!! note "New installs are already protected"
-    If you ran the [one-command installer](/docs/installation#path-a-one-command-installer-production-https)
+    If you ran the [one-command installer](installation.md#path-a-one-command-installer-production-and-https)
     or used the production [`docker-compose.deploy.yml`](https://github.com/hyprlab/trusted-servants-pro/blob/main/docker-compose.deploy.yml),
     every safeguard below is already in place. The section on
     [adopting them on an older install](#adopting-the-safeguards-on-an-existing-install)
@@ -141,7 +141,7 @@ hosts is a small tmpfs or a space-constrained overlay. This is why a healthy
 data volume matters for backups, not just for stored content.
 
 If you mount a dedicated scratch disk and would rather stage there, point
-`TSP_TMP_DIR` at it (see [Configuration](/docs/configuration#environment-variables)).
+`TSP_TMP_DIR` at it (see [Configuration](configuration.md#environment-variables)).
 If the directory you choose isn't writable, the portal falls back to the system
 temp dir automatically.
 
@@ -177,10 +177,10 @@ docker compose ps             # you should see tspro and tspro-prune
 
 ## Next steps
 
-- [Installation](/docs/installation) — the production installer and the Compose
+- [Installation](installation.md) — the production installer and the Compose
   path, both of which set these safeguards up.
-- [Configuration &amp; Security](/docs/configuration) — every environment
+- [Configuration &amp; Security](configuration.md) — every environment
   variable, including `TSP_TMP_DIR`.
-- [Backup &amp; Restore](/docs/backup-restore) — local exports and restores.
-- [Off-site Backups with TS Pro Backup](/docs/tspro-backup) — encrypted,
+- [Backup &amp; Restore](backup-restore.md) — local exports and restores.
+- [Off-site Backups with TS Pro Backup](tspro-backup.md) — encrypted,
   scheduled, off-machine backups.

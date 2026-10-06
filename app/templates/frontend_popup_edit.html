@@ -1,10 +1,12 @@
 {% extends "base.html" %}
+{% from "_live_preview.html" import live_preview %}
+{% from "_help_chip.html" import chip, hrow %}
+{% from "_item_picker.html" import item_picker %}
 {% from "_frontend_structure_card.html" import structure_page_tree, structure_orphans_card, structure_block_palette %}
 {% block heading %}Edit popup{% endblock %}
 {% block heading_help %}Triggered from <code>#{{ popup.name }}</code>.{% endblock %}
 
 {% block top_actions %}
-<a class="btn" href="{{ url_for('main.frontend_popups') }}">← All popups</a>
 <a class="btn btn-primary" href="{{ url_for('frontend.popup_preview', popup_id=popup.id) }}"
    target="_blank" rel="noopener"
    title="Open a preview of the saved popup (works while disabled)">Preview ↗</a>
@@ -39,56 +41,6 @@
   {% include "_frontend_subnav.html" %}
   <div class="fe-admin-main">
 
-    {%- set _status = 'enabled' if popup.is_enabled else 'disabled' -%}
-    <div class="fe-page-edit-title-banner">
-      <div class="fe-page-edit-title-banner-eyebrow muted smaller">Editing popup</div>
-      <h1 class="fe-page-edit-title-banner-title">{{ popup.title }}</h1>
-      <div class="fe-page-edit-title-banner-meta muted smaller">
-        <code>#{{ popup.name }}</code>
-        {% if popup.is_enabled %}
-          · <span class="post-chip post-chip-online">Enabled</span>
-        {% else %}
-          · <span class="post-chip post-chip-draft">Disabled</span>
-        {% endif %}
-      </div>
-    </div>
-
-    {# Trigger hint — how to fire this popup from anywhere on the site. #}
-    <section class="card fe-popup-trigger-card">
-      <p class="muted small" style="margin: 0;">
-        Open this popup from any link or button pointing at
-        <code>#{{ popup.name }}</code> — for example
-        <code>&lt;a href="#{{ popup.name }}"&gt;Sign up&lt;/a&gt;</code>,
-        a navigation link set to <code>#{{ popup.name }}</code>, or any element with
-        <code>data-popup="{{ popup.name }}"</code>. Visiting a URL ending in
-        <code>#{{ popup.name }}</code> opens it too.
-      </p>
-    </section>
-
-    {# ── Content: the page-builder structure card + draggable pills ──
-       Same drag-and-drop interface as content pages. The floating
-       "Add block" palette (blue FAB, bottom-right) drops new blocks;
-       clicking a pill opens the BlockEditor modal focused on it. Driven
-       by page_structure.js, which keys off the shared element IDs below
-       (#page-blocks-json / #page-editor-root / #page-layout-edit-modal). #}
-    <section class="card fe-page-structure">
-      <div class="card-head">
-        <h2>Content</h2>
-        <span class="muted smaller">Drag pills to rearrange. Drag from the “Add block” palette
-          (bottom-right) to drop in new blocks. Click any pill to edit its content.</span>
-      </div>
-      {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
-                             _PAGE_BLOCK_LABELS, _editable,
-                             block_previews, block_payloads) }}
-    </section>
-
-    {# Self-hiding "Unplaced blocks" bin — only appears if removing a
-       container leaves its children unplaced (drag them back in). #}
-    {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
-                              _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
-
-    {{ structure_block_palette(popup_block_catalog) }}
-
     {# ── Popup settings form ────────────────────────────────────────
        The hidden #page-blocks-json input lives here so a save round-trips
        both the block content (written by page_structure.js / the modal
@@ -99,176 +51,170 @@
       <input type="hidden" name="popup_id" value="{{ popup.id }}">
       <input type="hidden" name="blocks_json" id="page-blocks-json">
 
-      <section class="card fe-page-settings-card">
-        <div class="card-head"><h2>Popup settings</h2></div>
-
-        <div class="fe-page-settings-section">
-          <div class="form-grid">
-            <label>Name
-              <input type="text" name="title" required maxlength="200"
-                     value="{{ popup.title }}" autocomplete="off">
-            </label>
-            <label>Trigger handle
-              <span class="fe-popup-handle-field">
-                <span class="fe-popup-handle-hash">#</span>
-                <input type="text" name="name" maxlength="120" value="{{ popup.name }}"
-                       autocomplete="off" pattern="[A-Za-z0-9\- ]*">
-              </span>
-              <span class="muted smaller">The <code>#name</code> selector that opens this popup.</span>
-            </label>
+      {% macro sw(name, label, on, id='') %}
+        <label class="mode-toggle pop-switch"{% if id %} id="{{ id }}-label"{% endif %}>
+          <input type="checkbox" name="{{ name }}" value="1" {% if on %}checked{% endif %}{% if id %} id="{{ id }}"{% endif %}>
+          <span class="mode-track"><span class="mode-thumb"></span></span><span>{{ label }}</span>
+        </label>
+      {% endmacro %}
+      <section class="card st-studio fe-page-settings-card" data-studio="popup" data-no-collapse>
+        <div class="card-head st-pick-head">
+          {{ item_picker('Popup', popup.title, picker_groups, code='#' ~ popup.name, aria='Choose a popup',
+                         actions=[{'modal': 'new-popup-modal', 'label': 'New popup', 'icon': 'plus'}]) }}
+          <div class="st-actions">
+            {% if popup.is_enabled %}<span class="post-chip post-chip-online">On</span>{% else %}<span class="post-chip post-chip-draft">Off</span>{% endif %}
+            <button type="submit" form="fe-delete-popup" class="btn ol-danger" title="Delete this popup">{{ icon('trash') }} Delete</button>
+            {% call chip('Popup') %}The preview shows the popup open over a page, with unsaved changes. Save with the yellow bar.{% endcall %}
           </div>
-          <div class="fe-popup-status-row" style="margin-top: 12px;">
-            <span class="muted smaller">Status</span>
-            <label class="fe-inline-radio">
-              <input type="radio" name="status" value="enabled"
-                     {% if popup.is_enabled %}checked{% endif %}> Enabled
-            </label>
-            <label class="fe-inline-radio">
-              <input type="radio" name="status" value="disabled"
-                     {% if not popup.is_enabled %}checked{% endif %}> Disabled
-            </label>
+          <p class="muted small st-pick-about">Opens from any link to <code>#{{ popup.name }}</code>, such as <code>&lt;a href="#{{ popup.name }}"&gt;Sign up&lt;/a&gt;</code> or a menu link set to <code>#{{ popup.name }}</code>, from any element with <code>data-popup="{{ popup.name }}"</code>, and from an address ending in <code>#{{ popup.name }}</code>.</p>
+        </div>
+        <div class="st-body st-body--split">
+          <div class="st-controls">
+            <div class="st-seg-scroll" data-seg-scroll>
+              <nav class="st-seg" role="tablist" aria-label="Popup settings">
+                <button type="button" role="tab" data-studio-tab="popup">{{ icon('message-square') }}<span>Popup</span></button>
+                <button type="button" role="tab" data-studio-tab="box">{{ icon('square') }}<span>Box</span></button>
+                <button type="button" role="tab" data-studio-tab="backdrop">{{ icon('layers') }}<span>Backdrop</span></button>
+                <button type="button" role="tab" data-studio-tab="behavior">{{ icon('mouse-pointer-click') }}<span>Open and close</span></button>
+              </nav>
+            </div>
+            <div class="st-panel" data-studio-panel="popup">
+              <div class="ds-group st-group-body">
+                <label class="st-field"><span>Name</span>
+                  <input type="text" name="title" required maxlength="200" value="{{ popup.title }}" autocomplete="off">
+                </label>
+                <label class="st-field"><span>Opened by {% call chip('Opened by') %}Any link to <code>#{{ popup.name }}</code> opens this popup: a menu link, a button, or any element with <code>data-popup="{{ popup.name }}"</code>.{% endcall %}</span>
+                  <span class="fe-popup-handle-field">
+                    <span class="fe-popup-handle-hash">#</span>
+                    <input type="text" name="name" maxlength="120" value="{{ popup.name }}" autocomplete="off" pattern="[A-Za-z0-9\- ]*">
+                  </span>
+                </label>
+                <div class="st-field"><span>Status</span>
+                  <div class="ds-seg-btns" role="radiogroup" aria-label="Status">
+                    <label><input type="radio" name="status" value="enabled" {% if popup.is_enabled %}checked{% endif %}><span>On</span></label>
+                    <label><input type="radio" name="status" value="disabled" {% if not popup.is_enabled %}checked{% endif %}><span>Off</span></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="st-panel" data-studio-panel="box" hidden>
+              <div class="ds-group st-group-body">
+                <h3 class="ds-group-title">{{ icon('maximize') }}Size</h3>
+                <label class="st-field"><span>Width <output id="popup-width-out">{{ popup.width }}px</output></span>
+                  <input type="range" name="width" id="popup-width" min="200" max="1200" step="10" value="{{ popup.width }}">
+                </label>
+                <label class="st-field"><span>At most <output id="popup-maxw-out">{{ popup.max_width_pct }}%</output> of the screen width</span>
+                  <input type="range" name="max_width_pct" id="popup-maxw" min="30" max="100" step="1" value="{{ popup.max_width_pct }}">
+                </label>
+                <label class="st-field"><span>Height</span>
+                  <select name="height_mode" id="popup-height-mode">
+                    <option value="auto" {% if popup.height_mode == 'auto' %}selected{% endif %}>Fit the content</option>
+                    <option value="fixed" {% if popup.height_mode == 'fixed' %}selected{% endif %}>Fixed</option>
+                  </select>
+                </label>
+                <label class="st-field" id="popup-height-field" {% if popup.height_mode != 'fixed' %}style="display:none;"{% endif %}><span>Fixed height <output id="popup-height-out">{{ popup.height }}px</output></span>
+                  <input type="range" name="height" id="popup-height" min="120" max="2000" step="10" value="{{ popup.height }}">
+                </label>
+                <label class="st-field"><span>Inner padding <output id="popup-pad-out">{{ popup.padding }}px</output></span>
+                  <input type="range" name="padding" id="popup-pad" min="0" max="160" step="2" value="{{ popup.padding }}">
+                </label>
+                <label class="st-field"><span>Corner radius <output id="popup-radius-out">{{ popup.border_radius }}px</output></span>
+                  <input type="range" name="border_radius" id="popup-radius" min="0" max="80" step="1" value="{{ popup.border_radius }}">
+                </label>
+                <label class="st-field"><span>Position on the screen</span>
+                  <select name="position">
+                    <option value="center" {% if popup.position == 'center' %}selected{% endif %}>Center</option>
+                    <option value="top" {% if popup.position == 'top' %}selected{% endif %}>Top</option>
+                    <option value="bottom" {% if popup.position == 'bottom' %}selected{% endif %}>Bottom</option>
+                  </select>
+                </label>
+              </div>
+              <div class="ds-group st-group-body">
+                <h3 class="ds-group-title">{{ icon('droplet') }}Look</h3>
+                <div class="st-grid2">
+                  <label class="st-field"><span>Background</span><input type="color" name="bg_color" value="{{ popup.bg_color or '#ffffff' }}"></label>
+                  <label class="st-field"><span>Shadow</span>
+                    <select name="shadow">
+                      {% for key, lbl in [('none', 'None'), ('sm', 'Small'), ('md', 'Medium'), ('lg', 'Large'), ('xl', 'Extra large')] %}
+                      <option value="{{ key }}" {% if popup.shadow == key %}selected{% endif %}>{{ lbl }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                </div>
+                <label class="mode-toggle pop-switch"><input type="checkbox" id="popup-dark-toggle" {% if popup.bg_color_dark %}checked{% endif %}><span class="mode-track"><span class="mode-thumb"></span></span><span>A different background in dark mode</span></label>
+                <label class="st-field"><span>Dark mode background</span>
+                  <input type="color" name="bg_color_dark" id="popup-bg-dark" value="{{ popup.bg_color_dark or '#1e293b' }}" {% if not popup.bg_color_dark %}disabled{% endif %}>
+                </label>
+              </div>
+            </div>
+
+            <div class="st-panel" data-studio-panel="backdrop" hidden>
+              <div class="ds-group st-group-body">
+                {{ sw('overlay_enabled', 'Dim the page behind the popup', popup.overlay_enabled) }}
+                <div class="st-grid2">
+                  <label class="st-field"><span>Color</span><input type="color" name="overlay_color" value="{{ popup.overlay_color or '#0f172a' }}"></label>
+                  <label class="st-field"><span>Strength <output id="popup-overlay-out">{{ popup.overlay_opacity }}%</output></span>
+                    <input type="range" name="overlay_opacity" id="popup-overlay" min="0" max="100" step="5" value="{{ popup.overlay_opacity }}">
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="st-panel" data-studio-panel="behavior" hidden>
+              <div class="ds-group st-group-body">
+                <h3 class="ds-group-title">{{ icon('play') }}Opening</h3>
+                {{ sw('auto_open', 'Open by itself when a page loads', popup.auto_open, 'popup-auto-open') }}
+                <label class="st-field" id="popup-auto-delay-field" {% if not popup.auto_open %}style="display:none;"{% endif %}><span>After this many milliseconds (3000 is 3 seconds)</span>
+                  <input type="number" name="auto_open_delay" min="0" max="60000" step="100" value="{{ popup.auto_open_delay }}">
+                </label>
+                {{ sw('show_desktop', 'On computers', popup.show_desktop) }}
+                {{ sw('show_mobile', 'On phones', popup.show_mobile) }}
+                {{ sw('mobile_full_width', 'Full width on phones', popup.mobile_full_width) }}
+              </div>
+              <div class="ds-group st-group-body">
+                <h3 class="ds-group-title">{{ icon('x') }}Closing</h3>
+                {{ sw('show_close_button', 'Show a close button', popup.show_close_button) }}
+                {{ sw('close_on_overlay', 'Close when the dimmed page is clicked', popup.close_on_overlay) }}
+              </div>
+            </div>
           </div>
-        </div>
-
-        {# ── Size & spacing ── #}
-        <div class="fe-page-settings-section">
-          <h3 class="fe-page-settings-sub">Size &amp; spacing</h3>
-          <div class="form-grid">
-            <label>Width <output id="popup-width-out">{{ popup.width }}px</output>
-              <input type="range" name="width" id="popup-width" min="200" max="1200" step="10"
-                     value="{{ popup.width }}">
-            </label>
-            <label>Max width <output id="popup-maxw-out">{{ popup.max_width_pct }}%</output>
-              <span class="muted smaller">Cap relative to the viewport so wide popups still fit small screens.</span>
-              <input type="range" name="max_width_pct" id="popup-maxw" min="30" max="100" step="1"
-                     value="{{ popup.max_width_pct }}">
-            </label>
-            <label>Height
-              <select name="height_mode" id="popup-height-mode">
-                <option value="auto" {% if popup.height_mode == 'auto' %}selected{% endif %}>Auto (fit content)</option>
-                <option value="fixed" {% if popup.height_mode == 'fixed' %}selected{% endif %}>Fixed</option>
-              </select>
-            </label>
-            <label id="popup-height-field" {% if popup.height_mode != 'fixed' %}style="display:none;"{% endif %}>
-              Fixed height <output id="popup-height-out">{{ popup.height }}px</output>
-              <input type="range" name="height" id="popup-height" min="120" max="2000" step="10"
-                     value="{{ popup.height }}">
-            </label>
-            <label>Inner padding <output id="popup-pad-out">{{ popup.padding }}px</output>
-              <input type="range" name="padding" id="popup-pad" min="0" max="160" step="2"
-                     value="{{ popup.padding }}">
-            </label>
-            <label>Corner radius <output id="popup-radius-out">{{ popup.border_radius }}px</output>
-              <input type="range" name="border_radius" id="popup-radius" min="0" max="80" step="1"
-                     value="{{ popup.border_radius }}">
-            </label>
+          <div class="st-preview">
+            {{ live_preview(url_for('frontend.popup_preview', popup_id=popup.id), '#popup-edit-form', height=640, width=1280,
+                            title='Popup preview', overlays='popups', watch=True) }}
           </div>
-        </div>
-
-        {# ── Appearance ── #}
-        <div class="fe-page-settings-section">
-          <h3 class="fe-page-settings-sub">Appearance</h3>
-          <div class="form-grid">
-            <label>Background colour
-              <input type="color" name="bg_color" value="{{ popup.bg_color or '#ffffff' }}">
-            </label>
-            <label>
-              <span class="fe-popup-dark-toggle">
-                <input type="checkbox" id="popup-dark-toggle"
-                       {% if popup.bg_color_dark %}checked{% endif %}>
-                Different colour in dark mode
-              </span>
-              <input type="color" name="bg_color_dark" id="popup-bg-dark"
-                     value="{{ popup.bg_color_dark or '#1e293b' }}"
-                     {% if not popup.bg_color_dark %}disabled{% endif %}>
-            </label>
-            <label>Shadow
-              <select name="shadow">
-                {% for key in ['none','sm','md','lg','xl'] %}
-                <option value="{{ key }}" {% if popup.shadow == key %}selected{% endif %}>{{ key|upper if key != 'none' else 'None' }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>Position
-              <select name="position">
-                <option value="center" {% if popup.position == 'center' %}selected{% endif %}>Centre</option>
-                <option value="top" {% if popup.position == 'top' %}selected{% endif %}>Top</option>
-                <option value="bottom" {% if popup.position == 'bottom' %}selected{% endif %}>Bottom</option>
-              </select>
-            </label>
-          </div>
-        </div>
-
-        {# ── Overlay ── #}
-        <div class="fe-page-settings-section">
-          <h3 class="fe-page-settings-sub">Backdrop</h3>
-          <label class="fe-popup-check">
-            <input type="checkbox" name="overlay_enabled" value="1"
-                   {% if popup.overlay_enabled %}checked{% endif %}>
-            Dim the page behind the popup
-          </label>
-          <div class="form-grid" style="margin-top: 10px;">
-            <label>Backdrop colour
-              <input type="color" name="overlay_color" value="{{ popup.overlay_color or '#0f172a' }}">
-            </label>
-            <label>Backdrop opacity <output id="popup-overlay-out">{{ popup.overlay_opacity }}%</output>
-              <input type="range" name="overlay_opacity" id="popup-overlay" min="0" max="100" step="5"
-                     value="{{ popup.overlay_opacity }}">
-            </label>
-          </div>
-        </div>
-
-        {# ── Responsiveness ── #}
-        <div class="fe-page-settings-section">
-          <h3 class="fe-page-settings-sub">Responsiveness</h3>
-          <label class="fe-popup-check">
-            <input type="checkbox" name="show_desktop" value="1"
-                   {% if popup.show_desktop %}checked{% endif %}>
-            Show on desktop
-          </label>
-          <label class="fe-popup-check">
-            <input type="checkbox" name="show_mobile" value="1"
-                   {% if popup.show_mobile %}checked{% endif %}>
-            Show on mobile
-          </label>
-          <label class="fe-popup-check">
-            <input type="checkbox" name="mobile_full_width" value="1"
-                   {% if popup.mobile_full_width %}checked{% endif %}>
-            Fill the screen width on phones
-          </label>
-        </div>
-
-        {# ── Behaviour ── #}
-        <div class="fe-page-settings-section">
-          <h3 class="fe-page-settings-sub">Behaviour</h3>
-          <label class="fe-popup-check">
-            <input type="checkbox" name="close_on_overlay" value="1"
-                   {% if popup.close_on_overlay %}checked{% endif %}>
-            Close when the backdrop is clicked
-          </label>
-          <label class="fe-popup-check">
-            <input type="checkbox" name="show_close_button" value="1"
-                   {% if popup.show_close_button %}checked{% endif %}>
-            Show a close (×) button
-          </label>
-          <label class="fe-popup-check">
-            <input type="checkbox" name="auto_open" id="popup-auto-open" value="1"
-                   {% if popup.auto_open %}checked{% endif %}>
-            Open automatically on page load
-          </label>
-          <label id="popup-auto-delay-field" {% if not popup.auto_open %}style="display:none;"{% endif %}>
-            Delay before auto-opening
-            <span class="muted smaller">Milliseconds (e.g. 3000 = 3&nbsp;seconds).</span>
-            <input type="number" name="auto_open_delay" min="0" max="60000" step="100"
-                   value="{{ popup.auto_open_delay }}">
-          </label>
         </div>
       </section>
 
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Save popup</button>
-      </div>
+      {# The yellow save bar saves the popup. #}
     </form>
+
+    {# ── Content: the page-builder structure card + draggable pills ──
+       Same drag-and-drop interface as content pages, with the block
+       library docked beside the tree; clicking a pill opens the
+       BlockEditor modal focused on it. Driven
+       by page_structure.js, which keys off the shared element IDs below
+       (#page-blocks-json / #page-editor-root / #page-layout-edit-modal). #}
+    <section class="card fe-page-structure">
+      <div class="card-head">
+        <h2>Content {% call chip('Content') %}Click a block to edit it, and drag it to move it. Add blocks from the list beside the structure: click one to add it at the end, or drag it into place.{% endcall %}</h2>
+      </div>
+      <div class="fe-structure-split">
+        <div class="fe-structure-main">
+      {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
+                             _PAGE_BLOCK_LABELS, _editable,
+                             block_previews, block_payloads) }}
+        </div>
+        {{ structure_block_palette(popup_block_catalog) }}
+      </div>
+    </section>
+
+    {# Self-hiding "Unplaced blocks" bin — only appears if removing a
+       container leaves its children unplaced (drag them back in). #}
+    {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
+                              _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
+
+
   </div>
 </div>
 
@@ -538,4 +484,12 @@ window.tspDesignColorTokens = {
   }
 })();
 </script>
+<script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+{# "Delete" in the card head submits this. #}
+<form method="post" action="{{ url_for('main.frontend_popup_delete', popup_id=popup.id) }}" id="fe-delete-popup" hidden
+      onsubmit="return confirm('Delete the popup “{{ popup.title|e }}”? Links to #{{ popup.name|e }} will do nothing.');">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% include "_new_popup_modal.html" %}
 {% endblock %}

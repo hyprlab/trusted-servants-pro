@@ -1,428 +1,285 @@
 {% extends "base.html" %}
-{# Show a "?" help-tooltip next to the title on Intergroup-flagged
-   libraries when the current user is outside the editing scope (i.e.
-   not admin, not intergroup_member). Reuses base.html's `heading_help`
-   block so the tooltip matches the rest of the app's heading-help
-   pattern (button + popover, not a native title attribute). #}
-{% set _is_protected_ig = library.is_intergroup %}
-{% set _show_perm_help = _is_protected_ig and not current_user.can_edit_library(library) %}
-{% block heading %}{{ library.name }}{% endblock %}
-{% if _show_perm_help %}
-{% block heading_help %}This library is gated to admins and the Intergroup Member role. You can view its contents but cannot add, edit, reorder, or delete readings here — ask an admin to update your role or to apply the changes for you.{% endblock %}
-{% endif %}
-{% block top_actions %}
-  {% if current_user.can_edit_library(library) %}
-  <button type="button" class="btn" data-open-modal="library-import-modal">Import Multiple</button>
-  <button type="button" class="btn btn-primary" data-open-modal="add-library-file-modal">+ Add Item</button>
-  {% endif %}
-  {% if current_user.can_manage_libraries() and current_user.can_edit_library(library) %}
-  <button type="button" class="btn btn-primary" data-open-modal="library-edit-modal">Edit</button>
-  {% endif %}
-  {% if current_user.is_admin() %}
-  <form method="post" action="{{ url_for('main.library_delete', slug=library.public_slug) }}" onsubmit="return confirm('Delete this library?');" style="display:inline">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn btn-danger">Delete</button>
-  </form>
-  {% endif %}
-{% endblock %}
-{% block flashes %}{% endblock %}
-{% block content %}
-{% if library.description %}<p class="lib-desc muted">{{ library.description }}</p>{% endif %}
-{% if library.alert_message %}
-<div class="alert-banner" role="alert">{{ library.alert_message }}</div>
-{% endif %}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-  <div class="flashes">
-    {% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}
-  </div>
-  {% endif %}
-{% endwith %}
-
-{% set rs = library.items.all() %}
+{% from "_row_menu.html" import row_menu %}
+{% from "_list_page.html" import search_form, side_link, sort_link, view_switch, bulk_bar %}
 {% set can_edit = current_user.can_edit_library(library) %}
 {% set is_ig = library.is_intergroup %}
-<section class="card"{% if is_ig %} data-ig-library{% endif %}>
-  <div class="card-head"><h2>Files</h2></div>
-  {% if is_ig %}
-  {# Intergroup-only toolbar: live search, category filter pills, and
-     sort selector. The reading rows below carry data-* attributes that
-     the JS in app.js reads to drive client-side filtering, sorting, and
-     search. Manual drag-reorder is suppressed on Intergroup libraries —
-     a chosen sort would just collide with the saved positions. #}
-  <div class="ig-lib-toolbar">
-    <div class="ig-lib-search">
-      <input type="search" placeholder="Search files…" data-ig-search aria-label="Search files in this library">
-    </div>
-    <div class="ig-lib-sort">
-      <label class="muted smaller">Sort
-        <select data-ig-sort>
-          <option value="manual">Custom order</option>
-          <option value="name-asc" selected>Name (A → Z)</option>
-          <option value="name-desc">Name (Z → A)</option>
-          <option value="date-desc">Date added (newest)</option>
-          <option value="date-asc">Date added (oldest)</option>
-          <option value="type-asc">File type</option>
-        </select>
-      </label>
-    </div>
-    {% if library.categories %}
-    <div class="ig-lib-filter" role="group" aria-label="Filter by category">
-      <button type="button" class="chip chip-active" data-ig-filter="all">All</button>
-      {% for c in library.categories %}
-      <button type="button" class="chip" data-ig-filter="{{ c.id }}">{{ c.name }}</button>
-      {% endfor %}
-    </div>
-    {% endif %}
-  </div>
-  <p class="ig-lib-empty muted small" data-ig-empty hidden>No files match your search or filter.</p>
-  {% endif %}
-  {% if can_edit and rs %}
-  {# Multi-select bulk-action bar — shown to anyone with library edit
-     authority. The action button only enables once at least one
-     bulk-editable row is checked; per-row checkboxes only render on
-     rows where ``can_bulk_edit_categories`` returns True (which
-     mirrors the per-reading deletion gate), so editors with limited
-     deletion authority literally can't multi-select rows that aren't
-     theirs. The "Edit categories" modal trigger is gated on the
-     library actually having categories defined. #}
-  <div class="lib-bulk-bar" data-bulk-bar>
-    <label class="lib-bulk-select-all">
-      <input type="checkbox" data-bulk-select-all aria-label="Select all">
-      <span>Select all</span>
-    </label>
-    <span class="muted smaller" data-bulk-count>0 selected</span>
-    <div class="lib-bulk-bar-actions">
-    {% if library.categories %}
-    <button type="button" class="btn btn-sm btn-primary"
-            data-open-modal="library-bulk-categories-modal"
-            data-bulk-action disabled>Edit categories</button>
-    {% endif %}
-    <button type="button" class="btn btn-sm btn-danger"
-            data-bulk-delete
-            data-bulk-delete-url="{{ url_for('main.library_readings_bulk_delete', slug=library.public_slug) }}"
-            disabled>Delete</button>
-    </div>
-  </div>
-  {% endif %}
-  {% if rs %}
-  {# Drag-reorder is disabled on Intergroup libraries: the toolbar's
-     sort selector overrides positional ordering, so leaving rows
-     draggable would mislead admins into "saving" an order that the
-     client-side sort then undoes. #}
-  <ul class="file-list{% if can_edit and not is_ig %} file-list-sortable{% endif %}"
-      data-ig-list
-      {% if can_edit and not is_ig %}data-reorder-url="{{ url_for('main.library_readings_reorder', slug=library.public_slug) }}"
-       data-reorder-manual="1" data-reorder-savebar="1"{% endif %}>
-    {% for r in rs %}
-    {% set edit_id = 'edit-library-file-' ~ r.id %}
-    {% set _is_body_only = not r.stored_filename and not r.url and r.body %}
-    {% set _ft = 'text' if _is_body_only else (r|file_type) %}
-    {% set _date_iso = (r.created_at.strftime('%Y-%m-%dT%H:%M:%S') if r.created_at else '') %}
-    {% set _cat_ids = (r.categories | map(attribute='id') | list) %}
-    <li data-item-id="{{ r.id }}"
-        data-name="{{ r.title|lower }}"
-        data-date="{{ _date_iso }}"
-        data-type="{{ _ft }}"
-        data-search="{{ r.title|lower }}{% if r.original_filename %} {{ r.original_filename|lower }}{% endif %}{% for c in r.categories %} {{ c.name|lower }}{% endfor %}"
-        data-categories="{% for cid in _cat_ids %}{{ cid }}{% if not loop.last %},{% endif %}{% endfor %}"
-        {% if can_edit and not is_ig %}draggable="true"{% endif %}>
-      {% if can_edit and current_user.can_bulk_edit_categories(r) %}
-      <label class="lib-row-select" aria-label="Select for bulk edit">
-        <input type="checkbox" data-bulk-select value="{{ r.id }}">
-      </label>
-      {% endif %}
-      {% if can_edit and not is_ig %}<span class="drag-handle" aria-hidden="true">{{ icon('grip-vertical') }}</span>{% endif %}
-      {% if r.thumbnail_filename %}
-      <img class="reading-thumb" src="{{ url_for('main.reading_thumbnail', rid=r.id) }}" alt="">
-      {% else %}
-      <span class="ftype ftype-{{ _ft }}" aria-label="{{ _ft }}">{{ _ft|upper }}</span>
-      {% endif %}
-      <div class="file-main">
-        {% if _is_body_only %}
-        <a href="#" data-reading-lightbox="{{ r.id }}" data-reading-title="{{ r.title }}">{{ r.title }}</a>
-        <template data-reading-content="{{ r.id }}">{{ r.body|markdown }}</template>
-        {% else %}
-        <a href="{% if r.stored_filename %}{{ url_for('public.public_file', filename=r.original_filename) }}{% elif r.url %}{{ r.url }}{% else %}{{ url_for('main.reading_view', rid=r.id) }}{% endif %}" target="_blank" rel="noopener">{{ r.title }}</a>
-        {% endif %}
-        {% if r.original_filename %}<div class="muted smaller">{{ r.original_filename }}</div>{% endif %}
-        {% if r.url %}<div class="muted smaller trunc">{{ r.url }}</div>{% endif %}
-        {% if _is_body_only %}<div class="muted smaller">Text document · {{ r.body|length }} chars</div>{% endif %}
-        {% if is_ig and r.categories %}
-        <div class="ig-cat-chips">
-          {% for c in r.categories %}<span class="ig-cat-chip" data-cat-id="{{ c.id }}">{{ c.name }}</span>{% endfor %}
-        </div>
-        {% endif %}
-      </div>
-      <div class="row-actions">
-        {# Public-visibility per-item toggle. Only renders when the
-           parent library is itself flagged public (otherwise the
-           toggle would be meaningless — items can't surface on
-           /library if their library isn't there). Posts via fetch
-           to a small JSON endpoint so the toggle is instant — no
-           page reload, no form save bar. Default state is `on` so
-           a library flipped to public publishes everything by
-           default; admins toggle individual rows off to hide. #}
-        {% if can_edit and library.public_visible %}
-        <label class="mode-toggle library-item-public-toggle"
-               title="Show this item on the public Literature Library page">
-          <input type="checkbox"
-                 data-library-item-public
-                 data-toggle-url="{{ url_for('main.library_item_public_toggle', rid=r.id) }}"
-                 {% if r.public_visible %}checked{% endif %}>
-          <span class="mode-track"><span class="mode-thumb"></span></span>
-          <span class="mode-toggle-label muted smaller">Public</span>
-        </label>
-        {% endif %}
-        {% if r.stored_filename %}
-        <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ url_for('public.public_file', filename=r.original_filename) }}">Copy Link</button>
-        {% elif r.url %}
-        <button type="button" class="btn btn-sm btn-copy" data-copy-url="{{ r.url }}">Copy Link</button>
-        {% endif %}
-        {# Editor-tier roles always see Edit/Delete on every row; the
-           buttons grey out + show an explanatory tooltip when the
-           per-row gate denies the action so the role's restriction is
-           visible and not silently surprising. Viewers (who fail the
-           broader ``can_edit`` gate) continue to see no buttons at all. #}
-        {% if can_edit %}
-          {% if current_user.can_edit_library_item(r) %}
-          <button type="button" class="btn btn-sm" data-open-modal="{{ edit_id }}-modal">Edit</button>
-          {% else %}
-          <button type="button" class="btn btn-sm btn-perm-disabled" disabled
-                  title="You don't have permission to edit this file. Editors can only edit files uploaded by another Editor — this file's uploader is at a higher tier (admin or Intergroup Member).">Edit</button>
-          {% endif %}
-          {% if current_user.can_delete_library_item(r) %}
-          <form method="post" action="{{ url_for('main.reading_delete', rid=r.id) }}" onsubmit="return confirm('Delete this file?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-sm btn-danger">{{ icon('x') }}</button>
-          </form>
-          {% else %}
-          <button type="button" class="btn btn-sm btn-danger btn-perm-disabled" disabled
-                  title="You don't have permission to delete this file. Editors can only delete files uploaded by another Editor — only an admin or Intergroup Member can remove this one.">{{ icon('x') }}</button>
-          {% endif %}
-        {% endif %}
-      </div>
-      {% if can_edit and current_user.can_edit_library_item(r) %}
-      {# Default mode picks whichever content slot is non-empty.
-         Precedence: file > body > URL > upload (the empty case). A
-         row carrying both a file and a URL (legacy data) opens in
-         upload mode; switching to link and saving will clear the
-         file by design (see `_apply_reading_form`). #}
-      {% if r.stored_filename %}
-        {% set _default_mode = 'upload' %}
-      {% elif r.body %}
-        {% set _default_mode = 'paste' %}
-      {% elif r.url %}
-        {% set _default_mode = 'link' %}
-      {% else %}
-        {% set _default_mode = 'upload' %}
-      {% endif %}
-      <div class="modal" id="{{ edit_id }}-modal" aria-hidden="true">
-        <div class="modal-backdrop" data-close></div>
-        <div class="modal-panel" role="dialog" aria-modal="true">
-          <form id="{{ edit_id }}" method="post" class="form" enctype="multipart/form-data"
-                action="{{ url_for('main.reading_edit', rid=r.id) }}"
-                data-inline-save data-row-id="{{ r.id }}" data-content-mode-form>
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="modal-head">
-              <h2>Edit Item</h2>
-              <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-            </div>
-            <div class="modal-body">
-              <label>Title<input name="title" required value="{{ r.title }}"></label>
-              <label>Summary <span class="muted small">(optional · up to 500 characters)</span>
-                <textarea name="summary" rows="3" maxlength="500" data-summary-input
-                          placeholder="Short blurb shown next to the title in lists and previews.">{{ r.summary or '' }}</textarea>
-                <div class="summary-counter" data-summary-counter>
-                  <span data-summary-count>500</span>/500 remaining
-                </div></label>
-              <div class="content-mode-toggle content-mode-seg-wrap" data-content-mode-toggle>
-                <input type="hidden" name="content_mode" value="{{ _default_mode }}" data-content-mode-input>
-                <div class="content-mode-seg" role="tablist" aria-label="Content source">
-                  <button type="button" class="content-mode-seg-btn{% if _default_mode == 'upload' %} is-active{% endif %}"
-                          data-content-mode-option="upload" aria-pressed="{{ 'true' if _default_mode == 'upload' else 'false' }}">Upload file / file browser</button>
-                  <button type="button" class="content-mode-seg-btn{% if _default_mode == 'paste' %} is-active{% endif %}"
-                          data-content-mode-option="paste" aria-pressed="{{ 'true' if _default_mode == 'paste' else 'false' }}">Paste / type content</button>
-                  <button type="button" class="content-mode-seg-btn{% if _default_mode == 'link' %} is-active{% endif %}"
-                          data-content-mode-option="link" aria-pressed="{{ 'true' if _default_mode == 'link' else 'false' }}">External link</button>
-                </div>
-              </div>
-              <fieldset class="fieldset" data-content-panel="upload"{% if _default_mode != 'upload' %} hidden{% endif %}>
-                <legend>File <span class="muted small">(PDF, DOC, JPG, PNG, MP4, MOV)</span></legend>
-                {% if r.stored_filename %}
-                <div class="logo-current">
-                  <span class="muted small">{{ r.original_filename }}</span>
-                  <label class="check"><input type="checkbox" name="remove_file" value="1"> Remove</label>
-                </div>
-                {% endif %}
-                <div class="file-input-row">
-                  <input type="file" name="file"
-                         accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4,.mov,application/pdf,image/*,video/*">
-                  <button type="button" class="btn btn-sm" data-media-picker="{{ edit_id }}">File Browser</button>
-                </div>
-              </fieldset>
-              <div data-content-panel="paste"{% if _default_mode != 'paste' %} hidden{% endif %}>
-                <label>Body <span class="muted small">(Markdown supported, opens as a document)</span></label>
-                <div class="md-editor" data-md-editor>
-                  <div class="md-editor-tabs" role="tablist">
-                    <button type="button" class="md-editor-tab active" data-md-tab="write" role="tab">Write</button>
-                    <button type="button" class="md-editor-tab" data-md-tab="preview" role="tab">Preview</button>
-                    <span class="muted smaller md-editor-hint">**bold** · *italic* · # heading · - list</span>
-                  </div>
-                  <div class="md-editor-pane md-editor-pane-write active">
-                    <textarea name="body" rows="8" placeholder="Paste or type content here. Markdown is supported.">{{ r.body or '' }}</textarea>
-                  </div>
-                  <div class="md-editor-pane md-editor-pane-preview">
-                    <div class="md-editor-preview"><p class="muted smaller">Nothing to preview yet.</p></div>
-                  </div>
-                </div>
-              </div>
-              <fieldset class="fieldset" data-content-panel="link"{% if _default_mode != 'link' %} hidden{% endif %}>
-                <legend>External link</legend>
-                <label>URL
-                  <input name="url" type="url" placeholder="https://..." value="{{ r.url or '' }}"></label>
-              </fieldset>
-              <fieldset class="fieldset">
-                <legend>Thumbnail <span class="muted small">(optional)</span></legend>
-                {% if r.thumbnail_filename %}
-                <div class="logo-current">
-                  <img src="{{ url_for('main.reading_thumbnail', rid=r.id) }}" alt="">
-                  <label class="check"><input type="checkbox" name="remove_thumbnail" value="1"> Remove</label>
-                </div>
-                {% endif %}
-                <input type="file" name="thumbnail" accept="image/*">
-              </fieldset>
-              {% if library.categories %}
-              <fieldset class="fieldset">
-                <legend>Categories <span class="muted small">{% if library.is_intergroup and library.categories_required %}(at least one required){% else %}(optional){% endif %}</span></legend>
-                <input type="hidden" name="category_picker" value="1">
-                <div class="ig-cat-picker">
-                  {% set _selected = _cat_ids %}
-                  {% for c in library.categories %}
-                  <label class="check ig-cat-check">
-                    <input type="checkbox" name="category_ids" value="{{ c.id }}"
-                           {% if c.id in _selected %}checked{% endif %}>
-                    <span>{{ c.name }}</span>
-                  </label>
-                  {% endfor %}
-                </div>
-              </fieldset>
-              {% endif %}
-            </div>
-            <div class="modal-foot">
-              <button type="button" class="btn" data-close>Cancel</button>
-              <button type="submit" class="btn btn-primary">Save</button>
-            </div>
-          </form>
-        </div>
-      </div>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}<p class="muted">No files yet.</p>{% endif %}
+{% block heading %}{{ library.name }}
+  {% if library.archived_at %}<span class="post-chip post-chip-header">Archived</span>{% endif %}
+{% endblock %}
+{% if is_ig and not can_edit %}
+{% block heading_help %}This library is open to admins and the Intergroup Member role for changes. You can read and download its files, but not add, change or delete them.{% endblock %}
+{% endif %}
+{% block top_actions %}{% endblock %}
+{% block content %}
+{# The library's files in the File Browser layout (routes._library_page):
+   a sidebar of search, filters with counts, sort and view, beside the
+   list. Every link keeps the page's settings and changes only what it
+   passes in `over`. #}
+{% set _home = url_for('main.intergroup_library_detail', slug=library.public_slug) if is_ig else url_for('main.library_detail', slug=library.public_slug) %}
+{% set _base = {'q': q or None, 'cat': cat, 'kind': kind or None, 'public': public or None,
+                'sort': sort if sort != default_sort else None, 'view': view} %}
+{% macro _url(over={}) -%}
+  {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}
+  {%- set _q = [] -%}{%- for k, v in _u.items() if v is not none and v != '' -%}{%- set _ = _q.append(k ~ '=' ~ (v|string|urlencode)) -%}{%- endfor -%}
+  {{ _home }}{{ ('?' ~ _q|join('&')) if _q }}
+{%- endmacro %}
+{% set _skey, _sdir = sort.rsplit('_', 1) %}
+{% set SORT_FIRST_DIR = {'custom': 'asc', 'name': 'asc', 'added': 'desc', 'kind': 'asc'} %}
+{% macro _sort(key, label) -%}
+  {%- set _on = _skey == key -%}
+  {%- set _next = ('asc' if _sdir == 'desc' else 'desc') if (_on and key != 'custom') else SORT_FIRST_DIR[key] -%}
+  {{ sort_link(_url({'sort': key ~ '_' ~ _next}), label, _on, _sdir) }}
+{%- endmacro %}
+{% macro _sort_th(key, label, cls='') -%}
+  <th class="{{ cls }}"{% if _skey == key %} aria-sort="{{ 'ascending' if _sdir == 'asc' else 'descending' }}"{% endif %}>{{ _sort(key, label) }}</th>
+{%- endmacro %}
+{% macro _plural(n, one, many) %}{{ n }} {{ one if n == 1 else many }}{% endmacro %}
+{% set KIND_LABEL = {'doc': 'Document', 'img': 'Image', 'vid': 'Video', 'aud': 'Audio', 'link': 'Link', 'text': 'Text'} %}
+{% set KIND_ICON = {'doc': 'file-text', 'img': 'image', 'vid': 'video', 'aud': 'music', 'link': 'link', 'text': 'type'} %}
 
-  {% if can_edit %}
-  <div class="card-foot">
-    <button type="button" class="btn btn-sm" data-open-modal="add-library-file-modal">+ Add Item</button>
-    <button type="button" class="btn btn-sm" data-open-modal="library-import-modal">Import Multiple</button>
+{# Where a file opens, and the link to copy. #}
+{% macro _href(r) -%}
+  {%- if r.stored_filename -%}{{ url_for('public.public_file', filename=r.original_filename) }}
+  {%- elif r.url -%}{{ r.url }}
+  {%- else -%}{{ url_for('main.reading_view', rid=r.id) }}{%- endif -%}
+{%- endmacro %}
+{% macro _open_link(r, cls) -%}
+  {%- if item_kind[r.id] == 'text' -%}
+  <a class="{{ cls }}" href="#" data-reading-lightbox="{{ r.id }}" data-reading-title="{{ r.title }}">{{ r.title }}</a>
+  {%- else -%}
+  <a class="{{ cls }}" href="{{ _href(r) }}" target="_blank" rel="noopener">{{ r.title }}{% if is_offsite(r.url if not r.stored_filename else '') %}{{ icon('external-link', 'link-out') }}<span class="sr-only"> (opens another site)</span>{% endif %}</a>
+  {%- endif -%}
+{%- endmacro %}
+{# A file's picture: its own thumbnail, the image itself, or its kind. #}
+{% macro _thumb(r, big=False) %}
+  {% set k = item_kind[r.id] %}
+  {% if r.thumbnail_filename %}
+  <span class="lst-thumb lst-thumb--photo has-img" aria-hidden="true"><img src="{{ url_for('main.reading_thumbnail', rid=r.id) }}" alt="" loading="lazy" onerror="this.parentNode.classList.add('is-broken')">{{ icon(KIND_ICON[k]) }}</span>
+  {% elif k == 'img' and r.original_filename %}
+  <span class="lst-thumb lst-thumb--photo has-img" aria-hidden="true"><img src="{{ url_for('public.public_file', filename=r.original_filename) }}" alt="" loading="lazy" onerror="this.parentNode.classList.add('is-broken')">{{ icon('image') }}</span>
+  {% else %}
+  <span class="lst-thumb lst-thumb--kind lst-kind-{{ k }}" aria-hidden="true">{{ icon(KIND_ICON[k]) }}</span>
+  {% endif %}
+{% endmacro %}
+{% macro _cats(r) %}
+  {% if r.categories %}<div class="lst-chips lib-cats">{% for c in r.categories %}<span class="lib-cat">{{ c.name }}</span>{% endfor %}</div>{% endif %}
+{% endmacro %}
+{% macro _sub(r) %}
+  {% if r.summary %}{{ r.summary }}
+  {% elif r.original_filename and r.original_filename != r.title %}{{ r.original_filename }}
+  {% elif r.url %}{{ r.url }}
+  {% elif item_kind[r.id] == 'text' %}Text document{% endif %}
+{% endmacro %}
+{% macro _actions(r, compact=False) %}
+  {% call row_menu('Actions' if not compact else 'Actions for ' ~ r.title, compact=compact) %}
+    {% if item_kind[r.id] == 'text' %}
+    <a class="row-menu-item" href="#" data-reading-lightbox="{{ r.id }}" data-reading-title="{{ r.title }}">{{ icon('eye') }}<span>Read</span></a>
+    {% else %}
+    <a class="row-menu-item" href="{{ _href(r) }}" target="_blank" rel="noopener">{{ icon('external-link') }}<span>Open</span></a>
+    <button type="button" class="row-menu-item" data-copy-url="{{ _href(r) }}">{{ icon('link') }}<span>Copy link</span></button>
+    {% endif %}
+    {% if can_edit %}
+      {% if current_user.can_edit_library_item(r) %}
+      <a class="row-menu-item" href="{{ url_for('main.reading_edit', rid=r.id) }}">{{ icon('pencil') }}<span>Edit</span></a>
+      {% else %}
+      <span class="row-menu-item is-disabled" title="Editors can change only files another editor uploaded.">{{ icon('pencil') }}<span>Edit</span></span>
+      {% endif %}
+      <div class="row-menu-sep" role="separator"></div>
+      {% if current_user.can_delete_library_item(r) %}
+      <button type="submit" form="lib-delete-{{ r.id }}-form" class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+      {% else %}
+      <span class="row-menu-item row-menu-item-danger is-disabled" title="Only an admin or Intergroup Member can delete this file.">{{ icon('trash') }}<span>Delete</span></span>
+      {% endif %}
+    {% endif %}
+  {% endcall %}
+{% endmacro %}
+{# Shown on the public Literature Library: a switch that saves at once. #}
+{% macro _public_switch(r) %}
+  <label class="mode-toggle lib-public-switch" title="Show this file on the public Literature Library">
+    <input type="checkbox" data-library-item-public data-toggle-url="{{ url_for('main.library_item_public_toggle', rid=r.id) }}" {% if r.public_visible %}checked{% endif %}>
+    <span class="mode-track"><span class="mode-thumb"></span></span>
+  </label>
+{% endmacro %}
+
+<div class="fb-pick fb-pick--page lst-page">
+<aside class="fb-side" aria-label="Find a file">
+  {# Back to the list of libraries (to Archived, for an archived one),
+     beside the file count. Intergroup libraries aren't on that list;
+     the sidebar is their way around. #}
+  <div class="fb-side-toprow">
+    {% if not is_ig %}
+    {% set _back = 'Archived libraries' if library.archived_at else 'All libraries' %}
+    <a class="fb-side-back" href="{{ url_for('main.libraries', show='archived') if library.archived_at else url_for('main.libraries') }}"
+       title="Back to {{ _back }}" aria-label="Back to {{ _back }}">{{ icon('arrow-left') }}</a>
+    {% endif %}
+    <div class="fb-side-top" data-live="total">
+      <p class="fb-side-total" aria-live="polite">{{ _plural(items|length, 'file', 'files') }}{% if q %} matching “{{ q }}”{% elif items|length != total %} of {{ total }}{% endif %}</p>
+    </div>
   </div>
+  {{ search_form(_home, _base, q, 'Search files', 'Search titles, file names, summaries and categories') }}
+  {% if can_edit %}<a class="btn btn-primary fb-side-upload" href="{{ url_for('main.reading_new', slug=library.public_slug) }}">{{ icon('plus') }} Add a file</a>{% endif %}
+  <div class="lst-side-live" data-live="side">
+    {% if library.categories %}
+    <nav class="fb-side-group" aria-label="Category">
+      <h3 class="fb-side-title">Category</h3>
+      {{ side_link(_url({'cat': None}), 'layout-grid', 'All categories', cat_counts[''], not cat) }}
+      {% for c in library.categories %}
+      {{ side_link(_url({'cat': c.id}), 'tag', c.name, cat_counts[c.id], cat == c.id) }}
+      {% endfor %}
+    </nav>
+    {% endif %}
+    <nav class="fb-side-group" aria-label="Kind">
+      <h3 class="fb-side-title">Kind</h3>
+      {{ side_link(_url({'kind': None}), 'folder', 'All kinds', kind_counts[''], not kind) }}
+      {% for k, label, ic in kinds if kind_counts[k] or kind == k %}
+      {{ side_link(_url({'kind': k}), ic, label, kind_counts[k], kind == k) }}
+      {% endfor %}
+    </nav>
+    {% if library.public_visible %}
+    <nav class="fb-side-group" aria-label="Public">
+      <h3 class="fb-side-title">Literature Library</h3>
+      {{ side_link(_url({'public': None}), 'layout-grid', 'All', public_counts[''], not public) }}
+      {{ side_link(_url({'public': 'shown'}), 'eye', 'Shown to the public', public_counts.shown, public == 'shown') }}
+      {{ side_link(_url({'public': 'hidden'}), 'eye-off', 'Hidden', public_counts.hidden, public == 'hidden') }}
+    </nav>
+    {% endif %}
+    <div class="fb-side-group" role="group" aria-label="Sort files">
+      <h3 class="fb-side-title">Sort by</h3>
+      <div class="fb-side-sort">{{ _sort('custom', 'Custom order') }}{{ _sort('name', 'Name') }}{{ _sort('added', 'Added') }}{{ _sort('kind', 'Kind') }}</div>
+    </div>
+    {{ view_switch(_url({'view': 'list'}), _url({'view': 'grid'}), view) }}
+    <nav class="fb-side-group" aria-label="More">
+      <h3 class="fb-side-title">More</h3>
+      {% if can_edit %}<a class="fb-side-link" href="#" data-open-modal="library-import-modal">{{ icon('cloud-upload') }}<span>Import several files</span></a>{% endif %}
+      {% if can_edit and current_user.can_manage_libraries() %}{{ side_link(url_for('main.library_edit', slug=library.public_slug), 'settings', 'Library settings') }}{% endif %}
+      {% if library.public_visible %}<a class="fb-side-link" href="{{ url_for('frontend.literature_library') }}" target="_blank" rel="noopener">{{ icon('external-link') }}<span>Literature Library ↗</span></a>{% endif %}
+    </nav>
+  </div>
+</aside>
+<div class="fb-pick-main" data-live="main">
+{% if library.alert_message %}<div class="alert-banner lib-alert" role="alert">{{ library.alert_message }}</div>{% endif %}
+<form id="lib-bulk-form" method="post" action="{{ url_for('main.library_readings_bulk', slug=library.public_slug) }}" data-bulk-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="" data-bulk-action-field>
+  <input type="hidden" name="cat" value="" data-bulk-value="cat">
+</form>
+<section class="card fb lst" data-bulk-scope="lib-bulk-form">
+  {% if library.description %}<p class="lib-desc muted small">{{ library.description }}</p>{% endif %}
+  {% if not items %}
+  <div class="fb-empty">
+    <span class="fb-empty-icon" aria-hidden="true">{{ icon('folder') }}</span>
+    {% if q or cat or kind or public %}
+    <p>No files here match{{ ' “' ~ q ~ '”' if q }}.</p>
+    <a class="btn btn-sm" href="{{ _url({'q': None, 'cat': None, 'kind': None, 'public': None}) }}">Show all</a>
+    {% else %}
+    <p>No files yet.</p>
+    {% if can_edit %}<a class="btn btn-sm btn-primary" href="{{ url_for('main.reading_new', slug=library.public_slug) }}">{{ icon('plus') }} Add a file</a>{% endif %}
+    {% endif %}
+  </div>
+
+  {% elif view == 'grid' %}
+  <div class="lst-grid lst-grid--photo">
+    {% for r in items %}{% set k = item_kind[r.id] %}
+    <article class="lst-card lst-card--photo">
+      <div class="lst-card-cover">
+        {% if r.thumbnail_filename %}<img src="{{ url_for('main.reading_thumbnail', rid=r.id) }}" alt="" loading="lazy">
+        {% elif k == 'img' and r.original_filename %}<img src="{{ url_for('public.public_file', filename=r.original_filename) }}" alt="" loading="lazy">
+        {% else %}<span class="lst-card-cover-icon lst-kind-{{ k }}">{{ icon(KIND_ICON[k]) }}</span>{% endif %}
+      </div>
+      {% if can_edit %}<label class="lst-card-check" title="Select"><input type="checkbox" name="ids" value="{{ r.id }}" form="lib-bulk-form" data-bulk-check aria-label="Select {{ r.title }}"></label>{% endif %}
+      <div class="lst-card-head">
+        {{ _open_link(r, 'lst-card-link') }}
+        {{ _actions(r, compact=True) }}
+      </div>
+      <div class="lst-card-body">
+        {% if r.summary %}<p class="lst-card-desc">{{ r.summary }}</p>{% endif %}
+        {{ _cats(r) }}
+      </div>
+      <div class="lst-card-foot">
+        <span class="lst-card-counts">{{ KIND_LABEL[k] }}{% if r.created_at %} · {{ r.created_at|fmt_site_local('%b %-d, %Y') }}{% endif %}</span>
+        {% if can_edit and library.public_visible %}<span class="lst-card-chips">{{ _public_switch(r) }}</span>{% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <table class="tbl fb-tbl lst-tbl lib-tbl">
+    <thead>
+      <tr>
+        {% if can_edit %}<th class="lst-check-col"><label class="lst-check" title="Select all"><input type="checkbox" data-bulk-all aria-label="Select all"></label></th>{% endif %}
+        {% if can_reorder %}<th class="lib-drag-col"><span class="sr-only">Drag to reorder</span></th>{% endif %}
+        <th class="fb-thumb-col"><span class="sr-only">Kind</span></th>
+        {{ _sort_th('name', 'Title') }}
+        {{ _sort_th('kind', 'Kind', 'fb-col') }}
+        {{ _sort_th('added', 'Added', 'fb-col') }}
+        {% if can_edit and library.public_visible %}<th class="fb-col" title="Shown on the public Literature Library">Public</th>{% endif %}
+        <th class="th-actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody{% if can_reorder %} class="file-list-sortable" data-reorder-url="{{ url_for('main.library_readings_reorder', slug=library.public_slug) }}" data-reorder-manual="1" data-reorder-savebar="1"{% endif %}>
+      {% for r in items %}{% set k = item_kind[r.id] %}
+      <tr data-item-id="{{ r.id }}"{% if can_reorder %} draggable="true"{% endif %}>
+        {% if can_edit %}<td class="lst-check-col"><label class="lst-check"><input type="checkbox" name="ids" value="{{ r.id }}" form="lib-bulk-form" data-bulk-check aria-label="Select {{ r.title }}"></label></td>{% endif %}
+        {% if can_reorder %}<td class="lib-drag-col"><span class="drag-handle" title="Drag to reorder">{{ icon('grip-vertical') }}</span></td>{% endif %}
+        <td class="fb-thumb-cell">{{ _thumb(r) }}</td>
+        <td class="media-name-cell">
+          {{ _open_link(r, 'fb-name') }}
+          {% set _s = _sub(r)|trim %}{% if _s %}<div class="fb-sub">{{ _s }}</div>{% endif %}
+          {{ _cats(r) }}
+        </td>
+        <td class="fb-col muted">{{ KIND_LABEL[k] }}</td>
+        <td class="fb-col muted">{{ r.created_at|fmt_site_local('%b %-d, %Y') if r.created_at else '—' }}</td>
+        {% if can_edit and library.public_visible %}<td class="fb-col">{{ _public_switch(r) }}</td>{% endif %}
+        <td class="row-actions">{{ _actions(r) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if can_edit and _skey == 'custom' and not can_reorder %}<p class="lib-reorder-note muted small">Clear the search and filters to drag files into a new order.</p>{% endif %}
+  {% endif %}
+
+  {% if items and can_edit %}
+  {% call bulk_bar() %}
+    {% if library.categories %}
+    <select class="lst-bulkbar-select" data-bulk-pick="cat" aria-label="Category for the selected files">
+      <option value="">Category…</option>
+      {% for c in library.categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+    </select>
+    <button type="button" class="btn btn-sm" data-bulk="add_category" data-bulk-needs="cat" title="Add the category to every selected file">Add</button>
+    <button type="button" class="btn btn-sm" data-bulk="remove_category" data-bulk-needs="cat" title="Remove the category from every selected file">Remove</button>
+    <button type="button" class="btn btn-sm" data-bulk="replace_categories" data-bulk-needs="cat" data-bulk-noun="file"
+            title="Make it each selected file's only category"
+            data-bulk-confirm="Each selected file will have only this category; its other categories are removed.">Replace</button>
+    <span class="lst-bulkbar-sep" aria-hidden="true"></span>
+    {% endif %}
+    {% if library.public_visible %}
+    <button type="button" class="btn btn-sm" data-bulk="show">Show publicly</button>
+    <button type="button" class="btn btn-sm" data-bulk="hide">Hide</button>
+    <span class="lst-bulkbar-sep" aria-hidden="true"></span>
+    {% endif %}
+    <button type="button" class="btn btn-sm btn-danger" data-bulk="delete" data-bulk-noun="file" data-bulk-nouns="files"
+            data-bulk-confirm="They move to the Delete Log, where they can be restored for 30 days.">Delete</button>
+  {% endcall %}
   {% endif %}
 </section>
 
+{# Per-row delete forms, matched by id from the row menus. #}
+{% if can_edit %}{% for r in items if current_user.can_delete_library_item(r) %}
+<form id="lib-delete-{{ r.id }}-form" method="post" action="{{ url_for('main.reading_delete', rid=r.id) }}"
+      data-confirm-title="Delete “{{ r.title }}”?" data-confirm-label="Delete"
+      data-confirm="It moves to the Delete Log, where it can be restored for 30 days."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% endfor %}{% endif %}
+{# Text documents open here. #}
+{% for r in items if item_kind[r.id] == 'text' %}<template data-reading-content="{{ r.id }}">{{ r.body|markdown }}</template>{% endfor %}
+</div>
+</div>
+
 {% if can_edit %}
-<div class="modal" id="add-library-file-modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <form id="add-library-file" method="post" class="form" enctype="multipart/form-data"
-          action="{{ url_for('main.reading_new', slug=library.public_slug) }}"
-          data-content-mode-form>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="modal-head">
-        <h2>Add Item</h2>
-        <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-      </div>
-      <div class="modal-body">
-        <label>Title<input name="title" required></label>
-        <label>Summary <span class="muted small">(optional · up to 500 characters)</span>
-          <textarea name="summary" rows="3" maxlength="500" data-summary-input
-                    placeholder="Short blurb shown next to the title in lists and previews."></textarea>
-          <div class="summary-counter" data-summary-counter>
-            <span data-summary-count>500</span>/500 remaining
-          </div></label>
-        {# Three-mode segmented control. The hidden `content_mode`
-           input rides the active mode to the server; each button
-           swaps `[data-content-panel=...]` visibility via the JS
-           wiring in app.js. Upload + paste hide the external-link
-           panel and vice versa, so each library item carries one
-           authoring channel. #}
-        <div class="content-mode-toggle content-mode-seg-wrap" data-content-mode-toggle>
-          <input type="hidden" name="content_mode" value="upload" data-content-mode-input>
-          <div class="content-mode-seg" role="tablist" aria-label="Content source">
-            <button type="button" class="content-mode-seg-btn"
-                    data-content-mode-option="upload" aria-pressed="true">Upload file / file browser</button>
-            <button type="button" class="content-mode-seg-btn"
-                    data-content-mode-option="paste" aria-pressed="false">Paste / type content</button>
-            <button type="button" class="content-mode-seg-btn"
-                    data-content-mode-option="link" aria-pressed="false">External link</button>
-          </div>
-        </div>
-        <fieldset class="fieldset" data-content-panel="upload">
-          <legend>File <span class="muted small">(PDF, DOC, JPG, PNG, MP4, MOV)</span></legend>
-          <div class="file-input-row">
-            <input type="file" name="file"
-                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4,.mov,application/pdf,image/*,video/*">
-            <button type="button" class="btn btn-sm" data-media-picker="add-library-file">File Browser</button>
-          </div>
-        </fieldset>
-        <div data-content-panel="paste" hidden>
-          <label>Body <span class="muted small">(Markdown supported, opens as a document)</span></label>
-          <div class="md-editor" data-md-editor>
-            <div class="md-editor-tabs" role="tablist">
-              <button type="button" class="md-editor-tab active" data-md-tab="write" role="tab">Write</button>
-              <button type="button" class="md-editor-tab" data-md-tab="preview" role="tab">Preview</button>
-              <span class="muted smaller md-editor-hint">**bold** · *italic* · # heading · - list</span>
-            </div>
-            <div class="md-editor-pane md-editor-pane-write active">
-              <textarea name="body" rows="10" placeholder="Paste or type content here. Markdown is supported."></textarea>
-            </div>
-            <div class="md-editor-pane md-editor-pane-preview">
-              <div class="md-editor-preview"><p class="muted smaller">Nothing to preview yet.</p></div>
-            </div>
-          </div>
-        </div>
-        <fieldset class="fieldset" data-content-panel="link" hidden>
-          <legend>External link</legend>
-          <label>URL
-            <input name="url" type="url" placeholder="https://..."></label>
-        </fieldset>
-        <label>Thumbnail <span class="muted small">(optional)</span>
-          <input type="file" name="thumbnail" accept="image/*"></label>
-        {% if library.categories or is_ig %}
-        <fieldset class="fieldset">
-          <legend>Categories <span class="muted small">{% if is_ig and library.categories_required %}(at least one required){% else %}(optional){% endif %}</span></legend>
-          <input type="hidden" name="category_picker" value="1">
-          {% if library.categories %}
-          <div class="ig-cat-picker">
-            {% for c in library.categories %}
-            <label class="check ig-cat-check">
-              <input type="checkbox" name="category_ids" value="{{ c.id }}">
-              <span>{{ c.name }}</span>
-            </label>
-            {% endfor %}
-          </div>
-          {% else %}
-          <p class="muted small">No categories defined yet — add some via the Edit modal before uploading.</p>
-          {% endif %}
-        </fieldset>
-        {% endif %}
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Add item</button>
-      </div>
-    </form>
-  </div>
+{# Yellow save bar: shows after dragging a file in Custom order. #}
+<div class="fe-save-bar fe-save-bar-content" id="library-reorder-save-bar" hidden>
+  <span class="fe-save-bar-msg">Unsaved changes</span>
+  <button type="button" class="btn fe-save-bar-btn" id="library-reorder-save-btn">Save order</button>
 </div>
 {% endif %}
 
@@ -477,7 +334,7 @@
             {% endfor %}
           </div>
           {% else %}
-          <p class="muted small">No categories defined yet — add some via the Edit modal before importing.</p>
+          <p class="muted small">No categories defined yet — add some in the library settings before importing.</p>
           {% endif %}
         </fieldset>
         {% endif %}
@@ -492,60 +349,6 @@
 </div>
 {% endif %}
 
-{% if can_edit and library.categories %}
-{# Bulk-edit-categories modal — opened from the multi-select action
-   bar above the file list. The JS that drives [data-bulk-action]
-   populates the hidden ``reading_ids`` inputs (and the ``data-bulk-
-   modal-count`` text) with the current multi-select set just before
-   open. Per-row authorization is re-enforced server-side, so any id
-   the user couldn't bulk-edit is silently filtered out. #}
-<div class="modal" id="library-bulk-categories-modal" aria-hidden="true" data-bulk-modal>
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <form method="post" action="{{ url_for('main.library_readings_bulk_categories', slug=library.public_slug) }}" class="form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="modal-head">
-        <h2>Edit Categories</h2>
-        <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-      </div>
-      <div class="modal-body">
-        <p class="muted">Apply to <span data-bulk-modal-count>0</span> selected file(s).</p>
-        <fieldset class="fieldset">
-          <legend>What do you want to do?</legend>
-          <label class="check ig-cat-check">
-            <input type="radio" name="action" value="add" checked>
-            <span>Add the selected categories (keep existing tags)</span>
-          </label>
-          <label class="check ig-cat-check">
-            <input type="radio" name="action" value="remove">
-            <span>Remove the selected categories</span>
-          </label>
-          <label class="check ig-cat-check">
-            <input type="radio" name="action" value="replace">
-            <span>Replace existing tags with the selected categories</span>
-          </label>
-        </fieldset>
-        <fieldset class="fieldset">
-          <legend>Categories</legend>
-          <div class="ig-cat-picker">
-            {% for c in library.categories %}
-            <label class="check ig-cat-check">
-              <input type="checkbox" name="category_ids" value="{{ c.id }}">
-              <span>{{ c.name }}</span>
-            </label>
-            {% endfor %}
-          </div>
-        </fieldset>
-        <div data-bulk-modal-ids></div>
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Apply</button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endif %}
 
 <div class="modal reading-lightbox" id="reading-lightbox" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
@@ -566,105 +369,6 @@
   </div>
 </div>
 
-{% if can_edit and current_user.can_manage_libraries() %}
-{% set form_id = 'library-edit-form' %}
-<div class="modal" id="library-edit-modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <form id="{{ form_id }}" method="post" action="{{ url_for('main.library_edit', slug=library.public_slug) }}" class="form">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="modal-head">
-        <h2>Edit Library</h2>
-        <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
-      </div>
-      <div class="modal-body">
-        <label>Name<input name="name" required value="{{ library.name }}"></label>
-        <label>Description<textarea name="description" rows="4">{{ library.description or '' }}</textarea></label>
-        <label>Alert Message <span class="muted smaller">(leave blank to hide)</span>
-          <textarea name="alert_message" rows="2" placeholder="Displayed prominently at the top of the library page.">{{ library.alert_message or '' }}</textarea>
-        </label>
-        {% if current_user.is_admin() %}
-        <input type="hidden" name="is_intergroup_present" value="1">
-        <label class="check">
-          <input type="checkbox" name="is_intergroup" value="1"
-                 {% if library.is_intergroup %}checked{% endif %}>
-          Intergroup library
-          <span class="muted smaller">— restrict edits to admins and the Intergroup Member role and surface this library in the Intergroup sidebar subsection.</span>
-        </label>
-        {% endif %}
-        {% if current_user.is_admin() %}
-        <input type="hidden" name="public_visible_present" value="1">
-        <label class="check">
-          <input type="checkbox" name="public_visible" value="1"
-                 {% if library.public_visible %}checked{% endif %}>
-          Show on public Literature Library
-          <span class="muted smaller">— include this library and its items on <code>/library</code>. When on, the Files list below grows a per-item Public toggle so you can hide individual entries from the public page (every item defaults to visible).</span>
-        </label>
-        {% endif %}
-        {% if current_user.is_admin() %}
-        <fieldset class="fieldset" data-ig-cat-editor>
-          <legend>Categories <span class="muted smaller">(define the tags uploaders pick from)</span></legend>
-          <input type="hidden" name="category_picker" value="1">
-          <label class="mode-toggle ig-cat-required-toggle">
-            <input type="checkbox" name="categories_required" value="1"
-                   {% if library.categories_required %}checked{% endif %}>
-            <span class="mode-track"><span class="mode-thumb"></span></span>
-            <span>Require at least one category per upload</span>
-          </label>
-          <div class="ig-cat-rows" data-ig-cat-rows>
-            {% for c in library.categories %}
-            <div class="ig-cat-row" data-ig-cat-row>
-              <input type="hidden" name="category_id" value="{{ c.id }}">
-              <input type="text" name="category_name" value="{{ c.name }}" maxlength="120" placeholder="Category name" required>
-              <button type="button" class="btn btn-sm btn-danger" data-ig-cat-remove aria-label="Remove category">{{ icon('x') }}</button>
-            </div>
-            {% endfor %}
-          </div>
-          {# Native <template> — its contents are parsed but inert, so the
-             empty required input doesn't block form submit. The clone
-             gets attached to the live DOM only when "+ Add Category"
-             fires. #}
-          <template data-ig-cat-template>
-            <div class="ig-cat-row" data-ig-cat-row>
-              <input type="hidden" name="category_id" value="">
-              <input type="text" name="category_name" value="" maxlength="120" placeholder="Category name" required>
-              <button type="button" class="btn btn-sm btn-danger" data-ig-cat-remove aria-label="Remove category">{{ icon('x') }}</button>
-            </div>
-          </template>
-          <button type="button" class="btn btn-sm" data-ig-cat-add>+ Add Category</button>
-        </fieldset>
-        {% endif %}
-        {% if library.meetings %}
-        <fieldset class="fieldset">
-          <legend>Used by Meetings</legend>
-          <ul class="list">
-            {% for m in library.meetings %}
-            <li><a href="{{ url_for('main.meeting_detail', slug=m.public_slug) }}">{{ m.name }}</a></li>
-            {% endfor %}
-          </ul>
-        </fieldset>
-        {% endif %}
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Save</button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endif %}
-
-{% if can_edit %}
-{# Yellow save bar — pops up after any drag-reorder change to this
-   page's sortable list, matching the Web Frontend admin pattern. The
-   ``fe-save-bar-content`` modifier shifts it 2rem to the right so it
-   doesn't sit flush against the main app sidebar like it does on the
-   frontend admin pages. #}
-<div class="fe-save-bar fe-save-bar-content" id="library-reorder-save-bar" hidden>
-  <span class="fe-save-bar-msg">Unsaved changes</span>
-  <button type="button" class="btn fe-save-bar-btn" id="library-reorder-save-btn">Save</button>
-</div>
-{% endif %}
 
 {% if can_edit %}
 <script>
@@ -867,45 +571,42 @@
 </script>
 {% endif %}
 
-{% if library.public_visible %}
+
+{% if can_edit and library.public_visible %}
 <script>
-// Per-item public-visibility toggle for the Literature Library. Each
-// toggle posts a tiny JSON payload to its own URL the moment it
-// changes — no save bar, no page reload. The checkbox stays in sync
-// with whatever the server confirms; if the request fails we revert
-// the visual state and surface a small alert so the admin knows.
+// Shown on the public Literature Library: each switch saves at once
+// (JSON, no reload) and reverts if the save fails. Delegated, so it
+// keeps working after a live search replaces the list.
 (function () {
   const csrf = document.querySelector('input[name="csrf_token"]');
   const csrfToken = csrf ? csrf.value : '';
-  document.querySelectorAll('[data-library-item-public]').forEach((cb) => {
-    cb.addEventListener('change', () => {
-      const url = cb.getAttribute('data-toggle-url');
-      const want = cb.checked;
-      cb.disabled = true;
-      fetch(url, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,
-        },
-        body: JSON.stringify({ public_visible: want }),
+  document.addEventListener('change', (e) => {
+    const cb = e.target.closest && e.target.closest('[data-library-item-public]');
+    if (!cb) return;
+    const want = cb.checked;
+    cb.disabled = true;
+    fetch(cb.getAttribute('data-toggle-url'), {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ public_visible: want }),
+    })
+      .then((r) => { if (!r.ok) throw new Error('save failed'); return r.json(); })
+      .then((data) => { cb.checked = !!data.public_visible; })
+      .catch(() => {
+        cb.checked = !want;
+        (window.tspShowToast || alert)('Could not change whether it shows publicly. Try again.', 'error');
       })
-        .then((r) => {
-          if (!r.ok) throw new Error('save failed');
-          return r.json();
-        })
-        .then((data) => {
-          cb.checked = !!data.public_visible;
-        })
-        .catch(() => {
-          cb.checked = !want;
-          alert('Could not update visibility. Try again or refresh the page.');
-        })
-        .finally(() => { cb.disabled = false; });
-    });
+      .finally(() => { cb.disabled = false; });
   });
 })();
+</script>
+{% endif %}
+{% if can_edit %}
+<script>
+// A live search swaps the list: make a new draggable list sortable.
+document.addEventListener('live:updated', () => {
+  document.querySelectorAll('.file-list-sortable').forEach((l) => window.tspInitSortable && window.tspInitSortable(l));
+});
 </script>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,50 @@
+{# The File Browser's shared pieces, for the list (media.html) and a
+   file's own view (media_file.html). Import with context: they read
+   current_user. #}
+{% from "_row_menu.html" import row_menu %}
+
+{# A size in B, KB or MB. #}
+{% macro media_size(n) -%}
+  {%- set n = n or 0 -%}
+  {%- if n < 1024 %}{{ n }} B{% elif n < 1048576 %}{{ (n / 1024)|round|int }} KB{% else %}{{ '%.1f'|format(n / 1048576) }} MB{% endif -%}
+{%- endmacro %}
+
+{# A file's actions: Copy link, Download, Rename and Delete (Delete asks
+   first). Rename and Delete show for editors and grey out when this
+   file isn't theirs to change; viewers see Copy and Download only.
+   `back` is the list a delete returns to; `download=False` leaves
+   Download out where it's a button of its own. #}
+{% macro media_actions(m, pub, compact=False, back=None, download=True) %}
+  {% call row_menu('Actions for ' ~ m.original_filename, compact=compact) %}
+    <button type="button" class="row-menu-item btn-copy" data-copy-url="{{ pub }}">
+      {{ icon('link') }}<span>Copy link</span></button>
+    {% if download %}
+    <a class="row-menu-item" href="{{ url_for('main.media_download', mid=m.id) }}">
+      {{ icon('download') }}<span>Download</span></a>
+    {% endif %}
+    {% if current_user.can_edit() %}
+      {% if current_user.can_rename_media(m) %}
+      <button type="button" class="row-menu-item media-rename">
+        {{ icon('pencil') }}<span>Rename</span></button>
+      {% else %}
+      <button type="button" class="row-menu-item btn-perm-disabled" disabled
+              title="You don't have permission to rename this file. Editors can only rename files uploaded by another Editor; this one was uploaded by an admin or Intergroup Member, or its uploader is unknown.">
+        {{ icon('pencil') }}<span>Rename</span></button>
+      {% endif %}
+      <div class="row-menu-sep" role="separator"></div>
+      {% if current_user.is_admin() %}
+      <form method="post" action="{{ url_for('main.media_delete', mid=m.id) }}"
+            data-confirm-title="Delete this file?"
+            data-confirm="“{{ m.original_filename }}” will be deleted from the file browser. Pages and meetings that link to it will lose it.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+        <button class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+      </form>
+      {% else %}
+      <button type="button" class="row-menu-item row-menu-item-danger btn-perm-disabled" disabled
+              title="Only admins can delete files here.">
+        {{ icon('trash') }}<span>Delete</span></button>
+      {% endif %}
+    {% endif %}
+  {% endcall %}
+{% endmacro %}

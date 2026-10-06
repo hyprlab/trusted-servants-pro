@@ -36,8 +36,8 @@
 {% set _animate_mobile_ms = (site.frontend_megamenu_animate_mobile_ms if site and site.frontend_megamenu_animate_mobile_ms else _animate_ms) %}
 {% set _mm_h_pct = site.frontend_megamenu_heading_size if site and site.frontend_megamenu_heading_size else None %}
 {% set _mm_sh_pct = site.frontend_megamenu_subheading_size if site and site.frontend_megamenu_subheading_size else None %}
-{# Optional dynamic background for the panel (admin: Navigation → Mega menu
-   appearance). When set, the panel becomes a dynbg-host and the solid bg
+{# Optional dynamic background for the panel (admin: Design → Mega menu).
+   When set, the panel becomes a dynbg-host and the solid bg
    colour steps aside so the animated backdrop shows behind the links. #}
 {%- set _mm_key = (site.frontend_mega_bg_dynamic_key if site else None) -%}
 {%- set _mm_cfg = dynbg_decode(site.frontend_mega_bg_dynbg_config_json if site else None) -%}
@@ -120,13 +120,21 @@
               </a>
             </div>
             {%- else -%}
+            {# Signed out: Login and Request access side by side. #}
+            <div class="fe-megamenu-block-authrow fe-megamenu-authrow--guest" style="{{ _row_style }}">
             <a href="{{ url_for('auth.login') }}"
-               class="fe-megamenu-block-btn fe-megamenu-block-btn-{{ _btn_style }} fe-megamenu-block-btn--admin-auth"
-               style="{{ _row_style }}">
+               class="fe-megamenu-block-btn fe-megamenu-block-btn-{{ _btn_style }} fe-megamenu-block-btn--admin-auth">
               <span class="fe-megamenu-icon"{{ _icon_style(link.icon_before_color, link.icon_before_size)|safe }}>{{ icon(link.icon_before or 'log-in') }}</span>
               <span>Login</span>
               {% if link.icon_after %}<span class="fe-megamenu-icon"{{ _icon_style(link.icon_after_color, link.icon_after_size)|safe }}>{{ icon(link.icon_after) }}</span>{% endif %}
             </a>
+            {# Request access: the public popup (frontend/_request_access_modal.html), or the sign-in page's form without JavaScript. #}
+            <a href="{{ url_for('auth.login') }}#request-access" data-fe-form-trigger="request-access"
+               class="fe-megamenu-block-btn fe-megamenu-block-btn-{{ _btn_style }} fe-megamenu-block-btn--admin-auth">
+              <span class="fe-megamenu-icon">{{ icon('user-plus') }}</span>
+              <span>Request access</span>
+            </a>
+            </div>
             {%- endif -%}
           {% else %}
             {% set _link_cls = 'fe-megamenu-link' %}

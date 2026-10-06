@@ -133,7 +133,7 @@ If a sync didn't land the way you wanted, restore the snapshot through the norma
   have inbound enabled. Re-generate on live, re-paste on staging, and confirm
   the live install's role is set to **Live site**.
 - **"Peer does not expose the frontend-sync API"** — the live install is running
-  an older version. Upgrade it — see [Upgrading](/docs/upgrading).
+  an older version. Upgrade it — see [Upgrading](upgrading.md).
 - **"Peer is rate-limiting sync attempts"** — too many failed auth attempts;
   wait a few minutes and try again.
 - **TLS/SSL error** — fix the live site's certificate, or use `http://` if both
@@ -141,9 +141,9 @@ If a sync didn't land the way you wanted, restore the snapshot through the norma
 
 ## Next steps
 
-- [Backup &amp; Restore](/docs/backup-restore) — the full-portal export/import,
+- [Backup &amp; Restore](backup-restore.md) — the full-portal export/import,
   including the Frontend bundle import used for rollback.
-- [Configuration &amp; Security](/docs/configuration) — how the Fernet key
+- [Configuration &amp; Security](configuration.md) — how the Fernet key
   protects stored secrets like the sync token.
-- [Upgrading &amp; Uninstalling](/docs/upgrading) — keep both installs on a
+- [Upgrading &amp; Uninstalling](upgrading.md) — keep both installs on a
   version that speaks the sync API.

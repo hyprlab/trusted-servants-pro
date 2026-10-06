@@ -1,11 +1,10 @@
 {% extends "frontend/base.html" %}
+{% from "frontend/_form_field.html" import form_field %}
 {%- set _heading = (site.contact_form_heading if site else None) or 'Get in touch' -%}
 {%- set _subheading = (site.contact_form_subheading if site else None)
     or 'Send the public information committee a note. Replies come straight to your email.' -%}
 {%- set _intro = (site.contact_form_intro if site else None) -%}
 {%- set _submit_label = (site.contact_form_submit_label if site else None) or 'Send message' -%}
-{%- set _subj_required = (site.contact_form_subject_required if site else False) -%}
-{%- set _show_phone = (site.contact_form_show_phone if site is not none else True) -%}
 {% block title %}{{ _heading }} · {{ frontend_title }}{% endblock %}
 {% block content %}
 {# Contact us — two-column hero on desktop (intro on the left, form
@@ -23,8 +22,9 @@
    gutters. Falls back to the existing boxed/1160/5 defaults so legacy
    installs render identically. #}
 {%- set _cwmode = (site.contact_form_width_mode if site else None) or 'boxed' -%}
-{%- if _cwmode not in ('boxed', 'full') %}{%- set _cwmode = 'boxed' %}{%- endif -%}
-{%- set _cwmax  = (site.contact_form_max_width   if site else 1160) -%}
+{%- if _cwmode not in ('site', 'boxed', 'full') %}{%- set _cwmode = 'boxed' %}{%- endif -%}
+{%- set _cwmax  = width_px(site, _cwmode, (site.contact_form_max_width if site else 1160)) -%}
+{%- if _cwmode == 'site' %}{% set _cwmode = 'boxed' %}{% endif -%}
 {%- set _cwpad  = (site.contact_form_padding_pct if site else 5) -%}
 {# Dynamic background — admin-configurable via Settings → Templates →
    Contact page → "Customize" (the same dynbg picker every other list /
@@ -34,7 +34,8 @@
    their look; pick any recipe / colours / overlay there to change it. #}
 {%- set _tpl = template_settings(site, 'contact', 'split') if site else {} -%}
 {%- set _dynbg = _tpl.get('bg_dynamic_key') or 'aurora-blobs' -%}
-{%- set _dynbg_cfg_raw = {'overlay': _tpl.get('bg_dynbg_overlay'), 'colors': _tpl.get('bg_dynbg_colors') or [], 'overlay_scope': _tpl.get('bg_dynbg_overlay_scope'), 'overlay_size': _tpl.get('bg_dynbg_overlay_size'), 'overlay_intensity': _tpl.get('bg_dynbg_overlay_intensity'), 'randomize_colors': _tpl.get('bg_dynbg_randomize_colors'), 'randomize_positions': _tpl.get('bg_dynbg_randomize_positions'), 'animate': _tpl.get('bg_dynbg_animate', True), 'pastel_light': _tpl.get('bg_dynbg_pastel_light', False), 'knobs': _tpl.get('bg_dynbg_knobs', {})} -%}
+{%- if _dynbg == 'none' %}{% set _dynbg = None %}{% endif -%}
+{%- set _dynbg_cfg_raw = {'overlay': _tpl.get('bg_dynbg_overlay'), 'colors': _tpl.get('bg_dynbg_colors') or [], 'overlay_scope': _tpl.get('bg_dynbg_overlay_scope'), 'overlay_size': _tpl.get('bg_dynbg_overlay_size'), 'overlay_intensity': _tpl.get('bg_dynbg_overlay_intensity'), 'randomize_colors': _tpl.get('bg_dynbg_randomize_colors'), 'randomize_positions': _tpl.get('bg_dynbg_randomize_positions'), 'animate': _tpl.get('bg_dynbg_animate', True), 'tone': _tpl.get('bg_dynbg_tone'), 'v': _tpl.get('bg_dynbg_v'), 'pastel_light': _tpl.get('bg_dynbg_pastel_light'), 'modes': _tpl.get('bg_dynbg_modes'), 'knobs': _tpl.get('bg_dynbg_knobs', {})} -%}
 {%- set _dynbg_cfg = dynbg_decode(_dynbg_cfg_raw) -%}
 {%- set _dynbg_color_vars = dynbg_colors_css(dynbg_resolve_colors(_dynbg_cfg), _dynbg_cfg) -%}
 {%- set _dynbg_pos_vars = dynbg_resolve_positions(_dynbg_cfg, _dynbg) -%}
@@ -72,7 +73,7 @@
           <li class="fe-contact-channel">
             <span class="fe-contact-channel-icon" aria-hidden="true">{{ icon('user') }}</span>
             <span class="fe-contact-channel-body">
-              <span class="fe-contact-channel-label">Public information chair</span>
+              <span class="fe-contact-channel-label">{{ site.pic_role_label }}</span>
               <span class="fe-contact-channel-value">{{ _pic_name }}</span>
             </span>
           </li>
@@ -126,33 +127,13 @@
               </label>
             </div>
 
-            <div class="fe-submission-grid-2">
-              <label>
-                <span>Your name <span class="req">*</span></span>
-                <input name="name" type="text" maxlength="200" required autocomplete="name">
-              </label>
-              <label>
-                <span>Your email <span class="req">*</span></span>
-                <input name="email" type="email" maxlength="255" required autocomplete="email">
-              </label>
-            </div>
-
-            {% if _show_phone %}
-            <label>
-              <span>Phone <span class="muted smaller">(optional)</span></span>
-              <input name="phone" type="tel" maxlength="64" autocomplete="tel">
-            </label>
-            {% endif %}
-
-            <label>
-              <span>Subject{% if _subj_required %} <span class="req">*</span>{% else %} <span class="muted smaller">(optional)</span>{% endif %}</span>
-              <input name="subject" type="text" maxlength="255"{% if _subj_required %} required{% endif %}>
-            </label>
-
-            <label>
-              <span>Message <span class="req">*</span></span>
-              <textarea name="message" rows="6" maxlength="6000" required></textarea>
-            </label>
+            {# The fields come from the builder on the Contact form's
+               settings page (form_specs.SPECS["contact"]): name, email
+               and message always, phone and subject unless removed,
+               plus any extra fields. #}
+            {% for block in builtin_form_fields('contact', site.contact_form_blocks_json if site else None) %}
+              {{ form_field(block) }}
+            {% endfor %}
 
             {% if site and site.turnstile_enabled and site.turnstile_site_key %}
             <div class="cf-turnstile fe-submission-turnstile"

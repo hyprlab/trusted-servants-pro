@@ -7,7 +7,8 @@ import time
 import uuid
 from functools import wraps
 from flask import (Blueprint, render_template, redirect, url_for, request,
-                   flash, send_from_directory, abort, current_app, jsonify, session)
+                   flash, send_from_directory, abort, current_app, jsonify, session,
+                   get_flashed_messages, g)
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
@@ -107,28 +108,27 @@ def _dynbg_config_from_form(form, config_field):
     except (ValueError, TypeError):
         _knobs = None
     cfg = _dynbg.encode_config(
+        # Per-mode block (light/dark colours, randomise-colours,
+        # saturation, intensity, texture) arrives as one JSON blob like
+        # knobs; encode_config normalises + default-drops it.
+        modes=form.get(f"{config_field}__modes"),
+        randomize_positions=form.get(f"{config_field}__randomize_positions") == "1",
+        # Animation is opt-out — only the explicit "1" disables motion.
+        # encode_config drops the field entirely when animate=True so
+        # the JSON stays minimal for the common case.
+        animate=False if form.get(f"{config_field}__animate_off") == "1" else True,
+        # Per-preset knobs, validated + default-dropped against the
+        # active preset's spec inside encode_config.
+        knobs=_knobs, preset_key=_preset_key,
+        # Legacy single-mode inputs still accepted on the off-chance an
+        # older form posts them — encode_config expands them into both
+        # modes when no `__modes` blob is present.
         overlay_key=form.get(f"{config_field}__overlay"),
         colors=[form.get(f"{config_field}__c{i}") for i in (1, 2, 3)],
         scope=form.get(f"{config_field}__scope"),
         noise_size=form.get(f"{config_field}__noise_size"),
         noise_intensity=form.get(f"{config_field}__noise_intensity"),
         randomize_colors=form.get(f"{config_field}__randomize_colors") == "1",
-        randomize_positions=form.get(f"{config_field}__randomize_positions") == "1",
-        # Animation is opt-out — only the explicit "1" disables motion.
-        # encode_config drops the field entirely when animate=True so
-        # the JSON stays minimal for the common case.
-        animate=False if form.get(f"{config_field}__animate_off") == "1" else True,
-        # Pastel-strength slider (0-100). 0 = off; higher values
-        # increasingly soften the palette in light mode. encode_config
-        # normalises the raw form value via normalize_pastel_strength
-        # (also accepts legacy '1' booleans → full strength) and drops
-        # the field entirely when 0 so the JSON stays minimal.
-        pastel_light=form.get(f"{config_field}__pastel_light"),
-        # Per-preset knobs, validated + default-dropped against the
-        # active preset's spec inside encode_config.
-        knobs=_knobs, preset_key=_preset_key,
-        # Legacy single-flag input still accepted on the off-chance an
-        # older form posts it — encode_config maps it to both new flags.
         randomize=form.get(f"{config_field}__randomize") == "1" or None,
     )
     return _json.dumps(cfg) if cfg else None
@@ -412,6 +412,36 @@ def _attention_counts(*, include_dashboard=False):
     return counts
 
 
+# The alert bar (Settings > Alert bar): where it can show, and its tones.
+ALERT_PLACES = (("dashboard", "Dashboard", "Above the dashboard's widgets."),
+                ("top", "Above the top bar", "Across the top of every page."),
+                ("sidebar", "Sidebar footer", "At the foot of the sidebar, above the logo."))
+ALERT_TONES = (("info", "Information", "info"), ("success", "Good news", "check-circle"),
+               ("warning", "Warning", "alert-triangle"), ("danger", "Urgent", "alert-circle"))
+
+
+def _site_alert(site):
+    """The alert bar to show the signed-in user now, or None: turned on,
+    with a message, at least one place, and not past its end."""
+    if not (site and site.alert_enabled and (site.alert_message or "").strip()):
+        return None
+    places = [p for p in (site.alert_places or "").split(",") if p in dict((k, 1) for k, _l, _h in ALERT_PLACES)]
+    if not places:
+        return None
+    if site.alert_until:
+        from .timezone import now_local_naive
+        if now_local_naive(site) >= site.alert_until:
+            return None
+    tone = site.alert_tone if site.alert_tone in dict((k, 1) for k, _l, _i in ALERT_TONES) else "info"
+    details = (site.alert_details or "").strip() if site.alert_details_enabled else ""
+    return {"message": site.alert_message.strip(), "tone": tone, "places": places,
+            "icon": dict((k, i) for k, _l, i in ALERT_TONES)[tone],
+            "title": (site.alert_title or "").strip() or dict((k, l) for k, l, _i in ALERT_TONES)[tone],
+            "details": details,
+            "posted": site.alert_posted_at if site.alert_show_posted else None,
+            "dismissible": bool(site.alert_dismissible), "version": site.alert_version or 0}
+
+
 @bp.app_context_processor
 def inject_globals():
     try:
@@ -453,6 +483,10 @@ def inject_globals():
         fe_sync_peer = FrontendSyncPeer.query.first()
     except Exception:
         fe_sync_peer = None
+    try:
+        site_alert = _site_alert(site) if current_user.is_authenticated else None
+    except Exception:
+        site_alert = None
     return {"CATEGORY_LABELS": CATEGORY_LABELS, "FILE_CATEGORIES": FILE_CATEGORIES,
             "DAYS_OF_WEEK": DAYS_OF_WEEK, "site": site, "nav_links": nav_links,
             "fe_sync_peer": fe_sync_peer,
@@ -464,10 +498,11 @@ def inject_globals():
             "pending_recovery_contacts_count": pending_recovery_contacts_count,
             "recovery_contacts_abuse_count": recovery_contacts_abuse_count,
             "notifications_count": notifications_count, "otp": otp,
-            "disk_warning": disk_warning}
+            "disk_warning": disk_warning, "site_alert": site_alert,
+            "ALERT_PLACES": ALERT_PLACES, "ALERT_TONES": ALERT_TONES}
 
 
-DASHBOARD_WIDGET_KEYS = ("server-metrics", "visitor-metrics", "currently-online", "backups", "trusted-servants", "release-notes", "meetings", "libraries", "files", "access-requests", "forms", "deletions")
+DASHBOARD_WIDGET_KEYS = ("server-metrics", "visitor-metrics", "currently-online", "backups", "release-notes", "meetings", "libraries", "files", "access-requests", "forms", "deletions")
 
 # Legacy widget keys that have been merged into newer widgets. The
 # dashboard order loader maps these forward so a user who has the old
@@ -484,9 +519,12 @@ _DASHBOARD_WIDGET_ALIASES = {"contact-form": "forms"}
 # scan the overview top-down: status pill, visitor numbers, then
 # section shortcuts in roughly the order they appear in the FE
 # subnav.
-FE_DASHBOARD_WIDGET_KEYS = ("fe-status", "fe-visitor-metrics", "fe-pages",
-                            "fe-redirects", "fe-navigation", "fe-forms",
-                            "fe-branding", "fe-header-footer")
+# The site status strip at the top of the overview is fixed; these are
+# the widgets under it. The older fe-status / fe-branding /
+# fe-header-footer widgets were folded into the strip and their
+# fe_dash_show_* columns are no longer read.
+FE_DASHBOARD_WIDGET_KEYS = ("fe-visitor-metrics", "fe-pages", "fe-forms",
+                            "fe-redirects", "fe-navigation")
 
 ONLINE_WINDOW = timedelta(minutes=5)
 # Idle window — users seen between ONLINE_WINDOW and IDLE_WINDOW are
@@ -966,7 +1004,6 @@ def dashboard_customize():
     current_user.dash_show_libraries = request.form.get("dash_show_libraries") == "1"
     current_user.dash_show_files = request.form.get("dash_show_files") == "1"
     current_user.dash_show_server_metrics = request.form.get("dash_show_server_metrics") == "1"
-    current_user.dash_show_trusted_servants = request.form.get("dash_show_trusted_servants") == "1"
     current_user.dash_show_release_notes = request.form.get("dash_show_release_notes") == "1"
     if current_user.is_admin():
         current_user.dash_show_access_requests = request.form.get("dash_show_access_requests") == "1"
@@ -1102,7 +1139,9 @@ def _search_sections(tokens, per_section):
 
     Each result carries a ``url`` (relative path navigated to on
     click), a ``label`` (the visible row), a ``snippet`` (small muted
-    line), an ``icon`` (Lucide name), a ``_ts`` (epoch seconds of the
+    line), an optional ``date`` (short "Posted …" / "Event …" stamp on
+    posts, stories, and blog posts), an ``icon`` (Lucide name), a
+    ``_ts`` (epoch seconds of the
     row's last-touched timestamp, 0 when none — used by the full page's
     "Recently updated" sort), and the section carries a ``type``."""
     from sqlalchemy import or_, and_, func as _sa_func
@@ -1241,6 +1280,17 @@ def _search_sections(tokens, per_section):
     def _trim(text, n=110):
         return (text or "").strip()[:n]
 
+    def _day(dt):
+        """Short calendar date for a result row's ``date`` slot."""
+        return dt.strftime("%b %-d, %Y") if dt else ""
+
+    def _post_date(p):
+        """Events are placed by when they happen; everything else by
+        when it was posted."""
+        if p.is_event and p.event_starts_at:
+            return "Event " + _day(p.event_starts_at)
+        return ("Posted " + _day(p.display_posted)) if p.display_posted else ""
+
     # --- Posts (announcements & events) — all states, exhaustive -----------
     s = _get_site_setting()
     if s and s.posts_enabled:
@@ -1265,6 +1315,7 @@ def _search_sections(tokens, per_section):
                     "label": p.title,
                     "snippet": f"{_post_kind(p)} · {_state_label(p)}"
                                + (f" · {_trim(p.summary or p.body)}" if (p.summary or p.body) else ""),
+                    "date": _post_date(p),
                     "url": url_for("main.post_edit", pid=p.id),
                     "icon": "megaphone",
                     "_ts": _ts_of(p),
@@ -1287,6 +1338,7 @@ def _search_sections(tokens, per_section):
                     "label": st.title or "(untitled story)",
                     "snippet": _state_label(st)
                                + (f" · {st.author_name}" if st.author_name else ""),
+                    "date": ("Posted " + _day(st.display_posted)) if st.display_posted else "",
                     "url": url_for("main.story_edit", sid=st.id),
                     "icon": "book-open",
                     "_ts": _ts_of(st),
@@ -1309,6 +1361,7 @@ def _search_sections(tokens, per_section):
                     "label": b.title or "(untitled)",
                     "snippet": _state_label(b)
                                + (f" · {_trim(b.summary or b.body)}" if (b.summary or b.body) else ""),
+                    "date": ("Posted " + _day(b.display_posted)) if b.display_posted else "",
                     "url": url_for("main.blog_edit", bid=b.id),
                     "icon": "rss",
                     "_ts": _ts_of(b),
@@ -1338,7 +1391,7 @@ def _search_sections(tokens, per_section):
             "items": [{
                 "label": m.original_filename or m.stored_filename,
                 "snippet": (m.mime_type or "File"),
-                "url": url_for("main.media_list") + "?q=" + (m.original_filename or "")[:80],
+                "url": url_for("main.media_file", mid=m.id),
                 "icon": "folder",
                 "_ts": _ts_of(m),
             } for m in media],
@@ -1441,7 +1494,7 @@ def _search_sections(tokens, per_section):
         ("timezone",    "Timezone",       "server timezone clock", False),
         ("security",    "Security",       "login security sessions turnstile captcha lockout", False),
         ("data",        "Data",           "export import backup restore frontend bundle staging sync snapshots", False),
-        ("about",       "About",          "version release notes changelog updates", True),
+        ("about",       "About",          "version release notes updates", True),
     ]
     settings_items = []
     for key, label, kw, everyone in _settings_tabs:
@@ -1463,19 +1516,19 @@ def _search_sections(tokens, per_section):
     if current_user.can_edit_frontend():
         _fe_sections = [
             ("main.frontend_dashboard",          "Overview",           "web frontend dashboard status staging sync pull push"),
-            ("main.frontend_branding",           "Branding & SEO",     "logo brand name seo favicon og meta"),
-            ("main.frontend_fonts_icons",        "Fonts & Icons",      "custom fonts icons typography"),
-            ("main.frontend_design",             "Design",             "theme colors design palette"),
+            ("main.frontend_branding",           "Branding",           "logo brand name seo favicon og meta search sharing"),
+            ("main.frontend_fonts_icons",        "Font & icon library", "custom fonts icons typography upload"),
+            ("main.frontend_design",             "Design",             "theme colors design palette fonts width header footer"),
             ("main.frontend_caching",            "Caching",            "cache performance speed"),
-            ("main.frontend_cookie_compliance",  "Cookie Compliance",  "cookie banner consent gdpr privacy"),
-            ("main.frontend_header",             "Header",             "header editor utility bar top"),
+            ("main.frontend_cookie_compliance",  "Privacy & cookies",  "cookie banner consent gdpr privacy policy"),
+            ("main.frontend_header",             "Header",             "header editor utility bar alert top menu nav mega menu links navigation"),
             ("main.frontend_footer",             "Footer",             "footer editor bottom"),
-            ("main.frontend_navigation",         "Navigation",         "menu nav mega menu links"),
-            ("main.frontend_templates",          "Templates",          "page templates layouts"),
+            ("main.frontend_templates",          "Page templates",     "page templates layouts"),
             ("main.frontend_forms",              "Forms",              "submission contact forms public"),
             ("main.frontend_redirects",          "Redirects",          "url redirects 301 moved"),
             ("main.frontend_pages",              "Pages",              "page builder pages list"),
             ("main.frontend_popups",             "Popups",             "popups modals"),
+            ("main.frontend_404",                "404 page",           "404 not found missing page"),
         ]
         fe_items = []
         for endpoint, label, kw in _fe_sections:
@@ -1668,47 +1721,115 @@ def notifications_clear_all():
 
 # --- Meetings ---
 
+def _schedule_runs(schedules, today=None):
+    """A meeting's times for a list, with days that share a time merged:
+    [{"days": "Mon–Fri", "start": "08:00", "end": "09:00", "today": bool}],
+    in the order of each time's first day. Three or more days in a row
+    become a range; anything else is a comma list."""
+    names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    groups = {}
+    for s in sorted(schedules, key=lambda s: (s.day_of_week, s.start_time)):
+        groups.setdefault((s.start_time, s.end_time), []).append(s.day_of_week)
+    out = []
+    for (start, end), days in groups.items():
+        days = sorted(set(days))
+        runs, run = [], [days[0]]
+        for d in days[1:]:
+            if d == run[-1] + 1:
+                run.append(d)
+            else:
+                runs.append(run)
+                run = [d]
+        runs.append(run)
+        parts = []
+        for r in runs:
+            if len(r) >= 3:
+                parts.append(f"{names[r[0]]}–{names[r[-1]]}")
+            else:
+                parts.extend(names[d] for d in r)
+        out.append({"days": ", ".join(parts), "start": start, "end": end,
+                    "today": today in days, "first": days[0]})
+    out.sort(key=lambda g: (g["first"], g["start"]))
+    return out
+
+
 @bp.route("/meetings")
 @login_required
 def meetings():
     _expire_meeting_alerts()
     _apply_meeting_schedule_changes()
+    # Sort, direction and view stick (cookies); the filters don't, so a
+    # return visit starts on the whole list. A click on the current sort
+    # reverses it; a new one starts A to Z (most first for counts).
     sort = request.args.get("sort") or request.cookies.get("view-meetings-sort") or "name"
+    if sort not in ("name", "type", "day", "libraries", "files"):
+        sort = "name"
     direction = request.args.get("dir") or request.cookies.get("view-meetings-dir") or "asc"
-    view = request.args.get("view") or request.cookies.get("view-meetings") or "table"
-    show = request.args.get("show") or "active"
-    q = Meeting.query
-    if show == "archived":
-        q = q.filter(Meeting.archived_at.isnot(None))
-    else:
-        q = q.filter(Meeting.archived_at.is_(None))
-    items = q.all()
-    def first_day(m):
-        days = [s.day_of_week for s in m.schedules]
-        return (min(days) if days else 99)
+    if direction not in ("asc", "desc"):
+        direction = "asc"
+    # "cards" / "table" are the names older cookies carry.
+    view = request.args.get("view") or request.cookies.get("view-meetings") or "list"
+    view = "grid" if view in ("grid", "cards") else "list"
+    show = "archived" if request.args.get("show") == "archived" else "active"
+    mtype = request.args.get("type") or ""
+    if mtype not in ("in_person", "online", "hybrid"):
+        mtype = ""
+    day = request.args.get("day", type=int)
+    if day is not None and not 0 <= day <= 6:
+        day = None
+    q = (request.args.get("q") or "").strip()
+
+    active_count = Meeting.query.filter(Meeting.archived_at.is_(None)).count()
+    archived_count = Meeting.query.filter(Meeting.archived_at.isnot(None)).count()
+    pool = Meeting.query.filter(
+        Meeting.archived_at.isnot(None) if show == "archived" else Meeting.archived_at.is_(None)).all()
+    if q:
+        needle = q.lower()
+        pool = [m for m in pool if needle in m.name.lower() or needle in (m.location or "").lower()]
+
+    def on_day(m, d):
+        return any(s.day_of_week == d for s in m.schedules)
+    # Each filter's counts take the other filters as they stand, so a
+    # number says what a click would show.
+    type_counts = {"": 0, "in_person": 0, "online": 0, "hybrid": 0}
+    for m in pool:
+        if day is None or on_day(m, day):
+            type_counts[""] += 1
+            type_counts[m.meeting_type] = type_counts.get(m.meeting_type, 0) + 1
+    day_counts = {d: sum(1 for m in pool if (not mtype or m.meeting_type == mtype) and on_day(m, d))
+                  for d in range(7)}
+    items = [m for m in pool
+             if (not mtype or m.meeting_type == mtype) and (day is None or on_day(m, day))]
+
+    files = {mid: n for mid, n in db.session.query(MeetingFile.meeting_id, db.func.count(MeetingFile.id))
+             .group_by(MeetingFile.meeting_id).all()}
+    def first_slot(m):
+        slots = [(s.day_of_week, s.start_time) for s in m.schedules
+                 if day is None or s.day_of_week == day]
+        return min(slots) if slots else (99, "")
+    name_key = lambda m: m.name.lower()
     if sort == "day":
-        items.sort(key=lambda m: (first_day(m), m.name.lower()))
+        items.sort(key=lambda m: (first_slot(m), name_key(m)))
     elif sort == "type":
-        items.sort(key=lambda m: (m.meeting_type or "", m.name.lower()))
+        items.sort(key=lambda m: (m.meeting_type or "", name_key(m)))
+    elif sort == "libraries":
+        items.sort(key=lambda m: (len(m.libraries), name_key(m)))
+    elif sort == "files":
+        items.sort(key=lambda m: (files.get(m.id, 0), name_key(m)))
     else:
-        items.sort(key=lambda m: m.name.lower())
+        items.sort(key=name_key)
     if direction == "desc":
         items.reverse()
-    zoom_accounts = ZoomAccount.query.order_by(ZoomAccount.name).all()
-    locations = Location.query.order_by(Location.name).all()
-    # Shadow the `all_libraries` Jinja global (which is registered as
-    # the underlying function, not its result) with a concrete list so
-    # the shared `_meeting_modal.html` partial's `{% for lib in
-    # all_libraries %}` loop works on this page too — matches the
-    # pattern the meeting-edit route already uses.
-    all_libraries = Library.query.order_by(Library.name).all()
-    archived_count = Meeting.query.filter(Meeting.archived_at.isnot(None)).count()
+    from .timezone import now_local_naive
+    today_dow = now_local_naive(_get_site_setting()).weekday()
     resp = current_app.make_response(
         render_template("meetings.html", meetings=items,
-                        zoom_accounts=zoom_accounts, locations=locations,
-                        all_libraries=all_libraries,
                         sort=sort, direction=direction, view=view,
-                        show=show, archived_count=archived_count))
+                        show=show, mtype=mtype, day=day, q=q,
+                        active_count=active_count, archived_count=archived_count,
+                        type_counts=type_counts, day_counts=day_counts,
+                        file_counts=files, today_dow=today_dow,
+                        runs={m.id: _schedule_runs(m.schedules, today_dow) for m in items}))
     resp.set_cookie("view-meetings", view, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-meetings-sort", sort, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-meetings-dir", direction, max_age=60*60*24*365, samesite="Lax")
@@ -2171,22 +2292,53 @@ def _apply_meeting_form(m, form, schedules, files=None):
         _record_slug_change("meeting", m.id, _prev_public_slug, m.public_slug)
 
 
-@bp.route("/meetings/new", methods=["POST"])
+def _meeting_file_return(m, category):
+    """Where a meeting file's add / edit / delete goes back to: the
+    meeting editor's Files tab when it came from there (its forms send
+    return_to=editor), otherwise the meeting's page at that category."""
+    if request.form.get("return_to") == "editor":
+        return url_for("main.meeting_edit", slug=m.public_slug) + "#files"
+    return url_for("main.meeting_detail", slug=m.public_slug) + f"#{category}"
+
+
+def _meeting_editor_context(meeting):
+    """What meeting_edit.html needs besides the meeting itself."""
+    return {
+        "meeting": meeting,
+        "zoom_accounts": ZoomAccount.query.order_by(ZoomAccount.name).all(),
+        "locations": Location.query.order_by(Location.name).all(),
+        "all_libraries": Library.query.order_by(Library.name).all(),
+    }
+
+
+@bp.route("/meetings/new", methods=["GET", "POST"])
 @meeting_admin_required
 def meeting_new():
+    """The meeting editor for a new meeting (meeting_edit.html). Creating
+    it lands on its own editor, where files can then be added."""
+    if request.method == "GET":
+        return render_template("meeting_edit.html", **_meeting_editor_context(None))
     schedules, err = _parse_schedule_form(request.form)
     if err:
         flash(err, "danger")
-        return redirect(url_for("main.meetings"))
-    m = Meeting(name=request.form["name"].strip())
+        return redirect(url_for("main.meeting_new"))
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash("Name is required", "danger")
+        return redirect(url_for("main.meeting_new"))
+    m = Meeting(name=name)
     _apply_meeting_form(m, request.form, schedules, request.files)
+    if "library_ids" in request.form:
+        db.session.add(m)
+        db.session.flush()
+        _apply_library_selections(m, request.form)
     db.session.add(m)
     db.session.commit()
     from . import activity
     activity.log("meeting.create", entity_type="meeting", entity_id=m.id,
                  summary=f"Created meeting “{m.name}”")
     flash("Meeting created", "success")
-    return redirect(url_for("main.meeting_detail", slug=m.public_slug))
+    return redirect(url_for("main.meeting_edit", slug=m.public_slug))
 
 
 def _resolve_meeting_by_slug(slug):
@@ -2244,16 +2396,15 @@ def meeting_detail(slug):
     _expire_meeting_alerts()
     _apply_meeting_schedule_changes()
     m = _resolve_meeting_by_slug(slug) or abort(404)
-    all_libraries = Library.query.order_by(Library.name).all()
-    zoom_accounts = ZoomAccount.query.order_by(ZoomAccount.name).all()
     locations = Location.query.order_by(Location.name).all()
     location_record, location_maps_url = _resolve_meeting_location(m, locations)
     # Site policy: every signed-in role may host — the host-account
     # password and OTP surfaces render for viewers too.
     zoom_password = decrypt(m.zoom_account.password_enc) if m.zoom_account else ""
     otp_email = ZoomOtpEmail.query.first()
-    return render_template("meeting_detail.html", meeting=m,
-                           all_libraries=all_libraries, zoom_accounts=zoom_accounts,
+    from .timezone import now_local_naive
+    today_dow = now_local_naive(_get_site_setting()).weekday()  # 0 = Monday, as schedules
+    return render_template("meeting_detail.html", meeting=m, today_dow=today_dow,
                            locations=locations, zoom_account_password=zoom_password,
                            location_record=location_record, location_maps_url=location_maps_url,
                            otp_email=otp_email)
@@ -2268,14 +2419,26 @@ def meeting_detail_legacy(mid):
     return redirect(url_for("main.meeting_detail", slug=m.public_slug), code=301)
 
 
-@bp.route("/meetings/<slug>/edit", methods=["POST"])
+@bp.route("/meetings/<slug>/edit", methods=["GET", "POST"])
 @editor_required
 def meeting_edit(slug):
+    """The meeting editor (meeting_edit.html). Its save bar posts here
+    through fetch and gets JSON back; a plain form post redirects."""
     m = _resolve_meeting_by_slug(slug) or abort(404)
+    if request.method == "GET":
+        return render_template("meeting_edit.html", **_meeting_editor_context(m))
+    wants_json = _post_save_wants_json()
+    if not (request.form.get("name") or "").strip():
+        flash("Name is required", "danger")
+        if wants_json:
+            return _editor_save_failed()
+        return redirect(url_for("main.meeting_edit", slug=m.public_slug))
     schedules, err = _parse_schedule_form(request.form, meeting_id=m.id)
     if err:
         flash(err, "danger")
-        return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
+        if wants_json:
+            return _editor_save_failed()
+        return redirect(url_for("main.meeting_edit", slug=m.public_slug))
     _apply_meeting_form(m, request.form, schedules, request.files)
     if "library_ids" in request.form:
         _apply_library_selections(m, request.form)
@@ -2283,89 +2446,152 @@ def meeting_edit(slug):
     from . import activity
     activity.log("meeting.update", entity_type="meeting", entity_id=m.id,
                  summary=f"Updated meeting “{m.name}”")
-    flash("Meeting updated", "success")
-    return redirect(url_for("main.meeting_detail", slug=m.public_slug))
+    flash("Meeting saved", "success")
+    if wants_json:
+        payload = _editor_save_payload(m.public_slug, m.slug)
+        # A new name or URL moves the editor: the next save posts to the
+        # new address, and the address bar follows.
+        payload["form_action"] = url_for("main.meeting_edit", slug=m.public_slug)
+        payload["page_url"] = payload["form_action"]
+        payload["logo"] = (url_for("main.meeting_logo", mid=m.id, v=int(time.time()))
+                           if m.logo_filename else None)
+        return jsonify(payload)
+    return redirect(url_for("main.meeting_edit", slug=m.public_slug))
 
 
-@bp.route("/meetings/<slug>/schedule-changes/new", methods=["POST"])
-@editor_required
-def meeting_schedule_change_new(slug):
-    """Queue a future schedule swap for the named meeting.
-
-    Reuses ``_parse_schedule_form`` so the inline form inside the
-    meeting edit modal can post the same ``schedule_day`` /
-    ``schedule_time`` / ``schedule_end`` / ``schedule_opens`` fields
-    the main edit form uses, just prefixed with ``change_``. The
-    handler stores the parsed list of entries as JSON on a
-    ``MeetingScheduleChange`` row plus the effective date the admin
-    typed. Until that date arrives the meeting keeps showing its
-    current schedules; once reached, ``_apply_meeting_schedule_changes``
-    swaps them in and deletes the change row."""
+@bp.app_template_filter("serialize_schedule_change")
+def _serialize_schedule_change(chg):
+    """JSON shape the meeting modal's Scheduled-changes editor renders
+    from. Entries gain an ``end_time`` (derived from start + duration)
+    so the editor can refill its Start / End inputs when the admin
+    edits a queued change."""
     import json as _json
-    m = _resolve_meeting_by_slug(slug) or abort(404)
-    effective_raw = (request.form.get("change_effective_date") or "").strip()
     try:
-        eff_date = datetime.strptime(effective_raw, "%Y-%m-%d").date()
+        raw = _json.loads(chg.schedules_json or "[]")
     except (TypeError, ValueError):
-        flash("Pick a valid effective date for the schedule change.", "danger")
-        return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
-    # Re-map the change_* form fields into the names _parse_schedule_form
-    # expects, then feed the existing parser so the new schedule is
-    # validated against the same conflict / format rules the live edit
-    # path runs.
-    from werkzeug.datastructures import MultiDict
-    sub_form = MultiDict()
-    sub_form["meeting_type"] = m.meeting_type or "in_person"
-    if m.zoom_account_id:
-        sub_form["zoom_account_id"] = str(m.zoom_account_id)
-    for k_src, k_dst in (("change_schedule_day", "schedule_day"),
-                          ("change_schedule_time", "schedule_time"),
-                          ("change_schedule_end", "schedule_end"),
-                          ("change_schedule_opens", "schedule_opens")):
-        for v in request.form.getlist(k_src):
-            sub_form.add(k_dst, v)
-    entries, err = _parse_schedule_form(sub_form, meeting_id=m.id)
-    if err:
-        flash(err, "danger")
-        return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
-    if not entries:
-        flash("Add at least one day + start time to the future schedule.", "danger")
-        return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
-    note = (request.form.get("change_note") or "").strip()[:500] or None
-    chg = MeetingScheduleChange(
-        meeting_id=m.id,
-        effective_date=eff_date,
-        note=note,
-        schedules_json=_json.dumps(entries),
-        created_by=current_user.id if current_user.is_authenticated else None,
-    )
-    db.session.add(chg)
-    db.session.commit()
-    from . import activity
-    activity.log("meeting.schedule_change.create",
-                 entity_type="meeting", entity_id=m.id,
-                 summary=f"Queued schedule change for “{m.name}” effective {eff_date.isoformat()}")
-    flash(f"Schedule change saved — goes live on {eff_date.strftime('%b %-d, %Y')}.", "success")
-    return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
+        raw = []
+    entries = []
+    for e in raw if isinstance(raw, list) else []:
+        start = (e.get("start_time") or "").strip()
+        end = ""
+        try:
+            h, m = start.split(":")
+            total = (int(h) * 60 + int(m) + int(e.get("duration") or 60)) % (24 * 60)
+            end = f"{total // 60:02d}:{total % 60:02d}"
+        except (ValueError, TypeError):
+            pass
+        entries.append({"day": e.get("day"), "start_time": start, "end_time": end,
+                        "duration": e.get("duration"), "opens_time": e.get("opens_time") or ""})
+    return {"id": chg.id,
+            "effective_date": chg.effective_date.isoformat() if chg.effective_date else "",
+            "note": chg.note or "",
+            "entries": entries}
 
 
-@bp.route("/meetings/<slug>/schedule-changes/<int:cid>/delete", methods=["POST"])
+@bp.route("/meetings/<int:mid>/schedule-changes/sync", methods=["POST"])
 @editor_required
-def meeting_schedule_change_delete(slug, cid):
-    """Cancel a pending schedule swap before it activates."""
-    m = _resolve_meeting_by_slug(slug) or abort(404)
-    chg = db.session.get(MeetingScheduleChange, cid)
-    if not chg or chg.meeting_id != m.id:
-        abort(404)
-    eff = chg.effective_date.isoformat() if chg.effective_date else "?"
-    db.session.delete(chg)
+def meeting_schedule_changes_sync(mid):
+    """Commit the meeting modal's staged Scheduled-changes edits in one
+    go, alongside the modal's main Save.
+
+    JSON body::
+
+        {"meeting_type": "...", "zoom_account_id": "..." | "",
+         "upserts": [{"id": int | null, "effective_date": "YYYY-MM-DD",
+                      "note": str,
+                      "entries": [{"day", "start_time", "end_time",
+                                   "opens_time"}]}],
+         "deletes": [int, ...]}
+
+    ``meeting_type`` / ``zoom_account_id`` come from the modal as
+    currently edited (not the stored row) so a change queued in the
+    same Save as a type switch validates against the new type. Every
+    upsert runs through ``_parse_schedule_form`` like the live
+    schedule does. All-or-nothing: the first bad entry rolls the whole
+    batch back and comes back as ``{"ok": false, "error": …}``. On
+    success, returns the meeting's full pending list."""
+    import json as _json
+    from werkzeug.datastructures import MultiDict
+    m = db.session.get(Meeting, mid) or abort(404)
+    payload = request.get_json(silent=True) or {}
+    upserts = payload.get("upserts") or []
+    deletes = payload.get("deletes") or []
+    if not isinstance(upserts, list) or not isinstance(deletes, list):
+        return jsonify(ok=False, error="Malformed schedule-change payload."), 400
+    mtype = (payload.get("meeting_type") or m.meeting_type or "in_person")
+    acct = payload.get("zoom_account_id")
+    if acct is None:
+        acct = str(m.zoom_account_id) if m.zoom_account_id else ""
+
+    def _fail(msg):
+        db.session.rollback()
+        return jsonify(ok=False, error=msg), 400
+
+    def _own(cid):
+        try:
+            chg = db.session.get(MeetingScheduleChange, int(cid))
+        except (TypeError, ValueError):
+            return None
+        return chg if chg and chg.meeting_id == m.id else None
+
+    created = updated = removed = 0
+    for cid in deletes:
+        chg = _own(cid)
+        if chg:
+            db.session.delete(chg)
+            removed += 1
+    for up in upserts:
+        if not isinstance(up, dict):
+            return _fail("Malformed schedule-change payload.")
+        try:
+            eff_date = datetime.strptime((up.get("effective_date") or "").strip(), "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            return _fail("Pick a valid effective date for each scheduled change.")
+        sub_form = MultiDict()
+        sub_form["meeting_type"] = mtype
+        sub_form["zoom_account_id"] = str(acct or "")
+        for e in up.get("entries") or []:
+            if not isinstance(e, dict):
+                continue
+            sub_form.add("schedule_day", str(e.get("day", "")))
+            sub_form.add("schedule_time", (e.get("start_time") or "").strip())
+            sub_form.add("schedule_end", (e.get("end_time") or "").strip())
+            sub_form.add("schedule_opens", (e.get("opens_time") or "").strip())
+        try:
+            entries, err = _parse_schedule_form(sub_form, meeting_id=m.id)
+        except (TypeError, ValueError):
+            return _fail("One of the scheduled-change times isn't valid.")
+        when = eff_date.strftime("%b %-d, %Y")
+        if err:
+            return _fail(f"Change effective {when}: {err}")
+        if not entries:
+            return _fail(f"Change effective {when}: add at least one day + start time.")
+        note = (up.get("note") or "").strip()[:500] or None
+        chg = _own(up["id"]) if up.get("id") else None
+        if up.get("id") and not chg:
+            return _fail("That scheduled change no longer exists — reopen the meeting and try again.")
+        if chg is None:
+            chg = MeetingScheduleChange(
+                meeting_id=m.id,
+                created_by=current_user.id if current_user.is_authenticated else None,
+            )
+            db.session.add(chg)
+            created += 1
+        else:
+            updated += 1
+        chg.effective_date = eff_date
+        chg.note = note
+        chg.schedules_json = _json.dumps(entries)
     db.session.commit()
     from . import activity
-    activity.log("meeting.schedule_change.delete",
-                 entity_type="meeting", entity_id=m.id,
-                 summary=f"Cancelled schedule change for “{m.name}” effective {eff}")
-    flash("Schedule change cancelled.", "success")
-    return redirect(_safe_referrer() or url_for("main.meeting_detail", slug=m.public_slug))
+    for verb, n in (("create", created), ("update", updated), ("delete", removed)):
+        if n:
+            label = {"create": "Queued", "update": "Updated", "delete": "Cancelled"}[verb]
+            activity.log(f"meeting.schedule_change.{verb}",
+                         entity_type="meeting", entity_id=m.id,
+                         summary=f"{label} {n} scheduled change{'s' if n != 1 else ''} for “{m.name}”")
+    db.session.refresh(m)
+    return jsonify(ok=True, changes=[_serialize_schedule_change(c) for c in m.schedule_changes])
 
 
 @bp.route("/meetings/<int:mid>.json")
@@ -2474,14 +2700,56 @@ def locations():
         return redirect(url_for("main.index"))
     from .models import IntergroupOfficer, Fellowship
     items = Location.query.order_by(Location.name).all()
+    # The Public Information Chair is always on the officers list, as its
+    # card says (a no-op write when it already matches).
+    _sync_pic_officer()
+    db.session.commit()
     officers = (IntergroupOfficer.query
                 .order_by(IntergroupOfficer.sort_order, IntergroupOfficer.id)
                 .all())
     fellowships = (Fellowship.query
                    .order_by(Fellowship.sort_order, Fellowship.id)
                    .all())
+    pic = _pic_officer()
     return render_template("locations.html", locations=items, officers=officers,
-                           fellowships=fellowships)
+                           fellowships=fellowships, pic_officer_id=pic.id if pic else None)
+
+
+# The officer that mirrors Settings → Global's Public Information Chair
+# card: always on the officers list, under the card's title and with its
+# name, phone and email, and never deleted from there. Marked is_pic;
+# before that flag existed it was the row titled Public Information Chair,
+# which is adopted the first time it's looked for.
+PIC_OFFICER_ROLE = "Public Information Chair"
+
+
+def _pic_officer(create=False):
+    from .models import IntergroupOfficer
+    o = (IntergroupOfficer.query.filter_by(is_pic=True)
+         .order_by(IntergroupOfficer.sort_order, IntergroupOfficer.id).first())
+    if o is None:
+        s = _get_site_setting()
+        titles = {PIC_OFFICER_ROLE.lower(), (s.pic_role_label if s else PIC_OFFICER_ROLE).lower()}
+        o = next((x for x in IntergroupOfficer.query.order_by(IntergroupOfficer.sort_order, IntergroupOfficer.id)
+                  if (x.role or "").strip().lower() in titles), None)
+        if o is not None:
+            o.is_pic = True
+    if o is None and create:
+        o = IntergroupOfficer(role=PIC_OFFICER_ROLE, sort_order=0, is_pic=True)
+        db.session.add(o)
+    return o
+
+
+def _sync_pic_officer():
+    """Copy the Public Information Chair card onto its officer row,
+    adding the row if it's missing. The caller commits."""
+    s = _get_site_setting()
+    o = _pic_officer(create=True)
+    o.role = s.pic_role_label if s else PIC_OFFICER_ROLE
+    o.name = (s.pic_name if s else None) or None
+    o.phone = (s.pic_phone if s else None) or None
+    o.email = (s.pic_email if s else None) or None
+    return o
 
 
 @bp.route("/officers/save", methods=["POST"])
@@ -2503,7 +2771,8 @@ def officers_save():
     phones = request.form.getlist("officer_phone")
     emails = request.form.getlist("officer_email")
     existing = {o.id: o for o in IntergroupOfficer.query.all()}
-    seen = set()
+    pic = _pic_officer()
+    seen = {pic.id} if pic else set()
     for pos, (oid, role, name, phone, email) in enumerate(
         zip(ids, roles, names, phones, emails)
     ):
@@ -2514,6 +2783,11 @@ def officers_save():
         # Drop rows where every cell is blank — they're empty placeholder
         # rows the admin opened with "+ Add officer" but never filled in.
         if not role and not name and not phone and not email:
+            continue
+        if pic and oid == str(pic.id):
+            # Its details come from the Public Information Chair card;
+            # only its place in the list is taken from here.
+            pic.sort_order = pos
             continue
         if oid and oid.isdigit() and int(oid) in existing:
             o = existing[int(oid)]
@@ -2534,6 +2808,7 @@ def officers_save():
     for oid, o in existing.items():
         if oid not in seen:
             db.session.delete(o)
+    _sync_pic_officer()
     db.session.commit()
     flash("Intergroup officers updated", "success")
     return redirect(url_for("main.locations",
@@ -2780,78 +3055,250 @@ def meeting_logo(mid):
 
 # --- Zoom Accounts ---
 
+def _zoom_busy(s):
+    """When a meeting time holds its Zoom account, in minutes from
+    midnight: from when the room opens (``opens_time``, else the start)
+    to the end, cut at midnight."""
+    start = s.start_minutes()
+    if s.opens_time:
+        try:
+            h, m = s.opens_time.split(":")
+            start = min(start, int(h) * 60 + int(m))
+        except ValueError:
+            pass
+    return start, min(s.end_minutes(), 24 * 60)
+
+
+def _zoom_conflicts(schedules):
+    """Ids of the meeting times that overlap another on the same account
+    and day (counting from when the room opens), and the accounts that
+    have any."""
+    by = {}
+    for s in schedules:
+        if s.zoom_account_id:
+            by.setdefault((s.zoom_account_id, s.day_of_week), []).append(s)
+    ids, accts = set(), set()
+    for (acct, _day), slots in by.items():
+        for i in range(len(slots)):
+            for j in range(i + 1, len(slots)):
+                (a0, a1), (b0, b1) = _zoom_busy(slots[i]), _zoom_busy(slots[j])
+                if a0 < b1 and b0 < a1:
+                    ids.update((slots[i].id, slots[j].id))
+                    accts.add(acct)
+    return ids, accts
+
+
+def _short_range(a, b):
+    """A compact time range for a calendar block: "7–9 AM", "8:45–10 AM",
+    "11:30 AM–1 PM"."""
+    def part(m):
+        h, mm = (m // 60) % 24, m % 60
+        return (str(h % 12 or 12) + (f":{mm:02d}" if mm else "")), ("AM" if h < 12 else "PM")
+    (t0, p0), (t1, p1) = part(a), part(b)
+    return f"{t0}–{t1} {p1}" if p0 == p1 else f"{t0} {p0}–{t1} {p1}"
+
+
+# Account colors in the calendar, by the account's place in name order
+# (so a color stays with its account whatever is filtered).
+ZOOM_COLORS = 6
+
+
+def _zoom_week(accounts, schedules, all_accounts):
+    """The week grid: for each day (Sunday first) the blocks to place,
+    each with its account's lane and color and its spot in time; plus
+    the hours shown. Each account is a lane across every day; times
+    that overlap on one account split that lane."""
+    shown = [a.id for a in accounts]
+    lane_of = {aid: i for i, aid in enumerate(shown)}
+    color_of = {a.id: i % ZOOM_COLORS for i, a in enumerate(sorted(all_accounts, key=lambda a: a.name.lower()))}
+    mine = [s for s in schedules if s.zoom_account_id in lane_of]
+    if mine:
+        lo = min(_zoom_busy(s)[0] for s in mine)
+        hi = max(_zoom_busy(s)[1] for s in mine)
+    else:
+        lo, hi = 8 * 60, 20 * 60
+    start = min(6 * 60, (lo // 60) * 60)
+    end = min(24 * 60, max(22 * 60, -(-hi // 60) * 60))
+    span = end - start
+    days = []
+    for d in (6, 0, 1, 2, 3, 4, 5):
+        blocks = []
+        for aid in shown:
+            slots = sorted((s for s in mine if s.zoom_account_id == aid and s.day_of_week == d),
+                           key=lambda s: _zoom_busy(s))
+            # Overlapping times share the lane side by side: each takes
+            # the first free column of its cluster.
+            cluster, cols_end = [], []
+            def flush():
+                for blk in cluster:
+                    blk["cols"] = len(cols_end)
+                blocks.extend(cluster)
+            for s in slots:
+                b0, b1 = _zoom_busy(s)
+                if cluster and b0 >= max(c for c in cols_end):
+                    flush()
+                    cluster, cols_end = [], []
+                col = next((i for i, e in enumerate(cols_end) if e <= b0), None)
+                if col is None:
+                    col = len(cols_end)
+                    cols_end.append(b1)
+                else:
+                    cols_end[col] = b1
+                cluster.append({"s": s, "lane": lane_of[aid], "color": color_of.get(aid, 0),
+                                "col": col, "start": b0, "end": b1, "label": _short_range(b0, b1),
+                                "top": (b0 - start) / span * 100,
+                                "height": max(b1 - b0, 15) / span * 100})
+            if cluster:
+                flush()
+        days.append({"day": d, "blocks": blocks})
+    return {"days": days, "start": start, "end": end, "hours": list(range(start // 60, end // 60)),
+            "lanes": max(len(shown), 1), "color_of": color_of}
+
+
 @bp.route("/zoom-accounts")
 @login_required
 def zoom_accounts():
-    accounts = ZoomAccount.query.order_by(ZoomAccount.name).all()
+    """Zoom accounts in the File Browser layout: search (name, sign-in or
+    notes, live), an Overlaps filter, sort, List or Grid, and the
+    one-time passcode tools in the sidebar. ``tab=calendar`` shows the
+    weekly assignment calendar for the accounts found."""
+    Z = ZoomAccount
+    tab = "calendar" if request.args.get("tab") == "calendar" else "accounts"
+    only = "overlaps" if request.args.get("only") == "overlaps" else ""
+    sort = (request.args.get("sort") or request.cookies.get("view-zoom-sort") or "name_asc").strip()
+    view = request.args.get("view") or request.cookies.get("view-zoom") or "list"
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
+
     schedules = (MeetingSchedule.query
-                 .filter(MeetingSchedule.zoom_account_id.isnot(None))
-                 .all())
-    # Build calendar grid: rows = hours 6..23, cols = days
-    calendar = {a.id: {d: [] for d in range(7)} for a in accounts}
+                 .filter(MeetingSchedule.zoom_account_id.isnot(None)).all())
+    conflict_ids, conflict_accts = _zoom_conflicts(schedules)
+    base = Z.query
+    if q_text:
+        like = f"%{q_text}%"
+        base = base.filter(db.or_(Z.name.ilike(like), Z.username.ilike(like), Z.notes.ilike(like)))
+    found = base.all()
+    only_counts = {"": len(found), "overlaps": sum(1 for a in found if a.id in conflict_accts)}
+    accounts = [a for a in found if not only or a.id in conflict_accts]
+    acct = request.args.get("acct", type=int)
+    if acct and any(a.id == acct for a in accounts):
+        accounts = [a for a in accounts if a.id == acct]
+    else:
+        acct = None
+    uses = {}
     for s in schedules:
-        if s.zoom_account_id in calendar:
-            calendar[s.zoom_account_id][s.day_of_week].append(s)
-    conflict_ids = set()
-    for acct_id, by_day in calendar.items():
-        for day, slots in by_day.items():
-            for i in range(len(slots)):
-                for j in range(i + 1, len(slots)):
-                    a, b = slots[i], slots[j]
-                    if a.start_minutes() < b.end_minutes() and b.start_minutes() < a.end_minutes():
-                        conflict_ids.add(a.id)
-                        conflict_ids.add(b.id)
-    # Display order: Sunday first, then Monday..Saturday
-    day_order = [6, 0, 1, 2, 3, 4, 5]
+        uses[s.zoom_account_id] = uses.get(s.zoom_account_id, 0) + 1
+    key, direction = sort.rsplit("_", 1) if "_" in sort else ("name", "asc")
+    if key == "uses":
+        accounts.sort(key=lambda a: (uses.get(a.id, 0), a.name.lower()), reverse=direction == "desc")
+    else:
+        sort = "name_desc" if sort == "name_desc" else "name_asc"
+        accounts.sort(key=lambda a: a.name.lower(), reverse=sort == "name_desc")
+
+    all_accounts = Z.query.all()
+    week = _zoom_week(accounts, schedules, all_accounts) if tab == "calendar" else None
+    from .timezone import now_local_naive
+    now = now_local_naive(_get_site_setting())
     otp = _get_otp_email()
-    return render_template("zoom_accounts.html", accounts=accounts,
-                           calendar=calendar, schedules=schedules,
-                           conflict_ids=conflict_ids, day_order=day_order,
-                           otp=otp, decrypt=decrypt)
+    resp = current_app.make_response(render_template(
+        "zoom_accounts.html", accounts=accounts, uses=uses, week=week, acct=acct,
+        all_accounts=sorted(all_accounts, key=lambda a: a.name.lower()),
+        conflict_ids=conflict_ids, conflict_accts=conflict_accts,
+        today_dow=now.weekday(), now_min=now.hour * 60 + now.minute,
+        otp=otp, tab=tab, only=only, sort=sort, view=view, q=q_text,
+        only_counts=only_counts, total=Z.query.count()))
+    resp.set_cookie("view-zoom", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-zoom-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
-@bp.route("/zoom-accounts/new", methods=["POST"])
+def _zoom_account_page(acct):
+    """The editor page for a new (``acct`` None) or existing account,
+    with the meetings using it and which of their times overlap."""
+    slots, conflict_ids = [], set()
+    if acct:
+        slots = (MeetingSchedule.query.filter_by(zoom_account_id=acct.id).all())
+        slots.sort(key=lambda s: ((s.day_of_week + 1) % 7, s.start_time or ""))
+        conflict_ids, _ = _zoom_conflicts(slots)
+    return render_template("zoom_account_edit.html", acct=acct, slots=slots,
+                           conflict_ids=conflict_ids)
+
+
+@bp.route("/zoom-accounts/new", methods=["GET", "POST"])
 @admin_required
 def zoom_account_new():
-    name = request.form["name"].strip()
+    if request.method == "GET":
+        return _zoom_account_page(None)
+    name = (request.form.get("name") or "").strip()[:128]
+    username = (request.form.get("username") or "").strip()[:255]
+    if not name or not username:
+        flash("A name and a sign-in are required.", "danger")
+        return redirect(url_for("main.zoom_account_new"))
     if ZoomAccount.query.filter_by(name=name).first():
         flash("A Zoom account with that name already exists", "danger")
-        return redirect(url_for("main.zoom_accounts", **({"embed": "1"} if request.values.get("embed") == "1" else {})))
+        return redirect(url_for("main.zoom_account_new"))
     acct = ZoomAccount(
         name=name,
-        username=request.form["username"].strip(),
+        username=username,
         password_enc=encrypt(request.form.get("password", "")),
-        notes=request.form.get("notes", "").strip(),
+        notes=(request.form.get("notes") or "").strip(),
     )
     db.session.add(acct)
     db.session.commit()
     flash("Zoom account created", "success")
-    return redirect(url_for("main.zoom_accounts", **({"embed": "1"} if request.values.get("embed") == "1" else {})))
+    return redirect(url_for("main.zoom_account_edit", aid=acct.id))
 
 
-@bp.route("/zoom-accounts/<int:aid>/edit", methods=["POST"])
+@bp.route("/zoom-accounts/<int:aid>/edit", methods=["GET", "POST"])
 @admin_required
 def zoom_account_edit(aid):
     acct = db.session.get(ZoomAccount, aid) or abort(404)
-    acct.name = request.form["name"].strip()
-    acct.username = request.form["username"].strip()
+    if request.method == "GET":
+        return _zoom_account_page(acct)
+    name = (request.form.get("name") or "").strip()[:128]
+    username = (request.form.get("username") or "").strip()[:255]
+    problem = None
+    if not name or not username:
+        problem = "A name and a sign-in are required."
+    elif ZoomAccount.query.filter(ZoomAccount.name == name, ZoomAccount.id != acct.id).first():
+        problem = "Another Zoom account already has that name."
+    if problem:
+        flash(problem, "danger")
+        if _post_save_wants_json():
+            return _editor_save_failed()
+        return redirect(url_for("main.zoom_account_edit", aid=aid))
+    acct.name = name
+    acct.username = username
     pw = request.form.get("password", "")
     if pw:
         acct.password_enc = encrypt(pw)
-    acct.notes = request.form.get("notes", "").strip()
+    acct.notes = (request.form.get("notes") or "").strip()
     db.session.commit()
     flash("Zoom account updated", "success")
-    return redirect(url_for("main.zoom_accounts", **({"embed": "1"} if request.values.get("embed") == "1" else {})))
+    if _post_save_wants_json():
+        payload = _editor_save_payload(None, None)
+        # A new password is stored; the page clears the box on reload.
+        if pw:
+            payload["redirect"] = url_for("main.zoom_account_edit", aid=aid)
+        return jsonify(payload)
+    return redirect(url_for("main.zoom_account_edit", aid=aid))
 
 
 @bp.route("/zoom-accounts/<int:aid>/delete", methods=["POST"])
 @admin_required
 def zoom_account_delete(aid):
     acct = db.session.get(ZoomAccount, aid) or abort(404)
+    # SQLite here doesn't enforce the ON DELETE SET NULL, so clear the
+    # meetings and times that used the account by hand.
+    MeetingSchedule.query.filter_by(zoom_account_id=aid).update({"zoom_account_id": None})
+    Meeting.query.filter_by(zoom_account_id=aid).update({"zoom_account_id": None})
     db.session.delete(acct)
     db.session.commit()
     flash("Zoom account deleted", "success")
-    return redirect(url_for("main.zoom_accounts", **({"embed": "1"} if request.values.get("embed") == "1" else {})))
+    ref = _safe_referrer()
+    if ref and "/zoom-accounts/%d/" % aid not in ref:
+        return redirect(ref)
+    return redirect(url_for("main.zoom_accounts"))
 
 
 @bp.route("/zoom-accounts/<int:aid>/reveal")
@@ -3071,6 +3518,9 @@ def intergroup_edit():
         ids = request.form.getlist("account_id")
         roles = request.form.getlist("account_role")
         emails = request.form.getlist("account_email")
+        # New rows get their ids on the reload the save bar does (below).
+        adds_rows = any((r or "").strip() or (e or "").strip()
+                        for i, r, e in zip(ids, roles, emails) if not i)
         existing = {a.id: a for a in IntergroupAccount.query.all()}
         seen = set()
         for pos, (aid, role, email) in enumerate(zip(ids, roles, emails)):
@@ -3089,48 +3539,126 @@ def intergroup_edit():
                 db.session.delete(a)
         db.session.commit()
         flash("Intergroup page updated", "success")
-        return redirect(url_for("main.intergroup"))
+        if _post_save_wants_json():
+            payload = _editor_save_payload(None, None)
+            if adds_rows:
+                payload["redirect"] = url_for("main.intergroup_edit")
+            return jsonify(payload)
+        return redirect(url_for("main.intergroup_edit"))
 
-    return redirect(url_for("main.intergroup"))
+    accounts = IntergroupAccount.query.order_by(IntergroupAccount.position,
+                                                IntergroupAccount.id).all()
+    return render_template("intergroup_edit.html", site=s, accounts=accounts)
 
 
 @bp.route("/zoom-tech")
 @login_required
 def zoom_tech():
-    import json
+    from .zoom_tech_doc import load_design, page_format, render, stored_sections
     s = _get_site_setting()
     if not s.zoom_tech_enabled:
         abort(404)
     _require_module_role("zoom_tech_required_role")
-    sections = []
-    if s.zoom_tech_blocks_json:
-        try:
-            sections = json.loads(s.zoom_tech_blocks_json)
-        except (ValueError, TypeError):
-            sections = []
-    return render_template("zoom_tech.html", site=s, sections=sections,
-                           blocks_json=s.zoom_tech_blocks_json or "[]")
+    fmt = page_format(s)
+    doc_html, toc, sections, legacy_html = "", [], [], None
+    if fmt == "blocks":
+        sections = stored_sections(s)
+    elif (s.zoom_tech_body or "").strip():
+        doc_html, toc = render(s.zoom_tech_body)
+    elif s.zoom_tech_body is None:
+        # The page's first form, plain HTML, shows only while nothing
+        # newer was ever written: an emptied page stays empty.
+        legacy_html = s.zoom_tech_content
+    return render_template("zoom_tech.html", site=s, fmt=fmt, doc_html=doc_html,
+                           toc=toc, sections=sections, legacy_html=legacy_html,
+                           design=load_design(s))
+
+
+@bp.route("/zoom-tech/edit")
+@admin_required
+def zoom_tech_edit():
+    """The page's editor, laid out like the story and blog editors: the
+    title and the text on the left, the format, sections and layout on
+    the right. The text is the Markdown editor or the block editor,
+    whichever version the page uses. Opens while the page is turned off
+    too, so it can be written first."""
+    from .zoom_tech_doc import (BLOCK_TYPES, DESIGN_CHOICES, DESIGN_COLORS,
+                                DESIGN_FONTS, DESIGN_SWITCHES, design_switch,
+                                has_blocks, has_markdown, load_design,
+                                markdown_notes, page_format, stored_sections)
+    s = _get_site_setting()
+    fmt = page_format(s)
+    sections = stored_sections(s)
+    return render_template(
+        "zoom_tech_edit.html", site=s, fmt=fmt,
+        body=s.zoom_tech_body or "",
+        blocks_json=json.dumps(sections),
+        block_types=BLOCK_TYPES,
+        has_markdown=has_markdown(s), has_blocks=has_blocks(s),
+        markdown_notes=markdown_notes(sections) if fmt == "blocks" else [],
+        design=load_design(s), design_colors=DESIGN_COLORS,
+        design_choices=DESIGN_CHOICES, design_switches=DESIGN_SWITCHES,
+        design_fonts=DESIGN_FONTS, design_switch=design_switch,
+    )
 
 
 @bp.route("/zoom-tech/save", methods=["POST"])
 @admin_required
 def zoom_tech_save():
-    import json
+    """Saves the title, layout and the version in use. ``then`` follows
+    the save: ``convert`` writes the page out as the other format,
+    replacing that kept version, and switches to it; ``switch`` goes
+    back to the kept version as it is. Either way the version left is
+    kept, to go back to."""
+    from .zoom_tech_doc import (design_form, has_blocks, has_markdown,
+                                markdown_to_sections, page_format,
+                                sections_to_markdown, stored_sections)
     s = _get_site_setting()
-    s.zoom_tech_title = request.form.get("zoom_tech_title", "").strip() or None
-    tmpl = request.form.get("zoom_tech_template", "standard").strip()
+    s.zoom_tech_title = (request.form.get("zoom_tech_title") or "").strip()[:120] or None
+    tmpl = (request.form.get("zoom_tech_template") or "standard").strip()
     s.zoom_tech_template = tmpl if tmpl in ("standard", "wiki") else "standard"
-    blocks_json = request.form.get("blocks_json", "").strip()
-    if blocks_json:
-        try:
-            json.loads(blocks_json)
-            s.zoom_tech_blocks_json = blocks_json
-        except (ValueError, TypeError):
-            flash("Invalid blocks JSON", "danger")
-            return redirect(url_for("main.zoom_tech"))
+    if request.form.get("ztd_present"):
+        s.zoom_tech_design_json = json.dumps(design_form(request.form)) or None
+    fmt = page_format(s)
+    if fmt == "markdown":
+        # Kept even when blank, so an emptied page stays empty.
+        s.zoom_tech_body = (request.form.get("zoom_tech_body") or "").replace("\r\n", "\n")
+    else:
+        raw = request.form.get("blocks_json")
+        if raw is not None:
+            try:
+                parsed = json.loads(raw)
+                if not isinstance(parsed, list):
+                    raise ValueError
+            except (ValueError, TypeError):
+                flash("The blocks couldn't be read, so nothing was saved.", "danger")
+                if _post_save_wants_json():
+                    return _editor_save_failed()
+                return redirect(url_for("main.zoom_tech_edit"))
+            s.zoom_tech_blocks_json = json.dumps(parsed)
+    s.zoom_tech_format = fmt
+
+    then = request.form.get("then")
+    other = "blocks" if fmt == "markdown" else "markdown"
+    if then == "convert":
+        if fmt == "markdown":
+            s.zoom_tech_blocks_json = json.dumps(markdown_to_sections(s.zoom_tech_body))
+        else:
+            s.zoom_tech_body = sections_to_markdown(stored_sections(s))
+        s.zoom_tech_format = other
+        flash("Saved, and converted to " + ("blocks" if other == "blocks" else "Markdown")
+              + ". The " + ("Markdown" if fmt == "markdown" else "block")
+              + " version is kept.", "success")
+    elif then == "switch" and (has_blocks(s) if other == "blocks" else has_markdown(s)):
+        s.zoom_tech_format = other
+        flash("Saved, and back to the " + ("block" if other == "blocks" else "Markdown")
+              + " version.", "success")
+    else:
+        flash("Zoom Tech page saved", "success")
     db.session.commit()
-    flash("Zoom Tech page updated", "success")
-    return redirect(url_for("main.zoom_tech"))
+    if _post_save_wants_json() and not then:
+        return jsonify(_editor_save_payload(None, None))
+    return redirect(url_for("main.zoom_tech_edit"))
 
 
 @bp.route("/settings/zoom-tech-toggle", methods=["POST"])
@@ -3150,7 +3678,7 @@ def sidebar_save():
     known set; manual JSON is parsed and only known keys are kept so a
     handcrafted POST can't poison the sidebar with stray entries."""
     import json as _json
-    from .sidebar import _MAIN_CATALOG, _ADMIN_CATALOG  # noqa: WPS437
+    from .sidebar import _MAIN_CATALOG  # noqa: WPS437
     s = _get_site_setting()
     mode = (request.form.get("sidebar_sort_mode") or "").strip()
     if mode not in {"auto-asc", "auto-desc", "manual"}:
@@ -3164,12 +3692,11 @@ def sidebar_save():
         except (ValueError, TypeError):
             payload = {}
         from .sidebar import PINNED_KEYS as _PINNED  # noqa: WPS437
-        valid_section_keys = {"main", "intergroup", "external", "admin"}
+        valid_section_keys = {"main", "intergroup", "external"}
         # Pinned keys (Dashboard) are excluded from validation so they
         # can't be saved into the manual order — they're always rendered
         # first by the helper regardless of stored JSON.
         valid_main = {it["key"] for it in _MAIN_CATALOG if it["key"] not in _PINNED}
-        valid_admin = {it["key"] for it in _ADMIN_CATALOG if it["key"] not in _PINNED}
         # Intergroup keys are *dynamic* — the section's content includes
         # ``ig_email`` plus one ``ig_lib_<id>`` per Intergroup-flagged
         # library. Resolve the valid set from the live reorder catalog
@@ -3187,9 +3714,6 @@ def sidebar_save():
         ig = payload.get("intergroup")
         if isinstance(ig, list):
             clean["intergroup"] = [k for k in ig if isinstance(k, str) and k in valid_intergroup]
-        a = payload.get("admin")
-        if isinstance(a, list):
-            clean["admin"] = [k for k in a if isinstance(k, str) and k in valid_admin]
         s.sidebar_order_json = _json.dumps(clean) if clean else None
     db.session.commit()
     flash("Sidebar order saved", "success")
@@ -3228,8 +3752,8 @@ def sidebar_nav_fragment():
 def sidebar_order_manual_fragment():
     """Inner HTML of the Settings → Sidebar tab's manual drag-drop
     section. Used by the live-refresh JS so the manual reorder list
-    mirrors the dynamic Main/Admin section placement of module-gated
-    items immediately after a role change, without a page reload."""
+    mirrors which module-gated items are on immediately after a
+    module change, without a page reload."""
     s = _get_site_setting()
     nav_items = NavLink.query.order_by(NavLink.position, NavLink.id).all()
     return render_template("_sidebar_order_manual.html",
@@ -3344,18 +3868,100 @@ def _require_trusted_servants_admin():
 # widget (or who an admin added manually). Admins manage the roster
 # here, send mass emails to the list, and review send history.
 # ---------------------------------------------------------------------------
+def _ts_account_filter(q, account):
+    """Narrow the email list to people with a portal account, or to
+    those an admin added by hand."""
+    T = TrustedServantSubscriber
+    if account == "portal":
+        return q.filter(T.user_id.isnot(None))
+    if account == "manual":
+        return q.filter(T.user_id.is_(None))
+    return q
+
+
 @bp.route("/email-list")
 @login_required
 def trusted_servants_list():
+    """The email list in the File Browser layout: search (name, email,
+    phone or notes, live), an Account filter with counts, sort, List or
+    Grid, and bulk removal. ``tab=history`` shows the updates sent."""
     _require_trusted_servants_admin()
-    subs = (TrustedServantSubscriber.query
-            .order_by(TrustedServantSubscriber.name.asc())
-            .all())
-    blasts = (TrustedServantBlast.query
-              .order_by(TrustedServantBlast.started_at.desc())
-              .limit(25).all())
-    return render_template("trusted_servants_list.html",
-                           subscribers=subs, blasts=blasts)
+    T = TrustedServantSubscriber
+    tab = "history" if request.args.get("tab") == "history" else "people"
+    account = request.args.get("account") if request.args.get("account") in ("portal", "manual") else ""
+    sort = (request.args.get("sort") or request.cookies.get("view-ts-sort") or "name_asc").strip()
+    view = request.args.get("view") or request.cookies.get("view-ts") or "list"
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
+
+    base = T.query
+    if q_text:
+        like = f"%{q_text}%"
+        base = base.filter(db.or_(T.name.ilike(like), T.email.ilike(like),
+                                  T.phone.ilike(like), T.notes.ilike(like)))
+    account_counts = {a: _ts_account_filter(base, a).count() for a in ("", "portal", "manual")}
+    q = _ts_account_filter(base, account)
+    orders = {
+        "name_asc": [db.func.lower(T.name).asc()],
+        "name_desc": [db.func.lower(T.name).desc()],
+        "email_asc": [db.func.lower(T.email).asc()],
+        "email_desc": [db.func.lower(T.email).desc()],
+        "joined_desc": [T.created_at.desc(), T.id.desc()],
+        "joined_asc": [T.created_at.asc(), T.id.asc()],
+    }
+    if sort not in orders:
+        sort = "name_asc"
+    subs = q.order_by(*orders[sort]).all()
+    # Updates sent: every one kept in full, searchable by subject or
+    # message; the one picked (``update``, else the latest) opens beside
+    # the list.
+    B = TrustedServantBlast
+    blasts, selected = [], None
+    if tab == "history":
+        bq = B.query
+        if q_text:
+            like = f"%{q_text}%"
+            bq = bq.filter(db.or_(B.subject.ilike(like), B.body_md.ilike(like)))
+        blasts = bq.order_by(B.started_at.desc(), B.id.desc()).all()
+        uid = request.args.get("update", type=int)
+        selected = next((b for b in blasts if b.id == uid), None) or (blasts[0] if blasts else None)
+    blast_count = B.query.count()
+    resp = current_app.make_response(render_template(
+        "trusted_servants_list.html", subscribers=subs, blasts=blasts, selected=selected,
+        blast_count=blast_count, people_count=T.query.count(), tab=tab, account=account,
+        sort=sort, view=view, q=q_text, account_counts=account_counts))
+    resp.set_cookie("view-ts", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-ts-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
+
+
+@bp.route("/email-list/new")
+@login_required
+def trusted_servants_new():
+    _require_trusted_servants_admin()
+    return render_template("trusted_servant_edit.html", sub=None)
+
+
+@bp.route("/email-list/<int:sid>")
+@login_required
+def trusted_servants_editor(sid):
+    _require_trusted_servants_admin()
+    sub = db.session.get(TrustedServantSubscriber, sid) or abort(404)
+    return render_template("trusted_servant_edit.html", sub=sub)
+
+
+@bp.route("/email-list/bulk", methods=["POST"])
+@login_required
+def trusted_servants_bulk():
+    _require_trusted_servants_admin()
+    ids = [int(i) for i in request.form.getlist("ids") if str(i).isdigit()]
+    if request.form.get("action") == "delete" and ids:
+        rows = TrustedServantSubscriber.query.filter(TrustedServantSubscriber.id.in_(ids)).all()
+        for r in rows:
+            db.session.delete(r)
+        db.session.commit()
+        flash(f"Removed {len(rows)} {'person' if len(rows) == 1 else 'people'} from the email list.", "info")
+    return redirect(_safe_referrer() or url_for("main.trusted_servants_list"))
 
 
 @bp.route("/email-list/<int:sid>/delete", methods=["POST"])
@@ -3367,6 +3973,11 @@ def trusted_servants_delete(sid):
     db.session.delete(sub)
     db.session.commit()
     flash(f"Removed {name} from the Trusted Servants list.", "info")
+    # From the person's own page, back to the list; from the list, stay
+    # where it was (search and filters).
+    ref = _safe_referrer()
+    if ref and "/email-list/" + str(sid) not in ref:
+        return redirect(ref)
     return redirect(url_for("main.trusted_servants_list"))
 
 
@@ -3401,36 +4012,174 @@ def _require_recovery_contacts_admin():
         abort(404)
 
 
-@bp.route("/recovery-contacts")
-@login_required
-def recovery_contacts():
-    _require_recovery_contacts_admin()
-    from .models import RecoveryContactLog, RecoveryContactAbuse
-    s = _get_site_setting()
-    pending = (RecoveryContact.query.filter_by(approved=False)
-               .order_by(RecoveryContact.created_at.desc()).all())
-    approved = (RecoveryContact.query.filter_by(approved=True)
-                .order_by(RecoveryContact.name.asc()).all())
-    logs = (RecoveryContactLog.query
-            .order_by(RecoveryContactLog.created_at.desc(), RecoveryContactLog.id.desc())
-            .limit(60).all())
-    # Per-listing abuse flags (unresolved) so the published table can mark
-    # records that drew malicious update/removal requests. Maps entry_id →
-    # {"kinds": set, "count": n} — the listing's own lock state is read off
-    # the row's ``requests_locked_until``.
-    abuse_by_entry = {}
+# The list's status sections: published entries, new submissions, and
+# the two kinds of request about an existing entry.
+_RC_SHOWS = ("published", "pending", "updates", "removals")
+
+
+def _rc_show_filter(q, show):
+    R = RecoveryContact
+    if show == "pending":
+        return q.filter(R.approved.is_(False), R.wants_update.is_(False), R.wants_removal.is_(False))
+    if show == "updates":
+        return q.filter(R.approved.is_(False), R.wants_update.is_(True), R.wants_removal.is_(False))
+    if show == "removals":
+        return q.filter(R.approved.is_(False), R.wants_removal.is_(True))
+    return q.filter(R.approved.is_(True))
+
+
+def _rc_only_filter(q, only):
+    R = RecoveryContact
+    if only == "sponsor":
+        return q.filter(R.available_to_sponsor.is_(True))
+    if only == "contact":
+        return q.filter(R.contact_enabled.is_(True))
+    return q
+
+
+def _rc_abuse_by_entry():
+    """Unresolved abuse flags per entry: {entry_id: {"kinds", "count"}},
+    so the list can mark entries that drew malicious requests."""
+    from .models import RecoveryContactAbuse
+    out = {}
     try:
         for a in (RecoveryContactAbuse.query
                   .filter(RecoveryContactAbuse.resolved.is_(False),
                           RecoveryContactAbuse.entry_id.isnot(None)).all()):
-            slot = abuse_by_entry.setdefault(a.entry_id, {"kinds": set(), "count": 0})
+            slot = out.setdefault(a.entry_id, {"kinds": set(), "count": 0})
             slot["kinds"].add(a.kind)
             slot["count"] += int(a.attempt_count or 1)
     except Exception:  # noqa: BLE001
-        abuse_by_entry = {}
-    return render_template("recovery_contacts.html", site=s,
-                           pending=pending, approved=approved, logs=logs,
-                           abuse_by_entry=abuse_by_entry, now=datetime.utcnow())
+        out = {}
+    return out
+
+
+@bp.route("/recovery-contacts")
+@login_required
+def recovery_contacts():
+    """Recovery Contacts in the File Browser layout: search (live), the
+    status sections with counts (Published, New submissions, Update and
+    Removal requests), a Listing filter, sort, List or Grid, and bulk
+    actions. ``tab=log`` shows the activity log."""
+    _require_recovery_contacts_admin()
+    from .models import RecoveryContactLog
+    R = RecoveryContact
+    s = _get_site_setting()
+    tab = "log" if request.args.get("tab") == "log" else "people"
+    show = request.args.get("show") if request.args.get("show") in _RC_SHOWS else "published"
+    only = request.args.get("only") if request.args.get("only") in ("sponsor", "contact") else ""
+    sort = (request.args.get("sort") or request.cookies.get("view-rc-sort") or "name_asc").strip()
+    view = request.args.get("view") or request.cookies.get("view-rc") or "list"
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
+
+    base = R.query
+    if q_text:
+        like = f"%{q_text}%"
+        conds = [R.name.ilike(like), R.email.ilike(like), R.phone.ilike(like), R.note.ilike(like)]
+        digits = re.sub(r"\D+", "", q_text)
+        if len(digits) >= 3:
+            # Phone numbers match on their digits, whatever the punctuation.
+            stripped = R.phone
+            for ch in (" ", "-", "(", ")", ".", "+"):
+                stripped = db.func.replace(stripped, ch, "")
+            conds.append(stripped.ilike(f"%{digits}%"))
+        base = base.filter(db.or_(*conds))
+    show_counts = {k: _rc_only_filter(_rc_show_filter(base, k), only).count() for k in _RC_SHOWS}
+    in_show = _rc_show_filter(base, show)
+    only_counts = {k: _rc_only_filter(in_show, k).count() for k in ("", "sponsor", "contact")}
+    q = _rc_only_filter(in_show, only)
+    orders = {
+        "name_asc": [db.func.lower(R.name).asc()],
+        "name_desc": [db.func.lower(R.name).desc()],
+        "added_desc": [R.created_at.desc(), R.id.desc()],
+        "added_asc": [R.created_at.asc(), R.id.asc()],
+        "contacted_desc": [R.contact_count.desc(), db.func.lower(R.name).asc()],
+        "contacted_asc": [R.contact_count.asc(), db.func.lower(R.name).asc()],
+    }
+    if sort not in orders:
+        sort = "name_asc"
+    entries = q.order_by(*orders[sort]).all()
+    logs = (RecoveryContactLog.query
+            .order_by(RecoveryContactLog.created_at.desc(), RecoveryContactLog.id.desc())
+            .limit(100).all()) if tab == "log" else []
+    resp = current_app.make_response(render_template(
+        "recovery_contacts.html", site=s, entries=entries, logs=logs, tab=tab,
+        show=show, only=only, sort=sort, view=view, q=q_text,
+        show_counts=show_counts, only_counts=only_counts,
+        abuse_by_entry=_rc_abuse_by_entry(), now=datetime.utcnow()))
+    resp.set_cookie("view-rc", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-rc-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
+
+
+@bp.route("/recovery-contacts/new")
+@login_required
+def recovery_contacts_new():
+    _require_recovery_contacts_admin()
+    return render_template("recovery_contact_edit.html", e=None, logs=[], abuse=None,
+                           now=datetime.utcnow())
+
+
+@bp.route("/recovery-contacts/<int:eid>")
+@login_required
+def recovery_contacts_editor(eid):
+    """One entry's page, laid out like the other editors. A submission
+    still waiting opens with its review card (approve, apply the update
+    or removal it asks for, or discard it) above the form."""
+    _require_recovery_contacts_admin()
+    from .models import RecoveryContactLog
+    e = db.session.get(RecoveryContact, eid) or abort(404)
+    names = {e.name} | ({e.matched_entry.name} if e.matched_entry else set())
+    logs = (RecoveryContactLog.query.filter(RecoveryContactLog.entry_name.in_(names))
+            .order_by(RecoveryContactLog.created_at.desc(), RecoveryContactLog.id.desc())
+            .limit(40).all())
+    return render_template("recovery_contact_edit.html", e=e, logs=logs,
+                           abuse=_rc_abuse_by_entry().get(e.id), now=datetime.utcnow())
+
+
+@bp.route("/recovery-contacts/bulk", methods=["POST"])
+@login_required
+def recovery_contacts_bulk():
+    """Approve (new submissions only: requests about an existing entry
+    are applied one at a time), unpublish, or delete the ticked rows."""
+    _require_recovery_contacts_admin()
+    action = request.form.get("action")
+    ids = [int(i) for i in request.form.getlist("ids") if str(i).isdigit()]
+    rows = RecoveryContact.query.filter(RecoveryContact.id.in_(ids)).all() if ids else []
+    actor = f"admin: {current_user.username}"
+    done = 0
+    for e in rows:
+        if action == "approve" and not e.approved and not (e.wants_update or e.wants_removal):
+            e.approved, e.approved_at = True, datetime.utcnow()
+            log_recovery_contact("approved", "Approved and published by admin", entry_name=e.name, actor=actor)
+            done += 1
+        elif action == "unpublish" and e.approved:
+            e.approved, e.approved_at = False, None
+            log_recovery_contact("unapproved", "Moved back to pending by admin", entry_name=e.name, actor=actor)
+            done += 1
+        elif action == "delete":
+            RecoveryContact.query.filter_by(matched_entry_id=e.id).update({"matched_entry_id": None})
+            log_recovery_contact("deleted", "Deleted by admin", entry_name=e.name, actor=actor)
+            db.session.delete(e)
+            done += 1
+    db.session.commit()
+    noun = "entry" if done == 1 else "entries"
+    verb = {"approve": "Approved", "unpublish": "Unpublished", "delete": "Deleted"}.get(action, "Changed")
+    skipped = len(rows) - done
+    flash(f"{verb} {done} {noun}." + (f" {skipped} skipped: requests are applied one at a time." if skipped and action == "approve" else ""),
+          "success" if done else "info")
+    return redirect(_safe_referrer() or url_for("main.recovery_contacts"))
+
+
+def _rc_back(gone=None):
+    """Where a Recovery Contacts action returns: the page it came from
+    (the list with its filters, or the entry's own page), unless that
+    page is an entry the action removed (``gone``), then the list."""
+    ref = _safe_referrer()
+    if ref and not (gone and re.search(r"/recovery-contacts/%d(?:[/?#]|$)" % gone, ref)):
+        return redirect(ref)
+    return redirect(url_for("main.recovery_contacts"))
 
 
 @bp.route("/recovery-contacts/add", methods=["POST"])
@@ -3446,10 +4195,10 @@ def recovery_contacts_manual_add():
     phone = (request.form.get("phone") or "").strip()[:64] or None
     if not name:
         flash("A name is required.", "danger")
-        return redirect(url_for("main.recovery_contacts"))
+        return redirect(url_for("main.recovery_contacts_new"))
     if not email and not phone:
         flash("Add a phone number, an email, or both.", "danger")
-        return redirect(url_for("main.recovery_contacts"))
+        return redirect(url_for("main.recovery_contacts_new"))
     e = RecoveryContact(
         name=name, email=email, phone=phone,
         show_phone=request.form.get("show_phone") == "1",
@@ -3464,7 +4213,7 @@ def recovery_contacts_manual_add():
     log_recovery_contact("manual_add", "Added manually by admin",
                          entry_name=name, actor=f"admin: {current_user.username}")
     flash(f"Added {name} to Recovery Contacts.", "success")
-    return redirect(url_for("main.recovery_contacts"))
+    return redirect(url_for("main.recovery_contacts_editor", eid=e.id))
 
 
 @bp.route("/recovery-contacts/<int:eid>/approve", methods=["POST"])
@@ -3478,7 +4227,7 @@ def recovery_contacts_approve(eid):
     log_recovery_contact("approved", "Approved and published by admin",
                          entry_name=e.name, actor=f"admin: {current_user.username}")
     flash(f"Approved {e.name} — now visible on the public Recovery Contacts page.", "success")
-    return redirect(url_for("main.recovery_contacts"))
+    return _rc_back()
 
 
 @bp.route("/recovery-contacts/<int:eid>/apply-update", methods=["POST"])
@@ -3493,7 +4242,7 @@ def recovery_contacts_apply_update(eid):
     target = sub.matched_entry
     if target is None:
         flash("That submission isn't matched to an existing entry — approve it as a new entry instead.", "danger")
-        return redirect(url_for("main.recovery_contacts"))
+        return _rc_back()
     target.name = sub.name
     target.phone = sub.phone
     target.email = sub.email
@@ -3508,7 +4257,9 @@ def recovery_contacts_apply_update(eid):
     log_recovery_contact("update_applied", "Update applied to the listing by admin",
                          entry_name=target.name, actor=f"admin: {current_user.username}")
     flash(f"Updated {target.name} from the submission.", "success")
-    return redirect(url_for("main.recovery_contacts"))
+    if re.search(r"/recovery-contacts/%d(?:[/?#]|$)" % eid, _safe_referrer() or ""):
+        return redirect(url_for("main.recovery_contacts_editor", eid=target.id))
+    return _rc_back()
 
 
 @bp.route("/recovery-contacts/<int:eid>/apply-removal", methods=["POST"])
@@ -3537,7 +4288,7 @@ def recovery_contacts_apply_removal(eid):
         log_recovery_contact("dismissed", "Removal request dismissed by admin (no matching entry)",
                              entry_name=sub_name, actor=f"admin: {current_user.username}")
         flash("Dismissed the removal request — no matching entry was found.", "info")
-    return redirect(url_for("main.recovery_contacts"))
+    return _rc_back(eid)
 
 
 @bp.route("/recovery-contacts/<int:eid>/unapprove", methods=["POST"])
@@ -3551,7 +4302,7 @@ def recovery_contacts_unapprove(eid):
     log_recovery_contact("unapproved", "Moved back to pending by admin",
                          entry_name=e.name, actor=f"admin: {current_user.username}")
     flash(f"Moved {e.name} back to pending review.", "info")
-    return redirect(url_for("main.recovery_contacts"))
+    return _rc_back()
 
 
 @bp.route("/recovery-contacts/<int:eid>/visibility", methods=["POST"])
@@ -3573,7 +4324,7 @@ def recovery_contacts_visibility(eid):
         log_recovery_contact("visibility",
                              f"Set {field} {'shown' if on else 'hidden'} by admin",
                              entry_name=e.name, actor=f"admin: {current_user.username}")
-    return redirect(url_for("main.recovery_contacts"))
+    return _rc_back()
 
 
 @bp.route("/recovery-contacts/<int:eid>/update", methods=["POST"])
@@ -3594,8 +4345,16 @@ def recovery_contacts_update(eid):
     db.session.commit()
     log_recovery_contact("edited", "Edited by admin",
                          entry_name=e.name, actor=f"admin: {current_user.username}")
+    # The review card's buttons save the edits first, then act.
+    then = request.form.get("then")
+    if then == "approve" and not e.approved:
+        return recovery_contacts_approve(eid)
+    if then == "apply" and e.wants_update and e.matched_entry:
+        return recovery_contacts_apply_update(eid)
     flash(f"Updated {e.name}.", "success")
-    return redirect(url_for("main.recovery_contacts"))
+    if _post_save_wants_json():
+        return jsonify(_editor_save_payload(None, None))
+    return _rc_back()
 
 
 @bp.route("/recovery-contacts/<int:eid>/delete", methods=["POST"])
@@ -3613,29 +4372,42 @@ def recovery_contacts_delete(eid):
     log_recovery_contact("deleted", "Deleted by admin",
                          entry_name=name, actor=f"admin: {current_user.username}")
     flash(f"Removed {name} from Recovery Contacts.", "info")
-    return redirect(url_for("main.recovery_contacts"))
+    return _rc_back(eid)
 
 
-@bp.route("/email-list/blast")
-@login_required
-def trusted_servants_blast_compose():
-    _require_trusted_servants_admin()
+def _blast_compose_page(prefill=None, status=200):
+    """The compose page, optionally filled in with what was posted (a
+    refused send keeps everything typed and picked)."""
     # The subscriber rows themselves are listed (not just counted) so
-    # the compose page can render a checkbox list under the "Pick which"
-    # subscribers granular mode — same shape as MeetingLibrary's per-
-    # reading selection. Intergroup-members + app-users stay as bare
-    # counts (their granular controls are a follow-up if asked for).
+    # the audience can pick specific people.
     subscribers = (TrustedServantSubscriber.query
                    .order_by(TrustedServantSubscriber.name.asc()).all())
     ig_count = User.query.filter(User.role == "intergroup_member").count()
     app_count = User.query.filter(
         User.role.notin_(("admin", "intergroup_member"))
     ).count()
+    blasts = (TrustedServantBlast.query
+              .order_by(TrustedServantBlast.started_at.desc()).limit(8).all())
     return render_template("trusted_servants_blast.html",
                            subscribers=subscribers,
                            subscriber_count=len(subscribers),
                            intergroup_count=ig_count,
-                           app_user_count=app_count)
+                           app_user_count=app_count,
+                           blasts=blasts, prefill=prefill), status
+
+
+@bp.route("/email-list/blast")
+@login_required
+def trusted_servants_blast_compose():
+    """The composer; ``reuse=<id>`` starts from an earlier update's
+    subject and message."""
+    _require_trusted_servants_admin()
+    reuse = request.args.get("reuse", type=int)
+    b = db.session.get(TrustedServantBlast, reuse) if reuse else None
+    if b is not None:
+        from werkzeug.datastructures import MultiDict
+        return _blast_compose_page(MultiDict({"subject": b.subject, "body": b.body_md}))
+    return _blast_compose_page()
 
 
 @bp.route("/email-list/blast", methods=["POST"])
@@ -3670,10 +4442,10 @@ def trusted_servants_blast_send():
     body_md = (request.form.get("body") or "").strip()
     if not subject:
         flash("Subject is required.", "danger")
-        return redirect(url_for("main.trusted_servants_blast_compose"))
+        return _blast_compose_page(request.form, 400)
     if not body_md:
         flash("Message body is required.", "danger")
-        return redirect(url_for("main.trusted_servants_blast_compose"))
+        return _blast_compose_page(request.form, 400)
 
     mode = (request.form.get("audience_mode") or "granular").strip().lower()
     if mode not in ("all", "granular"):
@@ -3711,14 +4483,14 @@ def trusted_servants_blast_send():
     recipients = []
     seen = set()
 
-    def _add(name, email):
+    def _add(name, email, group):
         if not email:
             return
         key = email.strip().lower()
         if not key or key in seen:
             return
         seen.add(key)
-        recipients.append((name or email, email))
+        recipients.append((name or email, email, group))
 
     if include_subs:
         q = TrustedServantSubscriber.query.order_by(TrustedServantSubscriber.name.asc())
@@ -3731,31 +4503,37 @@ def trusted_servants_blast_send():
                     "Pick at least one subscriber, or switch the subscribers "
                     "mode to All before sending.",
                     "danger")
-                return redirect(url_for("main.trusted_servants_blast_compose"))
+                return _blast_compose_page(request.form, 400)
             q = q.filter(TrustedServantSubscriber.id.in_(selected_sub_ids))
         for sub in q.all():
-            _add(sub.name, sub.email)
+            _add(sub.name, sub.email, "subscriber")
     if include_ig:
         for u in (User.query.filter(User.role == "intergroup_member")
                   .order_by(User.username.asc()).all()):
-            _add(u.name or u.username, u.email)
+            _add(u.name or u.username, u.email, "intergroup")
     if include_app:
         for u in (User.query
                   .filter(User.role.notin_(("admin", "intergroup_member")))
                   .order_by(User.username.asc()).all()):
-            _add(u.name or u.username, u.email)
+            _add(u.name or u.username, u.email, "app_user")
 
     if not recipients:
         flash(
             "No one is in the audience you picked — turn on at least one group "
             "(or pick Full list) before sending.",
             "danger")
-        return redirect(url_for("main.trusted_servants_blast_compose"))
+        return _blast_compose_page(request.form, 400)
 
+    body_html = _md_lib.markdown(body_md, extensions=["extra", "nl2br"])
+    groups = [g for g, on in (("subscribers", include_subs), ("intergroup", include_ig),
+                              ("app_users", include_app)) if on]
     blast = TrustedServantBlast(
         sent_by_user_id=current_user.id,
         subject=subject[:500],
         body_md=body_md,
+        body_html=body_html,
+        audience_json=json.dumps({"mode": mode, "groups": groups,
+                                  "picked": len(selected_sub_ids) if subs_mode == "granular" else None}),
         recipient_count=len(recipients),
         started_at=_dt.utcnow(),
     )
@@ -3764,85 +4542,52 @@ def trusted_servants_blast_send():
 
     sent = 0
     failed = 0
-    body_html = _md_lib.markdown(body_md, extensions=["extra", "nl2br"])
-    for name, email in recipients:
+    results = []  # kept with the update: who it went to and how it went
+    for name, email, group in recipients:
         # Personalize the first-line greeting if the body opens with a
         # `{name}` token. Admins who don't use the token just get an
         # un-replaced body — opt-in personalization, no surprises.
         text_body = body_md.replace("{name}", name)
         html_body = body_html.replace("{name}", name)
+        err = None
         try:
-            ok, _err = send_mail(s, email, subject, text_body, body_html=html_body)
-            if ok:
-                sent += 1
-            else:
-                failed += 1
-        except Exception:  # noqa: BLE001
+            ok, err = send_mail(s, email, subject.replace("{name}", name), text_body, body_html=html_body)
+        except Exception as e:  # noqa: BLE001
             current_app.logger.exception(
                 "trusted_servants_blast: send to %s failed", email)
+            ok, err = False, str(e)
+        if ok:
+            sent += 1
+        else:
             failed += 1
+        results.append({"name": name, "email": email, "group": group, "ok": bool(ok),
+                        "error": (str(err)[:300] if (err and not ok) else None)})
 
     blast.sent_count = sent
     blast.failed_count = failed
+    blast.recipients_json = json.dumps(results)
     blast.finished_at = _dt.utcnow()
     db.session.commit()
 
     if sent and not failed:
-        flash(f"Sent the update to {sent} subscriber{'s' if sent != 1 else ''}.", "success")
+        flash(f"Sent the update to {sent} {'person' if sent == 1 else 'people'}.", "success")
     elif sent and failed:
-        flash(f"Sent to {sent} of {sent + failed}. {failed} failed — check the server log.", "warning")
+        flash(f"Sent to {sent} of {sent + failed}. {failed} failed: see Who it went to.", "warning")
     else:
-        flash(f"All {failed} sends failed. Check SMTP settings on the Domain / Email tab.", "danger")
-    return redirect(url_for("main.trusted_servants_list"))
+        flash(f"All {failed} sends failed: see Who it went to, and check the email settings on the Domain / Email tab.", "danger")
+    return redirect(url_for("main.trusted_servants_list", tab="history", update=blast.id))
 
 
 # ---------------------------------------------------------------------------
-# Trusted Servants Email List — self-service routes called from the
-# dashboard widget. Authenticated users only; no role gate (the
-# required-role setting only governs the admin side).
+# Trusted Servants Email List: adding people. New portal users join it
+# when they're created (auth.users_create); others are added here.
 # ---------------------------------------------------------------------------
-@bp.route("/email-list/subscribe", methods=["POST"])
-@login_required
-def trusted_servants_subscribe():
-    """Add a new entry to the Trusted Servants email list. Hit by the
-    dashboard widget's form. The portal account may be shared by several
-    people, so every submission creates a fresh row with ``user_id =
-    NULL`` (admin-managed, like the manual-add path) rather than upserting
-    a single per-account subscription. End users can only add themselves;
-    editing and removing entries is admin-only on /email-list.
-    """
-    s = _get_site_setting()
-    if not s.trusted_servants_enabled:
-        abort(404)
-    name = (request.form.get("name") or "").strip()[:120]
-    phone = (request.form.get("phone") or "").strip()[:64]
-    email = (request.form.get("email") or "").strip()[:255]
-    if not name:
-        flash("Your name is required to join the list.", "danger")
-        return redirect(_safe_referrer() or url_for("main.index"))
-    if not email:
-        flash("An email address is required to join the list.", "danger")
-        return redirect(_safe_referrer() or url_for("main.index"))
-
-    sub = TrustedServantSubscriber(
-        user_id=None,
-        name=name,
-        phone=phone or None,
-        email=email,
-    )
-    db.session.add(sub)
-    db.session.commit()
-    flash("You've been added to the Trusted Servants Email List.", "success")
-    return redirect(_safe_referrer() or url_for("main.index"))
-
-
 @bp.route("/email-list/manual-add", methods=["POST"])
 @login_required
 def trusted_servants_manual_add():
     """Admin-only path that adds an external contact to the list.
 
-    Unlike the self-subscribe route, the row created here has
-    ``user_id = NULL`` — the entry isn't tied to any portal account
+    The row created here has ``user_id = NULL`` — the entry isn't tied to any portal account
     and the only way to edit / remove it is via this admin surface.
     Used for trusted servants who don't have (or don't want) a portal
     login but still belong on the contact roster.
@@ -3852,12 +4597,9 @@ def trusted_servants_manual_add():
     phone = (request.form.get("phone") or "").strip()[:64]
     email = (request.form.get("email") or "").strip()[:255]
     notes = (request.form.get("notes") or "").strip() or None
-    if not name:
-        flash("Name is required.", "danger")
-        return redirect(url_for("main.trusted_servants_list"))
-    if not email:
-        flash("Email is required.", "danger")
-        return redirect(url_for("main.trusted_servants_list"))
+    if not name or not email:
+        flash("A name and an email are required.", "danger")
+        return redirect(url_for("main.trusted_servants_new"))
     sub = TrustedServantSubscriber(
         user_id=None,
         name=name,
@@ -3868,7 +4610,7 @@ def trusted_servants_manual_add():
     db.session.add(sub)
     db.session.commit()
     flash(f"Added {name} to the email list.", "success")
-    return redirect(url_for("main.trusted_servants_list"))
+    return redirect(url_for("main.trusted_servants_editor", sid=sub.id))
 
 
 _TS_IMPORT_MAX_ROWS = 5000
@@ -4313,15 +5055,19 @@ def trusted_servants_edit(sid):
     email = (request.form.get("email") or "").strip()[:255]
     notes = (request.form.get("notes") or "").strip() or None
     if not name or not email:
-        flash("Name and email are required.", "danger")
-        return redirect(url_for("main.trusted_servants_list"))
+        flash("A name and an email are required.", "danger")
+        if _post_save_wants_json():
+            return _editor_save_failed()
+        return redirect(url_for("main.trusted_servants_editor", sid=sid))
     sub.name = name
     sub.phone = phone or None
     sub.email = email
     sub.notes = notes
     db.session.commit()
     flash(f"Updated {name}.", "success")
-    return redirect(url_for("main.trusted_servants_list"))
+    if _post_save_wants_json():
+        return jsonify(_editor_save_payload(None, None))
+    return redirect(url_for("main.trusted_servants_editor", sid=sid))
 
 
 @bp.route("/settings/blog-toggle", methods=["POST"])
@@ -7900,6 +8646,22 @@ def public_file(filename):
     return resp
 
 
+THEME_PREFS = ("system", "light", "dark")
+
+
+@bp.route("/account/theme", methods=["POST"])
+@login_required
+def account_theme_save():
+    """Save the signed-in user's admin look: system, light or dark."""
+    data = request.get_json(silent=True) or request.form
+    pref = (data.get("pref") or "").strip().lower()
+    if pref not in THEME_PREFS:
+        return jsonify(ok=False, error="Unknown theme"), 400
+    current_user.theme_pref = pref
+    db.session.commit()
+    return jsonify(ok=True, pref=pref)
+
+
 @bp.route("/settings/pic-save", methods=["POST"])
 @admin_required
 def pic_save():
@@ -7907,6 +8669,9 @@ def pic_save():
     s.pic_name = request.form.get("pic_name", "").strip() or None
     s.pic_email = request.form.get("pic_email", "").strip() or None
     s.pic_phone = request.form.get("pic_phone", "").strip() or None
+    if "pic_title" in request.form:
+        s.pic_title = request.form.get("pic_title", "").strip()[:200] or None
+    _sync_pic_officer()
     db.session.commit()
     flash("Public Information Chair updated", "success")
     return redirect(_safe_referrer() or url_for("main.index"))
@@ -7999,6 +8764,27 @@ def _clamp_int(raw, lo, hi, default):
     return max(lo, min(hi, n))
 
 
+from .widths import WIDTH_MODES as _WIDTH_MODES  # noqa: E402
+
+
+@bp.route("/frontend/preview", methods=["POST"])
+@admin_required
+def frontend_staged_preview():
+    """Render a public page with unsaved settings applied, for the live
+    previews on the Web Frontend pages. JSON body:
+    ``{"path": "/meetings", "forms": [{"action": url, "fields": [[k, v]]}]}``.
+    Nothing is saved: see ``app/staged_preview.py``."""
+    from .staged_preview import render_staged
+    payload = request.get_json(silent=True) or {}
+    html = render_staged(str(payload.get("path") or "/"), payload.get("forms") or [],
+                         overlays=("popups" if payload.get("overlays") == "popups" else bool(payload.get("overlays"))))
+    from flask import make_response
+    resp = make_response(html)
+    resp.headers["Content-Type"] = "text/html; charset=utf-8"
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @bp.route("/frontend/toggle", methods=["POST"])
 @admin_required
 def frontend_toggle():
@@ -8064,7 +8850,11 @@ def _apply_alert_form(s, form, prefix):
     setattr(s, f"{prefix}_alert_enabled", form.get(f"{prefix}_alert_enabled") == "1")
     setattr(s, f"{prefix}_alert_message",
             (form.get(f"{prefix}_alert_message") or "").strip() or None)
+    # Colors are set on Design → Header now; only write them when this
+    # post carries them.
     for color_col in ("bg_color", "text_color"):
+        if f"{prefix}_alert_{color_col}" not in form:
+            continue
         val = (form.get(f"{prefix}_alert_{color_col}") or "").strip()
         setattr(s, f"{prefix}_alert_{color_col}", val if HEX_RE.fullmatch(val) else None)
     icon = (form.get(f"{prefix}_alert_icon") or "").strip()
@@ -8085,7 +8875,10 @@ def frontend_utility_bar_save():
     s.utility_bar_enabled = request.form.get("utility_bar_enabled") == "1"
     s.utility_bar_live_meetings = request.form.get("utility_bar_live_meetings") == "1"
     hex_re = re.compile(r"#[0-9a-fA-F]{6}")
+    # Colors are set on Design → Header; only write them when posted.
     for color_col in ("bg_color", "text_color"):
+        if f"utility_bar_{color_col}" not in request.form:
+            continue
         val = (request.form.get(f"utility_bar_{color_col}") or "").strip()
         setattr(s, f"utility_bar_{color_col}", val if hex_re.fullmatch(val) else None)
     # JSON-payload submission (new shape, supports containers) takes
@@ -8118,7 +8911,7 @@ def frontend_utility_bar_save():
     s.utility_bar_mobile_default = chosen or None
     db.session.commit()
     flash("Utility bar saved", "success")
-    return redirect(url_for("main.frontend_header"))
+    return redirect(url_for("main.frontend_header") + "#utility")
 
 
 @bp.route("/frontend/header-alert-save", methods=["POST"])
@@ -8127,61 +8920,8 @@ def frontend_header_alert_save():
     s = _get_site_setting()
     _apply_alert_form(s, request.form, "header")
     db.session.commit()
-    flash("Under-header alert bar saved", "success")
-    return redirect(url_for("main.frontend_header"))
-
-
-@bp.route("/frontend/logo-save", methods=["POST"])
-@admin_required
-def frontend_logo_save():
-    """Upload / clear / resize the public-frontend logo."""
-    s = _get_site_setting()
-    try:
-        w = int(request.form.get("frontend_logo_width") or 40)
-    except ValueError:
-        w = 40
-    s.frontend_logo_width = max(16, min(w, 200))
-    if request.form.get("clear_frontend_logo") == "1":
-        old = s.frontend_logo_filename
-        s.frontend_logo_filename = None
-        _cleanup_retired_asset(old)
-    uploaded = request.files.get("frontend_logo")
-    if uploaded and uploaded.filename:
-        old = s.frontend_logo_filename
-        stored, _original = _save_upload(uploaded)
-        s.frontend_logo_filename = stored
-        if old and old != stored:
-            _cleanup_retired_asset(old)
-    db.session.commit()
-    flash("Logo saved", "success")
-    return redirect(url_for("main.frontend_header"))
-
-
-@bp.route("/frontend/header-save", methods=["POST"])
-@admin_required
-def frontend_header_save():
-    """Persist header layout settings (width mode + sizing)."""
-    s = _get_site_setting()
-    mode = (request.form.get("frontend_header_width_mode") or "boxed").strip()
-    s.frontend_header_width_mode = mode if mode in ("boxed", "full") else "boxed"
-    try:
-        mw = int(request.form.get("frontend_header_max_width") or 1160)
-    except ValueError:
-        mw = 1160
-    s.frontend_header_max_width = max(600, min(mw, 2400))
-    try:
-        pp = int(request.form.get("frontend_header_padding_pct") or 5)
-    except ValueError:
-        pp = 5
-    s.frontend_header_padding_pct = max(0, min(pp, 20))
-    try:
-        hh = int(request.form.get("frontend_header_height") or 72)
-    except ValueError:
-        hh = 72
-    s.frontend_header_height = max(48, min(hh, 100))
-    db.session.commit()
-    flash("Header settings saved", "success")
-    return redirect(url_for("main.frontend_dashboard"))
+    flash("Alert bar saved", "success")
+    return redirect(url_for("main.frontend_header") + "#alert")
 
 
 # ------------------------------------------------------------------
@@ -8191,22 +8931,70 @@ import re as _re
 _HEX = _re.compile(r"#[0-9a-fA-F]{6}")
 
 
-@bp.route("/frontend/nav-appearance", methods=["POST"])
-@admin_required
-def frontend_nav_appearance_save():
-    s = _get_site_setting()
-    bg = (request.form.get("frontend_mega_bg_color") or "").strip()
-    fg = (request.form.get("frontend_mega_text_color") or "").strip()
+def _all_fonts_list():
+    from .fonts import all_fonts
+    return all_fonts()
+
+
+def _font_overrides(s):
+    try:
+        return json.loads(s.frontend_fonts_json or "{}") or {}
+    except (ValueError, TypeError):
+        return {}
+
+
+def _font_theme_defaults(theme_key):
+    from .fonts import THEME_DEFAULTS
+    return THEME_DEFAULTS.get(theme_key) or THEME_DEFAULTS.get("classic") or {}
+
+
+def _save_header_appearance(s, form):
+    """Apply Design → Header: the bar's width, height and logo size, and
+    the utility and alert bar colors in light and dark. A dark color equal
+    to its light one is stored empty, which means "same as light". The
+    caller commits."""
+    from .widths import normalize_width_mode
+
+    def _int(name, lo, hi, default):
+        try:
+            v = int(form.get(name) or default)
+        except ValueError:
+            v = default
+        return max(lo, min(v, hi))
+
+    s.frontend_header_width_mode = normalize_width_mode(
+        form.get("frontend_header_width_mode"), s.frontend_header_width_mode or "boxed")
+    s.frontend_header_max_width = _int("frontend_header_max_width", 600, 2400, 1160)
+    s.frontend_header_padding_pct = _int("frontend_header_padding_pct", 0, 20, 5)
+    s.frontend_header_height = _int("frontend_header_height", 48, 100, 72)
+    s.frontend_logo_width = _int("frontend_logo_width", 16, 200, 40)
+    for base in ("utility_bar_bg_color", "utility_bar_text_color",
+                 "header_alert_bg_color", "header_alert_text_color"):
+        light = (form.get(base) or "").strip()
+        dark = (form.get(base + "_dark") or "").strip()
+        if _HEX.fullmatch(light):
+            setattr(s, base, light)
+        if base + "_dark" in form:
+            setattr(s, base + "_dark",
+                    dark if _HEX.fullmatch(dark) and dark.lower() != (light or "").lower() else None)
+
+
+def _save_mega_appearance(s, form):
+    """Apply the mega menu panel settings from the Design page's Mega menu
+    tab to ``s``. Every field posts on each save, so an unchecked switch
+    reads as off. The caller commits."""
+    bg = (form.get("frontend_mega_bg_color") or "").strip()
+    fg = (form.get("frontend_mega_text_color") or "").strip()
     if _HEX.fullmatch(bg): s.frontend_mega_bg_color = bg
     if _HEX.fullmatch(fg): s.frontend_mega_text_color = fg
     # Independent dark-mode colours.
-    bgd = (request.form.get("frontend_mega_bg_color_dark") or "").strip()
-    fgd = (request.form.get("frontend_mega_text_color_dark") or "").strip()
+    bgd = (form.get("frontend_mega_bg_color_dark") or "").strip()
+    fgd = (form.get("frontend_mega_text_color_dark") or "").strip()
     if _HEX.fullmatch(bgd): s.frontend_mega_bg_color_dark = bgd
     if _HEX.fullmatch(fgd): s.frontend_mega_text_color_dark = fgd
     try:
-        bl = int(request.form.get("frontend_mega_radius_bl") or 18)
-        br = int(request.form.get("frontend_mega_radius_br") or 18)
+        bl = int(form.get("frontend_mega_radius_bl") or 18)
+        br = int(form.get("frontend_mega_radius_br") or 18)
     except ValueError:
         bl, br = 18, 18
     s.frontend_mega_radius_bl = max(0, min(bl, 60))
@@ -8215,25 +9003,25 @@ def frontend_nav_appearance_save():
     # used by the hero / pages). normalize() gates the key against the catalog;
     # _dynbg_config_from_form bundles the overlay + colours + flags into JSON.
     from . import dynbg as _dynbg
-    s.frontend_mega_bg_dynamic_key = _dynbg.normalize(request.form.get("frontend_mega_bg_dynamic_key"))
+    s.frontend_mega_bg_dynamic_key = _dynbg.normalize(form.get("frontend_mega_bg_dynamic_key"))
     s.frontend_mega_bg_dynbg_config_json = _dynbg_config_from_form(
-        request.form, "frontend_mega_bg_dynbg_config_json")
-    s.frontend_mega_bg_dynbg_dark = request.form.get("frontend_mega_bg_dynbg_dark") == "1"
+        form, "frontend_mega_bg_dynbg_config_json")
+    s.frontend_mega_bg_dynbg_dark = form.get("frontend_mega_bg_dynbg_dark") == "1"
     try:
-        blend = int(request.form.get("frontend_mega_bg_dynbg_blend") or 100)
+        blend = int(form.get("frontend_mega_bg_dynbg_blend") or 100)
     except ValueError:
         blend = 100
     s.frontend_mega_bg_dynbg_blend = max(0, min(blend, 100))
-    s.frontend_megamenu_animate = request.form.get("frontend_megamenu_animate") == "1"
+    s.frontend_megamenu_animate = form.get("frontend_megamenu_animate") == "1"
     try:
-        ms = int(request.form.get("frontend_megamenu_animate_ms") or 320)
+        ms = int(form.get("frontend_megamenu_animate_ms") or 320)
     except ValueError:
         ms = 320
     s.frontend_megamenu_animate_ms = max(100, min(ms, 1500))
     # Panel-level fade (independent of the staggered link reveal).
-    s.frontend_megamenu_panel_fade = request.form.get("frontend_megamenu_panel_fade") == "1"
+    s.frontend_megamenu_panel_fade = form.get("frontend_megamenu_panel_fade") == "1"
     try:
-        fms = int(request.form.get("frontend_megamenu_panel_fade_ms") or 180)
+        fms = int(form.get("frontend_megamenu_panel_fade_ms") or 180)
     except ValueError:
         fms = 180
     s.frontend_megamenu_panel_fade_ms = max(0, min(fms, 1500))
@@ -8241,14 +9029,14 @@ def frontend_nav_appearance_save():
     # the existing @media (max-width: 720px) breakpoint. Clamped to
     # the same ranges as the desktop sliders so a forged POST can't
     # push wild values into the JSON column.
-    s.frontend_megamenu_animate_mobile = request.form.get("frontend_megamenu_animate_mobile") == "1"
+    s.frontend_megamenu_animate_mobile = form.get("frontend_megamenu_animate_mobile") == "1"
     try:
-        ams_m = int(request.form.get("frontend_megamenu_animate_mobile_ms") or 320)
+        ams_m = int(form.get("frontend_megamenu_animate_mobile_ms") or 320)
     except ValueError:
         ams_m = 320
     s.frontend_megamenu_animate_mobile_ms = max(100, min(ams_m, 1500))
     try:
-        fms_m = int(request.form.get("frontend_megamenu_panel_fade_mobile_ms") or 180)
+        fms_m = int(form.get("frontend_megamenu_panel_fade_mobile_ms") or 180)
     except ValueError:
         fms_m = 180
     s.frontend_megamenu_panel_fade_mobile_ms = max(0, min(fms_m, 1500))
@@ -8259,7 +9047,7 @@ def frontend_nav_appearance_save():
     # we don't store a redundant value. Out-of-range values clamp to
     # the band rather than being rejected.
     def _read_pct(field, lo, hi):
-        raw = (request.form.get(field) or "").strip()
+        raw = (form.get(field) or "").strip()
         if not raw:
             return None
         try:
@@ -8270,9 +9058,10 @@ def frontend_nav_appearance_save():
         return None if v == 100 else v
     s.frontend_megamenu_heading_size    = _read_pct("frontend_megamenu_heading_size", 50, 200)
     s.frontend_megamenu_subheading_size = _read_pct("frontend_megamenu_subheading_size", 50, 200)
-    db.session.commit()
-    flash("Mega menu appearance saved", "success")
-    return redirect(url_for("main.frontend_navigation"))
+
+
+# The mega menu layouts are drawn for up to three columns side by side.
+MEGAMENU_MAX_COLUMNS = 3
 
 
 def _apply_nav_item_form(item, form):
@@ -8316,8 +9105,10 @@ def frontend_nav_item_new():
     _apply_nav_item_form(item, request.form)
     db.session.add(item)
     db.session.commit()
-    flash("Nav item added", "success")
-    return redirect(url_for("main.frontend_navigation"))
+    flash("Menu item added", "success")
+    if item.has_megamenu:
+        return redirect(url_for("main.frontend_header", item=item.id) + "#menu")
+    return redirect(url_for("main.frontend_header") + "#menu")
 
 
 @bp.route("/frontend/nav-item/<int:nid>/edit", methods=["POST"])
@@ -8326,8 +9117,8 @@ def frontend_nav_item_edit(nid):
     item = db.session.get(FrontendNavItem, nid) or abort(404)
     _apply_nav_item_form(item, request.form)
     db.session.commit()
-    flash("Nav item updated", "success")
-    return redirect(_safe_referrer() or url_for("main.frontend_header"))
+    flash("Menu item updated", "success")
+    return redirect(_safe_referrer() or (url_for("main.frontend_header") + "#menu"))
 
 
 @bp.route("/frontend/nav-item/<int:nid>/delete", methods=["POST"])
@@ -8336,8 +9127,8 @@ def frontend_nav_item_delete(nid):
     item = db.session.get(FrontendNavItem, nid) or abort(404)
     db.session.delete(item)
     db.session.commit()
-    flash("Nav item deleted", "success")
-    return redirect(url_for("main.frontend_navigation"))
+    flash("Menu item deleted", "success")
+    return redirect(url_for("main.frontend_header") + "#menu")
 
 
 @bp.route("/frontend/nav-items/reorder", methods=["POST"])
@@ -8355,10 +9146,9 @@ def frontend_nav_item_reorder():
 @bp.route("/frontend/nav-item/<int:nid>/megamenu")
 @admin_required
 def frontend_nav_megamenu(nid):
-    from .forms_registry import all_forms
+    """Each item's mega menu is edited on the Header page's Menu tab."""
     item = db.session.get(FrontendNavItem, nid) or abort(404)
-    return render_template("frontend_nav_megamenu.html", item=item, site=_get_site_setting(),
-                           form_registry_all=all_forms())
+    return redirect(url_for("main.frontend_header", item=item.id) + "#menu")
 
 
 # ---- Columns ----
@@ -8366,6 +9156,12 @@ def frontend_nav_megamenu(nid):
 @admin_required
 def frontend_nav_column_new(nid):
     item = db.session.get(FrontendNavItem, nid) or abort(404)
+    if len(item.columns) >= MEGAMENU_MAX_COLUMNS:
+        msg = f"A mega menu holds up to {MEGAMENU_MAX_COLUMNS} columns."
+        if request.headers.get("X-Requested-With") == "fetch":
+            return jsonify(ok=False, error=msg), 400
+        flash(msg, "danger")
+        return redirect(url_for("main.frontend_header", item=item.id) + "#menu")
     max_pos = max([c.position for c in item.columns] + [-1]) + 1
     col = FrontendNavColumn(nav_item_id=item.id, position=max_pos,
                             heading=(request.form.get("heading") or "New column").strip())
@@ -9089,32 +9885,39 @@ def frontend_dashboard():
     Visitor-metrics widget reuses the summary aggregator that backs the
     full /tspro/frontend/metrics page so the numbers match."""
     from . import visitor_metrics as _vm
-    from .forms_registry import all_forms as _all_forms
+    from . import watchtower as _wt
+    from .forms_overview import form_rows
+    from .frontend import THEMES
 
     s = _get_site_setting()
     fe_order = _fe_dashboard_order(current_user)
 
-    # Visitor metrics — same 30-day window the dedicated metrics page
-    # defaults to, so the operator who's used to those numbers doesn't
-    # see a different scale here. Wrap in try/except so an empty
-    # VisitorEvent table or a transient DB hiccup doesn't 500 the
-    # overview page.
+    # Visitor metrics use the same 30-day window as the full metrics page
+    # so the numbers match. Best-effort: an empty table or a DB hiccup
+    # must not 500 the overview.
     vm_window = 30
     try:
         vm_summary = _vm.summary(days=vm_window)
         vm_daily = _vm.daily_series(days=vm_window)
-    except Exception:  # noqa: BLE001 — widget data is best-effort
+    except Exception:  # noqa: BLE001
         vm_summary = None
         vm_daily = []
 
-    # Section data — kept thin so the overview render stays fast.
-    recent_pages = (Page.query.order_by(Page.updated_at.desc()).limit(6).all())
-    pages_count = Page.query.count()
-    redirects_count = UrlRedirect.query.count()
-    recent_redirects = (UrlRedirect.query
-                        .order_by(UrlRedirect.created_at.desc()).limit(5).all())
-    nav_count = FrontendNavItem.query.count()
-    fe_forms = _all_forms()
+    theme_key = s.frontend_theme or "classic"
+    theme = next((t for t in THEMES if t["key"] == theme_key), {"name": theme_key})
+    page_counts = {
+        "published": Page.query.filter(Page.is_published.is_(True), Page.is_private.is_(False)).count(),
+        "private": Page.query.filter(Page.is_private.is_(True)).count(),
+        "draft": Page.query.filter(Page.is_published.is_(False), Page.is_private.is_(False)).count(),
+        "unpublished_changes": Page.query.filter(Page.draft_json.isnot(None)).count(),
+    }
+    recent_pages = Page.query.order_by(Page.updated_at.desc()).limit(6).all()
+    try:
+        missing = _wt.top_missing_paths(days=30, limit=5)
+        missing_total = (_wt.not_found_summary(days=30) or {}).get("total_window", 0)
+    except Exception:  # noqa: BLE001
+        missing, missing_total = [], 0
+    nav_items = FrontendNavItem.query.order_by(FrontendNavItem.position).all()
 
     return render_template("frontend_dashboard.html",
                            site=s,
@@ -9123,12 +9926,17 @@ def frontend_dashboard():
                            vm_window=vm_window,
                            vm_summary=vm_summary,
                            vm_daily=vm_daily,
+                           theme_name=theme.get("name") or theme_key,
                            recent_pages=recent_pages,
-                           pages_count=pages_count,
-                           redirects_count=redirects_count,
-                           recent_redirects=recent_redirects,
-                           nav_count=nav_count,
-                           fe_forms=fe_forms)
+                           page_counts=page_counts,
+                           pages_count=Page.query.count(),
+                           redirects_count=UrlRedirect.query.count(),
+                           recent_redirects=(UrlRedirect.query
+                                             .order_by(UrlRedirect.created_at.desc()).limit(5).all()),
+                           missing_paths=missing,
+                           missing_total=missing_total,
+                           nav_items=nav_items,
+                           form_rows=form_rows(s))
 
 
 @bp.route("/frontend/customize", methods=["POST"])
@@ -9140,6 +9948,7 @@ def fe_dashboard_customize():
     for slug in FE_DASHBOARD_WIDGET_KEYS:
         col = "fe_dash_show_" + slug.replace("fe-", "").replace("-", "_")
         setattr(current_user, col, request.form.get(col) == "1")
+    current_user.fe_admin_autohide_sidebar = request.form.get("fe_admin_autohide_sidebar") == "1"
     db.session.commit()
     flash("Web Frontend overview updated", "success")
     return redirect(url_for("main.frontend_dashboard"))
@@ -9184,29 +9993,12 @@ def frontend_fonts_icons():
 @bp.route("/frontend/forms")
 @admin_required
 def frontend_forms():
-    """Forms index — two lists.
-
-    The first lists the **built-in** forms from ``forms_registry`` (the
-    legacy events/announcements Submission Form and the standalone
-    Contact Form). Each registry entry declares an ``enabled_setting``
-    column; the index reads its current value off SiteSetting and
-    exposes an inline toggle.
-
-    The second lists **custom forms** authored from the admin UI —
-    rows in the ``custom_form`` table. Each custom form has its own
-    builder page (Phase 2) and its own public URL ``/<slug>``."""
-    from .forms_registry import all_forms
-    s = _get_site_setting()
-    forms = []
-    for f in all_forms():
-        enabled = True
-        col = f.get("enabled_setting")
-        if col:
-            enabled = bool(getattr(s, col, True))
-        forms.append({**f, "enabled": enabled})
-    custom_forms = CustomForm.query.order_by(CustomForm.created_at.desc()).all()
-    return render_template("frontend_forms.html",
-                           site=s, forms=forms, custom_forms=custom_forms)
+    """Forms opens the settings of the form last edited here, else the
+    first form; the selector menu moves between forms."""
+    from .forms_overview import form_rows
+    rows = form_rows(_get_site_setting())
+    row = next((r for r in rows if r["key"] == session.get("fe_last_form")), None) or (rows[0] if rows else None)
+    return redirect(row["settings_url"] if row else url_for("main.frontend_dashboard"))
 
 
 # Routes/slugs we refuse to let a CustomForm claim. Mirrors the same
@@ -9226,16 +10018,12 @@ _RESERVED_FORM_SLUGS = {
 _FORM_FIELD_TYPES = {"name", "text", "email", "phone", "textarea",
                      "select", "radio", "checkboxes", "file"}
 _FORM_FIELD_TYPES_WITH_OPTIONS = {"select", "radio", "checkboxes"}
-# Dropdown order for the Custom Form builder. "name" is a composite
-# first+last name field, offered first; the rest follow in a natural
-# data-entry order. The Contact / Story / Events module forms reuse the
-# same builder + parser but DON'T expose the composite name field (their
-# public render + submit handlers are bespoke and only know the
-# primitives), so they get _MODULE_FORM_FIELD_TYPES instead.
+# Dropdown order for the Custom Form builder. "name" is a full-name
+# field, offered first; the rest follow in a natural data-entry order.
+# The built-in forms offer their own types (form_specs.SPECS).
 _CUSTOM_FORM_FIELD_TYPE_ORDER = ("name", "text", "email", "phone",
                                  "textarea", "select", "radio",
                                  "checkboxes", "file")
-_MODULE_FORM_FIELD_TYPES = sorted(_FORM_FIELD_TYPES - {"name"})
 
 
 def _name_from_label(label, existing_names=()):
@@ -9413,6 +10201,10 @@ def _normalise_module_form_slug(raw, exclude_attr=None):
     about to overwrite — e.g. saving ``submission_form_slug`` =
     ``story-submit`` shouldn't reject itself just because it
     previously held the same value."""
+    # Blank keeps the built-in address. (_slugify_form_title turns an
+    # empty string into "form", so check before calling it.)
+    if not (raw or "").strip():
+        return None
     cleaned = _slugify_form_title((raw or "").strip().lower())
     if not cleaned:
         return None
@@ -9454,90 +10246,6 @@ def _peek_existing_module_form_slug(attr):
         return getattr(s, attr, None) or None
     except Exception:  # noqa: BLE001
         return None
-
-
-def _default_submission_form_blocks():
-    """Default field set for the Announcements/Events submission form
-    — mirrors the hardcoded fields the public template currently
-    renders so admins land on the existing layout in the builder
-    and customize from there."""
-    return [
-        {"id": "f-0", "type": "text", "name": "title", "label": "Title", "required": True,
-         "placeholder": "e.g. Spring serenity workshop"},
-        {"id": "f-1", "type": "textarea", "name": "summary", "label": "Summary",
-         "required": False, "placeholder": "Short blurb shown in link previews"},
-        {"id": "f-2", "type": "textarea", "name": "body", "label": "Description",
-         "required": False, "placeholder": "Full details — Markdown supported"},
-        {"id": "f-3", "type": "text", "name": "event_starts_at", "label": "Event starts",
-         "required": False, "placeholder": "YYYY-MM-DDTHH:MM"},
-        {"id": "f-4", "type": "text", "name": "event_ends_at", "label": "Event ends",
-         "required": False, "placeholder": "YYYY-MM-DDTHH:MM"},
-        {"id": "f-5", "type": "text", "name": "location_name", "label": "Location name",
-         "required": False, "placeholder": "Community Center · Hall B"},
-        {"id": "f-6", "type": "text", "name": "location_address", "label": "Address",
-         "required": False},
-        {"id": "f-7", "type": "text", "name": "website_url", "label": "Event website URL",
-         "required": False, "placeholder": "https://example.org"},
-        {"id": "f-8", "type": "file", "name": "featured_image", "label": "Featured image",
-         "required": False, "help": "PNG, JPG, or WebP — optional."},
-        {"id": "f-9", "type": "text", "name": "submitter_name", "label": "Your name",
-         "required": True},
-        {"id": "f-10", "type": "email", "name": "submitter_email", "label": "Your email",
-         "required": True},
-        {"id": "f-11", "type": "phone", "name": "submitter_phone", "label": "Your phone",
-         "required": False},
-        {"id": "f-12", "type": "textarea", "name": "submitter_notes",
-         "label": "Notes for the admin", "required": False},
-    ]
-
-
-def _default_story_form_blocks():
-    """Default field set for the Story Submission Form — matches
-    the original "Story Submission Form" custom form layout
-    (Name + Email + Story + File Upload + Accept Terms)."""
-    return [
-        {"id": "f-0", "type": "text", "name": "submitter_name", "label": "Name",
-         "required": True, "placeholder": "Name"},
-        {"id": "f-1", "type": "email", "name": "submitter_email", "label": "Email",
-         "required": False},
-        {"id": "f-2", "type": "textarea", "name": "body", "label": "Story",
-         "required": True, "placeholder": "Type/Paste your story here"},
-        {"id": "f-3", "type": "file", "name": "attachment", "label": "File Upload",
-         "required": False, "placeholder": "Upload a file (PDF, DOC)",
-         "help": "If your story is in a file, optionally upload it here instead of pasting it"},
-        {"id": "f-4", "type": "checkboxes", "name": "accept_terms",
-         "label": "Accept Terms", "required": True,
-         "placeholder": "Please read and accept the terms below:",
-         "help": "",
-         "options": ["I accept the terms below"]},
-    ]
-
-
-def _default_contact_form_blocks():
-    """Default field set for the Contact Form — mirrors the existing
-    hardcoded fields on /contact (name, email, optional subject /
-    phone, and message)."""
-    return [
-        {"id": "f-0", "type": "text", "name": "name", "label": "Your name",
-         "required": True},
-        {"id": "f-1", "type": "email", "name": "email", "label": "Email",
-         "required": True},
-        {"id": "f-2", "type": "text", "name": "subject", "label": "Subject",
-         "required": False},
-        {"id": "f-3", "type": "phone", "name": "phone", "label": "Phone",
-         "required": False},
-        {"id": "f-4", "type": "textarea", "name": "message", "label": "Message",
-         "required": True, "placeholder": "How can we help?"},
-    ]
-
-
-def _resolve_module_form_fields(saved_raw, default_factory):
-    """Return the field list to feed the builder on a module form's
-    settings page. Saved overrides win when present; otherwise the
-    module's default blocks load so the admin sees the form's
-    current shape in the editor and can tweak from there."""
-    saved = _decode_blocks_json(saved_raw)
-    return saved if saved else default_factory()
 
 
 def _slugify_form_title(title):
@@ -9588,11 +10296,9 @@ def frontend_custom_form_new():
 @bp.route("/frontend/forms/custom/<int:form_id>/edit", methods=["GET", "POST"])
 @admin_required
 def frontend_custom_form_edit(form_id):
-    """Phase 1 stub for the custom-form edit page. Round-trips title,
-    slug, recipients, thank-you message, and redirect URL so the
-    operator can verify the row exists and basic settings persist.
-    Phase 2 layers the drag-and-drop field builder on top of this same
-    page."""
+    """A custom form's settings, in the shared form studio
+    (frontend_form_studio.html): fields, page, delivery, look, sharing
+    and who can see its inbox."""
     cf = db.session.get(CustomForm, form_id) or abort(404)
     if request.method == "POST":
         cf.title = (request.form.get("title") or cf.title).strip()
@@ -9614,9 +10320,10 @@ def frontend_custom_form_edit(form_id):
         # Per-form submission access for non-admin roles. Admins always
         # qualify, so they're not a checkbox option; only valid non-admin
         # roles are stored.
-        _picked = set(request.form.getlist("submission_roles"))
-        _allowed = [r for r in ("editor", "intergroup_member", "viewer") if r in _picked]
-        cf.submission_roles_csv = ",".join(_allowed) or None
+        if "submission_roles_present" in request.form or "submission_roles" in request.form:
+            _picked = set(request.form.getlist("submission_roles"))
+            _allowed = [r for r in ("editor", "intergroup_member", "viewer") if r in _picked]
+            cf.submission_roles_csv = ",".join(_allowed) or None
         # Optional per-form dynamic background. Same picker macro + save
         # path the page / site surfaces use: a normalised base key plus
         # the bundled overlay/colour/knob config JSON. Tampered values
@@ -9646,12 +10353,10 @@ def frontend_custom_form_edit(form_id):
         fields = _parse_form_fields(request.form)
         cf.blocks_json = _json.dumps(fields) if fields else None
         db.session.commit()
-        flash("Form settings saved.", "success")
+        flash("Form saved", "success")
         return redirect(url_for("main.frontend_custom_form_edit", form_id=cf.id))
-    return render_template("frontend_custom_form_edit.html",
-                           form=cf,
-                           fields=_load_form_fields(cf),
-                           field_types=_CUSTOM_FORM_FIELD_TYPE_ORDER)
+    return render_template("frontend_form_studio.html", site=_get_site_setting(),
+                           cf=cf, fs=_form_studio_ctx("custom", cf))
 
 
 def _summarise_form_submission(sub):
@@ -9788,114 +10493,116 @@ def _form_access_or_403(form):
         abort(403)
 
 
+def _submission_payload(sub):
+    import json as _json
+    try:
+        data = _json.loads(sub.payload_json or "{}")
+    except (ValueError, TypeError):
+        data = {}
+    return {"fields": data.get("fields") or {}, "files": data.get("files") or {}}
+
+
+def _submission_text(payload):
+    """Every answer in a submission as one lowercase string, for search."""
+    parts = []
+    for v in (payload.get("fields") or {}).values():
+        parts.extend(v if isinstance(v, list) else [v])
+    return " ".join(str(p) for p in parts if p is not None).lower()
+
+
 @bp.route("/frontend/forms/submissions")
 @login_required
 def frontend_form_submissions():
-    """A single form's submission inbox — its Active / Archived tabs, bulk
-    actions, and CSV export. Access is per-form: admins see every form,
-    other roles only the forms whose ``submission_roles_csv`` grants their
-    role (the sidebar "Forms" list mirrors this). The view is always scoped
-    to one form (``?form=<id>``); a missing/inaccessible id lands on the
-    first form the user can reach."""
+    """A form's submissions in the File Browser layout: search over the
+    answers (live), Inbox / New / Archived with counts, sort, List or
+    Grid, bulk actions, and the CSV download. Access is per form: admins
+    see every form, other roles the forms whose ``submission_roles_csv``
+    grants their role. Scoped to one form (``?form=<id>``); a missing or
+    inaccessible id lands on the first form the user can reach. Each
+    submission opens on its own page."""
     accessible = _accessible_forms(current_user)
     if not accessible:
         abort(403)
-    show_archived = request.args.get("archived") == "1"
+    show = (request.args.get("show") or ("archived" if request.args.get("archived") == "1" else "inbox")).strip()
+    if show not in ("inbox", "new", "archived"):
+        show = "inbox"
     form_id_raw = (request.args.get("form") or "").strip()
     form_id = int(form_id_raw) if form_id_raw.isdigit() else None
     cf = next((f for f in accessible if f.id == form_id), None)
     if cf is None:
-        kwargs = {"form": accessible[0].id}
-        if show_archived:
-            kwargs["archived"] = 1
-        return redirect(url_for("main.frontend_form_submissions", **kwargs))
+        return redirect(url_for("main.frontend_form_submissions", form=accessible[0].id,
+                                show=show if show != "inbox" else None))
+    sort = (request.args.get("sort") or request.cookies.get("view-subs-sort") or "received_desc").strip()
+    view = request.args.get("view") or request.cookies.get("view-subs") or "list"
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
 
-    submissions = (FormSubmission.query
-                   .filter_by(form_id=cf.id, is_archived=show_archived)
-                   .order_by(FormSubmission.created_at.desc())
-                   .limit(200).all())
+    rows = (FormSubmission.query.filter_by(form_id=cf.id)
+            .order_by(FormSubmission.created_at.desc(), FormSubmission.id.desc()).all())
+    payloads = {sub.id: _submission_payload(sub) for sub in rows}
+    if q_text:
+        needle = q_text.lower()
+        rows = [r for r in rows if needle in _submission_text(payloads[r.id]) or needle in (r.ip or "")]
 
-    def _count(archived):
-        return FormSubmission.query.filter_by(form_id=cf.id, is_archived=archived).count()
-    active_count = _count(False)
-    archived_count = _count(True)
-
-    import json as _json
+    def in_show(r, k):
+        if k == "archived":
+            return r.is_archived
+        if k == "new":
+            return not r.is_archived and not r.is_seen
+        return not r.is_archived
+    show_counts = {k: sum(1 for r in rows if in_show(r, k)) for k in ("inbox", "new", "archived")}
+    submissions = [r for r in rows if in_show(r, show)]
     previews = {sub.id: _summarise_form_submission(sub) for sub in submissions}
-    # Decoded payloads keyed by submission id, so each row can expand inline
-    # to show the full email-style record without a round-trip. The form's
-    # field set (blocks) is shared across every row.
-    form_fields = _load_form_fields(cf)
-    payloads = {}
-    for sub in submissions:
-        try:
-            data = _json.loads(sub.payload_json or "{}")
-        except (ValueError, TypeError):
-            data = {}
-        payloads[sub.id] = {"fields": data.get("fields") or {},
-                            "files": data.get("files") or {}}
-    return render_template("frontend_form_submissions.html",
-                           submissions=submissions,
-                           previews=previews,
-                           form_fields=form_fields,
-                           payloads=payloads,
-                           forms=accessible,
-                           selected_form=cf,
-                           selected_form_id=cf.id,
-                           show_archived=show_archived,
-                           active_count=active_count,
-                           archived_count=archived_count,
-                           can_edit_form=current_user.is_admin())
-
-
-@bp.route("/frontend/forms/submissions/<int:sub_id>/seen", methods=["POST"])
-@login_required
-def frontend_form_submission_seen(sub_id):
-    """Mark a submission seen without leaving the inbox — fired when the
-    "View Submission" modal opens (the modal replaced the detail-page
-    navigation, which used to mark it seen). Returns the form's new
-    un-seen, un-archived count so the sidebar chip can update live."""
-    sub = db.session.get(FormSubmission, sub_id) or abort(404)
-    _form_access_or_403(sub.form)
-    if not sub.is_seen:
-        sub.is_seen = True
-        sub.seen_at = datetime.utcnow()
-        db.session.commit()
-    n = FormSubmission.query.filter_by(
-        form_id=sub.form_id, is_archived=False, is_seen=False).count()
-    return jsonify(ok=True, form_id=sub.form_id, count=n)
+    if sort == "received_asc":
+        submissions.reverse()
+    elif sort in ("name_asc", "name_desc"):
+        submissions.sort(key=lambda r: (previews[r.id].get("display_name") or "").lower(),
+                         reverse=sort == "name_desc")
+    else:
+        sort = "received_desc"
+    resp = current_app.make_response(render_template(
+        "frontend_form_submissions.html", submissions=submissions, previews=previews,
+        forms=accessible, selected_form=cf, selected_form_id=cf.id, show=show,
+        sort=sort, view=view, q=q_text, show_counts=show_counts,
+        can_edit_form=current_user.is_admin()))
+    resp.set_cookie("view-subs", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-subs-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
 @bp.route("/frontend/forms/submissions/<int:sub_id>")
 @login_required
 def frontend_form_submission_detail(sub_id):
-    """Per-submission detail view. Pairs each value in the submission's
-    payload with the field label from the form's blocks_json (since
-    submitter never saw the raw field names — labels are what the
-    operator authored)."""
-    import json as _json
+    """One submission on its own page: each answer under the field label
+    from the form's blocks_json (the labels are what the operator wrote;
+    the submitter never saw the raw field names). Opening it marks it
+    seen, which clears it from the form's "new" count."""
     sub = db.session.get(FormSubmission, sub_id) or abort(404)
     cf = sub.form
     _form_access_or_403(cf)
-    # Mark seen on first view — clears this submission from the form's
-    # "new" count chip (sidebar + dashboard widget) and its notification.
     if not sub.is_seen:
         sub.is_seen = True
         sub.seen_at = datetime.utcnow()
         db.session.commit()
     fields = _load_form_fields(cf) if cf else []
     label_for = {f["name"]: f["label"] for f in fields if isinstance(f, dict) and "name" in f}
-    try:
-        payload = _json.loads(sub.payload_json or "{}")
-    except (ValueError, TypeError):
-        payload = {}
-    # Reuse the list-view summariser for the hero (submitter name + the
-    # primary email/phone), so the detail page leads with who submitted it.
+    payload = _submission_payload(sub)
     summary = _summarise_form_submission(sub) if cf else None
     return render_template("frontend_form_submission_detail.html",
                            sub=sub, cf=cf, fields=fields,
                            payload=payload, label_for=label_for,
                            summary=summary)
+
+
+def _submission_back(sub_id, form_id, leave=False):
+    """Where a submission action returns: the page it came from, except
+    the submission's own page when the action means leaving it
+    (``leave``: deleted, or marked unread, which opening would undo)."""
+    ref = _safe_referrer()
+    on_page = bool(ref and re.search(r"/frontend/forms/submissions/%d(?:[/?#]|$)" % sub_id, ref))
+    if ref and not (leave and on_page):
+        return redirect(ref)
+    return redirect(url_for("main.frontend_form_submissions", form=form_id))
 
 
 @bp.route("/frontend/forms/submissions/<int:sub_id>/delete", methods=["POST"])
@@ -9907,89 +10614,64 @@ def frontend_form_submission_delete(sub_id):
     db.session.delete(sub)
     db.session.commit()
     flash("Submission deleted.", "success")
-    return redirect(url_for("main.frontend_form_submissions", form=form_id))
+    return _submission_back(sub_id, form_id, leave=True)
 
 
 @bp.route("/frontend/forms/submissions/<int:sub_id>/archive", methods=["POST"])
 @login_required
 def frontend_form_submission_archive(sub_id):
-    """Archive (or, with ``target=0``, restore) a single submission from
-    its detail view, then return to the submissions list — the active
-    list after archiving, the archived list after restoring (i.e. the
-    tab the row now lives on)."""
+    """Archive (or, with ``target=0``, restore) one submission."""
     sub = db.session.get(FormSubmission, sub_id) or abort(404)
     _form_access_or_403(sub.form)
-    form_id = sub.form_id
     restore = request.form.get("target") == "0"
     sub.is_archived = not restore
     sub.archived_at = None if restore else datetime.utcnow()
     db.session.commit()
     flash("Submission restored." if restore else "Submission archived.", "success")
-    kwargs = {"form": form_id}
-    if restore:
-        kwargs["archived"] = 1
-    return redirect(url_for("main.frontend_form_submissions", **kwargs))
+    return _submission_back(sub_id, sub.form_id)
 
 
-def _submissions_redirect():
-    """Send a bulk action back to the view it came from — same form
-    filter + active/archived tab — read from the POST so the operator
-    lands where they were."""
-    form_id = (request.form.get("form") or "").strip()
-    archived = request.form.get("archived") == "1"
-    kwargs = {}
-    if form_id.isdigit():
-        kwargs["form"] = int(form_id)
-    if archived:
-        kwargs["archived"] = 1
-    return redirect(url_for("main.frontend_form_submissions", **kwargs))
-
-
-@bp.route("/frontend/forms/submissions/bulk-delete", methods=["POST"])
+@bp.route("/frontend/forms/submissions/<int:sub_id>/seen", methods=["POST"])
 @login_required
-def frontend_form_submissions_bulk_delete():
-    """Permanently delete a multi-select set of submissions. Rows belonging
-    to a form the user can't manage are silently skipped, so a crafted POST
-    can't reach another form's submissions."""
-    ids = set(request.form.getlist("submission_ids", type=int))
-    if not ids:
-        flash("Pick at least one submission to delete.", "danger")
-        return _submissions_redirect()
-    subs = [s for s in FormSubmission.query.filter(FormSubmission.id.in_(ids)).all()
-            if current_user.can_access_form_submissions(s.form)]
-    n = 0
-    for s in subs:
-        db.session.delete(s)
-        n += 1
+def frontend_form_submission_seen(sub_id):
+    """Mark one submission read (seen) or, with ``target=0``, unread."""
+    sub = db.session.get(FormSubmission, sub_id) or abort(404)
+    _form_access_or_403(sub.form)
+    unread = request.form.get("target") == "0"
+    sub.is_seen = not unread
+    sub.seen_at = None if unread else datetime.utcnow()
     db.session.commit()
-    if n:
-        flash(f"Deleted {n} submission{'' if n == 1 else 's'}.", "success")
-    return _submissions_redirect()
+    return _submission_back(sub_id, sub.form_id, leave=unread)
 
 
-@bp.route("/frontend/forms/submissions/bulk-archive", methods=["POST"])
+@bp.route("/frontend/forms/submissions/bulk", methods=["POST"])
 @login_required
-def frontend_form_submissions_bulk_archive():
-    """Archive (or, with ``archived=0``, restore) a multi-select set of
-    submissions. Archived rows leave the default list but are kept. Rows on
-    a form the user can't manage are silently skipped."""
-    ids = set(request.form.getlist("submission_ids", type=int))
-    target = request.form.get("target") != "0"  # default: archive; "0" restores
-    if not ids:
-        flash("Pick at least one submission first.", "danger")
-        return _submissions_redirect()
-    subs = [s for s in FormSubmission.query.filter(FormSubmission.id.in_(ids)).all()
+def frontend_form_submissions_bulk():
+    """Archive, restore, mark read or unread, or delete the ticked
+    submissions. Rows on a form the user can't manage are skipped, so a
+    crafted POST can't reach another form's submissions."""
+    action = request.form.get("action")
+    ids = [int(i) for i in request.form.getlist("ids") if str(i).isdigit()]
+    subs = [s for s in (FormSubmission.query.filter(FormSubmission.id.in_(ids)).all() if ids else [])
             if current_user.can_access_form_submissions(s.form)]
-    n = 0
-    for s in subs:
-        s.is_archived = target
-        s.archived_at = datetime.utcnow() if target else None
-        n += 1
+    now = datetime.utcnow()
+    for sub in subs:
+        if action == "archive":
+            sub.is_archived, sub.archived_at = True, now
+        elif action == "restore":
+            sub.is_archived, sub.archived_at = False, None
+        elif action == "read":
+            sub.is_seen, sub.seen_at = True, now
+        elif action == "unread":
+            sub.is_seen, sub.seen_at = False, None
+        elif action == "delete":
+            db.session.delete(sub)
     db.session.commit()
-    if n:
-        verb = "Archived" if target else "Restored"
-        flash(f"{verb} {n} submission{'' if n == 1 else 's'}.", "success")
-    return _submissions_redirect()
+    verb = {"archive": "Archived", "restore": "Restored", "read": "Marked read",
+            "unread": "Marked unread", "delete": "Deleted"}.get(action)
+    if verb and subs:
+        flash(f"{verb}: {len(subs)} submission{'' if len(subs) == 1 else 's'}.", "success")
+    return redirect(_safe_referrer() or url_for("main.frontend_form_submissions"))
 
 
 def _csv_cell(value):
@@ -10067,184 +10749,6 @@ def frontend_form_submissions_csv():
     return resp
 
 
-@bp.route("/frontend/forms/submissions/<int:sub_id>/import-to-stories", methods=["POST"])
-@admin_required
-def frontend_form_submission_import_to_story(sub_id):
-    """Promote a legacy ``FormSubmission`` row into a pending-review
-    ``Story`` row so it lands in the Stories admin's Pending tab.
-
-    Used to migrate existing story submissions that came in through
-    the old CustomForm → FormSubmission pipeline before the dedicated
-    /storyform route shipped. Walks the parent CustomForm's
-    ``blocks_json`` to pick out title / summary / body / author /
-    submitter contact fields by name+type heuristics (same logic
-    ``_summarise_form_submission`` uses for list previews), copies
-    them onto a new Story row with ``is_pending_review=True``, and
-    deletes the FormSubmission so it doesn't double-track.
-
-    Any file uploads attached to the submission ride along: the first
-    image-typed file becomes the story's featured image, the first
-    non-image file becomes the submission attachment for download.
-    The on-disk files themselves aren't copied — both Story and
-    FormSubmission storage live under the same ``UPLOAD_FOLDER``,
-    so we just hand off the stored filename to the Story row.
-    """
-    import json as _json
-    sub = db.session.get(FormSubmission, sub_id) or abort(404)
-    try:
-        payload = _json.loads(sub.payload_json or "{}")
-    except (ValueError, TypeError):
-        payload = {}
-    fvals = payload.get("fields") or {}
-    files = payload.get("files") or {}
-
-    cf = sub.form
-    blocks = []
-    if cf and cf.blocks_json:
-        try:
-            blocks = _json.loads(cf.blocks_json)
-        except (ValueError, TypeError):
-            blocks = []
-    if not isinstance(blocks, list):
-        blocks = []
-
-    # Field name heuristics — mirrors _summarise_form_submission's hint
-    # lists so the import picks the same "obvious" fields the list
-    # preview already calls out.
-    TITLE_HINTS = ("title", "subject", "headline", "story_title")
-    SUMMARY_HINTS = ("summary", "blurb", "excerpt", "headline")
-    BODY_HINTS = ("body", "story", "message", "content", "details", "narrative")
-    NAME_HINTS = ("full_name", "your_name", "submitter_name", "name")
-    AUTHOR_HINTS = ("author", "byline", "pen_name", "display_name")
-    PHONE_HINTS = ("phone", "tel", "mobile")
-    NOTES_HINTS = ("notes", "comments", "for_editor")
-
-    def _first(types=None, name_hints=()):
-        for block in blocks:
-            if not isinstance(block, dict):
-                continue
-            bn = (block.get("name") or "").lower()
-            if not bn:
-                continue
-            if types and block.get("type") not in types:
-                continue
-            if name_hints and not any(h in bn for h in name_hints):
-                continue
-            val = fvals.get(bn)
-            if val:
-                return val
-        return None
-
-    def _coerce(val):
-        if val is None:
-            return None
-        if isinstance(val, (list, tuple)):
-            return ", ".join(str(x) for x in val if x)
-        return str(val).strip() or None
-
-    title = _coerce(_first(name_hints=TITLE_HINTS)) or "Imported story submission"
-    # Body falls back to the longest text-area value in the payload
-    # so submissions whose form named its main field "your_story" or
-    # "tell_us_more" still get something useful. The same fallback
-    # logic is used by the list-preview headline picker, but here we
-    # take the whole value instead of a truncated snippet.
-    body = _coerce(_first(types={"textarea"}, name_hints=BODY_HINTS))
-    if not body:
-        # Pick the longest textarea answer across the whole payload as
-        # a last resort. Sorted by length descending so the most
-        # substantial answer wins.
-        ta_vals = []
-        for block in blocks:
-            if not isinstance(block, dict) or block.get("type") != "textarea":
-                continue
-            bn = (block.get("name") or "").lower()
-            v = fvals.get(bn)
-            if v and isinstance(v, str):
-                ta_vals.append(v)
-        if ta_vals:
-            body = max(ta_vals, key=len).strip() or None
-
-    summary = _coerce(_first(name_hints=SUMMARY_HINTS))
-    author_name = _coerce(_first(name_hints=AUTHOR_HINTS))
-    submitter_name = _coerce(_first(types={"text"}, name_hints=NAME_HINTS)) \
-        or author_name
-    submitter_email = _coerce(_first(types={"email"}))
-    submitter_phone = _coerce(_first(name_hints=PHONE_HINTS))
-    submitter_notes = _coerce(_first(name_hints=NOTES_HINTS))
-
-    # Walk the uploaded files block by block so the first image-typed
-    # file becomes the featured image and the first non-image file
-    # becomes the downloadable attachment. The stored file lives on
-    # disk under UPLOAD_FOLDER; we hand its stored name to the Story
-    # row directly so admin downloads stay a straight send_from_dir.
-    IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".webp")
-    featured = None
-    attachment = None
-    for block in blocks:
-        if not isinstance(block, dict) or block.get("type") != "file":
-            continue
-        bn = (block.get("name") or "").lower()
-        info = files.get(bn) or {}
-        stored = (info.get("stored") or "").strip()
-        original = (info.get("original") or "").strip()
-        if not stored:
-            continue
-        ext = ("." + stored.rsplit(".", 1)[-1].lower()) if "." in stored else ""
-        if ext in IMAGE_EXTS and featured is None:
-            featured = stored
-        elif attachment is None:
-            attachment = (stored, original)
-    # Also consider any extra files (block-less) in payload.files.
-    for bn, info in files.items():
-        if not isinstance(info, dict):
-            continue
-        stored = (info.get("stored") or "").strip()
-        original = (info.get("original") or "").strip()
-        if not stored:
-            continue
-        ext = ("." + stored.rsplit(".", 1)[-1].lower()) if "." in stored else ""
-        if ext in IMAGE_EXTS and featured is None:
-            featured = stored
-        elif attachment is None:
-            attachment = (stored, original)
-
-    s = Story()
-    s.title = title[:255]
-    s.summary = (summary or "")[:2000] or None
-    s.body = body or None
-    s.author_name = (author_name or "")[:120] or None
-    s.is_draft = False
-    s.is_archived = False
-    s.is_pending_review = True
-    s.submitter_name = (submitter_name or "")[:120] or None
-    s.submitter_email = (submitter_email or "")[:255] or None
-    s.submitter_phone = (submitter_phone or "")[:64] or None
-    s.submitter_notes = (submitter_notes or "")[:4000] or None
-    # Preserve the original submission timestamp so the admin sees
-    # *when* this came in, not when it was imported.
-    s.submitted_at = sub.created_at
-    if featured:
-        s.featured_image_filename = featured
-    if attachment:
-        stored, original = attachment
-        s.submission_attachment_filename = stored
-        s.submission_attachment_original = original[:500] if original else stored
-
-    db.session.add(s)
-    # Drop the FormSubmission so it doesn't double-track. The on-disk
-    # files survive because they're now referenced by the Story row.
-    form_id = sub.form_id
-    db.session.delete(sub)
-    db.session.commit()
-
-    from . import activity
-    activity.log("story.import_from_form_submission",
-                 entity_type="story", entity_id=s.id,
-                 summary=f"Imported story submission “{s.title}” from form #{form_id}")
-    flash("Submission imported to the Stories holding tank. Review and edit before publishing.", "success")
-    return redirect(url_for("main.stories", show="pending"))
-
-
 @bp.route("/frontend/forms/custom/<int:form_id>/delete", methods=["POST"])
 @admin_required
 def frontend_custom_form_delete(form_id):
@@ -10313,6 +10817,188 @@ def frontend_form_toggle(key):
     return jsonify(key=key, enabled=enabled)
 
 
+
+# ---------------------------------------------------------------------------
+# Form studio: one settings page shape for every public form
+# (frontend_form_studio.html). _form_studio_ctx describes a form for it.
+# ---------------------------------------------------------------------------
+_BUILTIN_FORM_STUDIO = {
+    "submission": dict(
+        name="Announcements/Events form", prefix="submission_form",
+        action="main.frontend_form_submission", public="frontend.submission_form",
+        slug_field="submission_form_slug", default_slug="submissionform",
+        enabled_field="submission_form_enabled", to_field="submission_to",
+        submit_field="submission_form_submit_label", submit_default="Submit for review",
+        success_field="submission_form_success_message",
+        success_default="Thank you: your submission was received and will be reviewed before publishing.",
+        heading_default="Submit an event or announcement",
+        subheading_default="Fill out the form below and an admin will review your submission before publishing it.",
+        template_anchor="submission_form", template_label="Submission form", template_name="Submission form",
+        template_shared="the Story form and every custom form",
+        about="Visitors send events and announcements; each waits for review on Announcements & Events."),
+    "story": dict(
+        name="Story form", prefix="story_form",
+        action="main.frontend_form_story", public="frontend.story_submission_form",
+        slug_field="story_form_slug", default_slug="storyform",
+        enabled_field="story_form_enabled", to_field="story_form_to",
+        submit_field="story_form_submit_label", submit_default="Submit your story",
+        success_field="story_form_success_message",
+        success_default="Thank you for sharing your story. It will be reviewed before it is published.",
+        heading_default="Share your story", subheading_default="",
+        template_anchor="submission_form", template_label="Submission form", template_name="Submission form",
+        template_shared="the Announcements/Events form and every custom form",
+        about="Visitors send recovery stories; each waits as a draft on Stories."),
+    "contact": dict(
+        name="Contact form", prefix="contact_form",
+        action="main.frontend_form_contact", public="frontend.contact",
+        slug_field="contact_form_slug", default_slug="contact",
+        enabled_field="contact_form_enabled", to_field="contact_form_to",
+        submit_field="contact_form_submit_label", submit_default="Send message",
+        success_field="contact_form_success_message",
+        success_default="Thanks: your message has been sent. We'll be in touch shortly.",
+        heading_default="Get in touch",
+        subheading_default="Send the public information committee a note. Replies come straight to your email.",
+        template_anchor="contact", template_label="Contact", template_name="Contact",
+        template_shared="",
+        about="Visitors send the public information committee a message by email; each is also kept in the Contact Form inbox."),
+    "recovery_contacts": dict(
+        name="Recovery Contacts form", prefix="recovery_contacts",
+        action="main.frontend_form_recovery_contacts", public="frontend.recovery_contacts",
+        slug_field=None, default_slug="contactlist",
+        enabled_field="recovery_contacts_enabled", to_field="recovery_contacts_to",
+        submit_field="recovery_contacts_submit_label", submit_default="Add me to the list",
+        success_field="recovery_contacts_success_message",
+        success_default="Thanks! Your entry will show once an admin approves it.",
+        heading_default="Recovery contacts", subheading_default="",
+        template_anchor="recovery_contacts", template_label="Recovery Contacts",
+        template_name="Recovery Contacts", template_shared="",
+        about="A public phone and email list members add themselves to; entries show once approved on Recovery Contacts."),
+}
+
+
+def _picker_pages(current_id):
+    """Every page for the page editor's selector: the homepage, then
+    published, private and draft pages (_item_picker.html)."""
+    s = _get_site_setting()
+    hp = s.homepage_page_id
+    def item(p):
+        return {"href": url_for("main.frontend_page_edit", page_id=p.id), "label": p.title or "Untitled",
+                "sub": "/" if p.id == hp else "/" + (p.slug or ""), "active": p.id == current_id, "off": False}
+    pages = Page.query.order_by(Page.title.asc()).all()
+    rest = [p for p in pages if p.id != hp]
+    return [
+        ("Homepage", [item(p) for p in pages if p.id == hp]),
+        ("Published", [item(p) for p in rest if p.is_published and not p.is_private]),
+        ("Private", [item(p) for p in rest if p.is_published and p.is_private]),
+        ("Drafts", [item(p) for p in rest if not p.is_published]),
+    ]
+
+
+def _picker_popups(current_id):
+    """Every popup for the popup editor's selector."""
+    from .models import Popup
+    return [("", [{"href": url_for("main.frontend_popup_edit", popup_id=p.id), "label": p.title or "Untitled",
+                   "sub": "#" + (p.name or "") + ("" if p.is_enabled else " · off"),
+                   "active": p.id == current_id, "off": not p.is_enabled}
+                  for p in Popup.query.order_by(Popup.title.asc()).all()])]
+
+
+def _picker_forms(current_key):
+    """Every form for a form page's selector: built in, then your own.
+    ``current_key`` is a built-in key or ``custom-<id>``."""
+    from .forms_overview import form_rows
+    rows = form_rows(_get_site_setting())
+    def item(r):
+        waiting = f" · {r['count']} {r.get('count_label') or 'new'}" if r.get("count") else ""
+        return {"href": r["settings_url"], "label": r["name"],
+                "sub": (r.get("public_url") or "") + ("" if r["enabled"] else " · off") + waiting,
+                "active": r["key"] == current_key, "off": not r["enabled"]}
+    return [("Built in", [item(r) for r in rows if not r["custom"]]),
+            ("Your forms", [item(r) for r in rows if r["custom"]])]
+
+
+def _form_studio_ctx(key, cf=None):
+    from markupsafe import escape
+    from .forms_overview import form_rows
+    from .form_specs import resolve_fields, SPECS
+    s = _get_site_setting()
+    rows = {r["key"]: r for r in form_rows(s)}
+    if key == "custom":
+        row = rows.get(f"custom-{cf.id}", {})
+        fs = dict(
+            key="custom", name=cf.title, prefix=None, is_custom=True,
+            action=url_for("main.frontend_custom_form_edit", form_id=cf.id),
+            public_path="/" + cf.slug, enabled_field="enabled", enabled=cf.enabled,
+            to_field="recipients_csv", to_fallback="",
+            to_note="Leave blank to only keep submissions in the inbox, with no email.",
+            fields=_load_form_fields(cf), field_types=list(_CUSTOM_FORM_FIELD_TYPE_ORDER),
+            fb_mode="custom", fields_note="",
+            template_anchor="submission_form", template_label="Submission form", template_name="Submission form",
+            template_shared="every form except Contact and Recovery Contacts",
+            about="A form of your own. Its answers are kept in its inbox and, if you like, emailed.",
+            inbox_url=row.get("inbox_url"), inbox_label="Open the inbox",
+            inbox_about="Submissions to this form are kept in its own inbox, where they can be read, archived, deleted and exported.",
+            count=row.get("count", 0), count_label="new",
+            links=[], picker=_picker_forms(f"custom-{cf.id}"),
+            delete_url=url_for("main.frontend_custom_form_delete", form_id=cf.id))
+        session["fe_last_form"] = f"custom-{cf.id}"
+        return fs
+    meta = dict(_BUILTIN_FORM_STUDIO[key])
+    row = rows.get(key, {})
+    fs = dict(meta, key=key, is_custom=False,
+              action=url_for(meta["action"]),
+              public_path=row.get("public_url") or ("/" + meta["default_slug"]),
+              enabled=bool(getattr(s, meta["enabled_field"], False)),
+              inbox_url=row.get("inbox_url"), count=row.get("count", 0),
+              count_label=row.get("count_label", "new"))
+    fallback = {
+        "submission": ("access_request_to", "Blank sends to the access-request address in Settings"),
+        "story": ("submission_to", "Blank sends to the Announcements/Events form's addresses, then the access-request address in Settings"),
+        "contact": ("pic_email", "Blank sends to the public information chair's email in Settings, then the access-request address"),
+        "recovery_contacts": ("access_request_to", "Blank sends to the access-request address in Settings"),
+    }[key]
+    fb_value = (getattr(s, fallback[0], None) or "").strip()
+    if key == "story" and not fb_value:
+        fb_value = (s.access_request_to or "").strip()
+    if key == "contact" and not fb_value:
+        fb_value = (s.access_request_to or "").strip()
+    fs["to_fallback"] = fb_value
+    fs["to_note"] = fallback[1] + (f" (now <b>{escape(fb_value)}</b>)." if fb_value else ", which is empty: set one in Settings or here.")
+    labels = {"submission": "Open Announcements & Events", "story": "Open Stories",
+              "contact": "Open the Contact Form inbox", "recovery_contacts": "Open Recovery Contacts"}
+    fs["inbox_label"] = labels[key]
+    fs["inbox_about"] = {
+        "submission": "Submissions wait under <b>Pending review</b> on Announcements &amp; Events, where they are edited and published.",
+        "story": "Stories wait as drafts under <b>Pending review</b> on Stories, where they are edited and published.",
+        "contact": "Every message is emailed and also kept in the Contact Form inbox, so nothing is lost to a spam folder.",
+        "recovery_contacts": "New entries and changes wait for approval on the Recovery Contacts page.",
+    }[key]
+    if key in SPECS:
+        spec = SPECS[key]
+        fs["fields"] = resolve_fields(key, getattr(s, f"{meta['prefix']}_blocks_json", None))
+        fs["fb_mode"] = spec["mode"]
+        fs["field_types"] = spec.get("types", [])
+        fs["fields_note"] = {
+            "submission": "These fields are set by the form. Change what they say; the event fields show once a visitor picks Event.",
+            "story": "These fields are set by the form. Change what they say, and whether an email address is required.",
+            "contact": "Name, email and message are always on the form. Phone and subject can be removed, and fields you add arrive with the message.",
+        }[key]
+    else:
+        fs["fb_mode"] = None
+    # Menu links that open this form in its pop-up.
+    links = []
+    for ni in FrontendNavItem.query.filter_by(form_trigger=key).all():
+        links.append({"label": ni.label or ni.line1 or "Menu item", "where": "header menu",
+                      "href": url_for("main.frontend_header") + "#menu"})
+    for nl in FrontendNavLink.query.filter_by(form_trigger=key).all():
+        links.append({"label": nl.label or "Link", "where": "mega menu",
+                      "href": url_for("main.frontend_header", item=nl.column.nav_item_id) + "#menu"})
+    fs["links"] = links
+    fs["picker"] = _picker_forms(key)
+    session["fe_last_form"] = key
+    return fs
+
+
 @bp.route("/frontend/forms/submission", methods=["GET", "POST"])
 @admin_required
 def frontend_form_submission():
@@ -10340,16 +11026,14 @@ def frontend_form_submission():
         # admin hasn't touched the builder we leave the column NULL
         # so the public form falls back to its built-in defaults.
         import json as _json
-        fields = _parse_form_fields(request.form)
-        s.submission_form_blocks_json = _json.dumps(fields) if fields else None
+        from .form_specs import normalize_fields
+        if "field_order" in request.form:
+            s.submission_form_blocks_json = _json.dumps(
+                normalize_fields("submission", _parse_form_fields(request.form)))
         db.session.commit()
-        flash("Announcements/Events form settings saved", "success")
+        flash("Announcements/Events form saved", "success")
         return redirect(url_for("main.frontend_form_submission"))
-    return render_template("frontend_form_submission.html", site=s,
-                           form_fields=_resolve_module_form_fields(
-                               s.submission_form_blocks_json,
-                               _default_submission_form_blocks),
-                           field_types=_MODULE_FORM_FIELD_TYPES)
+    return render_template("frontend_form_studio.html", site=s, fs=_form_studio_ctx("submission"))
 
 
 @bp.route("/frontend/forms/story", methods=["GET", "POST"])
@@ -10367,32 +11051,22 @@ def frontend_form_story():
         s.story_form_intro = (request.form.get("story_form_intro") or "").strip() or None
         s.story_form_success_message = (request.form.get("story_form_success_message") or "").strip()[:500] or None
         s.story_form_submit_label = (request.form.get("story_form_submit_label") or "").strip()[:100] or None
-        # Per-field label / placeholder / help overrides — admins can
-        # tweak the wording of each field without touching templates.
-        s.story_form_name_label = (request.form.get("story_form_name_label") or "").strip()[:120] or None
-        s.story_form_email_label = (request.form.get("story_form_email_label") or "").strip()[:120] or None
-        s.story_form_email_required = request.form.get("story_form_email_required") == "1"
-        s.story_form_story_label = (request.form.get("story_form_story_label") or "").strip()[:120] or None
-        s.story_form_story_placeholder = (request.form.get("story_form_story_placeholder") or "").strip()[:200] or None
-        s.story_form_file_label = (request.form.get("story_form_file_label") or "").strip()[:120] or None
-        s.story_form_file_help = (request.form.get("story_form_file_help") or "").strip() or None
-        s.story_form_terms_label = (request.form.get("story_form_terms_label") or "").strip()[:120] or None
-        s.story_form_terms_intro = (request.form.get("story_form_terms_intro") or "").strip()[:200] or None
-        s.story_form_terms_text = (request.form.get("story_form_terms_text") or "").strip() or None
-        s.story_form_terms_checkbox_label = (request.form.get("story_form_terms_checkbox_label") or "").strip()[:200] or None
+        # The per-field wording lives in the field builder below
+        # (story_form_blocks_json). The legacy story_form_*_label /
+        # _placeholder / _help / _terms_* columns are read only as
+        # fallbacks for installs that never saved the builder, so they
+        # are left untouched here rather than blanked.
         s.story_form_slug = _normalise_module_form_slug(
             request.form.get("story_form_slug"), exclude_attr="story_form_slug")
         import json as _json
-        fields = _parse_form_fields(request.form)
-        s.story_form_blocks_json = _json.dumps(fields) if fields else None
+        from .form_specs import normalize_fields
+        if "field_order" in request.form:
+            s.story_form_blocks_json = _json.dumps(
+                normalize_fields("story", _parse_form_fields(request.form)))
         db.session.commit()
-        flash("Story form settings saved", "success")
+        flash("Story form saved", "success")
         return redirect(url_for("main.frontend_form_story"))
-    return render_template("frontend_form_story.html", site=s,
-                           form_fields=_resolve_module_form_fields(
-                               s.story_form_blocks_json,
-                               _default_story_form_blocks),
-                           field_types=_MODULE_FORM_FIELD_TYPES)
+    return render_template("frontend_form_studio.html", site=s, fs=_form_studio_ctx("story"))
 
 
 @bp.route("/frontend/forms/contact", methods=["GET", "POST"])
@@ -10410,21 +11084,25 @@ def frontend_form_contact():
         s.contact_form_to = (request.form.get("contact_form_to") or "").strip()[:500] or None
         s.contact_form_success_message = (request.form.get("contact_form_success_message") or "").strip()[:500] or None
         s.contact_form_submit_label = (request.form.get("contact_form_submit_label") or "").strip()[:100] or None
-        s.contact_form_subject_required = request.form.get("contact_form_subject_required") == "1"
-        s.contact_form_show_phone = request.form.get("contact_form_show_phone") == "1"
         s.contact_form_slug = _normalise_module_form_slug(
             request.form.get("contact_form_slug"), exclude_attr="contact_form_slug")
         import json as _json
-        fields = _parse_form_fields(request.form)
-        s.contact_form_blocks_json = _json.dumps(fields) if fields else None
+        from .form_specs import normalize_fields
+        if "field_order" in request.form:
+            s.contact_form_blocks_json = _json.dumps(
+                normalize_fields("contact", _parse_form_fields(request.form)))
+        # Page copy and the side panel, moved here from Page templates.
+        if "contact_page_copy" in request.form:
+            s.contact_form_heading = (request.form.get("contact_form_heading") or "").strip()[:200] or None
+            s.contact_form_subheading = (request.form.get("contact_form_subheading") or "").strip()[:500] or None
+            s.contact_form_intro = (request.form.get("contact_form_intro") or "").strip() or None
+            s.contact_form_show_pic_name = request.form.get("contact_form_show_pic_name") == "1"
+            s.contact_form_show_pic_email = request.form.get("contact_form_show_pic_email") == "1"
+            s.contact_form_show_pic_phone = request.form.get("contact_form_show_pic_phone") == "1"
         db.session.commit()
-        flash("Contact form settings saved", "success")
+        flash("Contact form saved", "success")
         return redirect(url_for("main.frontend_form_contact"))
-    return render_template("frontend_form_contact.html", site=s,
-                           form_fields=_resolve_module_form_fields(
-                               s.contact_form_blocks_json,
-                               _default_contact_form_blocks),
-                           field_types=_MODULE_FORM_FIELD_TYPES)
+    return render_template("frontend_form_studio.html", site=s, fs=_form_studio_ctx("contact"))
 
 
 @bp.route("/frontend/forms/recovery-contacts", methods=["GET", "POST"])
@@ -10448,10 +11126,15 @@ def frontend_form_recovery_contacts():
         s.recovery_contacts_to = (request.form.get("recovery_contacts_to") or "").strip()[:500] or None
         s.recovery_contacts_submit_label = (request.form.get("recovery_contacts_submit_label") or "").strip()[:100] or None
         s.recovery_contacts_success_message = (request.form.get("recovery_contacts_success_message") or "").strip()[:500] or None
+        # Page copy, moved here from Page templates.
+        if "rc_page_copy" in request.form:
+            s.recovery_contacts_heading = (request.form.get("recovery_contacts_heading") or "").strip()[:200] or None
+            s.recovery_contacts_subheading = (request.form.get("recovery_contacts_subheading") or "").strip()[:500] or None
+            s.recovery_contacts_intro = (request.form.get("recovery_contacts_intro") or "").strip() or None
         db.session.commit()
-        flash("Recovery Contacts settings saved", "success")
+        flash("Recovery Contacts form saved", "success")
         return redirect(url_for("main.frontend_form_recovery_contacts"))
-    return render_template("frontend_form_recovery_contacts.html", site=s)
+    return render_template("frontend_form_studio.html", site=s, fs=_form_studio_ctx("recovery_contacts"))
 
 
 @bp.route("/frontend/contact-template/save", methods=["POST"])
@@ -10464,18 +11147,21 @@ def frontend_contact_template_save():
     this surface is purely about how the page looks and which PIC
     channels appear in the side panel."""
     s = _get_site_setting()
-    s.contact_form_heading = (request.form.get("contact_form_heading") or "").strip()[:200] or None
-    s.contact_form_subheading = (request.form.get("contact_form_subheading") or "").strip()[:500] or None
-    s.contact_form_intro = (request.form.get("contact_form_intro") or "").strip() or None
-    s.contact_form_show_pic_name = request.form.get("contact_form_show_pic_name") == "1"
-    s.contact_form_show_pic_email = request.form.get("contact_form_show_pic_email") == "1"
-    s.contact_form_show_pic_phone = request.form.get("contact_form_show_pic_phone") == "1"
+    # The page copy and side panel are edited with the form now (Forms →
+    # Contact form); older posts that still carry them are honored.
+    if "contact_form_heading" in request.form:
+        s.contact_form_heading = (request.form.get("contact_form_heading") or "").strip()[:200] or None
+        s.contact_form_subheading = (request.form.get("contact_form_subheading") or "").strip()[:500] or None
+        s.contact_form_intro = (request.form.get("contact_form_intro") or "").strip() or None
+        s.contact_form_show_pic_name = request.form.get("contact_form_show_pic_name") == "1"
+        s.contact_form_show_pic_email = request.form.get("contact_form_show_pic_email") == "1"
+        s.contact_form_show_pic_phone = request.form.get("contact_form_show_pic_phone") == "1"
     # Container-width controls — mirror the events/announcements/stories
     # list endpoints. Width mode falls through to the model default on
     # an out-of-range value rather than blanking it; numeric inputs
     # clamp to the schema bounds.
     width = (request.form.get("contact_form_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.contact_form_width_mode = width
     if "contact_form_max_width" in request.form:
         try:
@@ -10491,7 +11177,7 @@ def frontend_contact_template_save():
         s.contact_form_padding_pct = max(0, min(20, pad))
     db.session.commit()
     flash("Contact page saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/recovery-contacts-template/save", methods=["POST"])
@@ -10505,14 +11191,15 @@ def frontend_recovery_contacts_template_save():
     success message, bot protection); this surface is purely about how
     the page looks, so it lives next to every other page template."""
     s = _get_site_setting()
-    s.recovery_contacts_heading = (request.form.get("recovery_contacts_heading") or "").strip()[:200] or None
-    s.recovery_contacts_subheading = (request.form.get("recovery_contacts_subheading") or "").strip()[:500] or None
-    s.recovery_contacts_intro = (request.form.get("recovery_contacts_intro") or "").strip() or None
+    if "recovery_contacts_heading" in request.form:
+        s.recovery_contacts_heading = (request.form.get("recovery_contacts_heading") or "").strip()[:200] or None
+        s.recovery_contacts_subheading = (request.form.get("recovery_contacts_subheading") or "").strip()[:500] or None
+        s.recovery_contacts_intro = (request.form.get("recovery_contacts_intro") or "").strip() or None
     # Container-width controls — same shape/bounds as the contact +
     # list endpoints. Width mode falls through to the model default on
     # an out-of-range value; numeric inputs clamp to the schema bounds.
     width = (request.form.get("recovery_contacts_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.recovery_contacts_width_mode = width
     if "recovery_contacts_max_width" in request.form:
         try:
@@ -10528,7 +11215,7 @@ def frontend_recovery_contacts_template_save():
         s.recovery_contacts_padding_pct = max(0, min(20, pad))
     db.session.commit()
     flash("Recovery Contacts page saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/404")
@@ -10548,6 +11235,10 @@ def frontend_404_save():
     s.frontend_404_subheading = (request.form.get("frontend_404_subheading") or "").strip() or None
     s.frontend_404_cta_label = (request.form.get("frontend_404_cta_label") or "").strip()[:120] or None
     s.frontend_404_cta_url = (request.form.get("frontend_404_cta_url") or "").strip()[:500] or None
+    if "frontend_404_switches" in request.form:
+        s.frontend_404_show_sub = request.form.get("frontend_404_show_sub") == "1"
+        s.frontend_404_show_art = request.form.get("frontend_404_show_art") == "1"
+        s.frontend_404_show_home = request.form.get("frontend_404_show_home") == "1"
     if request.form.get("clear_404_image") == "1":
         old = s.frontend_404_image_filename
         s.frontend_404_image_filename = None
@@ -10608,14 +11299,28 @@ def frontend_redirects():
         Model, title_attr = model_label
         rows_q = Model.query.filter(Model.id.in_(ids)).all()
         for r in rows_q:
+            slug = getattr(r, "public_slug", None) or getattr(r, "slug", None)
             entity_lookup[(ent_type, r.id)] = {
                 "title": getattr(r, title_attr, "") or f"#{r.id}",
-                "slug":  getattr(r, "public_slug", None) or getattr(r, "slug", None),
+                "slug":  slug,
+                "url":   _history_entity_url(ent_type, r, slug),
             }
     return render_template("frontend_redirects.html", site=s,
                            redirects=rows,
                            slug_history=history,
                            entity_lookup=entity_lookup)
+
+
+def _history_entity_url(ent_type, obj, slug):
+    """Current public address of a renamed item; its old slug works
+    under the same section, so the Redirects page shows both there."""
+    if not slug:
+        return ""
+    if ent_type == "post":
+        from .frontend import _post_url
+        return _post_url(obj)
+    prefix = {"meeting": "/meetings/", "story": "/stories/", "blog": "/blog/"}.get(ent_type, "/")
+    return prefix + slug
 
 
 def _normalize_redirect_pair(src, tgt):
@@ -10633,6 +11338,12 @@ def _normalize_redirect_pair(src, tgt):
         src = "/" + src
     src = src[:2000]
     tgt = tgt[:2000]
+    # The admin portal, its assets and the public asset paths never
+    # redirect: a rule over /tspro could lock every admin out.
+    for reserved in ("/tspro", "/static", "/pub"):
+        if src == reserved or src.startswith(reserved + "/") or src == reserved + "*":
+            return src, tgt, (f"Paths under {reserved}/ can't be redirected: "
+                              "they belong to the admin portal or its files.")
     # Wildcard validation. The only place `*` is allowed is the very
     # end of the source as `/*`. No wildcards in the target — every
     # match lands on the literal URL.
@@ -10716,14 +11427,15 @@ def frontend_slug_history_save(hid):
     other row's redirect."""
     row = db.session.get(EntitySlugHistory, hid) or abort(404)
     old = (request.form.get("old_slug") or "").strip().lower()
-    new = (request.form.get("new_slug") or "").strip().lower()
+    # The new slug is a record of the rename, shown read-only.
+    new = (request.form.get("new_slug") or row.new_slug or "").strip().lower()
     if not old or not new:
-        flash("Both old and new slug are required.", "danger")
+        flash("The old address is required.", "danger")
         return redirect(url_for("main.frontend_redirects"))
     norm_old = _normalize_slug(old)
     norm_new = _normalize_slug(new)
     if not norm_old or not norm_new:
-        flash("Slugs must be lowercase letters, digits, and hyphens.", "danger")
+        flash("Addresses use lowercase letters, digits and hyphens only.", "danger")
         return redirect(url_for("main.frontend_redirects"))
     if norm_old != row.old_slug:
         # Uniqueness check on (entity_type, old_slug) so the redirect
@@ -10733,12 +11445,12 @@ def frontend_slug_history_save(hid):
             EntitySlugHistory.old_slug == norm_old,
             EntitySlugHistory.id != row.id).first()
         if dup:
-            flash(f"Old slug “{norm_old}” already redirects elsewhere for this entity type.", "danger")
+            flash(f"“{norm_old}” already leads to another item of this kind.", "danger")
             return redirect(url_for("main.frontend_redirects"))
     row.old_slug = norm_old[:255]
     row.new_slug = norm_new[:255]
     db.session.commit()
-    flash("Slug-redirect updated.", "success")
+    flash("Old address updated.", "success")
     return redirect(url_for("main.frontend_redirects"))
 
 
@@ -10752,7 +11464,7 @@ def frontend_slug_history_delete(hid):
     old = row.old_slug
     db.session.delete(row)
     db.session.commit()
-    flash(f"Deleted slug-redirect for {old}", "success")
+    flash(f"The old address {old} no longer redirects.", "success")
     return redirect(url_for("main.frontend_redirects"))
 
 
@@ -10780,8 +11492,30 @@ def frontend_design():
     """Site-wide design tokens (colors, spacing, buttons, links, text).
     Theme provides defaults; this page lets the admin override any
     subset. Empty inputs fall through to the theme default."""
+    from .design import design_studio_data
+    from .frontend import MEGAMENU_TEMPLATES
     s = _get_site_setting()
-    return render_template("frontend_design.html", site=s)
+    # The mega menu style follows the theme; each style reads a different
+    # subset of the panel settings, so the Mega menu tab marks the rest.
+    mm_key = s.frontend_megamenu_template or "recovery-blue"
+    mm = next((t for t in MEGAMENU_TEMPLATES if t["key"] == mm_key), MEGAMENU_TEMPLATES[1])
+    mm_kind = mm["partial"].rsplit("/", 1)[-1].removesuffix(".html")
+    from .widths import width_usage, site_container_max
+    from .frontend import (HEADER_TEMPLATES, THEMES, UTILITY_BAR_COLOR_MODES,
+                           FOOTER_SURFACE_THEMES)
+    theme_key = s.frontend_theme or "classic"
+    theme_name = next((t["name"] for t in THEMES if t["key"] == theme_key), theme_key)
+    hdr_key = s.frontend_header_template or "classic"
+    hdr_name = next((t["name"] for t in HEADER_TEMPLATES if t["key"] == hdr_key), hdr_key)
+    return render_template("frontend_design.html", site=s, ds=design_studio_data(s),
+                           mm_name=mm["name"], mm_kind=mm_kind,
+                           width_usage=width_usage(s), site_px=site_container_max(s),
+                           theme_name=theme_name, hdr_name=hdr_name,
+                           ub_modes=UTILITY_BAR_COLOR_MODES.get(theme_key, ()),
+                           footer_surface_follows=theme_key in FOOTER_SURFACE_THEMES,
+                           all_font_options=_all_fonts_list(),
+                           font_overrides=_font_overrides(s),
+                           font_theme_defaults=_font_theme_defaults(theme_key))
 
 
 @bp.route("/frontend/design/save", methods=["POST"])
@@ -10795,6 +11529,20 @@ def frontend_design_save():
     s = _get_site_setting()
     overrides = parse_design_form(request.form)
     s.frontend_design_json = _json.dumps(overrides) if overrides else None
+    if request.form.get("mega_appearance") == "1":
+        _save_mega_appearance(s, request.form)
+    if request.form.get("header_appearance") == "1":
+        _save_header_appearance(s, request.form)
+    if request.form.get("footer_appearance") == "1":
+        _save_footer_appearance(s, request.form)
+    if request.form.get("fonts_present") == "1":
+        from .fonts import font_by_key, ROLES
+        fonts = {}
+        for role in ROLES:
+            v = (request.form.get("font_" + role) or "").strip().lower()
+            if v and font_by_key(v):
+                fonts[role] = v
+        s.frontend_fonts_json = json.dumps(fonts) if fonts else None
     db.session.commit()
     flash("Design saved", "success")
     return redirect(url_for("main.frontend_design"))
@@ -10901,7 +11649,7 @@ def frontend_caching_clear():
     """Force every visitor to refetch images now by advancing the bust
     token (a new ?v= on every image URL)."""
     imgcache.clear_cache()
-    flash("Image cache cleared — visitors will refetch images on their next visit.", "success")
+    flash("Every image has a new address. Visitors download them again on their next visit.", "success")
     return redirect(url_for("main.frontend_caching"))
 
 
@@ -10911,7 +11659,7 @@ def frontend_caching_thumbnails_clear():
     """Delete generated thumbnail files from disk; they regenerate lazily
     on the next request."""
     removed = imgcache.clear_thumbnails()
-    flash(f"Cleared {removed} generated thumbnail file{'' if removed == 1 else 's'}.", "success")
+    flash(f"Deleted {removed} thumbnail{'' if removed == 1 else 's'}. They are made again as pages need them.", "success")
     return redirect(url_for("main.frontend_caching"))
 
 
@@ -10924,15 +11672,20 @@ _COOKIE_POSITIONS = ("bottom-bar", "bottom-left", "bottom-right", "modal")
 @bp.route("/frontend/cookie-compliance")
 @admin_required
 def frontend_cookie_compliance():
-    """Admin page for the cookie + privacy compliance banner. Lets the
-    admin enable the module, pick a prompt mode, customise the banner
-    copy + position, link a privacy policy (existing Page OR external
-    URL), and one-click apply a regional preset (GDPR / CCPA / generic).
+    """Admin page for the cookie banner: on/off, what visitors are asked,
+    its wording and position, and the privacy policy it links (a Page or
+    an external URL). Region presets fill the form client-side.
     See ``app/cookie_compliance.py`` for region inference + presets +
     starter policy templates."""
     from . import cookie_compliance as cc
     s = _get_site_setting()
-    pages = (Page.query.filter(Page.is_published.is_(True))
+    # Only pages the banner can link to (a private page gives no link),
+    # plus the linked page itself, which may still be a draft.
+    from sqlalchemy import and_ as _and, or_ as _or
+    _linked = s.cookie_compliance_policy_page_id or 0
+    pages = (Page.query.filter(_or(
+                 _and(Page.is_published.is_(True), Page.is_private.is_(False)),
+                 Page.id == _linked))
              .order_by(Page.title.asc()).all())
     return render_template(
         "frontend_cookie_compliance.html",
@@ -10991,30 +11744,7 @@ def frontend_cookie_compliance_save():
         days = 365
     s.cookie_compliance_remember_days = max(0, min(730, days))
     db.session.commit()
-    flash("Cookie compliance settings saved.", "success")
-    return redirect(url_for("main.frontend_cookie_compliance"))
-
-
-@bp.route("/frontend/cookie-compliance/apply-preset", methods=["POST"])
-@admin_required
-def frontend_cookie_compliance_apply_preset():
-    """Stamp one of the region presets onto the current settings (mode,
-    auto-region flag, banner copy, position). Doesn't touch the
-    enabled flag or the policy linkage — those are intentional choices
-    the admin makes separately. Always followed by a hand-edit so the
-    admin can tailor wording to their own voice."""
-    from . import cookie_compliance as cc
-    key = (request.form.get("preset") or "").strip()
-    try:
-        preset = cc.get_preset(key)
-    except KeyError:
-        flash("Unknown preset.", "danger")
-        return redirect(url_for("main.frontend_cookie_compliance"))
-    s = _get_site_setting()
-    for col, val in preset["settings"].items():
-        setattr(s, col, val)
-    db.session.commit()
-    flash(f"Applied preset: {preset['label']}. Review the copy and click Save.", "success")
+    flash("Privacy and cookie settings saved.", "success")
     return redirect(url_for("main.frontend_cookie_compliance"))
 
 
@@ -11044,7 +11774,9 @@ def frontend_cookie_compliance_generate_policy():
         slug=slug,
         title=title,
         blocks_json=blocks_json,
-        is_published=True,
+        # A draft: the starter text has placeholders to fill in first.
+        # The banner links it once it is published.
+        is_published=False,
         is_private=False,
     )
     db.session.add(page)
@@ -11052,31 +11784,18 @@ def frontend_cookie_compliance_generate_policy():
     s.cookie_compliance_policy_page_id = page.id
     db.session.commit()
     flash(
-        f"Generated starter policy page “{title}” (/{slug}) and linked "
-        "it as your privacy policy. Open it from Pages to fill in the "
-        "placeholders (organisation name, contact email, retention "
-        "periods).", "success")
+        f"Created a draft privacy policy page “{title}” (/{slug}) and "
+        "linked it to the banner. Fill in the placeholders (organization "
+        "name, contact email, retention periods), then publish it; the "
+        "banner shows the link once it is published.", "success")
     return redirect(url_for("main.frontend_page_edit", page_id=page.id))
 
 
 @bp.route("/frontend/fonts-icons/save", methods=["POST"])
 @admin_required
 def frontend_fonts_icons_save():
-    """Persist per-role font overrides. Admin can pick any vendored font
-    key, ``custom:<id>`` for an admin-uploaded font, or the empty string
-    to clear the override and fall back to the theme default."""
-    import json as _json
-    from .fonts import font_by_key, ROLES
-    s = _get_site_setting()
-    overrides = {}
-    for role in ROLES:
-        v = (request.form.get("font_" + role) or "").strip().lower()
-        if v and font_by_key(v):
-            overrides[role] = v
-    s.frontend_fonts_json = _json.dumps(overrides) if overrides else None
-    db.session.commit()
-    flash("Frontend settings saved", "success")
-    return redirect(url_for("main.frontend_fonts_icons"))
+    """Font choices moved to Design → Text; an old bookmark lands there."""
+    return redirect(url_for("main.frontend_design") + "#text")
 
 
 @bp.route("/frontend/branding/save", methods=["POST"])
@@ -11091,6 +11810,19 @@ def frontend_branding_save():
     s = _get_site_setting()
     s.frontend_title = (request.form.get("frontend_title") or "").strip() or None
     s.frontend_og_enabled = request.form.get("og_enabled") == "1"
+    # The public logo (header, footer brand block, printouts). Its size is
+    # on Design → Header.
+    if request.form.get("clear_frontend_logo") == "1":
+        old = s.frontend_logo_filename
+        s.frontend_logo_filename = None
+        _cleanup_retired_asset(old)
+    logo_upload = request.files.get("frontend_logo")
+    if logo_upload and logo_upload.filename:
+        old = s.frontend_logo_filename
+        stored, _original = _save_upload(logo_upload)
+        s.frontend_logo_filename = stored
+        if old and old != stored:
+            _cleanup_retired_asset(old)
     s.frontend_og_title = (request.form.get("og_title") or "").strip()[:200] or None
     s.frontend_og_description = (request.form.get("og_description") or "").strip() or None
     if request.form.get("clear_og_image") == "1":
@@ -11131,6 +11863,14 @@ def frontend_branding_save():
         s.frontend_apple_touch_icon_filename = stored
         if old and old != stored:
             _cleanup_retired_asset(old)
+    # In a live preview the file fields never arrive: preview_logo says
+    # whether a logo was removed or a new one chosen, so the header is
+    # drawn with or without one (the page puts the chosen image in).
+    if g.get("staged_preview"):
+        if request.form.get("preview_logo") == "none":
+            s.frontend_logo_filename = None
+        elif request.form.get("preview_logo") == "new" and not s.frontend_logo_filename:
+            s.frontend_logo_filename = "preview"
     db.session.commit()
     flash("Branding saved", "success")
     return redirect(url_for("main.frontend_branding"))
@@ -11139,62 +11879,33 @@ def frontend_branding_save():
 @bp.route("/frontend/header")
 @admin_required
 def frontend_header():
-    from .frontend import HEADER_TEMPLATES
+    """The Header page: the menu (top-level items and their mega menus),
+    the utility bar and the alert bar, above a live preview of the real
+    header. How they look is on Design → Header. ``?item=<id>`` opens that
+    item's mega menu editor on the Menu tab."""
+    from .forms_registry import all_forms
     s = _get_site_setting()
+    nav_items = FrontendNavItem.query.order_by(FrontendNavItem.position,
+                                               FrontendNavItem.id).all()
+    mm_item = None
+    raw = (request.args.get("item") or "").strip()
+    if raw.isdigit():
+        mm_item = next((n for n in nav_items if n.id == int(raw)), None)
     return render_template("frontend_header.html", site=s,
-                           header_templates=HEADER_TEMPLATES)
+                           nav_items=nav_items, mm_item=mm_item,
+                           form_registry_all=all_forms())
 
 
 @bp.route("/frontend/navigation")
 @admin_required
 def frontend_navigation():
-    from .frontend import MEGAMENU_TEMPLATES
-    from .forms_registry import all_forms
-    s = _get_site_setting()
-    nav_items = FrontendNavItem.query.order_by(FrontendNavItem.position,
-                                               FrontendNavItem.id).all()
-    return render_template("frontend_navigation.html", site=s, nav_items=nav_items,
-                           megamenu_templates=MEGAMENU_TEMPLATES,
-                           form_registry_all=all_forms())
+    """Navigation now lives on the Header page's Menu tab."""
+    return redirect(url_for("main.frontend_header") + "#menu")
 
 
-@bp.route("/frontend/megamenu-template", methods=["POST"])
-@admin_required
-def frontend_megamenu_template_save():
-    from .frontend import MEGAMENU_TEMPLATES
-    s = _get_site_setting()
-    key = (request.form.get("frontend_megamenu_template") or "").strip()
-    if key in {t["key"] for t in MEGAMENU_TEMPLATES}:
-        s.frontend_megamenu_template = key
-        db.session.commit()
-        flash(f"Mega menu template set to {key}", "success")
-    return redirect(url_for("main.frontend_navigation"))
-
-
-@bp.route("/frontend/header-template", methods=["POST"])
-@admin_required
-def frontend_header_template_save():
-    from .frontend import HEADER_TEMPLATES
-    s = _get_site_setting()
-    key = (request.form.get("frontend_header_template") or "").strip()
-    allowed = {t["key"] for t in HEADER_TEMPLATES}
-    if key in allowed:
-        s.frontend_header_template = key
-        db.session.commit()
-        flash(f"Header template set to {key}", "success")
-    return redirect(url_for("main.frontend_header"))
-
-
-_FOOTER_PREBUILT_BLOCK_TYPES = {
-    # Ordered lists matching the visual order each prebuilt Jinja file
-    # renders blocks in. Used for the Footer admin's "structure" card —
-    # for prebuilts it's flat (no rows/columns), so we display a single
-    # row of clickable pills in this order.
-    "classic":  ["brand", "link_columns", "copyright", "secondary_nav", "social_row"],
-    "minimal":  ["copyright", "secondary_nav"],
-    "stacked":  ["brand", "link_columns", "social_row", "copyright", "secondary_nav"],
-    "mega":     ["brand", "link_columns", "social_row", "copyright", "secondary_nav"],
-}
+def _prebuilt_footer_blocks():
+    from .frontend import FOOTER_PREBUILT_BLOCKS
+    return FOOTER_PREBUILT_BLOCKS
 
 
 def _footer_active_block_types(active_key, active_rows):
@@ -11210,7 +11921,7 @@ def _footer_active_block_types(active_key, active_rows):
                     if t:
                         types.add(t)
         return types
-    return set(_FOOTER_PREBUILT_BLOCK_TYPES.get(active_key, []))
+    return set(_prebuilt_footer_blocks().get(active_key, []))
 
 
 def _footer_active_block_order(active_key, active_rows):
@@ -11229,7 +11940,7 @@ def _footer_active_block_order(active_key, active_rows):
                         seen.add(t)
                         order.append(t)
         return order
-    for t in _FOOTER_PREBUILT_BLOCK_TYPES.get(active_key, []):
+    for t in _prebuilt_footer_blocks().get(active_key, []):
         if t not in seen:
             seen.add(t); order.append(t)
     return order
@@ -11250,7 +11961,8 @@ def frontend_footer():
     icons hides the Social icons editor — the data still persists in
     JSON; switching back reveals the editor and its saved values."""
     import json as _json
-    from .frontend import all_footer_layouts, FOOTER_BLOCK_CATALOG
+    from .frontend import (all_footer_layouts, FOOTER_BLOCK_CATALOG, THEMES,
+                           FOOTER_SURFACE_THEMES)
     s = _get_site_setting()
     active_key = (s.frontend_footer_template if s else None) or "classic"
     active_layout = CustomLayout.query.filter_by(key=active_key, kind="footer").first()
@@ -11260,52 +11972,27 @@ def frontend_footer():
             active_rows = _normalize_footer_blocks(_json.loads(active_layout.blocks_json or "[]"))
         except (ValueError, TypeError):
             active_rows = []
-    active_block_types = _footer_active_block_types(active_key, active_rows)
-    active_block_order = _footer_active_block_order(active_key, active_rows)
-    # Rows for the inline structure builder. A custom layout supplies its
-    # own rows; a prebuilt is seeded as a vertical stack of its blocks so
-    # the footer is always editable inline (the admin re-columns as they
-    # like; saving turns a prebuilt into an editable custom layout).
-    if active_rows:
-        footer_rows = active_rows
-    else:
-        footer_rows = [{"type": "row", "cols": 1, "columns": [[{"type": t}]]}
-                       for t in (active_block_order or [])]
-    # Pre-defined Meeting Locations from Settings — surfaced in the
-    # meeting_locations modal as a checkbox list so the admin can pull
-    # them in without retyping. Only in-person locations are shown
-    # (online meetings have no address to render in the footer).
+    used_types = _footer_active_block_types(active_key, active_rows)
+    # Pre-defined Meeting Locations from Settings, offered as a checklist
+    # in the Locations tab. In-person only: online meetings have no
+    # address to show.
     all_locations = (Location.query
                      .filter(Location.location_type == "in_person")
                      .order_by(Location.name).all())
+    layouts = all_footer_layouts()
+    active_name = next((l.name for l in layouts if l.key == active_key), active_key)
+    theme_key = s.frontend_theme or "classic"
     return render_template("frontend_footer.html", site=s,
-                           footer_layouts=all_footer_layouts(),
+                           footer_layouts=layouts,
                            footer_block_catalog=FOOTER_BLOCK_CATALOG,
-                           active_layout=active_layout,
-                           active_layout_rows=active_rows,
-                           active_block_types=active_block_types,
-                           active_block_order=active_block_order,
-                           footer_rows=footer_rows,
-                           all_locations=all_locations)
-
-
-@bp.route("/frontend/footer-template", methods=["POST"])
-@admin_required
-def frontend_footer_template_save():
-    """Set the active footer layout. Accepts either a hardcoded prebuilt
-    key (FOOTER_TEMPLATES) OR a CustomLayout row of kind='footer' built
-    via the structure-layout drag-drop builder."""
-    from .frontend import FOOTER_TEMPLATES
-    s = _get_site_setting()
-    key = (request.form.get("frontend_footer_template") or "").strip()
-    valid_keys = {t["key"] for t in FOOTER_TEMPLATES}
-    if CustomLayout.query.filter_by(key=key, kind="footer").first():
-        valid_keys.add(key)
-    if key in valid_keys:
-        s.frontend_footer_template = key
-        db.session.commit()
-        flash(f"Footer layout set to {key}", "success")
-    return redirect(url_for("main.frontend_footer"))
+                           active_key=active_key, active_name=active_name,
+                           is_custom=active_layout is not None,
+                           footer_rows=active_rows or [],
+                           used_types=used_types,
+                           prebuilt_order=_footer_active_block_order(active_key, None) if not active_layout else [],
+                           all_locations=all_locations,
+                           theme_name=next((t["name"] for t in THEMES if t["key"] == theme_key), theme_key),
+                           surface_follows=theme_key in FOOTER_SURFACE_THEMES)
 
 
 _HOMEPAGE_BLOCK_CATALOG = [
@@ -11335,105 +12022,60 @@ _HOMEPAGE_BLOCK_CATALOG = [
 @bp.route("/frontend/templates")
 @admin_required
 def frontend_templates():
-    from .frontend import (MEETING_TEMPLATES, EVENT_TEMPLATES,
-                           MEETINGS_LIST_TEMPLATES, EVENTS_LIST_TEMPLATES,
-                           ANNOUNCEMENTS_LIST_TEMPLATES, ARCHIVE_TEMPLATES,
-                           STORIES_LIST_TEMPLATES, STORY_TEMPLATES,
-                           BLOG_LIST_TEMPLATES, BLOG_POST_TEMPLATES,
-                           LITERATURE_LIBRARY_TEMPLATES, SITE_INDEX_TEMPLATES,
-                           FELLOWSHIPS_LIST_TEMPLATES,
-                           SUBMISSION_FORM_TEMPLATES,
-                           template_settings, meetings_list_protips_resolved,
-                           meetings_list_sidebar_links_resolved)
+    """Page templates: a list of every generated public page, grouped by
+    the part of the site it belongs to (page_templates.GROUPS), and a
+    studio for the one chosen with ``?kind=``: Layout, Appearance and
+    Page tabs beside a live preview of the real page."""
+    from . import frontend as _fe
+    from . import page_templates as PT
     from .fonts import all_fonts
     s = _get_site_setting()
-    meeting_key = (s.frontend_meeting_template if s else None) or "classic"
-    event_key = (s.frontend_event_template if s else None) or "classic"
-    meetings_list_key = (s.frontend_meetings_list_template if s else None) or "sidebar"
-    events_list_key = (s.frontend_events_list_template if s else None) or "cards"
-    announcements_list_key = (s.frontend_announcements_list_template if s else None) or "omni"
-    archive_key = (s.frontend_archive_template if s else None) or "year-sidebar"
-    stories_list_key = (s.frontend_stories_list_template if s else None) or "paper-stack"
-    story_key = (s.frontend_story_template if s else None) or "paper"
-    blog_list_key = (s.frontend_blog_list_template if s else None) or "magazine"
-    blog_post_key = (s.frontend_blog_post_template if s else None) or "modern"
-    literature_library_key = (s.frontend_literature_library_template if s else None) or "classic"
-    site_index_key = (s.frontend_site_index_template if s else None) or "grouped"
-    fellowships_list_key = (s.frontend_fellowships_list_template if s else None) or "sidebar"
-    submission_form_key = (s.frontend_submission_form_template if s else None) or "classic"
-    # Render the cards alphabetised by display name so admins always
-    # see them in a stable, predictable order regardless of how each
-    # `*_TEMPLATES` catalog list happens to be declared. Sort is
-    # case-insensitive on `name`; only the picker order on this page
-    # is affected — the catalogs themselves keep their declared order
-    # (which other call sites use as a fallback for "first available
-    # template", lookups by key, etc.).
-    def _by_name(catalog):
-        return sorted(catalog, key=lambda t: (t.get("name") or "").lower())
-    return render_template("frontend_templates.html", site=s,
-                           meeting_templates=_by_name(MEETING_TEMPLATES),
-                           event_templates=_by_name(EVENT_TEMPLATES),
-                           meetings_list_templates=_by_name(MEETINGS_LIST_TEMPLATES),
-                           meetings_list_active_key=meetings_list_key,
-                           meetings_list_protips=meetings_list_protips_resolved(s),
-                           meetings_list_sidebar_links=meetings_list_sidebar_links_resolved(s),
-                           events_list_templates=_by_name(EVENTS_LIST_TEMPLATES),
-                           events_list_active_key=events_list_key,
-                           announcements_list_templates=_by_name(ANNOUNCEMENTS_LIST_TEMPLATES),
-                           announcements_list_active_key=announcements_list_key,
-                           archive_templates=_by_name(ARCHIVE_TEMPLATES),
-                           archive_active_key=archive_key,
-                           stories_list_templates=_by_name(STORIES_LIST_TEMPLATES),
-                           stories_list_active_key=stories_list_key,
-                           story_templates=_by_name(STORY_TEMPLATES),
-                           story_active_key=story_key,
-                           blog_list_templates=_by_name(BLOG_LIST_TEMPLATES),
-                           blog_list_active_key=blog_list_key,
-                           blog_post_templates=_by_name(BLOG_POST_TEMPLATES),
-                           blog_post_active_key=blog_post_key,
-                           literature_library_templates=_by_name(LITERATURE_LIBRARY_TEMPLATES),
-                           literature_library_active_key=literature_library_key,
-                           meeting_active_settings=template_settings(s, "meeting", meeting_key),
-                           event_active_settings=template_settings(s, "event", event_key),
-                           # All seven list / detail sections also need their per-template
-                           # settings dict for the customize panel. Each kind reuses the
-                           # same `frontend_template_settings_json` JSON column keyed by
-                           # (kind, key) — no schema changes needed.
-                           meetings_list_active_settings=template_settings(s, "meetings_list", meetings_list_key),
-                           events_list_active_settings=template_settings(s, "events_list", events_list_key),
-                           announcements_list_active_settings=template_settings(s, "announcements_list", announcements_list_key),
-                           archive_active_settings=template_settings(s, "archive", archive_key),
-                           stories_list_active_settings=template_settings(s, "stories_list", stories_list_key),
-                           story_active_settings=template_settings(s, "story", story_key),
-                           blog_list_active_settings=template_settings(s, "blog_list", blog_list_key),
-                           blog_post_active_settings=template_settings(s, "blog_post", blog_post_key),
-                           literature_library_active_settings=template_settings(s, "literature_library", literature_library_key),
-                           # Printlist has no template variants (single layout); use a
-                           # synthetic 'default' key so the customize panel keeps the same
-                           # shape as everywhere else.
-                           printlist_active_settings=template_settings(s, "printlist", "default"),
-                           contact_active_settings=template_settings(s, "contact", "split"),
-                           # Recovery Contacts mirrors Contact: a single
-                           # rendering ('default' key) that still gets a
-                           # customize panel for UI uniformity, plus its own
-                           # page-level heading + container-width controls.
-                           recovery_contacts_active_settings=template_settings(s, "recovery_contacts", "default"),
-                           site_index_templates=_by_name(SITE_INDEX_TEMPLATES),
-                           site_index_active_key=site_index_key,
-                           site_index_active_settings=template_settings(s, "site_index", site_index_key),
-                           fellowships_list_templates=_by_name(FELLOWSHIPS_LIST_TEMPLATES),
-                           fellowships_list_active_key=fellowships_list_key,
-                           fellowships_list_active_settings=template_settings(s, "fellowships_list", fellowships_list_key),
-                           submission_form_templates=_by_name(SUBMISSION_FORM_TEMPLATES),
-                           submission_form_active_key=submission_form_key,
-                           submission_form_active_settings=template_settings(s, "submission_form", submission_form_key),
-                           # Form picker for the stories-list "Submit a story"
-                           # CTA. Combines registry forms (events
-                           # submission, contact) with admin-authored
-                           # CustomForm rows so the operator picks from a
-                           # single dropdown. Each entry has ``value`` (the
-                           # identifier stored on SiteSetting) and
-                           # ``label`` (visible name in the dropdown).
+    defaults = {"meeting": "classic", "event": "classic", "meetings_list": "sidebar",
+                "events_list": "cards", "announcements_list": "omni", "archive": "year-sidebar",
+                "stories_list": "paper-stack", "story": "paper", "blog_list": "magazine",
+                "blog_post": "modern", "literature_library": "classic", "site_index": "grouped",
+                "fellowships_list": "sidebar", "submission_form": "classic"}
+
+    def catalog(meta):
+        cat = getattr(_fe, meta["catalog"]) if meta.get("catalog") else []
+        return sorted(cat, key=lambda t: (t.get("name") or "").lower())
+
+    def active_key(k, meta):
+        if not meta.get("catalog"):
+            return meta.get("fixed_key")
+        return getattr(s, meta["field"], None) or defaults.get(k)
+
+    rail = []
+    for group, keys in PT.GROUPS:
+        items = []
+        for k in keys:
+            meta = PT.KINDS[k]
+            ak = active_key(k, meta)
+            name = next((t["name"] for t in catalog(meta) if t["key"] == ak), None)
+            off = bool(meta.get("module")) and not getattr(s, meta["module"], False)
+            items.append({"key": k, "label": meta["label"], "layout": name, "off": off})
+        rail.append((group, items))
+    first = next(it["key"] for _g, its in rail for it in its if not it["off"])
+    kind = request.args.get("kind") or first
+    if kind not in PT.KINDS:
+        kind = first
+    meta = PT.KINDS[kind]
+    cat = catalog(meta)
+    ak = active_key(kind, meta)
+    layout = next((t for t in cat if t["key"] == ak), None)
+    support = PT.appearance_support(kind, layout)
+    layout_support = {t["key"]: sorted(PT.appearance_support(kind, t)) for t in cat}
+    path = meta.get("path") or PT.sample_path(kind)
+    from .widths import site_container_max
+    return render_template("frontend_templates.html", site=s, rail=rail, kind=kind, meta=meta,
+                           catalog=cat, active_key=ak, layout=layout,
+                           settings=_fe.template_settings(s, kind, ak) if ak else {},
+                           support=support, layout_support=layout_support,
+                           unsupported=[v for k, v in PT.APPEARANCE_LABELS.items() if k not in support],
+                           appearance_labels=PT.APPEARANCE_LABELS,
+                           preview_path=path, site_px=site_container_max(s),
+                           meetings_list_protips=_fe.meetings_list_protips_resolved(s),
+                           meetings_list_sidebar_links=_fe.meetings_list_sidebar_links_resolved(s),
                            form_picker_options=_form_picker_options(),
                            font_options=all_fonts())
 
@@ -11554,6 +12196,10 @@ def frontend_template_settings_save(kind, key):
     dyn_key = _dynbg.normalize(request.form.get("bg_dynamic_key"))
     if dyn_key:
         leaf["bg_dynamic_key"] = dyn_key
+    elif kind in ("contact", "recovery_contacts") and "bg_dynamic_key" in request.form:
+        # These two pages default to the aurora-blobs backdrop when no key
+        # is stored, so "no dynamic background" needs its own value.
+        leaf["bg_dynamic_key"] = "none"
     # Overlay + custom-colour config — round-trips through the same
     # encode_config gate the per-surface columns use, so a tampered
     # POST can only land on known overlay keys / valid hex colours /
@@ -11568,43 +12214,34 @@ def frontend_template_settings_save(kind, key):
     except (ValueError, TypeError):
         _knobs = None
     dynbg_cfg = _dynbg.encode_config(
-        overlay_key=request.form.get("bg_dynbg_config_json__overlay"),
-        colors=[request.form.get(f"bg_dynbg_config_json__c{i}") for i in (1, 2, 3)],
-        scope=request.form.get("bg_dynbg_config_json__scope"),
-        noise_size=request.form.get("bg_dynbg_config_json__noise_size"),
-        noise_intensity=request.form.get("bg_dynbg_config_json__noise_intensity"),
-        randomize_colors=request.form.get("bg_dynbg_config_json__randomize_colors") == "1",
+        modes=request.form.get("bg_dynbg_config_json__modes"),
         randomize_positions=request.form.get("bg_dynbg_config_json__randomize_positions") == "1",
         animate=False if request.form.get("bg_dynbg_config_json__animate_off") == "1" else True,
-        # Strength slider 0-100; encode_config normalises legacy
-        # booleans + clamps the int. Raw value passed through here.
-        pastel_light=request.form.get("bg_dynbg_config_json__pastel_light"),
         knobs=_knobs, preset_key=dyn_key,
     )
-    if dynbg_cfg.get("overlay"):
-        leaf["bg_dynbg_overlay"] = dynbg_cfg["overlay"]
-    if dynbg_cfg.get("colors"):
-        leaf["bg_dynbg_colors"] = dynbg_cfg["colors"]
-    if dynbg_cfg.get("overlay_scope"):
-        leaf["bg_dynbg_overlay_scope"] = dynbg_cfg["overlay_scope"]
-    if dynbg_cfg.get("overlay_size") is not None:
-        leaf["bg_dynbg_overlay_size"] = dynbg_cfg["overlay_size"]
-    if dynbg_cfg.get("overlay_intensity") is not None:
-        leaf["bg_dynbg_overlay_intensity"] = dynbg_cfg["overlay_intensity"]
-    if dynbg_cfg.get("randomize_colors"):
-        leaf["bg_dynbg_randomize_colors"] = True
-    if dynbg_cfg.get("randomize_positions"):
-        leaf["bg_dynbg_randomize_positions"] = True
+    # Per-mode block (colours / randomise / saturation / intensity /
+    # texture for light AND dark). The template dict builders pass it
+    # straight through to decode_config.
+    if dynbg_cfg.get("modes"):
+        leaf["bg_dynbg_modes"] = dynbg_cfg["modes"]
+        # Legacy "any texture configured?" marker — the list templates
+        # gate on `bg_dynamic_key or bg_dynbg_overlay` to decide whether
+        # the per-template settings drive the surface, so keep it set
+        # when either mode carries an overlay.
+        _any_ov = next((m.get("overlay") for m in dynbg_cfg["modes"].values() if m.get("overlay")), None)
+        if _any_ov:
+            leaf["bg_dynbg_overlay"] = _any_ov
     if dynbg_cfg.get("animate") is False:
         leaf["bg_dynbg_animate"] = False
-    if dynbg_cfg.get("pastel_light"):
-        # Persist as the int strength (0-100). decode_config returns
-        # an int; legacy True values previously stored here keep
-        # behaving as full-strength because normalize_pastel_strength
-        # at the consumer side coerces ``True`` → 100.
-        leaf["bg_dynbg_pastel_light"] = dynbg_cfg["pastel_light"]
     if dynbg_cfg.get("knobs"):
         leaf["bg_dynbg_knobs"] = dynbg_cfg["knobs"]
+    # Version stamp — the per-template leaves store their dynbg settings
+    # as discrete keys rather than one JSON blob, so `encode_config`'s
+    # own `v` has to be carried across by hand. Without it this surface
+    # would keep resolving to the classic recipe (see dynbg.render_key)
+    # even after an admin deliberately picked a current preset.
+    if dyn_key:
+        leaf["bg_dynbg_v"] = dynbg_cfg.get("v", _dynbg.CONFIG_VERSION)
     # Classic blog detail toggles for the right-side rail. Stored
      # only as explicit `False` so the JSON stays lean — missing keys
      # mean "show the widget" (the default). When the user unchecks
@@ -11659,7 +12296,7 @@ def frontend_template_settings_save(kind, key):
     s.frontend_template_settings_json = _json.dumps(data) if data else None
     db.session.commit()
     flash(f"{kind.capitalize()} template settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/meeting-template", methods=["POST"])
@@ -11672,7 +12309,7 @@ def frontend_meeting_template_save():
         s.frontend_meeting_template = key
         db.session.commit()
         flash(f"Meeting template set to {key}", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/events-list-template", methods=["POST"])
@@ -11687,7 +12324,7 @@ def frontend_events_list_template_save():
     if key in {t["key"] for t in EVENTS_LIST_TEMPLATES}:
         s.frontend_events_list_template = key
     width = (request.form.get("frontend_events_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_events_list_width_mode = width
     if "frontend_events_list_max_width" in request.form:
         try:
@@ -11715,7 +12352,7 @@ def frontend_events_list_template_save():
             request.form, "frontend_events_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Events list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/announcements-list-template", methods=["POST"])
@@ -11730,7 +12367,7 @@ def frontend_announcements_list_template_save():
     if key in {t["key"] for t in ANNOUNCEMENTS_LIST_TEMPLATES}:
         s.frontend_announcements_list_template = key
     width = (request.form.get("frontend_announcements_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_announcements_list_width_mode = width
     if "frontend_announcements_list_max_width" in request.form:
         try:
@@ -11761,7 +12398,7 @@ def frontend_announcements_list_template_save():
             request.form, "frontend_announcements_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Announcements list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/archive-template", methods=["POST"])
@@ -11793,7 +12430,7 @@ def frontend_archive_template_save():
             request.form, "frontend_archive_bg_dynbg_config_json")
     db.session.commit()
     flash("Archive settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/stories-list-template", methods=["POST"])
@@ -11808,7 +12445,7 @@ def frontend_stories_list_template_save():
     if key in {t["key"] for t in STORIES_LIST_TEMPLATES}:
         s.frontend_stories_list_template = key
     width = (request.form.get("frontend_stories_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_stories_list_width_mode = width
     if "frontend_stories_list_max_width" in request.form:
         try:
@@ -11858,7 +12495,7 @@ def frontend_stories_list_template_save():
             request.form, "frontend_stories_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Stories list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/story-template", methods=["POST"])
@@ -11878,7 +12515,7 @@ def frontend_story_template_save():
             request.form, "frontend_story_bg_dynbg_config_json")
     db.session.commit()
     flash("Story template settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/blog-list-template", methods=["POST"])
@@ -11893,7 +12530,7 @@ def frontend_blog_list_template_save():
     if key in {t["key"] for t in BLOG_LIST_TEMPLATES}:
         s.frontend_blog_list_template = key
     width = (request.form.get("frontend_blog_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_blog_list_width_mode = width
     if "frontend_blog_list_max_width" in request.form:
         try:
@@ -11921,7 +12558,7 @@ def frontend_blog_list_template_save():
             request.form, "frontend_blog_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Blog list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/blog-post-template", methods=["POST"])
@@ -11935,7 +12572,7 @@ def frontend_blog_post_template_save():
     if key in {t["key"] for t in BLOG_POST_TEMPLATES}:
         s.frontend_blog_post_template = key
     width = (request.form.get("frontend_blog_post_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_blog_post_width_mode = width
     if "frontend_blog_post_max_width" in request.form:
         try:
@@ -11957,7 +12594,7 @@ def frontend_blog_post_template_save():
             request.form, "frontend_blog_post_bg_dynbg_config_json")
     db.session.commit()
     flash("Blog post template settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/meetings-list-template", methods=["POST"])
@@ -11969,7 +12606,7 @@ def frontend_meetings_list_template_save():
     if key in {t["key"] for t in MEETINGS_LIST_TEMPLATES}:
         s.frontend_meetings_list_template = key
     width = (request.form.get("frontend_meetings_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_meetings_list_width_mode = width
     if "frontend_meetings_list_max_width" in request.form:
         try:
@@ -12002,72 +12639,77 @@ def frontend_meetings_list_template_save():
     def _hex_or_blank(v):
         v = (v or "").strip()
         return v if _hex_re.match(v) else ""
-    pt_cfg = {
-        "enabled": request.form.get("protips_enabled") == "1",
-        "heading": (request.form.get("protips_heading") or "").strip()[:200],
-        "subheading": (request.form.get("protips_subheading") or "").strip()[:500],
-        "icon": (request.form.get("protips_icon") or "").strip()[:64],
-        "icon_color": _hex_or_blank(request.form.get("protips_icon_color")),
-    }
-    # Per-item form-array editor — same shape as the homepage FAQ
-    # parser, but with a `protip_item_*` prefix. Items keyed by the
-    # `protip_item_present` markers so submission order = render order.
-    pt_items = []
-    for raw_idx in request.form.getlist("protip_item_present"):
-        try:
-            i = int(raw_idx)
-        except (TypeError, ValueError):
-            continue
-        question = (request.form.get(f"protip_item_{i}_question") or "").strip()
-        answer = (request.form.get(f"protip_item_{i}_answer") or "").strip()
-        ic = (request.form.get(f"protip_item_{i}_icon") or "").strip()
-        ic_size = (request.form.get(f"protip_item_{i}_icon_size") or "").strip()
-        if not (question or answer):
-            continue
-        try:
-            sz = int(ic_size) if ic_size else 0
-        except (TypeError, ValueError):
-            sz = 0
-        size_out = str(sz) if 12 <= sz <= 200 else ""
-        pt_items.append({
-            "icon": ic[:64],
-            "icon_size": size_out,
-            "question": question[:300],
-            "answer": answer[:4000],
-        })
-    # When the editor submits any rows, that's the canonical list.
-    # An entirely empty submission (admin removed every row) saves an
-    # empty list so the section hides via the items-empty gate. No
-    # JSON-textarea fallback path — the GUI is the source of truth.
-    if request.form.getlist("protip_item_present"):
-        pt_cfg["items"] = pt_items
-    s.frontend_meetings_list_protips_json = _json_pt.dumps(pt_cfg)
+    # The layout grid posts to this route on its own, without the Pro
+    # Tips or sidebar-link fields; only rewrite a section when its
+    # marker says the post carries it, or a layout switch wipes both.
+    if "protips_section" in request.form:
+        pt_cfg = {
+            "enabled": request.form.get("protips_enabled") == "1",
+            "heading": (request.form.get("protips_heading") or "").strip()[:200],
+            "subheading": (request.form.get("protips_subheading") or "").strip()[:500],
+            "icon": (request.form.get("protips_icon") or "").strip()[:64],
+            "icon_color": _hex_or_blank(request.form.get("protips_icon_color")),
+        }
+        # Per-item form-array editor — same shape as the homepage FAQ
+        # parser, but with a `protip_item_*` prefix. Items keyed by the
+        # `protip_item_present` markers so submission order = render order.
+        pt_items = []
+        for raw_idx in request.form.getlist("protip_item_present"):
+            try:
+                i = int(raw_idx)
+            except (TypeError, ValueError):
+                continue
+            question = (request.form.get(f"protip_item_{i}_question") or "").strip()
+            answer = (request.form.get(f"protip_item_{i}_answer") or "").strip()
+            ic = (request.form.get(f"protip_item_{i}_icon") or "").strip()
+            ic_size = (request.form.get(f"protip_item_{i}_icon_size") or "").strip()
+            if not (question or answer):
+                continue
+            try:
+                sz = int(ic_size) if ic_size else 0
+            except (TypeError, ValueError):
+                sz = 0
+            size_out = str(sz) if 12 <= sz <= 200 else ""
+            pt_items.append({
+                "icon": ic[:64],
+                "icon_size": size_out,
+                "question": question[:300],
+                "answer": answer[:4000],
+            })
+        # When the editor submits any rows, that's the canonical list.
+        # An entirely empty submission (admin removed every row) saves an
+        # empty list so the section hides via the items-empty gate. No
+        # JSON-textarea fallback path — the GUI is the source of truth.
+        if request.form.getlist("protip_item_present"):
+            pt_cfg["items"] = pt_items
+        s.frontend_meetings_list_protips_json = _json_pt.dumps(pt_cfg)
 
-    # Sidebar custom-links editor — same form-array pattern as protips,
-    # keyed off `sidebar_link_present` so admin row order = render
-    # order. Empty rows (missing label OR url) are silently dropped;
-    # an entirely empty submission saves an empty list so the section
-    # auto-hides via the `if list_sidebar_links` gate in the partial.
-    sidebar_links = []
-    for raw_idx in request.form.getlist("sidebar_link_present"):
-        try:
-            i = int(raw_idx)
-        except (TypeError, ValueError):
-            continue
-        label = (request.form.get(f"sidebar_link_{i}_label") or "").strip()
-        url = (request.form.get(f"sidebar_link_{i}_url") or "").strip()
-        if not (label and url):
-            continue
-        link_type = (request.form.get(f"sidebar_link_{i}_type") or "internal").strip().lower()
-        if link_type not in ("internal", "external"):
-            link_type = "internal"
-        sidebar_links.append({
-            "label":           label[:200],
-            "url":             url[:600],
-            "link_type":       link_type,
-            "open_in_new_tab": request.form.get(f"sidebar_link_{i}_new_tab") == "1",
-        })
-    s.frontend_meetings_list_sidebar_links_json = _json_pt.dumps(sidebar_links)
+    if "sidebar_links_section" in request.form:
+        # Sidebar custom-links editor — same form-array pattern as protips,
+        # keyed off `sidebar_link_present` so admin row order = render
+        # order. Empty rows (missing label OR url) are silently dropped;
+        # an entirely empty submission saves an empty list so the section
+        # auto-hides via the `if list_sidebar_links` gate in the partial.
+        sidebar_links = []
+        for raw_idx in request.form.getlist("sidebar_link_present"):
+            try:
+                i = int(raw_idx)
+            except (TypeError, ValueError):
+                continue
+            label = (request.form.get(f"sidebar_link_{i}_label") or "").strip()
+            url = (request.form.get(f"sidebar_link_{i}_url") or "").strip()
+            if not (label and url):
+                continue
+            link_type = (request.form.get(f"sidebar_link_{i}_type") or "internal").strip().lower()
+            if link_type not in ("internal", "external"):
+                link_type = "internal"
+            sidebar_links.append({
+                "label":           label[:200],
+                "url":             url[:600],
+                "link_type":       link_type,
+                "open_in_new_tab": request.form.get(f"sidebar_link_{i}_new_tab") == "1",
+            })
+        s.frontend_meetings_list_sidebar_links_json = _json_pt.dumps(sidebar_links)
 
     if "frontend_meetings_list_bg_dynamic_key" in request.form:
         from . import dynbg as _dynbg
@@ -12077,7 +12719,7 @@ def frontend_meetings_list_template_save():
             request.form, "frontend_meetings_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Meetings list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/literature-library-template", methods=["POST"])
@@ -12101,7 +12743,7 @@ def frontend_literature_library_template_save():
             request.form, "frontend_literature_library_bg_dynbg_config_json")
     db.session.commit()
     flash("Literature Library settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/printlist-template", methods=["POST"])
@@ -12126,7 +12768,7 @@ def frontend_printlist_template_save():
             request.form, "frontend_printlist_bg_dynbg_config_json")
     db.session.commit()
     flash("Printlist settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/site-index-template", methods=["POST"])
@@ -12173,7 +12815,7 @@ def frontend_site_index_template_save():
             request.form, "frontend_site_index_bg_dynbg_config_json")
     db.session.commit()
     flash("Site Index settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/fellowships-list-template", methods=["POST"])
@@ -12193,7 +12835,7 @@ def frontend_fellowships_list_template_save():
     if "frontend_fellowships_enabled_present" in request.form:
         s.frontend_fellowships_enabled = request.form.get("frontend_fellowships_enabled") == "1"
     width = (request.form.get("frontend_fellowships_list_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_fellowships_list_width_mode = width
     if "frontend_fellowships_list_max_width" in request.form:
         try:
@@ -12225,7 +12867,7 @@ def frontend_fellowships_list_template_save():
             request.form, "frontend_fellowships_list_bg_dynbg_config_json")
     db.session.commit()
     flash("Fellowships list settings saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/submission-form-template", methods=["POST"])
@@ -12243,7 +12885,7 @@ def frontend_submission_form_template_save():
         if key in {t["key"] for t in SUBMISSION_FORM_TEMPLATES}:
             s.frontend_submission_form_template = key
     width = (request.form.get("frontend_submission_form_width_mode") or "").strip()
-    if width in ("boxed", "full"):
+    if width in _WIDTH_MODES:
         s.frontend_submission_form_width_mode = width
     if "frontend_submission_form_max_width" in request.form:
         try:
@@ -12265,7 +12907,7 @@ def frontend_submission_form_template_save():
             request.form, "frontend_submission_form_bg_dynbg_config_json")
     db.session.commit()
     flash("Submission form layout saved", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 @bp.route("/frontend/event-template", methods=["POST"])
@@ -12278,7 +12920,7 @@ def frontend_event_template_save():
         s.frontend_event_template = key
         db.session.commit()
         flash(f"Event template set to {key}", "success")
-    return redirect(url_for("main.frontend_templates"))
+    return redirect(_safe_referrer() or url_for("main.frontend_templates"))
 
 
 _CUSTOM_LAYOUT_BLOCK_TYPES = {
@@ -12658,12 +13300,21 @@ def frontend_theme_save():
 @bp.route("/frontend/pages")
 @admin_required
 def frontend_pages():
+    """Pages opens the page editor on the page last edited here, else the
+    first page (the homepage has its own menu entry); the editor's
+    selector menu moves between pages. With no pages yet, an empty
+    screen offers New page."""
     from .models import Page
     s = _get_site_setting()
-    pages = Page.query.order_by(Page.title.asc()).all()
-    page_layouts = _page_layouts_for_picker()
-    return render_template("frontend_pages.html", site=s, pages=pages,
-                           page_layouts=page_layouts)
+    hp = s.homepage_page_id
+    last = db.session.get(Page, session.get("fe_last_page") or 0)
+    if not last or last.id == hp:
+        last = (Page.query.filter(Page.id != (hp or 0)).order_by(Page.title.asc()).first()
+                or (db.session.get(Page, hp) if hp else None))
+    if last:
+        return redirect(url_for("main.frontend_page_edit", page_id=last.id))
+    return render_template("frontend_section_empty.html", site=s, kind="page",
+                           page_layouts=_page_layouts_for_picker())
 
 
 # Block catalog for the page-layout drag-and-drop builder. Lists every
@@ -12708,7 +13359,7 @@ _PAGE_BLOCK_CATALOG = [
      "icon": "video",
      "desc": "HTML5 video with optional poster."},
     {"key": "lottie",    "name": "Lottie animation",
-     "icon": "play-circle",
+     "icon": "sparkles",
      "desc": "Embed a Bodymovin / Lottie JSON animation. Loops, autoplays, and scales to its column."},
     {"key": "intergroup_member", "name": "Intergroup Member",
      "icon": "users",
@@ -12884,6 +13535,17 @@ def _hero_block_modal_proxy(data):
         frontend_hero_particle_effect=d.get("particle_effect", "stars"),
         frontend_hero_particle_speed=d.get("particle_speed", 100),
         frontend_hero_particle_size=d.get("particle_size", 100),
+        # Opacity + per-mode ink. Blocks saved before these existed have
+        # no keys, and the defaults (opaque white) are exactly what the
+        # canvas painted when the colour was hard-coded.
+        frontend_hero_particle_opacity=d.get("particle_opacity", 100),
+        # Dark-mode opacity falls back to the light value, so a block
+        # that set one opacity before the split keeps rendering at that
+        # strength in both themes until the admin splits them.
+        frontend_hero_particle_opacity_dark=d.get(
+            "particle_opacity_dark", d.get("particle_opacity", 100)),
+        frontend_hero_particle_color=d.get("particle_color", ""),
+        frontend_hero_particle_color_dark=d.get("particle_color_dark", ""),
     )
 
 
@@ -13328,22 +13990,10 @@ def frontend_page_create():
                     })
             blocks_payload = _json.dumps(shell_sections or [])
 
-    # Slug uniqueness — same RESERVED set + suffix-bump loop the
-    # save route uses, so the modal can't create a row that would
-    # later conflict with a public frontend route.
-    slug = _slugify_page(title)
-    RESERVED = {"meetings", "meeting", "hyperlist", "submissionform",
-                "printlist", "library", "events", "archive", "announcements",
-                "announcement", "event", "api", "tspro", "static", "uploads",
-                "pub", "site-branding", "request-access", "contact", "siteindex"}
-    base_slug = slug
-    n = 2
-    while True:
-        existing = Page.query.filter(Page.slug == slug).first()
-        if not existing and slug not in RESERVED:
-            break
-        slug = f"{base_slug}-{n}"
-        n += 1
+    # Slug uniqueness — shared with the save + rename routes, so the
+    # modal can't create a row that would later conflict with a public
+    # frontend route.
+    slug = _unique_page_slug(_slugify_page(title))
 
     # Initial publish state: the modal posts a `status` of draft / published
     # / private. Default to draft so the admin lands on the editor with the
@@ -13422,7 +14072,10 @@ def frontend_page_edit(page_id):
     # Per-page FAQ modal — same flash-prevention pattern (empty items
     # list server-side, JS clones template on pill click).
     faq_modal_vals = _faq_block_modal_proxy({})
+    if page and page.id != s.homepage_page_id:
+        session["fe_last_page"] = page.id
     return render_template("frontend_page_edit.html", site=s, page=page,
+                           picker_groups=_picker_pages(page.id if page else None),
                            blocks_json=page.blocks_json or "[]",
                            page_layouts=layouts,
                            active_layout=active_layout,
@@ -13442,7 +14095,13 @@ def frontend_page_edit(page_id):
                            features_modal_vals=features_modal_vals,
                            faq_modal_vals=faq_modal_vals,
                            draft_active=draft_active,
-                           draft_saved_at=draft_saved_at)
+                           draft_saved_at=draft_saved_at,
+                           site_px=_site_px(s))
+
+
+def _site_px(s):
+    from .widths import site_container_max
+    return site_container_max(s)
 
 
 @bp.route("/frontend/pages/<int:page_id>/layout", methods=["POST"])
@@ -13499,8 +14158,17 @@ def frontend_page_layout_save(page_id):
                     shell_sections.append({
                         "id": _uuid_short(), "title": "", "blocks": [b],
                     })
+            # A published page's draft (when it has one) is what the
+            # editor shows, so the layout is applied to that.
+            _draft = None
+            if page.draft_json:
+                try:
+                    _draft = _json.loads(page.draft_json)
+                except (ValueError, TypeError):
+                    _draft = None
+            _base = (_draft or {}).get("blocks_json") or page.blocks_json or "[]"
             try:
-                existing_sections = _json.loads(page.blocks_json or "[]") or []
+                existing_sections = _json.loads(_base) or []
             except (ValueError, TypeError):
                 existing_sections = []
             existing_sections = [s for s in existing_sections if isinstance(s, dict)]
@@ -13540,6 +14208,18 @@ def frontend_page_layout_save(page_id):
                 })
             if not new_sections:
                 new_sections = [{"id": _uuid_short(), "title": "", "blocks": []}]
+            if page.is_published:
+                # Staged, like any other edit to a published page: the
+                # live page changes when the draft is published.
+                from datetime import datetime as _dt_now
+                _draft = _draft or {}
+                _draft["blocks_json"] = _json.dumps(new_sections)
+                page.draft_json = _json.dumps(_draft)
+                page.draft_saved_at = _dt_now.utcnow()
+                _record_page_revision(page, "draft", _draft)
+                db.session.commit()
+                flash(f"Layout “{raw_key}” applied to the draft. The live page changes when you publish.", "success")
+                return redirect(url_for("main.frontend_page_edit", page_id=page.id))
             page.blocks_json = _json.dumps(new_sections)
     db.session.commit()
     flash(f"Layout “{raw_key}” applied", "success")
@@ -13859,6 +14539,40 @@ def _slugify_page(value):
     return value or "page"
 
 
+# Slugs that would collide with existing public frontend routes. The
+# catch-all `/<slug>` page route must never shadow these, so every path
+# that mints or changes a Page.slug resolves through
+# `_unique_page_slug` below.
+_RESERVED_PAGE_SLUGS = {
+    "meetings", "meeting", "hyperlist", "submissionform",
+    "printlist", "library", "events", "archive", "announcements",
+    "announcement", "event", "api", "tspro", "static", "uploads",
+    "pub", "site-branding", "request-access", "contact", "siteindex",
+}
+
+
+def _unique_page_slug(slug, exclude_id=None):
+    """Resolve ``slug`` to one that's free across pages and not reserved,
+    suffix-bumping (``-2``, ``-3``…) until it lands. ``exclude_id`` skips
+    a page's own row so re-saving an unchanged slug doesn't bump it.
+
+    Autoflush is disabled for the probe: callers may hold a Page in the
+    session whose NOT NULL columns aren't populated yet, and a premature
+    flush would crash on them.
+    """
+    from .models import Page
+    base = slug
+    n = 2
+    with db.session.no_autoflush:
+        while True:
+            clash = Page.query.filter(Page.slug == slug,
+                                      Page.id != (exclude_id or -1)).first()
+            if not clash and slug not in _RESERVED_PAGE_SLUGS:
+                return slug
+            slug = f"{base}-{n}"
+            n += 1
+
+
 PAGE_BG_EXTS = {"png", "jpg", "jpeg", "webp", "gif", "svg"}
 
 
@@ -13957,6 +14671,10 @@ def frontend_page_save():
     else:
         is_published = request.form.get("is_published") == "1"
         is_private = request.form.get("is_private") == "1"
+    # The homepage renders at / whatever its status, so it is always
+    # public; the editor locks the control and this keeps it so.
+    if page_id.isdigit() and (_get_site_setting().homepage_page_id or 0) == int(page_id):
+        is_published, is_private = True, False
     # Only update blocks_json when the form carries an actual value.
     # An empty/missing value means the editor didn't serialise — usually
     # a JS hiccup or a partial form submit (e.g. uploading a background
@@ -13984,7 +14702,7 @@ def frontend_page_save():
 
     # Page-wide width formatting.
     width_mode = (request.form.get("width_mode") or "boxed").strip().lower()
-    if width_mode not in ("boxed", "full"):
+    if width_mode not in _WIDTH_MODES:
         width_mode = "boxed"
     try:
         max_width = int(request.form.get("max_width") or 1160)
@@ -14206,31 +14924,26 @@ def frontend_page_save():
         # isn't NULL when the row is inserted.
         page.blocks_json = "[]"
 
-    # Reserve slugs that collide with existing public frontend routes so
-    # the catch-all /<slug> page route never shadows them. We need a
-    # fully-resolved slug BEFORE adding the new row to the session
-    # because the uniqueness query below triggers an autoflush, and
-    # the row needs `slug` non-NULL by then.
-    RESERVED = {"meetings", "meeting", "hyperlist", "submissionform",
-                "printlist", "library", "events", "archive", "announcements",
-                "announcement", "event", "api", "tspro", "static", "uploads",
-                "pub", "site-branding", "request-access", "contact", "siteindex"}
-    base_slug = slug
-    n = 2
-    # Disable autoflush during the uniqueness probe — the new Page
-    # row hasn't been fully populated yet and a premature flush would
-    # crash on NOT NULL fields. Using `no_autoflush` is safer than
-    # relying on order alone since future fields could re-introduce
-    # the same race.
-    with db.session.no_autoflush:
-        while True:
-            existing = Page.query.filter(Page.slug == slug,
-                                         Page.id != (page.id or -1)).first()
-            if not existing and slug not in RESERVED:
-                break
-            slug = f"{base_slug}-{n}"
-            n += 1
+    # Resolve the slug BEFORE adding the new row to the session: the
+    # uniqueness probe inside the helper would otherwise autoflush a
+    # half-populated Page and crash on its NOT NULL columns.
+    slug = _unique_page_slug(slug, exclude_id=page.id)
+    _old_slug = page.slug if page.id else None
     page.slug = slug
+    # A new address for a page that was already public: send the old
+    # address to it (as Rename does), and drop a redirect that would hide
+    # the new one. The homepage lives at / and needs neither.
+    if (_old_slug and _old_slug != slug and page.is_published
+            and (_get_site_setting().homepage_page_id or 0) != page.id):
+        for _row in UrlRedirect.query.filter(
+                UrlRedirect.source_path.in_([f"/{slug}", f"/{slug}/"])).all():
+            db.session.delete(_row)
+        _old_path = f"/{_old_slug}"
+        _existing = UrlRedirect.query.filter(UrlRedirect.source_path == _old_path).first()
+        if _existing:
+            _existing.target_path = f"/{slug}"
+        else:
+            db.session.add(UrlRedirect(source_path=_old_path, target_path=f"/{slug}"))
 
     if not page_id:
         db.session.add(page)
@@ -14307,7 +15020,7 @@ def frontend_page_save():
 
     # Per-page Open Graph overrides. Blank values clear the column so
     # the public render falls back to the site-wide frontend_og_*
-    # defaults set under Web Frontend → Branding & SEO. Hidden marker
+    # defaults set on Web Frontend → Branding. Hidden marker
     # `og_present` gates assignment so a partial POST (e.g. the
     # background-only sub-form) can't wipe previously-set OG values.
     if request.form.get("og_present") == "1":
@@ -14433,7 +15146,13 @@ def frontend_page_discard_draft(page_id):
 def frontend_page_delete(page_id):
     from .models import Page
     page = Page.query.get_or_404(page_id)
+    s = _get_site_setting()
+    if s.homepage_page_id == page.id:
+        flash("The homepage can't be deleted. Make another page the homepage first.", "danger")
+        return redirect(url_for("main.frontend_pages"))
     title = page.title
+    if s.cookie_compliance_policy_page_id == page.id:
+        s.cookie_compliance_policy_page_id = None
     db.session.delete(page)
     db.session.commit()
     flash(f"Page “{title}” deleted", "success")
@@ -14467,6 +15186,9 @@ def frontend_page_status(page_id):
     from .models import Page
     page = Page.query.get_or_404(page_id)
     status = (request.form.get("status") or "").strip().lower()
+    if _get_site_setting().homepage_page_id == page.id and status != "published":
+        flash("The homepage is always public.", "danger")
+        return redirect(_safe_referrer() or url_for("main.frontend_page_edit", page_id=page.id))
     if not _apply_page_status(page, status):
         flash("Unknown status", "danger")
         return redirect(url_for("main.frontend_page_edit", page_id=page.id))
@@ -14499,36 +15221,6 @@ def frontend_page_set_homepage(page_id):
     flash(f"“{page.title}” is now the homepage", "success")
     return redirect(_safe_referrer()
                     or url_for("main.frontend_page_edit", page_id=page.id))
-
-
-@bp.route("/frontend/pages/bulk", methods=["POST"])
-@admin_required
-def frontend_pages_bulk():
-    """Bulk-status action invoked from the Pages list checkboxes. Posts
-    a list of `page_ids` plus a `status`; applies the same draft /
-    published / private flip to every selected row in one commit."""
-    from .models import Page
-    status = (request.form.get("status") or "").strip().lower()
-    if status not in ("draft", "published", "private"):
-        flash("Unknown bulk status", "danger")
-        return redirect(url_for("main.frontend_pages"))
-    raw_ids = request.form.getlist("page_ids")
-    page_ids = []
-    for raw in raw_ids:
-        try:
-            page_ids.append(int(raw))
-        except (TypeError, ValueError):
-            continue
-    if not page_ids:
-        flash("Select at least one page first", "warning")
-        return redirect(url_for("main.frontend_pages"))
-    rows = Page.query.filter(Page.id.in_(page_ids)).all()
-    for row in rows:
-        _apply_page_status(row, status)
-    db.session.commit()
-    flash(f"{len(rows)} page{'s' if len(rows) != 1 else ''} marked {status}",
-          "success")
-    return redirect(url_for("main.frontend_pages"))
 
 
 # ── Popups ──────────────────────────────────────────────────────────
@@ -14588,10 +15280,15 @@ def _popup_unique_name(name, exclude_id=None):
 @bp.route("/frontend/popups")
 @admin_required
 def frontend_popups():
+    """Popups opens the popup editor on the popup last edited here, else
+    the first; with none yet, an empty screen offers New popup."""
     from .models import Popup
     s = _get_site_setting()
-    popups = Popup.query.order_by(Popup.title.asc()).all()
-    return render_template("frontend_popups.html", site=s, popups=popups)
+    last = (db.session.get(Popup, session.get("fe_last_popup") or 0)
+            or Popup.query.order_by(Popup.title.asc()).first())
+    if last:
+        return redirect(url_for("main.frontend_popup_edit", popup_id=last.id))
+    return render_template("frontend_section_empty.html", site=s, kind="popup")
 
 
 @bp.route("/frontend/popups/create", methods=["POST"])
@@ -14641,7 +15338,9 @@ def frontend_popup_edit(popup_id):
         block_previews[bid] = _block_preview(b)
         block_payloads[bid] = b
     popup_catalog = [c for c in _PAGE_BLOCK_CATALOG if c["key"] in _POPUP_PALETTE_KEYS]
+    session["fe_last_popup"] = popup.id
     return render_template("frontend_popup_edit.html", site=s, popup=popup,
+                           picker_groups=_picker_popups(popup.id),
                            blocks_json=popup.blocks_json or "[]",
                            popup_allowed_block_types=_POPUP_ALLOWED_BLOCK_TYPES,
                            popup_block_catalog=popup_catalog,
@@ -14759,23 +15458,6 @@ def frontend_popup_save():
     return redirect(url_for("main.frontend_popup_edit", popup_id=popup.id))
 
 
-@bp.route("/frontend/popups/<int:popup_id>/status", methods=["POST"])
-@admin_required
-def frontend_popup_status(popup_id):
-    """Quick enable/disable toggle from the list / editor without a full
-    form round-trip."""
-    from .models import Popup
-    popup = Popup.query.get_or_404(popup_id)
-    status = (request.form.get("status") or "").strip().lower()
-    if status not in ("enabled", "disabled"):
-        flash("Unknown status", "danger")
-        return redirect(_safe_referrer() or url_for("main.frontend_popups"))
-    popup.is_enabled = status == "enabled"
-    db.session.commit()
-    return redirect(_safe_referrer()
-                    or url_for("main.frontend_popup_edit", popup_id=popup.id))
-
-
 @bp.route("/frontend/popups/<int:popup_id>/delete", methods=["POST"])
 @admin_required
 def frontend_popup_delete(popup_id):
@@ -14791,49 +15473,64 @@ def frontend_popup_delete(popup_id):
 @bp.route("/frontend/footer-save", methods=["POST"])
 @admin_required
 def frontend_footer_save():
-    """Save the structured footer content + container settings (width
-    mode, max width, padding %). The legacy plain-text `frontend_footer_text`
-    field is still accepted for backwards compat — old templates that
-    haven't migrated yet read from it as a copyright fallback."""
-    import json as _json
-    from .blocks import parse_footer
+    """Save the footer's content (the tabs on the Footer page), the chosen
+    layout and, for a custom layout, its rows. How the footer looks
+    (background, width, height, text size) is saved from Design → Footer."""
     s = _get_site_setting()
-    # Width mode
-    raw_w = (request.form.get("frontend_footer_width_mode") or "").strip().lower()
-    s.frontend_footer_width_mode = raw_w if raw_w in ("boxed", "full") else "boxed"
-    try:
-        s.frontend_footer_max_width = max(640, min(int(request.form.get("frontend_footer_max_width") or 1160), 2400))
-    except (TypeError, ValueError):
-        s.frontend_footer_max_width = 1160
-    try:
-        s.frontend_footer_padding_pct = max(0, min(int(request.form.get("frontend_footer_padding_pct") or 5), 20))
-    except (TypeError, ValueError):
-        s.frontend_footer_padding_pct = 5
-    # Background mode — 'dark' (default; footer always dark) or 'light'
-    # (follows page theme).
-    raw_bg = (request.form.get("frontend_footer_bg_mode") or "").strip().lower()
-    s.frontend_footer_bg_mode = raw_bg if raw_bg in ("light", "dark") else "dark"
-    # Min-height in vh (0 = no min-height; clamp 0-100).
-    try:
-        s.frontend_footer_min_height_vh = max(0, min(int(request.form.get("frontend_footer_min_height_vh") or 0), 100))
-    except (TypeError, ValueError):
-        s.frontend_footer_min_height_vh = 0
-    # Font scale percentage — desktop-first; mobile media queries cap
-    # the upper bound so a 200% setting doesn't blow out a phone view.
-    try:
-        s.frontend_footer_font_scale = max(50, min(int(request.form.get("frontend_footer_font_scale") or 100), 200))
-    except (TypeError, ValueError):
-        s.frontend_footer_font_scale = 100
-    # Brand custom-logo upload — handled before parse_footer so the
-    # uploaded filename ends up on `s.frontend_brand_logo_filename`. The
-    # brand block's `logo_source` lives in the JSON content (see below)
-    # and the public render dispatches on it. A `clear_brand_logo`
-    # checkbox on the modal removes the file (the saved filename only;
-    # the on-disk asset is left for cleanup later).
-    if "footer_brand_present" in request.form:
-        if request.form.get("clear_brand_logo") == "1":
+    _apply_footer_form(s, request.form, request.files)
+    db.session.commit()
+    flash("Footer saved", "success")
+    return redirect(url_for("main.frontend_footer"))
+
+
+@bp.route("/frontend/footer/customize", methods=["POST"])
+@admin_required
+def frontend_footer_customize():
+    """Save the posted footer form, then turn the active prebuilt layout
+    into an editable custom copy and switch to it. The prebuilt stays in
+    the list, unchanged."""
+    import json as _json
+    from .frontend import FOOTER_PREBUILT_ROWS, FOOTER_TEMPLATES
+    s = _get_site_setting()
+    _apply_footer_form(s, request.form, request.files)
+    src = s.frontend_footer_template or "classic"
+    if src in FOOTER_PREBUILT_ROWS:
+        name = next((t["name"] for t in FOOTER_TEMPLATES if t["key"] == src), src)
+        n = 1
+        key = f"footer-custom-{src}"
+        while CustomLayout.query.filter_by(key=key, kind="footer").first():
+            n += 1
+            key = f"footer-custom-{src}-{n}"
+        db.session.add(CustomLayout(key=key, kind="footer", is_prebuilt=False,
+                                    name=f"{name}, customized" + (f" {n}" if n > 1 else ""),
+                                    blocks_json=_json.dumps(FOOTER_PREBUILT_ROWS[src])))
+        s.frontend_footer_template = key
+        flash(f"Made an editable copy of the {name} footer. Arrange its blocks below.", "success")
+    db.session.commit()
+    return redirect(url_for("main.frontend_footer") + "#layout")
+
+
+def _apply_footer_form(s, form, files):
+    """Apply the Footer page's form to ``s``: layout choice, content, and
+    the rows of a custom layout. The caller commits."""
+    import json as _json
+    from .blocks import parse_footer, footer_content
+    from .frontend import FOOTER_TEMPLATES
+    # Layout choice: a prebuilt key or a footer CustomLayout.
+    key = (form.get("frontend_footer_template") or "").strip()
+    if key and (key in {t["key"] for t in FOOTER_TEMPLATES}
+                or CustomLayout.query.filter_by(key=key, kind="footer").first()):
+        s.frontend_footer_template = key
+    # Older posts (and the Design page before it moved) carried the
+    # footer's size settings; they are only written when present.
+    if "frontend_footer_width_mode" in form:
+        _save_footer_size(s, form)
+    # Brand block's own logo. `clear_brand_logo` forgets the file name;
+    # the file itself is left for cleanup.
+    if "footer_brand_present" in form:
+        if form.get("clear_brand_logo") == "1":
             s.frontend_brand_logo_filename = None
-        upload = request.files.get("frontend_brand_logo")
+        upload = files.get("frontend_brand_logo") if files else None
         if upload and upload.filename:
             from werkzeug.utils import secure_filename
             from uuid import uuid4
@@ -14843,44 +15540,56 @@ def frontend_footer_save():
             upload.save(os.path.join(current_app.config["UPLOAD_FOLDER"], stored))
             s.frontend_brand_logo_filename = stored
             imgcache.note_image_change()  # bust cached brand-logo URL
-    # Structured content — only update if the form-level marker is
-    # present. parse_footer is given the existing content so any section
-    # whose editor card was hidden (because the active layout doesn't
-    # use that block) preserves its saved values instead of being wiped.
-    if "footer_blocks_present" in request.form:
-        from .blocks import footer_content
-        existing = footer_content(s)
-        content = parse_footer(request.form, existing=existing)
+    # Content: parse_footer keeps each section whose editor didn't post.
+    if "footer_blocks_present" in form:
+        content = parse_footer(form, existing=footer_content(s))
         s.frontend_footer_blocks_json = _json.dumps(content)
-    # Footer arrangement from the inline structure builder → a footer
-    # CustomLayout (rows/columns of block types). The public render reads
-    # this layout + the content dict above, so the two stay decoupled.
-    raw_layout = request.form.get("footer_layout_json")
-    if raw_layout is not None:
+    # Rows are only posted by the custom-layout builder, and only change
+    # the active custom layout; a prebuilt is never rewritten here.
+    raw_layout = form.get("footer_layout_json")
+    if raw_layout:
         try:
             rows = _json.loads(raw_layout)
         except (ValueError, TypeError):
             rows = None
-        if isinstance(rows, list):
-            rows = _normalize_footer_blocks(rows)
-            active_key = (s.frontend_footer_template or "classic")
-            cl = CustomLayout.query.filter_by(key=active_key, kind="footer").first()
-            if cl is None:
-                # Active layout is a prebuilt — promote to an editable
-                # custom layout the inline builder owns going forward.
-                cl = CustomLayout.query.filter_by(key="footer-custom", kind="footer").first()
-                if cl is None:
-                    cl = CustomLayout(key="footer-custom", kind="footer",
-                                      name="Custom footer", is_prebuilt=False)
-                    db.session.add(cl)
-                s.frontend_footer_template = "footer-custom"
-            cl.blocks_json = _json.dumps(rows)
-    # Legacy single-textarea field — still supported.
-    if "frontend_footer_text" in request.form:
-        s.frontend_footer_text = (request.form.get("frontend_footer_text") or "").strip() or None
-    db.session.commit()
-    flash("Footer saved", "success")
-    return redirect(url_for("main.frontend_footer"))
+        cl = CustomLayout.query.filter_by(key=s.frontend_footer_template or "", kind="footer").first()
+        if isinstance(rows, list) and cl is not None:
+            cl.blocks_json = _json.dumps(_normalize_footer_blocks(rows))
+
+
+def _save_footer_size(s, form):
+    """Footer width, minimum height and text size (Design → Footer)."""
+    from .widths import normalize_width_mode
+
+    def _int(name, lo, hi, default):
+        try:
+            v = int(form.get(name) or default)
+        except (TypeError, ValueError):
+            v = default
+        return max(lo, min(v, hi))
+
+    s.frontend_footer_width_mode = normalize_width_mode(
+        form.get("frontend_footer_width_mode"), s.frontend_footer_width_mode or "boxed")
+    s.frontend_footer_max_width = _int("frontend_footer_max_width", 600, 2400, 1160)
+    s.frontend_footer_padding_pct = _int("frontend_footer_padding_pct", 0, 20, 5)
+    s.frontend_footer_min_height_vh = _int("frontend_footer_min_height_vh", 0, 100, 0)
+    s.frontend_footer_font_scale = _int("frontend_footer_font_scale", 50, 200, 100)
+
+
+def _save_footer_appearance(s, form):
+    """Design → Footer: size, the always-dark or follow-page mode, and the
+    background (style, its settings, particles). The caller commits."""
+    import json as _json
+    from .blocks import parse_footer_bg, footer_content
+    _save_footer_size(s, form)
+    mode = (form.get("frontend_footer_bg_mode") or "").strip().lower()
+    if mode in ("light", "dark"):
+        s.frontend_footer_bg_mode = mode
+    bg = parse_footer_bg(form)
+    if bg is not None:
+        content = footer_content(s)
+        content["bg"] = bg
+        s.frontend_footer_blocks_json = _json.dumps(content)
 
 
 @public_bp.route("/site-branding/frontend-logo")
@@ -14893,7 +15602,7 @@ def site_frontend_logo():
 
 @public_bp.route("/site-branding/frontend-logo.png")
 def site_frontend_logo_png():
-    """Raster (PNG) version of the header logo (Web Frontend → Header) for
+    """Raster (PNG) version of the header logo (Web Frontend → Branding) for
     HTML emails — email clients don't render SVG. Serves the original when
     it's already a raster, otherwise a same-stem ``.png`` twin. The twin is
     auto-generated on upload (see ``_save_upload``); we also rasterize it
@@ -14941,7 +15650,7 @@ def site_og_image():
 @public_bp.route("/site-branding/frontend-og-image")
 def site_frontend_og_image():
     """Serves the frontend-specific OG image (set on the Web Frontend's
-    Branding & SEO page). Distinct from /site-branding/og-image which
+    Branding page). Distinct from /site-branding/og-image which
     serves the backend OG image used on /tspro pages."""
     s = _get_site_setting()
     if not s.frontend_og_image_filename:
@@ -15073,7 +15782,7 @@ def file_new(slug):
         db.session.add(f)
         db.session.commit()
         flash("File added", "success")
-        return redirect(url_for("main.meeting_detail", slug=m.public_slug) + f"#{category}")
+        return redirect(_meeting_file_return(m, category))
     return render_template("file_form.html", meeting=m, category=category, file=None)
 
 
@@ -15095,7 +15804,7 @@ def file_edit(fid):
         _apply_file_upload(f, request.files.get("file"), request.form.get("media_id"))
         db.session.commit()
         flash("File updated", "success")
-        return redirect(url_for("main.meeting_detail", slug=f.meeting.public_slug) + f"#{f.category}")
+        return redirect(_meeting_file_return(f.meeting, f.category))
     return render_template("file_form.html", meeting=f.meeting, category=f.category, file=f)
 
 
@@ -15152,6 +15861,8 @@ def file_delete(fid):
     activity.log("file.delete", entity_type="meeting_file", entity_id=fid,
                  summary=f"Deleted meeting attachment “{title}” (recoverable for {trash.RETENTION_DAYS} days)")
     flash("File moved to the Delete Log — restorable for 30 days.", "success")
+    if request.form.get("return_to") == "editor":
+        return redirect(url_for("main.meeting_edit", slug=parent_slug) + "#files")
     return redirect(url_for("main.meeting_detail", slug=parent_slug) + f"#{cat}")
 
 
@@ -15193,27 +15904,61 @@ def file_download(fid):
 @bp.route("/libraries")
 @login_required
 def libraries():
-    view = request.args.get("view") or request.cookies.get("view-libraries") or "table"
+    # As on Meetings: sort, direction and view stick (cookies); search
+    # and filters don't. "cards" / "table" are older cookies' names.
+    view = request.args.get("view") or request.cookies.get("view-libraries") or "list"
+    view = "grid" if view in ("grid", "cards") else "list"
     sort = request.args.get("sort") or request.cookies.get("view-libraries-sort") or "name"
+    if sort not in ("name", "files", "meetings"):
+        sort = "name"
     direction = request.args.get("dir") or request.cookies.get("view-libraries-dir") or "asc"
+    if direction not in ("asc", "desc"):
+        direction = "asc"
     # Intergroup Documents and Intergroup Minutes are surfaced via the
     # Intergroup subsection in the sidebar (Email Accounts + Minutes +
     # Documents). They're managed through their dedicated entry points
     # rather than the generic libraries list, so we exclude them here
     # to keep the list focused on regular meeting / fellowship content.
     # Direct deep-link access (/libraries/<id>) still works for editors.
-    # Hide Intergroup-flagged libraries — they're surfaced in the
-    # dedicated Intergroup sidebar subsection instead.
-    items = Library.query.filter(Library.is_intergroup == False).all()  # noqa: E712
+    # `show` is not persisted on purpose: Archived is somewhere you visit
+    # deliberately, and a sticky one would strand an admin on an empty
+    # list after they restore the last archived library.
+    show = "archived" if (request.args.get("show") or "").lower() == "archived" else "active"
+    public = request.args.get("public") or ""
+    if public not in ("shown", "hidden"):
+        public = ""
+    q = (request.args.get("q") or "").strip()
+    base = Library.query.filter(Library.is_intergroup == False)  # noqa: E712
+    active_count = base.filter(Library.archived_at.is_(None)).count()
+    archived_count = base.filter(Library.archived_at.isnot(None)).count()
+    pool = base.filter(
+        Library.archived_at.isnot(None) if show == "archived" else Library.archived_at.is_(None)).all()
+    if q:
+        needle = q.lower()
+        pool = [l for l in pool if needle in l.name.lower() or needle in (l.description or "").lower()]
+    public_counts = {"": len(pool),
+                     "shown": sum(1 for l in pool if l.public_visible),
+                     "hidden": sum(1 for l in pool if not l.public_visible)}
+    items = [l for l in pool if not public or l.public_visible == (public == "shown")]
+    file_counts = {lid: n for lid, n in db.session.query(LibraryItem.library_id, db.func.count(LibraryItem.id))
+                   .group_by(LibraryItem.library_id).all()}
+    meeting_counts = {lid: n for lid, n in db.session.query(MeetingLibrary.library_id, db.func.count(MeetingLibrary.meeting_id))
+                      .group_by(MeetingLibrary.library_id).all()}
+    name_key = lambda l: l.name.lower()
     if sort == "files":
-        items.sort(key=lambda l: (l.items.count(), l.name.lower()))
+        items.sort(key=lambda l: (file_counts.get(l.id, 0), name_key(l)))
+    elif sort == "meetings":
+        items.sort(key=lambda l: (meeting_counts.get(l.id, 0), name_key(l)))
     else:
-        items.sort(key=lambda l: l.name.lower())
+        items.sort(key=name_key)
     if direction == "desc":
         items.reverse()
     resp = current_app.make_response(
         render_template("libraries.html", libraries=items, view=view,
-                        sort=sort, direction=direction))
+                        sort=sort, direction=direction, show=show, public=public, q=q,
+                        active_count=active_count, archived_count=archived_count,
+                        public_counts=public_counts, file_counts=file_counts,
+                        meeting_counts=meeting_counts))
     resp.set_cookie("view-libraries", view, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-libraries-sort", sort, max_age=60*60*24*365, samesite="Lax")
     resp.set_cookie("view-libraries-dir", direction, max_age=60*60*24*365, samesite="Lax")
@@ -15288,8 +16033,86 @@ def library_detail(slug):
     lib = _resolve_library_by_slug(slug) or abort(404)
     if lib.is_intergroup:
         return redirect(url_for("main.intergroup_library_detail",
-                                slug=lib.public_slug), code=301)
-    return render_template("library_detail.html", library=lib)
+                                slug=lib.public_slug, **request.args), code=301)
+    return _library_page(lib)
+
+
+# A library item's kind, for the Kind filter: what the file type key
+# (the ``file_type`` filter) groups under.
+_LIB_KINDS = [("doc", "Documents", "file-text"), ("img", "Images", "image"),
+              ("vid", "Video", "video"), ("aud", "Audio", "music"),
+              ("link", "Links", "link"), ("text", "Text", "type")]
+
+
+def _library_item_kind(r):
+    if not r.stored_filename and not r.url and r.body:
+        return "text"
+    ft = current_app.jinja_env.filters["file_type"](r)
+    if ft in ("img", "vid", "aud", "link"):
+        return ft
+    return "doc"
+
+
+def _library_page(lib):
+    """A library's files in the File Browser layout: search (title, file
+    name, summary, link and categories, live), Category, Kind and Public
+    filters with counts, sort (custom order, name, added, kind), List or
+    Grid, and bulk actions. Custom order can be dragged when nothing is
+    filtered, so the saved order is always the whole library's. Shared by
+    regular and Intergroup libraries."""
+    q_text = (request.args.get("q") or "").strip()
+    cat = request.args.get("cat") or ""
+    kinds = {k for k, _, _ in _LIB_KINDS}
+    kind = request.args.get("kind") if request.args.get("kind") in kinds else ""
+    public = request.args.get("public") if request.args.get("public") in ("shown", "hidden") else ""
+    default_sort = "name_asc" if lib.is_intergroup else "custom_asc"
+    sort = (request.args.get("sort") or default_sort).strip()
+    if sort not in ("custom_asc", "name_asc", "name_desc", "added_desc", "added_asc", "kind_asc", "kind_desc"):
+        sort = default_sort
+    view = request.args.get("view") or request.cookies.get("view-library") or "list"
+    view = "grid" if view == "grid" else "list"
+    cat_ids = {c.id for c in lib.categories}
+    cat_id = int(cat) if cat.isdigit() and int(cat) in cat_ids else None
+
+    items = lib.items.all()  # custom order (position)
+    item_kind = {r.id: _library_item_kind(r) for r in items}
+    if q_text:
+        needle = q_text.lower()
+        def hit(r):
+            hay = " ".join(filter(None, [r.title, r.original_filename, r.summary, r.url]
+                                  + [c.name for c in r.categories])).lower()
+            return needle in hay
+        items = [r for r in items if hit(r)]
+
+    def f_cat(r, c): return c is None or any(x.id == c for x in r.categories)
+    def f_kind(r, k): return not k or item_kind[r.id] == k
+    def f_pub(r, p): return not p or (p == "shown") == bool(r.public_visible)
+    cat_counts = {"": sum(1 for r in items if f_kind(r, kind) and f_pub(r, public))}
+    for c in lib.categories:
+        cat_counts[c.id] = sum(1 for r in items if f_cat(r, c.id) and f_kind(r, kind) and f_pub(r, public))
+    kind_counts = {k: sum(1 for r in items if f_cat(r, cat_id) and f_kind(r, k) and f_pub(r, public))
+                   for k in [""] + [k for k, _, _ in _LIB_KINDS]}
+    public_counts = {p: sum(1 for r in items if f_cat(r, cat_id) and f_kind(r, kind) and f_pub(r, p))
+                     for p in ("", "shown", "hidden")}
+    items = [r for r in items if f_cat(r, cat_id) and f_kind(r, kind) and f_pub(r, public)]
+
+    key, direction = sort.rsplit("_", 1)
+    if key == "name":
+        items.sort(key=lambda r: (r.title or "").lower(), reverse=direction == "desc")
+    elif key == "added":
+        items.sort(key=lambda r: (r.created_at or datetime.min, r.id), reverse=direction == "desc")
+    elif key == "kind":
+        items.sort(key=lambda r: (item_kind[r.id], (r.title or "").lower()), reverse=direction == "desc")
+    filtered = bool(q_text or cat_id or kind or public)
+    can_reorder = (current_user.can_edit_library(lib) and key == "custom" and not filtered)
+    resp = current_app.make_response(render_template(
+        "library_detail.html", library=lib, items=items, item_kind=item_kind,
+        kinds=_LIB_KINDS, q=q_text, cat=cat_id, kind=kind, public=public, sort=sort,
+        default_sort=default_sort, view=view, cat_counts=cat_counts,
+        kind_counts=kind_counts, public_counts=public_counts,
+        can_reorder=can_reorder, total=lib.items.count()))
+    resp.set_cookie("view-library", view, max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
 @bp.route("/libraries/<int:lid>")
@@ -15319,7 +16142,7 @@ def intergroup_library_detail(slug):
     lib = next((l for l in libs if slugify(l.name) == target), None)
     if lib is None:
         abort(404)
-    return render_template("library_detail.html", library=lib)
+    return _library_page(lib)
 
 
 @bp.route("/libraries/<slug>/edit", methods=["GET", "POST"])
@@ -15346,7 +16169,19 @@ def library_edit(slug):
                 and new_name != lib.name
                 and not current_user.is_admin()):
             flash("Only admins can rename Intergroup libraries", "danger")
-            return redirect(url_for("main.library_detail", slug=lib.public_slug))
+            if _post_save_wants_json():
+                return _editor_save_failed()
+            return redirect(url_for("main.library_edit", slug=lib.public_slug))
+        if not new_name:
+            flash("A library needs a name.", "danger")
+            if _post_save_wants_json():
+                return _editor_save_failed()
+            return redirect(url_for("main.library_edit", slug=lib.public_slug))
+        old_slug = lib.public_slug
+        # New categories get their ids on the reload the save bar does
+        # (below); saving their rows again without ids would duplicate.
+        adds_categories = any(n.strip() and not i for i, n in
+                              zip(request.form.getlist("category_id"), request.form.getlist("category_name")))
         lib.name = new_name
         lib.description = request.form.get("description", "").strip()
         lib.alert_message = request.form.get("alert_message", "").strip() or None
@@ -15376,7 +16211,13 @@ def library_edit(slug):
         activity.log("library.update", entity_type="library", entity_id=lib.id,
                      summary=f"Updated library “{lib.name}”")
         flash("Library updated", "success")
-        return redirect(url_for("main.library_detail", slug=lib.public_slug))
+        if _post_save_wants_json():
+            payload = _editor_save_payload(None, None)
+            # A rename moves the page; new categories need their ids.
+            if lib.public_slug != old_slug or adds_categories:
+                payload["redirect"] = url_for("main.library_edit", slug=lib.public_slug)
+            return jsonify(payload)
+        return redirect(url_for("main.library_edit", slug=lib.public_slug))
     return render_template("library_form.html", library=lib)
 
 
@@ -15420,6 +16261,36 @@ def _apply_library_categories(lib, form):
     for cat_id, cat in existing.items():
         if cat_id not in submitted_ids:
             db.session.delete(cat)
+
+
+@bp.route("/libraries/<slug>/archive", methods=["POST"])
+@admin_required
+def library_archive(slug):
+    """Archive a library — hides it from the main list and the public
+    Literature Library page without touching its items or its meeting
+    associations. Mirrors ``meeting_archive``."""
+    from datetime import datetime as _dt
+    lib = _resolve_library_by_slug(slug) or abort(404)
+    lib.archived_at = _dt.utcnow()
+    from . import activity
+    activity.log("library.archive", entity_type="library", entity_id=lib.id,
+                 summary=f"Archived library \u201c{lib.name}\u201d")
+    db.session.commit()
+    flash(f"Archived \u201c{lib.name}\u201d", "success")
+    return redirect(_safe_referrer() or url_for("main.libraries"))
+
+
+@bp.route("/libraries/<slug>/unarchive", methods=["POST"])
+@admin_required
+def library_unarchive(slug):
+    lib = _resolve_library_by_slug(slug) or abort(404)
+    lib.archived_at = None
+    from . import activity
+    activity.log("library.unarchive", entity_type="library", entity_id=lib.id,
+                 summary=f"Restored library \u201c{lib.name}\u201d")
+    db.session.commit()
+    flash(f"Restored \u201c{lib.name}\u201d", "success")
+    return redirect(_safe_referrer() or url_for("main.libraries"))
 
 
 @bp.route("/libraries/<slug>/delete", methods=["POST"])
@@ -15515,7 +16386,7 @@ def reading_new(slug):
                 flash("Add at least one category to this Intergroup library before uploading.", "danger")
             else:
                 flash("Pick at least one category for this upload.", "danger")
-            return redirect(url_for("main.library_detail", slug=lib.public_slug))
+            return redirect(url_for("main.reading_new", slug=lib.public_slug))
         r = LibraryItem(library_id=lib.id, title=request.form["title"].strip(),
                     created_by=current_user.id)
         _apply_reading_form(r, request.form, request.files)
@@ -15527,7 +16398,7 @@ def reading_new(slug):
         activity.log("reading.create", entity_type="reading", entity_id=r.id,
                      summary=f"Added reading “{r.title}” to library “{lib.name}”")
         flash("Item added to library", "success")
-        return redirect(url_for("main.library_detail", slug=lib.public_slug))
+        return redirect(_library_browse_url(lib))
     return render_template("reading_form.html", library=lib, reading=None)
 
 
@@ -15746,7 +16617,28 @@ def markdown_preview():
             body = payload.get("body", "")
             mode = mode or (payload.get("mode") or "").strip().lower()
     body = body or ""
-    filter_name = "markdown_block" if mode == "block" else "markdown"
+    # Announcement / event bodies carry {event_*} tags; resolve them
+    # against the editor's current Starts / Ends so the preview reads
+    # like the public page rather than showing raw tags.
+    if request.form.get("event_tokens") == "1":
+        from .event_tokens import expand
+
+        def _dt(raw):
+            raw = (raw or "").strip()
+            for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"):
+                try:
+                    return datetime.strptime(raw, fmt)
+                except ValueError:
+                    continue
+            return None
+
+        body = expand(body, _dt(request.form.get("event_start")),
+                      _dt(request.form.get("event_end")))
+    if mode == "doc":
+        # The Zoom Tech page: block Markdown plus video players.
+        from .zoom_tech_doc import render as _render_doc
+        return jsonify(html=str(_render_doc(body)[0]))
+    filter_name = {"block": "markdown_block", "inline": "markdown_inline"}.get(mode, "markdown")
     html = str(render_template_string("{{ body|" + filter_name + " }}", body=body))
     return jsonify(html=html)
 
@@ -15791,13 +16683,23 @@ def reading_edit(rid):
         if (r.library.is_intergroup and r.library.categories_required
                 and picker_present and not cats):
             flash("Pick at least one category for this upload.", "danger")
-            return redirect(url_for("main.library_detail", slug=r.library.public_slug))
+            if _post_save_wants_json():
+                return _editor_save_failed()
+            return redirect(url_for("main.reading_edit", rid=r.id))
+        before = (r.stored_filename, r.thumbnail_filename, r.url, bool(r.body))
         _apply_reading_form(r, request.form, request.files)
         if picker_present:
             r.categories = cats
         db.session.commit()
         flash("Item updated", "success")
-        return redirect(url_for("main.library_detail", slug=r.library.public_slug))
+        if _post_save_wants_json():
+            payload = _editor_save_payload(None, None)
+            # A new or removed file or thumbnail, or a switch of what it
+            # opens, changes what the page shows: reload it.
+            if (r.stored_filename, r.thumbnail_filename, r.url, bool(r.body)) != before:
+                payload["redirect"] = url_for("main.reading_edit", rid=r.id)
+            return jsonify(payload)
+        return redirect(url_for("main.reading_edit", rid=r.id))
     return render_template("reading_form.html", library=r.library, reading=r)
 
 
@@ -15810,130 +16712,6 @@ def _library_browse_url(lib):
         from .colors import slugify
         return url_for("main.intergroup_library_detail", slug=slugify(lib.name))
     return url_for("main.library_detail", slug=lib.public_slug)
-
-
-@bp.route("/libraries/<slug>/readings/bulk-categories", methods=["POST"])
-@login_required
-def library_readings_bulk_categories(slug):
-    """Apply a category change to a multi-select set of readings.
-
-    Form fields:
-      ``reading_ids``  — repeated; ids of selected readings
-      ``category_ids`` — repeated; categories to add/remove/replace with
-      ``action``       — ``add`` | ``remove`` | ``replace``
-
-    Per-row authorization mirrors ``User.can_bulk_edit_categories``:
-    rows the user couldn't delete are silently skipped, with a flash
-    summary reporting both the applied + skipped counts so the user
-    knows when their edit was scoped down. Categories from another
-    library (a tampered POST) are silently dropped at the query layer
-    via the ``library_id`` filter."""
-    lib = _resolve_library_by_slug(slug) or abort(404)
-    deny = _require_can_edit_library(lib)
-    if deny is not None:
-        return deny
-    action = request.form.get("action") or "add"
-    if action not in ("add", "remove", "replace"):
-        action = "add"
-    rids = set(request.form.getlist("reading_ids", type=int))
-    cat_ids = set(request.form.getlist("category_ids", type=int))
-    if not rids:
-        flash("Pick at least one file to edit.", "danger")
-        return redirect(_library_browse_url(lib))
-    cats = []
-    if cat_ids:
-        cats = LibraryCategory.query.filter(
-            LibraryCategory.library_id == lib.id,
-            LibraryCategory.id.in_(cat_ids),
-        ).all()
-    # Block "Replace with empty" on libraries that require categories —
-    # otherwise this single click would silently strip every selected
-    # row of its tags, violating the upload-time invariant.
-    if (action == "replace" and not cats and lib.categories_required
-            and lib.is_intergroup):
-        flash("This library requires at least one category — pick one before replacing.", "danger")
-        return redirect(_library_browse_url(lib))
-    readings = LibraryItem.query.filter(
-        LibraryItem.library_id == lib.id,
-        LibraryItem.id.in_(rids),
-    ).all()
-    applied = 0
-    skipped = 0
-    for r in readings:
-        if not current_user.can_bulk_edit_categories(r):
-            skipped += 1
-            continue
-        if action == "add":
-            existing = {c.id for c in r.categories}
-            for c in cats:
-                if c.id not in existing:
-                    r.categories.append(c)
-        elif action == "remove":
-            r.categories = [c for c in r.categories if c.id not in cat_ids]
-        else:  # replace
-            r.categories = list(cats)
-        applied += 1
-    db.session.commit()
-    if applied:
-        word = "file" if applied == 1 else "files"
-        msg = f"Categories updated on {applied} {word}"
-        if skipped:
-            msg += f" ({skipped} skipped — not your uploads)"
-        flash(msg, "success")
-    elif skipped:
-        flash(f"None of the {skipped} selected files are yours to edit.", "warning")
-    else:
-        flash("No matching files found.", "warning")
-    return redirect(_library_browse_url(lib))
-
-
-@bp.route("/libraries/<slug>/readings/bulk-delete", methods=["POST"])
-@login_required
-def library_readings_bulk_delete(slug):
-    """Delete a multi-select set of readings. Per-row authorization
-    mirrors ``User.can_delete_library_item`` (Editors can only delete rows
-    whose creator was another Editor; admin / intergroup_member
-    free-and-clear within a library they can edit; viewers can't
-    delete at all). Stored files + thumbnails are cleaned up via
-    ``_delete_upload`` before the DB row is removed. Skipped rows are
-    silently filtered with a flash summary so the user sees when
-    authorization scoped their action down."""
-    lib = _resolve_library_by_slug(slug) or abort(404)
-    deny = _require_can_edit_library(lib)
-    if deny is not None:
-        return deny
-    rids = set(request.form.getlist("reading_ids", type=int))
-    if not rids:
-        flash("Pick at least one file to delete.", "danger")
-        return redirect(_library_browse_url(lib))
-    readings = LibraryItem.query.filter(
-        LibraryItem.library_id == lib.id,
-        LibraryItem.id.in_(rids),
-    ).all()
-    deleted = 0
-    skipped = 0
-    for r in readings:
-        if not current_user.can_delete_library_item(r):
-            skipped += 1
-            continue
-        if r.stored_filename:
-            _delete_upload(r.stored_filename)
-        if r.thumbnail_filename:
-            _delete_upload(r.thumbnail_filename)
-        db.session.delete(r)
-        deleted += 1
-    db.session.commit()
-    if deleted:
-        word = "file" if deleted == 1 else "files"
-        msg = f"Deleted {deleted} {word}"
-        if skipped:
-            msg += f" ({skipped} skipped — not your uploads)"
-        flash(msg, "success")
-    elif skipped:
-        flash(f"None of the {skipped} selected files are yours to delete.", "warning")
-    else:
-        flash("No matching files found.", "warning")
-    return redirect(_library_browse_url(lib))
 
 
 @bp.route("/libraries/<slug>/readings/reorder", methods=["POST"])
@@ -15957,6 +16735,72 @@ def library_readings_reorder(slug):
             r.position = pos
     db.session.commit()
     return jsonify({"ok": True})
+
+
+@bp.route("/libraries/<slug>/readings/bulk", methods=["POST"])
+@login_required
+def library_readings_bulk(slug):
+    """The library list's bulk bar: add, remove or replace a category,
+    show or hide on the public Literature Library, or delete. Each row
+    keeps its own gate (``can_bulk_edit_categories`` for categories and
+    visibility, ``can_delete_library_item`` for deleting); rows the user
+    can't change are skipped and counted."""
+    lib = _resolve_library_by_slug(slug) or abort(404)
+    deny = _require_can_edit_library(lib)
+    if deny is not None:
+        return deny
+    action = request.form.get("action") or ""
+    ids = [int(i) for i in request.form.getlist("ids") if str(i).isdigit()]
+    rows = LibraryItem.query.filter(LibraryItem.library_id == lib.id, LibraryItem.id.in_(ids)).all() if ids else []
+    cat = None
+    if action in ("add_category", "remove_category", "replace_categories"):
+        cid = request.form.get("cat") or ""
+        cat = next((c for c in lib.categories if str(c.id) == cid), None)
+        if cat is None:
+            flash("Pick a category first.", "danger")
+            return redirect(_safe_referrer() or _library_browse_url(lib))
+    done = skipped = 0
+    for r in rows:
+        if action == "delete":
+            if not current_user.can_delete_library_item(r):
+                skipped += 1
+                continue
+            # Into the Delete Log, like a single delete: restorable.
+            from . import trash, activity
+            activity.log("reading.delete", entity_type="reading", entity_id=r.id,
+                         summary=f"Deleted reading “{r.title}” (recoverable for {trash.RETENTION_DAYS} days)")
+            trash.soft_delete_library_item(r, current_user.id)
+        else:
+            if not current_user.can_bulk_edit_categories(r):
+                skipped += 1
+                continue
+            if action == "add_category" and cat not in r.categories:
+                r.categories.append(cat)
+            elif action == "remove_category":
+                if (lib.is_intergroup and lib.categories_required
+                        and [c for c in r.categories if c.id != cat.id] == []):
+                    skipped += 1
+                    continue
+                r.categories = [c for c in r.categories if c.id != cat.id]
+            elif action == "replace_categories":
+                r.categories = [cat]
+            elif action in ("show", "hide"):
+                r.public_visible = action == "show"
+            else:
+                continue
+        done += 1
+    db.session.commit()
+    verb = {"delete": "Moved to the Delete Log:", "add_category": "Added the category to",
+            "remove_category": "Removed the category from", "replace_categories": "Set the category on",
+            "show": "Showing", "hide": "Hid"}.get(action, "Changed")
+    if done:
+        msg = f"{verb} {done} file{'' if done == 1 else 's'}."
+        if skipped:
+            msg += f" {skipped} skipped: not yours to change{', or it would leave a file with no category' if action == 'remove_category' else ''}."
+        flash(msg, "success")
+    elif skipped:
+        flash(f"None of the {skipped} selected files are yours to change.", "warning")
+    return redirect(_safe_referrer() or _library_browse_url(lib))
 
 
 @bp.route("/readings/<int:rid>/public-visible", methods=["POST"])
@@ -15998,9 +16842,15 @@ def reading_delete(rid):
     from . import trash, activity
     activity.log("reading.delete", entity_type="reading", entity_id=r.id,
                  summary=f"Deleted reading “{title}” (recoverable for {trash.RETENTION_DAYS} days)")
+    lib = r.library
     trash.soft_delete_library_item(r, current_user.id)
     flash("Item moved to the Delete Log — restorable for 30 days.", "success")
-    return redirect(url_for("main.library_detail", slug=parent_slug))
+    # Back to the list it came from (its search and filters), not to the
+    # deleted item's own page.
+    ref = _safe_referrer()
+    if ref and not re.search(r"/readings/%d(?:[/?#]|$)" % rid, ref):
+        return redirect(ref)
+    return redirect(_library_browse_url(lib) if lib else url_for("main.library_detail", slug=parent_slug))
 
 
 # --- helpers ---
@@ -16167,6 +17017,17 @@ def _apply_file_upload(obj, uploaded, media_id):
             obj.stored_filename, obj.original_filename = m.stored_filename, m.original_filename
 
 
+# The File Browser's kind filter: each kind and the ``_media_type``
+# buckets it covers ("zzz" is the SQL bucket for any other extension).
+MEDIA_KINDS = {
+    "img": ("img",),
+    "doc": ("pdf", "doc", "xls", "ppt"),
+    "vid": ("vid",),
+    "aud": ("aud",),
+    "other": ("zzz",),
+}
+
+
 def _media_type(name):
     if not name: return "file"
     ext = name.rsplit(".",1)[-1].lower() if "." in name else ""
@@ -16174,7 +17035,7 @@ def _media_type(name):
     if ext in ("doc","docx","rtf","odt","txt","md"): return "doc"
     if ext in ("xls","xlsx","csv","ods"): return "xls"
     if ext in ("ppt","pptx","odp"): return "ppt"
-    if ext in ("jpg","jpeg","png","gif","webp","svg","bmp"): return "img"
+    if ext in ("jpg","jpeg","png","gif","webp","svg","bmp","avif"): return "img"
     if ext in ("mp4","mov","avi","mkv","webm"): return "vid"
     if ext in ("mp3","wav","m4a","ogg","flac"): return "aud"
     return "file"
@@ -16304,7 +17165,11 @@ def _cleanup_retired_asset(stored):
         token = "/pub/" + m_item.original_filename
         body_refs = (Post.query.filter(Post.body.contains(token)).count()
                      + Story.query.filter(Story.body.contains(token)).count()
-                     + BlogPost.query.filter(BlogPost.body.contains(token)).count())
+                     + BlogPost.query.filter(BlogPost.body.contains(token)).count()
+                     # Block-builder posts, and the block version kept
+                     # when a post is converted to Markdown.
+                     + BlogPost.query.filter(BlogPost.body_blocks_json.contains(token)).count()
+                     + BlogPost.query.filter(BlogPost.body_blocks_backup_json.contains(token)).count())
         if body_refs > 0:
             return
     # Drop any cached thumbnails generated from this source so they
@@ -16329,28 +17194,84 @@ def _cleanup_retired_asset(stored):
 MEDIA_PER_PAGE = 100
 
 
-@bp.route("/files")
-@login_required
-def media_list():
+def _media_browse(args):
+    """The File Browser's files as the query string asks for them:
+    searched, filtered by kind and uploader, and sorted. Shared by the
+    list and a file's own view, whose Previous and Next step through
+    the same files in the same order. Returns the ordered query and the
+    settings it was built from."""
     from sqlalchemy import case, func, or_
-    q = (request.args.get("q") or "").strip().lower()
-    picker = request.args.get("picker") == "1"
-    # Multi-select picker mode — surfaces a checkbox on every item +
-    # a fixed bottom bar with the running count and a "Done — add N"
-    # button that posts a batch ``media-selected-batch`` message back
-    # to the parent. Only meaningful when ``picker=1``.
-    picker_multi = picker and request.args.get("multi") == "1"
-    view = request.args.get("view") or request.cookies.get("view-media") or "list"
-    if view not in ("list", "grid"): view = "list"  # legacy "table" → "list"
-    sort = request.args.get("sort") or request.cookies.get("view-media-sort") or "uploaded"
-    direction = request.args.get("dir") or request.cookies.get("view-media-dir") or "desc"
-    try:
-        page = max(1, int(request.args.get("page") or 1))
-    except (TypeError, ValueError):
-        page = 1
+    q = (args.get("q") or "").strip().lower()
+    sort = args.get("sort") or request.cookies.get("view-media-sort") or "uploaded"
+    direction = args.get("dir") or request.cookies.get("view-media-dir") or "desc"
 
+    query = _media_visible_query()
+    if q:
+        query = query.filter(func.lower(MediaItem.original_filename).contains(q))
+    # Who uploaded it: anyone, or only the signed-in user.
+    mine = args.get("mine") == "1"
+    if mine:
+        query = query.filter(MediaItem.uploaded_by == current_user.id)
+
+    # Each file's type, bucketed by extension as ``_media_type`` does,
+    # in SQL so it can sort and filter. Files of any other extension
+    # are "zzz", which sorts them last.
+    name_col = func.lower(MediaItem.original_filename)
+
+    def _ext_in(*exts):
+        return or_(*[name_col.like("%." + e) for e in exts])
+    type_case = case(
+        (name_col.like("%.pdf"), "pdf"),
+        (_ext_in("doc", "docx", "rtf", "odt", "txt", "md"), "doc"),
+        (_ext_in("xls", "xlsx", "csv", "ods"), "xls"),
+        (_ext_in("ppt", "pptx", "odp"), "ppt"),
+        (_ext_in("jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "avif"), "img"),
+        (_ext_in("mp4", "mov", "avi", "mkv", "webm"), "vid"),
+        (_ext_in("mp3", "wav", "m4a", "ogg", "flac"), "aud"),
+        else_="zzz",
+    )
+    # The kind filter (the picker's sidebar): how many files of each
+    # kind match the search, then just the chosen kind.
+    kind = args.get("kind") or ""
+    if kind not in MEDIA_KINDS:
+        kind = ""
+    kind_counts = {k: 0 for k in MEDIA_KINDS}
+    for bucket, n in query.with_entities(type_case, func.count()).group_by(type_case).all():
+        for k, buckets in MEDIA_KINDS.items():
+            if bucket in buckets:
+                kind_counts[k] += n
+    kind_counts[""] = sum(kind_counts.values())
+    if kind:
+        query = query.filter(type_case.in_(MEDIA_KINDS[kind]))
+
+    if sort == "name":
+        order_cols = [name_col, MediaItem.id]
+    elif sort == "size":
+        order_cols = [MediaItem.size_bytes, MediaItem.id]
+    elif sort == "type":
+        order_cols = [type_case, name_col, MediaItem.id]
+    elif sort == "by":
+        # Who uploaded it; files with no recorded uploader go last
+        # whichever way the list runs.
+        query = query.outerjoin(User, MediaItem.uploaded_by == User.id)
+        order_cols = [func.lower(User.username), name_col, MediaItem.id]
+    else:  # uploaded (created_at)
+        sort = "uploaded"
+        order_cols = [MediaItem.created_at, MediaItem.id]
+
+    if direction != "asc":
+        direction = "desc"
+        order_cols = [c.desc() for c in order_cols]
+    if sort == "by":
+        order_cols = [case((User.username.is_(None), 1), else_=0)] + order_cols
+    return {"query": query.order_by(*order_cols), "q": q, "sort": sort,
+            "direction": direction, "kind": kind, "kind_counts": kind_counts,
+            "mine": mine}
+
+
+def _media_visible_query():
+    """The files the signed-in user may see in the File Browser."""
     query = MediaItem.query
-
     # Site-interface uploads (branding logos, OG images, favicon, etc.)
     # are hidden from the File Browser so administrative uploads don't
     # clutter the content library.
@@ -16371,49 +17292,45 @@ def media_list():
                            if p.featured_image_filename}
         if pending_uploads:
             query = query.filter(MediaItem.stored_filename.notin_(pending_uploads))
+    return query
 
-    if q:
-        query = query.filter(func.lower(MediaItem.original_filename).contains(q))
 
-    # Server-side sort + paginate so the route always returns at most
-    # MEDIA_PER_PAGE rows, regardless of how many files exist. The
-    # ``type`` sort buckets by extension via a CASE expression so the
-    # ordering matches the in-Python ``_media_type`` helper.
-    name_col = func.lower(MediaItem.original_filename)
-    if sort == "name":
-        order_cols = [name_col, MediaItem.id]
-    elif sort == "size":
-        order_cols = [MediaItem.size_bytes, MediaItem.id]
-    elif sort == "type":
-        type_case = case(
-            (name_col.like("%.pdf"), "pdf"),
-            (or_(name_col.like("%.doc"), name_col.like("%.docx"),
-                 name_col.like("%.rtf"), name_col.like("%.odt"),
-                 name_col.like("%.txt"), name_col.like("%.md")), "doc"),
-            (or_(name_col.like("%.xls"), name_col.like("%.xlsx"),
-                 name_col.like("%.csv"), name_col.like("%.ods")), "xls"),
-            (or_(name_col.like("%.ppt"), name_col.like("%.pptx"),
-                 name_col.like("%.odp")), "ppt"),
-            (or_(name_col.like("%.jpg"), name_col.like("%.jpeg"),
-                 name_col.like("%.png"), name_col.like("%.gif"),
-                 name_col.like("%.webp"), name_col.like("%.svg"),
-                 name_col.like("%.bmp"), name_col.like("%.avif")), "img"),
-            (or_(name_col.like("%.mp4"), name_col.like("%.mov"),
-                 name_col.like("%.avi"), name_col.like("%.mkv"),
-                 name_col.like("%.webm")), "vid"),
-            (or_(name_col.like("%.mp3"), name_col.like("%.wav"),
-                 name_col.like("%.m4a"), name_col.like("%.ogg"),
-                 name_col.like("%.flac")), "aud"),
-            else_="zzz",
-        )
-        order_cols = [type_case, name_col, MediaItem.id]
-    else:  # uploaded (created_at)
-        order_cols = [MediaItem.created_at, MediaItem.id]
+def _media_view_args():
+    """The list settings a File Browser link carries: the view, sort,
+    search, filters and picker mode."""
+    a = request.args
+    out = {k: a.get(k) for k in ("view", "sort", "dir", "q", "kind")}
+    out["mine"] = "1" if a.get("mine") == "1" else None
+    if a.get("picker") == "1":
+        out["picker"] = "1"
+        out["embed"] = "1"
+        out["multi"] = "1" if a.get("multi") == "1" else None
+    elif a.get("embed") == "1":
+        out["embed"] = "1"
+    return {k: v for k, v in out.items() if v}
 
-    if direction == "desc":
-        order_cols = [c.desc() for c in order_cols]
-    query = query.order_by(*order_cols)
 
+@bp.route("/files")
+@login_required
+def media_list():
+    picker = request.args.get("picker") == "1"
+    # Multi-select picker mode — surfaces a checkbox on every item +
+    # a fixed bottom bar with the running count and a "Done — add N"
+    # button that posts a batch ``media-selected-batch`` message back
+    # to the parent. Only meaningful when ``picker=1``.
+    picker_multi = picker and request.args.get("multi") == "1"
+    view = request.args.get("view") or request.cookies.get("view-media") or "list"
+    if view not in ("list", "grid"): view = "list"  # legacy "table" → "list"
+    try:
+        page = max(1, int(request.args.get("page") or 1))
+    except (TypeError, ValueError):
+        page = 1
+
+    b = _media_browse(request.args)
+    query = b["query"]
+
+    # Server-side paginate so the route always returns at most
+    # MEDIA_PER_PAGE rows, regardless of how many files exist.
     total = query.count()
     pages = max(1, (total + MEDIA_PER_PAGE - 1) // MEDIA_PER_PAGE)
     if page > pages:
@@ -16429,15 +17346,133 @@ def media_list():
     }
 
     resp = current_app.make_response(
-        render_template("media.html", items=items, q=q, picker=picker,
+        render_template("media.html", items=items, q=b["q"], picker=picker,
                         picker_multi=picker_multi, view=view,
-                        sort=sort, direction=direction, media_type=_media_type,
-                        pagination=pagination))
+                        sort=b["sort"], direction=b["direction"], media_type=_media_type,
+                        pagination=pagination, kind=b["kind"], kind_counts=b["kind_counts"],
+                        mine=b["mine"]))
     if not picker:
         resp.set_cookie("view-media", view, max_age=60*60*24*365, samesite="Lax")
-        resp.set_cookie("view-media-sort", sort, max_age=60*60*24*365, samesite="Lax")
-        resp.set_cookie("view-media-dir", direction, max_age=60*60*24*365, samesite="Lax")
+        resp.set_cookie("view-media-sort", b["sort"], max_age=60*60*24*365, samesite="Lax")
+        resp.set_cookie("view-media-dir", b["direction"], max_age=60*60*24*365, samesite="Lax")
     return resp
+
+
+# What each ``_media_type`` bucket is called on a file's own view.
+MEDIA_TYPE_LABELS = {"pdf": "PDF document", "doc": "Document", "xls": "Spreadsheet",
+                     "ppt": "Presentation", "img": "Image", "vid": "Video",
+                     "aud": "Audio", "file": "File"}
+
+
+def _media_image_facts(path):
+    """An image's size in pixels and, from its EXIF, when it was taken
+    and on what camera. Read from the file's header only; anything
+    unreadable is left out."""
+    facts = {}
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            facts["dimensions"] = im.size
+            exif = im.getexif()
+            if exif:
+                # 0x8769 is the Exif sub-IFD, which holds DateTimeOriginal
+                # (0x9003); Make (0x010F) and Model (0x0110) sit in IFD0.
+                taken = exif.get_ifd(0x8769).get(0x9003) or exif.get(0x0132)
+                if taken:
+                    try:
+                        facts["taken"] = datetime.strptime(str(taken).strip("\x00 "), "%Y:%m:%d %H:%M:%S")
+                    except ValueError:
+                        pass
+                make = str(exif.get(0x010F) or "").strip("\x00 ")
+                model = str(exif.get(0x0110) or "").strip("\x00 ")
+                if model and make and not model.lower().startswith(make.lower().split()[0]):
+                    model = make + " " + model
+                if model or make:
+                    facts["camera"] = model or make
+    except Exception:  # noqa: BLE001 — a file Pillow can't read just has no facts
+        pass
+    return facts
+
+
+def _media_usages(m):
+    """Where a file is used: meeting files and logos, library items and
+    their covers, and the posts, stories, blog posts and pages that show
+    it. Each is (kind, title, url or None); a link is given only where
+    the signed-in user can open it."""
+    stored, can_edit = m.stored_filename, current_user.can_edit()
+    out = []
+    for f in MeetingFile.query.filter_by(stored_filename=stored).all():
+        if f.meeting:
+            out.append(("Meeting file", f"{f.meeting.name}: {f.title}",
+                        url_for("main.meeting_detail", slug=f.meeting.public_slug)))
+    for mt in Meeting.query.filter_by(logo_filename=stored).all():
+        out.append(("Meeting logo", mt.name, url_for("main.meeting_detail", slug=mt.public_slug)))
+    for r in LibraryItem.query.filter(db.or_(LibraryItem.stored_filename == stored,
+                                          LibraryItem.thumbnail_filename == stored)).all():
+        kind = "Library item" if r.stored_filename == stored else "Library cover"
+        lib = r.library
+        out.append((kind, f"{lib.name}: {r.title}" if lib else r.title,
+                    url_for("main.library_detail_legacy", lid=lib.id) if lib else None))
+    token = '"' + stored.replace('"', '\\"') + '"'
+    body = "/pub/" + m.original_filename if m.original_filename else None
+    posts = Post.query.filter(db.or_(Post.featured_image_filename == stored,
+                                  Post.gallery_json.contains(token),
+                                  *([Post.body.contains(body)] if body else []))).all()
+    for p in posts:
+        out.append(("Post", p.title, url_for("main.post_edit", pid=p.id) if can_edit else None))
+    for st in Story.query.filter(db.or_(Story.featured_image_filename == stored,
+                                     *([Story.body.contains(body)] if body else []))).all():
+        out.append(("Story", st.title, url_for("main.story_edit", sid=st.id) if can_edit else None))
+    blog_conds = [BlogPost.featured_image_filename == stored]
+    if body:
+        blog_conds += [BlogPost.body.contains(body), BlogPost.body_blocks_json.contains(body)]
+    for bp_ in BlogPost.query.filter(db.or_(*blog_conds)).all():
+        out.append(("Blog post", bp_.title, url_for("main.blog_edit", bid=bp_.id) if can_edit else None))
+    page_conds = [Page.bg_image_filename == stored, Page.blocks_json.contains(token)]
+    if body:
+        page_conds.append(Page.blocks_json.contains(body))
+    for pg in Page.query.filter(db.or_(*page_conds)).all():
+        out.append(("Page", pg.title, url_for("main.frontend_page_edit", page_id=pg.id)
+                    if current_user.can_edit_frontend() else None))
+    return out
+
+
+@bp.route("/files/media/<int:mid>")
+@login_required
+def media_file(mid):
+    """A file's own view: the file itself beside its details, its path
+    and where it's used. Previous and Next step through the File
+    Browser's files as the list was searched, filtered and sorted."""
+    import mimetypes
+    m = (_media_visible_query().filter(MediaItem.id == mid).first()
+         or abort(404))
+    picker = request.args.get("picker") == "1"
+    args = _media_view_args()
+
+    ids = [i for (i,) in _media_browse(request.args)["query"]
+           .with_entities(MediaItem.id).all()]
+    pos = ids.index(m.id) if m.id in ids else -1
+    prev_id = ids[pos - 1] if pos > 0 else None
+    next_id = ids[pos + 1] if 0 <= pos < len(ids) - 1 else None
+    # Back lands on the list's page that holds this file.
+    back_page = pos // MEDIA_PER_PAGE + 1 if pos >= 0 else None
+
+    path = os.path.join(current_app.config["UPLOAD_FOLDER"], m.stored_filename)
+    on_disk = os.path.isfile(path)
+    t = _media_type(m.original_filename)
+    facts = _media_image_facts(path) if on_disk and t == "img" else {}
+    ext = (m.original_filename.rsplit(".", 1)[-1].lower()
+           if m.original_filename and "." in m.original_filename else "")
+    return render_template(
+        "media_file.html", m=m, t=t, ext=ext, picker=picker,
+        picker_multi=picker and request.args.get("multi") == "1",
+        args=args, prev_id=prev_id, next_id=next_id,
+        position=pos + 1 if pos >= 0 else None, count=len(ids),
+        back_url=url_for("main.media_list", **args,
+                         **({"page": back_page} if back_page and back_page > 1 else {})),
+        type_label=MEDIA_TYPE_LABELS.get(t, "File"),
+        mime=m.mime_type or mimetypes.guess_type(m.original_filename or "")[0],
+        on_disk=on_disk, facts=facts, usages=_media_usages(m))
 
 
 @bp.route("/files/upload", methods=["POST"])
@@ -16527,10 +17562,18 @@ def media_delete(mid):
                      summary=f"Deleted file “{name}” from File Browser (recoverable for {trash.RETENTION_DAYS} days)")
         trash.soft_delete_media(m, current_user.id)
         flash("File moved to the Delete Log — restorable for 30 days.", "success")
+    # A file's own view sends the list it came from (search, filters,
+    # sort), so the delete lands back there; anything else is ignored.
+    back = request.form.get("back") or ""
+    if back.startswith(url_for("main.media_list") + "?") and "//" not in back:
+        return redirect(back)
     return redirect(url_for("main.media_list"))
 
 
-@bp.route("/files/<int:mid>/download")
+# Under "media" for the same reason as media_delete: "/files/<int>/download"
+# is file_download's (a meeting file), which registered first and
+# answered for this one, serving the meeting file with the same number.
+@bp.route("/files/media/<int:mid>/download")
 @login_required
 def media_download(mid):
     m = db.session.get(MediaItem, mid) or abort(404)
@@ -16544,6 +17587,22 @@ def media_download(mid):
 def media_info(mid):
     m = db.session.get(MediaItem, mid) or abort(404)
     return jsonify(_media_json(m))
+
+
+@bp.route("/dynbg/patterns.json")
+@login_required
+def dynbg_patterns_json():
+    """The Pattern-tile motif catalogue (vendored from Pattern Monster,
+    MIT) for the picker's live preview. ~1MB, so it's fetched lazily
+    the first time the preset is selected rather than stamped into
+    every admin page alongside the preset caps."""
+    from . import dynbg as _dynbg
+    from flask import jsonify
+    resp = jsonify({"source": _dynbg.PATTERNS_SOURCE,
+                    "mode_attrs": _dynbg.PATTERN_MODE_ATTRS,
+                    "patterns": _dynbg.PATTERNS})
+    resp.headers["Cache-Control"] = "private, max-age=3600"
+    return resp
 
 
 @bp.route("/files/images.json")
@@ -16824,6 +17883,59 @@ def timezone_save():
     return redirect(_safe_referrer() or url_for("main.index"))
 
 
+@bp.route("/settings/alert-save", methods=["POST"])
+@admin_required
+def alert_save():
+    """Settings > Alert bar. The version goes up when the message or the
+    details change or the bar is turned on again, so people who closed
+    the old one see the new one."""
+    s = _get_site_setting()
+    f = request.form
+    enabled = f.get("alert_enabled") == "1"
+    message = (f.get("alert_message") or "").strip()[:2000] or None
+    details = (f.get("alert_details") or "").strip()[:20000] or None
+    if ((message or "") != (s.alert_message or "") or (details or "") != (s.alert_details or "")
+            or (enabled and not s.alert_enabled)):
+        s.alert_version = (s.alert_version or 0) + 1
+    # Posted: what the admin typed, if they changed it; otherwise now, when
+    # the message changes or the bar is turned on (or it was never set).
+    posted_raw = (f.get("alert_posted_at") or "").strip()
+    before = s.alert_posted_at.strftime("%Y-%m-%dT%H:%M") if s.alert_posted_at else ""
+    if posted_raw and posted_raw != before:
+        try:
+            s.alert_posted_at = datetime.strptime(posted_raw, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            pass
+    elif ((message or "") != (s.alert_message or "") or (enabled and not s.alert_enabled)
+            or not s.alert_posted_at):
+        from .timezone import now_local_naive
+        s.alert_posted_at = now_local_naive(s).replace(second=0, microsecond=0) if message else s.alert_posted_at
+    s.alert_show_posted = f.get("alert_show_posted") == "1"
+    s.alert_details = details
+    s.alert_details_enabled = f.get("alert_details_enabled") == "1"
+    s.alert_title = (f.get("alert_title") or "").strip()[:200] or None
+    s.alert_enabled = enabled
+    s.alert_message = message
+    tone = f.get("alert_tone") or "info"
+    s.alert_tone = tone if tone in dict((k, 1) for k, _l, _i in ALERT_TONES) else "info"
+    keys = [k for k, _l, _h in ALERT_PLACES]
+    s.alert_places = ",".join(k for k in keys if k in f.getlist("alert_places"))
+    s.alert_dismissible = f.get("alert_dismissible") == "1"
+    until = (f.get("alert_until") or "").strip()
+    try:
+        s.alert_until = datetime.strptime(until, "%Y-%m-%dT%H:%M") if until else None
+    except ValueError:
+        s.alert_until = None
+    db.session.commit()
+    if enabled and not message:
+        flash("Alert bar saved; it shows once it has a message", "warning")
+    elif enabled and not s.alert_places:
+        flash("Alert bar saved; pick where it shows", "warning")
+    else:
+        flash("Alert bar saved", "success")
+    return redirect(_safe_referrer() or url_for("main.index"))
+
+
 @bp.route("/settings/email-test", methods=["POST"])
 @admin_required
 def email_test():
@@ -16913,36 +18025,64 @@ ACCESS_ROLE_OPTIONS = [
 ]
 
 
+@public_bp.app_context_processor
+def _inject_access_roles():
+    """The Request Access form's roles, for the sign-in page and the
+    public site's popup (frontend/_request_access_modal.html)."""
+    return {"ACCESS_ROLE_OPTIONS": ACCESS_ROLE_OPTIONS}
+
+
 @public_bp.route("/request-access", methods=["POST"])
 def request_access_submit():
     import json
     from flask import jsonify as _jsonify
     from .mail import send_mail
 
-    name = (request.form.get("name") or "").strip()
-    phone = (request.form.get("phone") or "").strip()
-    email = (request.form.get("email") or "").strip()
+    name = (request.form.get("name") or "").strip()[:200]
+    phone = (request.form.get("phone") or "").strip()[:64]
+    email = (request.form.get("email") or "").strip()[:255]
     roles = [r for r in request.form.getlist("roles") if r in ACCESS_ROLE_OPTIONS]
-    meeting_name = (request.form.get("meeting_name") or "").strip() or None
+    meeting_name = (request.form.get("meeting_name") or "").strip()[:200] or None
+    message = (request.form.get("message") or "").strip()[:2000] or None
 
     wants_json = request.headers.get("X-Requested-With") == "fetch" \
                  or request.accept_mimetypes.best == "application/json"
+    thanks = "Thanks, your request has been submitted. An administrator will follow up by email."
 
-    if not name or not phone or not email or not roles:
-        msg = "Name, phone, email, and at least one role are required."
+    # The form is on the public site too (frontend/_request_access_modal
+    # .html), so it has the public forms' guards. A filled honeypot is a
+    # bot: answer as if it worked, write nothing, send nothing.
+    if (request.form.get("website") or "").strip():
+        if wants_json:
+            return _jsonify(ok=True, emailed=True, error=None)
+        flash(thanks, "success")
+        return redirect(url_for("auth.login"))
+
+    def _refuse(msg):
         if wants_json:
             return _jsonify(ok=False, error=msg), 400
         flash(msg, "danger")
         return redirect(url_for("auth.login"))
 
+    if not name or not phone or not email or not roles:
+        return _refuse("Name, phone, email, and at least one role are required.")
+    if "@" not in email or "." not in email.split("@", 1)[-1]:
+        return _refuse("That email address doesn't look right. Check it and try again.")
+
+    s = _get_site_setting()
+    if s.turnstile_enabled:
+        from .auth import _verify_turnstile
+        ok, err = _verify_turnstile(s, request.form.get("cf-turnstile-response", ""), request.remote_addr)
+        if not ok:
+            return _refuse(err or "The security check failed. Please try again.")
+
     from .frontend import _client_ip
     req = AccessRequest(name=name, phone=phone, email=email,
-                        roles_json=json.dumps(roles), meeting_name=meeting_name,
+                        roles_json=json.dumps(roles), meeting_name=meeting_name, message=message,
                         ip_address=(_client_ip() or "")[:64] or None)
     db.session.add(req)
     db.session.commit()
 
-    s = _get_site_setting()
     mail_error = None
     if s.mail_ready() and s.access_request_to:
         lines = [
@@ -16955,6 +18095,8 @@ def request_access_submit():
         ]
         if meeting_name:
             lines.append(f"Meeting: {meeting_name}")
+        if message:
+            lines += ["", "Message:", message]
         lines += ["", "Review pending requests in the portal under Access Requests."]
         # Branded HTML twin — same style as every other form email.
         from .frontend import _render_branded_email, _branded_field
@@ -16971,6 +18113,7 @@ def request_access_submit():
                 _branded_field("Email", email, "email"),
                 _branded_field("Roles", ", ".join(roles)),
                 _branded_field("Meeting", meeting_name),
+                _branded_field("Message", message),
             ],
             cta_url=review_url, cta_label="Review access requests",
         )
@@ -16982,7 +18125,7 @@ def request_access_submit():
 
     if wants_json:
         return _jsonify(ok=True, emailed=mail_error is None, error=mail_error)
-    flash("Thanks — your request has been submitted. An administrator will follow up by email.", "success")
+    flash(thanks, "success")
     return redirect(url_for("auth.login"))
 
 
@@ -17023,16 +18166,48 @@ def watchtower():
     attempts, top suspicious IPs, and recent admin activity. Polls
     nothing — every panel renders from a fresh DB read so a refresh
     always shows current state."""
-    from . import watchtower as wt
+    from . import watchtower as wt, charts
     from .timezone import site_tz_label
     site = SiteSetting.query.first()
+    daily = wt.daily_visits(days=30)
+    hourly_fail = wt.hourly_failed_logins(hours=24, site=site)
+
+    # Hits is the filled headline series; uniques rides as a dashed line
+    # on the SAME axis — never a second y-scale, which would let the two
+    # series be scaled into any relationship you like.
+    visits_chart = charts.time_chart(
+        daily,
+        [{"key": "views", "name": "Hits", "color": "rgb(59,130,246)", "fill": True},
+         {"key": "uniques", "name": "Unique visitors", "color": "rgb(16,185,129)",
+          "dashed": True}],
+        label_key="day", label_fmt=_chart_day_label, width=900, height=240)
+
+    # Severity colouring lives with the chart, not the template: grey is
+    # ordinary noise, amber a cluster, red a run worth acting on.
+    def _fail_color(v):
+        if v > 10:
+            return "rgb(220,38,38)"
+        if v > 3:
+            return "rgb(245,158,11)"
+        return "rgb(148,163,184)"
+
+    fail_chart = charts.bar_chart(
+        hourly_fail, value_key="count", label_key="hour",
+        label_fmt=lambda h: (str(h)[-2:] + ":00") if h else "",
+        color_fn=_fail_color, series_name="Attempts",
+        width=900, height=200)
+
     return render_template(
         "watchtower/overview.html",
         active_tab="overview",
         kpis=wt.overview_kpis(),
-        daily=wt.daily_visits(days=30),
+        daily=daily,
+        visits_chart=visits_chart,
+        visits_peak=max([d["views"] for d in daily], default=0),
+        fail_chart=fail_chart,
+        total_fail_24h=sum(h["count"] for h in hourly_fail),
         tz_label=site_tz_label(site),
-        hourly_fail=wt.hourly_failed_logins(hours=24, site=site),
+        hourly_fail=hourly_fail,
         anomalies=wt.anomaly_signals(),
         top_ips=wt.top_failed_login_ips(days=7, limit=10),
         recent=wt.recent_admin_activity(limit=12),
@@ -17277,19 +18452,36 @@ def watchtower_not_found():
         # to the username — the table greys out their Block button.
         trusted_ips = wt.recent_login_user_ips(recent_ips)
 
+    # Chart geometry is built server-side (app/charts.py) so the template
+    # renders numbers rather than doing arithmetic, and every Watchtower
+    # chart lands on the same axis + hover behaviour.
+    from . import charts
+    daily = wt.not_found_daily(days=window)
+    nf_chart = charts.time_chart(
+        daily,
+        [{"key": "count", "name": "404s", "color": "rgb(245,158,11)", "fill": True}],
+        label_key="day", label_fmt=_chart_day_label,
+        width=900, height=260)
+
     return render_template(
         "watchtower/not_found.html",
         active_tab="not-found",
         window=window,
         windows=(7, 14, 30, 60, 90, 180, 365),
         summary=wt.not_found_summary(days=window),
-        daily=wt.not_found_daily(days=window),
+        daily=daily,
+        nf_chart=nf_chart,
+        chart_peak=max([d["count"] for d in daily], default=0),
         top_paths=top_paths,
         top_referrers=wt.top_404_referrers(days=window, limit=300),
+        top_ips=wt.top_404_ips(days=window, limit=300),
         recent=recent,
         existing_redirects=existing_redirects,
         blocked_ips=blocked_ips,
         trusted_ips=trusted_ips,
+        # Lets the lists flag the admin's own address before they click,
+        # and feeds the self-block confirmation modal.
+        self_ip=_requester_ip(),
     )
 
 
@@ -17350,7 +18542,8 @@ def watchtower_not_found_path_ips():
         window = 30
     ips = wt.not_found_ips_for_path(path, days=window, limit=25)
     return render_template("watchtower/_not_found_ips.html",
-                           path=path, ips=ips, window=window)
+                           path=path, ips=ips, window=window,
+                           self_ip=_requester_ip())
 
 
 @bp.route("/watchtower/access")
@@ -17561,6 +18754,24 @@ def watchtower_requests():
                            blocked_ips=blocked_ips)
 
 
+def _chart_day_label(day):
+    """'2026-09-16' -> 'Sep 16' for a chart's x-axis. Falls back to the
+    raw value for anything that isn't an ISO day bucket."""
+    try:
+        return datetime.strptime(day, "%Y-%m-%d").strftime("%b %d")
+    except (TypeError, ValueError):
+        return str(day or "")
+
+
+def _requester_ip():
+    """The IP the current request came from, normalised the same way the
+    block gate in ``create_app()`` reads it — ProxyFix has already
+    rewritten ``remote_addr`` from X-Forwarded-For where trusted. Used to
+    recognise an admin's own address so they can't ban themselves by
+    accident."""
+    return (request.remote_addr or "").strip()
+
+
 @bp.route("/watchtower/ban-ip", methods=["POST"])
 @admin_required
 def watchtower_ban_ip():
@@ -17583,12 +18794,38 @@ def watchtower_ban_ip():
             return jsonify(ok=False, error="Provide an IP to block."), 400
         flash("Provide an IP to block.", "danger")
         return redirect(url_for("main.watchtower_access"))
+    # Guard the admin's own IP. The block gate in create_app() is
+    # unconditional — it 403s every inbound request from a blocked IP
+    # ahead of routing, with no exemption for signed-in admins — so
+    # banning the address you're currently browsing from locks you out
+    # of the entire portal with no in-app way back. Every Block surface
+    # posts here, so this is the one place that can guarantee the
+    # confirmation happened. ``confirm_self`` is what the self-block
+    # modal sends once the admin has acknowledged the lockout.
+    if ip == _requester_ip() and not request.form.get("confirm_self"):
+        msg = (f"Didn't block {ip} — that's the IP you're browsing from "
+               "right now. Blocking it would lock you out of the portal "
+               "entirely. Confirm from the warning dialog if you really "
+               "mean to.")
+        if wants_json:
+            return jsonify(ok=False, error=msg, self_ip=True), 409
+        flash(msg, "warning")
+        return redirect(_safe_return_url(request.form.get("return_url"),
+                                         "main.watchtower_access"))
     # Guard real users: the 404s-tab Block buttons send ``protect_known_users``
     # so we refuse to block an IP a signed-in user was active from in the last
     # 30 days (the button is also greyed there, this is belt-and-suspenders).
     # The Access / overview block forms don't send it, so an admin can still
     # deliberately block such an IP from those surfaces.
-    if request.form.get("protect_known_users"):
+    #
+    # Exception: the admin's own address, once they've confirmed the
+    # self-block warning. That guard exists to stop an admin locking out a
+    # real user by accident — but here the admin *is* the recent user on
+    # that IP, and they've just acknowledged a dialog that spells out the
+    # lockout in full. Leaving it armed would make the confirmation
+    # unreachable: your own IP is almost always a recent-login IP.
+    _self_confirmed = (ip == _requester_ip() and request.form.get("confirm_self"))
+    if request.form.get("protect_known_users") and not _self_confirmed:
         known_user = wt.recent_login_user_for_ip(ip)
         if known_user:
             msg = (f"Didn't block {ip} — {known_user} signed in from this IP "
@@ -17828,30 +19065,94 @@ def watchtower_request_delete(rid):
 # sections feel like siblings.
 
 
+def _contact_show_filter(q, show):
+    """The inbox's sections: everything not archived, the unread part of
+    it, and the archive."""
+    C = ContactSubmission
+    if show == "archived":
+        return q.filter(C.is_archived.is_(True))
+    if show == "unread":
+        return q.filter(C.is_archived.is_(False), C.is_read.is_(False))
+    return q.filter(C.is_archived.is_(False))
+
+
+def _contact_delivery_filter(q, delivery):
+    C = ContactSubmission
+    if delivery == "sent":
+        return q.filter(C.email_sent.is_(True))
+    if delivery == "failed":
+        return q.filter(db.or_(C.email_sent.is_(False), C.email_sent.is_(None)))
+    return q
+
+
 @bp.route("/contact-form")
 @admin_required
 def contact_form():
+    """Contact Form messages in the File Browser layout: search (live),
+    Inbox / Unread / Archived with counts, an Email filter (sent or not),
+    sort, List or Grid, and bulk actions. Each message opens on its own
+    page (``contact_message``)."""
+    C = ContactSubmission
     s = _get_site_setting()
-    view = (request.args.get("view") or "active").strip().lower()
-    if view not in ("active", "archived"):
-        view = "active"
-    q = ContactSubmission.query
-    if view == "archived":
-        q = q.filter(ContactSubmission.is_archived.is_(True))
-        items = q.order_by(ContactSubmission.archived_at.desc().nullslast(),
-                           ContactSubmission.created_at.desc()).all()
-    else:
-        q = q.filter(ContactSubmission.is_archived.is_(False))
-        # Active list: unread first so new messages catch the eye, then
-        # most-recent-first within each group.
-        items = q.order_by(ContactSubmission.is_read.asc(),
-                           ContactSubmission.created_at.desc()).all()
-    archived_count = ContactSubmission.query.filter_by(is_archived=True).count()
-    active_count = ContactSubmission.query.filter_by(is_archived=False).count()
-    unread_count = ContactSubmission.query.filter_by(is_archived=False, is_read=False).count()
-    return render_template("contact_form.html", site=s, items=items, view=view,
-                           archived_count=archived_count, active_count=active_count,
-                           unread_count=unread_count)
+    show = (request.args.get("show") or request.args.get("view") or "inbox").strip().lower()
+    if show == "active":
+        show = "inbox"
+    if show not in ("inbox", "unread", "archived"):
+        show = "inbox"
+    delivery = request.args.get("delivery") if request.args.get("delivery") in ("sent", "failed") else ""
+    sort = (request.args.get("sort") or request.cookies.get("view-contact-sort") or "received_desc").strip()
+    view = request.args.get("view") if request.args.get("view") in ("list", "grid") else (request.cookies.get("view-contact") or "list")
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
+
+    base = C.query
+    if q_text:
+        like = f"%{q_text}%"
+        base = base.filter(db.or_(C.name.ilike(like), C.email.ilike(like), C.phone.ilike(like),
+                                  C.subject.ilike(like), C.message.ilike(like)))
+    show_counts = {k: _contact_delivery_filter(_contact_show_filter(base, k), delivery).count()
+                   for k in ("inbox", "unread", "archived")}
+    in_show = _contact_show_filter(base, show)
+    delivery_counts = {k: _contact_delivery_filter(in_show, k).count() for k in ("", "sent", "failed")}
+    q = _contact_delivery_filter(in_show, delivery)
+    orders = {
+        "received_desc": [C.created_at.desc(), C.id.desc()],
+        "received_asc": [C.created_at.asc(), C.id.asc()],
+        "name_asc": [db.func.lower(C.name).asc(), C.created_at.desc()],
+        "name_desc": [db.func.lower(C.name).desc(), C.created_at.desc()],
+    }
+    if sort not in orders:
+        sort = "received_desc"
+    items = q.order_by(*orders[sort]).all()
+    resp = current_app.make_response(render_template(
+        "contact_form.html", site=s, items=items, show=show, delivery=delivery,
+        sort=sort, view=view, q=q_text, show_counts=show_counts,
+        delivery_counts=delivery_counts))
+    resp.set_cookie("view-contact", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-contact-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
+
+
+@bp.route("/contact-form/<int:cid>")
+@admin_required
+def contact_message(cid):
+    """One message on its own page. Opening it marks it read."""
+    sub = db.session.get(ContactSubmission, cid) or abort(404)
+    if not sub.is_read:
+        sub.is_read = True
+        db.session.commit()
+    return render_template("contact_message.html", c=sub)
+
+
+def _contact_back(cid=None, leave=False):
+    """Where a Contact Form action returns: the page it came from,
+    except the message's own page when the action means leaving it
+    (``leave``: deleted, or marked unread, which opening would undo)."""
+    ref = _safe_referrer()
+    on_page = bool(ref and cid and re.search(r"/contact-form/%d(?:[/?#]|$)" % cid, ref))
+    if ref and not (leave and on_page):
+        return redirect(ref)
+    return redirect(url_for("main.contact_form"))
 
 
 @bp.route("/contact-form/<int:cid>/read", methods=["POST"])
@@ -17860,8 +19161,7 @@ def contact_submission_toggle_read(cid):
     sub = db.session.get(ContactSubmission, cid) or abort(404)
     sub.is_read = not sub.is_read
     db.session.commit()
-    return redirect(url_for("main.contact_form",
-                            view=request.form.get("view") or "active"))
+    return _contact_back(cid, leave=not sub.is_read)
 
 
 @bp.route("/contact-form/<int:cid>/archive", methods=["POST"])
@@ -17874,8 +19174,7 @@ def contact_submission_archive(cid):
         sub.is_read = True
     db.session.commit()
     flash("Message archived", "success")
-    return redirect(url_for("main.contact_form",
-                            view=request.form.get("view") or "active"))
+    return _contact_back(cid)
 
 
 @bp.route("/contact-form/<int:cid>/unarchive", methods=["POST"])
@@ -17886,8 +19185,7 @@ def contact_submission_unarchive(cid):
     sub.archived_at = None
     db.session.commit()
     flash("Message restored", "success")
-    return redirect(url_for("main.contact_form",
-                            view=request.form.get("view") or "archived"))
+    return _contact_back(cid)
 
 
 @bp.route("/contact-form/<int:cid>/delete", methods=["POST"])
@@ -17901,8 +19199,38 @@ def contact_submission_delete(cid):
     db.session.delete(sub)
     db.session.commit()
     flash("Message deleted", "success")
-    return redirect(url_for("main.contact_form",
-                            view=request.form.get("view") or "active"))
+    return _contact_back(cid, leave=True)
+
+
+@bp.route("/contact-form/bulk", methods=["POST"])
+@admin_required
+def contact_submissions_bulk():
+    """Mark read or unread, archive, restore or delete the ticked
+    messages."""
+    from . import activity
+    action = request.form.get("action")
+    ids = [int(i) for i in request.form.getlist("ids") if str(i).isdigit()]
+    rows = ContactSubmission.query.filter(ContactSubmission.id.in_(ids)).all() if ids else []
+    for c in rows:
+        if action == "read":
+            c.is_read = True
+        elif action == "unread":
+            c.is_read = False
+        elif action == "archive":
+            c.is_archived, c.archived_at, c.is_read = True, datetime.utcnow(), True
+        elif action == "unarchive":
+            c.is_archived, c.archived_at = False, None
+        elif action == "delete":
+            activity.log("contact_submission.delete",
+                         entity_type="contact_submission", entity_id=c.id,
+                         summary=f"Deleted contact message from {c.name} <{c.email}>")
+            db.session.delete(c)
+    db.session.commit()
+    verb = {"read": "Marked read", "unread": "Marked unread", "archive": "Archived",
+            "unarchive": "Restored", "delete": "Deleted"}.get(action)
+    if verb and rows:
+        flash(f"{verb}: {len(rows)} message{'' if len(rows) == 1 else 's'}.", "success")
+    return redirect(_safe_referrer() or url_for("main.contact_form"))
 
 
 # --- First-run setup wizard ---
@@ -17914,8 +19242,8 @@ WIZARD_STEPS = [
      "desc": "Shown to members in the Need Help popup. Leave blank if your group doesn't have one yet."},
     {"n": 3, "key": "smtp", "title": "Email (SMTP)",
      "desc": "Used for sending access-request notifications and test emails."},
-    {"n": 4, "key": "theme", "title": "Pick a theme",
-     "desc": "Choose the look you want. Themes are saved per-user in your browser."},
+    {"n": 4, "key": "theme", "title": "Light or dark",
+     "desc": "How the portal looks for your account. Follow system matches your device. You can change it later in Settings → Appearance."},
     {"n": 5, "key": "branding", "title": "Branding",
      "desc": "Optional sidebar footer logo shown throughout the portal."},
     {"n": 6, "key": "turnstile", "title": "Login bot protection",
@@ -18098,6 +19426,106 @@ def _fmt_post_dt(dt):
     return dt.strftime("%Y-%m-%dT%H:%M")
 
 
+def _post_save_wants_json():
+    """The post editor's yellow save bar submits through fetch so the
+    admin keeps their scroll position and their place in a long form.
+    Anything else — a no-JS form post, the top-of-page Publish / Move to
+    Drafts buttons — falls back to the flash + redirect path."""
+    return request.headers.get("X-Requested-With") == "fetch"
+
+
+def _post_save_payload(post):
+    """What the save bar needs to reconcile the page with the row we just
+    wrote, without reloading it. Everything here is something the server
+    can change during a save: the slug gets normalised (and may gain a
+    -2 suffix), the featured image may be replaced or cleared, and the
+    gallery may gain uploads or lose removed tiles.
+
+    Image URLs carry a ``v`` cache-buster because their paths are keyed
+    on the post id alone — without it the browser would keep showing the
+    image that was there before the save."""
+    stamp = int(time.time())
+    featured = None
+    if post.featured_image_filename:
+        featured = url_for("public.post_featured_image", pid=post.id, v=stamp)
+    gallery = [
+        {"name": fname,
+         "url": url_for("public.post_gallery_image", pid=post.id, idx=i,
+                        thumb=240, v=stamp)}
+        for i, fname in enumerate(post.gallery_filenames or [])
+    ]
+    return {
+        "ok": True,
+        "post_id": post.id,
+        # ``slug`` is the effective public URL segment; ``slug_field`` is
+        # what belongs back in the input (blank when it's title-derived,
+        # which is how the form signals "keep deriving").
+        "slug": post.public_slug,
+        "slug_field": post.slug or "",
+        "featured_image": featured,
+        "gallery": gallery,
+        "flashes": [{"category": c, "message": m}
+                    for c, m in get_flashed_messages(with_categories=True)],
+    }
+
+
+def _editor_save_payload(slug, slug_field, image_endpoint=None, **image_args):
+    """The story and blog editors' save bar answer: the same keys as
+    ``_post_save_payload`` minus the gallery. The featured image URL (from
+    ``image_endpoint``, or None when there is no image) carries a ``v``
+    cache-buster, since its path is keyed on the row id alone."""
+    featured = None
+    if image_endpoint:
+        featured = url_for(image_endpoint, v=int(time.time()), **image_args)
+    return {
+        "ok": True,
+        "slug": slug,
+        "slug_field": slug_field or "",
+        "featured_image": featured,
+        "flashes": [{"category": c, "message": m}
+                    for c, m in get_flashed_messages(with_categories=True)],
+    }
+
+
+def _editor_save_failed():
+    """The save bar's answer to a refused save: the flashes, no row."""
+    return jsonify({
+        "ok": False,
+        "flashes": [{"category": c, "message": m}
+                    for c, m in get_flashed_messages(with_categories=True)],
+    }), 400
+
+
+def _apply_featured_image(row):
+    """Featured image fields shared by the story and blog editors (the
+    announcement / event editor does the same inline): remove, then a
+    fresh upload (optionally converted to WebP), else a File Browser
+    pick. A picked file is shared with the File Browser, so only the
+    image it replaces is retired."""
+    if request.form.get("clear_featured_image") == "1":
+        old = row.featured_image_filename
+        row.featured_image_filename = None
+        _cleanup_retired_asset(old)
+    uploaded = request.files.get("featured_image")
+    if uploaded and uploaded.filename:
+        if request.form.get("convert_featured_to_webp") == "1":
+            uploaded = _to_webp_upload(uploaded)
+        old = row.featured_image_filename
+        stored, _original = _save_upload(uploaded)
+        row.featured_image_filename = stored
+        if old and old != stored:
+            _cleanup_retired_asset(old)
+        return
+    picked_raw = (request.form.get("featured_image_media_id") or "").strip()
+    if picked_raw.isdigit():
+        m = db.session.get(MediaItem, int(picked_raw))
+        if m and m.stored_filename:
+            old = row.featured_image_filename
+            row.featured_image_filename = m.stored_filename
+            if old and old != m.stored_filename:
+                _cleanup_retired_asset(old)
+
+
 def _auto_archive_events():
     """Archive any active event whose end (or start, if no end) is
     before today AND any active announcement whose admin-set
@@ -18153,55 +19581,68 @@ def _auto_archive_events():
         db.session.commit()
 
 
+def _post_status_filter(q, show):
+    """Narrow a Post query to one of the list's status sections."""
+    if show == "archived":
+        return q.filter(Post.is_archived.is_(True), Post.is_pending_review.is_(False))
+    if show == "drafts":
+        return q.filter(Post.is_draft.is_(True), Post.is_archived.is_(False),
+                        Post.is_pending_review.is_(False))
+    if show == "pending":
+        # Holding tank for visitor submissions awaiting admin review.
+        return q.filter(Post.is_pending_review.is_(True), Post.is_archived.is_(False))
+    return q.filter(Post.is_archived.is_(False), Post.is_draft.is_(False),
+                    Post.is_pending_review.is_(False))
+
+
+def _post_kind_filter(q, kind):
+    if kind == "events":
+        return q.filter(Post.is_event.is_(True))
+    if kind == "announcements":
+        return q.filter(Post.is_announcement.is_(True))
+    return q
+
+
 @bp.route("/announcementsevents")
 @login_required
 def posts():
     _require_posts_enabled()
     _auto_archive_events()
     show = (request.args.get("show") or "active").strip()
+    if show not in ("active", "drafts", "pending", "archived"):
+        show = "active"
     kind = (request.args.get("kind") or "all").strip()
+    if kind not in ("all", "announcements", "events"):
+        kind = "all"
+    q_text = (request.args.get("q") or "").strip()
+    view = request.args.get("view") or request.cookies.get("view-posts") or "list"
+    view = "grid" if view == "grid" else "list"
     # Sort resolution order: explicit ?sort= wins, then the user's
-    # remembered cookie, then the per-tab default. Default for the
-    # main tabs is ``posted_desc`` (newest at top by Posted date);
-    # the pending tab keeps ``submitted_desc`` so the freshest
-    # submission sits up top. Any saved sort the route doesn't
-    # recognise is dropped to the default downstream.
+    # remembered cookie, then the per-tab default: newest posted first,
+    # or on the pending tab the freshest submission. A sort the route
+    # doesn't recognise drops to the default.
     sort = (request.args.get("sort")
-            or request.cookies.get("view-posts-sort")
+            or (None if show == "pending" else request.cookies.get("view-posts-sort"))
             or "").strip()
     try:
         page = max(1, int(request.args.get("page") or 1))
     except (TypeError, ValueError):
         page = 1
     per_page = 100
-    q = Post.query
-    if show == "archived":
-        q = q.filter(Post.is_archived.is_(True),
-                     Post.is_pending_review.is_(False))
-    elif show == "drafts":
-        q = q.filter(Post.is_draft.is_(True),
-                     Post.is_archived.is_(False),
-                     Post.is_pending_review.is_(False))
-    elif show == "pending":
-        # Holding tank for visitor submissions awaiting admin review.
-        q = q.filter(Post.is_pending_review.is_(True),
-                     Post.is_archived.is_(False))
-    else:  # active
-        show = "active"
-        q = q.filter(Post.is_archived.is_(False),
-                     Post.is_draft.is_(False),
-                     Post.is_pending_review.is_(False))
-    if kind == "events":
-        q = q.filter(Post.is_event.is_(True))
-    elif kind == "announcements":
-        q = q.filter(Post.is_announcement.is_(True))
-    # Sort modes. Default flips by tab — pending shows freshest
-    # submissions on top, every other tab shows by posted date
-    # (newest first) so the most recent activity reads first.
-    # Admin can override via the column-header click which sets
-    # ?sort=… directly; their choice is persisted to the
-    # ``view-posts-sort`` cookie at the bottom of the handler so
-    # the same sort sticks across reloads.
+
+    def searched(q):
+        if not q_text:
+            return q
+        like = f"%{q_text}%"
+        return q.filter(db.or_(Post.title.ilike(like), Post.summary.ilike(like),
+                               Post.location_name.ilike(like)))
+    # Each filter's counts take the other filters as they stand.
+    status_counts = {s: searched(_post_kind_filter(_post_status_filter(Post.query, s), kind)).count()
+                     for s in ("active", "drafts", "pending", "archived")}
+    kind_counts = {k: searched(_post_kind_filter(_post_status_filter(Post.query, show), k)).count()
+                   for k in ("all", "announcements", "events")}
+    q = searched(_post_kind_filter(_post_status_filter(Post.query, show), kind))
+
     default_sort = "submitted_desc" if show == "pending" else "posted_desc"
     if sort not in ("event_asc", "event_desc",
                     "title_asc", "title_desc",
@@ -18209,6 +19650,8 @@ def posts():
                     "submitted_asc", "submitted_desc",
                     "posted_asc", "posted_desc",
                     "type_asc", "type_desc"):
+        sort = default_sort
+    if sort.startswith("submitted") and show != "pending":
         sort = default_sort
     if sort == "event_asc":
         q = q.order_by(Post.event_starts_at.asc().nulls_last(),
@@ -18243,20 +19686,19 @@ def posts():
     elif sort == "type_desc":
         q = q.order_by(Post.is_event.desc(), Post.is_announcement.desc(),
                        Post.event_starts_at.desc().nulls_last())
-    total = q.count()
+    total = status_counts[show] if kind == "all" else kind_counts[kind]
     total_pages = max(1, (total + per_page - 1) // per_page)
     if page > total_pages:
         page = total_pages
     items = q.offset((page - 1) * per_page).limit(per_page).all()
-    pending_count = (Post.query.filter(Post.is_pending_review.is_(True),
-                                        Post.is_archived.is_(False)).count())
     from .timezone import now_local_naive as _now_local
     resp = current_app.make_response(
         render_template("posts.html", posts=items, show=show, kind=kind,
-                        sort=sort, page=page, per_page=per_page,
-                        total=total, total_pages=total_pages,
-                        pending_count=pending_count,
+                        sort=sort, default_sort=default_sort, page=page, per_page=per_page,
+                        total=total, total_pages=total_pages, q=q_text, view=view,
+                        status_counts=status_counts, kind_counts=kind_counts,
                         now_local=_now_local(_get_site_setting())))
+    resp.set_cookie("view-posts", view, max_age=60*60*24*365, samesite="Lax")
     # Remember the user's chosen sort so the next visit lands on
     # the same order. Skip persistence on the pending tab — its
     # ``submitted_desc`` default is contextual to that view and
@@ -18292,10 +19734,23 @@ def post_edit(pid):
     if post.is_pending_review:
         from .timezone import now_local_naive
         posted_prefill = now_local_naive(_get_site_setting())
+    # A duplicated draft warns before it's saved / published with an
+    # event date that's already passed (see the past-event modal in
+    # post_edit.html). The page needs the source's title for the copy
+    # and site-local "now" to compare against — the browser clock may
+    # sit in a different timezone than the stored naive datetimes.
+    duplicate_source = None
+    site_now_local = None
+    if post.is_draft and post.duplicated_from_id:
+        from .timezone import now_local_naive
+        duplicate_source = db.session.get(Post, post.duplicated_from_id)
+        site_now_local = now_local_naive(_get_site_setting())
     # Palette examples resolve against this post's own event window
     # when it has one, so the admin previews their real dates.
     return render_template("post_edit.html", post=post,
                            posted_prefill=posted_prefill,
+                           duplicate_source=duplicate_source,
+                           site_now_local=site_now_local,
                            event_tag_groups=catalog(post.event_starts_at,
                                                     post.event_ends_at))
 
@@ -18360,6 +19815,12 @@ def post_save():
     title = (request.form.get("title") or "").strip()[:255]
     if not title:
         flash("Title is required", "danger")
+        if _post_save_wants_json():
+            return jsonify({
+                "ok": False,
+                "flashes": [{"category": c, "message": m}
+                            for c, m in get_flashed_messages(with_categories=True)],
+            }), 400
         return redirect(_safe_referrer() or url_for("main.post_new"))
     post.title = title
 
@@ -18426,6 +19887,14 @@ def post_save():
     if "published_at" in request.form:
         parsed_pub = _parse_post_dt(request.form.get("published_at"))
         post.published_at = parsed_pub
+    # Public-visibility override — its own axis, independent of the
+    # draft / archived lifecycle (see Post.public_visibility). Only
+    # written when the form actually carried the field, so the flows
+    # that POST a partial form (public submissions) leave it alone.
+    if "public_visibility" in request.form:
+        _vis = (request.form.get("public_visibility") or "").strip().lower()
+        valid = {key for key, _label in Post.VISIBILITY_CHOICES}
+        post.public_visibility = _vis if _vis in valid else "auto"
 
     post.is_online = request.form.get("is_online") == "1"
     post.location_name = (request.form.get("location_name") or "").strip()[:255] or None
@@ -18637,8 +20106,18 @@ def post_save():
                           else f"Updated post “{post.title}”"))
     if creating:
         flash(("Draft saved: " + post.title) if post.is_draft else ("Published: " + post.title), "success")
-        return redirect(url_for("main.posts", show=("drafts" if post.is_draft else "active")))
+        target = url_for("main.posts", show=("drafts" if post.is_draft else "active"))
+        if _post_save_wants_json():
+            # The save bar only renders on existing posts, so this path is
+            # defensive — hand the caller the redirect rather than leaving
+            # a brand-new post stranded on a stale "new post" form.
+            payload = _post_save_payload(post)
+            payload["redirect"] = target
+            return jsonify(payload)
+        return redirect(target)
     flash("Post saved", "success")
+    if _post_save_wants_json():
+        return jsonify(_post_save_payload(post))
     return redirect(url_for("main.post_edit", pid=post.id))
 
 
@@ -18885,7 +20364,12 @@ def post_duplicate(pid):
         contact_email=src.contact_email,
         is_draft=True,
         is_archived=False,
+        # Deliberately NOT copied: a source post forced public would
+        # otherwise drag its copy onto the public site the moment it's
+        # created, defeating the "duplicate lands in Drafts" contract.
+        public_visibility="auto",
         created_by=getattr(current_user, "id", None),
+        duplicated_from_id=src.id,
     )
     db.session.add(copy)
     db.session.commit()
@@ -18909,9 +20393,21 @@ def _public_image_visible(obj):
     that is actually live on the public site — draft, pending-review,
     and archived items would otherwise be enumerable by walking the
     integer ids of these image routes. Signed-in portal users bypass
-    (admins/editors preview pending items in the review UIs)."""
+    (admins/editors preview pending items in the review UIs).
+
+    Rows that publish their own ``is_publicly_visible`` rule (Post) are
+    asked directly, so the answer always matches what the public site
+    actually renders. That matters for posts specifically: archiving a
+    post moves it to the public /archive rather than hiding it, so the
+    blanket is_archived test below used to 404 the featured image of
+    every archived post — a broken image on a page the public can read.
+    Stories / blog posts have no public archive, so they keep the
+    is_archived rule."""
     if getattr(current_user, "is_authenticated", False):
         return True
+    own_rule = getattr(obj, "is_publicly_visible", None)
+    if own_rule is not None:
+        return bool(own_rule)
     return not (getattr(obj, "is_draft", False)
                 or getattr(obj, "is_archived", False)
                 or getattr(obj, "is_pending_review", False))
@@ -18966,29 +20462,47 @@ def post_gallery_image(pid, idx):
 # ---------------------------------------------------------------------------
 # Stories — recovery story long-form posts.
 # ---------------------------------------------------------------------------
+def _story_status_filter(q, show):
+    """Narrow a Story query to one of the list's status sections."""
+    if show == "archived":
+        return q.filter(Story.is_archived.is_(True), Story.is_pending_review.is_(False))
+    if show == "drafts":
+        return q.filter(Story.is_draft.is_(True), Story.is_archived.is_(False),
+                        Story.is_pending_review.is_(False))
+    if show == "pending":
+        # Holding tank for visitor submissions awaiting admin review.
+        return q.filter(Story.is_pending_review.is_(True), Story.is_archived.is_(False))
+    return q.filter(Story.is_archived.is_(False), Story.is_draft.is_(False),
+                    Story.is_pending_review.is_(False))
+
+
 @bp.route("/stories")
 @login_required
 def stories():
     _require_stories_enabled()
     show = (request.args.get("show") or "active").strip()
-    sort = (request.args.get("sort") or "posted_desc").strip()
-    q = Story.query
-    if show == "archived":
-        q = q.filter(Story.is_archived.is_(True),
-                     Story.is_pending_review.is_(False))
-    elif show == "drafts":
-        q = q.filter(Story.is_draft.is_(True),
-                     Story.is_archived.is_(False),
-                     Story.is_pending_review.is_(False))
-    elif show == "pending":
-        # Holding tank for visitor submissions awaiting admin review.
-        q = q.filter(Story.is_pending_review.is_(True),
-                     Story.is_archived.is_(False))
-    else:
+    if show not in ("active", "drafts", "pending", "archived"):
         show = "active"
-        q = q.filter(Story.is_archived.is_(False),
-                     Story.is_draft.is_(False),
-                     Story.is_pending_review.is_(False))
+    sort = (request.args.get("sort") or request.cookies.get("view-stories-sort") or "posted_desc").strip()
+    view = request.args.get("view") or request.cookies.get("view-stories") or "list"
+    view = "grid" if view == "grid" else "list"
+    q_text = (request.args.get("q") or "").strip()
+    featured = request.args.get("featured") == "1"
+
+    def searched(q):
+        if not q_text:
+            return q
+        like = f"%{q_text}%"
+        return q.filter(db.or_(Story.title.ilike(like), Story.summary.ilike(like),
+                               Story.author_name.ilike(like)))
+    def featured_only(q, on):
+        return q.filter(Story.is_featured.is_(True)) if on else q
+    # Each filter's counts take the other filters as they stand.
+    status_counts = {s: featured_only(searched(_story_status_filter(Story.query, s)), featured).count()
+                     for s in ("active", "drafts", "pending", "archived")}
+    base = searched(_story_status_filter(Story.query, show))
+    featured_counts = {"": base.count(), "1": featured_only(base, True).count()}
+    q = featured_only(base, featured)
     if sort == "posted_asc":
         q = q.order_by(db.func.coalesce(Story.published_at, Story.created_at).asc())
     elif sort == "title_asc":
@@ -18997,42 +20511,34 @@ def stories():
         q = q.order_by(Story.title.desc())
     elif sort == "author_asc":
         q = q.order_by(Story.author_name.asc().nulls_last(), Story.title.asc())
+    elif sort == "author_desc":
+        q = q.order_by(Story.author_name.desc().nulls_last(), Story.title.asc())
     elif sort == "story_date_asc":
         q = q.order_by(Story.story_date.asc().nulls_last(), Story.updated_at.desc())
     elif sort == "story_date_desc":
         q = q.order_by(Story.story_date.desc().nulls_last(), Story.updated_at.desc())
     elif sort == "updated_desc":
         q = q.order_by(Story.updated_at.desc())
+    elif sort == "updated_asc":
+        q = q.order_by(Story.updated_at.asc())
     else:
         sort = "posted_desc"
         q = q.order_by(db.func.coalesce(Story.published_at, Story.created_at).desc())
     items = q.all()
-    pending_count = (Story.query
-                     .filter(Story.is_pending_review.is_(True),
-                             Story.is_archived.is_(False)).count())
-    return render_template("stories.html", stories=items, show=show, sort=sort,
-                           pending_count=pending_count)
-
-
-def _story_embed():
-    """True when the current request is rendering / submitting from
-    inside the new-story modal iframe. Carried via ``?embed=1`` on the
-    URL or ``embed=1`` in the form body."""
-    return (request.args.get("embed") == "1"
-            or request.form.get("embed") == "1")
-
-
-def _story_embed_kwargs():
-    """Spread into ``url_for(...)`` so post-save redirects keep the
-    iframe in chromeless mode."""
-    return {"embed": 1} if _story_embed() else {}
+    resp = current_app.make_response(
+        render_template("stories.html", stories=items, show=show, sort=sort, view=view,
+                        q=q_text, featured=featured,
+                        status_counts=status_counts, featured_counts=featured_counts))
+    resp.set_cookie("view-stories", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-stories-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
 @bp.route("/stories/new")
 @login_required
 def story_new():
     _require_stories_enabled()
-    return render_template("story_edit.html", story=None, embed=_story_embed())
+    return render_template("story_edit.html", story=None)
 
 
 @bp.route("/stories/<int:sid>")
@@ -19040,7 +20546,7 @@ def story_new():
 def story_edit(sid):
     _require_stories_enabled()
     story = db.session.get(Story, sid) or abort(404)
-    return render_template("story_edit.html", story=story, embed=_story_embed())
+    return render_template("story_edit.html", story=story)
 
 
 @bp.route("/stories/save", methods=["POST"])
@@ -19062,7 +20568,9 @@ def story_save():
     title = (request.form.get("title") or "").strip()[:255]
     if not title:
         flash("Title is required", "danger")
-        return redirect(_safe_referrer() or url_for("main.story_new", **_story_embed_kwargs()))
+        if _post_save_wants_json():
+            return _editor_save_failed()
+        return redirect(_safe_referrer() or url_for("main.story_new"))
     story.title = title
 
     explicit_slug = None
@@ -19089,17 +20597,7 @@ def story_save():
     if "published_at" in request.form:
         story.published_at = _parse_post_dt(request.form.get("published_at"))
 
-    if request.form.get("clear_featured_image") == "1":
-        old = story.featured_image_filename
-        story.featured_image_filename = None
-        _cleanup_retired_asset(old)
-    uploaded = request.files.get("featured_image")
-    if uploaded and uploaded.filename:
-        old = story.featured_image_filename
-        stored, _original = _save_upload(uploaded)
-        story.featured_image_filename = stored
-        if old and old != stored:
-            _cleanup_retired_asset(old)
+    _apply_featured_image(story)
 
     action = (request.form.get("action") or "").strip()
     if action == "draft":
@@ -19136,16 +20634,13 @@ def story_save():
                           else f"Updated story “{story.title}”"))
     if creating:
         flash(("Draft saved: " + story.title) if story.is_draft else ("Published: " + story.title), "success")
-        # In embed mode (iframe-hosted New-story modal), redirect into
-        # the edit screen so the admin can keep iterating without
-        # losing the modal context. The "Cancel" button (which becomes
-        # a Close button in embed mode) postMessages the parent to
-        # close + reload the stories list.
-        if _story_embed():
-            return redirect(url_for("main.story_edit", sid=story.id, embed=1))
         return redirect(url_for("main.stories", show=("drafts" if story.is_draft else "active")))
     flash("Story saved", "success")
-    return redirect(url_for("main.story_edit", sid=story.id, **_story_embed_kwargs()))
+    if _post_save_wants_json():
+        return jsonify(_editor_save_payload(
+            story.public_slug, story.slug,
+            "public.story_featured_image" if story.featured_image_filename else None, sid=story.id))
+    return redirect(url_for("main.story_edit", sid=story.id))
 
 
 @bp.route("/stories/<int:sid>/publish", methods=["POST"])
@@ -19156,8 +20651,6 @@ def story_publish(sid):
     story.is_draft = False
     db.session.commit()
     flash("Published", "success")
-    if _story_embed():
-        return redirect(url_for("main.story_edit", sid=sid, embed=1))
     return redirect(_safe_referrer() or url_for("main.stories"))
 
 
@@ -19169,8 +20662,6 @@ def story_unpublish(sid):
     story.is_draft = True
     db.session.commit()
     flash("Moved to drafts", "success")
-    if _story_embed():
-        return redirect(url_for("main.story_edit", sid=sid, embed=1))
     return redirect(_safe_referrer() or url_for("main.stories", show="drafts"))
 
 
@@ -19182,8 +20673,6 @@ def story_archive(sid):
     story.is_archived = True
     db.session.commit()
     flash("Archived", "success")
-    if _story_embed():
-        return redirect(url_for("main.story_edit", sid=sid, embed=1))
     return redirect(_safe_referrer() or url_for("main.stories"))
 
 
@@ -19195,8 +20684,6 @@ def story_unarchive(sid):
     story.is_archived = False
     db.session.commit()
     flash("Restored", "success")
-    if _story_embed():
-        return redirect(url_for("main.story_edit", sid=sid, embed=1))
     return redirect(_safe_referrer() or url_for("main.stories"))
 
 
@@ -19233,12 +20720,6 @@ def story_delete(sid):
     for s in body_inline_stored:
         _cleanup_retired_asset(s)
     flash("Story deleted", "success")
-    # When deleting from inside the new-story modal, render a tiny
-    # auto-close stub that postMessages the parent so the modal goes
-    # away and the underlying stories list refreshes (the deleted row
-    # disappears).
-    if _story_embed():
-        return render_template("story_modal_close.html", message="Story deleted")
     return redirect(url_for("main.stories"))
 
 
@@ -19706,39 +21187,59 @@ def _resolve_blog_tag_assignments(form):
     return rows
 
 
+def _blog_status_filter(q, show):
+    """Narrow a BlogPost query to one of the list's status sections."""
+    if show == "archived":
+        return q.filter(BlogPost.is_archived.is_(True))
+    if show == "drafts":
+        return q.filter(BlogPost.is_draft.is_(True), BlogPost.is_archived.is_(False))
+    if show == "featured":
+        return q.filter(BlogPost.is_featured.is_(True), BlogPost.is_archived.is_(False),
+                        BlogPost.is_draft.is_(False))
+    return q.filter(BlogPost.is_archived.is_(False), BlogPost.is_draft.is_(False))
+
+
 @bp.route("/blog")
 @login_required
 def blog_index():
     _require_blog_enabled()
     show = (request.args.get("show") or "active").strip()
-    sort = (request.args.get("sort") or "published_desc").strip()
-    cat_id = (request.args.get("category") or "").strip()
-    tag_id = (request.args.get("tag") or "").strip()
-    q_text = (request.args.get("q") or "").strip()
-    q = BlogPost.query
-    if show == "archived":
-        q = q.filter(BlogPost.is_archived.is_(True))
-    elif show == "drafts":
-        q = q.filter(BlogPost.is_draft.is_(True), BlogPost.is_archived.is_(False))
-    elif show == "featured":
-        q = q.filter(BlogPost.is_featured.is_(True),
-                     BlogPost.is_archived.is_(False),
-                     BlogPost.is_draft.is_(False))
-    else:
+    if show not in ("active", "featured", "drafts", "archived"):
         show = "active"
-        q = q.filter(BlogPost.is_archived.is_(False), BlogPost.is_draft.is_(False))
-    # Category / tag filters.
-    if cat_id.isdigit():
-        q = q.filter(BlogPost.categories.any(BlogCategory.id == int(cat_id)))
-    if tag_id.isdigit():
-        q = q.filter(BlogPost.tags.any(BlogTag.id == int(tag_id)))
-    # Title / summary search — small dataset, basic ILIKE is enough.
-    if q_text:
+    sort = (request.args.get("sort") or request.cookies.get("view-blog-sort") or "published_desc").strip()
+    view = request.args.get("view") or request.cookies.get("view-blog") or "list"
+    view = "grid" if view == "grid" else "list"
+    cat_id = (request.args.get("category") or "").strip()
+    cat_id = cat_id if cat_id.isdigit() else ""
+    tag_id = (request.args.get("tag") or "").strip()
+    tag_id = tag_id if tag_id.isdigit() else ""
+    q_text = (request.args.get("q") or "").strip()
+
+    def searched(q):
+        # Title / summary / author search: a small dataset, so ILIKE is enough.
+        if not q_text:
+            return q
         like = f"%{q_text}%"
-        q = q.filter(db.or_(BlogPost.title.ilike(like),
-                            BlogPost.summary.ilike(like),
-                            BlogPost.author_name.ilike(like)))
-    # Sort modes.
+        return q.filter(db.or_(BlogPost.title.ilike(like), BlogPost.summary.ilike(like),
+                               BlogPost.author_name.ilike(like)))
+    def in_cat(q, cid):
+        return q.filter(BlogPost.categories.any(BlogCategory.id == int(cid))) if cid else q
+    def in_tag(q, tid):
+        return q.filter(BlogPost.tags.any(BlogTag.id == int(tid))) if tid else q
+    categories = BlogCategory.query.order_by(BlogCategory.position, BlogCategory.name).all()
+    tags = BlogTag.query.order_by(BlogTag.name).all()
+    # Each filter's counts take the other filters as they stand.
+    counts = {s: in_tag(in_cat(searched(_blog_status_filter(BlogPost.query, s)), cat_id), tag_id).count()
+              for s in ("active", "featured", "drafts", "archived")}
+    status_q = searched(_blog_status_filter(BlogPost.query, show))
+    cat_counts = {"": in_tag(status_q, tag_id).count()}
+    for c in categories:
+        cat_counts[str(c.id)] = in_tag(in_cat(status_q, str(c.id)), tag_id).count()
+    tag_counts = {"": in_cat(status_q, cat_id).count()}
+    for t in tags:
+        tag_counts[str(t.id)] = in_tag(in_cat(status_q, cat_id), str(t.id)).count()
+    q = in_tag(in_cat(status_q, cat_id), tag_id)
+    # Sort modes; pinned posts stay on top in each.
     if sort == "published_asc":
         q = q.order_by(BlogPost.is_pinned.desc(),
                        BlogPost.published_at.asc().nulls_last(),
@@ -19749,9 +21250,15 @@ def blog_index():
         q = q.order_by(BlogPost.is_pinned.desc(), BlogPost.title.desc())
     elif sort == "updated_desc":
         q = q.order_by(BlogPost.is_pinned.desc(), BlogPost.updated_at.desc())
+    elif sort == "updated_asc":
+        q = q.order_by(BlogPost.is_pinned.desc(), BlogPost.updated_at.asc())
     elif sort == "author_asc":
         q = q.order_by(BlogPost.is_pinned.desc(),
                        BlogPost.author_name.asc().nulls_last(),
+                       BlogPost.published_at.desc().nulls_last())
+    elif sort == "author_desc":
+        q = q.order_by(BlogPost.is_pinned.desc(),
+                       BlogPost.author_name.desc().nulls_last(),
                        BlogPost.published_at.desc().nulls_last())
     else:  # published_desc
         sort = "published_desc"
@@ -19759,22 +21266,14 @@ def blog_index():
                        BlogPost.published_at.desc().nulls_last(),
                        BlogPost.created_at.desc())
     items = q.all()
-    categories = BlogCategory.query.order_by(BlogCategory.position, BlogCategory.name).all()
-    tags = BlogTag.query.order_by(BlogTag.name).all()
-    counts = {
-        "active": BlogPost.query.filter(BlogPost.is_archived.is_(False),
-                                         BlogPost.is_draft.is_(False)).count(),
-        "drafts": BlogPost.query.filter(BlogPost.is_draft.is_(True),
-                                         BlogPost.is_archived.is_(False)).count(),
-        "archived": BlogPost.query.filter(BlogPost.is_archived.is_(True)).count(),
-        "featured": BlogPost.query.filter(BlogPost.is_featured.is_(True),
-                                           BlogPost.is_archived.is_(False),
-                                           BlogPost.is_draft.is_(False)).count(),
-    }
-    return render_template("blog_list.html", posts=items, show=show, sort=sort,
-                           categories=categories, tags=tags,
-                           selected_cat=cat_id, selected_tag=tag_id, q_text=q_text,
-                           counts=counts)
+    resp = current_app.make_response(
+        render_template("blog_list.html", posts=items, show=show, sort=sort, view=view,
+                        categories=categories, tags=tags,
+                        selected_cat=cat_id, selected_tag=tag_id, q=q_text,
+                        counts=counts, cat_counts=cat_counts, tag_counts=tag_counts))
+    resp.set_cookie("view-blog", view, max_age=60*60*24*365, samesite="Lax")
+    resp.set_cookie("view-blog-sort", sort, max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
 def _blog_author_choices():
@@ -19845,6 +21344,8 @@ def blog_save():
     title = (request.form.get("title") or "").strip()[:255]
     if not title:
         flash("Title is required", "danger")
+        if _post_save_wants_json():
+            return _editor_save_failed()
         return redirect(_safe_referrer() or url_for("main.blog_new"))
     post.title = title
 
@@ -19874,6 +21375,13 @@ def blog_save():
         post.body_blocks_json = _sanitize_blog_body_blocks(blocks_raw)
     else:
         post.body_blocks_json = None
+    # "Convert to Markdown" saves the form with this flag: the blocks as
+    # they stand become the Markdown body, and are kept so the
+    # conversion can be undone.
+    converted = False
+    if request.form.get("convert_to_markdown") == "1" and post.body_blocks:
+        _convert_blog_post_to_markdown(post)
+        converted = True
     post.author_name = (request.form.get("author_name") or "").strip()[:120] or None
     # author_bio is no longer surfaced in the editor — legacy values
     # on existing posts are preserved (the column stays on the
@@ -19892,35 +21400,7 @@ def blog_save():
         est_source = _blog_blocks_to_plain_text(post.body_blocks) or (post.body or "")
         post.reading_minutes = _estimate_reading_minutes(est_source)
 
-    if request.form.get("clear_featured_image") == "1":
-        old = post.featured_image_filename
-        post.featured_image_filename = None
-        _cleanup_retired_asset(old)
-    uploaded = request.files.get("featured_image")
-    if uploaded and uploaded.filename:
-        # Fresh upload — wins over any library pick on the same submit.
-        # The "Browse library" JS clears the file input on pick (and
-        # vice-versa) so a single save round-trip only carries one of
-        # the two, but if both happen to arrive together the upload
-        # is the more recent intent.
-        old = post.featured_image_filename
-        stored, _original = _save_upload(uploaded)
-        post.featured_image_filename = stored
-        if old and old != stored:
-            _cleanup_retired_asset(old)
-    else:
-        # Library pick — the writer clicked Browse, picked a tile,
-        # and the JS stamped the MediaItem id into the hidden field.
-        # Look up the row and reuse its already-stored filename so we
-        # don't duplicate the file on disk.
-        media_id_raw = (request.form.get("featured_image_media_id") or "").strip()
-        if media_id_raw.isdigit():
-            m = db.session.get(MediaItem, int(media_id_raw))
-            if m and m.stored_filename:
-                old = post.featured_image_filename
-                post.featured_image_filename = m.stored_filename
-                if old and old != m.stored_filename:
-                    _cleanup_retired_asset(old)
+    _apply_featured_image(post)
 
     # Category + tag relations — must flush the post first when creating
     # so the M2M tables have a real id to reference.
@@ -19955,8 +21435,68 @@ def blog_save():
     if creating:
         flash(("Draft saved: " + post.title) if post.is_draft else ("Published: " + post.title), "success")
         return redirect(url_for("main.blog_index", show=("drafts" if post.is_draft else "active")))
-    flash("Post saved", "success")
+    flash("Converted to Markdown" if converted else "Post saved", "success")
+    if _post_save_wants_json():
+        return jsonify(_editor_save_payload(
+            post.public_slug, post.slug,
+            "public.blog_post_featured_image" if post.featured_image_filename else None, bid=post.id))
     return redirect(url_for("main.blog_edit", bid=post.id))
+
+
+def _convert_blog_post_to_markdown(post):
+    """Swap a block-builder post's body for Markdown (blog_convert),
+    keeping the blocks in ``body_blocks_backup_json``. Returns the note
+    counts. The caller commits."""
+    from .blog_convert import blocks_to_markdown
+    md, counts = blocks_to_markdown(post.body_blocks)
+    post.body_blocks_backup_json = post.body_blocks_json
+    post.body = md
+    post.body_blocks_json = None
+    return counts
+
+
+@bp.route("/blog/convert-preview", methods=["POST"])
+@login_required
+def blog_convert_preview():
+    """What "Convert to Markdown" would make of the blocks in the editor
+    right now: the Markdown, how it reads on the public page, and what
+    Markdown can't carry over. Changes nothing."""
+    _require_blog_enabled()
+    from flask import render_template_string
+    from .blog_convert import blocks_to_markdown, describe_notes
+    raw = (request.form.get("body_blocks_json") or "").strip()
+    try:
+        blocks = json.loads(_sanitize_blog_body_blocks(raw)) if raw else []
+    except (TypeError, ValueError):
+        blocks = []
+    md, counts = blocks_to_markdown(blocks)
+    return jsonify({
+        "ok": True,
+        "markdown": md,
+        "html": render_template_string("{{ md|markdown }}", md=md),
+        "notes": describe_notes(counts),
+    })
+
+
+@bp.route("/blog/<int:bid>/restore-blocks", methods=["POST"])
+@login_required
+def blog_restore_blocks(bid):
+    """Undo a conversion: the post goes back to the block version kept
+    when it was converted. Markdown edits made since are dropped."""
+    _require_blog_enabled()
+    post = db.session.get(BlogPost, bid) or abort(404)
+    if not post.body_blocks_backup_json:
+        flash("This post has no block version to go back to.", "warning")
+        return redirect(url_for("main.blog_edit", bid=bid))
+    post.body_blocks_json = post.body_blocks_backup_json
+    post.body_blocks_backup_json = None
+    post.body = None
+    db.session.commit()
+    from . import activity
+    activity.log("blog.restore_blocks", entity_type="blog", entity_id=post.id,
+                 summary=f"Restored the block version of “{post.title}”")
+    flash("Back to the block version", "success")
+    return redirect(url_for("main.blog_edit", bid=bid))
 
 
 @bp.route("/blog/<int:bid>/publish", methods=["POST"])
@@ -20064,7 +21604,7 @@ def blog_bulk():
     fields:
 
       action    — archive | unarchive | draft | publish | delete
-                | feature | unfeature | pin | unpin
+                | feature | unfeature | pin | unpin | markdown
                 | add_category | remove_category | replace_categories
                 | add_tag | remove_tag
       ids       — repeated ``ids`` field, one per checked row
@@ -20077,7 +21617,7 @@ def blog_bulk():
     _require_blog_enabled()
     action = (request.form.get("action") or "").strip().lower()
     valid = {"archive", "unarchive", "draft", "publish", "delete",
-             "feature", "unfeature", "pin", "unpin",
+             "feature", "unfeature", "pin", "unpin", "markdown",
              "add_category", "remove_category", "replace_categories",
              "add_tag", "remove_tag"}
     if action not in valid:
@@ -20119,6 +21659,18 @@ def blog_bulk():
         for asset in retired_inline:
             _cleanup_retired_asset(asset)
         label = "deleted"
+    elif action == "markdown":
+        # Posts already in Markdown are left as they are.
+        done = 0
+        for p in rows:
+            if p.body_blocks:
+                _convert_blog_post_to_markdown(p)
+                done += 1
+        db.session.commit()
+        skipped = n - done
+        n = done
+        label = "converted to Markdown" + (
+            f" ({skipped} already Markdown)" if skipped else "")
     elif action in ("add_category", "remove_category", "replace_categories"):
         try:
             cid = int(request.form.get("category_id") or 0)

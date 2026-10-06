@@ -1,13 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Single source of truth for the in-app Release Notes + Changelog.
+"""Single source of truth for the in-app Release Notes.
 
-Both surfaces — the canonical Markdown files at the repo root
-(``RELEASE_NOTES.md`` / ``CHANGELOG.md``) and the in-app About modal
-(``templates/base.html``) — read from the same parsed structure produced
-here. Editing the Markdown is the only step needed to keep the in-app
-view in sync.
+The About modal (``templates/base.html``) renders ``RELEASE_NOTES.md``
+at the repo root from the structure parsed here. Editing the Markdown
+is the only step needed to keep the in-app view in sync.
 
-The Markdown files are baked into the Docker image (see Dockerfile).
+The Markdown file is baked into the Docker image (see Dockerfile).
 The parser caches by mtime so dev edits show up without a restart.
 """
 import re
@@ -21,7 +19,6 @@ import markdown as md_lib
 # Files live at the repo root, one level above the ``app/`` package.
 _ROOT = Path(__file__).resolve().parent.parent
 _RELEASE_NOTES_PATH = _ROOT / "RELEASE_NOTES.md"
-_CHANGELOG_PATH = _ROOT / "CHANGELOG.md"
 
 _MD_EXT = ["extra", "nl2br", "sane_lists"]
 
@@ -31,7 +28,7 @@ class _Entry:
     version: str
     date: str         # ISO YYYY-MM-DD as written in the source, "" if unparseable
     date_label: str   # Friendly month-day-year for UI ("May 17, 2026"); "" when date is missing or unparseable
-    title: str        # The short headline for release notes; "" for changelog (the body carries its own subheads)
+    title: str        # The short headline after the date; "" when the header has none
     is_latest: bool   # True when the source header carried "(latest)"
     body_html: str    # Markdown body rendered to HTML
 
@@ -55,7 +52,6 @@ def _date_label(raw: str) -> str:
 
 # (mtime_ns, parsed entries) — recomputed when the file changes on disk.
 _release_cache: tuple[int, List[_Entry]] | None = None
-_changelog_cache: tuple[int, List[_Entry]] | None = None
 
 
 def _split_sections(text: str) -> List[str]:
@@ -95,13 +91,6 @@ _DASH = r"[—–\-]"
 _VERSION = r"\d+(?:\.\d+)*(?:\s*[–\-]\s*\d+(?:\.\d+)*)?"
 _RN_HEADER = re.compile(
     rf"^##\s+(?P<version>{_VERSION})\s+{_DASH}+\s+(?P<rest>.+)$"
-)
-
-# Changelog header: ``## [2.0.4] — 2026-05-17``
-# Date is optional so a stub like ``## [Unreleased]`` (filtered out
-# downstream) still matches without erroring.
-_CL_HEADER = re.compile(
-    rf"^##\s+\[(?P<version>[^\]]+)\](?:\s*{_DASH}+\s*(?P<date>.+))?\s*$"
 )
 
 _LATEST_FLAG = re.compile(r"\s*\(latest\)\s*", re.IGNORECASE)
@@ -144,53 +133,33 @@ def _parse_release_notes(text: str) -> List[_Entry]:
     return out
 
 
-def _parse_changelog(text: str) -> List[_Entry]:
-    out: List[_Entry] = []
-    for section in _split_sections(text):
-        header, _, body = section.partition("\n")
-        m = _CL_HEADER.match(header)
-        if not m:
-            continue
-        version = m.group("version").strip()
-        # Skip the ``[Unreleased]`` placeholder — it has no date and
-        # nothing to show users.
-        if version.lower() == "unreleased":
-            continue
-        date_raw = (m.group("date") or "").strip()
-        out.append(_Entry(
-            version=version,
-            date=date_raw,
-            date_label=_date_label(date_raw),
-            title="",
-            is_latest=False,
-            body_html=_render(body),
-        ))
-    return out
-
-
-def _load(path: Path, parser, cache_slot: str) -> List[_Entry]:
-    global _release_cache, _changelog_cache
-    cached = _release_cache if cache_slot == "release" else _changelog_cache
+def load_release_notes() -> List[_Entry]:
+    """Parsed entries from ``RELEASE_NOTES.md``, newest first."""
+    global _release_cache
     try:
-        mtime = path.stat().st_mtime_ns
+        mtime = _RELEASE_NOTES_PATH.stat().st_mtime_ns
     except FileNotFoundError:
         return []
-    if cached and cached[0] == mtime:
-        return cached[1]
-    text = path.read_text(encoding="utf-8")
-    entries = parser(text)
-    if cache_slot == "release":
-        _release_cache = (mtime, entries)
-    else:
-        _changelog_cache = (mtime, entries)
+    if _release_cache and _release_cache[0] == mtime:
+        return _release_cache[1]
+    entries = _parse_release_notes(_RELEASE_NOTES_PATH.read_text(encoding="utf-8"))
+    _release_cache = (mtime, entries)
     return entries
 
 
-def load_release_notes() -> List[_Entry]:
-    """Parsed entries from ``RELEASE_NOTES.md``, newest first."""
-    return _load(_RELEASE_NOTES_PATH, _parse_release_notes, "release")
+def _minor_line(version: str) -> str:
+    """``"2.19.10"`` -> ``"2.19"``. A range header uses its first version."""
+    first = re.split(r"\s*[–\-]\s*", version.strip(), maxsplit=1)[0]
+    return ".".join(first.split(".")[:2])
 
 
-def load_changelog() -> List[_Entry]:
-    """Parsed entries from ``CHANGELOG.md``, newest first."""
-    return _load(_CHANGELOG_PATH, _parse_changelog, "changelog")
+def load_release_notes_for_line(version: str) -> List[_Entry]:
+    """Release notes for the X.Y line of ``version`` (X.Y.0 up to now).
+
+    Falls back to every entry when the line has none yet, so a
+    development build ahead of its notes still shows something.
+    """
+    entries = load_release_notes()
+    line = _minor_line(version)
+    same = [e for e in entries if _minor_line(e.version) == line]
+    return same or entries

@@ -1,26 +1,16 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% from "_item_picker.html" import item_picker %}
 {% from "_frontend_template_picker.html" import template_picker %}
 {% from "_frontend_layout_picker.html" import layout_picker %}
+{% from "_width_control.html" import width_control %}
+{% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
 {% from "_frontend_structure_card.html" import structure_card, structure_page_tree, structure_orphans_card, structure_block_palette %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% block heading %}{{ 'Edit page' if page else 'New page' }}{% endblock %}
 {% block heading_help %}{% if page %}Editing <code>/{{ page.slug }}</code>.{% else %}Create a new content page.{% endif %}{% endblock %}
 
 {% block top_actions %}
-{% if page %}
-{{ layout_picker(page_layouts, active_layout_key,
-                  url_for('main.frontend_page_layout_save', page_id=page.id),
-                  "layout_key",
-                  "page-layout-modal", "page-layout-builder-modal",
-                  page_block_catalog,
-                  url_for('main.frontend_custom_layout_save'),
-                  kind='page') }}
-{% endif %}
-{{ template_picker(frontend_themes, _active_theme,
-                    "frontend_theme",
-                    url_for('main.frontend_theme_save'),
-                    "site-theme-modal", "page", "Site theme", label="Theme") }}
-<a class="btn" href="{{ url_for('main.frontend_pages') }}">← All pages</a>
 {% if page %}
 <button type="button" class="btn" id="page-history-btn"
         data-history-url="{{ url_for('main.frontend_page_revisions', page_id=page.id) }}"
@@ -61,58 +51,8 @@
   {% include "_frontend_subnav.html" %}
   <div class="fe-admin-main">
 
-    {# Page-title banner above the first card so the admin always sees
-       which page they're editing. New pages have no title yet, so this
-       is gated on `page`. #}
-    {% if page %}
-    {%- set _page_status = 'draft' if not page.is_published else ('private' if page.is_private else 'published') -%}
-    {%- set _is_homepage = (site and site.homepage_page_id == page.id) -%}
-    <div class="fe-page-edit-title-banner">
-      <div class="fe-page-edit-title-banner-eyebrow muted smaller">
-        {% if _is_homepage %}Editing homepage{% else %}Editing page{% endif %}
-      </div>
-      <h1 class="fe-page-edit-title-banner-title">{{ page.title }}</h1>
-      <div class="fe-page-edit-title-banner-meta muted smaller">
-        {% if _is_homepage %}<code>/</code>{% else %}<code>/{{ page.slug }}</code>{% endif %}
-        {% if _is_homepage %}
-          · <span class="chip chip-homepage" title="This page renders at the public `/` root">
-              {{ icon('home') }} Homepage
-            </span>
-        {% endif %}
-        {% if _page_status == 'draft' %} · <span class="post-chip post-chip-draft">Draft</span>{% endif %}
-        {% if _page_status == 'private' %} · <span class="post-chip post-chip-private">Private</span>{% endif %}
-        {% if _page_status == 'published' %} · <span class="post-chip post-chip-online">Published</span>{% endif %}
-        {% if not _is_homepage %}
-          · <form method="post"
-                  action="{{ url_for('main.frontend_page_set_homepage', page_id=page.id) }}"
-                  class="fe-page-edit-make-homepage"
-                  onsubmit="return confirm('Make “{{ page.title|e }}” the homepage? It will render at the public `/` root, and the previous homepage becomes a regular page.');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm" title="Designate this page as the public homepage">
-                {{ icon('home') }} Make homepage
-              </button>
-            </form>
-        {% endif %}
-      </div>
-      {# Quick-action pills — clicking a pill selects the matching
-         visibility radio in the page-settings form below and triggers
-         the standard save-bar (it picks up the radio's `change` event
-         and shows "Unsaved changes"). Nothing is committed until the
-         admin clicks the save bar's Save button — same round-trip as
-         editing any other field. #}
-      <div class="fe-page-edit-status-actions" data-fe-page-status-actions
-           data-current-status="{{ _page_status }}">
-        {% for key, label in [('draft', 'Draft'), ('published', 'Publish'), ('private', 'Make Private')] %}
-        <button type="button"
-                class="btn btn-sm fe-page-edit-status-pill{% if _page_status == key %} active{% endif %}"
-                data-fe-page-status="{{ key }}"
-                aria-pressed="{{ 'true' if _page_status == key else 'false' }}">
-          {{ label }}{% if _page_status == key %} ✓{% endif %}
-        </button>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
+    {%- set _page_status = ('draft' if not page.is_published else ('private' if page.is_private else 'published')) if page else 'draft' -%}
+    {%- set _is_homepage = page and site and site.homepage_page_id == page.id -%}
 
     {# ── Pending-draft banner ───────────────────────────────────────
        Surfaces when the page has a stashed `draft_json` and the edit
@@ -137,58 +77,6 @@
       </form>
     </div>
     {% endif %}
-
-    {# ── Active layout structure ────────────────────────────────────
-       Shown for both existing AND new pages. New pages start with an
-       empty structure card + palette so the admin can drag blocks in
-       before the first save (the form's hidden `blocks_json` input
-       carries the dragged structure into `frontend_page_save`). Each
-       pill opens the BlockEditor modal scrolled to that block; the
-       top-right "Change layout" button opens the layout PICKER (the
-       same modal the top-bar Layout pill uses) so the admin can
-       switch layouts or build a custom one. #}
-    {% set _PAGE_BLOCK_LABELS = {
-      'paragraph':   ('Text',         'type'),
-      'heading':     ('Heading',      'heading'),
-      'image':       ('Image',        'image'),
-      'icon':        ('Icon',         'star'),
-      'button':      ('Button',       'mouse-pointer-click'),
-      'container':   ('Container',    'layout-grid'),
-      'video':       ('Video',        'video'),
-      'code':        ('Code',         'code'),
-      'callout':     ('Callout',      'alert-triangle'),
-      'list':        ('List',         'list'),
-      'separator':   ('Divider',      'minus'),
-      'toc_sidebar': ('Wiki sidebar', 'panel-left'),
-      'hero':        ('Hero',         'image'),
-      'meetings':    ('Meetings',     'calendar-clock'),
-      'events':      ('Events',       'calendar'),
-    } %}
-    {% set _editable = ['paragraph','heading','image','icon','button','container',
-                        'video','code','callout','list','toc_sidebar',
-                        'hero','meetings','events'] %}
-    {% call structure_card('Active layout', active_layout=active_layout,
-                            builder_modal_id='page-layout-builder-modal',
-                            picker_modal_id='page-layout-modal',
-                            is_customized=active_layout_customized,
-                            help_text='Drag pills to rearrange. Drag from the “Add blocks” palette below to drop in new blocks. Click any pill to edit its content. Use “Change layout” to pick a different layout or switch to free-form custom.') %}
-      {% if active_layout_tree %}
-      {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
-                              _PAGE_BLOCK_LABELS, _editable,
-                              block_previews, block_payloads) }}
-      {% else %}
-      <p class="muted">This page has no blocks yet. Open the floating palette in the lower-right corner to drag in blocks, or pick a layout via “Edit layout”.</p>
-      <div class="fe-page-structure-rows" data-be-tree data-be-zone="root">
-        <div class="fe-page-structure-root-empty muted small" data-be-root-empty>
-          Drop a Container or Two-panel here to add a new row, or drag any block to start.
-        </div>
-      </div>
-      {% endif %}
-    {% endcall %}
-
-    {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
-                               _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
-    {{ structure_block_palette(page_block_catalog) }}
 
     {# ── Page settings + content forms ─────────────────────────────
        Single form, multiple cards. The BlockEditor lives inside the
@@ -220,19 +108,69 @@
          separated by hairline dividers + sub-headings so the form
          stays scannable while collapsing three previously-separate
          cards into one. #}
-      <section class="card fe-page-settings-card">
-        <div class="card-head"><h2>Page settings</h2></div>
-
+      <section class="card st-studio fe-page-settings-card" data-studio="page-settings" data-no-collapse>
+        {# The page being edited and every other one to jump to
+           (_item_picker.html), with its status beside it. #}
+        <div class="card-head st-pick-head">
+          {{ item_picker('Homepage' if _is_homepage else 'Page', page.title if page else 'New page', picker_groups,
+                         code=('/' if _is_homepage else '/' ~ page.slug) if page else '', aria='Choose a page',
+                         actions=[{'modal': 'new-page-modal', 'label': 'New page', 'icon': 'plus'}]) }}
+          {% if page %}
+          <div class="st-actions">
+            {% if _is_homepage %}
+            <span class="post-chip post-chip-online">Published</span>
+            {% else %}
+            {# Clicking one selects the matching visibility on the Page
+               part below and shows the save bar; nothing is committed
+               until Save. #}
+            <div class="ds-seg-btns fe-page-edit-status-actions" data-fe-page-status-actions role="group" aria-label="Status"
+                 data-current-status="{{ _page_status }}">
+              {% for key, label in [('draft', 'Draft'), ('published', 'Published'), ('private', 'Private')] %}
+              <button type="button" class="fe-page-edit-status-pill{% if _page_status == key %} active{% endif %}"
+                      data-fe-page-status="{{ key }}" aria-pressed="{{ 'true' if _page_status == key else 'false' }}">{{ label }}</button>
+              {% endfor %}
+            </div>
+            <button type="submit" form="fe-make-homepage" class="btn" title="Show this page at the site's root address">{{ icon('home') }} Make homepage</button>
+            <button type="submit" form="fe-delete-page" class="btn ol-danger" title="Delete this page">{{ icon('trash') }} Delete</button>
+            {% endif %}
+            {% call chip('Page') %}The preview shows the page with every unsaved change, blocks included. Save a draft or publish with the yellow bar.{% endcall %}
+          </div>
+          {% if _is_homepage %}<p class="muted small st-pick-about">{{ icon('lock') }} The homepage is always public and shows at <code>/</code>. To take it down, make another page the homepage first.</p>{% endif %}
+          {% endif %}
+        </div>
+        <div class="st-body st-body--split">
+          <div class="st-controls">
+            <div class="st-seg-scroll" data-seg-scroll>
+              <nav class="st-seg" role="tablist" aria-label="Page settings">
+                <button type="button" role="tab" data-studio-tab="page">{{ icon('file-text') }}<span>Page</span></button>
+                <button type="button" role="tab" data-studio-tab="layout">{{ icon('maximize') }}<span>Width</span></button>
+                <button type="button" role="tab" data-studio-tab="background">{{ icon('droplet') }}<span>Background</span></button>
+                <button type="button" role="tab" data-studio-tab="sharing">{{ icon('share') }}<span>Sharing</span></button>
+              </nav>
+            </div>
+            <div class="st-panel" data-studio-panel="page">
         <div class="fe-page-settings-section">
           <div class="form-grid">
             <label>Title
               <input type="text" name="title" value="{{ page.title if page else '' }}" required>
             </label>
-            <label>URL slug
+            <label>Address
               <input type="text" name="slug" value="{{ page.slug if page else '' }}"
-                     placeholder="auto from title">
-              <small class="muted">Will be served at <code>/&lt;slug&gt;</code>. Letters, numbers, hyphens.</small>
+                     placeholder="From the title">
+              <small class="muted">The page lives at <code>/&lt;address&gt;</code>: letters, numbers and hyphens. When a published page's address changes, the old one redirects to the new one.</small>
             </label>
+            {% if page %}
+            {%- set _lname = namespace(v='Custom' if active_layout_key == 'custom' else active_layout_key) -%}
+            {%- for l in page_layouts if l.key == active_layout_key %}{% set _lname.v = l.name %}{% endfor -%}
+            <div class="pe-layout-field">
+              <span class="pe-layout-label">Layout</span>
+              <div class="pe-layout-row">
+                <span class="pe-layout-name">{{ icon('layout-grid') }}{{ _lname.v }}</span>
+                <button type="button" class="btn" data-open-modal="page-layout-modal">Change layout</button>
+              </div>
+              <small class="muted">The starting arrangement of the page's blocks. Picking another one rearranges them{% if page.is_published %}, in the draft until you publish{% endif %}. Custom leaves the arrangement to you.</small>
+            </div>
+            {% endif %}
             {%- set _form_status = 'draft' if (page is not none and not page.is_published)
                                     else ('private' if (page is not none and page.is_private)
                                     else 'published') -%}
@@ -246,38 +184,33 @@
           </div>
         </div>
 
-        <div class="fe-page-settings-section">
-          <h3 class="fe-page-settings-sub">Page width
-            <span class="muted smaller">Boxed centers the content at a max width. Full-width spans the viewport with optional left/right padding.</span>
-          </h3>
-          <div class="form-grid page-width-grid">
-            <div class="template-toggle-row">
-              <div class="template-toggle-label">Width mode</div>
-              <div class="view-toggle" id="page-width-toggle">
-                <input type="hidden" name="width_mode" id="page-width-value"
-                       value="{{ (page.width_mode if page and page.width_mode else 'boxed') }}">
-                {% set _wm = (page.width_mode if page and page.width_mode else 'boxed') %}
-                <button type="button" class="btn btn-sm {% if _wm == 'boxed' %}active{% endif %}" data-width="boxed">Boxed</button>
-                <button type="button" class="btn btn-sm {% if _wm == 'full' %}active{% endif %}" data-width="full">Full-width</button>
-              </div>
-            </div>
-            <label id="page-max-width-label" class="page-width-num">
-              <span>Max width <output id="page-max-width-out">{{ page.max_width if page and page.max_width else 1160 }}px</output></span>
-              <input type="range" name="max_width" id="page-max-width"
-                     min="640" max="1600" step="20"
-                     value="{{ page.max_width if page and page.max_width else 1160 }}">
-              <small class="muted">Boxed mode: max content width on wide viewports.</small>
-            </label>
-            <label id="page-pad-pct-label" class="page-width-num">
-              <span>Side padding <output id="page-pad-pct-out">{{ page.full_padding_pct if page and page.full_padding_pct is not none else 4 }}%</output></span>
-              <input type="range" name="full_padding_pct" id="page-pad-pct"
-                     min="0" max="20" step="1"
-                     value="{{ page.full_padding_pct if page and page.full_padding_pct is not none else 4 }}">
-              <small class="muted">Full-width mode: % of viewport width reserved as left/right gutter.</small>
-            </label>
+          {# Heading styles set on older versions of the editor still
+             render on the public page; they are shown here so they can
+             be seen and removed. #}
+          {% set _legacy = [] %}
+          {% if page %}
+            {% if page.heading_font %}{% set _ = _legacy.append('heading font ' ~ page.heading_font) %}{% endif %}
+            {% if page.subheading_font %}{% set _ = _legacy.append('subheading font ' ~ page.subheading_font) %}{% endif %}
+            {% if page.heading_color %}{% set _ = _legacy.append('heading color ' ~ page.heading_color) %}{% endif %}
+            {% if page.subheading_color %}{% set _ = _legacy.append('subheading color ' ~ page.subheading_color) %}{% endif %}
+            {% if page.heading_align and page.heading_align != 'auto' %}{% set _ = _legacy.append('headings aligned ' ~ page.heading_align) %}{% endif %}
+          {% endif %}
+          {% if _legacy %}
+          <div class="fe-page-settings-section" data-legacy-styles>
+            <h3 class="fe-page-settings-sub">Older heading styles</h3>
+            <p class="small">This page still carries heading styles from an earlier version of the editor: {{ _legacy|join(', ') }}. They apply to every heading on the page. Headings are now styled on each heading block.</p>
+            <button type="button" class="btn btn-sm" data-clear-legacy-styles>Remove them</button>
+            <p class="muted smaller" data-legacy-cleared hidden>They go when you save.</p>
           </div>
+          {% endif %}
+            </div>
+            <div class="st-panel" data-studio-panel="layout" hidden>
+        <div class="fe-page-settings-section">
+          {% set _wm = (page.width_mode if page and page.width_mode else 'site') %}
+          {{ width_control('width_mode', _wm, 'max_width', (page.max_width if page and page.max_width else 1160),
+                           'full_padding_pct', (page.full_padding_pct if page and page.full_padding_pct is not none else 4),
+                           site_px, label='Page width') }}
         </div>
-
         <div class="fe-page-settings-section">
           <h3 class="fe-page-settings-sub">Page spacing
             <span class="muted smaller">Top / bottom / side padding on the page article + gap between sections. Set any to 0 for a flush layout (e.g. a hero pinned to the header). Reset to 80 / 96 / 16 / 32 restores the defaults.</span>
@@ -322,9 +255,11 @@
           </div>
         </div>
 
+            </div>
+            <div class="st-panel" data-studio-panel="background" hidden>
         <div class="fe-page-settings-section">
           <h3 class="fe-page-settings-sub">Dynamic background
-            <span class="muted smaller">CSS-driven backdrop layered behind the page. Pairs cleanly with a colour or uploaded image (the dynamic background paints on top of those). Each preset is dark-mode aware.</span>
+            <span class="muted smaller">CSS-driven backdrop layered behind the page. Pairs cleanly with a color or uploaded image (the dynamic background paints on top of those). Each preset is dark-mode aware.</span>
           </h3>
           {% from "_dynbg_picker.html" import dynbg_trigger with context %}
           {{ dynbg_trigger(field_name='bg_dynamic_key',
@@ -335,8 +270,8 @@
         </div>
 
         <div class="fe-page-settings-section">
-          <h3 class="fe-page-settings-sub">Background colour
-            <span class="muted smaller">Solid colour painted under the page. Pairs with a dynamic backdrop or image (the colour sits behind both). Pick a Light-mode hex, then choose how Dark-mode handles it: stay the same, auto-derive a dark variant, or set a custom dark hex.</span>
+          <h3 class="fe-page-settings-sub">Background color
+            <span class="muted smaller">One color under the page, behind any dynamic background or image. Pick a Light-mode hex, then choose how Dark-mode handles it: stay the same, auto-derive a dark variant, or set a custom dark hex.</span>
           </h3>
           <input type="hidden" name="bg_color_present" value="1">
           {# Build the design-token roster once for the popover. Each
@@ -360,7 +295,7 @@
               <span class="fe-page-bg-color-pair" data-token-pair="light">
                 <input type="color" id="page-bg-color-swatch"
                        value="{{ page.bg_color or '#ffffff' }}"
-                       aria-label="Light-mode background colour">
+                       aria-label="Light-mode background color">
                 <input type="text" name="bg_color" id="page-bg-color-text"
                        value="{{ page.bg_color or '' }}"
                        placeholder="hex (e.g. #f8fafc) or token:color_brand"
@@ -386,7 +321,7 @@
               <span class="fe-page-bg-color-pair" data-token-pair="dark">
                 <input type="color" id="page-bg-color-dark-swatch"
                        value="{{ page.bg_color_dark or '#1a1a2e' }}"
-                       aria-label="Dark-mode background colour">
+                       aria-label="Dark-mode background color">
                 <input type="text" name="bg_color_dark" id="page-bg-color-dark-text"
                        value="{{ page.bg_color_dark or '' }}"
                        placeholder="hex or token:color_surface (blank → auto-derive)"
@@ -413,7 +348,7 @@
               <button type="button" class="icon-btn" data-token-popover-close
                       aria-label="Close">{{ icon('x') }}</button>
             </div>
-            <p class="muted smaller">Pick a colour token. Updating it under <b>Settings → Design</b> propagates to every page that uses it.</p>
+            <p class="muted smaller">Pick a color token. Updating it under <b>Web Frontend → Design</b> propagates to every page that uses it.</p>
             <div class="fe-page-bg-token-grid">
               {% for tok in _color_tokens %}
               <button type="button" class="fe-page-bg-token-tile"
@@ -486,19 +421,21 @@
           </div>
         </div>
 
+            </div>
+            <div class="st-panel" data-studio-panel="sharing" hidden>
         <div class="fe-page-settings-section fe-page-og-section">
-          <h3 class="fe-page-settings-sub">Open Graph / Link Previews
-            <span class="muted smaller">How this page appears when shared on Slack, iMessage, Facebook, Twitter/X, etc. Anything left blank falls back to the site-wide values set under <b>Branding &amp; SEO</b>.</span>
+          <h3 class="fe-page-settings-sub">Search and link previews
+            <span class="muted smaller">The description shows under this page in search results as well as in link previews on chat apps and social media. Anything left blank uses the site's values from <b>Branding</b>.</span>
           </h3>
           <input type="hidden" name="og_present" value="1">
           <div class="form-grid page-og-grid" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;">
             <div class="page-og-fields">
-              <label>Title <span class="muted small">(falls back to the page title)</span>
+              <label>{% call hrow('Title') %}Falls back to the page title{% endcall %}
                 <input type="text" name="og_title" maxlength="200"
                        value="{{ (page.og_title if page else '') or '' }}"
                        placeholder="{{ (page.title if page else '') or 'Page title' }}">
               </label>
-              <label>Description <span class="muted small">(120–200 chars works best)</span>
+              <label>{% call hrow('Description') %}Search results and link previews. 120 to 200 characters works best.{% endcall %}
                 <textarea name="og_description" rows="3" maxlength="500"
                           placeholder="One or two sentences describing the page.">{{ (page.og_description if page else '') or '' }}</textarea>
               </label>
@@ -526,7 +463,7 @@
                   Falls back to the site-wide OG image.
                 </div>
               </div>
-              <p class="muted smaller">When unset, link previews use the frontend OG image configured under Web Frontend → Branding &amp; SEO.</p>
+              <p class="muted smaller">When unset, link previews use the frontend OG image set on Web Frontend → Branding.</p>
             </div>
           </div>
           <script>
@@ -545,15 +482,97 @@
           })();
           </script>
         </div>
+            </div>
+          </div>
+          <div class="st-preview">
+            {% if page %}
+            {{ live_preview(url_for('frontend.page_preview', page_id=page.id), '#page-edit-form', height=700, width=1280,
+                            title='Page preview', overrides={'save_action': 'publish'}, watch=True, only=LP_MAIN) }}
+            {% else %}
+            <p class="muted small">The preview appears once the page is saved.</p>
+            {% endif %}
+          </div>
+        </div>
       </section>
 
-      <div class="form-actions">
-        <a class="btn" href="{{ url_for('main.frontend_pages') }}">Cancel</a>
-        <button type="submit" class="btn btn-primary">Save</button>
-      </div>
+      {# No Save button here: the yellow save bar is the one way to save a
+         draft or publish (its Publish/Save Draft buttons set save_action). #}
     </form>
+    {% if page and not _is_homepage %}
+    {# "Delete" in the card head submits this. #}
+    <form method="post" action="{{ url_for('main.frontend_page_delete', page_id=page.id) }}" id="fe-delete-page" hidden
+          onsubmit="return confirm('Delete “{{ page.title|e }}”? Its address will show the 404 page.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    </form>
+    {# "Make homepage" in the card head submits this. #}
+    <form method="post" action="{{ url_for('main.frontend_page_set_homepage', page_id=page.id) }}" id="fe-make-homepage" hidden
+          onsubmit="return confirm('Make “{{ page.title|e }}” the homepage? It will show at the site\'s root address, and the current homepage becomes a regular page.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    </form>
+    {% endif %}
+
+    {# ── Active layout structure ────────────────────────────────────
+       Shown for both existing AND new pages. New pages start with an
+       empty structure card + palette so the admin can drag blocks in
+       before the first save (the form's hidden `blocks_json` input
+       carries the dragged structure into `frontend_page_save`). Each
+       pill opens the BlockEditor modal scrolled to that block; the
+       top-right "Change layout" button opens the layout PICKER (the
+       same modal the top-bar Layout pill uses) so the admin can
+       switch layouts or build a custom one. #}
+    {# Pill names and icons come from the palette's own catalog, so a
+       block added there is named correctly here too. #}
+    {% set _PAGE_BLOCK_LABELS = {'separator': ('Divider', 'minus'), 'hero': ('Hero', 'image'),
+                                 'meetings': ('Meetings', 'calendar-clock'), 'events': ('Events', 'calendar')} %}
+    {% for _c in page_block_catalog %}{% set _ = _PAGE_BLOCK_LABELS.update({_c.key: (_c.name, _c.icon or 'square')}) %}{% endfor %}
+    {% set _editable = ['paragraph','heading','image','icon','button','container',
+                        'video','code','callout','list','toc_sidebar',
+                        'hero','meetings','events'] %}
+    {% call structure_card('Active layout', active_layout=active_layout,
+                            builder_modal_id='page-layout-builder-modal',
+                            picker_modal_id='page-layout-modal',
+                            is_customized=active_layout_customized, library=page_block_catalog,
+                            help_text='Click a block to edit it, and drag it to move it. Add blocks from the list beside the structure: click one to add it at the end, or drag it into place.') %}
+      {% if active_layout_tree %}
+      {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
+                              _PAGE_BLOCK_LABELS, _editable,
+                              block_previews, block_payloads) }}
+      {% else %}
+      <p class="muted">This page has no blocks yet. Add some from the list beside this, or pick a layout on the Page part of the settings above.</p>
+      <div class="fe-page-structure-rows" data-be-tree data-be-zone="root">
+        <div class="fe-page-structure-root-empty muted small" data-be-root-empty>
+          Drop a Container or Two-panel here to add a new row, or drag any block to start.
+        </div>
+      </div>
+      {% endif %}
+    {% endcall %}
+
+    {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
+                               _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
+
   </div>
 </div>
+
+<script>
+// Older heading styles: "Remove them" posts them blank on the next save.
+(function () {
+  var btn = document.querySelector('[data-clear-legacy-styles]');
+  var form = document.getElementById('page-edit-form');
+  if (!btn || !form) return;
+  btn.addEventListener('click', function () {
+    [['heading_color', ''], ['subheading_color', ''], ['heading_font', ''],
+     ['subheading_font', ''], ['heading_align', 'auto']].forEach(function (p) {
+      var i = document.createElement('input');
+      i.type = 'hidden'; i.name = p[0]; i.value = p[1];
+      form.appendChild(i);
+    });
+    btn.disabled = true;
+    var note = document.querySelector('[data-legacy-cleared]');
+    if (note) note.hidden = false;
+    form.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+})();
+</script>
 
 {# ── Edit-layout modal — hosts the full BlockEditor.
    Lives outside .fe-admin-main so it covers the whole viewport.
@@ -576,7 +595,7 @@
       <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
     </div>
     <div class="modal-body">
-      <p class="muted small">Every Save Draft and Publish is recorded. Restore loads the chosen revision back into a draft for review — your live page stays unchanged until you click <b>Publish</b>. History keeps up to {{ 50 }} entries per page.</p>
+      <p class="muted small">Every Save Draft, Publish, and rename is recorded. Restore loads the chosen revision back into a draft for review — your live page stays unchanged until you click <b>Publish</b>. History keeps up to {{ 50 }} entries per page.</p>
       <div id="page-history-list" data-fe-skip-save-bar>
         <p class="muted small fe-page-history-loading">Loading history…</p>
       </div>
@@ -680,6 +699,11 @@ window.tspBlogTags = [
    admin loads; safe to include here because it self-initialises on
    explicit calls (no auto-mount). #}
 <script src="{{ url_for('static', filename='js/login_fx.js', v=app_build_id) }}"></script>
+{# Markdown parser for the hero modal's subheading preview — the field
+   accepts markdown + inline HTML, and the server renders it with the
+   `markdown_inline` filter. Same vendored `marked` the meeting modal
+   previews with; load order matters (page_hero_modal.js reads it). #}
+<script src="{{ url_for('static', filename='js/vendor/marked.min.js', v=app_build_id) }}"></script>
 {# Two-way binding for the per-page hero edit modal — captures Hero
    pill clicks, populates the modal from the block's data, and writes
    every input change back into the page form's blocks_json. #}
@@ -958,35 +982,7 @@ window.tspBlogTags = [
     // round-trips it unchanged.
   });
 
-  // ── Page width controls ──────────────────────────────────────────
-  const widthToggle = document.getElementById('page-width-toggle');
-  const widthValue = document.getElementById('page-width-value');
-  const maxWidthLbl = document.getElementById('page-max-width-label');
-  const padPctLbl = document.getElementById('page-pad-pct-label');
-  const maxWidthInp = document.getElementById('page-max-width');
-  const maxWidthOut = document.getElementById('page-max-width-out');
-  const padPctInp = document.getElementById('page-pad-pct');
-  const padPctOut = document.getElementById('page-pad-pct-out');
-  function syncWidthVis() {
-    const boxed = widthValue.value === 'boxed';
-    if (maxWidthLbl) maxWidthLbl.style.display = boxed ? '' : 'none';
-    if (padPctLbl) padPctLbl.style.display = boxed ? 'none' : '';
-  }
-  if (widthToggle) widthToggle.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-width]');
-    if (!btn) return;
-    widthValue.value = btn.dataset.width;
-    widthToggle.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
-    syncWidthVis();
-    widthValue.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-  if (maxWidthInp) maxWidthInp.addEventListener('input', () => {
-    maxWidthOut.textContent = maxWidthInp.value + 'px';
-  });
-  if (padPctInp) padPctInp.addEventListener('input', () => {
-    padPctOut.textContent = padPctInp.value + '%';
-  });
-  syncWidthVis();
+  // Page width: the shared _width_control.html needs no script.
 
   // ── Page spacing (pad_top / pad_bottom / pad_x / section_gap) ──
   // Live readout on every range input + a "Flush (all 0)" shortcut
@@ -1476,6 +1472,9 @@ window.tspBlogTags = [
     if (action === 'publish') {
       return '<span class="fe-page-history-chip fe-page-history-chip-publish">Published</span>';
     }
+    if (action === 'rename') {
+      return '<span class="fe-page-history-chip fe-page-history-chip-rename">Renamed</span>';
+    }
     return '<span class="fe-page-history-chip fe-page-history-chip-draft">Draft</span>';
   }
   function render(payload) {
@@ -1606,4 +1605,17 @@ window.tspBlogTags = [
 })();
 {% endif %}
 </script>
+<script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+{# Layout dialogs; their button is the Layout field on the Page part. #}
+{% if page %}
+{{ layout_picker(page_layouts, active_layout_key,
+                  url_for('main.frontend_page_layout_save', page_id=page.id),
+                  "layout_key",
+                  "page-layout-modal", "page-layout-builder-modal",
+                  page_block_catalog,
+                  url_for('main.frontend_custom_layout_save'),
+                  kind='page', show_trigger=False) }}
+{% endif %}
+{% include "_new_page_modal.html" %}
 {% endblock %}

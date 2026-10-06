@@ -7,7 +7,7 @@ Summary: Get a working portal running with Docker Compose in under a minute, the
 
 This is the fastest way to see Trusted Servants Pro running on your own machine.
 If you're deploying to a public server with a domain and HTTPS, follow the full
-[Installation](/docs/installation) guide instead.
+[Installation](installation.md) guide instead.
 
 ## Prerequisites
 
@@ -74,8 +74,8 @@ user: admin   ·   pass: admin
 
 ## What next?
 
-- [Installation](/docs/installation) — the full production install with a domain,
+- [Installation](installation.md) — the full production install with a domain,
   automatic HTTPS, and auto-updates.
-- [Configuration &amp; Security](/docs/configuration) — environment variables and
+- [Configuration &amp; Security](configuration.md) — environment variables and
   how secrets are stored.
-- [Backup &amp; Restore](/docs/backup-restore) — keep your data safe.
+- [Backup &amp; Restore](backup-restore.md) — keep your data safe.

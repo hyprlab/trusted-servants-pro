@@ -1,0 +1,57 @@
+{# The New page dialog, opened from the page editor's selector menu (or
+   the empty Pages screen). Needs `page_layouts` in context. #}
+{% from "_layout_thumb.html" import layout_thumb, layout_thumb_custom %}
+{# ── New-page modal ────────────────────────────────────────────────
+   Replaces the older flow (click → blank edit screen → save) with
+   an in-place title + layout picker. Submitting POSTs to
+   `frontend_page_create`, which mints the row and redirects into
+   the edit screen for the freshly-created page. The admin can
+   change the layout from the edit screen too — this just gives
+   them a head start. #}
+<div class="modal fe-template-picker-modal fe-layout-picker-modal" id="new-page-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <form class="form" method="post" action="{{ url_for('main.frontend_page_create') }}" data-fe-skip-save-bar id="new-page-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-head">
+        <h2>New page</h2>
+        <button type="button" class="icon-btn" data-close>{{ icon('x') }}</button>
+      </div>
+      <div class="modal-body">
+        <label>Page title
+          <input type="text" name="title" required maxlength="200"
+                 placeholder="e.g. Newcomer Welcome" autocomplete="off">
+        </label>
+        <p class="muted small fe-new-page-layout-hint">Pick a starting layout. Custom is the no-template option — drag blocks onto the page yourself in the editor.</p>
+        <div class="template-library-grid">
+          <label class="template-card template-card-custom-radio active"
+                 data-layout-key="custom" data-layout-name="Custom">
+            <input type="radio" name="layout_key" value="custom" checked>
+            <div class="template-card-preview lt-wrap">{{ layout_thumb_custom() }}</div>
+            <div class="template-card-info">
+              <div class="template-card-name">Custom</div>
+              <div class="template-card-desc muted small">No template — drag blocks onto the page yourself.</div>
+            </div>
+          </label>
+          {% for l in page_layouts %}
+          <label class="template-card{% if not l.is_prebuilt %} template-card-custom{% endif %}"
+                 data-layout-key="{{ l.key }}" data-layout-name="{{ l.name }}">
+            <input type="radio" name="layout_key" value="{{ l.key }}">
+            <div class="template-card-preview lt-wrap">{{ layout_thumb(l.blocks_json|from_json if l.blocks_json else []) }}</div>
+            <div class="template-card-info">
+              <div class="template-card-name">{{ l.name }}
+                {% if l.is_prebuilt %}<span class="template-card-tag muted smaller">Preset</span>{% endif %}
+              </div>
+              <div class="template-card-desc muted small">{{ l.description }}</div>
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Create page</button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -7,7 +7,441 @@ bump. The deeper, version-by-version implementation log lives in
 The same content appears in-app under **Settings → About** with the
 release notes expanded by default and the changelog collapsed.
 
-## 2.18.3 — 2026-08-10 (latest) — Clearer event editing, tidier Watchtower
+## Unreleased
+
+## 3.0.0 — 2026-10-05 (latest)
+
+- Opening a file in the File Browser shows it in the page instead of a pop-up, without reloading: the file on the left (images, PDFs and videos play in place, audio has a player) and a column of details on the right. The details give its full link (click it to copy), its kind, format, size, image dimensions (and, for photos, when and on what camera they were taken), when and by whom it was uploaded, and every meeting, library, post, story or page that uses it. A file missing from storage says so. The back arrow (or Esc) returns to the list where you left it; the arrows in the top bar (or the Left and Right keys) step through the files in the list's order, search and filters. In the picker, a file's view has a Select button.
+- Images in a File Browser file's view zoom in place: click (or double-tap on a phone) to zoom in where you point and again to fit, use the wheel or pinch, drag to move around, or use the zoom buttons under the image, which show the zoom level (click the percentage to fit). The +, - and 0 keys work too, and Esc fits a zoomed image before it goes back to the list.
+- The File Browser's Download downloaded the meeting file with the same number instead of the file you chose (or nothing); it now downloads the right file.
+- Watchtower's Visitors and 404s top bars match the rest of the admin: the Unique visitors / Hits switch is the standard segmented switch, its help is the usual info icon, and the date range and buttons are the standard button size.
+- Every segmented switch in the admin (such as List / Grid, Light / Dark and the editors' panel tabs) slides its highlight to the part you pick.
+- Moving between Watchtower's tabs, and between Active and Archived requests, loads the section in place without reloading the page: the tab highlight slides to the new section and nothing above it moves. The address and the browser's Back and Forward follow along.
+- The top bar is the same height on every page, whether or not it has buttons.
+- Watchtower's section tabs use the same tab style as the editors' panels, with the current section in the accent color.
+- Green status badges (such as Active in Watchtower and 2FA on the Users page) are green again in light mode, and the dark sample in the dynamic background picker has its dark background again.
+- Spacing is the same everywhere in the admin, down to the gaps between items inside cards and sidebars, which now come in one set of sizes: every card has the same padding, corners and gap to the next one, and pages, Settings sections, dialogs and pages shown inside Settings all keep the same space from the edge, tighter on a phone. Cards that still had the older look (a thick blue left edge and wider padding), such as on the Users page, match the rest.
+- Settings is spaced the same in every section: 24px at the sides and 16px between cards on a computer, 14px and 14px on a phone, including Global and Users.
+- On a phone, each Intergroup Officer and Fellowship in Settings > Global folds to one line (position and name, or name and place) and opens to its fields with a tap. New ones start open.
+- On a phone, Settings uses the same spacing as the rest of the app: 14px around each section and 16px inside its cards, in place of wider desktop padding.
+- New users join the Trusted Servants Email List when they're created, with their name, email and phone; clear Add to the Email List on the Create user form to leave someone off. If their email is already on the list, that entry is linked to the account rather than doubled.
+- The dashboard's Join the email list widget is retired, since people no longer share accounts and new users join the list when they're created.
+- Creating a user, including from an access request, now starts with the Viewer role instead of Admin, so no account gets admin rights by accident.
+- Visitors to the public site can request access without going to the sign-in page: a Request access button beside Login, in the mega menu and in the footer, opens the form in a 400px popup, and it thanks them in place when sent.
+- The Request Access form has an optional Message box, on the public site and the sign-in page. The message comes in the notification email and shows under the requester's name in Watchtower > Requests.
+- The Request Access form, on the public site and the sign-in page, now has the same spam protection as the other public forms: a hidden trap field for bots, and the Turnstile check when it's turned on.
+- On a phone, the top bar's menu button and page title are centered in the bar on pages with no buttons beside the title.
+- On a phone, list pages put the list first: the filters, sort and view fold away behind a Filters button beside the search, which counts the filters in use. Each filter in use shows as a chip under the search; tap its x to clear it. Zoom Accounts keeps its one-time passcode tools in view.
+- Every page has the same 20px of space around its content, on all four sides, matching the gap between a list's filter sidebar and the list (14px on phones, as before). The page heading and the yellow save bars line up with it.
+- A library's page has a back button beside its file count, at the top of the sidebar, that returns to the Libraries list (Archived libraries, for an archived one).
+- An info popover that would be cut off by the box it sits in, such as One-time passcodes in the Zoom Accounts sidebar, now opens in full over the page.
+- Admins can post an alert bar that everyone signed in sees, from Settings > Alert Bar: a message written in Markdown with the formatting toolbar and a live preview beside it (headings, lists, quotes, links and images all show in the bar), a style (Information, Good news, Warning or Urgent), and where it shows: above the top bar, on the dashboard, at the foot of the sidebar, or any mix. People can close it unless that is turned off, and a closed alert comes back when the message changes. It can stop on its own at a set time, and the settings show a preview. Turn on Open details when clicked to give it a window with a title and longer details, written the same way: clicking the bar, or its Details button, opens it, with Close and Don't show again. The window can show when the alert was posted: the date sets itself when you post a new message, and you can change it or set it back to now with Today.
+- Zoom Accounts uses the same layout as the other lists: an Accounts / Calendar switch, search that updates as you type, an Overlapping meetings filter, sort by name or most used, and List or Grid. Each account's sign-in has a Copy button, and its password can be shown for 15 seconds or copied without showing it. The weekly calendar is its own view, marking times that overlap on one account, and the one-time passcode tools are in the sidebar.
+- Adding or editing a Zoom account opens on its own page, saved with the yellow bar: the name, sign-in, password and notes on the left, and the meetings that start from the account on the right. The popups are gone.
+- The Zoom Accounts calendar is a week grid with the hours down the side. Each meeting time sits at its real hours, from when its Zoom room opens to the meeting's end, in its account's color, so the free time on each account shows. Times that overlap sit side by side; point at a narrow one and it widens to the whole day to show its time and name. Pick an account in the sidebar to see only its week, with the meeting names; today and the current time are marked.
+- Overlapping meetings now counts from when a meeting's Zoom room opens, not only from its start time.
+- Deleting a Zoom account now clears it from the meetings and meeting times that used it; before, they kept pointing at the deleted account.
+- Each update sent to the Email List is kept in full: the message as it went out, who chose the audience and how, and every person it went to with whether their copy was delivered (and why not, when it wasn't).
+- The Email List page has a People / Updates switch at the top of its sidebar. Updates sent lists every update beside the one you pick, shown in full with its delivered and failed counts and who it went to; failed copies come first. Search finds updates by subject or message, and Use again starts a new update from one.
+- `{name}` in an update's subject is now filled in with each person's name, as it already was in the message.
+- Sending an update to the Email List is laid out like the other editors: the subject and message on the left, in the Markdown editor with its formatting toolbar and a live preview, and who gets it on the right. A count shows how many people it reaches as you change the audience: everyone, or chosen groups, with a search to pick particular subscribers. Insert their name puts `{name}` in the message, and Sent before lets you start from an earlier update.
+- Send update stays off until there is a subject, a message and someone to send to, and asks before sending. If the server refuses a send, the page keeps what you wrote and picked.
+- A button that can't be used yet now looks faded.
+- Intergroup Email lists each shared account with its role and initials, and Copy and Email buttons on each; with more than five accounts, a box finds one by role or address. Open webmail is the main button at the top. The mail-app setup shows the incoming and outgoing servers with Copy buttons, the setup notes as a list of points, and a link to the full guide.
+- Intergroup Email is edited on its own page, laid out like the other editors and saved with the yellow bar: the title, intro and accounts on the left, where accounts can be dragged into order, and the mail servers, notes, guide and webmail address on the right. The popup is gone.
+- Every library, the Intergroup ones included, uses the same list layout as the other pages: search that updates as you type, Category, Kind and (for libraries on the public Literature Library) Public filters with counts, sort by custom order, name, date added or kind, List or Grid, and bulk Add, Remove or Replace a category, Show publicly or Hide, and Delete.
+- In a library, drag files into a new order while it's sorted by custom order and nothing is filtered; the yellow bar saves the order. Intergroup libraries can now be put in a custom order too.
+- Adding or editing a library file, and a library's settings, open on their own pages laid out like the other editors and save with the yellow bar. A file's page has its title, summary and what it opens (a file, text written there, or a link) on the left, and its thumbnail, categories and details on the right. A library's settings have its name, description and notice on the left, and who can change it, the public Literature Library, its categories and the meetings that use it on the right. The popups are gone.
+- Deleting several library files at once moves them to the Delete Log, where they can be restored for 30 days, as deleting one already did.
+- The Contact Form and each custom form's submissions use the same list layout as the other pages: search that updates as you type, Inbox, Unread (or New) and Archived with counts, sort, List or Grid, and bulk Mark read, Mark unread, Archive or Restore, and Delete. The Contact Form also filters by whether the message was emailed to the recipient.
+- A Contact Form message or a form submission opens on its own page, laid out like the editors: the message or every answer on the left, when and where it came from on the right, with Reply, Mark unread, Archive and Delete at the top. Opening it marks it read. The popup and the expanding rows are gone.
+- On a custom form's submissions, the sidebar highlights that form instead of Web Frontend.
+- The Email List and Recovery Contacts use the same layout as the other lists: a sidebar with the count, search that updates as you type, filters with counts, sort, and List or Grid, beside the list. Tick rows or cards for bulk actions in a bar at the foot of the list.
+- Email List filters by account (portal account or added by hand), and its Updates sent view lists the updates sent to the list. Import a CSV and Send an update are in the sidebar.
+- Recovery Contacts splits what is waiting into New submissions, Update requests and Removal requests, each with an amber count, and filters published entries by Available to sponsor and Contact through the site. Search also finds phone numbers by their digits. The activity log is in the sidebar.
+- Each person on the Email List and each Recovery Contacts entry opens on its own page, laid out like the story editor, and saves with the yellow bar; the edit popups are gone. A Recovery Contacts submission or request opens with a review card that shows what it asks for, with buttons to approve it, apply the update or removal, or discard it. Approving from that card keeps any edits made below it first.
+- Recovery Contacts actions return to the page they came from, keeping the list's search and filters.
+- The File Browser picker has the same margin on every side of its file list, its close button sits inside the top-right corner of the list, and Esc closes it.
+- Zoom Tech Training is edited on its own page, laid out like the story and blog editors: the title and the text on the left and the settings on the right, split 60/40, saved with the yellow bar. The settings are Sections (the format and a list of sections), Design and Layout. Click a section in the list to go to it. The edit popup is gone.
+- The Design tab sets the Zoom Tech Training page's look: background, text, heading, link, accent and quote colors, each with a light and a dark value; the text and heading fonts; text size, line spacing and text width; and photo corners, outline and shadow. The Markdown preview shows changes as you make them, and Back to the theme's design clears them.
+- Photos on the Zoom Tech Training page open full screen when clicked. Click or double-tap to zoom in where you pointed, use the mouse wheel, a pinch or the + and - buttons, drag to look around, and move between photos with the arrows or a swipe. Esc closes it.
+- The Zoom Tech Training page keeps its text at a reading width on wide screens. In the Wiki layout the sections sit beside the text and mark the one being read; on a phone they fold into a list above it. Videos on the page play in place.
+- The Zoom Tech Training page can be written in Markdown, with the formatting toolbar and a live preview, or built with the block editor. Convert it either way from the editor's Format group: the version you leave is kept, and Go back returns to it as it was. A page made with blocks stays in blocks until you convert it.
+- Announcements & Events, Stories and Blog have the same layout as Meetings, Libraries and the File Browser: a sidebar with the count, search, a New button, status and type filters with counts, sort and List or Grid, beside a list whose column headings stay in view. Blog filters by category and tag; Stories by featured.
+- The grid view on those three pages shows each post as a card with its featured image. Tick the box on a card, or a row in the list, to use the bulk actions, which now sit in a bar at the foot of the list.
+- Search is live everywhere: on Meetings, Libraries, the File Browser, Announcements & Events, Stories, Blog and the Search page, results and counts update as you type.
+- The Meetings and Libraries pages have the File Browser's layout: a sidebar with the count, search, a New button and filters beside a list whose column headings stay in view as it scrolls. Meetings filter by status, type and the day they meet; libraries by status and whether they show on the public Literature Library page. Each filter shows how many it would match.
+- Both pages sort from the column headings or the sidebar's Sort by buttons, and switch between List and Grid. Meetings also sort by number of libraries or files, and libraries by number of meetings.
+- The grid view has new cards: a meeting's card shows its logo (or an icon for its type), type, schedule with today marked, place, and file and library counts; a library's card shows its description, whether it's public, and its file and meeting counts. Each card has its own actions menu; in the list, the Actions button appears when you point at a row.
+- Meeting schedules in the lists merge days that share a time, as in "Mon–Fri 8:00 AM".
+- The Design page has a new layout: a live preview on the left and the settings beside it, in tabs for Colors, Text, Links, Layout, Cards and Buttons. Settings are grouped by the element they change, so everything for a card, a button or a link is in one place.
+- The text colors (body text in light and dark, and muted text) are on both the Colors and Text tabs. A change on either tab shows on the other.
+- Each tab's preview shows its elements at rest and on hover, in light or dark mode. It starts in the admin theme's mode, and hovering part of it names the setting behind it, and clicking highlights that setting.
+- Scales such as border width, shadow and corner radius are sliders, on/off settings are switches, and light and dark (or rest and hover) colors sit side by side. A dot marks each changed setting, and its reset button returns it to the theme's value.
+- The mega menu's appearance moved from Navigation to a new Mega menu tab on the Design page, together with the mega menu link settings that were under Links. Its preview shows the panel open, with a button to replay the opening animation.
+- The Mega menu tab says which mega menu style the theme uses and dims the settings that style ignores. Before, the link colors under Design had no effect on the Classic and Recovery Blue menus, which color their links with the panel's text color, and nothing said so.
+- In dark mode the preview shows what the public site really does: fixed button colors, and header links in the dark body text color. A note says so where it applies.
+- The "Dots" underline for links and buttons now draws a dotted underline. Before, it drew no line at all.
+- "Default section spacing" is no longer on the Design page: nothing on the public site used it. Page spacing is set on each page.
+- Each card in the Site theme picker shows a small picture of that theme: its colors, heading font, buttons and cards. Before, every card showed the same blue sketch.
+- In the Site theme picker, the choice between a theme's last saved state and its defaults is a two-part switch with a one-line explanation, so more of the theme list fits on screen.
+- Every segmented control in the admin has the same squared shape, with the chosen option raised: list and grid switches, Active and Archived views, content source, email audience, link type, background style and the dynamic background tabs.
+- The theme pill at the top of the Web Frontend pages shows the theme's name, such as Recovery Blue, instead of its key.
+- Neobrutal headings, navigation and buttons now use the Archivo Black font. Before, the font file was missing its basic letters, so the browser fell back to Arial Black.
+- Saving the Contact form settings no longer hides the phone field or turns off the subject check on the public form, and saving the Story form settings no longer clears its older wording settings. The story form now requires an email exactly when its Email field is marked required.
+- Changing the Meetings list layout on the Templates page no longer turns off Pro Tips and deletes the sidebar links.
+- The footer's Gradient background now saves its start color. Before, the Solid color was saved in its place. Saving the footer also no longer replaces the theme's footer color with navy when the Solid color was never changed.
+- Cookie Compliance: "Remember choice for 0 days" is kept as 0, which remembers the choice until the visitor closes the browser. Before, 0 was saved but treated as 365.
+- Cookie Compliance: a generated starter privacy policy is created as a draft, since it has placeholders to fill in, and the banner links it once it is published. The policy page list leaves out private pages, which the banner can't link to.
+- The Classic header now shows the items from Web Frontend → Navigation, with their mega menus, instead of fixed Meetings, About and Help links. The fixed links still show while no navigation items exist.
+- The Web Frontend form settings pages (Announcements/Events, Story, Contact, Recovery Contacts and custom forms) now auto-hide the app sidebar like the other Web Frontend pages. Form inboxes keep it.
+- Redirects refuses a source under /tspro, /static or /pub, and existing rules no longer apply there. Before, a rule such as /tspro/* could send every admin away from the sign-in page.
+- The Contact and Recovery Contacts pages can now have no dynamic background. Before, choosing none brought back the default aurora backdrop.
+- The Web Frontend menu is regrouped: Look (Design, Branding), Structure (Header, Footer, Page templates), Content (Homepage, Pages, Popups, Forms, 404 page) and Site (Redirects, Caching, Privacy & cookies, Font & icon library, and Visitor metrics, which opens Watchtower).
+- The site theme picker is now only on the Design page. It used to sit at the top of most Web Frontend pages, where changing it restyled the whole site from pages such as Footer or 404.
+- Header, Footer, Pages and the page templates have a new width choice, Site width, which follows Design → Layout, so one setting sizes the whole site. New pages and new installs use it. Parts saved before keep their own width and look the same, and Design → Layout lists which parts follow the site width and which set their own.
+- The Web Frontend overview starts with a site status strip that can't be hidden: whether the public site is on, the theme and how it starts, the cookie banner and caching, each linking to its page. Staging sync sits below it when set up.
+- Overview widgets show more: Pages counts published, draft and private pages and those with unpublished changes; Forms lists every form, custom forms included, with what is waiting in each inbox; Redirects lists the missing pages visitors hit most; Header menu lists the menu items. The Branding and Header & Footer shortcut widgets are gone.
+- "Hide the app sidebar in Web Frontend" moved from the overview into Customize, since it is your own setting rather than the site's.
+- Header and Navigation are one page, Header, with a live preview of the real header at the top and tabs for Menu, Utility bar and Alert bar. The preview shows changes as you type, before saving, in light or dark mode and at desktop or phone width.
+- Each menu item's mega menu is edited on the Header page's Menu tab, with the preview holding its panel open. Each mega menu block takes one line; its icons, size, color, new-tab and form options sit behind a More button whose label lists what is set.
+- Menu items are added and edited in a shorter form: pick Text link, Button or Two lines, and for a button its corners. The corners choice says when the header in use draws both the same. Only forms with a pop-up version are offered under "Opens a form"; the others always went to their page anyway.
+- Dragging menu items into a new order saves when you drop them, like mega menu columns and blocks. A mega menu is limited to three columns, as the page already said.
+- The Design page has a Header tab: the header's width, height and logo size, the menu link colors (moved from Links), and the utility bar and alert bar colors, which now have separate dark mode colors. Its preview is the real header. The utility bar colors are marked as unused on themes that color the bar themselves.
+- A mega menu Search block now works: typing in it opens the site search with those words. Before, it did nothing.
+- Branding (formerly Branding & SEO) has tabs for Name and logo, Icons, and Search and sharing, each beside a preview of where it shows: the browser tab and header, a phone home screen, a search result and a chat link preview. The previews follow your edits and newly chosen images before you save.
+- The logo image is set on Branding. It used to be on the Header page; its size is on Design → Header.
+- The site description is always sent to search engines. Before, turning off link previews also dropped the description, leaving only the homepage tagline. Link previews now use the site address from Settings for their links and image when it is set, so a site behind a proxy no longer shares its internal address.
+- The Footer page shows the real footer in a live preview above tabs for Layout, Brand, Link columns, Secondary links, Social icons, Locations, Contact and Copyright. Each content editor is a tab instead of a pop-up, and a tab the current layout doesn't show is marked off, with a note saying its content is kept.
+- Choosing a built-in footer layout (Classic, Minimal, Stacked, Mega) lists what it shows. "Customize this layout" makes an editable copy to rearrange; the built-in one stays available. Before, dragging a block in a built-in layout silently replaced it with a generic custom footer.
+- The footer's look moved to a Footer tab on the Design page: always dark or following the page, the background style and particles, width, minimum height and text size, and new settings for the dark footer's colors (background, lines, text and social icons), which were fixed before. Its preview is the real footer. On themes that paint their own footer the background and colors are marked as unused.
+- Footer social icons are chosen with the icon picker instead of typing an icon name, and secondary links can open in a new tab. The icon picker for footer locations now opens; it was missing from the Footer page.
+- The Footer page no longer fails to open when a built-in footer layout is active.
+- Every form, built-in or your own, has the same settings page: tabs for Fields, Page, Delivery, Look, Spam, Sharing and Inbox beside a live preview of the form's page. Tabs that don't apply to a form say why.
+- The Forms page lists every form in one table with its address, an on/off switch, what is waiting in its inbox and links to its settings and inbox.
+- The Contact form's fields now come from its field builder: rename them, reorder them, remove phone or subject, and add fields of your own, whose answers arrive with the message. Before, the builder was saved but the public form ignored it.
+- The Announcements/Events and Story forms show their real, fixed fields in the builder; you can change what each one says (and on the Story form whether an email is required), and the public forms use that wording. Their earlier builders were ignored or listed fields the form didn't have.
+- Custom forms keep their accepted file types when saved. Before, saving the form's settings dropped them.
+- The Contact and Recovery Contacts forms' heading, subheading and intro, and the Contact form's side panel, are edited on the form's Page tab. Delivery shows where email goes when the address is left blank.
+- Leaving a built-in form's address blank keeps its usual address. Before, a blank address was saved as /form.
+- Templates is now Page templates: a list of every generated page grouped by part of the site (Meetings, Events and announcements, Stories, Blog, Library, Directories, Forms), and for the one you pick, Layout, Appearance and Page tabs beside a live preview of the real page. Picking a layout shows it in the preview before you save.
+- Appearance shows only the settings the chosen layout uses and names the ones it doesn't. Before, background color, fonts and sizes were offered for every page, but most list pages ignored them.
+- Each page template's layout, heading, width and other page settings save together, so changing a layout can no longer undo other settings.
+- Meeting, announcement, event, story and blog post templates preview on a real published item.
+- The page editor's settings are in tabs (Page, Width and spacing, Background, Search and sharing) beside a live preview of the page with every unsaved change, blocks included. Page width offers Site width, which new pages use.
+- Applying a layout to a published page now goes into its draft, like any other edit; the live page changes when you publish. Before, it changed the live page at once, and publishing an older draft could undo it.
+- Changing a published page's address in the editor now redirects the old address to the new one, as Rename already did.
+- The homepage's status is locked to public, since the homepage shows at / whatever its status. It can't be set to draft or private, including from the Pages list, and can't be deleted.
+- Pages with heading styles from an older version of the editor say so on the Page tab and can remove them. New sections no longer get a stray title field; sections that already have a title keep it.
+- The page structure names every block correctly (Lottie, Library, Officer roster and others showed their internal names), and the Pages list shows each page's layout instead of "Standard".
+- The popup editor has tabs for Popup, Box, Backdrop, and Opening and closing beside a live preview of the popup open over a page, with switches in place of the stacked checkboxes.
+- The 404 page has Text, Buttons and Picture tabs beside a live preview, and can now drop the line under the heading, the built-in artwork and the extra Home button.
+- The heading and text fonts are chosen on Design → Text, where each shows in its own face and the theme's font is named. Fonts & Icons is now the Font & icon library, for adding your own fonts and icons.
+- The Caching page has one switch for images and one for styles and scripts; the settings under each are grayed out while it is off. It says that caching styles and scripts applies to the admin as well, and its buttons say what they do.
+- Privacy & cookies has Behavior, Banner and Privacy policy tabs beside a live preview of the banner as a new visitor sees it. The region presets fill in the form instead of saving at once, and the wording says what each mode really does: the banner records the answer and does not block scripts.
+- The Redirects page lists your redirects first and adds or edits them in a pop-up. Renamed items show their old and current addresses, with the right address for announcements; only the old one can be edited.
+- The admin search finds the frontend sections by their current names.
+- Deleting the page the cookie banner links as its privacy policy now removes the link, and Privacy & cookies says when the linked page was deleted.
+- The Header and Footer pages show the preview on the left and their settings in a column on the right, as the Design page does. Every other Web Frontend page with a preview now has the same arrangement.
+- The Header page switches between Menu, Utility bar and Alert bar with one control. Menu items, mega menu blocks and utility bar items are compact rows that open one at a time to edit; a menu item is edited in place instead of in a pop-up, and a mega menu column adds blocks from one menu that says what each block is. Utility bar containers are now called groups, and the item a phone starts on is chosen from a list.
+- The Footer page lists its parts (layout, brand, link columns and the rest) and says which ones the current layout shows. A part the layout doesn't show can be added to the footer from that part, so link columns can show in any footer.
+- The footer's copyright line is built from choices: the © sign, this year or a range of years, the site name or another name, and an ending such as All rights reserved. Writing the whole line by hand is still possible.
+- Previews show only what the page is about: the Header preview shows the header, the Footer preview the footer, a form's preview the form at its full height, and page template, page and 404 previews the page content without the header and footer.
+- The page editor and the popup editor show their settings above the block builder.
+- On the Overview, staging sync sits in the site status card.
+- A pop-up whose form is saved, such as Customize on the Overview, no longer opens again after the page reloads.
+- The current section in the Web Frontend menu is highlighted in the brand color.
+- The main sidebar and the Settings window's section list highlight the current page the same way: bold, tinted, with a bar in the brand color on its left.
+- The top of the main sidebar is a short list instead of a stack of boxed buttons: Dashboard, Search, Notifications, Watchtower and Web Frontend, each with an icon and styled like the links below it, with a line separating them from the rest of the menu. Counts and the ⌘K shortcut sit at the end of their rows, and Web Frontend has a small button at its end that opens the public site, carrying the green live dot.
+- Every entry in the main sidebar has an icon, with any count at the end of its row. The rows at the top no longer stay fixed: everything between the logo (which stays put) and the footer scrolls as one list, and keeps its place from page to page.
+- The first group of sidebar links (Meetings, Libraries, File Browser and the others) has a Main heading and collapses and expands like the Forms, Intergroup, External and Admin groups.
+- The sidebar no longer has an Admin group. Its items (such as Stories, Blog, Email List and Recovery Contacts when they are limited to admins) are listed in Main, and each still shows only to the people allowed to open it. A saved manual sidebar order keeps them, after the rest of Main.
+- The announcement and event editor is laid out like the Web Frontend pages: the type, title, summary and body on the left, and the post's settings on the right, chosen with a segmented control: Post (posted-on date, auto-archive, visibility and web address), Event, Links and Images. The Event tab appears only while the post is tagged as an event, and opens when you tag it. Its settings are grouped into When, Where, Zoom and Contact, and the Zoom details show only for an online event. Public visibility is a three-way switch instead of a menu.
+- The body of an announcement or event has a formatting toolbar: heading, bold, italic, link, image (picked from the File Browser), bulleted and numbered lists, quote, code and divider line. Each button writes the Markdown for you around the selected text, and pressing it again takes the formatting off. Ctrl+B, Ctrl+I and Ctrl+K work too (Cmd on a Mac), and Ctrl+Z undoes a button like typing.
+- Stories and blog posts are edited on the same two-column page as announcements and events: the title, summary and body on the left, and the settings on the right, chosen with a segmented control. Stories have Post, Author and Image; blog posts have Post, Author, Topics (categories and tags) and Image.
+- Meetings are edited on their own page, laid out like announcements, stories and blog posts, instead of in a pop-up window. The name, description and extended content are on the left, with the same formatting toolbar and preview. The settings are on the right, in tabs: Meeting (type, location, logo, web address), Schedule (days and times, and scheduled changes), Online (Zoom, Google Meet and Teams; shown for online and hybrid meetings), Alerts, Libraries and Files. Edits save with the yellow save bar; files keep saving on their own as before.
+- A meeting's page is laid out in two columns. On the left: its logo and description (with Markdown now shown as formatted text) beside its schedule, which has today marked and any queued schedule changes (the two stack when there isn't room), and one Files card that switches between its libraries and each kind of file. On the right, staying in view as you scroll: how to join (Zoom with the guided launcher, host account and sign-in codes; Google Meet; Teams) and the location. On narrow screens the joining details come first.
+- A meeting's page shows its public alert, if one is set, and when it ends. Archiving or deleting a meeting asks in a confirmation window.
+- In light mode the highlight behind whatever the pointer is over (tabs in segmented controls, sidebar links, menu items, table rows) is a couple of shades darker, so it shows.
+- In segmented tab controls (the editors, Web Frontend pages and a meeting's Files card), the blue highlight slides over to the tab you choose instead of jumping.
+- In lists of files (a meeting's page and editor, and library pages), an item that opens another website ends with a link-out icon.
+- In dark mode, alert banners (such as a meeting's note for signed-in users) are a soft amber tint instead of a bright yellow block.
+- New meetings are created on the same page, and land on their editor once created, so files can be added straight away.
+- Renaming a meeting moves its editor to the new address without reloading, and a meeting can now be saved with no libraries ticked.
+- Blog posts are written in Markdown with the same editor, toolbar and live preview as stories and announcements. New posts start in Markdown, and posts that were already Markdown open in it.
+- A blog post written in the old block builder keeps it until you convert it. A Convert to Markdown button at the top of its Post tab previews the result and lists what Markdown can't keep (section spacing, image size and alignment, buttons, callouts and videos) before you confirm. Unsaved edits are saved with the conversion.
+- A converted blog post keeps its block version: "Go back to the block version" at the top of its Post tab restores it. The blog list marks posts still in the block builder, and its To Markdown bulk action converts the selected ones.
+- Stories open on their own page instead of a pop-up window. The story body has the same formatting toolbar and live preview as announcements and events.
+- Stories and blog posts save with the yellow save bar, without leaving the page or losing your place. Publish and Move to Drafts save your edits on the way.
+- A story sent in through the public form shows who sent it, their note and any attachment above the editor, with Approve to Drafts, Approve & Publish and Reject. Approving keeps any edits you made.
+- A story's or blog post's featured image can be picked from the File Browser, and an upload can be converted to WebP, as on announcements and events.
+- Deleting an announcement, event, story or blog post from its editor asks in a confirmation window.
+- Choosing a featured image from the File Browser on an existing announcement or event now brings up the save bar; before, the pick was easy to lose.
+- Blog posts list their own past web addresses under URL change history; they showed none, or another post's.
+- The save bar on content pages no longer cuts off "Unsaved changes".
+- The button on file upload fields ("Choose File" or "Browse…", depending on the browser) is a standard blue button throughout the admin.
+- The File Browser window that opens from other pages (to choose an image or a file) is laid out like Settings, with no title bar: a full-height sidebar on the left holds search, Upload a file, the kind of file (Images, Documents, Video, Audio, Other, each with how many there are), who uploaded it (anyone or you), sort and view. Choosing an image opens it showing images only; switch to All files to see the rest. It keeps your search, filters and page while you use it.
+- The File Browser page has the same sidebar, as a card beside the files that stays in view as you scroll: search, Upload files, kind of file, who uploaded it, sort and view. The Upload button moved from the top bar into it.
+- In the File Browser, the number of files shown sits at the top of the sidebar, and the files sit in a card level with the sidebar that fills the window. Only the files scroll; the column headings stay in place above them. The same goes for the File Browser window.
+- The blog list's search and filters are one tidy row: a search box, then Category, Tag and Sort menus that apply as soon as you change them, with Clear when any is set. The Apply button is gone.
+- The Stories list has the same row: search titles, summaries and authors, show all stories or only featured ones, and sort (newest, oldest, recently edited, story date, title or author). Sorting by a column heading keeps the search and filter.
+- Admin pages use the full width of the screen. They were capped at about 1400 pixels, which left an empty band on the right of wide screens.
+- Tables whose rows show an Actions menu on hover (Meetings, Libraries, Announcements & Events, Stories, Blog, Email List, Recovery Contacts, Zoom Accounts, Redirects and access requests in Watchtower) have an Actions heading over that column.
+- The Settings window's close button is a plain × until you point at it, when its button outline appears.
+- A table row's Actions button no longer stays showing after you click it and move away; it hides as soon as the pointer leaves the row, and still shows while you move through the row with the keyboard.
+- The help pop-up beside Public site on the Web Frontend overview opens over the staging sync row instead of being cut off behind it. Help pop-ups beside small all-caps labels now show their text in normal case.
+- In light mode the grey background behind the admin pages is a shade darker, so the white cards stand out a little more.
+- The version number is no longer shown at the bottom of the sidebar. It is still in the About window.
+- The top of the sidebar shows the Trusted Servants Pro logo from the About window on its own, without the app name beside it.
+- Web Frontend pages no longer flash while loading: the tab you last had open shows from the start, previews keep their space, and a hidden app sidebar no longer slides out and back.
+- Footer → Meeting locations shows each checkbox to the left of the location's name.
+- Every Web Frontend page with a preview now works like the Header page: the preview on the left, the settings on the right, and their parts chosen with a segmented control instead of tabs. This includes Branding, forms, Page templates, pages, popups, the 404 page and Privacy & cookies.
+- Page templates no longer has a list down the left: the template being edited is chosen from a menu at the top of its card.
+- The Footer page's parts open in place, like the Header page's rows, instead of on a separate screen with a back arrow. Clicking a block in the footer layout opens its part.
+- Previews no longer flash the page unstyled while they load: a new preview replaces the old one only once it is ready. A mega menu held open in the Header preview no longer replays its opening animation.
+- Section headings in Web Frontend cards are larger, and Rollback snapshots on the Overview matches the Pull and Push buttons.
+- Admin pages no longer flash unstyled text and links before their styles load, which happened in Firefox-based browsers on pages with a live preview.
+- Pages, Popups and Forms work like Page templates: each opens straight into its editor (on the item you last edited), and a menu at the top of the card names what you are editing and lists every page, popup or form to switch to, with New at the bottom. Delete, a page's status and Make homepage sit beside that menu. The separate list screens are gone, and with them the bulk status change and the quick rename on the Pages list; a page's title and address are edited on its Page tab.
+- Form previews show custom forms and the Recovery Contacts form correctly, and a form whose page has its own address previews that page instead of saying it redirects.
+- A page's layout is chosen on its Page part, under Title and Address, instead of in the bar at the top of the screen.
+- The layout cards in the Page layout and New page dialogs show a small drawing of each layout (headings, text, pictures, buttons, columns and the side contents list) instead of the same grey bars for every one.
+- The Marketing landing layout now builds what it describes: a hero with a heading, a lead paragraph and a button, three feature columns, and a closing button. Before, it added two empty sections. Pages that already use it are unchanged.
+- The blocks for a page or popup are listed beside its structure, grouped as Layout, Content and From the site, with a search box, instead of in a floating Add block button over the whole screen. Click a block to add it at the end, or drag it into place. The list stays in view while the structure scrolls.
+- The popup editor's preview no longer shows the cookie banner over the popup.
+- In the page and popup structure, each container's name and its Settings, Duplicate and Remove buttons sit on one line above its contents, so nested containers keep their width; columns stack when they would be too narrow to read, and a block's buttons appear over it on hover. The block list can be folded to a narrow strip to give the structure more room, and stays folded until opened again.
+- The page template shared by the Announcements/Events form, the Story form and custom forms is named Submission form in Page templates and Design → Layout, instead of Forms.
+- The menus for choosing a page template, page, popup or form show each group in its own box under a shaded heading, with one line per entry: its name on the left and its layout, address or status on the right.
+- The Footer page's settings have a Layout and Options switch above them, like the Header page: Layout chooses the footer layout and arranges its rows and blocks, Options holds the footer's parts (brand, link columns, social icons and the rest). Clicking a block on the Layout side opens its part under Options.
+- Branding's Name and logo tab previews the site's real header instead of a drawing of one. A newly chosen logo, a removed logo and a changed site name show in it before you save.
+- The Design page's Design tokens card is laid out like the Header page: the preview on the left, the settings on the right, and Colors, Text, Links, Header, Mega menu, Footer, Layout, Cards and Buttons chosen with a segmented control at the top of the settings instead of a tab strip across the card.
+- That control is a single row that scrolls sideways (with a mouse wheel too) instead of wrapping onto a second line; the edge with more groups past it fades out, and the open group is kept in view, including when clicking part of the preview opens another group.
+- Every Web Frontend page's segmented control works the same way: it fills its column when its parts fit, and scrolls sideways with faded edges when they don't (a form's seven parts, or any of them in a narrow window), keeping its names instead of dropping to icons.
+- Turning a module off in Settings switches the page behind Settings to the Dashboard, wherever you were, and Settings stays open. It no longer reports "Save failed: HTTP 404" when you were on one of that module's pages. Turning Web Frontend on or off updates the Web and View buttons in the sidebar without reloading the page.
+- Settings → Users lists each user on one row that fits any width, with no sideways scrolling: their initial, name, username and badges (You, Locked, Disabled, 2FA or 2FA pending), then email and phone, with the role menu and an Actions menu at the end. In a narrow window the role menu moves under the name. A Sort menu beside the filter replaces the sortable column headings. Reset password is in the Actions menu, and the Self-reset and Two-factor switches are in the Edit dialog with Disable account.
+- After clearing a selection on Settings → Users, the bar with Delete selected now hides instead of showing "0 selected".
+- Settings → Global fits any width without sideways scrolling. Locations are a list: an icon for in person or online, the name, the address on one line with Open in Maps, and an Actions menu. Intergroup Officers and the Fellowships Index are rows of fields under column headings; in a narrow window each row becomes a small labelled card, two fields to a line. Removing a row is a quiet trash icon instead of a red button, and a virtual fellowship's website stays in its column instead of moving under Country.
+- Every list on Settings → Global can be sorted by any of its columns: click a heading to sort, again to reverse (in a narrow window the headings become a Sort by row). Locations sort by name, type or address. Sorting officers or fellowships also sets the order they are saved in; a note says so until you save.
+- Deleting a location, or removing an officer or fellowship, now asks first in a confirmation dialog that names what will go. Cancel or Escape keeps it. A new row with nothing typed in it is removed without asking.
+- In Settings, the yellow save bar sits at the foot of the section list and shows whenever any section has unsaved changes, counting how many. Its Save saves them all in the background and Settings stays open. This now includes Users (role changes) and Global (officers and fellowships, including a new sort order), which no longer have their own Save buttons or bar. On a phone the bar runs along the bottom of the open section.
+- The Public Information Chair card moved from Settings → Users to Settings → Global, under Intergroup Officers, and saves with the sidebar's save bar. It shows for admins only.
+- The Public Information Chair is always on the Intergroup Officers list, greyed out with a lock: its name, phone and email come from the Public Information Chair card (they change in the list as you type in the card), and it can't be removed. It can still be moved by sorting.
+- The Public Information Chair card has a Title field for what your fellowship calls the position, such as Public Information and Communications Chair. It becomes the position in Intergroup Officers (updating as you type) and is used in the Need help window, the Contact page and the Contact section block. Left blank, it's Public Information Chair.
+- In Settings → Modules, the Intergroup switch for the email page reads Email Accounts instead of repeating "Email" ("Intergroup Email Email Accounts"), and the module's description no longer says "Email Email page".
+- In Settings → Domain / Email, the relay and SMTP fields are spaced like the rest of the form; the Remove stored API key and Remove stored password checkboxes no longer touch the field above them.
+- The Dashboard has a calmer, uniform look. Every widget has the same head: an icon, its name, a count when something needs attention, and one short link on the right (View all, Details, Manage, All notes). Lists highlight the row under the pointer, and a widget with nothing to show says so in the same small dashed box. The grip for dragging a widget appears only when you point at it; the whole widget can still be dragged.
+- For admins the top card is the server at a glance: CPU, memory, disk, load, uptime and who's online in one row of equal tiles, with "Signed in as Admin" linking to what your role allows. Other roles see their role with a short list of what it lets them do.
+- Widget names are shorter and match the Customize window: Meetings, Recent files, Website visitors, Join the email list, What's new, Backups, Access requests (now with Locked accounts beneath it), Recently deleted. What's new opens the full notes from its head link instead of a large button.
+- The Join the email list form no longer runs past the edge of its card at tablet widths.
+- Rearranging the Dashboard is smooth. Drag a widget by its heading (or its grip): it lifts and follows the pointer, a dashed space opens where it will land, and the other widgets slide out of the way instead of jumping and overlapping. Letting go settles it into place, and Escape puts it back. The space opens nearest to where the widget is, in either column. A focused grip moves its widget one place with the arrow keys.
+- Cards throughout the admin share one soft shadow, the one the Dashboard widgets use, and cards that lift when pointed at share one hover shadow. The Neobrutal and Cyberpunk themes keep their own.
+- The Settings window drops its header bar on larger screens, since the list on the left already shows where you are; the close button stays where it was, floating over the top corner. Each section sits on the light grey background with its cards styled like Dashboard widgets: white, with a thin border, rounded corners and an icon tile in the heading. This includes Users, Global and other pages shown inside Settings. On a phone the header stays, with its Back button.
+- The admin has two looks, light and dark; the Neobrutal, Cyberpunk and Solarpunk admin themes are gone (the public site's themes are unchanged). Settings → Appearance chooses Follow system, Light or Dark, saved to your account so it applies on every device you sign in from; Follow system switches along with your device. The sun and moon button in the sidebar switches too and is saved the same way. The first time you sign in after updating, the look you had in that browser carries over (a dark theme becomes Dark, the others Light). The setup wizard's theme step offers the same three choices.
+- The bar along the top of each admin page uses the same soft shadow as the cards, instead of a heavier one of its own.
+- On a meeting's page the Zoom card sits on a pale blue (a deep, quiet blue in dark mode), so it stands apart from the cards beside it; its buttons and fields keep their usual look.
+- The File Browser is easier to scan and use. One toolbar above the files holds the search (with a search icon, applied on Enter), how many files there are and the List / Grid switch; Upload stays at the top right. Each file has one small "…" menu with Copy link, Download, Rename and Delete, instead of a row of buttons on every card. Delete asks first in a confirmation dialog.
+- The list shows when each file was uploaded, and sizes read naturally (638 B, 27 KB, 1.4 MB) instead of "0 KB" for small files; on a phone the columns fold into one line under the name. The grid shows a picture, the name, and size and date on one line, two cards across on a phone. An image that fails to load shows its type icon instead of a blank box, and an empty search offers to clear it.
+- The File Browser sorts by clicking a column heading (Name, Type, Size, Uploaded or By); clicking it again reverses the order, and an arrow marks the sorted column. The grid, and the list on a phone, have the same choices in a Sort by row. This replaces the sort menu and its direction button, and sorting by who uploaded a file is new.
+
+## 2.20.2 — 2026-09-30
+
+- The featured image on announcement, event and archive pages now has the same shadow as the cards beside it, set under Design, in place of a heavier shadow of its own.
+
+## 2.20.1 — 2026-09-29
+
+- Every switch in the admin now sits to the left of its caption. Settings rows (Settings modules, dashboard widgets, Web Frontend pages, caching, cookie compliance, forms, post editor) had the switch on the far right, and some switches in the meeting editor and library settings were stacked and centered above their caption.
+
+## 2.20.0 — 2026-09-27
+
+- Create User has a password generator. Generate fills in a random password (20 characters by default, or 16, 24 or 32), shows it so you can copy it, and a checklist shows whether a password you type meets the rules. Generated passwords leave out look-alike characters such as 0 and O, and never contain the username or email.
+- Reset password now generates 20-character passwords with the same rules.
+- Checkboxes and radio buttons in boxed options across the admin, such as "Email login details to the new user", now sit to the left of their label instead of centered above it, and long labels wrap beside the box.
+- The Watchtower access requests table now has one Actions button per request instead of a row of separate buttons. Create User, Mark Handled or Reopen, Archive or Restore, and Delete are in its menu. On a phone each request is shown as a card with its status and Actions button at the top.
+- Roles on a Watchtower access request are listed one per line, so a request with several roles takes less room across the table.
+- On a phone, the Watchtower tabs are one row you swipe sideways instead of three stacked rows. The edge fades where more tabs are hidden, and the current tab is scrolled into view.
+- Settings has its sections in a sidebar on the left, grouped under Account and Administration, instead of a row of tabs across the top. On a phone, Settings opens to the list of sections; tap one to open it and use the back arrow to return.
+- Release notes in Settings → About list only the current version and the earlier releases in its line, such as 2.19.0 to 2.19.10. An "All release notes on GitHub" button beside the heading opens the full history.
+- Settings → About no longer has a Changelog section. The technical changelog is still in the project on GitHub.
+
+## 2.19.10 — 2026-09-23
+
+- Search results for announcements and events, stories, and blog posts now show a date on the right. Events show their event date and everything else shows when it was posted. This applies to both the ⌘K search box and the full search page.
+- The announcement and event Body field now has a live preview beside it, like the meeting description. The preview shows Markdown and HTML the way visitors will see them, and fills in event date tags from the Starts and Ends fields.
+- Queuing a meeting schedule change now adds it to the list in the edit window straight away, marked as not saved yet.
+- Queued schedule changes can now be edited, not only cancelled. Cancelling is marked on the change and can be undone until you save.
+- The Save button in the meeting edit window now saves everything in the window, including queued schedule changes. Before, queuing a change saved only that change, and other unsaved edits in the window were never saved.
+- A draft made with Duplicate now shows a warning before Save draft or Publish if its event date has already passed. You can go back and change the date, or save or publish anyway.
+- The library reading editor's Write and Preview tabs no longer split into two columns.
+
+## 2.19.9 — 2026-09-17
+
+- Watchtower's charts now have axes. The 404s trend, the visitor-traffic chart and the failed-logins strip previously drew a shape with no numbers on it at all — no scale, no dates, nothing to read a value against.
+- Each of those charts has a labelled vertical scale with gridlines, a caption naming what is being counted, and dates (or hours) along the bottom. The number of date labels adapts to the window, so a 7-day view labels every day and a 365-day view labels every month.
+- Hovering anywhere over a chart draws a line at the nearest date and shows a box with that date's numbers. On the visitor chart it lists hits and unique visitors together, so you never have to aim at a particular line.
+- The same readout works from the keyboard: tab to a chart and use the left and right arrow keys, Home, End, and Escape.
+- Every chart has a "View as table" link underneath that opens the same figures as plain rows, for reading exact numbers or copying them out.
+- Chart scales now end on readable numbers. A busy month peaking at 28,855 tops its axis out at 32,000 marked in steps of 8,000, instead of an unlabelled line at an arbitrary height.
+- The Visitors tab's chart had its gridlines changed from dashed to solid, and its labels no longer stretch sideways on a wide screen.
+
+## 2.19.8 — 2026-09-16
+
+- Watchtower's 404s tab has a new "Top source IPs" panel listing the addresses the 404s came from, ranked by how many they account for, so a single source hammering the site is easy to pick out and block.
+- Each row shows how many different dead URLs that address asked for. One address across ten or more of them is marked "scanning" — that pattern is an automated probe looking for a way in, not a broken link.
+- Rows carry a Block button, the same one the per-URL lists use, so an abusive address can be blocked without leaving the page.
+- Blocking your own IP address now asks first. The address you are browsing from is marked "your IP" wherever it appears in Watchtower, and clicking Block on it opens a warning explaining that blocking it locks you out of the portal entirely, with no way back in from inside the app.
+- That confirmation appears on every Block button in Watchtower, including the one where you type an address in by hand, and blocking your own address is refused outright unless the warning has been acknowledged.
+- The bars and counts in the 404s tab's ranked lists now line up in straight columns. Rows showing a "Blocked" or "redirected" label used to sit a few pixels out of line with the rest.
+- The Watchtower button in the sidebar had smaller text than the Dashboard and Notifications buttons beside it. All three now match.
+
+## 2.19.7 — 2026-09-16
+
+- Fixed: a Pattern tile background drew faint hairlines across itself, and they moved as the Scale slider changed. The motif now repeats inside the mask image instead of being tiled by the browser, which removes the seams the tiling left behind.
+- Because of that change, a Pattern tile background shifts its position slightly the first time a page is loaded after the update. The pattern, its scale and its colours are unchanged; only where the repeat starts has moved.
+- Fixed: the Waves 15 motif had a wider gap once per tile than between its other ribbons, which read as a line between tiles. Its tile is now cut to the spacing the motif itself uses, so the ribbons are evenly spaced everywhere.
+
+## 2.19.6 — 2026-09-16
+
+- Fixed: a dynamic background on a container block ignored the pattern you picked and drew a different motif on every page load, even with "Randomize pattern" unchecked. The choice was being saved correctly — the page just wasn't reading it.
+- The same fault dropped the other pattern settings on container blocks: scale, line weight, rotation, and the dot presets' size and spacing all fell back to the preset's own defaults.
+- "Freeze movement" also had no effect on a container block's background. It does now.
+- Nothing needs re-saving. These settings were stored all along; reload the page to see them applied.
+
+## 2.19.5 — 2026-09-16
+
+- The dynamic background's colour randomiser no longer hands dark mode a light-mode palette. Dark mode now rolls deep shades by default, so a section set to randomise still reads as dark.
+- A "Shade lightness" slider sets how light or dark those rolled colours come out, per mode. Dark mode starts at 26, light mode at 55 — the band it has always used, so light mode looks unchanged.
+- With "Colours" randomise switched off, the same slider leads the Colours section and dims or lightens every colour chip together. Sliding it back returns the colours exactly, and "Roll colours" draws its next palette at that shade.
+- The slider that is not in play greys out, so there is only ever one place to set the shade.
+- Existing surfaces that already had dark-mode "random colours" turned on will render darker from now on. Nothing needs re-saving; raise that mode's Shade lightness if you want the old brightness back.
+- The pattern motif has its own "Randomize pattern" checkbox. It used to be the first entry in a 330-option list, where a pinned motif and a shuffling one looked identical.
+- With randomise off, a "Roll" button picks a motif at random and keeps it. With it on, "Shuffle sample" previews another of the ones visitors will get.
+- "Roll colours" and "Shade lightness" moved to the top of the Colours section, above the colour slots.
+- The pattern preset's "Background" choice (solid or gradient) and "Gradient direction" moved into the Colours section, next to the Background and Gradient end colours they act on.
+- The preview and the Background / Options tabs stay fixed at the top of the dynamic background window. Scrolling the preset grid no longer carries the tabs out of view.
+- Every setting in that window now shows its name with an ⓘ beside it instead of a line of grey explanation, with the explanation a click away.
+
+## 2.19.4 — 2026-09-16
+
+- Hero particles can be any colour, not just white, and light mode and dark mode each get their own colour.
+- Particle opacity is also set per mode, so the layer can be faint in light mode and stronger in dark.
+- The hero's particle controls are grouped into a Light mode and a Dark mode column. Effect, Speed and Size stay above them because they apply to both.
+- The particle Size slider greys out when the selected effect ignores it. Waves paints full-width bands rather than individual particles, so size has nothing to scale. The stored value returns when another effect is picked.
+- The hero subheading accepts Markdown and inline HTML — bold, links, line breaks, lists. Unsafe markup is stripped, as it is elsewhere in the portal.
+- New hero button style, "Blue (filled)". It matches Primary (filled) in light mode; in dark mode it stays a muted blue instead of the near-black navy Primary uses.
+- "Green (filled)" and "Yellow (high-contrast)" now darken on a hero that is pinned to dark, including the editor's Dark preview. Previously they only changed for visitors browsing the site in dark mode.
+- Button icons render in the hero preview. They previously showed as the icon's reference name in brackets, such as `[custom:8]`. Custom and built-in icons both render, at the colour and size set for them.
+- The hero preview scales its content down to fit the preview frame. A long heading used to wrap and push the buttons below the visible area.
+- The hero preview wraps the heading at the same width the live page does. It was breaking to a second line about nine pixels earlier, so a heading that fits on one line looked like it didn't.
+- "Show tagline in hero" now says why nothing appears when the Tagline field is empty. The eyebrow needs both the toggle and some text.
+- Dynamic backgrounds have a "Roll colours" button that fills the colour slots with a fresh palette without turning randomise on, so palettes can be tried and kept as fixed colours.
+- Dynamic backgrounds have a "Roll positions" button that rolls fresh coordinates for the blobs, mesh or bands and keeps them, so every visitor sees the same layout. "Reset layout" restores the preset's own arrangement.
+- Each randomise toggle now has its own button underneath it, and that button only affects that setting. The previous single "Shuffle preview" button re-rolled colours and positions together, and overwrote hand-picked colours even when "random colours" was off.
+- Turning "Colours" off no longer replaces the colour slots with whatever the preview was showing. Slots that already hold colours are left alone.
+- Colour swatches across the admin have clean corners. A native colour input draws a square swatch inside the rounded chip, which made the outline look broken.
+- Colour chips line up with the controls stacked under them — swatch, palette button, hex field and token badge share one edge and one width.
+- The "◈ token" badges have hover text naming the control and the palette token its colour matches, and stating that the value is a fixed hex: editing the palette does not change that control unless the token is re-picked.
+- A token badge no longer describes a colour the field no longer holds. Editors that fill their colour fields in code left the hex caption and badge showing the previous value.
+- Dashboard widget empty states are all the same size. "No pending requests." was rendering larger than "No accounts currently locked out." in the same card.
+- Long labels in settings rows wrap instead of being cut off. In a narrow column, "Auto-hide app sidebar in Web Frontend" lost the end of its label and its help button.
+- The last card in a list keeps its bottom border. The Web Frontend Status widget's auto-hide row was missing one.
+- The two toggle cards in the Web Frontend Status widget have more space between them.
+
+## 2.19.3 — 2026-09-15 — A slightly larger admin
+
+- **The admin's text is a step larger than 2.19.2 shipped it.** The standard size goes from 13.6px to 14.4px, and every other size on the scale moves with it — captions, buttons, headings and the big dashboard numbers all keep their relationship to one another, so the screens read the same, just a touch bigger. If 2.19.2 felt tight, this is the correction.
+
+## 2.19.2 — 2026-09-15 — Admin text, on one scale
+
+- **The admin's text is smaller and, for the first time, consistent.** Every size across the portal's admin screens was a little different from the next — sixty-four distinct sizes, several of them a fraction of a pixel apart. They now come from a single set of ten steps, so a heading is a heading and a caption is a caption wherever you are. Overall the type is a step down from where it was; screens hold more without feeling cramped.
+- **Buttons sit a step below body text**, which stops a row of buttons from shouting over the content it belongs to. Small filter pills stay smaller still.
+- **Dashboard widgets stopped mixing sizes.** "No pending requests." was rendering a size larger than "No accounts currently locked out." sitting right beside it in the same card; all the widget empty states match now, and the Access Requests card's two column titles match every other widget title.
+- **The Web Frontend Status widget is tidier.** On a narrower window the "Auto-hide app sidebar in Web Frontend" row was cut off mid-word, taking its ⓘ help button with it — it wraps to a second line now. That card was also missing its bottom border, and the two toggle cards sat too close together.
+
+## 2.19.1 — 2026-09-15 — Staging sync stops crying wolf
+
+- **The Staging sync panel on your Web Frontend page no longer says "Unreachable" when your Live site is fine.** It checks the connection every time the page loads, and a single slow name lookup — the step that turns your Live site's address into a number your server can dial — was enough for it to give up and declare the pairing broken. That's why testing the same connection a moment later in **Settings → Data → Frontend sync** worked: the second attempt went through. It now gives that first attempt a second try before reporting a problem.
+- **When it does report a problem, it tells you which problem.** The reason now appears under the status instead of only in a hover tooltip, and a failed address lookup says so rather than claiming your Live site can't be reached — different causes, different fixes. Genuinely wrong addresses still fail straight away rather than making you wait.
+- **Click the status to check again.** No page reload needed.
+
+## 2.19.0 — 2026-09-15 — Dynamic backgrounds, rebuilt
+
+- **Dynamic backgrounds can now look different in light and dark mode.** Opening a background's **Options** gives you a **Light** and a **Dark** column: each one has its own colours, its own randomise toggles, its own tone, and its own texture. Set a soft cream wash for daytime and a deep navy for night on the same page. The preview above shows both side by side as you work, and each column has a **Shuffle preview** button for when you want the computer to suggest a palette.
+- **Three new sliders per mode.** **Saturation** and **Brightness** tune the colours you picked; **Colour fill** decides how much of the surface is painted with them versus left as the page's white or black — turn it all the way up and there's no white left at all. Aurora blobs also gains a **Speed** control for how fast it drifts.
+- **A new "Pattern tile" background with 330 patterns.** Stripes, waves, chevrons, dots, Memphis shapes, florals — pick one from the grouped list, or choose *Random each load* and let the page surprise visitors. Then set its scale, line thickness and rotation, and give light and dark mode their own opacity and backdrop. Multi-colour patterns take their colours from your palette, so they match the rest of your site automatically.
+- **Your existing backgrounds keep the look they had.** This rework changes how the older backgrounds paint — they used to be fixed at a pale, washed-out strength, which is exactly what the new sliders are for. Rather than let that change your site under you, **every page, template and block you set up before this update keeps rendering the way it always did.** They now point at a **Classic** version of the same background, listed at the bottom of the picker. Nothing to do, nothing to re-pick.
+    - **Move over whenever you like, one surface at a time.** Open the background picker on any page or template: it opens on the Classic card, showing you what that surface is actually using. Leave it and nothing changes. Choose the current version instead and that one surface moves across — the rest of your site stays exactly as it was.
+    - **The old "pastel" softening is back too**, as a **Pastel wash** slider on the Classic backgrounds, already set to the strength you had saved. So you can see what your page is doing, and dial it out on your own schedule.
+    - **Aurora bands is back.** It had been removed, which left any page still using it with no background at all. Those pages work again.
+- **Dotted grid and Diagonal lines are being retired.** They've moved down to the Classic section and are marked *Retiring* — Pattern tile does the same job with far more choice. Anything already using them carries on working.
+- **Your live meetings bar no longer collides with itself.** On a narrower window, a long meeting name used to run straight into the buttons on either side. The bar now tucks its buttons into a small **⋯** menu — as many as it needs to, and only while it needs to. Widen the window and they come straight back out. Phones and tablets are unaffected; they swipe, and always did.
+- **Admin pages read as forms again, not walls of prose.** Around 470 explanatory paragraphs across the admin have been tucked behind a small ⓘ next to the thing they describe. Click it when you want it. Where the description *is* the thing you're choosing between — preset cards, module lists, empty states — it's still on screen.
+- **Saving doesn't lose your place any more.** The yellow save bar used to reload the whole page, dumping you back at the top; it now saves in the background and leaves you where you were. And when you're working inside a pop-up editor, the save bar comes with you and sits on the dialog instead of hiding behind it.
+- **The editor puts you back where you were after a reload**, reopening whichever pop-up you had open.
+- **Event posts manage their own archive date.** Tag a post as an Event and it archives itself based on the event's end date — shown to you as you type it — instead of leaving a second, separate date that could quietly fire first.
+- **Fixes along the way.** The **Templates** page was running each card's description into its title in the same bold type. Background preview thumbnails were showing as empty grey boxes everywhere. Background settings — your colours, texture and tone — could be silently lost when you saved. The utility bar editor's rows no longer wrap raggedly, and its "Open in new tab" tick box looks like a tick box again.
+
+## 2.18.10 — 2026-09-14 — Tidier lists, and a sidebar that stays put
+
+- **Your row buttons are now one Actions menu.** Every admin list — Announcements & Events, Blog, Stories, Pages, Popups, Redirects, Navigation, Forms, File Browser, Libraries, Meetings, Locations, Zoom Accounts, Recovery Contacts, Email List, Users — used to end in a row of three to five buttons. They're all behind a single **Actions** button now, so a list reads as information instead of a wall of controls. Everything that was there is still there, one click in. The menu appears when your mouse is over a row, and on a phone or tablet it's always showing.
+- **The sidebar stays where you left it.** It used to jump back to the top on every single page load, so if you worked in a section near the bottom you re-scrolled after every click. It now keeps its position.
+- **Libraries can be archived.** Finished with a library but don't want to delete it? Archive it. It moves to a new **Archived** tab on the Libraries page and comes off your public Literature Library page, your site index, and site search — but nothing is deleted, its files and meeting links are untouched, and **Restore** puts it back exactly as it was. The Archived tab only shows up once you've archived something.
+- **Libraries and Meetings can be managed from the list.** Both table views had no row actions at all — editing, archiving or deleting meant opening the record first. Both now have the Actions menu.
+- **The Forms links in the sidebar stop dumping you in an empty list.** Clicking **Announcements/Events Form** or **Story Submission Form** always opened the *Pending review* tab, even when nothing was waiting — and confusingly, reaching the same pages from the Admin group opened them normally. They now open on the normal tab like everything else. If something *is* waiting for review, the Pending review tab turns amber so you can still spot it, and the count still shows next to the sidebar link.
+- **Every delete button looks the same.** Delete controls in lists were a mix of a word, an ✕, and a bin icon, sometimes on the same screen. They're all the red bin now. Hover any of them for a tooltip saying exactly what it removes.
+- **Stories with a published post no longer show an empty Status.** They now show a **Published** tag, the same as everywhere else.
+- **The File Browser's row lines are straight again.** The line under each row was broken and stepped where the buttons sat.
+- Tapping a field in **Intergroup Officers** or the **Fellowships Index** on a phone no longer zooms the page in.
+
+## 2.18.9 — 2026-09-14 — Housekeeping: PDF engine updated
+
+- **The component that builds your PDFs was updated to its latest version.** It's what produces the printable meeting list, the contact sheet, and reading PDFs. Nothing about them changes — we checked the before and after page by page and the content comes out the same — but it keeps the portal current with upstream fixes.
+
+## 2.18.8 — 2026-09-14 — Rename a page in two clicks, and admin lists that fit your screen
+
+- **You can rename a page straight from the Pages list.** Every row has a **Rename** button that opens a small box with the page's title and its web address — no need to open the editor and hunt down the setting. (It was always possible, just buried well below the layout and block cards.)
+    - **Change the address and we'll offer to forward the old one.** Tick the box and anyone following an old link — a bookmark, a post, a printed flyer — lands on the new address instead of an error page. You'll find the forward listed afterwards under **Web Frontend → Redirects**, same as any other.
+    - **Rename it back and the old address just works again.** No leftover forward pointing the wrong way and quietly hiding your page.
+    - If the page has unpublished draft changes waiting, the rename carries across to them, so publishing that draft later won't undo it.
+    - Renames show up in the page's **History** with their own "Renamed" marker.
+- **Admin lists no longer run off the side of the screen.** The Pages list — and several others — were wide enough to force a sideways scrollbar on anything but a large monitor. They fit the space now, whatever size your window is.
+    - **Row buttons live behind one Actions menu.** View, Preview, Edit, Rename, Make homepage and Delete are all still there, one click further in, and the list reads as information instead of a wall of buttons. The menu appears when you move your mouse over a row.
+    - **On a phone or tablet it's always showing**, since there's nothing to hover over. Each page becomes a compact card — name, address, then its status and date — with the Actions button on the right.
+    - **Intergroup Officers and the Fellowships Index are usable on a phone.** Both were unreadable grids of squeezed-together boxes; each record is now a stack of clearly labelled fields with its remove button beside the top one. Tapping a field no longer zooms the whole page in.
+    - The Fellowships remove button now matches the one everywhere else, and the current homepage row lost its highlight — the **Homepage** tag beside the name already tells you.
+- **You can drag list items into a different order.** In the page editor, a **List** block's items have a grip handle you can drag to reorder them. Previously the only way to move an item was to retype the whole list.
+
+## 2.18.7 — 2026-09-01 — Card styles editor fits its panel again
+
+- **Fixes the Secondary card settings running off the right-hand side of the page.** In **Web Frontend → Design → Card styles**, the two columns of settings wouldn't shrink to fit the panel, so on a lot of screen sizes the Secondary column spilled off the edge and you had to scroll sideways to reach it. Both columns now fit whatever width you have. If your window is on the narrower side the two columns stack one above the other instead of squeezing, so each setting stays readable.
+- A field title no longer slides under the small **Synced** badge in its corner when the column is narrow.
+
+## 2.18.6 — 2026-09-01 — An easy way in for the people submitting
+
+- **Visitors can find your submission form from the events list and from any announcement or event page.** Until now the **+ Submit** button only appeared on the **Announcements** list, so someone reading an event page had no obvious way to send in one of their own. It's now in two more places:
+    - the **Events** list — on every layout, sitting beside the **Archive** button just as it does on Announcements;
+    - the bottom of every **announcement**, **event**, and **archive** page — a "Have an announcement or event to share?" panel, set apart below the event's own details so it never reads as part of the post.
+- **It's still the one setting.** **Web Frontend → Templates → Announcements list → Submit button** controls all of them. Leave the URL blank and they all point at your built-in submission form; put a custom address in and they all follow it; turn the submission form off with no custom address and every one of them disappears together. Nothing new to configure.
+- **The "live" dot in the sidebar moved to the View button.** The little green pulsing dot that tells you the public site is switched on now sits on **View** — the button that actually opens the public site — instead of on **Web**. Hover it for the same wording as before.
+
+## 2.18.5 — 2026-08-11 — Poster images shown in full, and a visibility switch of your own
+
+- **Tall, poster-shaped featured images are no longer cropped.** On an announcement, event, or archive page, a featured image that's taller than it is wide — a movie poster, a flyer — now shows in full at its own shape instead of having its top and bottom trimmed to fit the standard landscape frame. Wide images look exactly as they did.
+- **Archived posts show their featured image again.** An archived announcement or event is still readable by the public under **Archive**, but its featured image was coming up broken for anyone who wasn't signed in — so the pages looked fine to you and broken to your visitors. Fixed.
+- **New: Public visibility, on every post.** The post editor has a **Public visibility** setting that's separate from Draft and Archived:
+    - **Follow the post's status** — how everything has always worked, and what all your existing posts are set to. Nothing changes unless you change it.
+    - **Always public** — keeps a post on the public site even while it's a draft or scheduled for a future date.
+    - **Hidden from the public site** — takes a post off the public site completely: no listings, no page, no images, no search results. Use it to pull something down without deleting it or reshuffling its status.
+- Posts sent in through your public form and still awaiting review stay private under all three, as before. Duplicating a post always resets the copy to **Follow the post's status**, so a copy can't go live on its own.
+- **A brand-new install starts up reliably.** On the very first boot of an empty portal, the two server processes could race each other while building the database and one of them could fall over or carry on against a half-built schema. First boot is now orderly. Only affects fresh installs — existing portals were never at risk.
+- Worth knowing: archiving a post *files* it under **Archive**, where the public can still read it — it doesn't take it off the site. If that's what you want, set Public visibility to **Hidden**. The auto-archive help text in the editor now says this plainly.
+
+## 2.18.4 — 2026-08-11 — Scheduled posts stay hidden until their date
+
+- **A post scheduled for a future date no longer shows up early.** If you scheduled an announcement that was also tagged as an event, it appeared in the homepage **Upcoming Events** straight away instead of waiting for its publish date — the events list was going by the event's own date and ignoring the schedule. Scheduled posts now stay hidden everywhere until the moment they publish, exactly as the **Posted on / schedule for** field promises. Posts with no schedule set are unaffected.
+- **The same fix applies to site search.** Scheduled posts were also turning up in the search box before their publish date, and search results include a post's summary and body text — so this closed a way for unpublished wording to be read early. Worth a look if you use scheduling for anything sensitive.
+- **Visitor-submitted posts awaiting review no longer appear in search.** A submission sent in through your public form could surface in site search before an admin had approved it. It now stays out of search until you accept it.
+- **Security update.** The encryption library the portal uses was updated to close a newly-published vulnerability. Nothing changes in how the portal works, and your saved Zoom credentials and backup files are unaffected — just update and restart.
+
+## 2.18.3 — 2026-08-10 — Clearer event editing, tidier Watchtower
 
 - **The post editor now spells out when a post disappears on its own.** Events archive themselves at midnight the day after they end — so an event stays up for the rest of the day it ends — and the Event details card now says so, including which date drives it (**Ends**, falling back to **Starts**) and that a post with no dates never auto-archives. The announcement auto-archive panel explains both states too: switched off, an announcement stays up until you archive it by hand. When a post is tagged as both, each card notes that whichever trigger comes first is the one that fires.
 - **Build a Google Maps link from the address you already typed.** A **Use address** button next to the **Google Maps link** field fills it in from the event's Address (or the Venue name if there's no address). It doesn't check that the address is real — it builds the same link the public event page would generate on its own — so the editor shows you the exact text it used before you save.

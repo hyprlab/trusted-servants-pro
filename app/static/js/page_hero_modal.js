@@ -49,15 +49,13 @@
 
     // ── Dynbg trigger field plumbing ───────────────────────────
     // The `dynbg_trigger` macro emits hidden inputs by NAME
-    // (bg_dynamic_key + bg_dynbg_config_json__overlay / __c1 ..
-    // __c3 / __scope / __noise_size / __noise_intensity /
-    // __randomize_colors / __randomize_positions / __animate_off)
-    // because the homepage-style admin save handler consumes them
-    // by name. Per-block hero saves through blocks_json, so we
-    // need to tag the key input with `data-hero-field` so readModal
-    // picks it up, AND we need to fold the 9 config sub-inputs
-    // into the single `bg_dynbg_config_json` string the public
-    // renderer reads. The collection happens inside readDynbgFields
+    // (bg_dynamic_key + bg_dynbg_config_json__modes / __animate_off /
+    // __knobs) because the
+    // homepage-style admin save handler consumes them by name.
+    // Per-block hero saves through blocks_json, so we need to tag
+    // the key input with `data-hero-field` so readModal picks it
+    // up, AND we need to fold the config sub-inputs into the single
+    // `bg_dynbg_config_json` string the public renderer reads. The collection happens inside readDynbgFields
     // below; the dynbg picker already dispatches a bubbling
     // `change` event on the trigger inputs after Save, so our
     // document-level listener picks up the edit automatically.
@@ -103,6 +101,7 @@
     'frontend_hero_bg_blur', 'frontend_hero_bg_opacity',
     'frontend_hero_bg_video_speed',
     'frontend_hero_particle_speed', 'frontend_hero_particle_size',
+    'frontend_hero_particle_opacity', 'frontend_hero_particle_opacity_dark',
   ]);
   // Map from modal field name → block.data key.
   function blockKey(fieldName) {
@@ -139,40 +138,29 @@
         data[key] = inp.value;
       }
     });
-    // Dynbg config — combine the 9 hidden sub-inputs the picker
-    // macro emits (`bg_dynbg_config_json__overlay` / `__c1..__c3` /
-    // `__scope` / `__noise_size` / `__noise_intensity` /
-    // `__randomize_colors` / `__randomize_positions` / `__animate_off`)
-    // into the single JSON string the public renderer expects in
-    // `bg_dynbg_config_json`. Mirrors `_dynbg_config_from_form` in
-    // routes.py. Drops empty values so the JSON stays minimal.
+    // Dynbg config — combine the picker macro's hidden sub-inputs
+    // (`bg_dynbg_config_json__modes` / `__animate_off` / `__knobs`)
+    // into the single JSON string the
+    // public renderer expects in `bg_dynbg_config_json`. Mirrors
+    // `_dynbg_config_from_form` in routes.py. Drops empty values so
+    // the JSON stays minimal.
     function _dyn(name) {
       const inp = modal.querySelector('input[name="bg_dynbg_config_json__' + name + '"]');
       return inp ? (inp.value || '').trim() : '';
     }
     const _dynCfg = {};
-    const _dynOverlay = _dyn('overlay');
-    if (_dynOverlay) _dynCfg.overlay = _dynOverlay;
-    const _dynColors = [_dyn('c1'), _dyn('c2'), _dyn('c3')]
-      .filter(c => /^#[0-9a-fA-F]{6}$/.test(c));
-    if (_dynColors.length) _dynCfg.colors = _dynColors;
-    const _dynScope = _dyn('scope');
-    if (_dynScope && _dynScope !== 'all') _dynCfg.overlay_scope = _dynScope;
-    const _dynNoiseSize = _dyn('noise_size');
-    if (_dynNoiseSize) {
-      const n = parseFloat(_dynNoiseSize);
-      if (!isNaN(n)) _dynCfg.overlay_size = n;
+    // Per-mode block (light/dark colours, randomise-colours,
+    // saturation, intensity, texture) arrives as one JSON blob.
+    const _dynModes = _dyn('modes');
+    if (_dynModes) {
+      try {
+        const m = JSON.parse(_dynModes);
+        if (m && typeof m === 'object' && Object.keys(m).length) _dynCfg.modes = m;
+      } catch (_) { /* malformed → ignore */ }
     }
-    const _dynNoiseInt = _dyn('noise_intensity');
-    if (_dynNoiseInt) {
-      const n = parseFloat(_dynNoiseInt);
-      if (!isNaN(n)) _dynCfg.overlay_intensity = n;
-    }
-    if (_dyn('randomize_colors') === '1') _dynCfg.randomize_colors = true;
-    if (_dyn('randomize_positions') === '1') _dynCfg.randomize_positions = true;
     if (_dyn('animate_off') === '1') _dynCfg.animate = false;
-    if (_dyn('pastel_light') === '1') _dynCfg.pastel_light = true;
-    // Per-preset knobs arrive as one JSON blob in the `__knobs` input.
+    // Per-preset knobs (motion speed, dot size/gap, …) arrive as one
+    // JSON blob in the `__knobs` input.
     const _dynKnobs = _dyn('knobs');
     if (_dynKnobs) {
       try {
@@ -324,6 +312,13 @@
         try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
         try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
       });
+    // Colour inputs were just set in code, which fires no event — tell
+    // the shared design-token picker to re-read them so each hex caption
+    // and "◈ token" badge describes THIS block rather than whatever the
+    // modal was server-rendered with.
+    try {
+      if (window.tspDesignTokenPicker) window.tspDesignTokenPicker.refresh(modal);
+    } catch (_) {}
     // Buttons editor
     renderButtonsList(data.buttons || []);
     // Image / video previews
@@ -343,18 +338,15 @@
         let cfg = {};
         try { cfg = JSON.parse(data.bg_dynbg_config_json || '{}') || {}; }
         catch (_) { cfg = {}; }
-        const colors = Array.isArray(cfg.colors) ? cfg.colors : [];
+        // Per-mode block; configs saved before the light/dark split
+        // carry flat keys instead — expand them so the picker opens
+        // with both modes populated.
+        const modes = window.dynbgModesFromConfig ? window.dynbgModesFromConfig(cfg)
+          : ((cfg.modes && typeof cfg.modes === 'object') ? cfg.modes : null);
         window.applyDynbgTrigger(dynTrigger, {
           key: data.bg_dynamic_key || '',
-          overlay: cfg.overlay || '',
-          colors: [colors[0] || '', colors[1] || '', colors[2] || ''],
-          scope: cfg.overlay_scope || '',
-          noiseSize: cfg.overlay_size != null ? String(cfg.overlay_size) : '',
-          noiseIntensity: cfg.overlay_intensity != null ? String(cfg.overlay_intensity) : '',
-          randomizeColors: !!cfg.randomize_colors,
-          randomizePositions: !!cfg.randomize_positions,
+          modes: modes || '',
           animateOff: cfg.animate === false,
-          pastelLight: !!cfg.pastel_light,
           knobs: (cfg.knobs && typeof cfg.knobs === 'object') ? cfg.knobs : {},
         });
       }
@@ -378,7 +370,57 @@
     particles: modal.querySelector('#hero-preview-particles'),
     video: modal.querySelector('#hero-preview-video'),
     cta: modal.querySelector('#hero-preview-cta'),
+    inner: modal.querySelector('#hero-preview-section .fe-hero-inner'),
   };
+  // ── Contain-fit the preview content ────────────────────────────
+  // The clip is a fixed 400px frame. A long heading wraps to three
+  // lines and pushes the CTA row out of it, so the admin can't see the
+  // buttons they're editing. Scale `.fe-hero-inner` down until the
+  // whole hero fits — which is what the public hero does anyway at a
+  // smaller viewport. Only ever scales DOWN: content that already fits
+  // renders 1:1 so the preview isn't lying about size.
+  //
+  // Transform is visual only, so the element's layout box (and the
+  // ResizeObserver below) is unaffected by the scale we apply — no
+  // feedback loop.
+  const FIT_INSET = 24;         // px of breathing room, top + bottom
+  let _fitScale = 1, _fitRaf = 0;
+  function fitPreviewContent() {
+    const sec = preview.section, inner = preview.inner;
+    if (!sec || !inner) return;
+    cancelAnimationFrame(_fitRaf);
+    _fitRaf = requestAnimationFrame(() => {
+      const availH = sec.clientHeight - FIT_INSET;
+      const availW = sec.clientWidth;
+      const needH = inner.scrollHeight;
+      const needW = inner.scrollWidth;
+      if (availH <= 0 || needH <= 0 || needW <= 0) return;
+      const k = Math.min(1, availH / needH, availW / needW);
+      if (Math.abs(k - _fitScale) < 0.002) return;
+      _fitScale = k;
+      inner.style.transform = k < 1 ? ('scale(' + k.toFixed(4) + ')') : '';
+    });
+  }
+  // Re-fit whenever the content reflows for a reason the sync doesn't
+  // see: web fonts landing, an image decoding, a markdown subheading
+  // growing a line, the modal being resized.
+  try {
+    if (window.ResizeObserver && preview.inner) {
+      new ResizeObserver(() => fitPreviewContent()).observe(preview.inner);
+      if (preview.section) new ResizeObserver(() => fitPreviewContent()).observe(preview.section);
+    }
+  } catch (_) { /* no RO — the per-edit sync still re-fits */ }
+  // The admin shell fetches Fraunces / Inter lazily, so the first paint
+  // of a freshly-opened preview can land in the Georgia fallback — which
+  // is wider, wraps the heading a line earlier than the real page, and
+  // would otherwise bake that wrong height into the fit. Re-fit once the
+  // webfonts settle.
+  try {
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => fitPreviewContent());
+    }
+  } catch (_) { /* fine — the RO above catches the reflow anyway */ }
+
   function _val(name) {
     const inp = modal.querySelector('[data-hero-field="' + name + '"]');
     return inp ? inp.value : '';
@@ -404,9 +446,100 @@
     const v = values.filter(x => x != null);
     return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
   }
+  // Button icons, rendered the way the public hero renders them rather
+  // than as a `[name]` placeholder: a custom icon is an <img> off
+  // /pub/icon/<id>, a built-in is the Lucide SVG looked up in the same
+  // catalog (and same cache) the block editor's icon preview uses. The
+  // wrapper carries the same `--fe-btn-icon-color` / `--icon-size` vars
+  // the server emits, so colour and size preview truthfully too.
+  const _LUCIDE_SVG_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  function _btnIconEl(name, color, size) {
+    if (!name) return null;
+    const span = document.createElement('span');
+    span.className = 'fe-btn-icon';
+    const vars = [];
+    if (color) vars.push('--fe-btn-icon-color: ' + color);
+    const px = parseInt(size, 10);
+    if (!isNaN(px)) vars.push('--icon-size: ' + px + 'px');
+    if (vars.length) span.setAttribute('style', vars.join('; ') + ';');
+    if (String(name).indexOf('custom:') === 0) {
+      const cid = String(name).split(':', 2)[1] || '';
+      const img = document.createElement('img');
+      img.className = 'icon icon-custom';
+      img.alt = '';
+      img.src = '/pub/icon/' + encodeURIComponent(cid);
+      span.appendChild(img);
+      return span;
+    }
+    const api = window.BlockEditor;
+    if (!api || !api.iconCatalog || !api.iconPaths) return span;
+    api.iconCatalog().then(catalog => {
+      const paths = api.iconPaths(catalog, name);
+      // Unknown ref (renamed / removed icon): leave the wrapper empty
+      // rather than printing the raw name into the button, which is
+      // what the public page does too.
+      if (paths) span.innerHTML = '<svg class="icon" ' + _LUCIDE_SVG_ATTRS + '>' + paths + '</svg>';
+    }).catch(() => {});
+    return span;
+  }
+
+  // The subheading accepts markdown + inline HTML (the server renders it
+  // through `markdown_inline`, which sanitises via nh3). `marked` is the
+  // same vendored parser the meeting modal previews with; without it the
+  // preview falls back to plain text rather than injecting raw markup.
+  function _setSubHtml(el, value) {
+    const v = value || '';
+    if (typeof marked === 'undefined') { el.textContent = v; return; }
+    try {
+      marked.setOptions({ breaks: true, gfm: true });
+      el.innerHTML = marked.parse(v);
+    } catch (_) { el.textContent = v; }
+  }
   let _partFx = null;
   function _destroyPart() {
     if (_partFx) { try { _partFx.destroy(); } catch (_) {} _partFx = null; }
+  }
+  // Particle ink for whichever theme the preview pane is showing, so
+  // flipping the pane's Light / Dark radio re-tints the layer the same
+  // way the public hero does when the visitor toggles theme.
+  function _partInk() {
+    const f = previewTheme() === 'dark'
+      ? 'frontend_hero_particle_color_dark' : 'frontend_hero_particle_color';
+    return _val(f) || '#ffffff';
+  }
+  function _partOpacity() {
+    const light = parseInt(_val('frontend_hero_particle_opacity'), 10);
+    const v = previewTheme() === 'dark'
+      ? parseInt(_val('frontend_hero_particle_opacity_dark'), 10)
+      : light;
+    if (!isNaN(v)) return v;
+    return isNaN(light) ? 100 : light;   // dark unset → follow light
+  }
+  // Some effects ignore the size multiplier entirely — `waves` paints
+  // full-width bands rather than discrete particles, so the slider would
+  // sit there doing nothing. Grey it out and say why, rather than hide
+  // it: the stored value still applies the moment another effect is
+  // picked. The effect list lives on the field in markup.
+  function _syncParticleSizeState() {
+    const field = modal.querySelector('[data-particle-size-field]');
+    if (!field) return;
+    const effect = _val('frontend_hero_particle_effect') || 'stars';
+    const off = (field.dataset.nosizeEffects || '').split(',')
+      .filter(Boolean).indexOf(effect) !== -1;
+    field.classList.toggle('is-off', off);
+    const input = field.querySelector('input[type="range"]');
+    const label = effect.charAt(0).toUpperCase() + effect.slice(1);
+    if (input) {
+      input.disabled = off;
+      input.title = off ? (label + ' draws full-width bands rather than individual '
+        + 'particles, so size has nothing to scale. Pick another effect to use it.') : '';
+    }
+    const note = field.querySelector('[data-particle-size-note]');
+    if (note) {
+      note.textContent = off ? ('— not used by ' + label) : '';
+      note.hidden = !off;
+    }
   }
   function _buildPart() {
     _destroyPart();
@@ -417,6 +550,8 @@
         effect: _val('frontend_hero_particle_effect') || 'stars',
         speed: parseInt(_val('frontend_hero_particle_speed'), 10) || 100,
         size: parseInt(_val('frontend_hero_particle_size'), 10) || 100,
+        color: _partInk(),
+        opacity: _partOpacity(),
       });
     } catch (_) { _partFx = null; }
   }
@@ -425,15 +560,34 @@
     try { _syncPreviewInner(); }
     catch (err) { console.warn('[page-hero-modal] syncPreview failed', err); }
   }
+  // Which theme the preview pane is showing. The public hero renders
+  // differently in dark mode — its own backdrop and heading gradient,
+  // plus the dynamic background's dark-mode palette / tone / texture —
+  // so the pane can be flipped independently of the admin's own theme.
+  function previewTheme() {
+    const r = modal.querySelector('[data-hero-preview-theme]:checked');
+    return r && r.value === 'dark' ? 'dark' : 'light';
+  }
   function _syncPreviewInner() {
     if (!preview.section) return;
+    // `.fe-hero--force-dark` applies the hero's dark cluster from
+    // frontend.css to this one section; `.fe-megamenu-force-dark` does
+    // the same for the dynbg recipes' dark rules.
+    const dark = previewTheme() === 'dark';
+    preview.section.classList.toggle('fe-hero--force-dark', dark);
+    preview.section.classList.toggle('fe-megamenu-force-dark', dark);
     // ── Text content ───────────────────────────────────────────
     const heading = _val('heading') || 'You are not alone.';
     const sub = _val('subheading') || 'Find meetings, connect with your community.';
     const eyebrowText = _val('frontend_tagline') || '';
     const eyebrowOn = _checkedBool('frontend_tagline_enabled');
     if (preview.heading) preview.heading.textContent = heading;
-    if (preview.sub) preview.sub.textContent = sub;
+    if (preview.sub) _setSubHtml(preview.sub, sub);
+    // Toggling "Show tagline" on with an empty Tagline field renders
+    // nothing (the public hero needs both), which reads as a dead
+    // switch. Surface the reason next to the toggle.
+    const taglineNote = modal.querySelector('[data-tagline-empty-note]');
+    if (taglineNote) taglineNote.hidden = !(eyebrowOn && !eyebrowText.trim());
     if (preview.eyebrow) {
       preview.eyebrow.textContent = eyebrowText;
       preview.eyebrow.hidden = !(eyebrowOn && eyebrowText.trim());
@@ -522,25 +676,102 @@
       let cfg = {};
       try { cfg = JSON.parse(blockData.bg_dynbg_config_json || '{}') || {}; }
       catch (_) { cfg = {}; }
-      const colors = Array.isArray(cfg.colors) ? cfg.colors : [];
-      for (let i = 0; i < 3; i++) {
+      // Preview the block for the pane's selected theme (palette,
+      // saturation, colour fill, texture, pattern settings) exactly
+      // like the public render + picker preview for that mode.
+      // Configs saved before the light/dark split carry flat keys —
+      // expand them.
+      const modes = window.dynbgModesFromConfig ? window.dynbgModesFromConfig(cfg)
+        : ((cfg.modes && typeof cfg.modes === 'object') ? cfg.modes : null);
+      const pm = previewTheme();
+      const L = (modes && modes[pm] && typeof modes[pm] === 'object') ? modes[pm] : {};
+      let colors = Array.isArray(L.colors) ? L.colors : [];
+      // Random / unset palette: the card's server-rendered
+      // `.fe-dynbg-picker-thumb` wrapper carries a sample
+      // `--fe-dynbg-cN` palette inline (dynbg_thumb_style). Use it
+      // as the seed so it flows through the same tone path below —
+      // mirrors the public render, where resolve_colors() rolls a
+      // random palette and re-saturates it. Without this the preview
+      // fell back to the preset's brand colours, which the sliders
+      // can't touch, so it looked dead whenever "random colours" was on.
+      if (L.randomize_colors || !colors.some(Boolean)) {
+        const thumb = card.querySelector('.fe-dynbg-picker-thumb');
+        colors = [1, 2, 3, 4, 5, 6].map(i => thumb ? (thumb.style.getPropertyValue('--fe-dynbg-c' + i) || '').trim() : '');
+      }
+      // Missing keys = 100 (full vivid).
+      const satL = isFinite(parseInt(L.sat, 10)) ? Math.max(0, Math.min(100, parseInt(L.sat, 10))) : 100;
+      const brightL = isFinite(parseInt(L.bright, 10)) ? Math.max(0, Math.min(200, parseInt(L.bright, 10))) : 100;
+      const fillL = isFinite(parseInt(L.fill, 10)) ? Math.max(0, Math.min(100, parseInt(L.fill, 10))) : 0;
+      const soften = window.dynbgSaturateHex ? c => window.dynbgSaturateHex(c, satL, brightL) || c : c => c;
+      preview.section.style.setProperty('--fe-dynbg-fill', String(fillL / 100));
+      // Pattern-tile per-mode settings for light mode (the admin shell).
+      ['--fe-dynbg-pat-opacity', '--fe-dynbg-pat-bg2', '--fe-dynbg-pat-bg-angle']
+        .forEach(v => preview.section.style.removeProperty(v));
+      if (key === 'pattern-tile') {
+        if (L.pat_opacity != null && L.pat_opacity !== 100) preview.section.style.setProperty('--fe-dynbg-pat-opacity', String(L.pat_opacity / 100));
+        if (L.pat_bg === 'gradient') preview.section.style.setProperty('--fe-dynbg-pat-bg2', 'var(--fe-dynbg-c6, var(--fe-dynbg-c5, #e2e8f0))');
+        if (L.pat_bg_angle != null && L.pat_bg_angle !== 135) preview.section.style.setProperty('--fe-dynbg-pat-bg-angle', L.pat_bg_angle + 'deg');
+      }
+      // Per-preset knobs (motion speed, dot size/gap, …). These are
+      // shared across modes and live at the config's top level. Clear
+      // the preset's whole var set first so a knob returned to its
+      // default doesn't linger from a previous sync.
+      if (window.dynbgKnobVarNames) {
+        window.dynbgKnobVarNames(key).forEach(v => preview.section.style.removeProperty(v));
+      }
+      if (window.dynbgKnobVars && cfg.knobs && typeof cfg.knobs === 'object') {
+        window.dynbgKnobVars(key, cfg.knobs).forEach(decl => {
+          const i = decl.indexOf(':');
+          if (i > 0) preview.section.style.setProperty(decl.slice(0, i).trim(),
+                                                       decl.slice(i + 1).replace(/;$/, '').trim());
+        });
+      }
+      for (let i = 0; i < 6; i++) {
         if (colors[i]) {
-          preview.section.style.setProperty('--fe-dynbg-c' + (i + 1), colors[i]);
+          preview.section.style.setProperty('--fe-dynbg-c' + (i + 1), soften(colors[i]));
         } else {
           preview.section.style.removeProperty('--fe-dynbg-c' + (i + 1));
         }
       }
-      // Inject the overlay layer (noise-grain / scanlines / linen /
-      // etc.) when the admin picked one. The overlay card holds the
-      // exact markup the public renderer would emit.
-      if (cfg.overlay) {
+      // The catalog thumb we cloned carries whatever motif the server
+      // randomly drew for the tile — rebuild the pattern preset's
+      // layers for the motif THIS block actually saved.
+      if (key === 'pattern-tile' && window.dynbgPatternLayers) {
+        clone.innerHTML = '';
+        // The thumb we cloned carries ITS motif's tile size inline; it
+        // would outrank anything set on the section, so the chosen
+        // motif's size goes on the clone itself.
+        clone.removeAttribute('style');
+        const kn = (cfg.knobs && typeof cfg.knobs === 'object') ? cfg.knobs : {};
+        window.dynbgPatternLayers(kn.pattern || 'random', kn.weight != null ? kn.weight : 2,
+                                  kn.scale != null ? kn.scale : 1)
+          .then(pat => {
+            if (!clone.isConnected) return;  // a later sync replaced us
+            if (pat.w) {
+              clone.style.setProperty('--fe-dynbg-pat-w', pat.w + 'px');
+              clone.style.setProperty('--fe-dynbg-pat-h', pat.h + 'px');
+            }
+            pat.urls.forEach((u, i) => {
+              const sp = document.createElement('span');
+              sp.className = 'fe-dynbg-pattern';
+              sp.style.setProperty('--_db-pat-url', "url('" + u + "')");
+              sp.style.setProperty('--_db-pat-ink', 'var(--_db-ink' + (i + 1) + ')');
+              clone.appendChild(sp);
+            });
+          });
+      }
+      // Inject the light-mode overlay layer (noise-grain / scanlines /
+      // linen / etc.) when the admin picked one. The picker's overlay
+      // strip holds the exact markup the public renderer would emit.
+      if (L.overlay) {
         const oCard = document.querySelector(
-          '#dynbg-picker-modal [data-dynbg-modal-overlay-card][data-dynbg-overlay-key="' +
-          CSS.escape(cfg.overlay) + '"]');
+          '#dynbg-picker-modal [data-dynbg-mode-overlay-card][data-dynbg-overlay-key="' +
+          CSS.escape(L.overlay) + '"]');
         if (oCard) {
           const oThumb = oCard.querySelector('.fe-dynbg-picker-thumb .fe-dynbg-overlay');
           if (oThumb) {
             const oClone = oThumb.cloneNode(true);
+            if (L.overlay_scope === 'bg') oClone.classList.add('fe-dynbg-overlay--bg-only');
             preview.section.appendChild(oClone);
           }
         }
@@ -639,7 +870,7 @@
       const buttons = (activeBlock && activeBlock.data && activeBlock.data.buttons) || [];
       buttons.forEach(btn => {
         const bstyle = (btn.style === 'ghost' || btn.style === 'yellow'
-                        || btn.style === 'green')
+                        || btn.style === 'green' || btn.style === 'blue')
           ? btn.style : 'primary';
         const a = document.createElement('a');
         a.className = 'fe-btn fe-btn-' + bstyle;
@@ -651,30 +882,19 @@
           if (btn.custom_hover_text_color) vars.push('--fe-btn-hover-text: ' + btn.custom_hover_text_color);
         }
         if (vars.length) a.setAttribute('style', vars.join('; ') + ';');
-        if (btn.icon_before) {
-          const span = document.createElement('span');
-          span.className = 'fe-btn-icon';
-          // Icons are server-side; in the preview we just render the
-          // ref name as small uppercase text so the admin can see
-          // where it'll sit without inflating the JS bundle with a
-          // Lucide catalog.
-          span.textContent = '[' + btn.icon_before + ']';
-          a.appendChild(span);
-        }
+        const before = _btnIconEl(btn.icon_before, btn.icon_before_color, btn.icon_before_size);
+        if (before) a.appendChild(before);
         const label = document.createElement('span');
         label.textContent = btn.label || '';
         a.appendChild(label);
-        if (btn.icon_after) {
-          const span = document.createElement('span');
-          span.className = 'fe-btn-icon';
-          span.textContent = '[' + btn.icon_after + ']';
-          a.appendChild(span);
-        }
+        const after = _btnIconEl(btn.icon_after, btn.icon_after_color, btn.icon_after_size);
+        if (after) a.appendChild(after);
         preview.cta.appendChild(a);
       });
     }
 
     // ── Particle overlay ──────────────────────────────────────
+    _syncParticleSizeState();
     if (_checkedBool('frontend_hero_particle_enabled')) {
       const effect = _val('frontend_hero_particle_effect') || 'stars';
       if (!_partFx || _partFx._effect !== effect) {
@@ -685,11 +905,17 @@
         const sz = parseInt(_val('frontend_hero_particle_size'), 10) || 100;
         try { _partFx.setSpeed(spd); } catch (_) {}
         try { _partFx.setSize(sz); } catch (_) {}
+        try { _partFx.setInk(_partInk()); } catch (_) {}
+        try { _partFx.setOpacity(_partOpacity()); } catch (_) {}
       }
     } else {
       _destroyPart();
       if (preview.particles) preview.particles.hidden = true;
     }
+
+    // Everything above may have changed the content's height (a longer
+    // heading, another button row, a markdown list in the subheading).
+    fitPreviewContent();
   }
 
   // ── Buttons list editor ──────────────────────────────────────
@@ -967,6 +1193,7 @@
         ['ghost',   'Ghost (outline)'],
         ['yellow',  'Yellow (high-contrast)'],
         ['green',   'Green (filled)'],
+        ['blue',    'Blue (filled)'],
       ]));
       opts.appendChild(toggleField('open_in_new_tab', 'Open in new tab'));
       row.appendChild(opts);
@@ -1167,14 +1394,19 @@
   function isInModal(target) {
     return target && target.closest && target.closest('#page-hero-edit-modal');
   }
+  // The preview theme switch is view-only: repaint, but never persist
+  // or dirty the page for it.
+  const isPreviewControl = (t) => t && t.matches && t.matches('[data-hero-preview-theme]');
   document.addEventListener('input', (e) => {
     if (!isInModal(e.target)) return;
+    if (isPreviewControl(e.target)) { syncPreview(); return; }
     persistModalToBlock();
     flagDirty();
     syncPreview();
   }, true);
   document.addEventListener('change', (e) => {
     if (!isInModal(e.target)) return;
+    if (isPreviewControl(e.target)) { syncPreview(); return; }
     persistModalToBlock();
     flagDirty();
     syncPreview();

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import hashlib
 import os
+import re
 from datetime import datetime, timedelta
 import nh3
 import markdown as md_lib
@@ -351,43 +352,9 @@ def create_app():
                 cleaned = inner
         return Markup(cleaned)
 
-    import re as _re
-
-    _MD_FENCE_RE = _re.compile(r"^(?:```|~~~)")
-    _MD_LIST_RE  = _re.compile(r"^\s*(?:[-*+]\s|\d+\.\s)")
-    _MD_HEAD_RE  = _re.compile(r"^#{1,6}\s")
-    _MD_BQ_RE    = _re.compile(r"^>\s?")
-
-    def _markdown_block_breaks(text):
-        """Insert blank lines before list items, headings, and blockquotes
-        when they directly follow a non-blank line that isn't already the
-        same kind of marker. Python-Markdown requires that blank line for
-        the block to be recognized as a list/heading/quote — we add it for
-        the user so typing `intro⏎- item` "just works". Fenced code blocks
-        are passed through untouched."""
-        out = []
-        in_fence = False
-        for line in text.split("\n"):
-            if _MD_FENCE_RE.match(line):
-                in_fence = not in_fence
-                out.append(line); continue
-            if in_fence:
-                out.append(line); continue
-            prev = out[-1] if out else ""
-            prev_blank = prev.strip() == ""
-            is_list = bool(_MD_LIST_RE.match(line))
-            is_head = bool(_MD_HEAD_RE.match(line))
-            is_bq   = bool(_MD_BQ_RE.match(line))
-            if (is_list or is_head or is_bq) and prev and not prev_blank:
-                same_kind = (
-                    (is_list and _MD_LIST_RE.match(prev)) or
-                    (is_head and _MD_HEAD_RE.match(prev)) or
-                    (is_bq   and _MD_BQ_RE.match(prev))
-                )
-                if not same_kind:
-                    out.append("")
-            out.append(line)
-        return "\n".join(out)
+    # Shared with the blog conversion (blog_convert), which has to read
+    # the same as this filter.
+    from .blog_convert import block_breaks as _markdown_block_breaks
 
     @app.template_filter("markdown_block")
     def markdown_block_filter(value):
@@ -405,6 +372,13 @@ def create_app():
         prepped = _markdown_block_breaks(str(value))
         html = md_lib.markdown(prepped, extensions=["extra", "nl2br", "sane_lists"])
         return Markup(_clean_html(html, SAFE_RICH_TAGS, SAFE_RICH_ATTRS))
+
+    @app.template_filter("initials")
+    def initials_filter(value):
+        """Up to two capital letters from a name, for a person's avatar:
+        "Jane Doe" → "JD", "Jane D." → "JD", "jane" → "J"."""
+        words = [w for w in re.split(r"[\s.]+", str(value or "")) if w and w[0].isalnum()]
+        return "".join(w[0] for w in (words[:1] + words[-1:] if len(words) > 1 else words)).upper()
 
     @app.template_filter("from_json")
     def from_json_filter(value):
@@ -656,7 +630,7 @@ def create_app():
         p = request.path or ""
         # Skip asset paths — these never redirect, but they're the
         # bulk of per-page request volume.
-        if p.startswith("/static/") or p.startswith("/pub/"):
+        if p.startswith(("/static/", "/pub/", "/tspro/")) or p == "/tspro":
             return None
         # Trailing-slash-insensitive match: a rule stored as "/donate"
         # should also fire for "/donate/" and vice versa. Query both
@@ -791,11 +765,22 @@ def create_app():
                     _c.execute(_text("ALTER TABLE phone_list_entry RENAME TO recovery_contact"))
         except OperationalError:
             pass
-        try:
-            db.create_all()
-        except OperationalError as e:
-            if "already exists" not in str(e).lower():
-                raise
+        # On a fresh install two gunicorn workers run this concurrently.
+        # create_all() reflects the DB, then issues CREATE TABLE per missing
+        # table — so the loser can have its reflection go stale mid-run and
+        # abort on "table already exists" with only *part* of the schema
+        # built. Swallowing that (as this did) left the worker to continue
+        # into _migrate_sqlite and the seeders against a half-built DB.
+        # Retrying re-reflects and creates whatever is still missing; if the
+        # winner races us again the second attempt is a no-op, and by the
+        # third the winner has committed everything.
+        for _attempt in range(3):
+            try:
+                db.create_all()
+                break
+            except OperationalError as e:
+                if "already exists" not in str(e).lower():
+                    raise
         _migrate_sqlite(app)
         _seed_admin(app)
         _seed_custom_layouts(app)
@@ -883,19 +868,44 @@ def create_app():
     from .icons import icon as _icon
     app.jinja_env.globals["icon"] = _icon
 
+    def _is_offsite(url):
+        """True when a link leaves this site: an http(s) address on
+        another host. Lists of files mark those with a link-out icon."""
+        from urllib.parse import urlsplit
+        from flask import request
+        try:
+            parts = urlsplit((url or "").strip())
+        except ValueError:
+            return False
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            return False
+        try:
+            here = request.host.lower()
+        except RuntimeError:
+            here = ""
+        return parts.netloc.lower() != here
+    app.jinja_env.globals["is_offsite"] = _is_offsite
+    from .fe_admin_nav import fe_subnav as _fe_subnav
+    app.jinja_env.globals["fe_subnav"] = _fe_subnav
+    from .widths import width_px as _width_px
+    app.jinja_env.globals["width_px"] = _width_px
+    from .form_specs import resolve_fields as _resolve_fields, field_map as _field_map
+    app.jinja_env.globals["builtin_form_fields"] = _resolve_fields
+    app.jinja_env.globals["builtin_field_map"] = _field_map
+
     # Click-to-reveal shortening for long IPv6 values in the Watchtower
     # tables — see app/ipfmt.py. A global rather than a filter because
     # it returns a dict the template destructures, not a rendered value.
     from .ipfmt import ip_display as _ip_display
     app.jinja_env.globals["ip_display"] = _ip_display
 
-    # Release-notes + changelog single source of truth. The About modal
-    # in templates/base.html iterates these at render time so editing
-    # RELEASE_NOTES.md / CHANGELOG.md at the repo root is the only step
+    # Release-notes single source of truth. The About modal in
+    # templates/base.html and the dashboard iterate these at render time,
+    # so editing RELEASE_NOTES.md at the repo root is the only step
     # needed to update the in-app view. See app/about_docs.py.
     from . import about_docs as _about_docs
     app.jinja_env.globals["app_release_notes"] = _about_docs.load_release_notes
-    app.jinja_env.globals["app_changelog"] = _about_docs.load_changelog
+    app.jinja_env.globals["app_release_notes_for_line"] = _about_docs.load_release_notes_for_line
 
     # Dynamic-background catalog. The admin's dynbg picker macro and
     # any future template that wants to enumerate available presets
@@ -911,9 +921,24 @@ def create_app():
     # size/intensity, or resolve the per-render colour palette
     # (which differs from the saved palette when `randomize` is on).
     app.jinja_env.globals["dynbg_decode"] = _dynbg.decode_config
+    # Effective render key: hands back the `-classic` twin for a config
+    # written before the light/dark rework, so existing surfaces keep
+    # the recipe they were designed against until an admin re-picks.
+    # Feed it the RAW config (a decoded one always has a filled `modes`
+    # block and would read as already-migrated).
+    app.jinja_env.globals["dynbg_render_key"] = _dynbg.render_key
     app.jinja_env.globals["dynbg_colors_css"] = _dynbg.colors_to_css_vars
     app.jinja_env.globals["dynbg_resolve_colors"] = _dynbg.resolve_colors
     app.jinja_env.globals["dynbg_resolve_positions"] = _dynbg.resolve_positions_css
+    # Storage-shape (non-default only) re-encode of a decoded `modes`
+    # block — the picker trigger stamps this as its JSON blob so a
+    # legacy single-mode config round-trips in the per-mode shape.
+    app.jinja_env.globals["dynbg_encode_modes"] = (
+        lambda modes: _dynbg.normalize_modes(modes, fill_defaults=False))
+    # Per-mode default for one tone slider — the picker's trigger chip
+    # uses it to decide whether a value is worth printing in the summary
+    # line (`rnd_light` is the one key whose default differs per mode).
+    app.jinja_env.globals["dynbg_tone_default"] = _dynbg.tone_default
     app.jinja_env.globals["dynbg_noise_url"] = _dynbg.noise_grain_data_url
     # Per-render randomised inline-style for a preset thumbnail (fresh
     # palette + positions each load) — drives the picker grid thumbs.
@@ -921,6 +946,10 @@ def create_app():
     # Per-preset knob CSS-vars (dot size/gap, line angle/thickness, …)
     # stamped on a surface's dynbg-host so the recipe reads them.
     app.jinja_env.globals["dynbg_knobs_css"] = _dynbg.knobs_to_css_vars
+    # Pattern-tile: the chosen motif is encoded into a mask data-URL at
+    # render time (with the line-weight knob baked in), so "random"
+    # spawns a different motif on every page load.
+    app.jinja_env.globals["dynbg_pattern_layers"] = _dynbg.pattern_mask_layers
     # Per-preset capability spec (which Options controls + knobs apply
     # to each background) — the modal stamps this as JSON to drive
     # show/hide + slider rendering. Also the overlay Size/Intensity
@@ -980,6 +1009,23 @@ def create_app():
     # URL itself.
     from .frontend import _post_url as _post_url_helper
     app.jinja_env.globals["post_url"] = _post_url_helper
+
+    # Natural pixel dimensions of an uploaded image, as
+    # ``{'w', 'h', 'ratio', 'portrait'}`` — or None when the file is
+    # missing / not a decodable raster. Detail templates use this to
+    # tell a poster-shaped (taller-than-wide) featured image from a
+    # landscape one so the former can be shown whole instead of being
+    # cropped into the landscape frame. `portrait` carries a small
+    # tolerance so a near-square image still takes the fixed frame.
+    def _image_shape(filename, portrait_ratio=0.95):
+        from .thumbnails import image_dimensions
+        dims = image_dimensions(filename)
+        if not dims:
+            return None
+        w, h = dims
+        return {"w": w, "h": h, "ratio": w / h,
+                "portrait": (w / h) < portrait_ratio}
+    app.jinja_env.globals["image_shape"] = _image_shape
 
     # IANA timezone names + a "now in tz" helper for the Settings → Timezone
     # tab. Cached at module level — the zone list never changes at runtime.
@@ -1058,6 +1104,9 @@ def create_app():
     app.jinja_env.globals["frontend_fonts"] = _all_fonts
     app.jinja_env.globals["custom_fonts"] = _custom_fonts
     app.jinja_env.globals["font_stack"] = _font_stack
+    from .zoom_tech_doc import design_css as _zt_design_css, design_fonts as _zt_design_fonts
+    app.jinja_env.globals["zt_design_css"] = _zt_design_css
+    app.jinja_env.globals["zt_design_fonts"] = _zt_design_fonts
     app.jinja_env.globals["frontend_font_roles"] = _FONT_ROLES
 
     # Intergroup officers — repeatable contact roster managed under
@@ -1256,14 +1305,6 @@ def create_app():
         derive_dark_color as _derive_dark_color,
         DESIGN_FIELDS as _DESIGN_FIELDS,
         DESIGN_FIELDS_BY_KEY as _DESIGN_FIELDS_BY_KEY,
-        DESIGN_GROUPS as _DESIGN_GROUPS,
-        SPACING_SCALE as _SPACING_SCALE,
-        RADIUS_SCALE as _RADIUS_SCALE,
-        SHADOW_SCALE as _SHADOW_SCALE,
-        BORDER_WIDTH_SCALE as _BORDER_WIDTH_SCALE,
-        TRANSITION_SCALE as _TRANSITION_SCALE,
-        TRANSFORM_SCALE as _TRANSFORM_SCALE,
-        THEME_DEFAULTS as _DESIGN_THEME_DEFAULTS,
     )
     app.jinja_env.globals["design_css_vars"] = _design_css_vars
     app.jinja_env.globals["neobrutal_hero_css_vars"] = _neobrutal_hero_css_vars
@@ -1271,14 +1312,6 @@ def create_app():
     app.jinja_env.globals["derive_dark_color"] = _derive_dark_color
     app.jinja_env.globals["design_fields"] = _DESIGN_FIELDS
     app.jinja_env.globals["design_fields_by_key"] = _DESIGN_FIELDS_BY_KEY
-    app.jinja_env.globals["design_groups"] = _DESIGN_GROUPS
-    app.jinja_env.globals["design_spacing_scale"] = _SPACING_SCALE
-    app.jinja_env.globals["design_radius_scale"] = _RADIUS_SCALE
-    app.jinja_env.globals["design_shadow_scale"] = _SHADOW_SCALE
-    app.jinja_env.globals["design_border_width_scale"] = _BORDER_WIDTH_SCALE
-    app.jinja_env.globals["design_transition_scale"] = _TRANSITION_SCALE
-    app.jinja_env.globals["design_transform_scale"] = _TRANSFORM_SCALE
-    app.jinja_env.globals["design_theme_defaults"] = _DESIGN_THEME_DEFAULTS
 
     # Sidebar data layer — single source of truth for what shows up in
     # the main sidebar, with sorting + manual ordering applied.
@@ -1498,9 +1531,19 @@ def _backfill_media(app):
 def _migrate_sqlite(app):
     """Add new columns to existing tables if missing (SQLite).
 
-    Worker-safe: two gunicorn workers starting in parallel can both see the
-    column missing via PRAGMA and race on ALTER TABLE. The loser catches the
-    duplicate-column error instead of crashing the boot.
+    Worker-safe in both directions on a *fresh* install, where two gunicorn
+    workers race through create_app together:
+
+    • Column already added — both workers see it missing via PRAGMA and race
+      on ALTER TABLE; the loser catches the duplicate-column error.
+    • Table not created yet — the loser's ``db.create_all()`` aborted early
+      with "table already exists" (swallowed in create_app), so it arrives
+      here with a partial schema while the winner is still creating the rest.
+      PRAGMA on a missing table returns *no rows*, which used to read as
+      "column absent" and drive an ALTER TABLE straight into
+      "no such table", killing the worker. An empty PRAGMA now means "not
+      my table to migrate" and is skipped: whoever does create it builds it
+      from the current models, so it already has the column.
     """
     from sqlalchemy import text
     from sqlalchemy.exc import OperationalError
@@ -1508,13 +1551,20 @@ def _migrate_sqlite(app):
     with db.engine.begin() as conn:
         def add(table, col, ddl):
             cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))}
+            # No rows at all = the table doesn't exist yet (every real table
+            # has at least one column). Nothing to patch — see the docstring.
+            if not cols:
+                return
             if col in cols:
                 return
             try:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
                 newly_added.add((table, col))
             except OperationalError as e:
-                if "duplicate column" not in str(e).lower():
+                msg = str(e).lower()
+                # "no such table" covers the narrow window where the winning
+                # worker drops in between our PRAGMA and our ALTER.
+                if "duplicate column" not in msg and "no such table" not in msg:
                     raise
 
         # ── Recovery Contacts rename (dev-era) ───────────────────────
@@ -1576,7 +1626,8 @@ def _migrate_sqlite(app):
         for col, ddl in (("alert_message", "TEXT"),
                          ("is_intergroup", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("categories_required", "BOOLEAN NOT NULL DEFAULT 1"),
-                         ("public_visible", "BOOLEAN NOT NULL DEFAULT 0")):
+                         ("public_visible", "BOOLEAN NOT NULL DEFAULT 0"),
+                         ("archived_at", "DATETIME")):
             add("library", col, ddl)
         # On the boot that first added is_intergroup, flag the two
         # pre-existing default Intergroup libraries so the permission
@@ -1663,11 +1714,27 @@ def _migrate_sqlite(app):
                          ("pic_name", "VARCHAR(200)"),
                          ("pic_email", "VARCHAR(255)"),
                          ("pic_phone", "VARCHAR(64)"),
+                         ("pic_title", "VARCHAR(200)"),
                          ("zoom_tech_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("zoom_tech_title", "VARCHAR(120)"),
                          ("zoom_tech_content", "TEXT"),
                          ("zoom_tech_blocks_json", "TEXT"),
+                         ("zoom_tech_body", "TEXT"),
+                         ("zoom_tech_format", "VARCHAR(16)"),
+                         ("zoom_tech_design_json", "TEXT"),
                          ("zoom_tech_template", "VARCHAR(16) NOT NULL DEFAULT 'standard'"),
+                         ("alert_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
+                         ("alert_message", "TEXT"),
+                         ("alert_tone", "VARCHAR(16) NOT NULL DEFAULT 'info'"),
+                         ("alert_places", "VARCHAR(64) NOT NULL DEFAULT 'top'"),
+                         ("alert_dismissible", "BOOLEAN NOT NULL DEFAULT 1"),
+                         ("alert_until", "DATETIME"),
+                         ("alert_version", "INTEGER NOT NULL DEFAULT 0"),
+                         ("alert_details_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
+                         ("alert_title", "VARCHAR(200)"),
+                         ("alert_details", "TEXT"),
+                         ("alert_posted_at", "DATETIME"),
+                         ("alert_show_posted", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("posts_enabled", "BOOLEAN NOT NULL DEFAULT 1"),
                          ("intergroup_required_role", "VARCHAR(32) NOT NULL DEFAULT 'viewer'"),
                          ("zoom_tech_required_role", "VARCHAR(32) NOT NULL DEFAULT 'viewer'"),
@@ -1950,6 +2017,13 @@ def _migrate_sqlite(app):
                          ("utility_bar_enabled", "BOOLEAN NOT NULL DEFAULT 1"),
                          ("utility_bar_bg_color", "VARCHAR(16)"),
                          ("utility_bar_text_color", "VARCHAR(16)"),
+                         ("frontend_404_show_sub", "BOOLEAN NOT NULL DEFAULT 1"),
+                         ("frontend_404_show_art", "BOOLEAN NOT NULL DEFAULT 1"),
+                         ("frontend_404_show_home", "BOOLEAN NOT NULL DEFAULT 1"),
+                         ("utility_bar_bg_color_dark", "VARCHAR(16)"),
+                         ("utility_bar_text_color_dark", "VARCHAR(16)"),
+                         ("header_alert_bg_color_dark", "VARCHAR(16)"),
+                         ("header_alert_text_color_dark", "VARCHAR(16)"),
                          ("utility_bar_left_json", "TEXT"),
                          ("utility_bar_right_json", "TEXT"),
                          ("utility_bar_live_meetings", "BOOLEAN NOT NULL DEFAULT 0"),
@@ -2010,7 +2084,9 @@ def _migrate_sqlite(app):
                          ("mfa_recovery_codes_json", "TEXT"),
                          # Master "2FA on for this account" switch, distinct
                          # from mfa_enabled (enrolment complete).
-                         ("mfa_required", "BOOLEAN NOT NULL DEFAULT 0")):
+                         ("mfa_required", "BOOLEAN NOT NULL DEFAULT 0"),
+                         # Admin look: system / light / dark (empty: not yet chosen).
+                         ("theme_pref", "VARCHAR(8)")):
             add("user", col, ddl)
         # 2.14.0 shipped before mfa_required existed and gated the login
         # challenge on mfa_enabled alone. Under the new master-gate model
@@ -2046,6 +2122,10 @@ def _migrate_sqlite(app):
             add("backup_target", col, ddl)
         for col, ddl in (("asset_files_json", "TEXT"),):
             add("custom_font", col, ddl)
+        # The officer that mirrors the Public Information Chair card. Set on
+        # the existing "Public Information Chair" row the first time the
+        # Global page or a save looks for it (routes._pic_officer).
+        add("intergroup_officer", "is_pic", "BOOLEAN NOT NULL DEFAULT 0")
         for col, ddl in (("is_draft", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("slug", "VARCHAR(255)"),
                          ("is_pending_review", "BOOLEAN NOT NULL DEFAULT 0"),
@@ -2057,7 +2137,14 @@ def _migrate_sqlite(app):
                          ("published_at", "DATETIME"),
                          ("announcement_auto_archive_at", "DATETIME"),
                          ("links_json", "TEXT"),
-                         ("gallery_json", "TEXT")):
+                         ("gallery_json", "TEXT"),
+                         # Per-post public-visibility override, independent
+                         # of the draft / archived flags. Existing rows take
+                         # the DEFAULT ('auto'), i.e. the behaviour they had
+                         # before the column existed.
+                         ("public_visibility",
+                          "VARCHAR(16) NOT NULL DEFAULT 'auto'"),
+                         ("duplicated_from_id", "INTEGER")):
             add("post", col, ddl)
         for col, ddl in (("published_at", "DATETIME"),
                          ("is_pending_review", "BOOLEAN NOT NULL DEFAULT 0"),
@@ -2072,11 +2159,15 @@ def _migrate_sqlite(app):
         # Blog post body block editor: stores the visual drag-and-drop
         # payload as a JSON list. NULL means "fall back to the legacy
         # markdown `body` column" so upgrades don't blank existing posts.
-        for col, ddl in (("body_blocks_json", "TEXT"),):
+        # body_blocks_backup_json: the block version of a post converted
+        # to Markdown (blog_convert), kept so the conversion can be undone.
+        for col, ddl in (("body_blocks_json", "TEXT"),
+                         ("body_blocks_backup_json", "TEXT")):
             add("blog_post", col, ddl)
         for col, ddl in (("is_archived", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("archived_at", "DATETIME"),
-                         ("ip_address", "VARCHAR(64)")):
+                         ("ip_address", "VARCHAR(64)"),
+                         ("message", "TEXT")):
             add("access_request", col, ddl)
         for col, ddl in (("is_archived", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("archived_at", "DATETIME"),
@@ -2226,6 +2317,10 @@ def _migrate_sqlite(app):
         # back-filled. "" means "role not chosen yet"; the setup wizard sets
         # it to 'live' or 'staging'.
         add("frontend_sync_peer", "self_role", "VARCHAR(16) NOT NULL DEFAULT ''")
+        # Email List updates kept in full: the rendered message, the
+        # audience and each recipient's result.
+        for col in ("body_html", "audience_json", "recipients_json"):
+            add("trusted_servant_blast", col, "TEXT")
 
         # One-shot data migration: when the new frontend_og_* columns are
         # added on an existing deployment, seed them from the legacy og_*
@@ -2544,7 +2639,20 @@ def _seed_page_layouts(app):
             "key": "page-marketing",
             "name": "Marketing landing",
             "description": "Hero container with a heading + lead paragraph + CTA button, followed by a three-column feature container and a closing CTA.",
-            "blocks": ["container", "container", "button"],
+            # Built out to match the description: before, both containers
+            # were stamped empty.
+            "blocks": [
+                {"type": "container", "data": {"gap": "1rem"},
+                 "blocks": [{"type": "heading"}, {"type": "paragraph"}, {"type": "button"}]},
+                {"type": "container",
+                 "data": {"display": "grid", "grid_columns": "repeat(3, minmax(0, 1fr))", "gap": "1.5rem"},
+                 "blocks": [
+                     {"type": "container", "data": {"gap": "0.5rem"},
+                      "blocks": [{"type": "heading", "data": {"level": 3}}, {"type": "paragraph"}]}
+                     for _ in range(3)
+                 ]},
+                {"type": "button"},
+            ],
         },
         {
             "key": "page-faq",

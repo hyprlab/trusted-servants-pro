@@ -94,7 +94,7 @@ secrets differ from public files.
 
 ## Next steps
 
-- [Email Relay](/docs/email-relay) — send mail even when your host blocks outbound SMTP ports.
-- [Backup &amp; Restore](/docs/backup-restore) — export, import, and migrate.
-- [Disk Space &amp; Housekeeping](/docs/disk-space) — keep an unattended server from filling its disk.
-- [Upgrading &amp; Uninstalling](/docs/upgrading) — keep the portal current.
+- [Email Relay](email-relay.md) — send mail even when your host blocks outbound SMTP ports.
+- [Backup &amp; Restore](backup-restore.md) — export, import, and migrate.
+- [Disk Space &amp; Housekeeping](disk-space.md) — keep an unattended server from filling its disk.
+- [Upgrading &amp; Uninstalling](upgrading.md) — keep the portal current.

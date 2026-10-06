@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Watchtower · Deletes{% endblock %}
 {% block heading %}Watchtower{% endblock %}
 {% block heading_help %}Recycle bin for soft-deleted files. Restorable for {{ retention_days }} days; then permanently purged on the next sweep.{% endblock %}
@@ -7,8 +8,7 @@
 
 <section class="card">
   <div class="card-head">
-    <h2>Recently deleted files</h2>
-    <span class="muted smaller">{{ items|length }} file{{ '' if items|length == 1 else 's' }} in the bin</span>
+    <h2>Recently deleted files {% call chip('Recently deleted files') %}{{ items|length }} file{{ '' if items|length == 1 else 's' }} in the bin{% endcall %}</h2>
   </div>
   {% if not items %}
   <p class="muted">No files in the recycle bin. Library files, meeting attachments, and File-Browser entries land here when deleted.</p>

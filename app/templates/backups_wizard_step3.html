@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Schedule · Trusted Servants Pro{% endblock %}
 {% block heading %}{{ t.name }} — Schedule{% endblock %}
 {% block heading_help %}How often should a backup run, and how many should be kept on the remote at a time?{% endblock %}
@@ -32,11 +33,10 @@
       </label>
     </div>
 
-    <label>Retention — keep the last
+    <label>{% call hrow('Retention — keep the last') %}Older archives are deleted from the remote after a successful upload.{% endcall %}
       <input type="number" name="retain_count" value="{{ t.retain_count or 14 }}" min="1" max="365" style="width:6rem">
       archives on the remote
     </label>
-    <p class="muted smaller">Older archives are deleted from the remote after a successful upload.</p>
 
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">{{ icon('arrow-right') }} Continue to encryption</button>

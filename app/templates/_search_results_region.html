@@ -43,7 +43,10 @@
            {% if item.url %}href="{{ item.url }}"{% else %}href="#" data-settings-tab="{{ item.settings_tab }}"{% endif %}>
           <span class="search-page-result-icon" aria-hidden="true">{{ icon(item.icon or section.icon or 'search') }}</span>
           <span class="search-page-result-text">
-            <span class="search-page-result-label">{{ item.label }}</span>
+            <span class="search-page-result-top">
+              <span class="search-page-result-label">{{ item.label }}</span>
+              {% if item.date %}<span class="search-page-result-date muted smaller">{{ item.date }}</span>{% endif %}
+            </span>
             {% if item.snippet %}<span class="search-page-result-snippet muted smaller">{{ item.snippet }}</span>{% endif %}
           </span>
           {% if item.url %}<span class="search-page-result-go" aria-hidden="true">{{ icon('arrow-right') }}</span>{% endif %}

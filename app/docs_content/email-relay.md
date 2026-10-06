@@ -32,7 +32,7 @@ There are two big wins beyond just getting mail out:
     If your portal already sends mail fine over **Direct SMTP** (the default),
     you don't need the relay at all. Reach for it only when outbound SMTP is
     blocked and your test emails never arrive. See
-    [Configuration &amp; Security](/docs/configuration) for the standard,
+    [Configuration &amp; Security](configuration.md) for the standard,
     relay-free email setup.
 
 This guide has four parts:
@@ -408,6 +408,6 @@ without leaking any secrets.
 
 ## Next steps
 
-- [Configuration &amp; Security](/docs/configuration) — environment variables and how the portal encrypts its own stored credentials.
-- [Backup &amp; Restore](/docs/backup-restore) — protect your portal's data.
-- [Installation](/docs/installation) — the full portal deployment guide.
+- [Configuration &amp; Security](configuration.md) — environment variables and how the portal encrypts its own stored credentials.
+- [Backup &amp; Restore](backup-restore.md) — protect your portal's data.
+- [Installation](installation.md) — the full portal deployment guide.

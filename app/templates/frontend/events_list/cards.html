@@ -9,6 +9,7 @@
       <h1>{{ list_heading or 'All events' }}</h1>
       <p class="muted">{{ list_subheading or 'Every upcoming event on the calendar. Tap a card for full details.' }}</p>
     </header>
+    {% include "frontend/events_list/_submit_pill.html" %}
     {% include "frontend/events_list/_cards_body.html" %}
   </div>
 </section>

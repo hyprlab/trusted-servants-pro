@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% set _new = e is none %}
+{% set _waiting = e and not e.approved %}
+{% block heading %}{{ 'Add a person' if _new else e.name }}{% endblock %}
+{% block heading_help %}{% if _new %}Someone you add is published at once, with no review step.{% elif _waiting %}A request or submission from the public page, waiting for you. Edit it if you need to, then act on it in the card at the top.{% else %}Their details on the left, and what the public list shows on the right. Save with the yellow bar.{% endif %}{% endblock %}
+{% block top_actions %}
+  <a class="btn" href="{{ url_for('main.recovery_contacts', show=None if (_new or e.approved) else ('removals' if e.wants_removal else ('updates' if e.wants_update else 'pending'))) }}">← All</a>
+  {% if _new %}
+  <button type="submit" form="rc-edit-form" class="btn btn-primary">{{ icon('user-plus') }} Add and publish</button>
+  {% elif e.approved %}
+  <span class="post-chip post-chip-online post-chip-header">Published</span>
+  <a class="btn" href="{{ url_for('frontend.recovery_contacts') }}" target="_blank" rel="noopener">Public page ↗</a>
+  <form method="post" action="{{ url_for('main.recovery_contacts_unapprove', eid=e.id) }}" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn" title="Take it off the public list and back into New submissions">Unpublish</button>
+  </form>
+  <form method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}" style="display:inline"
+        data-confirm-title="Delete {{ e.name }}?" data-confirm-label="Delete"
+        data-confirm="Their entry comes off the public list for good.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-danger">Delete</button>
+  </form>
+  {% else %}
+  <span class="post-chip post-chip-warning post-chip-header">{{ 'Removal request' if e.wants_removal else ('Update request' if e.wants_update else 'Waiting for review') }}</span>
+  {% endif %}
+{% endblock %}
+{% block content %}
+
+{# ── A submission or request still waiting: what it asks for, and the
+   buttons that act on it. Approve and Apply save edits made below
+   first (the form's `then`). ── #}
+{% if _waiting %}
+<section class="card pending-submission-card rc-review">
+  <div class="card-head">
+    <h2>
+      {% if e.wants_removal %}Removal request {% call chip('Removal request') %}Someone asked to come off the list. Removing deletes the matched entry; dismissing deletes the request and keeps the entry.{% endcall %}
+      {% elif e.wants_update %}Update request {% call chip('Update request') %}Someone asked to change their entry. Applying copies these details onto it; publishing as new keeps both.{% endcall %}
+      {% else %}New submission {% call chip('New submission') %}Sent in from the public page. It stays off the public list until you approve it.{% endcall %}{% endif %}
+    </h2>
+  </div>
+  <dl class="pending-submission-meta">
+    {% if e.created_at %}<dt>Sent</dt><dd>{{ e.created_at|fmt_site_local('%b %-d, %Y · %-I:%M %p %Z') }}</dd>{% endif %}
+    {% if e.wants_update or e.wants_removal %}
+    <dt>Confirmed</dt><dd>{% if e.removal_confirmed_at %}Yes, by the link we emailed, on {{ e.removal_confirmed_at|fmt_site_local('%b %-d, %Y') }}{% else %}Not yet: we emailed them a link, and clicking it {{ 'removes the entry' if e.wants_removal else 'applies the update' }} without you.{% endif %}</dd>
+    {% endif %}
+    {% if e.ip_address %}<dt>From</dt><dd class="muted">{{ e.ip_address }}</dd>{% endif %}
+  </dl>
+  {% if (e.wants_update or e.wants_removal) %}
+    {% if e.matched_entry %}
+    {% set m = e.matched_entry %}
+    <div class="rc-compare">
+      <div class="rc-compare-col">
+        <span class="rc-compare-label">{{ 'Entry to remove' if e.wants_removal else 'Their entry now' }}</span>
+        <a class="rc-compare-name" href="{{ url_for('main.recovery_contacts_editor', eid=m.id) }}">{{ m.name }}</a>
+        <span class="muted small">{{ m.phone or 'No phone' }} · {{ m.email or 'No email' }}{% if m.available_to_sponsor %} · Sponsor{% endif %}</span>
+      </div>
+      {% if e.wants_update %}
+      <span class="rc-compare-arrow" aria-hidden="true">{{ icon('arrow-right') }}</span>
+      <div class="rc-compare-col">
+        <span class="rc-compare-label">After the update</span>
+        <span class="rc-compare-name">{{ e.name }}</span>
+        <span class="muted small">{{ e.phone or 'No phone' }} · {{ e.email or 'No email' }}{% if e.available_to_sponsor %} · Sponsor{% endif %}</span>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="muted small">No entry on the list matched their email{{ ' or phone' if e.wants_update }}.{% if e.wants_update %} Publish it as a new entry, or discard it.{% else %} Dismiss it, or delete the right entry by hand.{% endif %}</p>
+    {% endif %}
+  {% endif %}
+  <div class="form-actions">
+    {% if e.wants_removal %}
+      {% if e.matched_entry %}
+      <form method="post" action="{{ url_for('main.recovery_contacts_apply_removal', eid=e.id) }}" style="display:inline"
+            data-confirm-title="Remove {{ e.matched_entry.name }}?" data-confirm-label="Remove"
+            data-confirm="Their entry comes off the public list for good, as they asked.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger">{{ icon('trash') }} Remove {{ e.matched_entry.name }}</button>
+      </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}" style="display:inline"
+            data-confirm-title="Dismiss this request?" data-confirm-label="Dismiss"
+            data-confirm="The request is deleted and the entry stays on the list.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn">Dismiss</button>
+      </form>
+    {% else %}
+      {% if e.wants_update and e.matched_entry %}
+      <button type="submit" form="rc-edit-form" name="then" value="apply" class="btn btn-primary">{{ icon('rotate-cw') }} Apply the update</button>
+      <button type="submit" form="rc-edit-form" name="then" value="approve" class="btn">Publish as a new entry</button>
+      {% else %}
+      <button type="submit" form="rc-edit-form" name="then" value="approve" class="btn btn-primary">{{ icon('check') }} Approve and publish</button>
+      {% endif %}
+      <form method="post" action="{{ url_for('main.recovery_contacts_delete', eid=e.id) }}" style="display:inline"
+            data-confirm-title="Discard this {{ 'request' if e.wants_update else 'submission' }}?" data-confirm-label="Discard"
+            data-confirm="It is deleted. The person who sent it is not told.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger">Discard</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{# Laid out like the other editors (story_edit.html): the details on the
+   left, the listing, note and activity on the right in a segmented
+   control (fe_studio.js), and the yellow save bar (content_editor.js)
+   once the entry exists. #}
+<form id="rc-edit-form" class="form post-form" method="post" data-content-editor
+      action="{{ url_for('main.recovery_contacts_manual_add') if _new else url_for('main.recovery_contacts_update', eid=e.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <section class="card st-studio post-studio" data-studio="recovery-contact" data-no-collapse>
+    <div class="st-body st-body--split">
+      <div class="post-studio-main">
+        <label class="post-title-field">Name
+          <input type="text" name="name" required maxlength="200" class="post-title-input"
+                 value="{{ e.name if e else '' }}" placeholder="Jane D." {% if _new %}autofocus{% endif %}>
+        </label>
+        <label>{% call hrow('Phone') %}A phone number, an email, or both.{% endcall %}
+          <input type="tel" name="phone" maxlength="64" value="{{ (e.phone if e else '') or '' }}">
+        </label>
+        <label>{% call hrow('Email') %}Messages sent with Contact through the site go here; the address itself is shown only if the listing shows it.{% endcall %}
+          <input type="email" name="email" maxlength="255" value="{{ (e.email if e else '') or '' }}">
+        </label>
+      </div>
+
+      <div class="st-controls">
+        <div class="st-seg-scroll" data-seg-scroll>
+          <nav class="st-seg" role="tablist" aria-label="Entry settings">
+            <button type="button" role="tab" data-studio-tab="listing">{{ icon('eye') }}<span>Listing</span></button>
+            <button type="button" role="tab" data-studio-tab="note">{{ icon('file-text') }}<span>Note</span></button>
+            {% if not _new %}<button type="button" role="tab" data-studio-tab="activity">{{ icon('history') }}<span>Activity</span></button>{% endif %}
+          </nav>
+        </div>
+
+        {# ── Listing: what the public list shows. ── #}
+        {% macro _switch(name, label, on, help) %}
+        <div class="post-toggle-row post-toggle-row--panel">
+          <div class="post-toggle-info"><div class="post-toggle-title">{{ label }} {% call chip(label) %}{{ help }}{% endcall %}</div></div>
+          <label class="mode-toggle">
+            <input type="checkbox" name="{{ name }}" value="1" {% if on %}checked{% endif %}>
+            <span class="mode-track"><span class="mode-thumb"></span></span>
+          </label>
+        </div>
+        {% endmacro %}
+        <div class="st-panel" data-studio-panel="listing">
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('eye') }}On the public list</h3>
+            <p class="muted small rc-status-note">{% if _new %}Published as soon as you add it.{% elif e.approved %}Published{% if e.approved_at %} since {{ e.approved_at|fmt_site_local('%b %-d, %Y') }}{% endif %}. The name always shows.{% else %}Not on the public list until it's approved.{% endif %}</p>
+            {{ _switch('show_phone', 'Show the phone', e.show_phone if e else True, 'Shown beside the name when there is a phone number.') }}
+            {{ _switch('show_email', 'Show the email', e.show_email if e else True, 'Shown beside the name when there is an email.') }}
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('star') }}Extras</h3>
+            {{ _switch('available_to_sponsor', 'Available to sponsor', e.available_to_sponsor if e else False, 'Adds a Sponsor badge to the entry.') }}
+            {{ _switch('contact_enabled', 'Contact through the site', e.contact_enabled if e else False, 'Adds a Contact button. Messages are relayed to their email without showing the address.') }}
+            {% if e and e.contact_count %}<p class="muted small">Contacted {{ e.contact_count }} time{{ '' if e.contact_count == 1 else 's' }} through the site.</p>{% endif %}
+          </div>
+        </div>
+
+        {# ── Note ── #}
+        <div class="st-panel" data-studio-panel="note" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('file-text') }}Admin note {% call chip('Admin note') %}Never shown on the public list.{% endcall %}</h3>
+            <textarea name="note" rows="8" placeholder="Why it was held, who to ask, anything to remember.">{{ (e.note if e else '') or '' }}</textarea>
+          </div>
+        </div>
+
+        {# ── Activity: this entry's log, and anything flagged. ── #}
+        {% if not _new %}
+        <div class="st-panel" data-studio-panel="activity" hidden>
+          {% if abuse or (e.requests_locked_until and e.requests_locked_until > now) %}
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('shield') }}Protection</h3>
+            {% if abuse %}<p class="small"><span class="post-chip post-chip-danger">{{ icon('alert-triangle') }} Flagged</span> {{ abuse.count }} suspicious request{{ '' if abuse.count == 1 else 's' }} about this entry. Review them in Watchtower.</p>{% endif %}
+            {% if e.requests_locked_until and e.requests_locked_until > now %}<p class="small"><span class="post-chip">{{ icon('lock') }} Locked</span> Update and removal requests are blocked until {{ e.requests_locked_until|fmt_site_local('%b %-d, %Y') }}.</p>{% endif %}
+          </div>
+          {% endif %}
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('history') }}Activity</h3>
+            {% if logs %}
+            <ul class="rc-log rc-log--compact">
+              {% for l in logs %}
+              <li class="rc-log-row">
+                <div class="rc-log-body">
+                  <div class="rc-log-msg">{{ l.message }}</div>
+                  <div class="rc-log-meta muted smaller">{% if l.created_at %}{{ l.created_at|fmt_site_local("%b %-d, %Y · %-I:%M %p") }}{% endif %}{% if l.actor %} · {{ l.actor }}{% endif %}</div>
+                </div>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}<p class="muted small">Nothing logged for this name yet.</p>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+</form>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+{% if not _new %}
+<div id="rc-edit-save-bar" class="fe-save-bar fe-save-bar-content" hidden data-editor-save-bar>
+  <span class="fe-save-bar-msg">Unsaved changes</span>
+  <button type="button" class="btn fe-save-bar-btn">Save</button>
+</div>
+{% endif %}
+<script src="{{ url_for('static', filename='js/content_editor.js', v=app_build_id) }}"></script>
+{% endblock %}

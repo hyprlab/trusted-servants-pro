@@ -1,0 +1,51 @@
+{# ── Pieces of a list page's sidebar (the File Browser layout: .fb-pick
+   with an .fb-side sidebar beside the list). Used by Meetings,
+   Libraries, Announcements & Events, Stories and Blog.
+
+   The search is live: app.js (initLiveSearch) re-fetches the page as
+   the box changes and swaps every [data-live] part, so the sidebar
+   counts and the list follow the typing while the box keeps focus. #}
+
+{# The search box. `params` are the page's other settings, kept as
+   hidden fields so a search doesn't reset them. #}
+{% macro search_form(action, params, q, placeholder, label) -%}
+<form method="get" action="{{ action }}" class="fb-search" role="search" data-live-search>
+  {% for k, v in params.items() if k not in ('q', 'page') and v is not none and v != '' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  {{ icon('search') }}
+  <input type="search" name="q" value="{{ q or '' }}" placeholder="{{ placeholder }}" aria-label="{{ label or placeholder }}" autocomplete="off">
+</form>
+{%- endmacro %}
+
+{# One filter in a sidebar group, with its count when given. #}
+{% macro side_link(href, ic, label, count=None, current=False, extra='') -%}
+<a class="fb-side-link{{ ' is-empty' if count is not none and not count and not current }}{{ ' ' ~ extra if extra }}" href="{{ href }}"{% if current %} aria-current="true"{% endif %}>
+  {{ icon(ic) }}<span>{{ label }}</span>{% if count is not none %}<span class="fb-side-count">{{ count }}</span>{% endif %}</a>
+{%- endmacro %}
+
+{# A sort link: a column heading or a Sort by chip. `on` marks the
+   current sort, `direction` its order. #}
+{% macro sort_link(href, label, on, direction) -%}
+<a class="erow-sort fb-sort-link" href="{{ href }}"{% if on %} data-dir="{{ direction }}" aria-current="true"{% endif %}
+   title="{% if on %}Sorted by {{ label|lower }}: click to reverse{% else %}Sort by {{ label|lower }}{% endif %}">{{ label }}</a>
+{%- endmacro %}
+
+{# List / Grid. #}
+{% macro view_switch(list_href, grid_href, view) -%}
+<div class="fb-side-group">
+  <h3 class="fb-side-title">View</h3>
+  <div class="ds-seg-btns fb-view" role="group" aria-label="View">
+    <a href="{{ list_href }}" aria-checked="{{ 'true' if view != 'grid' else 'false' }}" role="radio" title="List">{{ icon('list') }}<span>List</span></a>
+    <a href="{{ grid_href }}" aria-checked="{{ 'true' if view == 'grid' else 'false' }}" role="radio" title="Grid">{{ icon('layout-grid') }}<span>Grid</span></a>
+  </div>
+</div>
+{%- endmacro %}
+
+{# The bar that appears at the foot of the list once rows are ticked
+   (app.js initBulkSelect). The caller supplies the action buttons. #}
+{% macro bulk_bar() -%}
+<div class="lst-bulkbar" data-bulk-bar hidden>
+  <span class="lst-bulkbar-count" data-bulk-count>0 selected</span>
+  <div class="lst-bulkbar-actions">{{ caller() }}</div>
+  <button type="button" class="btn btn-sm lst-bulkbar-clear" data-bulk-clear>Clear</button>
+</div>
+{%- endmacro %}

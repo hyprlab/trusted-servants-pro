@@ -45,6 +45,7 @@ _MD_EXTENSIONS = ["extra", "toc", "admonition", "sane_lists", "meta", "attr_list
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
+_MD_LINK_RE = re.compile(r"\]\(([\w-]+)\.md(#[^)\s]*)?\)")
 
 bp = Blueprint("docs", __name__)
 
@@ -77,6 +78,12 @@ def _parse_file(path):
     """Parse one Markdown guide into a registry dict, or return None on error."""
     with open(path, encoding="utf-8") as fh:
         raw = fh.read()
+
+    # Guides link to each other as files (`installation.md#section`), so
+    # the links work on GitHub and tools/check-docs.py checks them; here
+    # they become /docs/<slug>. `site:/path` links to a page of the site.
+    raw = _MD_LINK_RE.sub(lambda m: "](/docs/%s%s)" % (m.group(1), m.group(2) or ""), raw)
+    raw = raw.replace("](site:/", "](/")
 
     # A fresh converter per file keeps `toc_tokens` / `Meta` state isolated.
     md = markdown.Markdown(extensions=_MD_EXTENSIONS)

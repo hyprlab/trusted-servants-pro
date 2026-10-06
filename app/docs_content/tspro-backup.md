@@ -5,7 +5,7 @@ Slug: tspro-backup
 Icon: shield
 Summary: Stand up the TS Pro Backup companion server with Docker Compose, then connect your portal so every backup is end-to-end encrypted and pushed off-site automatically on a schedule you control.
 
-The [Backup &amp; Restore](/docs/backup-restore) guide protects you against
+The [Backup &amp; Restore](backup-restore.md) guide protects you against
 *accidents* — a bad import, a fat-fingered delete — by keeping copies of your
 `./data` directory on the same machine. But if that machine itself dies (a disk
 failure, a deleted droplet, a ransomware event, a provider closing your
@@ -32,7 +32,7 @@ backups stay private.
 
 !!! note "This is the off-site layer, not a replacement for local snapshots"
     Keep using **Settings → Data → Export** and the local snapshots described in
-    [Backup &amp; Restore](/docs/backup-restore) for quick, same-machine
+    [Backup &amp; Restore](backup-restore.md) for quick, same-machine
     recovery. TS Pro Backup is the *additional*, off-site layer for when the
     whole machine is gone. The two complement each other.
 
@@ -412,12 +412,12 @@ decrypt it with the site's private key, and import it into a portal.
    decrypted.
 4. To restore it *into a portal*, use **Settings → Data → Import** and select the
    downloaded `.zip`. The import replaces the database, `uploads/`, and the
-   encryption key in place — see [Backup &amp; Restore](/docs/backup-restore)
+   encryption key in place — see [Backup &amp; Restore](backup-restore.md)
    for exactly what import does and how it keeps the prior state aside.
 
 !!! note "You can restore onto a brand-new server"
     This is the disaster-recovery path: stand up a fresh portal (see
-    [Installation](/docs/installation)), then import a decrypted archive pulled
+    [Installation](installation.md)), then import a decrypted archive pulled
     from the backup server. As long as you have the site's **private key**, your
     backups are usable even if the original machine is gone for good.
 
@@ -504,11 +504,11 @@ decrypt it with the site's private key, and import it into a portal.
 
 ## Next steps
 
-- [Backup &amp; Restore](/docs/backup-restore) — local exports, imports, and
+- [Backup &amp; Restore](backup-restore.md) — local exports, imports, and
   what an import actually replaces.
-- [Configuration &amp; Security](/docs/configuration) — the portal's own
+- [Configuration &amp; Security](configuration.md) — the portal's own
   environment variables and how it encrypts stored credentials.
-- [Email Relay](/docs/email-relay) — the other companion container, for hosts
+- [Email Relay](email-relay.md) — the other companion container, for hosts
   that block outbound SMTP.
-- [Upgrading &amp; Uninstalling](/docs/upgrading) — staying current and clean
+- [Upgrading &amp; Uninstalling](upgrading.md) — staying current and clean
   teardown.

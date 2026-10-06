@@ -1,0 +1,85 @@
+{# A miniature page drawn from a layout's block list, for the layout
+   cards in the page and homepage layout pickers and the New page dialog.
+
+   layout_thumb(blocks)  blocks: the layout's blocks_json, parsed
+   layout_thumb_custom() the "Custom" card: an open page to build on
+
+   Each block type has a small wireframe: headings are bold bars,
+   paragraphs lines of text, images picture tiles, buttons pills; a
+   split or a container with children draws its columns or box. #}
+{% macro _lines(n=3) -%}
+  <span class="lt-p">{% for w in [100, 94, 70, 88][:n] %}<i style="width: {{ w }}%"></i>{% endfor %}</span>
+{%- endmacro %}
+
+{% macro _block(b) -%}
+  {%- set t = b.type if b is mapping else b -%}
+  {%- set d = (b.data if b is mapping and b.data is mapping else {}) -%}
+  {%- if t == 'heading' -%}
+    <span class="lt-h{{ '2' if (d.level or 1)|int >= 2 else '1' }}"></span>
+  {%- elif t == 'paragraph' -%}
+    {{ _lines(3) }}
+  {%- elif t == 'image' -%}
+    <span class="lt-img">{{ icon('image') }}</span>
+  {%- elif t == 'button' -%}
+    <span class="lt-btn"></span>
+  {%- elif t in ('list', 'faq') -%}
+    <span class="lt-list">{% for w in [70, 60, 76] %}<i><b></b><s style="width: {{ w }}%"></s></i>{% endfor %}</span>
+  {%- elif t == 'toc_sidebar' -%}
+    <span class="lt-toc"><em></em>{% for w in [80, 60, 72, 50] %}<i style="width: {{ w }}%"></i>{% endfor %}</span>
+  {%- elif t == 'video' -%}
+    <span class="lt-video"><b></b></span>
+  {%- elif t in ('callout', 'testimonials') -%}
+    <span class="lt-callout">{{ _lines(2) }}</span>
+  {%- elif t == 'code' -%}
+    <span class="lt-code">{% for w in [60, 80, 40] %}<i style="width: {{ w }}%"></i>{% endfor %}</span>
+  {%- elif t in ('separator', 'divider') -%}
+    <span class="lt-sep"></span>
+  {%- elif t == 'icon' -%}
+    <span class="lt-icon"></span>
+  {%- elif t == 'cta' -%}
+    <span class="lt-hero lt-hero--slim"><span class="lt-h2"></span><span class="lt-btn"></span></span>
+  {%- elif t == 'hero' -%}
+    <span class="lt-hero"><span class="lt-h1"></span>{{ _lines(2) }}<span class="lt-btn"></span></span>
+  {%- elif t in ('meetings', 'events', 'features', 'stories', 'blog', 'cards', 'quick_links', 'stats') -%}
+    <span class="lt-cards">{% for _ in range(3) %}<i><b></b>{{ _lines(2) }}</i>{% endfor %}</span>
+  {%- elif t in ('split', 'split3') or (b is mapping and (b.left or b.right)) -%}
+    {%- set cols = [b.left or [], b.middle, b.right or []] | select('ne', none) | list if t == 'split3' else [b.left or [], b.right or []] -%}
+    {%- set gc = (d.grid_columns or '') -%}
+    <span class="lt-cols" style="grid-template-columns: {{ 'minmax(0, 3fr) minmax(0, 1fr)' if 'px' in gc else 'repeat(' ~ cols|length ~ ', minmax(0, 1fr))' }}">
+      {%- for col in cols %}<span class="lt-col">{% for c in col %}{{ _block(c) }}{% endfor %}</span>{% endfor -%}
+    </span>
+  {%- elif t == 'container' -%}
+    {%- set kids = (b.blocks if b is mapping and b.blocks else []) -%}
+    {%- if kids and d.display == 'grid' -%}
+    <span class="lt-cols lt-cols--top" style="grid-template-columns: repeat({{ kids|length }}, minmax(0, 1fr))">
+      {%- for c in kids %}<span class="lt-col lt-col--card">{{ _block(c) }}</span>{% endfor -%}
+    </span>
+    {%- elif kids -%}
+    <span class="lt-box">{% for c in kids %}{{ _block(c) }}{% endfor %}</span>
+    {%- else -%}
+    <span class="lt-box lt-box--empty" title="An empty section to fill"></span>
+    {%- endif -%}
+  {%- else -%}
+    <span class="lt-generic"></span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro layout_thumb(blocks) -%}
+<div class="lt-page" aria-hidden="true">
+  <span class="lt-chrome"><i></i><i></i><i></i></span>
+  <span class="lt-body">
+    {%- if blocks -%}
+      {% for b in blocks %}{{ _block(b) }}{% endfor %}
+    {%- else -%}
+      <span class="lt-box lt-box--empty lt-box--tall"></span>
+    {%- endif -%}
+  </span>
+</div>
+{%- endmacro %}
+
+{% macro layout_thumb_custom() -%}
+<div class="lt-page lt-page--custom" aria-hidden="true">
+  <span class="lt-chrome"><i></i><i></i><i></i></span>
+  <span class="lt-body lt-body--custom">{{ icon('plus') }}<em>Drag in blocks</em></span>
+</div>
+{%- endmacro %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% from "_media_macros.html" import media_size, media_actions with context %}
+{# A file's own view in the File Browser: the file on the left, its
+   details on the right (laid out like the editors, .st-body--split).
+   It loads in place of the list and back (app.js, a[data-swap]), and
+   Previous and Next step through the list as it was searched, filtered
+   and sorted (`args`). In the picker it carries its own bar, there
+   being no top bar, with Select. #}
+{% set _pub = url_for('public.public_file', filename=m.original_filename) %}
+{% set _pub_full = url_for('public.public_file', filename=m.original_filename, _external=True) %}
+{% set _dl = url_for('main.media_download', mid=m.id) %}
+{% block title %}{{ m.original_filename }} · File Browser{% endblock %}
+{% macro _back() -%}
+  <a class="fb-side-back" href="{{ back_url }}" data-swap data-fb-back
+     title="Back to the files (Esc)" aria-label="Back to the files">{{ icon('arrow-left') }}</a>
+{%- endmacro %}
+{% macro _pager() %}
+  {% if count > 1 and position %}
+  <div class="media-pagination-controls" role="group" aria-label="Step through the files">
+    {% if prev_id %}<a class="btn" href="{{ url_for('main.media_file', mid=prev_id, **args) }}" data-swap data-fb-prev
+       aria-label="Previous file" title="Previous file (←)">{{ icon('chevron-left') }}</a>
+    {% else %}<span class="btn btn-perm-disabled" aria-disabled="true">{{ icon('chevron-left') }}</span>{% endif %}
+    <span class="media-pagination-page">{{ position }} of {{ count }}</span>
+    {% if next_id %}<a class="btn" href="{{ url_for('main.media_file', mid=next_id, **args) }}" data-swap data-fb-next
+       aria-label="Next file" title="Next file (→)">{{ icon('chevron-right') }}</a>
+    {% else %}<span class="btn btn-perm-disabled" aria-disabled="true">{{ icon('chevron-right') }}</span>{% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+{% block heading %}{{ _back() }}<span class="fb-file-title" title="{{ m.original_filename }}">{{ m.original_filename }}</span>{% endblock %}
+{% block top_actions %}
+  {{ _pager() }}
+  <a class="btn" href="{{ _pub }}" target="_blank" rel="noopener" title="Open in a new tab">{{ icon('external-link') }}<span class="hide-sm">Open</span></a>
+  <a class="btn" href="{{ _dl }}" title="Download">{{ icon('download') }}<span class="hide-sm">Download</span></a>
+  {{ media_actions(m, _pub, compact=True, back=back_url, download=False) }}
+{% endblock %}
+{% block content %}
+<div class="fb-file-view" data-fb-file data-media-id="{{ m.id }}" data-stored="{{ m.stored_filename }}"
+     data-original="{{ m.original_filename }}">
+  {% if picker %}
+  <div class="fb-file-bar">
+    {{ _back() }}
+    <h1 class="fb-side-head fb-file-title" title="{{ m.original_filename }}">{{ m.original_filename }}</h1>
+    {{ _pager() }}
+    <a class="btn" href="{{ _pub }}" target="_blank" rel="noopener" title="Open in a new tab">{{ icon('external-link') }}<span class="hide-sm">Open</span></a>
+    <button type="button" class="btn btn-primary media-select">Select</button>
+  </div>
+  {% endif %}
+  <section class="card post-studio fb-file">
+    <div class="st-body st-body--split">
+      <div class="st-preview">
+        {% if not on_disk %}
+        <div class="fb-empty fb-file-stage">
+          <span class="fb-empty-icon" aria-hidden="true">{{ icon('alert-triangle') }}</span>
+          <p>This file is missing from storage, so it can't be shown or downloaded.</p>
+        </div>
+        {% elif t == 'img' %}
+        {# Zooms in place (image_lightbox.js): click, wheel or pinch, the
+           buttons, or + - 0. #}
+        <div class="lightbox-body fb-file-stage" data-zoom-stage>
+          <img class="fb-file-media" src="{{ _pub }}" alt="{{ m.original_filename }}">
+          <div class="ilb-tools" data-zoom-tools hidden>
+            <button type="button" class="ilb-btn" data-zoom="out" title="Zoom out (-)" aria-label="Zoom out">{{ icon('minus') }}</button>
+            <button type="button" class="ilb-zoom" data-zoom="fit" title="Fit (0)" aria-label="Fit">100%</button>
+            <button type="button" class="ilb-btn" data-zoom="in" title="Zoom in (+)" aria-label="Zoom in">{{ icon('plus') }}</button>
+          </div>
+        </div>
+        {% elif ext == 'pdf' %}
+        <div class="lightbox-body fb-file-stage"><iframe class="fb-file-media fb-file-pdf" src="{{ _pub }}#toolbar=1&navpanes=0" title="{{ m.original_filename }}"></iframe></div>
+        {% elif t == 'vid' %}
+        <div class="lightbox-body fb-file-stage"><video class="fb-file-media" src="{{ _pub }}" controls preload="metadata"></video></div>
+        {% else %}
+        <div class="fb-empty fb-file-stage">
+          <span class="fb-empty-icon" aria-hidden="true">{{ icon({'aud': 'music', 'vid': 'video'}.get(t, 'file-text' if t in ('doc', 'xls', 'ppt') else 'file')) }}</span>
+          {% if t == 'aud' %}
+          <audio src="{{ _pub }}" controls preload="metadata"></audio>
+          {% else %}
+          <p>There's no preview for {{ ('a .' ~ ext ~ ' file') if ext else 'this kind of file' }}.</p>
+          <a class="btn btn-sm" href="{{ _dl }}">{{ icon('download') }} Download</a>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="st-controls">
+        <div class="ds-group st-group-body">
+          <h3 class="ds-group-title">{{ icon('link') }}Path</h3>
+          <button type="button" class="copy-btn fb-file-path" data-copy="{{ _pub_full }}" data-tip="Click to copy">{{ _pub_full }}</button>
+          <p class="muted small">Anyone with this link can open the file.</p>
+        </div>
+
+        <div class="ds-group st-group-body">
+          <h3 class="ds-group-title">{{ icon('info') }}Details</h3>
+          <dl class="pe-facts">
+            <dt>Name</dt><dd>{{ m.original_filename }}</dd>
+            <dt>Kind</dt><dd>{{ type_label }}{% if ext %} ({{ ext|upper }}){% endif %}</dd>
+            {% if mime %}<dt>Format</dt><dd>{{ mime }}</dd>{% endif %}
+            <dt>Size</dt><dd>{{ media_size(m.size_bytes) }}{% if (m.size_bytes or 0) >= 1024 %} <span class="muted">({{ '{:,}'.format(m.size_bytes) }} bytes)</span>{% endif %}</dd>
+            {% if facts.dimensions %}<dt>Dimensions</dt><dd>{{ facts.dimensions[0] }} × {{ facts.dimensions[1] }} pixels</dd>{% endif %}
+            {% if facts.taken %}<dt>Taken</dt><dd>{{ facts.taken.strftime('%b %-d, %Y · %-I:%M %p') }}</dd>{% endif %}
+            {% if facts.camera %}<dt>Camera</dt><dd>{{ facts.camera }}</dd>{% endif %}
+            <dt>Uploaded</dt><dd>{{ m.created_at|fmt_site_local('%b %-d, %Y · %-I:%M %p %Z') if m.created_at else '—' }}</dd>
+            <dt>Uploaded by</dt><dd>{{ m.uploader.username if m.uploader else 'Unknown' }}</dd>
+          </dl>
+        </div>
+
+        <div class="ds-group st-group-body">
+          <h3 class="ds-group-title">{{ icon('map-pin') }}Used in</h3>
+          {% if usages %}
+          <dl class="pe-facts">
+            {% for kind, title, url in usages %}
+            <dt>{{ kind }}</dt><dd>{% if url %}<a href="{{ url }}">{{ title }}</a>{% else %}{{ title }}{% endif %}</dd>
+            {% endfor %}
+          </dl>
+          {% else %}
+          <p class="muted small">Not found in any meeting, library, post, story or page.</p>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </section>
+  {% if picker_multi %}
+  <div class="media-multi-bar" data-media-multi-bar hidden>
+    <span class="media-multi-count">
+      <strong data-multi-count>0</strong> selected
+    </span>
+    <button type="button" class="btn btn-sm" data-multi-clear>Clear</button>
+    <button type="button" class="btn btn-primary" data-multi-done>Add items</button>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

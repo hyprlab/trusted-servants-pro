@@ -133,10 +133,9 @@ def infer_visitor_mode(headers, configured_mode="notice"):
 # studies find legalese banners reduce comprehension AND consent rate.
 REGION_PRESETS = {
     "gdpr": {
-        "label": "GDPR / UK GDPR (EU + United Kingdom)",
+        "label": "GDPR (EU and UK)",
         "description": (
-            "Strict opt-in: non-essential cookies are blocked until the visitor "
-            "explicitly accepts. Both Accept and Reject are equally prominent — "
+            "Strict opt-in with Accept and Reject equally prominent, since "
             "GDPR requires the choice to be genuinely free."
         ),
         "settings": {
@@ -156,7 +155,7 @@ REGION_PRESETS = {
         },
     },
     "ccpa": {
-        "label": "CCPA / CPRA (California, USA)",
+        "label": "CCPA (California)",
         "description": (
             "Opt-in with a clear reject path. Mirrors CCPA/CPRA's \"Do Not Sell "
             "or Share My Personal Information\" expectations: visitors can use "
@@ -178,9 +177,9 @@ REGION_PRESETS = {
         },
     },
     "generic": {
-        "label": "Generic notice (global / lowest-overhead)",
+        "label": "Notice only",
         "description": (
-            "Informational only — a brief banner that the visitor can dismiss. "
+            "Informational only: a brief banner that the visitor can dismiss. "
             "Suitable when you don't collect personal data beyond what's needed "
             "to operate the site and you don't run third-party analytics or ads."
         ),

@@ -2,14 +2,13 @@
 // Footer admin. Replaces the old "open a separate layout-builder modal"
 // flow: the admin arranges footer blocks into rows/columns right on the
 // page (drag to reorder/move, palette to add, × to remove, click a block
-// to edit its content in the existing modal), and a sticky save bar
-// commits everything.
+// to open its content tab). The page's yellow save bar commits it.
 //
 // Arrangement is serialised into the hidden #footer-layout-json input as
 // rows: [{cols, columns: [[{type}], ...]}] — the exact shape the footer
 // CustomLayout + public _custom.html render already consume. Block
-// CONTENT stays in the existing per-type modals (saved via parse_footer);
-// this file only owns the LAYOUT (which blocks, where).
+// CONTENT is edited in the page's tabs (saved via parse_footer); this file
+// only owns the LAYOUT of a custom footer (which blocks, where).
 (function () {
   const rowsEl = document.querySelector('[data-footer-rows]');
   const hidden = document.getElementById('footer-layout-json');
@@ -108,17 +107,11 @@
     if (empty) empty.hidden = !!has;
   }
 
-  // ── Sticky save bar ────────────────────────────────────────────────
-  const saveBar = document.getElementById('footer-save-bar');
-  let dirty = false;
+  // The page's yellow save bar and live preview listen for input events;
+  // moving pills changes no field, so announce the new arrangement.
   function markDirty() {
-    if (dirty) return;
-    dirty = true;
-    if (saveBar) saveBar.hidden = false;
+    hidden.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  // Any content-modal field change also makes the footer dirty.
-  form.addEventListener('input', markDirty);
-  form.addEventListener('change', markDirty);
 
   // ── Palette: click a tile to add that block to the last row's first
   //    column (creating a 1-column row if none exists). ───────────────
@@ -171,17 +164,7 @@
       }
       return;
     }
-    // Click a block (not its remove button) → open its content modal.
-    const pill = e.target.closest('.fe-page-structure-block[data-open-modal]');
-    if (pill && !e.target.closest('[data-footer-remove]')) {
-      const id = pill.getAttribute('data-open-modal');
-      const m = document.getElementById(id);
-      if (m) {
-        m.classList.add('open');
-        m.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-      }
-    }
+    // Clicking a block opens its tab (data-studio-goto, fe_studio.js).
   });
 
   wireAllSortables();

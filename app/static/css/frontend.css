@@ -158,9 +158,7 @@ body.frontend-body {
 .frontend-body .fe-recovery-nav-cta:hover { text-decoration: var(--fe-btn-decoration, none); }
 /* Mega-menu links read their own colour + decoration tokens so they
    don't inherit the body-link colour. */
-.fe-megamenu-link { text-decoration: var(--fe-megamenu-link-decoration, none); }
 .fe-megamenu-link:not(.fe-megamenu-link-colored) { color: var(--fe-color-megamenu-link, inherit); }
-.fe-megamenu-link:hover { text-decoration: var(--fe-megamenu-link-decoration-hover, none); }
 .fe-megamenu-link:hover:not(.fe-megamenu-link-colored) { color: var(--fe-color-megamenu-link-hover, inherit); }
 /* Dark-mode swap: hue-preserving slightly-dimmed variant so pure-white
    admin choices read as soft off-white instead of harsh #fff against
@@ -317,6 +315,129 @@ html[data-theme="dark"] .fe-utility-bar.is-live { background: #d6b000; }
 .fe-utility-bar.is-live .fe-theme-toggle { color: #111;
   background: rgba(0,0,0,0.12); }
 .fe-utility-bar.is-live .fe-theme-toggle:hover { background: rgba(0,0,0,0.22); }
+
+/* ── Desktop collision guard (overflow popover) ───────────────────────
+   The desktop bar is a fixed 3-column grid, and each side wraps — so a
+   side's min-content width is just its widest pill and the rest of the
+   row spills into the centre column when a long live-meeting name eats
+   the space. The script in `_utility_bar.html` measures the row and
+   folds whole side items into the popover below until it fits; these
+   rules are the chrome that fold needs (plus the last-resort ellipsis).
+   Everything here is inert until the script unhides a trigger. */
+
+/* Trigger — same round pill as the theme toggle / collapsed container so
+   the bar's icon chrome reads as one matched set. */
+.fe-utility-overflow-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; width: 30px; height: 30px;
+  background: rgba(255, 255, 255, 0.12); color: inherit;
+  border: 0; padding: 0; border-radius: 999px; cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+.fe-utility-overflow-btn[hidden] { display: none; }
+.fe-utility-overflow-btn:hover,
+.fe-utility-overflow-btn[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.24); transform: scale(1.04);
+}
+.fe-utility-overflow-btn .icon { width: 16px; height: 16px; }
+.fe-utility-bar.is-live .fe-utility-overflow-btn {
+  color: #111; background: rgba(0, 0, 0, 0.12);
+}
+.fe-utility-bar.is-live .fe-utility-overflow-btn:hover,
+.fe-utility-bar.is-live .fe-utility-overflow-btn[aria-expanded="true"] {
+  background: rgba(0, 0, 0, 0.24);
+}
+
+/* Popover — hangs off the bar (not the inner strip, which clips on
+   mobile), positioned horizontally by the script. */
+.fe-utility-overflow-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 80;
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 190px; max-width: min(320px, calc(100vw - 16px));
+  padding: 6px;
+  background: #fff; color: #111;
+  border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 12px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18);
+  font-size: 0.875rem; font-weight: 500;
+}
+.fe-utility-overflow-panel[hidden] { display: none; }
+/* Folded items keep their DOM identity — only their layout changes:
+   pills become full-width menu rows stacked vertically. Selectors are
+   prefixed with `.fe-utility-bar` so they outrank the `.is-live`
+   container rules above without reaching for !important. */
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-mobile-item,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-container {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 4px; width: 100%;
+}
+/* A container with a collapsed_icon emits both variants; inside the
+   popover we always want the expanded one, live or not. */
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-container--collapsed { display: none; }
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-container--live-expanded { display: flex; }
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-btn,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-link,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-text {
+  justify-content: flex-start; width: 100%;
+  padding: 8px 10px; border-radius: 8px;
+  background: transparent; color: inherit; font-weight: 600;
+}
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-btn:hover,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-link:hover {
+  background: rgba(0, 0, 0, 0.06); text-decoration: none;
+}
+/* Labelled items each claim their own full-width menu row (above);
+   fixed-size round chrome that rode along inside a folded container keeps
+   its intrinsic size and flows together on a row of its own. */
+.fe-utility-bar .fe-utility-overflow-panel .fe-theme-toggle,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-search-btn,
+.fe-utility-bar .fe-utility-overflow-panel .fe-utility-icon-only {
+  flex: 0 0 auto; margin-left: 2px;
+}
+html[data-theme="dark"] .fe-utility-overflow-panel,
+body.fe-frontend-force-dark .fe-utility-overflow-panel {
+  background: var(--fe-dm-surface, #131a33);
+  color: var(--fe-dm-text, #e2e8f0);
+  border-color: var(--fe-dm-border, #1f2a44);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.5);
+}
+html[data-theme="dark"] .fe-utility-bar .fe-utility-overflow-panel .fe-utility-btn:hover,
+html[data-theme="dark"] .fe-utility-bar .fe-utility-overflow-panel .fe-utility-link:hover,
+body.fe-frontend-force-dark .fe-utility-bar .fe-utility-overflow-panel .fe-utility-btn:hover,
+body.fe-frontend-force-dark .fe-utility-bar .fe-utility-overflow-panel .fe-utility-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 721px) {
+  /* Last resort: everything foldable is already folded and the row still
+     doesn't fit. Hand the leftover space to the centre column and let the
+     meeting name ellipsise — never overlap. */
+  .fe-utility-bar.is-cramped .fe-utility-bar-inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .fe-utility-bar.is-cramped .fe-utility-live { flex-wrap: nowrap; min-width: 0; }
+  /* Only the meeting name gives ground — the label and the Join pill hold
+     their intrinsic width, otherwise the flex shrink wraps the CTA's own
+     text onto two lines and the bar grows a second row. */
+  .fe-utility-bar.is-cramped .fe-utility-live-label,
+  .fe-utility-bar.is-cramped .fe-utility-live-cta { flex: 0 0 auto; white-space: nowrap; }
+  .fe-utility-bar.is-cramped .fe-utility-live-name {
+    flex: 0 1 auto; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* Measuring state — each column at its natural max-content width with
+     every shrink/wrap fallback switched off, so the script reads what the
+     row WANTS rather than what it was squeezed into. Added and removed
+     synchronously; never painted. Must come after .is-cramped. */
+  .fe-utility-bar.is-measuring .fe-utility-bar-inner {
+    grid-template-columns: max-content max-content max-content;
+    justify-content: start;
+  }
+  .fe-utility-bar.is-measuring .fe-utility-bar-side { flex-wrap: nowrap; }
+  .fe-utility-bar.is-measuring .fe-utility-live { flex-wrap: nowrap; }
+  .fe-utility-bar.is-measuring .fe-utility-live-name {
+    overflow: visible; text-overflow: clip; max-width: none;
+  }
+}
 
 /* ── Mobile layout ────────────────────────────────────────────────────
    On narrow viewports the bar collapses to a single horizontal swipe
@@ -519,6 +640,10 @@ html[data-theme="dark"] .fe-utility-bar.is-live { background: #d6b000; }
   transition: color 150ms ease, background 150ms ease;
 }
 .fe-nav a:hover { color: var(--fe-color-nav-link-hover, var(--fe-ink)); background: var(--fe-panel-soft); text-decoration: none; }
+/* Classic header: a two-line Navigation item and a mega menu caret. */
+.fe-nav a.fe-nav-twoline { display: inline-flex; flex-direction: column; line-height: 1.15; padding-top: 4px; padding-bottom: 4px; }
+.fe-nav-twoline-lead { font-size: 0.75em; opacity: 0.75; }
+.fe-nav a .fe-nav-caret { display: inline-flex; margin-left: 4px; vertical-align: middle; --icon-size: 14px; }
 .fe-nav-cta {
   margin-left: 8px; padding: 9px 18px !important; border-radius: 999px;
   background: var(--fe-ink); color: #fff !important; font-weight: 600;
@@ -1129,6 +1254,23 @@ body.fe-megamenu-open .fe-recovery-menu-btn span:last-child {
    heading (Fraunces / Inter); other modifier classes are no-ops. */
 .fe-hero-sub-fraunces { font-family: "Fraunces", "Inter", Georgia, serif; font-weight: 400; }
 .fe-hero-sub-inter    { font-family: "Inter", "Fraunces", sans-serif; font-weight: 400; }
+
+/* The subheading is authored in markdown + inline HTML, so it can emit
+   block children (paragraphs, lists, a <br>). Keep them on the hero's
+   own rhythm rather than the page default: no leading or trailing
+   margin, tight paragraph spacing, and lists inset far enough to read
+   as lists while staying inside the hero's centred column. */
+.fe-hero-sub > :first-child { margin-top: 0; }
+.fe-hero-sub > :last-child { margin-bottom: 0; }
+.fe-hero-sub p { margin: 0 0 0.6em; }
+.fe-hero-sub ul,
+.fe-hero-sub ol {
+  display: inline-block; text-align: left;
+  margin: 0.4em 0; padding-left: 1.4em;
+}
+.fe-hero-sub li { margin: 0.15em 0; }
+.fe-hero-sub a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.fe-hero-sub a:hover { text-decoration-thickness: 2px; }
 .fe-hero-cta {
   display: inline-flex; gap: 14px; flex-wrap: wrap; justify-content: center;
 }
@@ -1145,9 +1287,17 @@ body.fe-megamenu-open .fe-recovery-menu-btn span:last-child {
   transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
   cursor: pointer;
 }
+/* `.fe-btn-blue` rides the primary rules in light mode — it IS the
+   primary filled button there, token-driven and all — and parts company
+   only in dark mode, where it stays a muted blue instead of primary's
+   near-black navy. Listed on the same rules rather than duplicated so
+   the two can't drift apart. */
 .fe-btn-primary,
 .fe-page .fe-btn-primary,
-.frontend-body .fe-btn-primary {
+.frontend-body .fe-btn-primary,
+.fe-btn-blue,
+.fe-page .fe-btn-blue,
+.frontend-body .fe-btn-blue {
   background: var(--fe-color-btn-primary-bg, var(--fe-ink));
   color: var(--fe-color-btn-primary-text, #fff);
   /* Border resting + hover are admin-tunable from the Design tokens
@@ -1163,7 +1313,10 @@ body.fe-megamenu-open .fe-recovery-menu-btn span:last-child {
 }
 .fe-btn-primary:hover,
 .fe-page .fe-btn-primary:hover,
-.frontend-body .fe-btn-primary:hover {
+.frontend-body .fe-btn-primary:hover,
+.fe-btn-blue:hover,
+.fe-page .fe-btn-blue:hover,
+.frontend-body .fe-btn-blue:hover {
   transform: var(--fe-btn-hover-transform, translateY(-1px));
   background: var(--fe-color-btn-primary-hover-bg,
                   color-mix(in srgb, var(--fe-color-btn-primary-bg, var(--fe-ink)) 88%, black));
@@ -1207,14 +1360,18 @@ body.fe-megamenu-open .fe-recovery-menu-btn span:last-child {
 }
 html[data-theme="dark"] .fe-btn-yellow,
 html[data-theme="dark"] .fe-page .fe-btn-yellow,
-html[data-theme="dark"] .frontend-body .fe-btn-yellow {
+html[data-theme="dark"] .frontend-body .fe-btn-yellow,
+body.fe-frontend-force-dark .fe-btn-yellow,
+.fe-hero--force-dark .fe-btn-yellow {
   background: #eab308;
   color: #0c0a09;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 html[data-theme="dark"] .fe-btn-yellow:hover,
 html[data-theme="dark"] .fe-page .fe-btn-yellow:hover,
-html[data-theme="dark"] .frontend-body .fe-btn-yellow:hover {
+html[data-theme="dark"] .frontend-body .fe-btn-yellow:hover,
+body.fe-frontend-force-dark .fe-btn-yellow:hover,
+.fe-hero--force-dark .fe-btn-yellow:hover {
   background: #facc15;
   color: #0c0a09;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
@@ -1224,7 +1381,15 @@ html[data-theme="dark"] .frontend-body .fe-btn-yellow:hover {
    like .fe-btn-yellow (no design-token override) so it stays distinct
    from the brand-driven primary button. Hover is a slightly darker
    green in both modes; dark mode dims the resting green a notch so it
-   doesn't glow against a dark page bg. */
+   doesn't glow against a dark page bg.
+
+   The dark cluster below carries all three of this codebase's dark
+   signals — `html[data-theme="dark"]` (visitor toggled dark),
+   `body.fe-frontend-force-dark` (whole site pinned dark) and
+   `.fe-hero--force-dark` (one hero pinned dark, which is also how the
+   hero edit modal renders its Dark preview). Keying only off the first,
+   as this did, left the button sitting at its light-mode green inside a
+   forced-dark hero while the primary button beside it went dark. */
 .fe-btn-green,
 .fe-page .fe-btn-green,
 .frontend-body .fe-btn-green {
@@ -1243,16 +1408,54 @@ html[data-theme="dark"] .frontend-body .fe-btn-yellow:hover {
 }
 html[data-theme="dark"] .fe-btn-green,
 html[data-theme="dark"] .fe-page .fe-btn-green,
-html[data-theme="dark"] .frontend-body .fe-btn-green {
+html[data-theme="dark"] .frontend-body .fe-btn-green,
+body.fe-frontend-force-dark .fe-btn-green,
+.fe-hero--force-dark .fe-btn-green {
   background: #1fb357;
   color: #fff;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 html[data-theme="dark"] .fe-btn-green:hover,
 html[data-theme="dark"] .fe-page .fe-btn-green:hover,
-html[data-theme="dark"] .frontend-body .fe-btn-green:hover {
+html[data-theme="dark"] .frontend-body .fe-btn-green:hover,
+body.fe-frontend-force-dark .fe-btn-green:hover,
+.fe-hero--force-dark .fe-btn-green:hover {
   background: #1a984a;
   color: #fff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+/* Blue CTA — the primary filled button with a gentler dark mode. The
+   primary style darkens to near-black navy on a dark page (either the
+   global `#052566` rule or, inside a hero, a 40%-of-black colour-mix),
+   which reads as "off" next to bright hero art. This variant instead
+   mutes the brand blue toward slate: still unmistakably the brand
+   colour, just desaturated enough to sit on a dark surface. Derived
+   from the same `--fe-color-btn-primary-bg` token, so a rebranded
+   palette carries through. Carries all three dark signals — visitor
+   dark mode, a site pinned dark, and a hero pinned dark (which is also
+   how the hero edit modal renders its Dark preview). */
+html[data-theme="dark"] .fe-btn-blue,
+html[data-theme="dark"] .fe-page .fe-btn-blue,
+html[data-theme="dark"] .frontend-body .fe-btn-blue,
+body.fe-frontend-force-dark .fe-btn-blue,
+.fe-hero--force-dark .fe-btn-blue {
+  background: color-mix(in srgb,
+                        var(--fe-color-btn-primary-bg, #2e6bff) 55%, #475569);
+  color: #f8fafc;
+  border-color: color-mix(in srgb,
+                          var(--fe-color-btn-primary-bg, #2e6bff) 55%, #475569);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+html[data-theme="dark"] .fe-btn-blue:hover,
+html[data-theme="dark"] .fe-page .fe-btn-blue:hover,
+html[data-theme="dark"] .frontend-body .fe-btn-blue:hover,
+body.fe-frontend-force-dark .fe-btn-blue:hover,
+.fe-hero--force-dark .fe-btn-blue:hover {
+  background: color-mix(in srgb,
+                        var(--fe-color-btn-primary-bg, #2e6bff) 70%, #475569);
+  color: #ffffff;
+  border-color: color-mix(in srgb,
+                          var(--fe-color-btn-primary-bg, #2e6bff) 70%, #475569);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
 }
 .fe-btn-ghost:hover,
@@ -1544,10 +1747,10 @@ html[data-theme="dark"] body[data-fe-theme="recovery-blue"] .fe-btn-ghost:hover 
 .fe-contact-body > :last-child { margin-bottom: 0; }
 .fe-contact-body a { color: var(--fe-accent-2); }
 .fe-contact-card {
-  display: inline-block; text-align: left;
-  padding: 22px 28px; border-radius: 16px;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-  min-width: 280px; backdrop-filter: blur(4px);
+  display: inline-block;
+  text-align: left;
+  min-width: 280px;
+  backdrop-filter: blur(4px);
 }
 .fe-contact-role {
   font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
@@ -1997,7 +2200,7 @@ html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-contact-body 
 .fe-footer-custom .fe-footer-block-spacer { height: 16px; }
 .fe-footer-custom .fe-footer-cols { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 html[data-theme="dark"] .fe-footer-custom .fe-footer-block-divider,
-body.fe-footer-force-dark .fe-footer-custom .fe-footer-block-divider { border-top-color: #1f2a44; }
+body.fe-footer-force-dark .fe-footer-custom .fe-footer-block-divider { border-top-color: var(--fe-color-footer-dark-line, #1f2a44); }
 
 /* ----- Mega variant — 4-col wall ----- */
 .fe-footer-mega .fe-footer-mega-grid {
@@ -2028,23 +2231,20 @@ body.fe-footer-force-dark .fe-footer-custom .fe-footer-block-divider { border-to
    selectors carry the same weight. #}
 /* Dark mode (page is dark) — text colors are DIMMED so the footer
    reads as a quiet, low-contrast band against the all-dark page. */
-html[data-theme="dark"] .fe-footer {
-  background: #0b1026; border-top-color: #1f2a44; color: var(--fe-text-dark-active, #cbd5e1);
-}
-html[data-theme="dark"] .fe-footer-name { color: var(--fe-text-dark-active, #e2e8f0); }
+html[data-theme="dark"] .fe-footer { color: var(--fe-text-dark-active, #cbd5e1); }
 html[data-theme="dark"] .fe-footer-tagline,
 html[data-theme="dark"] .fe-footer-link-list a,
 html[data-theme="dark"] .fe-footer-secondary-nav a,
-html[data-theme="dark"] .fe-footer-copy { color: #94a3b8; }
+html[data-theme="dark"] .fe-footer-copy { color: var(--fe-color-footer-dark-muted, #94a3b8); }
 html[data-theme="dark"] .fe-footer-link-list a:hover,
 html[data-theme="dark"] .fe-footer-secondary-nav a:hover { color: var(--fe-text-dark-active, #e2e8f0); }
 html[data-theme="dark"] .fe-footer-col-title { color: var(--fe-text-dark-active, #cbd5e1); }
-html[data-theme="dark"] .fe-footer-bottom { border-top-color: #1f2a44; }
+html[data-theme="dark"] .fe-footer-bottom { border-top-color: var(--fe-color-footer-dark-line, #1f2a44); }
 html[data-theme="dark"] .fe-footer-social a {
-  background: #131a33; border-color: transparent; color: #94a3b8;
+  background: var(--fe-color-footer-dark-chip, #131a33); border-color: transparent; color: var(--fe-color-footer-dark-muted, #94a3b8);
 }
 html[data-theme="dark"] .fe-footer-social a:hover {
-  background: #7aa3ff; color: #0b1026;
+  background: var(--fe-color-footer-dark-chip-hover, #7aa3ff); color: #0b1026;
 }
 
 /* Forced-dark footer on a LIGHT page — bg is dark but text stays
@@ -2054,22 +2254,22 @@ html[data-theme="dark"] .fe-footer-social a:hover {
    guard keeps these rules from competing with the dark-mode block —
    when the page is dark, only the dark-mode rules apply. */
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer {
-  background: #0b1026; border-top-color: #1f2a44; color: #f8fafc;
+  background: var(--fe-color-footer-dark-bg, #0b1026); border-top-color: var(--fe-color-footer-dark-line, #1f2a44); color: #f8fafc;
 }
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-name { color: #ffffff; }
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-tagline,
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-link-list a,
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-secondary-nav a,
-html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-copy { color: var(--fe-text-dark-active, #f1f5f9); }
+html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-copy { color: var(--fe-color-footer-dark-text, #f1f5f9); }
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-link-list a:hover,
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-secondary-nav a:hover { color: #ffffff; }
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-col-title { color: #ffffff; }
-html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-bottom { border-top-color: #1f2a44; }
+html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-bottom { border-top-color: var(--fe-color-footer-dark-line, #1f2a44); }
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-social a {
-  background: #131a33; border-color: transparent; color: var(--fe-text-dark-active, #f1f5f9);
+  background: var(--fe-color-footer-dark-chip, #131a33); border-color: transparent; color: var(--fe-color-footer-dark-text, #f1f5f9);
 }
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-social a:hover {
-  background: #7aa3ff; color: #0b1026;
+  background: var(--fe-color-footer-dark-chip-hover, #7aa3ff); color: #0b1026;
 }
 
 /* ===== Responsive ===== */
@@ -2119,8 +2319,7 @@ html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-social a:hove
   opacity: 0;
   transform: translateY(-12px);
   /* No default transition — opt in via the .fe-megamenu-panel-fade
-     modifier (admin toggle in Frontend → Navigation → Mega menu
-     appearance). When the modifier isn't present the panel snaps
+     modifier (admin toggle in Design → Mega menu). When the modifier isn't present the panel snaps
      in / out without a fade. */
   /* Tall panels on small screens need internal scroll so the user can reach
      every link. The panel is capped to the remaining viewport below the header
@@ -2134,8 +2333,8 @@ html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-social a:hove
 .fe-megamenu.open { pointer-events: auto; opacity: 1; transform: translateY(0); }
 /* Panel fade-in modifier — added by the public template when
    `frontend_megamenu_panel_fade` is on. Duration drives off
-   `--fe-mm-fade-ms` (admin-controlled in the Mega menu appearance
-   panel; default 180 ms). Independent of the staggered link reveal
+   `--fe-mm-fade-ms` (admin-controlled in Design → Mega menu;
+   default 180 ms). Independent of the staggered link reveal
    below, so admins can mix-and-match (e.g. snappy panel + slow
    link stagger). */
 .fe-megamenu-panel-fade {
@@ -2703,7 +2902,12 @@ html[data-theme="dark"] .fe-recovery-menu-btn span { background: #e2e8f0; }
 }
 
 /* Hero */
-html[data-theme="dark"] .fe-hero { background: linear-gradient(180deg, #0b1026 0%, #0f172a 100%); }
+/* `.fe-hero--force-dark` is the hero edit modal's preview switch: it
+   applies this cluster to one hero without theming the admin shell
+   (the body-level force-dark class would). Keep the alias on every
+   hero dark rule so the preview can't drift from the real render. */
+html[data-theme="dark"] .fe-hero,
+.fe-hero.fe-hero--force-dark { background: linear-gradient(180deg, #0b1026 0%, #0f172a 100%); }
 /* Dark-mode hero heading + sub colours read from per-block dark-mode
    CSS variables when set (admin picks them from the hero edit modal's
    Dark-mode gradient + Text colour fields); fall back to the historic
@@ -2726,17 +2930,21 @@ html[data-theme="dark"] .fe-hero { background: linear-gradient(180deg, #0b1026 0
    override (`.fe-hero-text-light/dark .fe-hero-heading`) uses the
    same trick. */
 html[data-theme="dark"] .fe-hero-heading,
-body.fe-frontend-force-dark .fe-hero-heading {
+body.fe-frontend-force-dark .fe-hero-heading,
+.fe-hero--force-dark .fe-hero-heading {
   background-image: linear-gradient(180deg,
       var(--fe-hero-h-grad-s-dark, #fff) 0%,
       var(--fe-hero-h-grad-e-dark, #94a3b8) 100%) !important;
 }
 html[data-theme="dark"] .fe-hero-sub,
-body.fe-frontend-force-dark .fe-hero-sub {
+body.fe-frontend-force-dark .fe-hero-sub,
+.fe-hero--force-dark .fe-hero-sub {
   color: var(--fe-hero-sub-color-dark, #94a3b8) !important;
 }
-html[data-theme="dark"] .fe-hero-blob { opacity: 0.25; }
-html[data-theme="dark"] .fe-hero-eyebrow { background: rgba(81,100,255,0.18); color: #7aa3ff; }
+html[data-theme="dark"] .fe-hero-blob,
+.fe-hero--force-dark .fe-hero-blob { opacity: 0.25; }
+html[data-theme="dark"] .fe-hero-eyebrow,
+.fe-hero--force-dark .fe-hero-eyebrow { background: rgba(81,100,255,0.18); color: #7aa3ff; }
 html[data-theme="dark"] .fe-btn-primary { background: #052566; color: var(--fe-text-dark-active, #e2e8f0);
   box-shadow: var(--fe-btn-shadow, 0 8px 24px rgba(0,0,0,0.4)); }
 /* Hover: lighten the deep navy bg slightly so the press affordance
@@ -2815,7 +3023,8 @@ html[data-theme="dark"] .frontend-body .fe-meeting-card-actions .fe-btn-primary:
    when the admin hasn't customised the button. */
 html[data-theme="dark"] .fe-hero-cta .fe-btn-primary,
 html[data-theme="dark"] .fe-page .fe-hero-cta .fe-btn-primary,
-html[data-theme="dark"] .frontend-body .fe-hero-cta .fe-btn-primary {
+html[data-theme="dark"] .frontend-body .fe-hero-cta .fe-btn-primary,
+.frontend-body .fe-hero--force-dark .fe-hero-cta .fe-btn-primary {
   background: color-mix(in srgb,
                         var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #2e6bff)) 40%,
                         #000);
@@ -2960,7 +3169,7 @@ html[data-theme="dark"] .fe-footer-tagline { color: #94a3b8; }
 html[data-theme="dark"] .fe-footer-links a { color: #94a3b8; }
 html[data-theme="dark"] .fe-footer-links a:hover { color: #fff; }
 html[data-theme="dark"] .fe-footer-copy { color: #64748b; }
-html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-links a { color: var(--fe-text-dark-active, #f1f5f9); }
+html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-links a { color: var(--fe-color-footer-dark-text, #f1f5f9); }
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-links a:hover { color: #ffffff; }
 html:not([data-theme="dark"]) body.fe-footer-force-dark .fe-footer-copy { color: var(--fe-text-dark-active, #cbd5e1); }
 
@@ -3661,6 +3870,21 @@ html[data-theme="dark"] .fe-meeting-detail-alert {
      pinned to 320px regardless of how wide the page actually is. */
   .fe-event-detail-cover { aspect-ratio: 4 / 3; }
 }
+
+/* Portrait covers (movie-poster / flyer art) opt out of the 4:3 crop:
+   the template stamps the image's own ratio as an inline
+   `aspect-ratio`, which beats both rules above, so the frame takes the
+   poster's shape and the whole image is visible. `contain` is the
+   backstop for the extreme case where `max-height` below clamps the
+   frame — a 1:4 sliver letterboxes inside the frame instead of losing
+   its ends to a crop. */
+.fe-event-detail-cover.is-portrait { max-height: 720px; }
+.fe-event-detail-cover.is-portrait img { object-fit: contain; }
+@media (max-width: 859px) {
+  /* Single-column hero — a full-bleed poster would tower over the copy
+     it's supposed to introduce, so cap the width and center it. */
+  .fe-event-detail-cover.is-portrait { max-width: 340px; margin-inline: auto; }
+}
 .fe-event-detail-cover:hover {
   transform: translateY(-3px);
   border-color: var(--fe-accent, var(--fe-border));
@@ -3742,6 +3966,64 @@ html[data-theme="dark"] .fe-meeting-detail-alert {
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* ── "Submit an announcement or event" affordances ──────────────────
+   Two surfaces share the URL resolved by `frontend.py::_submission_link`
+   (admin override, else the built-in submission form while it's
+   enabled); both render nothing when that resolves empty.
+
+   1. `.fe-list-submit-row` — the pill on the events-list layouts that
+      have no omni bar to host it. Only the row wrapper is styled here;
+      the pill itself reuses the omni Archive/Submit pill classes so it
+      matches the omni layout exactly, dark mode included. */
+.fe-list-submit-row {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 22px;
+}
+/* 2. `.fe-detail-submit-cta` — the footer band under the detail cards
+      on the announcement / event / archive detail pages. Deliberately
+      NOT a `.fe-event-detail-card`: it's site chrome, not part of the
+      post, so it's just a dashed outline over whatever the page
+      background is — no fill, no elevation, no hover lift — which
+      keeps it clearly subordinate to the post's own filled cards. */
+.fe-detail-submit-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 28px;
+  padding: 20px 24px;
+  border-radius: 14px;
+  border: 1px dashed var(--fe-color-border, #dbe2ea);
+  background: transparent;
+}
+.fe-detail-submit-cta-copy { min-width: 0; }
+.fe-detail-submit-cta h3 {
+  font-family: var(--fe-font-heading); font-weight: 700;
+  font-size: 1rem; margin: 0; color: var(--fe-ink);
+}
+.fe-detail-submit-cta p {
+  margin: 4px 0 0; font-size: 0.92rem;
+  color: var(--fe-muted, #64748b);
+}
+.fe-detail-submit-cta-btn { flex: 0 0 auto; }
+.fe-detail-submit-cta-btn .icon { width: 16px; height: 16px; }
+@media (max-width: 560px) {
+  /* Stack the copy over a full-width button so the action stays an
+     easy tap target instead of squeezing beside the text. */
+  .fe-detail-submit-cta { flex-direction: column; align-items: stretch; }
+  .fe-detail-submit-cta-btn { justify-content: center; }
+}
+html[data-theme="dark"] .fe-detail-submit-cta,
+body.fe-frontend-force-dark .fe-detail-submit-cta {
+  border-color: var(--fe-dm-border);
+}
+html[data-theme="dark"] .fe-detail-submit-cta h3,
+body.fe-frontend-force-dark .fe-detail-submit-cta h3 { color: var(--fe-dm-text-strong); }
+html[data-theme="dark"] .fe-detail-submit-cta p,
+body.fe-frontend-force-dark .fe-detail-submit-cta p { color: var(--fe-dm-text-muted); }
 
 /* Public gallery — rendered in the same column / wrapper as the
    featured image on each detail template so its width matches the
@@ -9340,13 +9622,11 @@ body.fe-frontend-force-dark .fe-submission-modal-body {
 /* Hero: title + lead + image + CTA, all centered, generous whitespace. */
 .fe-pp-hero { text-align: center; }
 .fe-pp-title {
-  font-family: var(--fe-font-display);
   font-size: clamp(2.25rem, 4.6vw, 3.75rem);
   line-height: 1.05;
   letter-spacing: -0.02em;
   font-weight: 700;
   margin: 0 0 22px;
-  color: var(--fe-color-text, var(--fe-ink));
 }
 .fe-pp-lead {
   font-size: clamp(1.0625rem, 1.4vw, 1.25rem);
@@ -9435,19 +9715,11 @@ body.fe-frontend-force-dark .fe-submission-modal-body {
 .fe-pp-section { margin-top: var(--fe-pp-section-gap, 32px); }
 .fe-pp-section:first-of-type { margin-top: 0; }
 .fe-pp-section-title {
-  /* Section titles only render when the admin set `sec.title`, and
-     they keep theme-derived font + colour (typography, not chrome).
-     `text-align: center` was forced visual styling and has been
-     removed — the title now follows its parent's text alignment so
-     the admin's choice (left-aligned page, centered page, etc.)
-     wins. */
-  font-family: var(--fe-font-display);
   font-size: clamp(1.5rem, 2.4vw, 2rem);
   line-height: 1.15;
   letter-spacing: -0.015em;
   font-weight: 700;
   margin: 0 0 20px;
-  color: var(--fe-color-text, var(--fe-ink));
 }
 
 /* Body prose inside sections. Centered for the hero, left-aligned
@@ -9616,16 +9888,6 @@ body.fe-frontend-force-dark .fe-pp-list-pills > li {
 /* Dark mode parity — surface, border, and shadow tokens already shift
    via the design system; tune the step-card contrast so it reads
    cleanly against the dark page surface. */
-html[data-theme="dark"] .fe-pp-step {
-  /* Dark-mode parity with `.fe-meeting-card` — same surface + border
-     tokens so list cards and meeting cards read as the same family
-     under either theme. */
-  background: #131a33;
-  border-color: #1f2a44;
-}
-html[data-theme="dark"] .fe-pp-step:hover {
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-}
 @media (max-width: 640px) {
   /* Honor the admin's `--fe-pp-pad-top` / `--fe-pp-pad-bottom` on
      mobile too — the previous hardcoded `padding: 56px 0 72px`
@@ -9686,7 +9948,6 @@ html[data-theme="dark"] .fe-pp-step:hover {
 .fe-pp-hero-card .fe-pp-lead {
   text-align: left;
   max-width: none;
-  color: var(--fe-color-text, var(--fe-ink));
 }
 .fe-pp-hero-card .fe-pp-prose { text-align: left; }
 .fe-pp-hero-card .fe-pp-prose p { margin: 0; }
@@ -10795,8 +11056,8 @@ body.fe-frontend-force-dark .fe-rc-prefs legend {
 /* ── Dynamic backgrounds + overlays ───────────────────────────────
    Moved to css/dynbg.css (shared by the public frontend AND the admin
    picker modal so the live preview + thumbnails render in both). It is
-   loaded via its own <link> alongside this file. The light-mode pastel
-   swap rules moved there too. */
+   loaded via its own <link> alongside this file. The light/dark tone
+   swap rules live there too. */
 
 /* ── Site Index ─────────────────────────────────────────────────
    Auto-populated /siteindex page. Two layouts share the same
@@ -11219,10 +11480,6 @@ html[data-theme="dark"] .fe-mlist-sort select option {
 .fe-fellowships-compact-row-link:hover { text-decoration: underline; }
 .fe-fellowships-compact-row-link svg { width: 14px; height: 14px; }
 
-/* Admin Fellowships Index card (Settings → Global) — toggle styles */
-.fellowships-tbl input[type="text"],
-.fellowships-tbl input[type="url"] { width: 100%; }
-.fellowships-tbl tr.is-virtual .fellowship-cell-region-field { opacity: 0; pointer-events: none; }
 .fellowships-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
 .fellowship-virtual-toggle { display: inline-flex; align-items: center; }
 
@@ -11702,6 +11959,37 @@ body.fe-footer-force-dark .fe-footer-admin-login--logout:focus-visible {
 .fe-custom-form-desc { margin: 0 0 1.25rem; color: var(--fe-color-text-soft, #475569); }
 .fe-custom-form { display: flex; flex-direction: column; gap: 1rem; position: relative; }
 
+/* ── Request access (frontend/_request_access_modal.html) ──────────
+   Signed out, the mega menu's Login and Request access buttons share a
+   row (the auth row Dashboard and Logout use), side by side rather than
+   at the column's edges. The popup is 400px wide, its footer stacked so
+   the fine print and the button each get the width. */
+.fe-megamenu-authrow--guest { justify-content: flex-start; }
+.fe-request-access-modal .fe-submission-modal-panel { max-width: 400px; }
+.fe-request-access-modal .fe-submission-modal-foot { flex-direction: column; align-items: stretch; gap: 10px; }
+.fe-request-access-modal .fe-submission-modal-foot-actions { width: 100%; }
+.fe-request-access-modal .fe-submission-modal-foot-actions > .btn { width: 100%; justify-content: center; }
+.fe-request-access-modal .fe-submission-modal-foot .fe-submission-fineprint { flex: 0 0 auto; }
+/* On a phone it stays a card the height of its form, not the shared
+   popups' full-screen sheet. */
+@media (max-width: 540px) {
+  .fe-request-access-modal { padding: 16px; }
+  .fe-request-access-modal .fe-submission-modal-panel { height: auto; max-height: calc(100vh - 32px); border-radius: 18px; }
+}
+.fe-request-access-error {
+  margin: 0; padding: 10px 12px; border-radius: 8px;
+  background: #fdecec; color: #7f1d1d; font-size: 0.875rem;
+}
+.fe-request-access-error[hidden] { display: none; }
+html[data-theme="dark"] .fe-request-access-error,
+body.fe-frontend-force-dark .fe-request-access-error { background: #381416; color: #fecaca; }
+.fe-request-access-done { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 32px 8px; text-align: center; }
+.fe-request-access-done[hidden] { display: none; }
+.fe-request-access-modal form[hidden] { display: none; }
+.fe-request-access-done h3 { margin: 4px 0 0; font-size: 1.125rem; }
+.fe-request-access-done p { margin: 0; }
+.fe-request-access-done-icon .icon { width: 40px; height: 40px; color: #16a34a; }
+
 /* ── Submit progress UX ─────────────────────────────────────────────
    Inline button spinner + a soft full-form overlay shown while the
    submission is in flight, so the visitor sees clear progress (and a
@@ -12077,65 +12365,41 @@ html[data-theme="dark"] .fe-th-nav-link:not(.fe-th-nav-cta) { color: var(--fe-dm
   .fe-megamenu-themed .fe-megamenu-inner { grid-template-columns: 1fr; gap: 20px; }
 }
 
-/* Featured-image elevation on the DETAIL templates (announcement,
+/* Featured-image shadow on the DETAIL templates (announcement,
    event, and archive detail pages — all three use the same four
-   `templates/frontend/events/` layouts). The cover wrapper sits at
-   an `lg` shadow resting and lifts to `xl` on direct hover.
+   `templates/frontend/events/` layouts). The cover takes the primary
+   card's shadow tokens, resting and hover, light and dark, so it
+   matches the info cards beside it and follows Design → Cards.
    ──
    Targeted classes:
      `.fe-event-detail-cover` — Classic layout's lightbox-button
                                 wrapping the featured image.
      `.fe-event-time-cover`   — Timeline layout's <div> wrapping
-                                the featured image.
-   ──
-   Slate-900 base with 18%/28% opacity + larger blur than the
-   image-block's static `lg` recipe — the image-block recipe was
-   calibrated for a content-page background and reads as no halo at
-   all against the detail page's white card surface. Reduced-motion
-   visitors get the same end states without the transition. */
+                                the featured image. */
 .fe-event-detail-cover,
 .fe-event-time-cover {
   /* Drop the 1px border `.fe-event-detail-cover` ships with so the
-     featured image sits as a clean elevated tile, with the shadow
-     doing all the edge work. `.fe-event-time-cover` doesn't carry
-     a border but the reset is harmless there. */
+     featured image sits as a clean tile, with the shadow doing the
+     edge work. `.fe-event-time-cover` doesn't carry a border but the
+     reset is harmless there. */
   border: 0;
-  /* Shadow colour follows the admin's primary-card shadow_color
-     token (`--fe-color-card-primary-shadow`, emitted from
-     `design.py::card_chrome_css_vars`) so theming the card shadow
-     also retints the featured image. Alpha (.18 / .10) is set per-
-     shadow-layer here rather than via the card's existing scale —
-     the image elevation is intentionally heavier (lg / xl) than
-     the card itself, so we keep our own size + alpha and only
-     borrow the colour. Falls back to slate-900 for any consumer
-     rendering outside a themed-frontend page. */
-  box-shadow:
-    0 12px 28px color-mix(in oklab, var(--fe-color-card-primary-shadow, #0f172a) 18%, transparent),
-    0 4px 10px  color-mix(in oklab, var(--fe-color-card-primary-shadow, #0f172a) 10%, transparent);
-  /* Hover transition pinned to a flat 200ms ease — short enough that
-     the elevation feels responsive, long enough that it doesn't snap. */
-  transition: box-shadow 200ms ease;
+  box-shadow: var(--fe-card-primary-shadow, none);
+  transition: box-shadow var(--fe-card-primary-transition, 200ms ease);
 }
 .fe-event-detail-cover:hover,
 .fe-event-time-cover:hover,
 .fe-event-detail-cover:focus-visible,
 .fe-event-time-cover:focus-within {
   /* `.fe-event-detail-cover:hover` ships with a `translateY(-3px)`
-     lift earlier in this file; null it so the elevation reads as a
-     pure shadow expansion (the cover stays put while the shadow
-     blooms outward). */
+     lift earlier in this file; null it so the cover stays put. */
   transform: none;
-  box-shadow:
-    0 24px 48px color-mix(in oklab, var(--fe-color-card-primary-shadow, #0f172a) 28%, transparent),
-    0 10px 20px color-mix(in oklab, var(--fe-color-card-primary-shadow, #0f172a) 16%, transparent);
+  box-shadow: var(--fe-card-primary-hover-shadow, 0 8px 28px rgba(15, 23, 42, 0.10));
 }
 html[data-theme="dark"] .fe-event-detail-cover,
 html[data-theme="dark"] .fe-event-time-cover,
 body.fe-frontend-force-dark .fe-event-detail-cover,
 body.fe-frontend-force-dark .fe-event-time-cover {
-  box-shadow:
-    0 12px 28px color-mix(in oklab, var(--fe-color-card-primary-shadow-dark, var(--fe-color-card-primary-shadow, #0f172a)) 18%, transparent),
-    0 4px 10px  color-mix(in oklab, var(--fe-color-card-primary-shadow-dark, var(--fe-color-card-primary-shadow, #0f172a)) 10%, transparent);
+  box-shadow: var(--fe-card-primary-shadow-dark, var(--fe-card-primary-shadow, none));
 }
 html[data-theme="dark"] .fe-event-detail-cover:hover,
 html[data-theme="dark"] .fe-event-time-cover:hover,
@@ -12145,14 +12409,31 @@ body.fe-frontend-force-dark .fe-event-detail-cover:hover,
 body.fe-frontend-force-dark .fe-event-time-cover:hover,
 body.fe-frontend-force-dark .fe-event-detail-cover:focus-visible,
 body.fe-frontend-force-dark .fe-event-time-cover:focus-within {
-  box-shadow:
-    0 24px 48px color-mix(in oklab, var(--fe-color-card-primary-shadow-dark, var(--fe-color-card-primary-shadow, #0f172a)) 28%, transparent),
-    0 10px 20px color-mix(in oklab, var(--fe-color-card-primary-shadow-dark, var(--fe-color-card-primary-shadow, #0f172a)) 16%, transparent);
+  box-shadow: var(--fe-card-primary-hover-shadow-dark,
+                  var(--fe-card-primary-hover-shadow, 0 8px 28px rgba(15, 23, 42, 0.10)));
 }
 @media (prefers-reduced-motion: reduce) {
   .fe-event-detail-cover,
   .fe-event-time-cover { transition: none; }
 }
+
+/* Dark-mode colors for the utility and alert bars (Design → Header).
+   Only emitted when set; the themes that paint the utility bar
+   themselves are listed in frontend.UTILITY_BAR_COLOR_MODES and win on
+   specificity where they apply. The live-meeting state keeps its yellow. */
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-utility-bar[data-ub-dark]:not(.is-live),
+html[data-theme="dark"] body[data-fe-theme="recovery-blue"] .fe-utility-bar[data-ub-dark]:not(.is-live) {
+  background: var(--ub-bg-dark) !important; color: var(--ub-fg-dark) !important;
+}
+html[data-theme="dark"] .fe-alertbar[data-ab-dark] {
+  background: var(--ab-bg-dark) !important; color: var(--ab-fg-dark) !important;
+}
+
+/* The Header admin's preview holds a mega menu open (?__mm=): no opening
+   animation there. */
+body.fe-mm-instant .fe-megamenu, body.fe-mm-instant .fe-megamenu *,
+body.fe-mm-instant .fe-megamenu-backdrop { transition-duration: 0s !important; transition-delay: 0s !important;
+  animation-duration: 0s !important; animation-delay: 0s !important; }
 
 /* >>> TSP demo overlay: full-bleed page-builder hero (keep on merge) >>> */
 .fe-pp .fe-hero {

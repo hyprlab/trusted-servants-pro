@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% block heading %}Edit {{ site.ig_page_title or 'Intergroup Email' }}{% endblock %}
+{% block heading_help %}The page's title, intro and email accounts on the left; webmail and the mail server settings on the right. Save with the yellow bar.{% endblock %}
+{% block top_actions %}
+  <a class="btn" href="{{ url_for('main.intergroup') }}">← Page</a>
+{% endblock %}
+{% block content %}
+{# One account row: its id (blank for a new one, the server matches the
+   rest by id), the role and the address, a drag handle and remove. #}
+{% macro _row(a=None) %}
+<li class="ig-edit-row" data-item-id="{{ a.id if a else 'new' }}" draggable="true">
+  <span class="drag-handle" title="Drag to reorder" aria-hidden="true">{{ icon('grip-vertical') }}</span>
+  <input type="hidden" name="account_id" value="{{ a.id if a else '' }}">
+  <input type="text" name="account_role" value="{{ a.role if a else '' }}" placeholder="Role, such as Chair" aria-label="Role" maxlength="200">
+  <input type="email" name="account_email" value="{{ a.email if a else '' }}" placeholder="chair@example.org" aria-label="Email address" maxlength="255">
+  <button type="button" class="icon-btn" data-ig-remove aria-label="Remove this account" title="Remove">{{ icon('x') }}</button>
+</li>
+{% endmacro %}
+{# Laid out like the other editors (story_edit.html): the page and its
+   accounts on the left, webmail and the mail servers on the right in a
+   segmented control (fe_studio.js), and the yellow save bar
+   (content_editor.js). #}
+<form id="ig-edit-form" class="form post-form" method="post" action="{{ url_for('main.intergroup_edit') }}" data-content-editor>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <section class="card st-studio post-studio" data-studio="intergroup-email" data-no-collapse>
+    <div class="st-body st-body--split">
+      <div class="post-studio-main">
+        <label class="post-title-field">Page title
+          <input type="text" name="ig_page_title" class="post-title-input" value="{{ site.ig_page_title or '' }}" placeholder="Intergroup Email">
+        </label>
+        <label>{% call hrow('Intro') %}Optional: a line or two above the accounts.{% endcall %}
+          <textarea name="ig_intro" rows="2" placeholder="Who looks after these accounts, and who to ask for a password.">{{ site.ig_intro or '' }}</textarea>
+        </label>
+        <div class="form-field-block">{% call hrow('Email accounts') %}Each shared account and the role it belongs to. Drag the handle to change the order; leave both boxes empty, or remove the row, to drop an account.{% endcall %}
+          <ul class="ig-edit-rows file-list-sortable" data-ig-rows>
+            {% for a in accounts %}{{ _row(a) }}{% endfor %}
+          </ul>
+          <template data-ig-template>{{ _row() }}</template>
+          <button type="button" class="btn btn-sm ig-edit-add" data-ig-add>{{ icon('plus') }} Add an account</button>
+        </div>
+      </div>
+
+      <div class="st-controls">
+        <div class="st-seg-scroll" data-seg-scroll>
+          <nav class="st-seg" role="tablist" aria-label="Email settings">
+            <button type="button" role="tab" data-studio-tab="servers">{{ icon('settings') }}<span>Mail servers</span></button>
+            <button type="button" role="tab" data-studio-tab="webmail">{{ icon('globe') }}<span>Webmail</span></button>
+          </nav>
+        </div>
+        <div class="st-panel" data-studio-panel="servers">
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('download') }}Incoming</h3>
+            <label>{% call hrow('Server') %}The IMAP (or POP) server, such as imap.example.com.{% endcall %}
+              <input type="text" name="ig_incoming_host" value="{{ site.ig_incoming_host or '' }}" placeholder="imap.example.com">
+            </label>
+            <label>{% call hrow('Port and security') %}Shown under the server, such as IMAP Port 993.{% endcall %}
+              <input type="text" name="ig_incoming_port" value="{{ site.ig_incoming_port or '' }}" placeholder="IMAP Port 993">
+            </label>
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('upload') }}Outgoing</h3>
+            <label>{% call hrow('Server') %}The SMTP server, such as smtp.example.com.{% endcall %}
+              <input type="text" name="ig_outgoing_host" value="{{ site.ig_outgoing_host or '' }}" placeholder="smtp.example.com">
+            </label>
+            <label>{% call hrow('Port and security') %}Shown under the server, such as SMTP Port 465.{% endcall %}
+              <input type="text" name="ig_outgoing_port" value="{{ site.ig_outgoing_port or '' }}" placeholder="SMTP Port 465">
+            </label>
+          </div>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('file-text') }}Notes and guide</h3>
+            <label>{% call hrow('Setup notes') %}One tip per line: each shows as its own point.{% endcall %}
+              <textarea name="ig_setup_notes" rows="5" placeholder="Use the full email address as the user name.">{{ site.ig_setup_notes or '' }}</textarea>
+            </label>
+            <label>{% call hrow('Setup guide') %}A link to your mail host's full instructions.{% endcall %}
+              <input type="url" name="ig_learn_more_url" value="{{ site.ig_learn_more_url or '' }}" placeholder="https://">
+            </label>
+          </div>
+        </div>
+        <div class="st-panel" data-studio-panel="webmail" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('globe') }}Webmail</h3>
+            <label>{% call hrow('Webmail address') %}Where to read the accounts in a browser. The page's Open webmail button goes here; leave it blank to hide the button.{% endcall %}
+              <input type="url" name="ig_webmail_url" value="{{ site.ig_webmail_url or '' }}" placeholder="https://webmail.example.com">
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</form>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+<script>
+// Account rows: add from the template, remove, and drag to reorder (the
+// shared sortable; the form posts the rows in their order).
+(function () {
+  var rows = document.querySelector('[data-ig-rows]');
+  var tmpl = document.querySelector('[data-ig-template]');
+  if (!rows || !tmpl) return;
+  document.querySelector('[data-ig-add]').addEventListener('click', function () {
+    var row = tmpl.content.firstElementChild.cloneNode(true);
+    rows.appendChild(row);
+    if (rows.__tspBindItem) rows.__tspBindItem(row);
+    row.querySelector('input[name=account_role]').focus();
+  });
+  rows.addEventListener('click', function (e) {
+    var rm = e.target.closest('[data-ig-remove]');
+    if (rm) rm.closest('.ig-edit-row').remove();
+  });
+  // A drag only reorders the rows; mark the form changed.
+  rows.addEventListener('dragend', function () {
+    rows.closest('form').dispatchEvent(new Event('change', { bubbles: true }));
+  });
+})();
+</script>
+<div id="ig-save-bar" class="fe-save-bar fe-save-bar-content" hidden data-editor-save-bar>
+  <span class="fe-save-bar-msg">Unsaved changes</span>
+  <button type="button" class="btn fe-save-bar-btn">Save</button>
+</div>
+<script src="{{ url_for('static', filename='js/content_editor.js', v=app_build_id) }}"></script>
+{% endblock %}

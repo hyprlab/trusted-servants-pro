@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
 {% block title %}Map & preview · Email List import{% endblock %}
 {% block heading %}Map & preview{% endblock %}
 {% block heading_help %}Review the auto-detected column mapping and the rows that would be added. Adjust any field below if the auto-detector picked wrong — the dry run re-runs automatically. Nothing is written to the list until you click <b>Import</b>.{% endblock %}
@@ -35,11 +36,8 @@
   <section class="card data-card ts-wizard-card">
     <div class="data-card-head">
       {{ icon('layout-grid') }}
-      <span>Column mapping</span>
+      <span>Column mapping {% call chip('Column mapping') %}Each row in your CSV becomes one new entry on the list. Pick which column should fill each field — the importer's auto-detected matches are pre-selected.{% endcall %}</span>
     </div>
-    <p class="muted small data-card-lead">
-      Each row in your CSV becomes one new entry on the list. Pick which column should fill each field — the importer's auto-detected matches are pre-selected.
-    </p>
 
     <table class="tbl ts-import-map">
       <thead>
@@ -93,11 +91,8 @@
   <section class="card data-card ts-wizard-card">
     <div class="data-card-head">
       {{ icon('list') }}
-      <span>Dry run — what will happen</span>
+      <span>Dry run — what will happen {% call chip('Dry run — what will happen') %}Based on the mapping above. Nothing is written until you click <b>Import</b>.{% endcall %}</span>
     </div>
-    <p class="muted small data-card-lead">
-      Based on the mapping above. Nothing is written until you click <b>Import</b>.
-    </p>
     <div class="ts-import-tally">
       <div class="ts-import-tally-item ts-import-tally-add">
         <span class="ts-import-tally-num">{{ valid|length }}</span>

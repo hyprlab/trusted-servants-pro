@@ -1,100 +1,80 @@
-{# Shared fields for the Add / Edit nav-item modals.
-   Expects `_item` to be defined for edit mode; undefined → new item. #}
-{% set _style = (_item.style if _item is defined and _item else 'text') %}
-<fieldset class="fieldset fieldset-inline">
-  <legend>Style</legend>
-  <ul class="radio-list">
-    <li><label>
-      <input type="radio" name="style" value="text" {% if _style == 'text' %}checked{% endif %}>
-      Text link
-    </label></li>
-    <li><label>
-      <input type="radio" name="style" value="button" {% if _style == 'button' %}checked{% endif %}>
-      Button (pill CTA)
-    </label></li>
-    <li><label>
-      <input type="radio" name="style" value="button-rounded" {% if _style == 'button-rounded' %}checked{% endif %}>
-      Button (rounded corners)
-    </label></li>
-    <li><label>
-      <input type="radio" name="style" value="two-line" {% if _style == 'two-line' %}checked{% endif %}>
-      Two-line stacked
-    </label></li>
-  </ul>
-</fieldset>
+{# Fields for the Add and Edit menu item modals on the Header page.
+   Expects `_item` for edit mode; undefined means a new item.
 
-<div data-nav-style-pane="text"{% if _style != 'text' %} hidden{% endif %}>
-  <label>Label
-    <input type="text" name="label" maxlength="160"
-           value="{{ (_item.label if _item is defined and _item else '') or '' }}" placeholder="Meetings">
-  </label>
+   The route (`_apply_nav_item_form`) reads `style` from text, button,
+   button-rounded or two-line. Here the shape is chosen first (Text link,
+   Button, Two lines) and a Button's corners second; the small script at
+   the end of frontend_header.html writes the combined `style` value and
+   shows the matching label fields. #}
+{% from "_help_chip.html" import chip, hrow %}
+{% set _it = _item if _item is defined and _item else None %}
+{% set _style = (_it.style if _it else 'text') or 'text' %}
+{% set _shape = 'button' if _style in ('button', 'button-rounded') else _style %}
+{% set _hdr = (site.frontend_header_template if site else 'classic') or 'classic' %}
+<input type="hidden" name="style" value="{{ _style }}" data-nav-style>
+
+<div class="nav-item-field">
+  <span class="nav-item-field-label">Shape</span>
+  <div class="ds-seg-btns" role="radiogroup" aria-label="Shape">
+    <label><input type="radio" name="_shape" value="text" data-nav-shape {% if _shape == 'text' %}checked{% endif %}><span>Text link</span></label>
+    <label><input type="radio" name="_shape" value="button" data-nav-shape {% if _shape == 'button' %}checked{% endif %}><span>Button</span></label>
+    <label><input type="radio" name="_shape" value="two-line" data-nav-shape {% if _shape == 'two-line' %}checked{% endif %}><span>Two lines</span></label>
+  </div>
 </div>
-<div data-nav-style-pane="button"{% if _style != 'button' %} hidden{% endif %}>
-  <label>Button label
-    <input type="text" name="label" maxlength="160"
-           value="{{ (_item.label if _item is defined and _item else '') or '' }}" placeholder="Donate">
-  </label>
+
+<div class="nav-item-field" data-nav-for="button">
+  <span class="nav-item-field-label">Corners {% call chip('Corners') %}{% if _hdr == 'recovery-blue' %}The Recovery Blue header draws a pill fully rounded and a rounded button with slight corners.{% else %}Only the Recovery Blue header draws these differently; this site's header shows both as the same button.{% endif %}{% endcall %}</span>
+  <div class="ds-seg-btns{% if _hdr != 'recovery-blue' %} is-na{% endif %}" role="radiogroup" aria-label="Corners">
+    <label><input type="radio" name="_corners" value="button" data-nav-corners {% if _style != 'button-rounded' %}checked{% endif %}><span>Pill</span></label>
+    <label><input type="radio" name="_corners" value="button-rounded" data-nav-corners {% if _style == 'button-rounded' %}checked{% endif %}><span>Rounded</span></label>
+  </div>
 </div>
-<div data-nav-style-pane="button-rounded"{% if _style != 'button-rounded' %} hidden{% endif %}>
-  <label>Button label
-    <input type="text" name="label" maxlength="160"
-           value="{{ (_item.label if _item is defined and _item else '') or '' }}" placeholder="Get involved">
-  </label>
-</div>
-<div data-nav-style-pane="two-line"{% if _style != 'two-line' %} hidden{% endif %}>
-  <label>Top line <span class="muted small">(small, muted)</span>
+
+<label data-nav-for="text button">Label
+  <input type="text" name="label" maxlength="160"
+         value="{{ (_it.label if _it else '') or '' }}" placeholder="Meetings">
+</label>
+<div class="nav-item-twoline" data-nav-for="two-line">
+  <label>Top line <span class="muted small">(small)</span>
     <input type="text" name="line1" maxlength="120"
-           value="{{ (_item.line1 if _item is defined and _item else '') or '' }}" placeholder="New to CMA?">
+           value="{{ (_it.line1 if _it else '') or '' }}" placeholder="New to CMA?">
   </label>
-  <label>Bottom line <span class="muted small">(bold accent)</span>
+  <label>Bottom line <span class="muted small">(bold)</span>
     <input type="text" name="line2" maxlength="120"
-           value="{{ (_item.line2 if _item is defined and _item else '') or '' }}" placeholder="Start here">
+           value="{{ (_it.line2 if _it else '') or '' }}" placeholder="Start here">
   </label>
 </div>
 
-<label>URL <span class="muted small">(leave blank if this item only reveals a mega menu)</span>
+<label>{% call hrow('Link') %}Leave blank when the item only opens a mega menu.{% endcall %}
   <input type="text" name="url" maxlength="500"
-         value="{{ (_item.url if _item is defined and _item else '') or '' }}" placeholder="/meetings or https://…">
+         value="{{ (_it.url if _it else '') or '' }}" placeholder="/meetings or https://…">
 </label>
 
-<li class="special-page-row" style="list-style:none; padding: 6px 0 0;">
-  <div class="special-page-info">
-    <div class="u-name">Mega menu</div>
-    <p class="muted small">When on, this item reveals a full-width dropdown. You can manage columns and links after saving.</p>
-  </div>
+<div class="nav-item-switches">
   <label class="mode-toggle">
-    <input type="checkbox" name="has_megamenu" value="1"
-           {% if _item is defined and _item and _item.has_megamenu %}checked{% endif %}>
+    <input type="checkbox" name="has_megamenu" value="1" {% if _it and _it.has_megamenu %}checked{% endif %}>
     <span class="mode-track"><span class="mode-thumb"></span></span>
+    <span>Mega menu</span>
   </label>
-</li>
-
-<li class="special-page-row" style="list-style:none; padding: 6px 0 0;">
-  <div class="special-page-info">
-    <div class="u-name">Open in new tab</div>
-    <p class="muted small">When on, the link opens in a new browser tab (adds <code>target="_blank"</code>).</p>
-  </div>
+  {% call chip('Mega menu') %}The item opens a wide panel of links on hover. Build its columns on the Menu tab after saving.{% endcall %}
   <label class="mode-toggle">
-    <input type="checkbox" name="open_in_new_tab" value="1"
-           {% if _item is defined and _item and _item.open_in_new_tab %}checked{% endif %}>
+    <input type="checkbox" name="open_in_new_tab" value="1" {% if _it and _it.open_in_new_tab %}checked{% endif %}>
     <span class="mode-track"><span class="mode-thumb"></span></span>
+    <span>Open in a new tab</span>
   </label>
-</li>
+</div>
 
-{# Form-trigger picker. When set, clicking this nav item opens the
-   matching form modal instead of (or in addition to) navigating to
-   the URL. The list is populated from app/forms_registry.py — see
-   the Forms admin page for what each entry does. #}
-{% set _forms = (form_registry_all if form_registry_all is defined else []) %}
-<label>Triggers form <span class="muted small">(opens as a modal on click)</span>
+{# Opening a form in place: only forms with a pop-up version are listed
+   (forms_registry has_modal); the others only have their own page, so a
+   menu link to them just uses its URL. #}
+{% set _forms = (form_registry_all if form_registry_all is defined else []) | selectattr('has_modal') | list %}
+{% if _forms %}
+<label>{% call hrow('Opens a form') %}Clicking the item opens this form in a pop-up instead of following the link. The link still works for visitors without JavaScript.{% endcall %}
   <select name="form_trigger">
-    <option value="">— No form (navigate to URL) —</option>
+    <option value="">None: follow the link</option>
     {% for f in _forms %}
-    <option value="{{ f.key }}"
-            {% if _item is defined and _item and _item.form_trigger == f.key %}selected{% endif %}>
-      {{ f.name }}
-    </option>
+    <option value="{{ f.key }}" {% if _it and _it.form_trigger == f.key %}selected{% endif %}>{{ f.name }}</option>
     {% endfor %}
   </select>
-  <span class="muted smaller">Pick a form on the <a href="{{ url_for('main.frontend_forms') }}">Forms admin page</a>. The URL above stays as a no-JS / right-click fallback.</span>
 </label>
+{% endif %}

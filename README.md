@@ -1,6 +1,6 @@
 # Trusted Servants Pro
 
-A self-hosted portal for recovery-fellowship trusted servants and members: organize meetings, share readings and files, manage Zoom host accounts, collect access requests, and brand it to your group — all from a single admin UI, no command line required.
+A self-hosted portal for recovery-fellowship trusted servants and members: organize meetings, share readings and files, manage Zoom host accounts, collect access requests, and brand it to your group, all from a single admin UI, no command line required.
 
 Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a persistent volume.
 
@@ -22,7 +22,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 ### File Browser
 - Central media library indexed from every upload across the app (`MediaItem` auto-backfilled on startup).
 - Search, sort, grid / table views, rename, upload with progress, delete with reference-count guard.
-- Public shareable URLs at `/pub/<original-filename>` — human-readable, no hashes or tokens. Serves the newest file of that name with the correct `Content-Disposition`.
+- Public shareable URLs at `/pub/<original-filename>`: human-readable, no hashes or tokens. Serves the newest file of that name with the correct `Content-Disposition`.
 - Inline **Copy Link** buttons everywhere a file appears (File Browser, Meetings, Libraries).
 
 ### Access Requests
@@ -32,7 +32,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 - Recent requests widget on the dashboard.
 
 ### Zoom accounts
-- Encrypted credential storage (Fernet with a local key file, see **Security**).
+- Encrypted credential storage (Fernet with a local key file, see [Security](docs/DOCUMENTATION.md#security)).
 - Assign any account to any meeting schedule.
 - Weekly assignment calendar starting Sunday, with automatic time-conflict detection (overlapping slots on the same account highlighted red).
 - Separate OTP email credentials shown to members on online/hybrid meeting pages so they can retrieve one-time codes without admin involvement.
@@ -58,7 +58,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 - Each widget toggleable from the Customize Dashboard modal.
 
 ### Settings
-- Full-viewport modal on mobile, horizontally-scrollable tabs with fade hint, AJAX-save with in-modal toast — the modal never closes when you save.
+- Full-viewport modal on mobile, horizontally-scrollable tabs with fade hint, AJAX-save with in-modal toast; the modal never closes when you save.
 - Tabs: **Appearance** (theme, branding, login screen), **Users**, **Zoom Accounts**, **Meeting Locations**, **External Links**, **Special Sections**, **Email**, **Data**, **About**.
 - Role gating: admins see everything; editors/viewers see Appearance → Theme, Zoom Accounts (read-only), and About.
 
@@ -72,9 +72,9 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 - One-click **Import** takes an export archive, validates it, moves the existing database + uploads + key to a timestamped `backup-YYYYMMDD-HHMMSS/` folder inside `./data`, restores the archive in place, re-runs migrations, and signs the user out. No command-line access required.
 
 ### Frontend staging sync
-- Build your public website on a separate **Staging** copy of the app and move it to your **Live** site over the network — no bundle to download and re-upload. Only the frontend travels (theme, navigation, mega-menus, layouts, fonts, icons, page-builder Pages, and the assets they reference); recovery Stories, users, meetings, libraries, and uploads on the receiving side are never touched.
+- Build your public website on a separate **Staging** copy of the app and move it to your **Live** site over the network, with no bundle to download and re-upload. Only the frontend travels (theme, navigation, mega-menus, layouts, fonts, icons, page-builder Pages, and the assets they reference); recovery Stories, users, meetings, libraries, and uploads on the receiving side are never touched.
 - A role-aware setup wizard (Settings → Data → **Frontend staging sync**) asks whether each install is the Live site or the Staging copy and shows only that side's fields. The Live site mints a shared token and is set to receive; the Staging copy pastes the token, points at the Live URL, tests the connection, then pulls or pushes. Pairing is a single Fernet-encrypted shared secret authenticated in both directions, with rate-limiting and a `REPLACE`-style confirm; the receiving side auto-saves a rollback snapshot before applying.
-- On the Staging copy, the **Web Frontend → Overview** Status card gains one-click **Pull from Live** / **Push to Live** controls with a live connection indicator — deploy without opening Settings.
+- On the Staging copy, the **Web Frontend → Overview** Status card gains one-click **Pull from Live** / **Push to Live** controls with a live connection indicator, so you can deploy without opening Settings.
 
 ### Session
 - 6-month remember-me cookie so users aren't repeatedly prompted for credentials.
@@ -90,7 +90,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 docker compose up -d --build
 ```
 
-Open http://localhost:8090 and sign in with the admin account seeded on first boot. Set `TSP_ADMIN_PASSWORD` in `.env` before first run — without it the app refuses to boot on an empty database. For local development, set `TSP_DEBUG=1` in `.env` instead: that serves over plain HTTP (no Secure cookie flag) and falls back to seeding `admin` / `admin`. Never run production with `TSP_DEBUG=1`.
+Open http://localhost:8090 and sign in with the admin account seeded on first boot. Set `TSP_ADMIN_PASSWORD` in `.env` before first run: without it the app refuses to boot on an empty database. For local development, set `TSP_DEBUG=1` in `.env` instead: that serves over plain HTTP (no Secure cookie flag) and falls back to seeding `admin` / `admin`. Never run production with `TSP_DEBUG=1`.
 
 ### docker-compose.yml
 
@@ -119,239 +119,20 @@ services:
         max-file: "3"
 ```
 
-## One-command install (Ubuntu 24.04)
+## Documentation
 
-`install.sh` in this repo is a turnkey installer that provisions Docker, writes a hardened `docker-compose.yml`, generates a `TSP_SECRET_KEY`, configures Caddy for TLS (Let's Encrypt or self-signed), and installs Watchtower so the portal picks up new releases automatically. Follow these steps on a fresh Ubuntu 24.04 server:
-
-### 1. Provision a server
-
-Spin up an Ubuntu 24.04 LTS instance on whatever provider you like (DigitalOcean, Hetzner, AWS Lightsail, bare metal, etc.). You'll need root or sudo access. The portal is happy on 1 vCPU / 1 GB RAM for small groups.
-
-### 2. Point DNS at the server (required for Let's Encrypt)
-
-If you want a real TLS certificate, the domain's DNS **must resolve to this server's public IP before you run the installer**. Let's Encrypt performs an HTTP-01 challenge on port 80 during issuance — if the hostname resolves anywhere else, the challenge fails and the portal is left unreachable over HTTPS.
-
-Two gotchas:
-
-- **Cloudflare users: set the record to "DNS only" (grey cloud), not proxied (orange cloud), during installation.** Cloudflare's proxy terminates TLS at its edge and intercepts port 80, which breaks the HTTP-01 challenge and returns one of Cloudflare's own IPs for the A record — Let's Encrypt will never see the real server. You can flip the record back to proxied *after* the certificate is issued.
-- If you don't have a domain, or don't want TLS, leave the installer's domain prompt blank. The installer then issues a self-signed cert (browser will warn on the first visit).
-
-The installer runs a DNS pre-check: if the hostname you enter doesn't resolve to this machine's public IP, it falls back to a self-signed certificate automatically and prints instructions for re-enabling Let's Encrypt. Fix the DNS and rerun `install.sh` to switch to a real cert.
-
-### 3. Run the installer
-
-SSH in and run one of these from the server:
-
-```bash
-# Pipe directly from GitHub (recommended):
-curl -fsSL https://raw.githubusercontent.com/hyprlab/trusted-servants-pro/main/install.sh | sudo bash
-
-# Or clone and run locally if you'd rather read it first:
-git clone https://github.com/hyprlab/trusted-servants-pro.git
-cd trusted-servants-pro
-sudo bash install.sh
-```
-
-The installer will:
-
-1. Apt-update, install Docker Engine + the Compose plugin, and open UFW for 22/80/443.
-2. Prompt for a **domain** — enter the hostname you set up in step 2, or leave blank for a self-signed cert.
-3. Prompt for a **contact email** if you entered a domain (used for Let's Encrypt renewal notices).
-4. Generate a random `TSP_SECRET_KEY` and write it to `/opt/tspro/.env` (mode `600`).
-5. Pull `hyprlab/tspro:latest`, start the container, and wait for it to respond.
-
-Typical runtime is 2–5 minutes on a fresh VM.
-
-### 4. Sign in
-
-The installer prints the portal URL when it's done (either `https://<your-domain>` or `https://<server-ip>`). Sign in with:
-
-- Username: `admin`
-- Password: `admin`
-
-**Change the admin password immediately** from Settings → Users.
-
-### 5. Optional: non-interactive installs
-
-You can skip all prompts by passing env vars on the same line:
-
-```bash
-sudo TSP_DOMAIN=portal.example.org \
-     TSP_ACME_EMAIL=you@example.org \
-     TSP_ADMIN_PASSWORD='a-strong-password' \
-     bash install.sh
-```
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `TSP_INSTALL_DIR` | `/opt/tspro` | Where compose/data/backups live. |
-| `TSP_IMAGE` | `hyprlab/tspro:latest` | Image tag to deploy. |
-| `TSP_DOMAIN` | _unset_ | Public hostname — if set, Caddy requests a Let's Encrypt cert. |
-| `TSP_ACME_EMAIL` | `admin@$TSP_DOMAIN` | Contact address for cert renewal notices. |
-| `TSP_ADMIN_USERNAME` / `TSP_ADMIN_PASSWORD` / `TSP_ADMIN_EMAIL` | `admin` / `admin` / `admin@example.com` | Seeded on first boot only. |
-
-### 6. Upgrading and day-to-day commands
-
-Watchtower polls Docker Hub every 24 hours and restarts the `tspro` container when a new image is published — no action needed. If you'd like to force an upgrade or inspect state:
-
-```bash
-cd /opt/tspro
-docker compose ps                             # running containers
-docker compose logs -f tsp                    # tail portal logs
-docker compose pull && docker compose up -d   # upgrade now
-docker compose down                           # stop everything
-```
-
-Back up `/opt/tspro/data/` (or use **Settings → Data → Export** from the UI) to preserve the SQLite database, uploads, and Fernet key.
-
-#### Keeping disk usage in check
-
-The installer's `docker-compose.yml` is configured with three independent safeguards so an unattended box won't fill its own disk:
-
-- **A daily image-prune janitor** (the `docker-prune` service) sweeps every image and build-cache entry unused for more than 72 hours, once a day. This is the real guarantee: it reclaims images **no matter how they were orphaned** — manual `docker compose pull`, re-tagged `:latest` churn, or partial pulls — which the next two safeguards don't cover on their own. *(The prune is host-wide, which is correct for a dedicated TSP host; don't add it on a shared host running other Docker stacks.)*
-- **Watchtower removes the old image after each auto-update** (`WATCHTOWER_CLEANUP=true`). This only covers updates Watchtower itself performs — anything pulled or re-tagged another way is left behind, which is why the janitor above exists. Without *either*, a long-running box can pile up *hundreds* of stale images.
-- **Container logs are capped** (`max-size: 10m`, `max-file: 3` per service), so the default unbounded `json-file` driver can't grow without limit.
-
-On top of these, the portal shows admins a **low-disk-space warning** — a banner on every admin page and an entry in the Notification Center — when the data volume or host disk crosses 85%, so you get runway to act before anything fails.
-
-If you installed an **older release** (before these settings shipped) and your disk is filling up, you can reclaim space and adopt the new settings without a reinstall:
-
-```bash
-cd /opt/tspro
-docker image prune -af        # delete every image not backing a running container
-docker builder prune -af      # delete build cache
-df -h /                        # confirm space is back
-# Then refresh your compose with the current hardened version and restart:
-docker compose pull && docker compose up -d
-```
-
-To pick up the prune janitor, `WATCHTOWER_CLEANUP`, and log-rotation settings on an existing install, re-run `install.sh` (it rewrites `docker-compose.yml` in place and preserves your `.env` and `data/`).
-
-### 7. Uninstalling
-
-`uninstall.sh` ships next to the installer and reverses what it did. Safe defaults: it stops and removes only the TSP containers, named volumes, and the install directory — Docker itself, the firewall, and base packages are left alone unless you ask.
-
-```bash
-# From a clone of the repo:
-sudo bash uninstall.sh
-
-# Or pipe directly from GitHub:
-curl -fsSL https://raw.githubusercontent.com/hyprlab/trusted-servants-pro/main/uninstall.sh | sudo bash
-```
-
-You'll be asked to type `yes` before anything is removed. Add flags to go further:
-
-| Flag | Effect |
-| --- | --- |
-| `-y`, `--yes` | Skip the confirmation prompt (required when piping from curl non-interactively). |
-| `--keep-data` | Preserve `/opt/tspro/data/` (database, uploads, `zoom.key`). |
-| `--purge-images` | Also `docker image rm` the pulled TSP, Caddy, and Watchtower images. |
-| `--remove-ufw-rules` | Revert the 80/tcp and 443/tcp UFW rules. OpenSSH is left intact so you don't lock yourself out. |
-| `--remove-docker` | Purge `docker-ce` + the Compose plugin, remove the apt source and keyring the installer added, and delete `/var/lib/docker`. |
-| `--nuke` | Shorthand for `--purge-images --remove-ufw-rules --remove-docker`. |
-
-Full teardown of everything the installer put on the server:
-
-```bash
-sudo bash uninstall.sh --nuke --yes
-```
-
-## Configuration
-
-A `.env` file sits alongside `docker-compose.yml`. At minimum it must define `TSP_SECRET_KEY` — a long, random value used to sign Flask session cookies.
-
-Generate one with `openssl`:
-
-```bash
-openssl rand -base64 48 | tr -d '\n/+=' | cut -c1-64
-```
-
-Example `.env`:
-
-```
-TSP_SECRET_KEY=REPLACE_WITH_OUTPUT_OF_THE_COMMAND_ABOVE
-TSP_ADMIN_USERNAME=admin
-TSP_ADMIN_PASSWORD=change-me-before-first-boot
-TSP_ADMIN_EMAIL=admin@example.com
-```
-
-Keep `.env` out of version control and set it to mode `600` on the host (the installer does this automatically). Rotating `TSP_SECRET_KEY` will sign out all active users but does not affect stored Zoom / SMTP passwords — those are encrypted with a separate Fernet key stored at `data/zoom.key` (see **Security**).
-
-Other environment variables (all with sensible defaults):
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `TSP_SECRET_KEY` | `dev-secret-change-me` | Flask session signing key. Required to be set in production. |
-| `TSP_ADMIN_USERNAME` | `admin` | Seeded on first boot only. |
-| `TSP_ADMIN_PASSWORD` | `admin` | Seeded on first boot only. |
-| `TSP_ADMIN_EMAIL` | `admin@example.com` | Seeded on first boot only. |
-| `TSP_DATA_DIR` | `/data` | Inside-container data directory. Mounted to `./data` on the host by default. |
-| `TSP_UPLOAD_DIR` | `$TSP_DATA_DIR/uploads` | Location of uploaded files. |
-| `TSP_FERNET_KEY` | _auto-generated_ | If set, used directly; otherwise a key is generated and stored in `data/zoom.key`. |
-| `TSP_SESSION_DAYS` | `180` | Login session + remember-me cookie lifetime in days. Lower it (e.g. `7`) for a tighter idle-timeout posture. |
-| `TSP_TRUSTED_PROXIES` | `1` | Number of trusted reverse-proxy hops for `X-Forwarded-For`. Set to `0` for a direct-bind deploy with no proxy in front (so spoofable headers are never trusted). |
-| `TSP_TRUST_CF_HEADER` | `1` (on) | Honor Cloudflare's `CF-Connecting-IP` to recover the real visitor IP. Only accepted when the request peer is a verified Cloudflare edge IP, so it's safe to leave on even without Cloudflare. Set to `0` to disable. |
-| `TSP_IMPORTER_ALLOW_PRIVATE` | _unset_ | Set to `1` to let the WordPress importer fetch from private/LAN addresses (SSRF guard bypass for local dev imports). |
-
-Uploads are limited to **256 MB** per file.
-
-## Security
-
-- **Session cookies** are signed with `TSP_SECRET_KEY`. Rotating it will sign users out but does not affect encrypted credentials.
-- **Zoom account passwords, OTP email password, and SMTP password** are encrypted with Fernet. The key lives at `data/zoom.key` (auto-generated on first boot) or is loaded from the `TSP_FERNET_KEY` env var. **Keep this file alongside your database if you restore to another host**, or set `TSP_FERNET_KEY` explicitly — the Data export bundles it for you.
-- Public file URLs (`/pub/<filename>`) are intentionally human-readable and unauthenticated. Anyone with the link can read the file. Do not upload content you do not want shared.
-- Access-request submissions are public (no login required) but rate-limited by the browser.
-
-## Local development
-
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python run.py
-```
-
-Serves on http://localhost:8000 with `debug=True`.
-
-## Backing up & migrating
-
-Use **Settings → Data → Export** for a portable archive. To restore on a fresh server, start the container once (which creates the data directory), then upload the export through **Settings → Data → Import**. The existing state is moved to `data/backup-<timestamp>/` before the restore runs.
-
-If you prefer the command line:
-
-```bash
-docker compose down
-cp -r ./data ./data.bak
-# copy the export zip contents (tsp.db, uploads/, zoom.key) into ./data/
-docker compose up -d
-```
-
-## Project layout
-
-```
-app/
-  __init__.py      # app factory, startup migrations, Fernet init
-  auth.py          # login / logout / user CRUD
-  crypto.py        # Fernet helpers
-  mail.py          # SMTP send helper
-  models.py        # SQLAlchemy models (Meeting, Library, Reading, User, ZoomAccount, ...)
-  routes.py        # main blueprint — nearly all feature routes
-  static/          # CSS, JS, images, login_fx engine
-  templates/       # Jinja templates (base + per-feature)
-scripts/           # one-off WP / Zoom import utilities
-docker-compose.yml
-Dockerfile
-requirements.txt
-run.py
-README.md
-```
+- [Installing on a server](docs/INSTALL.md): the one-command Ubuntu installer, upgrades, disk usage, uninstalling.
+- [Documentation](docs/DOCUMENTATION.md): configuration, security, local development, backups, project layout.
+- [Contributing](docs/CONTRIBUTING.md) and [Releasing](docs/RELEASING.md): conventions and the release procedure.
+- [Release notes](RELEASE_NOTES.md) and the technical [changelog](CHANGELOG.md).
 
 ## AI notice
 
 Trusted Servants Pro is built by a human maintainer working with generative AI as a development tool:
 
-- **Code** — the large majority of the Python, JavaScript, and CSS in this repository was written with Anthropic's Claude (via Claude Code), working from the maintainer's direction. The maintainer decides what gets built, reviews the results, tests every release, and signs off on everything that ships.
-- **Text** — documentation, release notes, and in-app copy are largely AI-drafted and human-edited.
-- **The app itself contains no AI.** Trusted Servants Pro has no AI features and makes no requests to AI services — your fellowship's documents and member data never leave your server for one. AI was used to *build* the app, not to run it.
+- **Code:** the large majority of the Python, JavaScript, and CSS in this repository was written with Anthropic's Claude (via Claude Code), working from the maintainer's direction. The maintainer decides what gets built, reviews the results, tests every release, and signs off on everything that ships.
+- **Text:** documentation, release notes, and in-app copy are largely AI-drafted and human-edited.
+- **The app itself contains no AI.** Trusted Servants Pro has no AI features and makes no requests to AI services, so your fellowship's documents and member data never leave your server for one. AI was used to *build* the app, not to run it.
 
 Bug reports and pull requests are welcome from humans and their AI tools alike; everything merged gets the same human review.
 
@@ -362,3 +143,11 @@ Trusted Servants Pro is released under the [GNU Affero General Public License v3
 You're free to run, copy, modify, and redistribute the portal. If you host a modified version for other users to interact with over a network, you must make the corresponding source code available to those users under the same license. See the `LICENSE` file for the full text.
 
 © Hyprlab. Open-source contributions welcome.
+
+## Third-party assets
+
+- **Pattern Monster:** the "Pattern tile" dynamic background's 330 seamless
+  SVG patterns are vendored from [pattern.monster](https://pattern.monster)
+  ([source](https://github.com/catchspider2002/svelte-svg-patterns)), MIT
+  licensed. Licence text: `app/dynbg_patterns.LICENSE.md`. Refresh with
+  `python scripts/import_pattern_monster.py`.

@@ -1,6 +1,6 @@
 {# SPDX-License-Identifier: AGPL-3.0-or-later #}
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light"{% if current_user.is_authenticated and current_user.theme_pref %} data-theme-pref="{{ current_user.theme_pref }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -8,10 +8,18 @@
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
 <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/apple-touch-icon_tspro.png', v=app_build_id) }}">
 <script>
+  // Light or dark before the first paint, as base.html does.
   (function(){
-    var t = null;
-    try { t = localStorage.getItem('tsp-theme'); } catch(e){}
-    if (t) document.documentElement.setAttribute('data-theme', t);
+    var root = document.documentElement, pref = root.getAttribute('data-theme-pref'), t = null;
+    if (!pref) {
+      try { t = localStorage.getItem('tsp-theme'); } catch(e){}
+      pref = !t ? 'system' : (t === 'system' || t === 'light' || t === 'dark') ? t
+           : (/dark|cyberpunk/.test(t) ? 'dark' : 'light');
+    }
+    var dark = pref === 'dark' || (pref === 'system' && window.matchMedia &&
+               window.matchMedia('(prefers-color-scheme: dark)').matches);
+    root.setAttribute('data-theme', dark ? 'dark' : 'light');
+    root.setAttribute('data-theme-pref', pref);
   })();
 </script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css', v=app_build_id) }}">
@@ -117,25 +125,12 @@
 
       {# ========== Step 4: Theme ========== #}
       {% if step_key == 'theme' %}
-      <div class="theme-picker" role="radiogroup" aria-label="Theme">
-        {% for t in [
-          ('light', 'Light', '#f6f7fb', '#ffffff', '#5b6ef4'),
-          ('dark', 'Dark', '#0f1117', '#171923', '#7d8dff'),
-          ('neobrutal-light', 'Neobrutal Light', '#fef9c3', '#ffffff', '#ec4899'),
-          ('neobrutal-dark', 'Neobrutal Dark', '#18181b', '#27272a', '#f472b6'),
-          ('cyberpunk', 'Cyberpunk', '#05050a', '#0f0a1f', '#ff2bd6'),
-          ('solarpunk', 'Solarpunk', '#f5f7e8', '#ffffff', '#1e9e6a'),
-        ] %}
-        <button type="button" class="theme-swatch" data-theme-value="{{ t[0] }}" role="radio" aria-checked="false">
-          <span class="swatch-preview" style="background: {{ t[2] }};">
-            <span class="sw-panel" style="background: {{ t[3] }};"></span>
-            <span class="sw-accent" style="background: {{ t[4] }};"></span>
-          </span>
-          <span class="swatch-label">{{ t[1] }}</span>
-        </button>
-        {% endfor %}
+      <div class="ds-seg-btns theme-mode" role="radiogroup" aria-label="Light or dark">
+        <button type="button" role="radio" aria-checked="false" data-theme-pref-value="system">{{ icon('monitor') }}Follow system</button>
+        <button type="button" role="radio" aria-checked="false" data-theme-pref-value="light">{{ icon('sun') }}Light</button>
+        <button type="button" role="radio" aria-checked="false" data-theme-pref-value="dark">{{ icon('moon') }}Dark</button>
       </div>
-      <p class="muted small">Your choice saves automatically — you can change it later in Settings → Appearance.</p>
+      <p class="muted small">Saved to your account as you pick. You can change it later in Settings → Appearance.</p>
       {% endif %}
 
       {# ========== Step 5: Branding ========== #}
@@ -201,20 +196,29 @@
 </div>
 
 <script>
-  // Theme picker (reused from base.html's pattern, simplified for the wizard).
+  // Light or dark: saved to the account straight away (no app.js here).
   (function(){
     var root = document.documentElement;
     function sync(){
-      var cur = root.getAttribute('data-theme') || 'light';
-      document.querySelectorAll('.theme-swatch').forEach(function(el){
-        el.setAttribute('aria-checked', el.dataset.themeValue === cur ? 'true' : 'false');
+      var cur = root.getAttribute('data-theme-pref') || 'system';
+      document.querySelectorAll('[data-theme-pref-value]').forEach(function(el){
+        el.setAttribute('aria-checked', el.dataset.themePrefValue === cur ? 'true' : 'false');
       });
     }
-    document.querySelectorAll('.theme-swatch').forEach(function(el){
+    document.querySelectorAll('[data-theme-pref-value]').forEach(function(el){
       el.addEventListener('click', function(){
-        var v = el.dataset.themeValue;
-        root.setAttribute('data-theme', v);
+        var v = el.dataset.themePrefValue;
+        var dark = v === 'dark' || (v === 'system' && window.matchMedia &&
+                   window.matchMedia('(prefers-color-scheme: dark)').matches);
+        root.setAttribute('data-theme', dark ? 'dark' : 'light');
+        root.setAttribute('data-theme-pref', v);
         try { localStorage.setItem('tsp-theme', v); } catch(e){}
+        var csrf = document.querySelector('input[name="csrf_token"]');
+        fetch({{ url_for('main.account_theme_save')|tojson }}, {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf ? csrf.value : '' },
+          body: JSON.stringify({ pref: v })
+        }).catch(function(){});
         sync();
       });
     });

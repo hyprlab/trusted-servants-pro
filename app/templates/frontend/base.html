@@ -15,21 +15,28 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}{{ frontend_title }}{% endblock %}</title>
 {# Frontend (public site) Open Graph — controlled by the Web Frontend's
-   Branding & SEO admin page. Detail routes (meeting / event /
+   Branding page. Detail routes (meeting / event /
    announcement / story / blog / page) may pass `page_og_title`,
    `page_og_description`, and `page_og_image_url` via the render context
    to override the site-wide title / description / image on a per-page
    basis. Anything not supplied falls back to the corresponding
    frontend_og_* SiteSetting field. The admin /tspro pages render their
    own, independent og_* tags via app/templates/base.html. #}
+{# The description serves search engines whether or not link previews
+   are on; og:url and the image address use the Site URL from Settings
+   when it is set, so a proxied install doesn't leak its internal host. #}
+{% set _site_base = ((site.site_url if site else '') or '').rstrip('/') %}
+{% set _meta_description = (page_og_description|default(None, true)) or (site.frontend_og_description if site else None) or frontend_tagline %}
+{% if _meta_description %}<meta name="description" content="{{ _meta_description }}">{% endif %}
 {% if site and site.frontend_og_enabled %}
 {% set _og_title = (page_og_title|default(None, true)) or site.frontend_og_title or frontend_title %}
 {% set _og_description = (page_og_description|default(None, true)) or site.frontend_og_description %}
-{% set _og_image_url = (page_og_image_url|default(None, true))
-       or (url_for('public.site_frontend_og_image', _external=True) if site.frontend_og_image_filename else None) %}
+{% set _og_site_image = ((_site_base ~ url_for('public.site_frontend_og_image')) if _site_base else url_for('public.site_frontend_og_image', _external=True)) if site.frontend_og_image_filename else None %}
+{% set _og_image_url = (page_og_image_url|default(None, true)) or _og_site_image %}
+{% if _site_base and _og_image_url and _og_image_url.startswith(request.host_url) %}{% set _og_image_url = _site_base ~ '/' ~ _og_image_url[request.host_url|length:] %}{% endif %}
 <meta property="og:title" content="{{ _og_title }}">
 <meta property="og:type" content="website">
-<meta property="og:url" content="{{ request.url }}">
+<meta property="og:url" content="{{ (_site_base ~ request.full_path.rstrip('?')) if _site_base else request.url }}">
 <meta property="og:site_name" content="{{ frontend_title }}">
 {% if _og_description %}<meta property="og:description" content="{{ _og_description }}">{% endif %}
 {% if _og_image_url %}<meta property="og:image" content="{{ _og_image_url }}">{% endif %}
@@ -37,9 +44,6 @@
 <meta name="twitter:title" content="{{ _og_title }}">
 {% if _og_description %}<meta name="twitter:description" content="{{ _og_description }}">{% endif %}
 {% if _og_image_url %}<meta name="twitter:image" content="{{ _og_image_url }}">{% endif %}
-{% if _og_description %}<meta name="description" content="{{ _og_description }}">{% endif %}
-{% elif frontend_tagline %}
-<meta name="description" content="{{ frontend_tagline }}">
 {% endif %}
 {% if site and site.frontend_favicon_filename %}
 <link rel="icon" href="{{ url_for('public.site_frontend_favicon') }}">
@@ -120,7 +124,7 @@
    (empty string for every other theme) — re-scattered on each page load. #}
 {% set _nb_hero_vars = neobrutal_hero_css_vars(site) %}
 {%- set _footer_bg = (site.frontend_footer_bg_mode if site else 'dark') or 'dark' -%}
-<body class="frontend-body{% if _footer_bg == 'dark' %} fe-footer-force-dark{% endif %}" data-fe-theme="{{ _fe_theme }}" style="{{ _font_vars }} {{ _design_vars }} {{ _nb_hero_vars }}">
+<body class="frontend-body{% if _footer_bg == 'dark' %} fe-footer-force-dark{% endif %}" data-fe-theme="{{ _fe_theme }}"{% if request.args.get('__mm', '')|int %} data-fe-open-megamenu="{{ request.args.get('__mm')|int }}"{% endif %} style="{{ _font_vars }} {{ _design_vars }} {{ _nb_hero_vars }}">
 {% include 'product/_demo_banner.html' ignore missing %}{# TSP demo overlay (no-op without the partial) #}
 {% if site and not site.frontend_enabled and current_user.is_authenticated and current_user.can_edit_frontend() %}
 <div class="fe-admin-preview-bar" role="status">
@@ -136,11 +140,14 @@
   {% if s and (s|attr(prefix ~ '_alert_enabled')) and ((s|attr(prefix ~ '_alert_message'))) %}
     {% set _bg = (s|attr(prefix ~ '_alert_bg_color')) or '#0b5cff' %}
     {% set _fg = (s|attr(prefix ~ '_alert_text_color')) or '#ffffff' %}
+    {# Dark-mode pair (Design → Header); empty means the light colors. #}
+    {% set _bg_d = (s|attr(prefix ~ '_alert_bg_color_dark')) %}
+    {% set _fg_d = (s|attr(prefix ~ '_alert_text_color_dark')) %}
     {% set _msg = (s|attr(prefix ~ '_alert_message')) %}
     {% set _icon = (s|attr(prefix ~ '_alert_icon')) %}
     {% set _pos  = (s|attr(prefix ~ '_alert_icon_position')) or 'before' %}
-    <div class="fe-alertbar fe-alertbar-{{ prefix }}"
-         style="background: {{ _bg }}; color: {{ _fg }};" role="status">
+    <div class="fe-alertbar fe-alertbar-{{ prefix }}"{% if _bg_d or _fg_d %} data-ab-dark{% endif %}
+         style="background: {{ _bg }}; color: {{ _fg }};{% if _bg_d or _fg_d %} --ab-bg-dark: {{ _bg_d or _bg }}; --ab-fg-dark: {{ _fg_d or _fg }};{% endif %}" role="status">
       <div class="fe-container fe-alertbar-inner">
         {% if _icon and _pos == 'before' %}<span class="fe-alertbar-icon">{{ icon(_icon) }}</span>{% endif %}
         <span class="fe-alertbar-msg">{{ _msg }}</span>
@@ -308,13 +315,47 @@
     (function particleCanvases(){
       if (!window.initLoginFX) return;
       if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+      // A canvas may carry a light-mode and a dark-mode ink (the hero
+      // does; the footer's layer predates the control and carries
+      // neither, so both sides resolve to white and nothing changes).
+      const inkFor = canvas => (isDark()
+        ? (canvas.dataset.colorDark || canvas.dataset.color)
+        : canvas.dataset.color) || '#ffffff';
+      const opacityFor = canvas => {
+        const raw = isDark()
+          ? (canvas.dataset.opacityDark != null && canvas.dataset.opacityDark !== ''
+             ? canvas.dataset.opacityDark : canvas.dataset.opacity)
+          : canvas.dataset.opacity;
+        const n = parseInt(raw, 10);
+        return isNaN(n) ? 100 : n;
+      };
+      const live = [];
       document.querySelectorAll('[data-hero-particles]').forEach(canvas => {
         const effect = canvas.dataset.effect || 'stars';
         if (effect === 'off') { canvas.remove(); return; }
         const speed = parseInt(canvas.dataset.speed, 10) || 100;
         const size = parseInt(canvas.dataset.size, 10) || 100;
-        window.initLoginFX(canvas, { effect, speed, size });
+        const fx = window.initLoginFX(canvas, {
+          effect, speed, size,
+          color: inkFor(canvas),
+          opacity: opacityFor(canvas),
+        });
+        if (fx && fx.setInk) live.push({ canvas, fx });
       });
+      // Re-tint in place when the visitor flips theme — the particles
+      // keep their positions, only the ink changes.
+      if (!live.length) return;
+      const mo = new MutationObserver(records => {
+        for (const r of records) if (r.attributeName === 'data-theme') {
+          live.forEach(it => {
+            try { it.fx.setInk(inkFor(it.canvas)); } catch (_) {}
+            try { it.fx.setOpacity(opacityFor(it.canvas)); } catch (_) {}
+          });
+          break;
+        }
+      });
+      mo.observe(document.documentElement, { attributes: true });
     })();
 
     // Sinewave bg — reuses the login screen's gradient generator and
@@ -454,6 +495,12 @@
       });
       if (backdrop) backdrop.addEventListener('click', () => close(true));
       document.addEventListener('keydown', e => { if (e.key === 'Escape') close(true); });
+      // The Header admin's live preview asks for one panel open
+      // (?__mm=<nav item id>) so a mega menu can be seen while editing.
+      // It opens at once, without the opening animation, so each refresh
+      // of the preview doesn't replay it.
+      const forced = document.body.getAttribute('data-fe-open-megamenu');
+      if (forced) { document.body.classList.add('fe-mm-instant'); open(forced); }
     })();
 
     // Frontend light/dark toggle. Applies to <html>, persists to localStorage.
@@ -490,6 +537,9 @@
    the standalone /submissionform URL. JS handler is in the inline
    block lower down. #}
 {% include "frontend/_submission_modal.html" %}
+{# Request Access popup, for signed-out visitors: opened from the Request
+   access link under Login in the mega menu and the footer. #}
+{% if not current_user.is_authenticated %}{% include "frontend/_request_access_modal.html" %}{% endif %}
 
 {# Global GSR Summary modal — opened by the utility-bar GSR button on any
    page. Self-contained (markup + style + JS in the partial). #}
@@ -899,6 +949,22 @@
 
   document.querySelectorAll('[data-fe-search-trigger]').forEach(function (btn) {
     btn.addEventListener('click', function (e) { e.preventDefault(); open(); });
+  });
+
+  // A mega menu Search block hands what the visitor typed to this
+  // search: typing (or Enter) opens it with the words carried over.
+  document.querySelectorAll('[data-megamenu-search]').forEach(function (field) {
+    function handOff() {
+      var q = field.value;
+      field.value = '';
+      open();
+      input.value = q;
+      if (q) runQuery(q);
+    }
+    field.addEventListener('input', handOff);
+    field.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); handOff(); }
+    });
   });
 })();
 </script>

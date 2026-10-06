@@ -1,0 +1,10 @@
+{# The Zoom Tech page's design (zoom_tech_doc.design_css) and the
+   custom fonts it uses, for the page and its editor. Expects `design`. #}
+{% for cf in zt_design_fonts(design) %}
+  {% if cf.source == 'upload' %}
+<style>@font-face { font-family: '{{ cf.family }}'; src: url('{{ url_for("public.public_custom_font", fid=cf.id) }}'); font-display: swap; }</style>
+  {% else %}
+<link rel="stylesheet" href="{{ url_for('public.public_custom_font', fid=cf.id) }}">
+  {% endif %}
+{% endfor %}
+<style>{{ zt_design_css(design) }}</style>

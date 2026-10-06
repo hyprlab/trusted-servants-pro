@@ -1,0 +1,275 @@
+{# Settings only some page templates have, one macro per kind, used on
+   the Page tab of frontend_templates.html. Field names match each kind's
+   save route. #}
+{% from "_help_chip.html" import chip, hrow %}
+
+{# One row of the Pro Tips accordion editor. `idx` scopes the form
+   field names + hidden-input IDs; the JS swaps the literal string
+   `__INDEX__` with a fresh integer when cloning the empty template
+   for a new row. Mirrors the homepage FAQ row chrome (icon picker
+   trigger + question input + Markdown-capable answer textarea +
+   remove button) but skips the drag handle since we don't need
+   reorder yet — items render in document order from form-array
+   submission. #}
+{% macro _protip_item_row(idx, item) %}
+<div class="fe-protips-item-card" data-protips-item data-item-index="{{ idx }}">
+  <input type="hidden" name="protip_item_present" value="{{ idx }}">
+  <div class="fe-protips-item-icon{% if item and item.icon %} has-icon{% endif %}" data-icon-field>
+    <button type="button" class="icon-picker-trigger fe-protips-icon-trigger"
+            data-open-icon-picker
+            data-icon-target="#protip-item-{{ idx }}-icon"
+            data-color-target="#protip-item-{{ idx }}-icon-color"
+            data-size-target="#protip-item-{{ idx }}-icon-size"
+            title="Choose icon">
+      <span class="icon-picker-preview" data-icon-preview
+            {% if item and item.icon_size %}style="--icon-size: {{ item.icon_size }}px;"{% endif %}>
+        {% if item and item.icon %}{{ icon(item.icon) }}{% endif %}
+      </span>
+      <span class="icon-picker-trigger-empty" data-icon-empty>{{ icon('image') }}<span>Icon</span></span>
+    </button>
+    <input type="hidden" id="protip-item-{{ idx }}-icon"
+           name="protip_item_{{ idx }}_icon" value="{{ (item.icon if item else '') or '' }}">
+    <input type="hidden" id="protip-item-{{ idx }}-icon-color" value="">
+    <input type="hidden" id="protip-item-{{ idx }}-icon-size"
+           name="protip_item_{{ idx }}_icon_size" value="{{ (item.icon_size if item else '') or '' }}">
+  </div>
+  <div class="fe-protips-item-fields">
+    <input class="fe-protips-item-question" type="text"
+           name="protip_item_{{ idx }}_question"
+           value="{{ (item.question if item else '') or '' }}"
+           placeholder="Tip — e.g. Use a stable internet connection">
+    <textarea class="fe-protips-item-answer" rows="3"
+              name="protip_item_{{ idx }}_answer"
+              placeholder="Markdown supported. Plain text works too.">{{ (item.answer if item else '') or '' }}</textarea>
+  </div>
+  <button type="button" class="fe-protips-item-remove" data-protips-remove
+          title="Remove tip" aria-label="Remove tip">{{ icon('trash') }}</button>
+</div>
+{% endmacro %}
+
+{# One row of the Sidebar custom-links editor (Sidebar template only —
+   below the day-pill rail). `idx` scopes the form-field names; the JS
+   swaps `__INDEX__` with a fresh integer when cloning the empty
+   template. Each row carries: label, URL, link-type radio toggle
+   (internal → chevron-right; external → external-link icon), and an
+   open-in-new-tab checkbox. Parser keys off `sidebar_link_present`
+   so submission order = render order. #}
+{% macro _sidebar_link_row(idx, item) %}
+{%- set _lt = (item.link_type if item else 'internal') or 'internal' -%}
+<div class="fe-mlist-link-card" data-mlist-link-item data-item-index="{{ idx }}">
+  <input type="hidden" name="sidebar_link_present" value="{{ idx }}">
+  <div class="fe-mlist-link-fields">
+    <input class="fe-mlist-link-label" type="text"
+           name="sidebar_link_{{ idx }}_label"
+           value="{{ (item.label if item else '') or '' }}"
+           placeholder="Link label — e.g. Pro Tips, Code of Conduct"
+           maxlength="200">
+    <input class="fe-mlist-link-url" type="text"
+           name="sidebar_link_{{ idx }}_url"
+           value="{{ (item.url if item else '') or '' }}"
+           placeholder="/page-slug or https://example.org"
+           maxlength="600">
+    <div class="fe-mlist-link-options">
+      <div class="fe-mlist-link-type" role="radiogroup" aria-label="Link icon">
+        <label class="fe-mlist-link-type-opt">
+          <input type="radio"
+                 name="sidebar_link_{{ idx }}_type" value="internal"
+                 {% if _lt == 'internal' %}checked{% endif %}>
+          <span>{{ icon('chevron-right') }} Internal</span>
+        </label>
+        <label class="fe-mlist-link-type-opt">
+          <input type="radio"
+                 name="sidebar_link_{{ idx }}_type" value="external"
+                 {% if _lt == 'external' %}checked{% endif %}>
+          <span>{{ icon('external-link') }} External</span>
+        </label>
+      </div>
+      <label class="fe-mlist-link-newtab">
+        <input type="checkbox"
+               name="sidebar_link_{{ idx }}_new_tab" value="1"
+               {% if item and item.open_in_new_tab %}checked{% endif %}>
+        <span>Open in new tab</span>
+      </label>
+    </div>
+  </div>
+  <button type="button" class="fe-mlist-link-remove" data-mlist-link-remove
+          title="Remove link" aria-label="Remove link">{{ icon('trash') }}</button>
+</div>
+{% endmacro %}
+
+
+{% macro extras_meetings_list(meetings_list_protips, meetings_list_sidebar_links) %}
+    {%- set _pt = meetings_list_protips -%}
+    <fieldset class="fieldset fe-mlist-protips-fieldset">
+      <legend>Pro Tips {% call chip('Pro Tips') %}An accordion under the meetings list with tips for joining online. It starts with a built-in list of tips; edit, add or remove them here.{% endcall %}</legend>
+      {# Marks that this post carries the Pro Tips fields: the layout
+         grid posts to the same route without them. #}
+      <input type="hidden" name="protips_section" value="1">
+      <label class="check" style="margin-bottom: 8px;">
+        <input type="checkbox" name="protips_enabled" value="1" {% if _pt.enabled %}checked{% endif %}>
+        <span>Show the Pro Tips section on /meetings</span>
+      </label>
+      <div class="fe-mlist-protips-grid">
+        <label>Title
+          <input type="text" name="protips_heading" maxlength="200"
+                 value="{{ _pt.heading }}" placeholder="Pro Tips">
+        </label>
+        <label>Subheading
+          <input type="text" name="protips_subheading" maxlength="500"
+                 value="{{ _pt.subheading }}" placeholder="for a great online meeting">
+        </label>
+        {# Section-level icon — same icon-picker chrome as each tip's
+           icon. Picker JS writes to the hidden inputs via
+           `data-icon-target` etc.; the colour input below is its own
+           user-controlled <input type="color"> (the picker's color
+           target points at a vestigial hidden so the picker doesn't
+           overwrite the admin's chosen tint). #}
+        <label>Header icon
+          <div class="fe-protips-section-icon-field{% if _pt.icon %} has-icon{% endif %}" data-icon-field>
+            <button type="button" class="icon-picker-trigger fe-protips-icon-trigger fe-protips-section-icon-trigger"
+                    data-open-icon-picker
+                    data-icon-target="#protips-section-icon"
+                    data-color-target="#protips-section-icon-vestigial-color"
+                    data-size-target="#protips-section-icon-vestigial-size"
+                    title="Choose section icon">
+              <span class="icon-picker-preview" data-icon-preview>
+                {% if _pt.icon %}{{ icon(_pt.icon) }}{% endif %}
+              </span>
+              <span class="icon-picker-trigger-empty" data-icon-empty>{{ icon('image') }}<span>Icon</span></span>
+            </button>
+            <input type="hidden" id="protips-section-icon" name="protips_icon" value="{{ _pt.icon }}">
+            <input type="hidden" id="protips-section-icon-vestigial-color" value="">
+            <input type="hidden" id="protips-section-icon-vestigial-size" value="">
+          </div>
+        </label>
+        <label>Icon color
+          <input type="color" name="protips_icon_color"
+                 value="{{ _pt.icon_color or '#3b82f6' }}">
+        </label>
+      </div>
+      <div class="fe-protips-items-editor" data-protips-editor>
+        <div class="fe-protips-items-head">
+          <span class="fe-protips-items-label">Accordion items</span>
+          <span class="muted smaller" data-protips-counter></span>
+        </div>
+        <div class="fe-protips-items-list" data-protips-list>
+          {% for item in _pt['items'] %}
+            {{ _protip_item_row(loop.index0, item) }}
+          {% endfor %}
+        </div>
+        {# Hidden empty-template row that the JS clones when adding a new
+           item. Kept inside the same <details>-free section so its
+           hidden inputs are siblings to the live ones — keeps the form
+           parser straightforward. #}
+        <template data-protips-template>
+          {{ _protip_item_row('__INDEX__', None) }}
+        </template>
+        <button type="button" class="btn btn-sm" data-protips-add>
+          {{ icon('plus') }} <span>Add tip</span>
+        </button>
+      </div>
+    </fieldset>
+    {%- set _slinks = meetings_list_sidebar_links -%}
+    <fieldset class="fieldset fe-mlist-links-fieldset">
+      <legend>Sidebar custom links {% call chip('Sidebar custom links') %}Renders below the day-of-week filters in the <b>Sidebar</b> meetings-list template, separated by a divider line. Use for in-site shortcuts (Pro Tips, Code of Conduct) or external resources (your fellowship's main site, an outside-issues page). Internal links render with a chevron; external links render with an external-link icon and can open in a new tab.{% endcall %}</legend>
+      <input type="hidden" name="sidebar_links_section" value="1">
+      <div class="fe-mlist-links-editor" data-mlist-links-editor>
+        <div class="fe-mlist-links-list" data-mlist-links-list>
+          {% for ln in _slinks %}
+            {{ _sidebar_link_row(loop.index0, ln) }}
+          {% endfor %}
+        </div>
+        <template data-mlist-links-template>
+          {{ _sidebar_link_row('__INDEX__', None) }}
+        </template>
+        <button type="button" class="btn btn-sm" data-mlist-links-add>
+          {{ icon('plus') }} <span>Add link</span>
+        </button>
+      </div>
+    </fieldset>
+{% endmacro %}
+
+{% macro extras_announcements_list(site) %}
+  {%- set _awsubmit = (site.frontend_announcements_list_submit_url if site else '') or '' -%}
+  <label class="st-field"><span>Submit button link {% call chip('Submit button link') %}Where the Submit pills on the announcements and events lists, and the "Have an announcement or event to share?" band on each announcement and event page, send visitors. Blank uses the Announcements/Events form, and they all hide while that form is off.{% endcall %}</span>
+    <input type="text" name="frontend_announcements_list_submit_url" maxlength="500" value="{{ _awsubmit }}"
+           placeholder="{{ url_for('frontend.submission_form') }}">
+  </label>
+  <p class="muted smaller">Also used by the events list and every announcement and event page.</p>
+{% endmacro %}
+
+{% macro extras_archive(site) %}
+  {%- set _amode = (site.frontend_archive_pagination_mode if site else None) or 'infinite' -%}
+  <div class="st-field"><span>Loading more posts</span>
+    <div class="ds-seg-btns" role="radiogroup" aria-label="Loading more posts">
+      <label><input type="radio" name="frontend_archive_pagination_mode" value="infinite" {% if _amode == 'infinite' %}checked{% endif %}><span>As the visitor scrolls</span></label>
+      <label><input type="radio" name="frontend_archive_pagination_mode" value="numbered" {% if _amode == 'numbered' %}checked{% endif %}><span>Numbered pages</span></label>
+    </div>
+  </div>
+  <label class="st-field"><span>Posts per batch</span>
+    <input type="number" name="frontend_archive_page_size" min="1" max="200" step="1" value="{{ (site.frontend_archive_page_size if site else 20) or 20 }}">
+  </label>
+{% endmacro %}
+
+{% macro extras_printlist(site) %}
+  {%- set _plsize = (site.frontend_printlist_page_size if site else None) or 'letter' -%}
+  <label class="st-field"><span>Subheading</span>
+    <input type="text" name="frontend_printlist_subheading" maxlength="500" value="{{ (site.frontend_printlist_subheading if site else '') or '' }}" placeholder="Weekly Meeting Schedule">
+  </label>
+  <label class="st-field"><span>Website {% call chip('Website') %}Printed under the title so people holding the paper can find the site.{% endcall %}</span>
+    <input type="text" name="frontend_printlist_website" maxlength="200" value="{{ (site.frontend_printlist_website if site else '') or '' }}" placeholder="example.org">
+  </label>
+  <div class="st-field"><span>Paper size</span>
+    <div class="ds-seg-btns" role="radiogroup" aria-label="Paper size">
+      <label><input type="radio" name="frontend_printlist_page_size" value="letter" {% if _plsize == 'letter' %}checked{% endif %}><span>Letter</span></label>
+      <label><input type="radio" name="frontend_printlist_page_size" value="legal" {% if _plsize == 'legal' %}checked{% endif %}><span>Legal</span></label>
+    </div>
+  </div>
+  <a class="btn btn-sm" href="{{ url_for('frontend.printlist_pdf') }}" target="_blank" rel="noopener">{{ icon('download') }} Download the saved PDF</a>
+{% endmacro %}
+
+{% macro extras_stories_list(site, form_picker_options) %}
+  {%- set _ssform = (site.frontend_stories_list_submit_form if site else '') or '' -%}
+  {%- set _builtin = form_picker_options|selectattr('group', 'equalto', 'Built-in')|list -%}
+  {%- set _custom  = form_picker_options|selectattr('group', 'equalto', 'Custom')|list -%}
+  <label class="st-field"><span>"Submit a story" button {% call chip('Submit a story button') %}A button under the stories list linking to a form. None hides it.{% endcall %}</span>
+    <select name="frontend_stories_list_submit_form">
+      <option value="" {% if not _ssform %}selected{% endif %}>None: no button</option>
+      {% if _builtin %}<optgroup label="Built-in forms">{% for opt in _builtin %}<option value="{{ opt.value }}" {% if _ssform == opt.value %}selected{% endif %}>{{ opt.label }}</option>{% endfor %}</optgroup>{% endif %}
+      {% if _custom %}<optgroup label="Your forms">{% for opt in _custom %}<option value="{{ opt.value }}" {% if _ssform == opt.value %}selected{% endif %}>{{ opt.label }}</option>{% endfor %}</optgroup>{% endif %}
+    </select>
+  </label>
+  <label class="st-field"><span>Button label</span>
+    <input type="text" name="frontend_stories_list_submit_label" maxlength="100" value="{{ (site.frontend_stories_list_submit_label if site else '') or '' }}" placeholder="The form's title">
+  </label>
+{% endmacro %}
+
+{% macro extras_fellowships_list(site) %}
+  {%- set _fwsort = (site.frontend_fellowships_list_sort_mode if site else None) or 'name-asc' -%}
+  <label class="st-field"><span>First sort {% call chip('First sort') %}The order when the page opens. Visitors can change it on the page.{% endcall %}</span>
+    <select name="frontend_fellowships_list_sort_mode">
+      {% for v, l in [('name-asc', 'Name, A to Z'), ('name-desc', 'Name, Z to A'), ('country-asc', 'Country, A to Z (online fellowships last)'), ('newest', 'Newest first'), ('oldest', 'Oldest first')] %}
+      <option value="{{ v }}" {% if _fwsort == v %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <input type="hidden" name="frontend_fellowships_enabled_present" value="1">
+  <label class="mode-toggle st-publish"><input type="checkbox" name="frontend_fellowships_enabled" value="1" {% if site and site.frontend_fellowships_enabled %}checked{% endif %}><span class="mode-track"><span class="mode-thumb"></span></span><span>Publish at /fellowships</span></label>
+  <p class="muted smaller">Off: the page answers "not found" and drops out of menus, the site index and search.</p>
+{% endmacro %}
+
+{% macro extras_site_index(site) %}
+  <div class="st-field"><span>Include</span>
+    <div class="st-checks">
+    {% for col, label in [('show_pages', 'Pages'), ('show_meetings', 'Meetings'), ('show_events', 'Events'),
+                          ('show_announcements', 'Announcements'), ('show_stories', 'Stories'), ('show_library', 'Library')] %}
+      {%- set _on = (site|attr('frontend_site_index_' ~ col) if site else True) -%}
+      <label class="check"><input type="hidden" name="frontend_site_index_{{ col }}_present" value="1">
+        <input type="checkbox" name="frontend_site_index_{{ col }}" value="1" {% if _on %}checked{% endif %}><span>{{ label }}</span></label>
+    {% endfor %}
+    </div>
+  </div>
+  <input type="hidden" name="frontend_site_index_enabled_present" value="1">
+  <label class="mode-toggle st-publish"><input type="checkbox" name="frontend_site_index_enabled" value="1" {% if site and site.frontend_site_index_enabled %}checked{% endif %}><span class="mode-track"><span class="mode-thumb"></span></span><span>Publish at /siteindex</span></label>
+  <p class="muted smaller">Off: the page answers "not found" and drops out of menus.</p>
+{% endmacro %}

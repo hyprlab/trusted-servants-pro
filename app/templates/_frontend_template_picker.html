@@ -14,11 +14,12 @@
      title        — long label for the modal heading (e.g. "Header template")
 #}
 {% macro template_picker(templates, active, radio_name, action_url, modal_id, preview_kind, title, label='Template') -%}
-  {%- set _active_name = active -%}
-  {%- for t in templates if t.key == active %}{% set _active_name = t.name %}{% endfor -%}
+  {#- A plain `set` inside the loop would not leave it; a namespace does. -#}
+  {%- set _ns = namespace(active_name=active) -%}
+  {%- for t in templates if t.key == active %}{% set _ns.active_name = t.name %}{% endfor -%}
   <div class="fe-template-picker">
     <span class="fe-template-picker-label muted smaller">{{ label }}:</span>
-    <span class="fe-template-picker-active">{{ _active_name }}</span>
+    <span class="fe-template-picker-active">{{ _ns.active_name }}</span>
     <button type="button" class="btn btn-sm" data-open-modal="{{ modal_id }}">Change</button>
   </div>
 
@@ -42,6 +43,23 @@
             <label class="template-card{% if active == t.key %} active{% endif %}">
               <input type="radio" name="{{ radio_name }}" value="{{ t.key }}"
                      {% if active == t.key %}checked{% endif %}>
+              {% if radio_name == 'frontend_theme' %}
+              {# A miniature homepage in the theme's own palette, type and
+                 card shape; styled per key by .theme-thumb-<key> in app.css. #}
+              <div class="template-card-preview theme-thumb theme-thumb-{{ t.key }}" aria-hidden="true">
+                <div class="tt-strip"></div>
+                <div class="tt-head">
+                  <span class="tt-logo"></span>
+                  <span class="tt-nav"><span></span><span></span><span></span></span>
+                </div>
+                <div class="tt-hero">
+                  <span class="tt-title">Welcome home</span>
+                  <span class="tt-copy"></span>
+                  <span class="tt-btn"></span>
+                </div>
+                <div class="tt-cards"><span></span><span></span><span></span></div>
+              </div>
+              {% else %}
               <div class="template-card-preview template-card-preview-{{ preview_kind }}">
                 {% if preview_kind == 'header' %}
                   <div class="template-card-preview-bar"></div>
@@ -68,6 +86,7 @@
                   <div class="template-card-preview-footer-bar"></div>
                 {% endif %}
               </div>
+              {% endif %}
               <div class="template-card-info">
                 <div class="template-card-name">{{ t.name }}
                   <span class="template-card-badge">Active</span>
@@ -82,19 +101,21 @@
            the scrolling body and pinned above the footer, so it (and the Apply
            button below it) stay visible no matter how far the card list scrolls. #}
         {% if radio_name == 'frontend_theme' %}
-        <fieldset class="fe-theme-mode">
-          <legend class="muted smaller">When applying the selected theme</legend>
-          <label class="fe-theme-mode-opt">
-            <input type="radio" name="restore_mode" value="last" checked>
-            <span><strong>Return to last saved state</strong>
-              <span class="muted smaller">Bring the theme back exactly how you last left it — colours, fonts, and per-template settings. Falls back to its defaults if you've never customised it.</span></span>
-          </label>
-          <label class="fe-theme-mode-opt">
-            <input type="radio" name="restore_mode" value="default">
-            <span><strong>Reset to default</strong>
-              <span class="muted smaller">Start the theme fresh from its built-in defaults, clearing your customisations for it. Your pages, blocks, and footer content are not affected.</span></span>
-          </label>
-        </fieldset>
+        <div class="fe-theme-mode">
+          <span class="fe-theme-mode-label muted small" id="{{ modal_id }}-mode-label">Apply as</span>
+          <div class="ds-seg-btns" role="radiogroup" aria-labelledby="{{ modal_id }}-mode-label">
+            <label>
+              <input type="radio" name="restore_mode" value="last" checked>
+              <span>Last saved state</span>
+            </label>
+            <label>
+              <input type="radio" name="restore_mode" value="default">
+              <span>Theme defaults</span>
+            </label>
+          </div>
+          <p class="fe-theme-mode-hint fe-theme-mode-hint-last muted smaller">Your colors, fonts and template settings for this theme, as you left them.</p>
+          <p class="fe-theme-mode-hint fe-theme-mode-hint-default muted smaller">Clears your changes to this theme. Pages, blocks and footer content are kept.</p>
+        </div>
         {% endif %}
         <div class="modal-foot">
           <button type="button" class="btn" data-close>Cancel</button>

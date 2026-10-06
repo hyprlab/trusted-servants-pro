@@ -21,6 +21,7 @@
      vals — dict with `heading`, `subheading`, `items` (proxy always
             returns `items: []`; JS populates from the active block).
 #}
+{% from "_help_chip.html" import chip, hrow %}
 {% macro _feature_card_row(idx, item) %}
 {# One editable card. `idx` is unique-within-the-form (used to scope
    hidden field IDs and `name`s); the JS reuses the same indexing
@@ -124,8 +125,7 @@
          data-features-editor
          data-features-max="6">
   <div class="card-head">
-    <h2>Features</h2>
-    <span class="muted smaller">Up to six clickable cards. Drag to reorder. <b>Markdown</b> in card bodies (live preview on the right); inline HTML in headings &amp; titles.</span>
+    <h2>Features {% call chip('Features') %}Up to six clickable cards. Drag to reorder. <b>Markdown</b> in card bodies (live preview on the right); inline HTML in headings &amp; titles.{% endcall %}</h2>
   </div>
 
   <div class="fe-feat-head-grid">

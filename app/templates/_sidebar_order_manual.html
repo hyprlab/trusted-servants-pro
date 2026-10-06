@@ -1,13 +1,14 @@
 {# Inner contents of the Sidebar tab's manual drag-drop section. Used
    by both base.html (initial render) and /tspro/_sidebar/order-manual
    (live refresh after a role/toggle save) so the drag-drop list always
-   reflects the current dynamic section placement of module-gated items. #}
+   reflects which module-gated items are on. #}
 {% set _side_order = (site.sidebar_order_json or '{}') | from_json %}
 {% set _side_catalog = sidebar_reorder_catalog(site) %}
-<p class="muted smaller">Drag the ⋮⋮ handles to reorder. Sections move as whole groups; items inside Main, Intergroup, and Admin reorder individually. Admin defaults to the bottom of the sidebar — drag it elsewhere to override.</p>
-{% set _default_sections = ['main','intergroup','external','admin'] %}
+<p class="muted smaller">Drag the ⋮⋮ handles to reorder. Sections move as whole groups; items inside Main and Intergroup reorder individually.</p>
+{% set _default_sections = ['main','intergroup','external'] %}
 {% set _section_keys = (_side_order.sections if _side_order.sections else _default_sections) %}
-{% set _seen = [] %}
+{# Orders saved while the sidebar had an Admin section still name it. #}
+{% set _seen = ['admin'] %}
 {% set _all_sections = _section_keys + _default_sections %}
 <div class="sidebar-order-sections" data-sidebar-section-list>
   {% for sk in _all_sections %}
@@ -18,14 +19,13 @@
         <span class="sidebar-order-section-name">
           {% if sk == 'main' %}Main
           {% elif sk == 'intergroup' %}Intergroup
-          {% elif sk == 'external' %}External links
-          {% else %}Admin{% endif %}
+          {% else %}External links{% endif %}
         </span>
       </div>
       {% if sk == 'intergroup' %}
         {# Intergroup section items (Email Accounts, Minutes, Documents) —
-           individually draggable in manual mode, same wiring as Main /
-           Admin. Saved order in `_side_order.intergroup` wins; any item
+           individually draggable in manual mode, same wiring as Main.
+           Saved order in `_side_order.intergroup` wins; any item
            the catalog returns that isn't yet in the saved order is
            appended at the end so newly-enabled items don't disappear. #}
         {% set _ig_items = (_side_catalog.intergroup or []) %}
@@ -48,9 +48,10 @@
         {% else %}
         <p class="muted smaller sidebar-extlink-empty">Module disabled — turn it on under Modules to populate.</p>
         {% endif %}
-      {% elif sk in ('main', 'admin') %}
-        {% set _saved = _side_order.get(sk) or [] %}
-        {% set _cat = _side_catalog[sk] %}
+      {% elif sk == 'main' %}
+        {# Items saved under the old Admin section follow Main's own. #}
+        {% set _saved = (_side_order.get('main') or []) + (_side_order.get('admin') or []) %}
+        {% set _cat = _side_catalog.main %}
         {% set _by_key = {} %}
         {% for c in _cat %}{% set _ = _by_key.update({c.key: c}) %}{% endfor %}
         {% set _seen_keys = [] %}
@@ -83,7 +84,7 @@
             <form method="post" action="{{ url_for('main.nav_link_delete', nid=n.id) }}"
                   onsubmit="return confirm('Delete this link?');" style="display:inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm btn-danger">{{ icon('x') }}</button>
+              <button type="submit" class="btn btn-sm btn-danger" title="Delete link">{{ icon('trash') }}</button>
             </form>
           </li>
           {% endfor %}

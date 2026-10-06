@@ -145,11 +145,20 @@
   {%- endif -%}
 
   {%- if d.get('particle_enabled') -%}
+  {#- Opacity + per-theme ink. Absent on blocks saved before these
+      controls existed; the reader defaults to opaque white, which is
+      what the canvas painted when the colour was hard-coded. -#}
+  {%- set _popacity = d.get('particle_opacity') -%}
+  {%- set _popacity_d = d.get('particle_opacity_dark') -%}
   <canvas class="fe-hero-particles" aria-hidden="true"
           data-hero-particles
           data-effect="{{ d.get('particle_effect') or 'stars' }}"
           data-speed="{{ d.get('particle_speed') or 100 }}"
-          data-size="{{ d.get('particle_size') or 100 }}"></canvas>
+          data-size="{{ d.get('particle_size') or 100 }}"
+          data-opacity="{{ 100 if _popacity is none else _popacity }}"
+          data-opacity-dark="{{ (100 if _popacity is none else _popacity) if _popacity_d is none else _popacity_d }}"
+          data-color="{{ d.get('particle_color') or '#ffffff' }}"
+          data-color-dark="{{ d.get('particle_color_dark') or '#ffffff' }}"></canvas>
   {%- endif -%}
 
   <div class="fe-container fe-hero-inner">
@@ -158,12 +167,19 @@
     {%- endif -%}
     <h1 class="fe-hero-heading fe-hero-heading-{{ _h_font }}"
         {% if _heading_style %}style="{{ _heading_style }}"{% endif %}>{{ d.get('heading') or '' }}</h1>
-    <p class="fe-hero-sub fe-hero-sub-{{ _s_font }}"
-       {% if _sub_style %}style="{{ _sub_style }}"{% endif %}>{{ d.get('subheading') or '' }}</p>
+    {#- Markdown + inline HTML. `markdown_inline` runs the same
+        Python-Markdown pass as the rest of the admin's rich text and
+        sanitises the result through nh3's rich allowlist (so an author's
+        <a>/<em>/<br> survive and <script> does not), then strips the
+        wrapping <p> when the whole subheading is a single paragraph.
+        A <div> hosts it because multi-paragraph or list markdown emits
+        block tags a <p> can't legally contain. -#}
+    <div class="fe-hero-sub fe-hero-sub-{{ _s_font }}"
+         {% if _sub_style %}style="{{ _sub_style }}"{% endif %}>{{ (d.get('subheading') or '') | markdown_inline }}</div>
     <div class="fe-hero-cta">
       {%- for b in (d.get('buttons') or []) -%}
         {%- set _tgt = ' target="_blank" rel="noopener"' if b.open_in_new_tab else '' -%}
-        {%- set _bstyle = b.style if b.style in ('ghost', 'yellow', 'green') else 'primary' -%}
+        {%- set _bstyle = b.style if b.style in ('ghost', 'yellow', 'green', 'blue') else 'primary' -%}
         {%- set _cls = 'fe-btn fe-btn-' ~ _bstyle -%}
         {%- set _vars = [] -%}
         {%- if _bstyle == 'primary' -%}

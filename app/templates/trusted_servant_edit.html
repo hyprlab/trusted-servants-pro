@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip, hrow %}
+{% set _new = sub is none %}
+{% block heading %}{{ 'Add to the email list' if _new else sub.name }}{% endblock %}
+{% block heading_help %}{% if _new %}Add someone without a portal account; people with one can join from their dashboard.{% else %}Their contact details on the left, and their account and your notes on the right. Save with the yellow bar.{% endif %}{% endblock %}
+{% block top_actions %}
+  <a class="btn" href="{{ url_for('main.trusted_servants_list') }}">← All</a>
+  {% if _new %}
+  <button type="submit" form="ts-edit-form" class="btn btn-primary">{{ icon('user-plus') }} Add to the list</button>
+  {% else %}
+  <a class="btn" href="mailto:{{ sub.email }}">{{ icon('mail') }} Email</a>
+  <form method="post" action="{{ url_for('main.trusted_servants_delete', sid=sub.id) }}" style="display:inline"
+        data-confirm-title="Remove {{ sub.name }} from the list?" data-confirm-label="Remove"
+        data-confirm="They stop getting updates.{% if sub.user %} They can join again from their dashboard.{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-danger">Remove</button>
+  </form>
+  {% endif %}
+{% endblock %}
+{% block content %}
+{# Laid out like the other editors (story_edit.html): the contact details
+   on the left, the account and notes on the right in a segmented
+   control (fe_studio.js), and the yellow save bar (content_editor.js)
+   once the person exists. #}
+<form id="ts-edit-form" class="form post-form" method="post" data-content-editor
+      action="{{ url_for('main.trusted_servants_manual_add') if _new else url_for('main.trusted_servants_edit', sid=sub.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <section class="card st-studio post-studio" data-studio="email-list" data-no-collapse>
+    <div class="st-body st-body--split">
+      <div class="post-studio-main">
+        <label class="post-title-field">Name
+          <input type="text" name="name" required maxlength="120" class="post-title-input"
+                 value="{{ sub.name if sub else '' }}" placeholder="Jane D." {% if _new %}autofocus{% endif %}>
+        </label>
+        <label>{% call hrow('Email') %}Updates sent to the list go here.{% endcall %}
+          <input type="email" name="email" required maxlength="255" value="{{ sub.email if sub else '' }}" placeholder="jane@example.com">
+        </label>
+        <label>{% call hrow('Phone') %}Optional. Shown to admins only.{% endcall %}
+          <input type="tel" name="phone" maxlength="64" value="{{ (sub.phone if sub else '') or '' }}">
+        </label>
+      </div>
+
+      <div class="st-controls">
+        <div class="st-seg-scroll" data-seg-scroll>
+          <nav class="st-seg" role="tablist" aria-label="Person settings">
+            <button type="button" role="tab" data-studio-tab="account">{{ icon('user') }}<span>Account</span></button>
+            <button type="button" role="tab" data-studio-tab="notes">{{ icon('file-text') }}<span>Notes</span></button>
+          </nav>
+        </div>
+        <div class="st-panel" data-studio-panel="account">
+          <div class="ds-group st-group-body">
+            {% if _new %}
+            {# Nothing exists yet: say what adding someone here means. #}
+            <h3 class="ds-group-title">{{ icon('user-plus') }}Adding someone</h3>
+            <p class="muted small">Use this for someone without a portal account; only admins can change or remove what you add here. People with an account can join from their dashboard instead, and keep their own details up to date.</p>
+            {% else %}
+            <h3 class="ds-group-title">{{ icon('user') }}Portal account</h3>
+            {% endif %}
+            {% if _new %}
+            {% elif sub.user %}
+            <p class="pe-fact"><span class="lst-acct">{{ icon('user') }}<span>{{ sub.user.username }}</span></span></p>
+            <p class="muted small">They joined from their dashboard and can change these details there. Edits here replace what they entered.</p>
+            {% else %}
+            <p class="muted small">None: an admin added them, so only admins can change or remove this entry.</p>
+            {% endif %}
+          </div>
+          {% if sub %}
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('clock') }}Dates</h3>
+            <dl class="pe-facts">
+              <dt>Joined</dt><dd>{{ sub.created_at|fmt_site_local('%b %-d, %Y') if sub.created_at else '—' }}</dd>
+              <dt>Last changed</dt><dd>{{ sub.updated_at|fmt_site_local('%b %-d, %Y · %-I:%M %p') if sub.updated_at else '—' }}</dd>
+            </dl>
+          </div>
+          {% endif %}
+        </div>
+        <div class="st-panel" data-studio-panel="notes" hidden>
+          <div class="ds-group st-group-body">
+            <h3 class="ds-group-title">{{ icon('file-text') }}Notes {% call chip('Notes') %}For admins only: never sent or shown to the person.{% endcall %}</h3>
+            <textarea name="notes" rows="8" placeholder="Anything to remember about this contact.">{{ (sub.notes if sub else '') or '' }}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</form>
+<script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+{% if not _new %}
+<div id="ts-edit-save-bar" class="fe-save-bar fe-save-bar-content" hidden data-editor-save-bar>
+  <span class="fe-save-bar-msg">Unsaved changes</span>
+  <button type="button" class="btn fe-save-bar-btn">Save</button>
+</div>
+{% endif %}
+<script src="{{ url_for('static', filename='js/content_editor.js', v=app_build_id) }}"></script>
+{% endblock %}

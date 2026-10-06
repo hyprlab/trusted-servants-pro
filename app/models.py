@@ -75,6 +75,9 @@ class User(UserMixin, db.Model):
     # welcome emails, the Trusted Servants list pre-fill, and the
     # admin Users table.
     name = db.Column(db.String(120))
+    # Admin look: "system" (follow the device), "light" or "dark". Empty
+    # until first chosen; the browser's earlier choice is carried over then.
+    theme_pref = db.Column(db.String(8))
     # Optional contact number captured at user creation. Prefilled from
     # the matching access-request row when the admin clicks Create User
     # from the Access Requests page; editable on the Users panel later.
@@ -98,6 +101,9 @@ class User(UserMixin, db.Model):
     dash_show_currently_online = db.Column(db.Boolean, nullable=False, default=True)
     dash_show_visitor_metrics = db.Column(db.Boolean, nullable=False, default=True)
     dash_show_backups = db.Column(db.Boolean, nullable=False, default=True)
+    # Unused: the dashboard's "Join the email list" widget it showed is
+    # retired (new users join the list when created). Kept so older
+    # databases and backups still load.
     dash_show_trusted_servants = db.Column(db.Boolean, nullable=False, default=True)
     dash_show_release_notes = db.Column(db.Boolean, nullable=False, default=True)
     # When True, the main app sidebar auto-collapses to a hamburger
@@ -736,11 +742,51 @@ class SiteSetting(db.Model):
     pic_name = db.Column(db.String(200))
     pic_email = db.Column(db.String(255))
     pic_phone = db.Column(db.String(64))
+    # What the fellowship calls this position ("Public Information and
+    # Communications Chair"); empty means Public Information Chair.
+    pic_title = db.Column(db.String(200))
+
+    @property
+    def pic_role_label(self):
+        """The Public Information Chair's title as this fellowship uses it."""
+        return (self.pic_title or "").strip() or "Public Information Chair"
+
     zoom_tech_enabled = db.Column(db.Boolean, nullable=False, default=False)
     zoom_tech_title = db.Column(db.String(120))
     zoom_tech_content = db.Column(db.Text)
     zoom_tech_blocks_json = db.Column(db.Text)
+    # The page's Markdown (app/zoom_tech_doc.py). The page is either
+    # Markdown or blocks (``zoom_tech_format``, blank meaning whichever
+    # is stored); the other version is kept, to go back to.
+    zoom_tech_body = db.Column(db.Text)
+    zoom_tech_format = db.Column(db.String(16))
+    # The page's look (zoom_tech_doc.DESIGN): colors, fonts, sizes.
+    zoom_tech_design_json = db.Column(db.Text)
     zoom_tech_template = db.Column(db.String(16), nullable=False, default="standard")
+    # The alert bar every signed-in user sees (Settings > Alert bar): the
+    # message (Markdown), its tone (info, success, warning, danger), where
+    # it shows (a comma list of ALERT_PLACES keys), whether people can
+    # close it, and when it stops (site-local, blank for until turned
+    # off). ``alert_version`` goes up when the message changes or the bar
+    # is turned on again, so a closed alert shows once more.
+    alert_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    alert_message = db.Column(db.Text)
+    alert_tone = db.Column(db.String(16), nullable=False, default="info")
+    alert_places = db.Column(db.String(64), nullable=False, default="top")
+    alert_dismissible = db.Column(db.Boolean, nullable=False, default=True)
+    alert_until = db.Column(db.DateTime)
+    alert_version = db.Column(db.Integer, nullable=False, default=0)
+    # Optional details: with ``alert_details_enabled``, clicking the bar
+    # opens a window with a title (blank for the tone's name) and the
+    # details (Markdown) under the message.
+    alert_details_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    alert_title = db.Column(db.String(200))
+    alert_details = db.Column(db.Text)
+    # When the alert was posted (site-local): set when the message changes
+    # or the bar is turned on, unless the admin sets it; shown in the
+    # details window with ``alert_show_posted``.
+    alert_posted_at = db.Column(db.DateTime)
+    alert_show_posted = db.Column(db.Boolean, nullable=False, default=False)
     # Announcements & Events module toggle. Default True so existing
     # installs don't lose data the moment the column is added.
     posts_enabled = db.Column(db.Boolean, nullable=False, default=True)
@@ -756,7 +802,7 @@ class SiteSetting(db.Model):
     # Sidebar ordering. Mode: auto-asc | auto-desc | manual. Auto modes
     # ignore the JSON and sort items alphabetically inside each section
     # (Main → External → Admin order is fixed). Manual mode reads
-    # sidebar_order_json: {"sections": [...], "main": [...], "admin": [...]}.
+    # sidebar_order_json: {"sections": [...], "main": [...], "intergroup": [...]}.
     sidebar_sort_mode = db.Column(db.String(16), nullable=False, default="auto-asc")
     sidebar_order_json = db.Column(db.Text)
     smtp_host = db.Column(db.String(255))
@@ -876,7 +922,7 @@ class SiteSetting(db.Model):
     # fallback). Per-template font / size / colour overrides live in the
     # shared frontend_template_settings_json bucket under "submission_form".
     frontend_submission_form_template = db.Column(db.String(64), nullable=False, default="classic")
-    frontend_submission_form_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_submission_form_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_submission_form_max_width = db.Column(db.Integer, nullable=False, default=720)
     frontend_submission_form_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_submission_form_bg_dynamic_key = db.Column(db.String(64))
@@ -930,6 +976,10 @@ class SiteSetting(db.Model):
     frontend_404_cta_label = db.Column(db.String(120))
     frontend_404_cta_url = db.Column(db.String(500))
     frontend_404_image_filename = db.Column(db.String(500))
+    # What the 404 page shows beyond its text (Web Frontend → 404 page).
+    frontend_404_show_sub = db.Column(db.Boolean, nullable=False, default=True)
+    frontend_404_show_art = db.Column(db.Boolean, nullable=False, default=True)
+    frontend_404_show_home = db.Column(db.Boolean, nullable=False, default=True)
     # Public-facing web frontend
     # Module gate: when False, hides Web Frontend from the sidebar entirely,
     # blocks the admin editor routes, and the public homepage won't serve.
@@ -944,7 +994,7 @@ class SiteSetting(db.Model):
     # Public visibility: when False (but module is enabled), signed-in editors
     # and admins can still preview while the public root redirects to login.
     frontend_enabled = db.Column(db.Boolean, nullable=False, default=False)
-    # ── Cookie & privacy compliance (managed from Web Frontend → Cookie Compliance) ──
+    # ── Cookie & privacy compliance (managed from Web Frontend → Privacy & cookies) ──
     # Module gate. When False, no banner is rendered and the public site
     # behaves as it did before the feature existed.
     cookie_compliance_enabled = db.Column(db.Boolean, nullable=False, default=False)
@@ -1077,7 +1127,7 @@ class SiteSetting(db.Model):
     frontend_contact_body = db.Column(db.Text)
     frontend_footer_text = db.Column(db.Text)
     # Header layout
-    frontend_header_width_mode = db.Column(db.String(16), nullable=False, default="boxed")  # 'boxed' | 'full'
+    frontend_header_width_mode = db.Column(db.String(16), nullable=False, default="site")  # 'site' | 'boxed' | 'full' (app/widths.py)
     frontend_header_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_header_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_header_height = db.Column(db.Integer, nullable=False, default=72)
@@ -1097,7 +1147,7 @@ class SiteSetting(db.Model):
     # Picks the layout for the public /events list page (cards / calendar
     # / timeline / magazine). See EVENTS_LIST_TEMPLATES.
     frontend_events_list_template = db.Column(db.String(64), nullable=False, default="cards")
-    frontend_events_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_events_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_events_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_events_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_events_list_heading = db.Column(db.String(200))
@@ -1105,7 +1155,7 @@ class SiteSetting(db.Model):
     # Picks the layout for the public /announcements page. See
     # ANNOUNCEMENTS_LIST_TEMPLATES in app/frontend.py for the catalog.
     frontend_announcements_list_template = db.Column(db.String(64), nullable=False, default="omni")
-    frontend_announcements_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_announcements_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_announcements_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_announcements_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_announcements_list_heading = db.Column(db.String(200))
@@ -1132,7 +1182,7 @@ class SiteSetting(db.Model):
     # client-side sort mode (name-asc / name-desc / country-asc).
     frontend_fellowships_enabled = db.Column(db.Boolean, nullable=False, default=False)
     frontend_fellowships_list_template = db.Column(db.String(64), nullable=False, default="sidebar")
-    frontend_fellowships_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_fellowships_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_fellowships_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_fellowships_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_fellowships_list_heading = db.Column(db.String(200))
@@ -1154,7 +1204,7 @@ class SiteSetting(db.Model):
     trusted_servants_enabled = db.Column(db.Boolean, nullable=False, default=False)
     trusted_servants_required_role = db.Column(db.String(32), nullable=False, default="admin")
     frontend_stories_list_template = db.Column(db.String(64), nullable=False, default="paper-stack")
-    frontend_stories_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_stories_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_stories_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_stories_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_stories_list_heading = db.Column(db.String(200))
@@ -1180,7 +1230,7 @@ class SiteSetting(db.Model):
     blog_enabled = db.Column(db.Boolean, nullable=False, default=False)
     blog_required_role = db.Column(db.String(32), nullable=False, default="admin")
     frontend_blog_list_template = db.Column(db.String(64), nullable=False, default="magazine")
-    frontend_blog_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_blog_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_blog_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_blog_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_blog_list_heading = db.Column(db.String(200))
@@ -1191,7 +1241,7 @@ class SiteSetting(db.Model):
     # content at `max_width` pixels and centres it with viewport-%
     # gutters; `full` lets the content span the viewport. Defaults
     # match the list page so the two read as a pair.
-    frontend_blog_post_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_blog_post_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_blog_post_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_blog_post_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     frontend_blog_list_bg_dynamic_key = db.Column(db.String(64))
@@ -1212,7 +1262,7 @@ class SiteSetting(db.Model):
     # Container width for the /meetings page: 'boxed' uses the max-width
     # below to cap the content column; 'full' spans the viewport with the
     # padding % below applied to each side as `Nvw` gutters.
-    frontend_meetings_list_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    frontend_meetings_list_width_mode = db.Column(db.String(16), nullable=False, default="site")
     frontend_meetings_list_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_meetings_list_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     # Customisable title + subheading for the public /meetings page;
@@ -1295,7 +1345,7 @@ class SiteSetting(db.Model):
     # visitor's localStorage choice always wins over this default.
     frontend_default_theme = db.Column(db.String(16), nullable=False, default="system")
     # Footer container dimensions — mirrors header_width_mode pattern.
-    frontend_footer_width_mode = db.Column(db.String(16), nullable=False, default="boxed")  # 'boxed' | 'full'
+    frontend_footer_width_mode = db.Column(db.String(16), nullable=False, default="site")  # 'site' | 'boxed' | 'full' (app/widths.py)
     frontend_footer_max_width = db.Column(db.Integer, nullable=False, default=1160)
     frontend_footer_padding_pct = db.Column(db.Integer, nullable=False, default=5)
     # Structured footer content. JSON-encoded dict of:
@@ -1403,6 +1453,10 @@ class SiteSetting(db.Model):
     utility_bar_enabled = db.Column(db.Boolean, nullable=False, default=True)
     utility_bar_bg_color = db.Column(db.String(16))
     utility_bar_text_color = db.Column(db.String(16))
+    # Dark-mode pair of the two above (Design → Header). Empty = the
+    # light color in both modes, as before these existed.
+    utility_bar_bg_color_dark = db.Column(db.String(16))
+    utility_bar_text_color_dark = db.Column(db.String(16))
     utility_bar_left_json = db.Column(db.Text)
     utility_bar_right_json = db.Column(db.Text)
     utility_bar_live_meetings = db.Column(db.Boolean, nullable=False, default=False)
@@ -1419,6 +1473,8 @@ class SiteSetting(db.Model):
     header_alert_message = db.Column(db.Text)
     header_alert_bg_color = db.Column(db.String(16))
     header_alert_text_color = db.Column(db.String(16))
+    header_alert_bg_color_dark = db.Column(db.String(16))
+    header_alert_text_color_dark = db.Column(db.String(16))
     header_alert_icon = db.Column(db.String(32))
     header_alert_icon_position = db.Column(db.String(8), nullable=False, default="before")
     setup_complete = db.Column(db.Boolean, nullable=False, default=False)
@@ -1464,7 +1520,7 @@ class SiteSetting(db.Model):
     # detail surface uses (events_list, announcements_list, etc.).
     # 'boxed' caps content at `max_width` px and centers; 'full' spans
     # the viewport with `padding_pct` % vw gutters.
-    contact_form_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    contact_form_width_mode = db.Column(db.String(16), nullable=False, default="site")
     contact_form_max_width = db.Column(db.Integer, nullable=False, default=1160)
     contact_form_padding_pct = db.Column(db.Integer, nullable=False, default=5)
 
@@ -1495,7 +1551,7 @@ class SiteSetting(db.Model):
     recovery_contacts_removal_alerts = db.Column(db.Boolean, nullable=False, default=False)
     # Container width — same boxed/full + max-width + side-padding shape
     # every other public list surface uses (contact_form, events_list…).
-    recovery_contacts_width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    recovery_contacts_width_mode = db.Column(db.String(16), nullable=False, default="site")
     recovery_contacts_max_width = db.Column(db.Integer, nullable=False, default=1160)
     recovery_contacts_padding_pct = db.Column(db.Integer, nullable=False, default=5)
 
@@ -1527,6 +1583,9 @@ class IntergroupOfficer(db.Model):
     phone = db.Column(db.String(64))
     email = db.Column(db.String(255))
     sort_order = db.Column(db.Integer, nullable=False, default=0)
+    # The one row that mirrors the Public Information Chair card (its
+    # title, name, phone and email); kept in step by routes._sync_pic_officer.
+    is_pic = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1651,6 +1710,12 @@ class Library(db.Model):
     # consulted on Intergroup libraries today, but the column is kept
     # general so non-Intergroup libraries can opt in later.
     categories_required = db.Column(db.Boolean, nullable=False, default=True)
+    # Archived libraries drop out of the main /libraries list (they move
+    # to its Archived tab) and out of the public Literature Library page,
+    # exactly as ``Meeting.archived_at`` behaves. Nothing is deleted and
+    # existing meeting associations are untouched, so restoring puts the
+    # library back where it was. NULL = active.
+    archived_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     items = db.relationship("LibraryItem", backref="library", cascade="all, delete-orphan",
@@ -1702,6 +1767,8 @@ class AccessRequest(db.Model):
     email = db.Column(db.String(255), nullable=False)
     roles_json = db.Column(db.Text)  # JSON array of selected role labels
     meeting_name = db.Column(db.String(255))
+    # Optional note from the requester, in their words.
+    message = db.Column(db.Text)
     status = db.Column(db.String(16), nullable=False, default="pending")  # pending|handled
     # IP the request was submitted from (best-effort, via _client_ip()).
     # Lets an admin block an abusive requester from Watchtower → Requests.
@@ -2182,7 +2249,10 @@ class Post(db.Model):
     "draft"). Event posts pick up a starts/ends datetime, location
     fields, contact, optional Zoom credentials, and event-website URL.
     Posts are archived manually OR automatically the day after the
-    event ends; the public site (when wired in) hides archived posts."""
+    event ends; archived posts move out of the live lists and into the
+    public /archive index rather than going dark. Whether the public
+    may see a post at all is a separate axis — see
+    ``public_visibility`` below."""
     __tablename__ = "post"
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
@@ -2383,9 +2453,23 @@ class Post(db.Model):
     #              awaiting admin/editor review; NEVER public)
     #   draft    → is_draft=True  (edited in private; not on the public site)
     #   active   → all flags False (live)
-    #   archived → is_archived=True (hidden, kept for reference)
+    #   archived → is_archived=True (filed under the public /archive)
     is_draft = db.Column(db.Boolean, nullable=False, default=False)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
+    # Public visibility — an axis of its own, deliberately independent
+    # of the lifecycle flags above (archived decides *where* a post is
+    # filed, not *whether* the public may see it):
+    #   auto     → follow the lifecycle (public unless draft, pending,
+    #              or scheduled for a future ``published_at``)
+    #   public   → stay on the public site regardless of draft state or
+    #              publish schedule (pending-review submissions are the
+    #              one thing this can't override — those are never public
+    #              until an admin approves them)
+    #   private  → never public: no lists, no detail page, no images, no
+    #              search index, whatever the lifecycle says
+    # NULL is read as "auto" so rows written before this column existed
+    # (and any import path that skips it) behave exactly as they did.
+    public_visibility = db.Column(db.String(16), nullable=False, default="auto")
     # Submission holding tank. When True, the post was created via the
     # public /submissionform endpoint and hasn't been reviewed yet.
     # The public site filters these out alongside drafts; the admin
@@ -2408,6 +2492,11 @@ class Post(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"))
+    # Source post id when this row was made with Duplicate. The editor
+    # uses it to warn before a copy is saved / published still carrying
+    # the original's (now past) event date. Plain int, no FK — the
+    # source may be deleted later and the copy should keep working.
+    duplicated_from_id = db.Column(db.Integer)
 
     @property
     def public_slug(self):
@@ -2423,6 +2512,51 @@ class Post(db.Model):
         ``created_at`` so legacy rows imported before the column
         existed still surface a date."""
         return self.published_at or self.created_at
+
+    # Values the ``public_visibility`` column accepts, with the label
+    # the admin picker shows for each. Anything else stored on the row
+    # (legacy NULL, a hand-edited DB) reads as "auto".
+    VISIBILITY_CHOICES = (
+        ("auto", "Follow the post's status"),
+        ("public", "Always public"),
+        ("private", "Hidden from the public site"),
+    )
+
+    @property
+    def visibility(self):
+        """Normalised ``public_visibility`` — always one of
+        auto / public / private."""
+        v = (self.public_visibility or "auto").strip().lower()
+        return v if v in ("auto", "public", "private") else "auto"
+
+    @property
+    def is_publicly_visible(self):
+        """Python-side twin of ``frontend._post_live_clause`` — True when
+        an anonymous visitor is allowed to see this post right now.
+
+        Kept in lock-step with that SQL clause: pending review is never
+        public, ``private`` always wins, ``public`` overrides both the
+        draft flag and the publish schedule, and ``auto`` falls back to
+        "not a draft, and its publish time has arrived". Archived posts
+        stay visible either way — archiving files a post under /archive,
+        it doesn't unpublish it.
+
+        Used where a row is already in hand and re-querying would be
+        silly (the public image routes, template chips)."""
+        if self.is_pending_review:
+            return False
+        vis = self.visibility
+        if vis == "private":
+            return False
+        if vis == "public":
+            return True
+        if self.is_draft:
+            return False
+        if self.published_at:
+            from .timezone import now_local_naive
+            if self.published_at > now_local_naive(SiteSetting.query.first()):
+                return False
+        return True
 
 
 class Story(db.Model):
@@ -2582,6 +2716,9 @@ class BlogPost(db.Model):
     # empty list means "use the legacy markdown `body` column" so older
     # posts keep rendering identically until they're re-edited.
     body_blocks_json = db.Column(db.Text)
+    # The block version of a post converted to Markdown, so the
+    # conversion can be undone (app/blog_convert.py). NULL otherwise.
+    body_blocks_backup_json = db.Column(db.Text)
     featured_image_filename = db.Column(db.String(500))
     author_name = db.Column(db.String(120))
     author_bio = db.Column(db.Text)
@@ -2940,7 +3077,7 @@ class Page(db.Model):
     # `full_padding_pct` only matters in full mode. Together they let
     # the admin choose whether the page hugs a content column or
     # bleeds wide with controllable air on the sides.
-    width_mode = db.Column(db.String(16), nullable=False, default="boxed")
+    width_mode = db.Column(db.String(16), nullable=False, default="site")
     max_width = db.Column(db.Integer, nullable=False, default=1160)
     full_padding_pct = db.Column(db.Integer, nullable=False, default=4)
     # Per-page page-shell spacing. Each is a pixel value the public
@@ -3483,12 +3620,11 @@ class TrustedServantSubscriber(db.Model):
     """One row per entry on the Trusted Servants email list. Two paths
     create rows:
 
-      1. A signed-in user clicks "Join the list" on the dashboard
-         widget — ``user_id`` is set and the user can edit/remove their
-         own entry via the widget on subsequent visits.
-      2. An admin uses the manual-entry modal on /email-list to
-         add an external contact who doesn't have a portal account —
-         ``user_id`` is NULL; the row is admin-managed only.
+      1. Creating a portal user (auth.users_create, unless its "Add to
+         the Email List" box is cleared) adds them with ``user_id`` set,
+         or links an entry that already has their email.
+      2. An admin adds someone on /email-list, often a contact without
+         a portal account: ``user_id`` is NULL.
 
     ``user_id`` is unique when set so a single user can't accumulate
     duplicate subscriptions, but multiple NULL rows are allowed (SQLite
@@ -3528,8 +3664,31 @@ class TrustedServantBlast(db.Model):
     failed_count = db.Column(db.Integer, nullable=False, default=0)
     started_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     finished_at = db.Column(db.DateTime)
+    # The update kept in full, as it went out: the HTML the Markdown
+    # rendered to (``{name}`` still in place, filled per person), the
+    # audience picked ({"mode", "groups", "picked"}) and every
+    # recipient's result ([{"name", "email", "group", "ok", "error"}]).
+    # Blank on updates sent before these were kept.
+    body_html = db.Column(db.Text)
+    audience_json = db.Column(db.Text)
+    recipients_json = db.Column(db.Text)
 
     sent_by = db.relationship("User")
+
+    def audience(self):
+        import json
+        try:
+            return json.loads(self.audience_json or "{}") or {}
+        except (ValueError, TypeError):
+            return {}
+
+    def recipients(self):
+        import json
+        try:
+            rows = json.loads(self.recipients_json or "[]")
+        except (ValueError, TypeError):
+            return []
+        return rows if isinstance(rows, list) else []
 
 
 class CustomForm(db.Model):

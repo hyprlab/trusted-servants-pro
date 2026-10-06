@@ -1,198 +1,293 @@
 {% extends "base.html" %}
+{% from "_help_chip.html" import chip %}
+{% from "_row_menu.html" import row_menu %}
+{% from "_list_page.html" import search_form, side_link, sort_link, view_switch %}
+{% set _admin = current_user.is_admin() %}
 {% block heading %}Zoom Accounts{% endblock %}
-{% block top_actions %}
-{% if current_user.is_admin() %}
-<button type="button" class="btn btn-primary" data-open-modal="zoom-new-modal">+ New Account</button>
-{% endif %}
-{% endblock %}
+{% block heading_help %}The shared Zoom accounts meetings start from: copy a sign-in or reveal a password, see which meetings use each account in the weekly calendar, and get the one-time passcode Zoom asks for.{% endblock %}
+{% block top_actions %}{% endblock %}
 {% block content %}
+{# Every link keeps the page's settings and changes only what it passes
+   in `over`. #}
+{% set _base = {'tab': 'calendar' if tab == 'calendar' else None, 'only': only or None,
+                'acct': acct, 'sort': sort, 'q': q or None, 'view': view} %}
+{% macro _url(over={}) -%}
+  {%- set _u = dict(_base) -%}{%- set _ = _u.update(over) -%}{{ url_for('main.zoom_accounts', **_u) }}
+{%- endmacro %}
+{% set _skey, _sdir = sort.rsplit('_', 1) %}
+{% set SORT_FIRST_DIR = {'name': 'asc', 'uses': 'desc'} %}
+{% macro _sort(key, label) -%}
+  {%- set _on = _skey == key -%}
+  {{ sort_link(_url({'sort': key ~ '_' ~ ((('asc' if _sdir == 'desc' else 'desc') if _on else SORT_FIRST_DIR[key]))}), label, _on, _sdir) }}
+{%- endmacro %}
+{% macro _sort_th(key, label, cls='') -%}
+  <th class="{{ cls }}"{% if _skey == key %} aria-sort="{{ 'ascending' if _sdir == 'asc' else 'descending' }}"{% endif %}>{{ _sort(key, label) }}</th>
+{%- endmacro %}
+{% macro _plural(n, one, many) %}{{ n }} {{ one if n == 1 else many }}{% endmacro %}
+{% macro _uses(a) %}{% set n = uses.get(a.id, 0) %}{{ n }} meeting time{{ '' if n == 1 else 's' }}{% endmacro %}
+{# Sign-in with Copy; password hidden until revealed, with Copy. #}
+{% macro _signin(a) %}
+  <span class="za-cred">
+    <span class="za-cred-text">{{ a.username }}</span>
+    <button type="button" class="btn btn-sm za-cred-btn" data-copy-text="{{ a.username }}" title="Copy the sign-in" aria-label="Copy {{ a.username }}">{{ icon('copy') }}<span>Copy</span></button>
+  </span>
+{% endmacro %}
+{% macro _password(a) %}
+  <span class="za-cred" data-za-pw data-url="{{ url_for('main.zoom_account_reveal', aid=a.id) }}">
+    <span class="za-cred-text za-pw-text mono" data-za-pw-text>••••••••</span>
+    <button type="button" class="btn btn-sm za-cred-btn" data-za-reveal title="Show the password for 15 seconds">{{ icon('eye') }}<span>Show</span></button>
+    <button type="button" class="btn btn-sm za-cred-btn" data-za-copy title="Copy the password" aria-label="Copy the password for {{ a.name }}">{{ icon('copy') }}<span>Copy</span></button>
+  </span>
+{% endmacro %}
+{% macro _actions(a, compact=False) %}
+  {% call row_menu('Actions' if not compact else 'Actions for ' ~ a.name, compact=compact) %}
+    <a class="row-menu-item" href="{{ _url({'tab': 'calendar', 'q': a.name}) }}">{{ icon('calendar') }}<span>See it in the calendar</span></a>
+    {% if _admin %}
+    <a class="row-menu-item" href="{{ url_for('main.zoom_account_edit', aid=a.id) }}">{{ icon('pencil') }}<span>Edit</span></a>
+    <div class="row-menu-sep" role="separator"></div>
+    <button type="submit" form="za-delete-{{ a.id }}-form" class="row-menu-item row-menu-item-danger">{{ icon('trash') }}<span>Delete</span></button>
+    {% endif %}
+  {% endcall %}
+{% endmacro %}
 
-{% if embed and current_user.is_admin() %}
-<div class="embed-actions">
-  <button type="button" class="btn btn-primary" data-open-modal="zoom-new-modal">+ New Account</button>
-</div>
-{% endif %}
-
-<section class="card">
-  <div class="card-head"><h2>Accounts</h2></div>
-  <div class="zoom-accounts-layout">
-    <div class="zoom-accounts-main">
-      {% if accounts %}
-      <table class="tbl zoom-accounts-tbl">
-        <thead><tr><th>Name</th><th>Username</th><th>Password</th><th>Notes</th><th>Assignments</th>{% if current_user.is_admin() %}<th></th>{% endif %}</tr></thead>
-        <tbody>
-        {% for a in accounts %}
-          <tr>
-            <td data-label="Name">{{ a.name }}</td>
-            <td data-label="Username">{{ a.username }}</td>
-            <td data-label="Password">
-              <button type="button" class="btn btn-sm" data-reveal="{{ a.id }}" data-reveal-url="{{ url_for('main.zoom_account_reveal', aid=a.id) }}">Show</button>
-              <span class="mono pw-reveal" id="pw-{{ a.id }}"></span>
-            </td>
-            <td data-label="Notes">
-              {% if a.notes %}
-              <span class="heading-help notes-tip">
-                <button type="button" class="help-btn notes-btn" aria-label="View notes for {{ a.name }}">{{ icon('info') }}</button>
-                <span class="help-tooltip" role="tooltip">{{ a.notes }}</span>
-              </span>
-              {% endif %}
-            </td>
-            <td data-label="Assignments">{{ a.schedules|length }}</td>
-            {% if current_user.is_admin() %}
-            <td class="zoom-accounts-actions">
-              <div class="row-actions">
-                <button type="button" class="btn btn-sm" data-open-modal="zoom-edit-{{ a.id }}">Edit</button>
-                <form method="post" action="{{ url_for('main.zoom_account_delete', aid=a.id) }}"
-                      onsubmit="return confirm('Delete this Zoom account? Assignments will be cleared.');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-                  <button class="btn btn-sm btn-danger">{{ icon('x') }}</button>
-                </form>
-              </div>
-            </td>
-            {% endif %}
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p class="muted">No Zoom accounts yet.</p>
-      {% endif %}
+<div class="fb-pick fb-pick--page lst-page">
+<aside class="fb-side" aria-label="Zoom accounts">
+  {# The page's two views: the accounts, and when each is in use. #}
+  <nav class="ds-seg-btns ts-switch" aria-label="Show">
+    <a href="{{ _url({'tab': None}) }}" role="radio" aria-checked="{{ 'false' if tab == 'calendar' else 'true' }}"><span>Accounts</span><span class="ts-switch-n">{{ total }}</span></a>
+    <a href="{{ _url({'tab': 'calendar'}) }}" role="radio" aria-checked="{{ 'true' if tab == 'calendar' else 'false' }}"><span>Calendar</span></a>
+  </nav>
+  <div class="fb-side-top" data-live="total">
+    <p class="fb-side-total" aria-live="polite">{{ _plural(accounts|length, 'account', 'accounts') }}{% if q %} matching “{{ q }}”{% endif %}</p>
+  </div>
+  {{ search_form(url_for('main.zoom_accounts'), _base, q, 'Search accounts', 'Search by name, sign-in or notes') }}
+  {% if _admin %}<a class="btn btn-primary fb-side-upload" href="{{ url_for('main.zoom_account_new') }}">{{ icon('plus') }} New account</a>{% endif %}
+  <div class="lst-side-live" data-live="side">
+    <nav class="fb-side-group" aria-label="Show">
+      <h3 class="fb-side-title">Show</h3>
+      {{ side_link(_url({'only': None}), 'video', 'All accounts', only_counts[''], not only) }}
+      {{ side_link(_url({'only': 'overlaps'}), 'alert-triangle', 'Overlapping meetings', only_counts.overlaps, only == 'overlaps', 'has-waiting' if only_counts.overlaps and only != 'overlaps') }}
+    </nav>
+    {% if tab == 'calendar' %}
+    {# One account at a time gets the whole day's width, with labels. #}
+    <nav class="fb-side-group" aria-label="Account">
+      <h3 class="fb-side-title">Account</h3>
+      {{ side_link(_url({'acct': None}), 'layout-grid', 'All accounts', None, not acct) }}
+      {% for a in all_accounts %}
+      <a class="fb-side-link za-acct-link" href="{{ _url({'acct': a.id}) }}"{% if acct == a.id %} aria-current="true"{% endif %}>
+        <span class="za-swatch za-c{{ week.color_of.get(a.id, 0) if week else 0 }}" aria-hidden="true"></span><span>{{ a.name }}</span><span class="fb-side-count">{{ uses.get(a.id, 0) }}</span></a>
+      {% endfor %}
+    </nav>
+    {% else %}
+    <div class="fb-side-group" role="group" aria-label="Sort accounts">
+      <h3 class="fb-side-title">Sort by</h3>
+      <div class="fb-side-sort">{{ _sort('name', 'Name') }}{{ _sort('uses', 'Most used') }}</div>
     </div>
-
-    {% if otp and (otp.email or otp.login_url or otp.password_enc or otp.imap_host) %}
-    <aside class="zoom-accounts-side">
-      <div class="zoom-otp-widget">
-        <h3 class="zoom-otp-title">Zoom One-Time-Passcodes (OTP)</h3>
-        <p class="muted small">Retrieve one-time-passcodes for the assigned Zoom account. After Zoom prompts for the code, click this retrieve button and the system will fetch it — <strong>it may take up to a minute to retrieve</strong>.</p>
-        {% if otp.imap_host %}
-        {# Inline auto-retrieval — shares the wizard's fetcher (initOtpFetch). #}
-        <div class="otp-inline" data-otp-widget data-fetch-url="{{ url_for('main.otp_email_fetch_code') }}">
-          <button type="button" class="btn btn-primary otp-inline-fetch" data-otp-fetch>
-            {{ icon('mail') }}<span data-otp-fetch-label>Retrieve latest code</span>
-          </button>
-          <div class="otp-inline-result" data-otp-result hidden>
-            <button type="button" class="copy-btn mono otp-inline-code" data-copy="" data-tip="Click to copy" data-otp-code>------</button>
-            <span class="otp-inline-meta muted small" data-otp-meta></span>
-            <span class="otp-inline-countdown" data-otp-countdown hidden></span>
-          </div>
-          <p class="otp-inline-error" data-otp-error hidden></p>
-        </div>
-        {% endif %}
-        {% if otp.imap_host and (otp.email or otp.password_enc or otp.login_url) %}
-        <div class="detail-label otp-manual-label">Or log in to the inbox manually</div>
-        {% endif %}
-        <dl class="zoom-info">
-          {% if otp.email %}
-          <dt>Email</dt>
-          <dd><button type="button" class="copy-btn mono" data-copy="{{ otp.email }}" data-tip="Click to copy">{{ otp.email }}</button></dd>
-          {% endif %}
-          {% if otp.password_enc %}
-          <dt>Password</dt>
-          <dd class="pw-row">
-            <button type="button" class="copy-btn mono pw-field" data-copy-url="{{ url_for('main.otp_email_reveal') }}" data-tip="Click to copy">••••••••</button>
-            <button type="button" class="btn btn-sm reveal-btn" data-reveal-url="{{ url_for('main.otp_email_reveal') }}" data-target-scope="prev">Reveal</button>
-          </dd>
-          {% endif %}
-          {% if otp.login_url %}
-          <dt></dt>
-          <dd><a class="btn btn-primary otp-login-btn" href="{{ otp.login_url|safe_url }}" target="_blank" rel="noopener">Login for OTP Codes</a></dd>
-          {% endif %}
-        </dl>
-      </div>
-    </aside>
+    {{ view_switch(_url({'view': 'list'}), _url({'view': 'grid'}), view) }}
     {% endif %}
   </div>
-</section>
 
+  {# One-time passcodes: outside the part a live search replaces, so its
+     own scripts (initOtpFetch, the copy and reveal buttons) keep working. #}
+  {% if otp and (otp.email or otp.login_url or otp.password_enc or otp.imap_host) %}
+  <section class="fb-side-group fb-side-keep za-otp" aria-label="One-time passcodes">
+    <h3 class="fb-side-title">One-time passcodes {% call chip('One-time passcodes') %}When Zoom asks for a code while you sign in, retrieve it here. It can take up to a minute to arrive.{% endcall %}</h3>
+    {% if otp.imap_host %}
+    <div class="otp-inline za-otp-inline" data-otp-widget data-fetch-url="{{ url_for('main.otp_email_fetch_code') }}">
+      <button type="button" class="btn btn-primary otp-inline-fetch" data-otp-fetch>
+        {{ icon('mail') }}<span data-otp-fetch-label>Retrieve the code</span>
+      </button>
+      <div class="otp-inline-result" data-otp-result hidden>
+        <button type="button" class="copy-btn mono otp-inline-code" data-copy="" data-tip="Click to copy" data-otp-code>------</button>
+        <span class="otp-inline-meta muted small" data-otp-meta></span>
+        <span class="otp-inline-countdown" data-otp-countdown hidden></span>
+      </div>
+      <p class="otp-inline-error" data-otp-error hidden></p>
+    </div>
+    {% endif %}
+    {% if otp.email or otp.password_enc or otp.login_url %}
+    <details class="za-otp-manual">
+      <summary>Open the passcode inbox yourself</summary>
+      <dl class="zoom-info">
+        {% if otp.email %}
+        <dt>Email</dt>
+        <dd><button type="button" class="copy-btn mono" data-copy="{{ otp.email }}" data-tip="Click to copy">{{ otp.email }}</button></dd>
+        {% endif %}
+        {% if otp.password_enc %}
+        <dt>Password</dt>
+        <dd class="pw-row">
+          <button type="button" class="copy-btn mono pw-field" data-copy-url="{{ url_for('main.otp_email_reveal') }}" data-tip="Click to copy">••••••••</button>
+          <button type="button" class="btn btn-sm reveal-btn" data-reveal-url="{{ url_for('main.otp_email_reveal') }}" data-target-scope="prev">Reveal</button>
+        </dd>
+        {% endif %}
+      </dl>
+      {% if otp.login_url %}<a class="btn btn-sm za-otp-login" href="{{ otp.login_url|safe_url }}" target="_blank" rel="noopener">{{ icon('external-link') }} Open the inbox</a>{% endif %}
+    </details>
+    {% endif %}
+  </section>
+  {% endif %}
+</aside>
+<div class="fb-pick-main" data-live="main">
+<section class="card fb lst">
+  {% if not accounts %}
+  <div class="fb-empty">
+    <span class="fb-empty-icon" aria-hidden="true">{{ icon('video') }}</span>
+    {% if q or only %}
+    <p>No account matches{{ ' “' ~ q ~ '”' if q }}.</p>
+    <a class="btn btn-sm" href="{{ _url({'q': None, 'only': None}) }}">Show all</a>
+    {% else %}
+    <p>No Zoom accounts yet.</p>
+    {% if _admin %}<a class="btn btn-sm btn-primary" href="{{ url_for('main.zoom_account_new') }}">{{ icon('plus') }} New account</a>{% endif %}
+    {% endif %}
+  </div>
 
-{% if accounts %}
-<section class="card">
-  <div class="card-head"><h2>Weekly Assignment Calendar</h2></div>
-  <div class="zoom-cal-wrap">
-    <table class="zoom-cal">
-      <thead>
-        <tr>
-          <th class="cal-acct">Account</th>
-          {% for d in day_order %}<th>{{ DAYS_OF_WEEK[d][:3] }}</th>{% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in accounts %}
-        <tr>
-          <th class="cal-acct">{{ a.name }}</th>
-          {% for d in day_order %}
-          <td>
-            {% for s in calendar[a.id][d]|sort(attribute='start_time') %}
-              <div class="cal-slot{% if s.id in conflict_ids %} cal-slot-conflict{% endif %}">
-                <div class="cal-time">{{ (s.opens_time or s.start_time)|fmt12h }}–{{ s.end_time|fmt12h }}</div>
-                <a class="cal-link" href="{{ url_for('main.meeting_detail', slug=s.meeting.public_slug) }}">{{ s.meeting.name }}</a>
-              </div>
-            {% endfor %}
-          </td>
-          {% endfor %}
-        </tr>
+  {% elif tab == 'calendar' %}
+  {# The week as a grid: days across, hours down, each meeting time at
+     its real place, from when its room opens to its end, so the free
+     time shows. Each account has its own lane and color in every day;
+     times that overlap on one account sit side by side, outlined. #}
+  {% set W = week %}
+  {% set span = W.end - W.start %}
+  {% macro _t(m) %}{{ ('%02d:%02d' % ((m // 60) % 24, m % 60))|fmt12h }}{% endmacro %}
+  <div class="za-cal-head">
+    <h2>Weekly assignments</h2>
+    <div class="za-legend">
+      {% for a in accounts %}<span class="za-legend-item"><span class="za-swatch za-c{{ W.color_of.get(a.id, 0) }}" aria-hidden="true"></span>{{ a.name }}</span>{% endfor %}
+      {% if conflict_ids %}<span class="za-legend-item"><span class="za-swatch za-swatch--overlap" aria-hidden="true"></span>Overlap</span>{% endif %}
+    </div>
+  </div>
+  <div class="zcal" style="--zcal-hours: {{ W.hours|length }}; --zcal-lanes: {{ W.lanes }};">
+    <div class="zcal-head">
+      <span class="zcal-corner" aria-hidden="true"></span>
+      {% for day in W.days %}<span class="zcal-dayname{{ ' is-today' if day.day == today_dow }}">{{ DAYS_OF_WEEK[day.day][:3] }}</span>{% endfor %}
+    </div>
+    <div class="zcal-body">
+      <div class="zcal-gutter" aria-hidden="true">
+        {% for h in W.hours %}<span class="zcal-hour" style="top: {{ (h * 60 - W.start) / span * 100 }}%">{{ ('%02d:00' % h)|fmt12h }}</span>{% endfor %}
+      </div>
+      {% for day in W.days %}
+      <div class="zcal-day{{ ' is-today' if day.day == today_dow }}" role="group" aria-label="{{ DAYS_OF_WEEK[day.day] }}">
+        {% for b in day.blocks %}
+        {% set s = b.s %}
+        {% set _w = 100 / W.lanes / b.cols %}
+        <a class="zcal-block za-c{{ b.color }}{{ ' is-conflict' if s.id in conflict_ids }}"
+           href="{{ url_for('main.meeting_detail', slug=s.meeting.public_slug) }}"
+           style="top: {{ b.top }}%; height: {{ b.height }}%; --zl: {{ b.lane * 100 / W.lanes + b.col * _w }}%; --zw: {{ _w }}%;"
+           title="{{ s.meeting.name }} · {{ s.zoom_account.name if s.zoom_account }} · {{ _t(b.start) }}–{{ _t(b.end) }}{% if s.opens_time and b.start < s.start_minutes() %} (room opens {{ _t(b.start) }}, starts {{ s.start_time|fmt12h }}){% endif %}{% if s.id in conflict_ids %} · overlaps another meeting on this account{% endif %}">
+          <span class="zcal-block-time">{{ b.label }}</span>
+          <span class="zcal-block-name">{{ s.meeting.name }}</span>
+        </a>
         {% endfor %}
-      </tbody>
-    </table>
+        {% if day.day == today_dow and W.start <= now_min < W.end %}
+        <span class="zcal-now" style="top: {{ (now_min - W.start) / span * 100 }}%" title="Now" aria-hidden="true"></span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
   </div>
+  <p class="muted small za-cal-note">Each block runs from when the Zoom room opens to the meeting's end. {% if W.lanes > 1 %}Pick an account in the sidebar to see its week with the meeting names.{% endif %}</p>
+
+  {% elif view == 'grid' %}
+  <div class="lst-grid">
+    {% for a in accounts %}
+    <article class="lst-card za-card">
+      <div class="lst-card-head">
+        <span class="lst-thumb lst-thumb--online" aria-hidden="true">{{ icon('video') }}</span>
+        {% if _admin %}<a class="lst-card-link" href="{{ url_for('main.zoom_account_edit', aid=a.id) }}">{{ a.name }}</a>{% else %}<span class="lst-card-link">{{ a.name }}</span>{% endif %}
+        {{ _actions(a, compact=True) }}
+      </div>
+      <div class="lst-card-body">
+        <div class="za-card-row"><span class="za-card-label">Sign-in</span>{{ _signin(a) }}</div>
+        <div class="za-card-row"><span class="za-card-label">Password</span>{{ _password(a) }}</div>
+        {% if a.notes %}<p class="lst-card-desc">{{ a.notes }}</p>{% endif %}
+      </div>
+      <div class="lst-card-foot">
+        <span class="lst-card-counts">{{ _uses(a) }}</span>
+        <span class="lst-card-chips">{% if a.id in conflict_accts %}<span class="post-chip post-chip-warning">Overlap</span>{% endif %}</span>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <table class="tbl fb-tbl lst-tbl za-tbl">
+    <thead>
+      <tr>
+        <th class="fb-thumb-col"><span class="sr-only">Kind</span></th>
+        {{ _sort_th('name', 'Account') }}
+        <th class="fb-col">Sign-in</th>
+        <th class="fb-col">Password</th>
+        {{ _sort_th('uses', 'Used for', 'fb-col') }}
+        <th class="th-actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in accounts %}
+      <tr>
+        <td class="fb-thumb-cell"><span class="lst-thumb lst-thumb--online" aria-hidden="true">{{ icon('video') }}</span></td>
+        <td class="media-name-cell">
+          {% if _admin %}<a class="fb-name" href="{{ url_for('main.zoom_account_edit', aid=a.id) }}">{{ a.name }}</a>{% else %}<span class="fb-name">{{ a.name }}</span>{% endif %}
+          {% if a.notes %}<div class="fb-sub">{{ a.notes }}</div>{% endif %}
+        </td>
+        <td class="fb-col">{{ _signin(a) }}</td>
+        <td class="fb-col">{{ _password(a) }}</td>
+        <td class="fb-col">
+          <a class="za-uses" href="{{ _url({'tab': 'calendar', 'q': a.name}) }}">{{ _uses(a) }}</a>
+          {% if a.id in conflict_accts %}<span class="post-chip post-chip-warning" title="Some of its meeting times overlap">Overlap</span>{% endif %}
+        </td>
+        <td class="row-actions">{{ _actions(a) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
 </section>
-{% endif %}
-
-{% if current_user.is_admin() %}
-{# New account modal #}
-<div class="modal" id="zoom-new-modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <form method="post" action="{{ url_for('main.zoom_account_new') }}" class="form">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-      <div class="modal-head">
-        <h2>New Zoom Account</h2>
-        <button type="button" class="icon-btn" data-close>{{ icon('x') }}</button>
-      </div>
-      <div class="modal-body">
-        <label>Name<input name="name" required></label>
-        <label>Username / Email<input name="username" required></label>
-        <label>Password<input name="password" type="password" required></label>
-        <label>Notes<textarea name="notes" rows="2"></textarea></label>
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button class="btn btn-primary">Create</button>
-      </div>
-    </form>
-  </div>
+{% if _admin %}{% for a in accounts %}
+<form id="za-delete-{{ a.id }}-form" method="post" action="{{ url_for('main.zoom_account_delete', aid=a.id) }}"
+      data-confirm-title="Delete {{ a.name }}?" data-confirm-label="Delete"
+      data-confirm="Meetings that start from it are left without a Zoom account until you pick another."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% endfor %}{% endif %}
+</div>
 </div>
 
-{# Edit modals #}
-{% for a in accounts %}
-<div class="modal" id="zoom-edit-{{ a.id }}" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" role="dialog" aria-modal="true">
-    <form method="post" action="{{ url_for('main.zoom_account_edit', aid=a.id) }}" class="form">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-      <div class="modal-head">
-        <h2>Edit Zoom Account</h2>
-        <button type="button" class="icon-btn" data-close>{{ icon('x') }}</button>
-      </div>
-      <div class="modal-body">
-        <label>Name<input name="name" required value="{{ a.name }}"></label>
-        <label>Username / Email<input name="username" required value="{{ a.username }}"></label>
-        <label>Password <span class="muted smaller">(leave blank to keep)</span>
-          <input name="password" type="password" placeholder="••••••••">
-        </label>
-        <label>Notes<textarea name="notes" rows="2">{{ a.notes or '' }}</textarea></label>
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button class="btn btn-primary">Save</button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endfor %}
-{% endif %}
-
+<script>
+// Account passwords: Show reveals one for 15 seconds, Copy copies it,
+// fetched only when asked. Delegated, so rows a live search brings in
+// work too.
+(function () {
+  var timers = new WeakMap();
+  function fetchPw(box) {
+    if (box.dataset.pw) return Promise.resolve(box.dataset.pw);
+    return fetch(box.dataset.url, { credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+      .then(function (j) { box.dataset.pw = j.password || ''; return box.dataset.pw; });
+  }
+  function hide(box) {
+    box.querySelector('[data-za-pw-text]').textContent = '••••••••';
+    var b = box.querySelector('[data-za-reveal] span');
+    if (b) b.textContent = 'Show';
+    box.classList.remove('is-shown');
+  }
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest && e.target.closest('[data-za-reveal], [data-za-copy]');
+    if (!btn) return;
+    var box = btn.closest('[data-za-pw]');
+    if (btn.hasAttribute('data-za-reveal')) {
+      if (box.classList.contains('is-shown')) { hide(box); return; }
+      fetchPw(box).then(function (pw) {
+        box.querySelector('[data-za-pw-text]').textContent = pw || '(none)';
+        btn.querySelector('span').textContent = 'Hide';
+        box.classList.add('is-shown');
+        clearTimeout(timers.get(box));
+        timers.set(box, setTimeout(function () { hide(box); }, 15000));
+      }).catch(function () { (window.tspShowToast || alert)('Could not get the password.', 'error'); });
+    } else {
+      var label = btn.querySelector('span');
+      fetchPw(box).then(function (pw) { return navigator.clipboard.writeText(pw); })
+        .then(function () { label.textContent = 'Copied!'; setTimeout(function () { label.textContent = 'Copy'; }, 1500); })
+        .catch(function () { label.textContent = 'Failed'; setTimeout(function () { label.textContent = 'Copy'; }, 1500); });
+    }
+  });
+})();
+</script>
 {% endblock %}

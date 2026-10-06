@@ -39,7 +39,7 @@ To restore onto a fresh server:
 
 !!! warning "Large restores and upload limits"
     A full-portal archive can be large. The upload ceiling defaults to 4 GiB —
-    if your bundle is bigger, raise [`TSP_MAX_UPLOAD_MB`](/docs/configuration)
+    if your bundle is bigger, raise [`TSP_MAX_UPLOAD_MB`](configuration.md)
     on the server and restart before importing.
 
 ## Command-line backup
@@ -66,7 +66,7 @@ docker compose up -d
 The export above is the *local*, on-demand layer. For automatic, off-machine
 copies — pushed on a schedule to **TS Pro Backup**, SFTP, FTP/FTPS, or Dropbox —
 set up an off-site target under **Settings → Data → Off-site backups**. The
-dedicated [TS Pro Backup](/docs/tspro-backup) guide walks through the
+dedicated [TS Pro Backup](tspro-backup.md) guide walks through the
 end-to-end-encrypted option end to end.
 
 Two robustness details are worth knowing, because they remove the disk-related
@@ -77,7 +77,7 @@ ways a large portal's off-site backup used to fail:
   That scratch now stages on the same mount as your data (guaranteed headroom)
   instead of the system temp dir, which on many hosts is too small to hold a
   full bundle. Point `TSP_TMP_DIR` at a dedicated scratch disk to override — see
-  [Disk Space &amp; Housekeeping](/docs/disk-space#where-backups-stage-their-scratch-files).
+  [Disk Space &amp; Housekeeping](disk-space.md#where-backups-stage-their-scratch-files).
 - **Passphrase-encrypted bundles are encrypted in a stream.** When you turn on
   archive encryption for an FTP/SFTP/Dropbox target, the encrypt (and the
   matching decrypt on restore) processes the archive in small chunks, so peak
@@ -89,7 +89,7 @@ ways a large portal's off-site backup used to fail:
 
 1. **Export** from the old portal (UI export, or copy `./data`).
 2. Install Trusted Servants Pro on the new host — see
-   [Installation](/docs/installation).
+   [Installation](installation.md).
 3. **Import** the archive (UI), or drop the data directory into place (CLI).
 
 !!! danger "Don't leave zoom.key behind"
@@ -100,11 +100,11 @@ ways a large portal's off-site backup used to fail:
 
 ## Next steps
 
-- [Off-site Backups with TS Pro Backup](/docs/tspro-backup) — encrypted,
+- [Off-site Backups with TS Pro Backup](tspro-backup.md) — encrypted,
   scheduled, off-machine backups.
-- [Disk Space &amp; Housekeeping](/docs/disk-space) — where backups stage, and
+- [Disk Space &amp; Housekeeping](disk-space.md) — where backups stage, and
   keeping the server's disk healthy.
-- [Configuration &amp; Security](/docs/configuration) — how `zoom.key` and
+- [Configuration &amp; Security](configuration.md) — how `zoom.key` and
   encryption work.
-- [Upgrading &amp; Uninstalling](/docs/upgrading) — staying current and clean
+- [Upgrading &amp; Uninstalling](upgrading.md) — staying current and clean
   teardown.

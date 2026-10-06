@@ -1,0 +1,84 @@
+{# "Convert to Markdown" for a blog post still in the block builder
+   (blog_edit.html). Opening it asks /blog/convert-preview what the
+   blocks in the editor would become; Convert saves the whole form with
+   convert_to_markdown=1, so edits in progress go with it and blog_save
+   keeps the block version for undoing. #}
+<div class="modal" id="blog-convert-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel blog-convert-panel" role="dialog" aria-modal="true" aria-labelledby="blog-convert-title">
+    <div class="modal-head">
+      <h2 id="blog-convert-title">Convert to Markdown</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted small">The post is then written like stories and announcements. Its block version is kept, and you can go back to it from the editor.</p>
+      <div class="blog-convert-notes" data-convert-notes hidden>
+        <h3>What changes</h3>
+        <ul data-convert-notes-list></ul>
+      </div>
+      <p class="blog-convert-same muted small" data-convert-same hidden>{{ icon('check') }} Everything in this post carries over as it is.</p>
+      <h3 class="blog-convert-sub">Preview</h3>
+      <div class="blog-convert-preview markdown-body" data-convert-preview>
+        <p class="muted small">Preparing the preview…</p>
+      </div>
+      <details class="blog-convert-source">
+        <summary>Markdown</summary>
+        <pre data-convert-markdown></pre>
+      </details>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" form="blog-edit-form" name="convert_to_markdown" value="1"
+              class="btn btn-primary" data-convert-go disabled>Convert</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var modal = document.getElementById('blog-convert-modal');
+  var blocks = document.getElementById('pbe-blocks-json');
+  var form = document.getElementById('blog-edit-form');
+  if (!modal || !blocks || !form) return;
+  var notesWrap = modal.querySelector('[data-convert-notes]');
+  var notesList = modal.querySelector('[data-convert-notes-list]');
+  var same = modal.querySelector('[data-convert-same]');
+  var preview = modal.querySelector('[data-convert-preview]');
+  var source = modal.querySelector('[data-convert-markdown]');
+  var go = modal.querySelector('[data-convert-go]');
+  var csrf = form.querySelector('input[name="csrf_token"]');
+  var url = {{ url_for('main.blog_convert_preview')|tojson }};
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-blog-convert-open]')) return;
+    go.disabled = true;
+    notesWrap.hidden = true;
+    same.hidden = true;
+    preview.innerHTML = '<p class="muted small">Preparing the preview…</p>';
+    source.textContent = '';
+    var fd = new FormData();
+    fd.append('body_blocks_json', blocks.value || '');
+    if (csrf) fd.append('csrf_token', csrf.value);
+    fetch(url, { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || !data.ok) throw new Error('preview');
+        notesList.textContent = '';
+        (data.notes || []).forEach(function (n) {
+          var li = document.createElement('li');
+          li.textContent = n;
+          notesList.appendChild(li);
+        });
+        notesWrap.hidden = !(data.notes || []).length;
+        same.hidden = !!(data.notes || []).length;
+        // Rendered server-side through the same allowlisted filter as
+        // the public page.
+        preview.innerHTML = data.html || '<p class="muted small">The body is empty.</p>';
+        source.textContent = data.markdown || '';
+        go.disabled = false;
+      })
+      .catch(function () {
+        preview.innerHTML = '<p class="muted small">The preview could not be made. Try again.</p>';
+      });
+  });
+})();
+</script>

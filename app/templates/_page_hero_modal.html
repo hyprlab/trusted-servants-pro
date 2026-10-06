@@ -17,6 +17,7 @@
      bg_image_url — string URL for the bg image preview (or '')
      bg_video_url — string URL for the bg video preview (or '')
 #}
+{% from "_help_chip.html" import chip, hrow %}
 <div class="modal fe-page-edit-modal fe-page-edit-modal--wide" id="page-hero-edit-modal" aria-hidden="true" data-page-hero-modal>
   <div class="modal-backdrop" data-close></div>
   <div class="modal-panel fe-page-edit-modal-panel" role="dialog" aria-modal="true">
@@ -24,8 +25,7 @@
             aria-label="Close">{{ icon('x') }}</button>
 <section class="card hero-unified">
   <div class="card-head">
-    <h2>Hero</h2>
-    <span class="muted smaller">Heading, background, and call-to-action buttons for this page's hero.</span>
+    <h2>Hero {% call chip('Hero') %}Heading, background, and call-to-action buttons for this page's hero.{% endcall %}</h2>
   </div>
 
   {% set _pv_font = vals.frontend_hero_heading_font or 'fraunces' %}
@@ -64,6 +64,20 @@
 
   <div class="hero-full-preview-clip">
     <p class="hero-full-preview-label muted smaller">Live preview</p>
+    {# Preview theme switch. The public hero renders differently in
+       dark mode (its own backdrop, heading gradient, and the dynamic
+       background's dark-mode palette / tone / texture); this lets the
+       admin check both without changing the system theme. #}
+    <div class="nav-megalink-seg hero-full-preview-theme" role="radiogroup" aria-label="Preview theme">
+      <label class="nav-megalink-seg-opt">
+        <input type="radio" name="__hero_preview_theme" value="light" data-hero-preview-theme checked>
+        <span>Light</span>
+      </label>
+      <label class="nav-megalink-seg-opt">
+        <input type="radio" name="__hero_preview_theme" value="dark" data-hero-preview-theme>
+        <span>Dark</span>
+      </label>
+    </div>
     {# Inline the same design-token CSS variables the public `<body>`
        carries so `.fe-btn-primary` etc. resolve to the admin's chosen
        tokens (instead of the in-CSS fallbacks like `var(--fe-ink)`). #}
@@ -90,8 +104,8 @@
              {% if not _pv_tagline_on or not _pv_tagline %}hidden{% endif %}>{{ _pv_tagline }}</p>
           <h1 class="fe-hero-heading fe-hero-heading-{{ _pv_font }}" id="hero-preview-heading"
               style="--fe-hero-h-size: {{ _pv_size / 100 }}; --fe-hero-h-grad-s: {{ _pv_grad_s }}; --fe-hero-h-grad-e: {{ _pv_grad_e }};">{{ _pv_heading_txt }}</h1>
-          <p class="fe-hero-sub fe-hero-sub-{{ _pv_sub_font }}" id="hero-preview-sub"
-             style="--fe-hero-sub-size: {{ _pv_sub_size / 100 }};{% if _pv_sub_color %} --fe-hero-sub-color: {{ _pv_sub_color }};{% endif %}">{{ _pv_sub_txt }}</p>
+          <div class="fe-hero-sub fe-hero-sub-{{ _pv_sub_font }}" id="hero-preview-sub"
+               style="--fe-hero-sub-size: {{ _pv_sub_size / 100 }};{% if _pv_sub_color %} --fe-hero-sub-color: {{ _pv_sub_color }};{% endif %}">{{ _pv_sub_txt | markdown_inline }}</div>
           {# Preview CTA — emptied on the server and re-populated by
              `page_hero_modal.js::syncPreview` from the active block's
              current `buttons` array. Server-rendering placeholder
@@ -115,16 +129,21 @@
     <label>Heading
       <input type="text" data-hero-field="heading" id="hero-heading-input" value="{{ vals.frontend_hero_heading or '' }}" placeholder="You are not alone.">
     </label>
-    <label>Subheading
+    <label>{% call hrow('Subheading') %}Markdown and inline HTML are both supported — **bold**, [links](/meetings), &lt;br&gt;, lists. The preview above renders as you type.{% endcall %}
       <textarea data-hero-field="subheading" rows="8" style="min-height: 240px;" placeholder="Find meetings, connect with your community…">{{ vals.frontend_hero_subheading or '' }}</textarea>
     </label>
-    <label>Tagline <span class="muted small">(rendered as a small pill above the heading)</span>
+    <label>{% call hrow('Tagline') %}Rendered as a small pill above the heading{% endcall %}
       <input type="text" data-hero-field="frontend_tagline" value="{{ vals.frontend_tagline or '' }}" placeholder="A recovery fellowship portal.">
     </label>
     <li class="special-page-row" style="list-style:none; margin: 1rem 0;">
       <div class="special-page-info">
-        <div class="u-name">Show tagline in hero</div>
-        <p class="muted small">Toggle the eyebrow pill above the heading on or off.</p>
+        <div class="u-name">Show tagline in hero {% call chip() %}Toggle the eyebrow pill above the heading on or off.{% endcall %}</div>
+        {# The eyebrow renders only when there IS tagline text, so with
+           the field above empty this toggle looks broken — it flips and
+           nothing happens. Say so instead. #}
+        <p class="muted smaller" data-tagline-empty-note hidden>
+          Add text in <b>Tagline</b> above — the pill stays hidden while it's empty.
+        </p>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" data-hero-field="frontend_tagline_enabled" value="1"
@@ -226,8 +245,7 @@
 
     <li class="special-page-row" style="list-style:none; margin: 1rem 0;">
       <div class="special-page-info">
-        <div class="u-name">Dynamic text colors</div>
-        <p class="muted small">Auto-pick contrasting heading + subheading colors based on the background's lightness. Overrides the heading gradient and subheading colour above when on.</p>
+        <div class="u-name">Dynamic text colors {% call chip() %}Auto-pick contrasting heading + subheading colors based on the background's lightness. Overrides the heading gradient and subheading colour above when on.{% endcall %}</div>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" data-hero-field="frontend_hero_text_dynamic" value="1"
@@ -258,8 +276,7 @@
     </div>{# /hero-text-col #}
 
     <div class="hero-bg-col">
-    <h3 class="hero-sub-heading">Background</h3>
-    <p class="muted smaller hero-sub-help">Pick a style, tweak it, or upload an image.</p>
+    <h3 class="hero-sub-heading">Background {% call chip('Background') %}Pick a style, tweak it, or upload an image.{% endcall %}</h3>
     {% set _bs = vals.frontend_hero_bg_style or 'frosty' %}
     <div class="nav-megalink-field">
       <span class="nav-megalink-field-lbl">Style</span>
@@ -301,8 +318,7 @@
         </div>
         <li class="special-page-row" style="list-style:none; margin-top: 12px;">
           <div class="special-page-info">
-            <div class="u-name">Randomize on every page load</div>
-            <p class="muted small">Picks fresh hues each time the page renders so it never looks the same twice.</p>
+            <div class="u-name">Randomize on every page load {% call chip() %}Picks fresh hues each time the page renders so it never looks the same twice.{% endcall %}</div>
           </div>
           <label class="mode-toggle">
             <input type="checkbox" data-hero-field="frontend_hero_bg_randomize" value="1"
@@ -351,7 +367,7 @@
           <img src="{{ bg_image_url or '' }}" alt="Current hero background" id="hero-image-preview-img">
           <button type="button" class="btn btn-sm" id="hero-image-clear">Remove</button>
         </div>
-        <label>Upload image <span class="muted small">(PNG, JPG, or SVG)</span>
+        <label><span class="field-label-row">Upload image <span class="muted small">(PNG, JPG, or SVG)</span></span>
           <input type="file" id="hero-image-upload" accept="image/*">
         </label>
         <div class="hero-bg-grid">
@@ -405,7 +421,7 @@
                  style="max-width: 220px; max-height: 120px; border-radius: 6px;" id="hero-video-preview-video"></video>
           <button type="button" class="btn btn-sm" id="hero-video-clear">Remove</button>
         </div>
-        <label>Upload video <span class="muted small">(MP4 or WebM)</span>
+        <label><span class="field-label-row">Upload video <span class="muted small">(MP4 or WebM)</span></span>
           <input type="file" id="hero-video-upload" accept="video/mp4,video/webm,video/quicktime">
         </label>
         <div class="hero-bg-grid">
@@ -441,8 +457,7 @@
     <h3 class="hero-sub-heading" style="margin-top: 1.5rem;">Particle overlay</h3>
     <li class="special-page-row" style="list-style:none; margin: 1rem 0;">
       <div class="special-page-info">
-        <div class="u-name">Show particles</div>
-        <p class="muted small">Animated particle layer above the background.</p>
+        <div class="u-name">Show particles {% call chip() %}Animated particle layer above the background.{% endcall %}</div>
       </div>
       <label class="mode-toggle">
         <input type="checkbox" data-hero-field="frontend_hero_particle_enabled" value="1"
@@ -465,11 +480,48 @@
         <input type="range" data-hero-field="frontend_hero_particle_speed" min="10" max="300" step="5"
                value="{{ vals.frontend_hero_particle_speed or 100 }}" data-slider-input>
       </div>
-      <div class="nav-megalink-field hero-slider-field">
-        <span class="nav-megalink-field-lbl">Size <output data-slider-out>{{ vals.frontend_hero_particle_size or 100 }}</output>%</span>
+      {# `waves` paints full-width bands rather than discrete particles,
+         so the size multiplier never reaches it. The field greys out for
+         any effect listed here instead of silently doing nothing. #}
+      <div class="nav-megalink-field hero-slider-field"
+           data-particle-size-field data-nosize-effects="waves">
+        <span class="nav-megalink-field-lbl">Size <output data-slider-out>{{ vals.frontend_hero_particle_size or 100 }}</output>%
+          <span class="muted smaller" data-particle-size-note hidden></span></span>
         <input type="range" data-hero-field="frontend_hero_particle_size" min="25" max="400" step="5"
                value="{{ vals.frontend_hero_particle_size or 100 }}" data-slider-input>
       </div>
+    </div>
+    {# ── Per-theme columns ────────────────────────────────────────
+       Effect / Speed / Size above apply to both themes; opacity and ink
+       are per-mode, so they live in their own Light | Dark columns —
+       same shape as the dynamic-background modal's split, rather than
+       two loose rows of (light)(dark) pairs.
+
+       Opacity scales each particle's own alpha, so a snowflake that
+       fades as it falls still fades, just dimmer. Ink was white-only
+       before, which vanishes on a pale hero. Dark opacity falls back to
+       the light value for blocks saved before the split. #}
+    {% set _popacity = vals.frontend_hero_particle_opacity if vals.frontend_hero_particle_opacity is not none else 100 %}
+    {% set _popacity_d = vals.frontend_hero_particle_opacity_dark if vals.frontend_hero_particle_opacity_dark is not none else _popacity %}
+    <div class="hero-part-modes">
+      {% for _sfx, _mlabel, _mopacity, _mcolor in [
+           ('', 'Light mode', _popacity, vals.frontend_hero_particle_color or '#ffffff'),
+           ('_dark', 'Dark mode', _popacity_d, vals.frontend_hero_particle_color_dark or '#ffffff')] %}
+      <section class="hero-part-mode hero-part-mode--{{ 'dark' if _sfx else 'light' }}">
+        <h4 class="hero-part-mode-title">{{ _mlabel }}</h4>
+        <div class="nav-megalink-field hero-slider-field">
+          <span class="nav-megalink-field-lbl">Opacity <output data-slider-out>{{ _mopacity }}</output>%</span>
+          <input type="range" data-hero-field="frontend_hero_particle_opacity{{ _sfx }}"
+                 min="0" max="100" step="5" value="{{ _mopacity }}" data-slider-input>
+        </div>
+        <div class="nav-megalink-field">
+          <span class="nav-megalink-field-lbl">Particle color</span>
+          <input type="color" class="nav-megalink-color-input"
+                 data-hero-field="frontend_hero_particle_color{{ _sfx }}"
+                 value="{{ _mcolor }}">
+        </div>
+      </section>
+      {% endfor %}
     </div>
 
     </div>{# /hero-bg-col #}

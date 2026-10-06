@@ -12,6 +12,7 @@
    so the nested container shape round-trips cleanly. The legacy
    parallel-arrays parser remains as a fallback in routes.py for
    programmatic POSTs without JS. #}
+{% from "_help_chip.html" import chip, hrow %}
 {% set _ub = utility_bar_admin(site) %}
 {% set _ub_left = _ub.left %}
 {% set _ub_right = _ub.right %}
@@ -41,8 +42,7 @@
           title="Drag to reorder">{{ icon('grip-vertical') }}</button>
   <div class="utility-bar-row-fields utility-bar-theme-toggle-fields">
     <span class="utility-bar-theme-toggle-glyph" aria-hidden="true">{{ icon('sun') }}</span>
-    <span class="utility-bar-theme-toggle-label">Dark / light mode toggle</span>
-    <span class="utility-bar-theme-toggle-help muted small">Drag to move; this control can't be removed (the active header theme requires it).</span>
+    <span class="utility-bar-theme-toggle-label">Dark and light mode switch {% call chip('Dark / light mode toggle') %}Drag to move it. It can't be removed while the header is Recovery Blue, which keeps its dark mode switch here.{% endcall %}</span>
   </div>
 </div>
 {% endmacro %}
@@ -61,8 +61,7 @@
           title="Drag to reorder">{{ icon('grip-vertical') }}</button>
   <div class="utility-bar-row-fields utility-bar-theme-toggle-fields">
     <span class="utility-bar-theme-toggle-glyph" aria-hidden="true">{{ icon('search') }}</span>
-    <span class="utility-bar-theme-toggle-label">Site search</span>
-    <span class="utility-bar-theme-toggle-help muted small">Drag to move; this control can't be removed. Opens the search modal (also reachable via Ctrl/Cmd+K).</span>
+    <span class="utility-bar-theme-toggle-label">Site search {% call chip('Site search') %}Drag to move; this control can't be removed. Opens the search modal (also reachable via Ctrl/Cmd+K).{% endcall %}</span>
   </div>
 </div>
 {% endmacro %}
@@ -82,54 +81,55 @@
           title="Drag to reorder">{{ icon('grip-vertical') }}</button>
   <div class="utility-bar-row-fields utility-bar-theme-toggle-fields">
     <span class="utility-bar-theme-toggle-glyph utility-bar-gsr-glyph" aria-hidden="true">GSR</span>
-    <span class="utility-bar-theme-toggle-label">GSR Summary</span>
-    <span class="utility-bar-theme-toggle-help muted small">Drag to move; this control can't be removed. Opens the announcements page on the GSR Summary tab.</span>
+    <span class="utility-bar-theme-toggle-label">GSR Summary {% call chip('GSR Summary') %}Drag to move; this control can't be removed. Opens the announcements page on the GSR Summary tab.{% endcall %}</span>
   </div>
 </div>
 {% endmacro %}
 
 {% macro render_container(it) %}
-<div class="utility-bar-container" data-utility-row data-utility-kind="container"
-     draggable="true">
-  {# Container head — single row: drag handle, group glyph, admin
-     label, the live-bar collapsed-icon picker, and the remove button.
-     The collapsed-icon picker lives inline (rather than on its own
-     row beneath) so the head reads as one compact strip. The full
-     explainer is on the picker's title tooltip; the visible inline
-     label "Collapsed icon" is enough orientation at a glance. #}
+<div class="utility-bar-container ol-row" data-utility-row data-utility-kind="container"
+     draggable="true" data-ol-row>
+  {# Head: a compact summary of the group; clicking it opens its two
+     settings (name, and the icon it folds into while the live meetings
+     bar shows). The saver reads both from inside the head. Its items are
+     always listed below. #}
   <div class="utility-bar-container-head">
-    <button type="button" class="utility-bar-handle" data-utility-handle
+    <button type="button" class="utility-bar-handle ol-grip" data-utility-handle
             aria-label="Drag to reorder"
             title="Drag to reorder">{{ icon('grip-vertical') }}</button>
-    <span class="utility-bar-container-glyph" aria-hidden="true">{{ icon('layers') }}</span>
-    <input type="text" data-utility-field="label" value="{{ it.label or '' }}"
-           maxlength="100" placeholder="Container label (admin only — not shown on public site)"
-           class="utility-bar-container-label-input">
-    {# Collapsed icon: chooser button that opens the shared icon-picker
-       modal. When set, the container collapses to a single icon while
-       the live meetings bar is showing. The hidden input keeps the
-       saver's [data-utility-field="collapsed_icon"] contract. #}
-    <div class="utility-bar-container-collapsed-label utility-bar-icon-field{% if it.collapsed_icon %} has-icon{% endif %}"
-         title="When set, this container collapses to a single icon button while the live meetings bar is showing. Leave empty to always render the full content."
-         data-icon-field>
-      <span class="utility-bar-icon-field-lbl">Collapsed icon</span>
-      <div class="icon-picker-trigger-wrap">
-        <button type="button" class="icon-picker-trigger" data-open-icon-picker>
-          <span class="icon-picker-preview" data-icon-preview>
-            {% if it.collapsed_icon %}{{ icon(it.collapsed_icon) }}{% endif %}
-          </span>
-          <span class="icon-picker-trigger-empty" data-icon-empty>Choose…</span>
-        </button>
-        <button type="button" class="icon-picker-clear" data-icon-clear
-                title="Clear icon">{{ icon('x') }}</button>
+    <button type="button" class="ol-toggle" data-ol-toggle aria-expanded="false">
+      <span class="ol-glyph">{{ icon('layout-grid') }}</span>
+      <span class="ol-text">
+        <b data-ol-sum='[data-utility-field="label"]' data-ol-empty="Group">{{ it.label or '' }}</b>
+        <small>Group{% if it.collapsed_icon %} · folds to an icon{% endif %}</small>
+      </span>
+      <span class="ol-chev">{{ icon('chevron-down') }}</span>
+    </button>
+    <button type="button" class="icon-btn utility-bar-remove ol-del" data-utility-remove
+            aria-label="Remove group" title="Remove the group and its items">{{ icon('trash') }}</button>
+    <div class="utility-bar-container-settings" data-ol-body hidden>
+      <label class="st-field"><span>Name <span class="muted smaller">(only shown here)</span></span>
+        <input type="text" data-utility-field="label" value="{{ it.label or '' }}" maxlength="100"
+               placeholder="Helpline" class="utility-bar-container-label-input">
+      </label>
+      <div class="utility-bar-icon-field{% if it.collapsed_icon %} has-icon{% endif %}" data-icon-field>
+        <span class="utility-bar-icon-field-lbl">While a meeting is live, fold into this icon</span>
+        <div class="icon-picker-trigger-wrap">
+          <button type="button" class="icon-picker-trigger" data-open-icon-picker>
+            <span class="icon-picker-preview" data-icon-preview>
+              {% if it.collapsed_icon %}{{ icon(it.collapsed_icon) }}{% endif %}
+            </span>
+            <span class="icon-picker-trigger-empty" data-icon-empty>Don't fold</span>
+          </button>
+          <button type="button" class="icon-picker-clear" data-icon-clear
+                  title="Clear icon">{{ icon('x') }}</button>
+        </div>
+        <input type="hidden" data-utility-field="collapsed_icon" data-icon-input
+               value="{{ it.collapsed_icon or '' }}">
       </div>
-      <input type="hidden" data-utility-field="collapsed_icon" data-icon-input
-             value="{{ it.collapsed_icon or '' }}">
     </div>
-    <button type="button" class="icon-btn utility-bar-remove" data-utility-remove
-            aria-label="Remove container" title="Remove container">{{ icon('x') }}</button>
   </div>
-  <div class="utility-bar-container-items" data-utility-container-items>
+  <div class="utility-bar-container-items ol-list" data-utility-container-items>
     {# Use subscript rather than `it.items` — Jinja's attribute-then-key
        lookup resolves `.items` to dict.items() first and chokes. #}
     {% for inner in it['items'] %}
@@ -137,46 +137,39 @@
     {% endfor %}
   </div>
   <div class="utility-bar-container-add">
-    <button type="button" class="btn btn-sm" data-utility-add-into-container>+ Add item to this container</button>
+    <button type="button" class="btn btn-sm" data-utility-add-into-container>{{ icon('plus') }} Add to this group</button>
   </div>
 </div>
 {% endmacro %}
 
-<div class="fe-header-grid-item fe-header-grid-item-wide">
-  <h3 class="fe-header-grid-title">Utility bar</h3>
-  <p class="muted small fe-header-grid-blurb">A slim row built into every page's header for status text, secondary links, social icons, or call-to-action buttons. Anything you add to the left or right shows up at the matching edge. Group related items into a <i>container</i> so they render as one unit on the public site and become a single mobile swipe target.</p>
-
-  <form class="form" method="post" action="{{ url_for('main.frontend_utility_bar_save') }}" data-utility-bar-form>
+<div class="hdr-utility">
+  <form class="form" method="post" action="{{ url_for('main.frontend_utility_bar_save') }}" data-utility-bar-form id="hdr-utility-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    {# JSON-encoded payloads built by JS on submit. Each carries the full
+    {# JSON-encoded payloads built by JS on submit and on the formdata
+       event (so the live preview gets them too). Each carries the full
        (containers + leaves) tree for that side. #}
     <input type="hidden" name="utility_left_payload" data-utility-payload="left" value="">
     <input type="hidden" name="utility_right_payload" data-utility-payload="right" value="">
 
-    <li class="special-page-row" style="list-style:none; padding: 1rem;">
-      <div class="special-page-info">
-        <div class="u-name">Show utility bar</div>
-        <p class="muted small">Hard off-switch. When off, the bar is hidden site-wide regardless of any items or the live-meeting toggle below — your saved content is preserved, just not displayed.</p>
-      </div>
+    <div class="hdr-switch-row">
       <label class="mode-toggle">
         <input type="checkbox" name="utility_bar_enabled" value="1" {% if _ub.enabled %}checked{% endif %}>
         <span class="mode-track"><span class="mode-thumb"></span></span>
+        <span>Show the utility bar</span>
       </label>
-    </li>
-
-    <div class="alert-bar-color-row">
-      <label>Background
-        <input type="color" name="utility_bar_bg_color" value="{{ _ub.bg_color or '#0b1220' }}">
+      {% call chip('Show the utility bar') %}A slim row in the header for short text, secondary links and buttons. Off hides it everywhere and keeps its items.{% endcall %}
+      <label class="mode-toggle">
+        <input type="checkbox" name="utility_bar_live_meetings" value="1" {% if _ub.show_live %}checked{% endif %}>
+        <span class="mode-track"><span class="mode-thumb"></span></span>
+        <span>Live meetings bar</span>
       </label>
-      <label>Text
-        <input type="color" name="utility_bar_text_color" value="{{ _ub.text_color or '#ffffff' }}">
-      </label>
+      {% call chip('Live meetings bar') %}While an online or hybrid meeting is in session, the bar turns yellow and shows the meeting's name and a Join button, until the meeting ends or the next one starts.{% endcall %}
     </div>
 
     {% for side, side_label, items in [('left', 'Left side', _ub_left), ('right', 'Right side', _ub_right)] %}
-    <fieldset class="fieldset utility-bar-side">
-      <legend>{{ side_label }}</legend>
-      <div class="utility-bar-items" data-utility-side="{{ side }}">
+    <div class="ds-group utility-bar-side">
+      <h3 class="ds-group-title">{{ icon('panel-top') }}{{ side_label }}</h3>
+      <div class="utility-bar-items ol-list" data-utility-side="{{ side }}">
         {% for it in items %}
           {% if it.kind == 'container' %}
             {{ render_container(it) }}
@@ -186,31 +179,18 @@
         {% endfor %}
       </div>
       <div class="utility-bar-add-row">
-        <button type="button" class="btn btn-sm" data-utility-add="{{ side }}">+ Add item</button>
-        <button type="button" class="btn btn-sm" data-utility-add-container="{{ side }}">+ Add container</button>
+        <button type="button" class="btn btn-sm" data-utility-add="{{ side }}">{{ icon('plus') }} Add item</button>
+        <button type="button" class="btn btn-sm" data-utility-add-container="{{ side }}">{{ icon('plus') }} Add group</button>
       </div>
-    </fieldset>
+    </div>
     {% endfor %}
 
-    <fieldset class="fieldset utility-bar-mobile-default">
-      <legend>Mobile collapsed default</legend>
-      <p class="muted small fe-header-grid-blurb">On narrow viewports the bar collapses to a horizontal swipe strip — visitors swipe left or right to reveal items that don't fit. Pick which item, container, or whole side shows by default. The Live Meetings Bar always pins above the strip when it's active.</p>
-      <div class="utility-bar-mobile-default-list" data-utility-mobile-default-list></div>
-    </fieldset>
-
-    <hr class="settings-sep">
-    <li class="special-page-row" style="list-style:none; padding: 1rem;">
-      <div class="special-page-info">
-        <div class="u-name">Live Meetings Bar</div>
-        <p class="muted small">When on, the utility bar turns yellow as soon as an online or hybrid meeting's open time is reached, and shows the meeting name plus a Join Zoom Meeting button until the meeting ends (or the next live meeting starts).</p>
-      </div>
-      <label class="mode-toggle">
-        <input type="checkbox" name="utility_bar_live_meetings" value="1" {% if _ub.show_live %}checked{% endif %}>
-        <span class="mode-track"><span class="mode-thumb"></span></span>
+    <div class="ds-group utility-bar-mobile-default">
+      <label class="st-field"><span>On phones, start with {% call chip('On phones, start with') %}On a phone the bar becomes a strip visitors swipe sideways. Pick the item, group or side it opens on. The live meetings bar, when showing, sits above the strip.{% endcall %}</span>
+        <select name="utility_bar_mobile_default" data-utility-mobile-default-list></select>
       </label>
-    </li>
+    </div>
 
-    <div class="form-actions"><button class="btn btn-primary">Save Utility Bar</button></div>
   </form>
 
   {# Templates cloned by JS for new rows. Both inherit the rendered
@@ -323,10 +303,10 @@
   function itemSummary(it, side, i){
     if (it.kind === 'container') {
       const lab = it.label || (it.items && it.items.length ? `${it.items.length} item${it.items.length === 1 ? '' : 's'}` : '(empty)');
-      return `${side === 'left' ? 'Left' : 'Right'} #${i + 1} · Container · ${lab}`;
+      return `${side === 'left' ? 'Left' : 'Right'} #${i + 1} · Group · ${lab}`;
     }
     if (it.kind === 'theme_toggle') {
-      return `${side === 'left' ? 'Left' : 'Right'} #${i + 1} · Theme toggle`;
+      return `${side === 'left' ? 'Left' : 'Right'} #${i + 1} · Dark and light mode switch`;
     }
     if (it.kind === 'search_trigger') {
       return `${side === 'left' ? 'Left' : 'Right'} #${i + 1} · Site search`;
@@ -342,7 +322,7 @@
     const valid = new Set(['left', 'right']);
     left.forEach((_, i) => valid.add(`left:${i}`));
     right.forEach((_, i) => valid.add(`right:${i}`));
-    const cur = (form.querySelector('input[name="utility_bar_mobile_default"]:checked') || {}).value;
+    const cur = (mobileList && mobileList.dataset.touched) ? mobileList.value : '';
     if (cur && valid.has(cur)) return cur;
     if (SAVED_MOBILE_DEFAULT && valid.has(SAVED_MOBILE_DEFAULT)) return SAVED_MOBILE_DEFAULT;
     if (left.length)  return 'left:0';
@@ -357,16 +337,18 @@
     const opts = [];
     left.forEach((it, i)  => opts.push({v: `left:${i}`,  label: itemSummary(it, 'left', i)}));
     right.forEach((it, i) => opts.push({v: `right:${i}`, label: itemSummary(it, 'right', i)}));
-    if (left.length)  opts.push({v: 'left',  label: 'All left-side items as a group'});
-    if (right.length) opts.push({v: 'right', label: 'All right-side items as a group'});
+    if (left.length)  opts.push({v: 'left',  label: 'The whole left side'});
+    if (right.length) opts.push({v: 'right', label: 'The whole right side'});
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c]);
     if (!opts.length) {
-      mobileList.innerHTML = '<p class="muted small">Add at least one item above to choose a mobile default.</p>';
+      mobileList.innerHTML = '<option value="">Add an item first</option>';
       return;
     }
     mobileList.innerHTML = opts.map(o =>
-      `<label class="check"><input type="radio" name="utility_bar_mobile_default" value="${o.v}"${o.v === picked ? ' checked' : ''}> <span>${o.label}</span></label>`
+      `<option value="${esc(o.v)}"${o.v === picked ? ' selected' : ''}>${esc(o.label)}</option>`
     ).join('');
   }
+  if (mobileList) mobileList.addEventListener('change', () => { mobileList.dataset.touched = '1'; });
 
   // ── Add / remove ──
   function addItemToSide(side){
@@ -376,6 +358,7 @@
     wrap.appendChild(frag);
     bindRow(wrap.lastElementChild);
     applyKindVisibility(wrap.lastElementChild);
+    if (window.FeRows) { window.FeRows.init(wrap); window.FeRows.open(wrap.lastElementChild); }
     syncPayloads();
     renderMobileDefaults();
   }
@@ -385,6 +368,7 @@
     const frag = containerTpl.content.cloneNode(true);
     wrap.appendChild(frag);
     bindRow(wrap.lastElementChild);
+    if (window.FeRows) { window.FeRows.init(wrap); window.FeRows.open(wrap.lastElementChild); }
     syncPayloads();
     renderMobileDefaults();
   }
@@ -395,6 +379,7 @@
     inner.appendChild(frag);
     bindRow(inner.lastElementChild);
     applyKindVisibility(inner.lastElementChild);
+    if (window.FeRows) { window.FeRows.init(inner); window.FeRows.open(inner.lastElementChild); }
     syncPayloads();
     renderMobileDefaults();
   }

@@ -19,6 +19,7 @@
 
    `t` is the BackupTarget row (template context provides it from
    either wizard step 2 or the edit page). #}
+{% from "_help_chip.html" import chip, hrow %}
 <ol class="backup-dropbox-steps">
   <li>
     Visit <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener">Dropbox developers → My apps</a> and create a new app
@@ -80,9 +81,8 @@
   </span>
 </label>
 
-<label>Remote path
+<label>{% call hrow('Remote path') %}Relative to the app folder. Use "/" to put backups directly in the app folder.{% endcall %}
   <input type="text" name="remote_path" value="{{ t.remote_path or '/' }}" placeholder="/">
-  <span class="muted smaller">Relative to the app folder. Use "/" to put backups directly in the app folder.</span>
 </label>
 
 <script>

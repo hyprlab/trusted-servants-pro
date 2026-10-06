@@ -195,13 +195,13 @@
   }
   a.wp-count:hover { transform: translateY(-2px); }
   .wp-count-num {
-    font-size: 2.2rem; font-weight: 700; line-height: 1;
+    font-size: var(--fs-3xl); font-weight: 700; line-height: 1;
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     letter-spacing: -.02em;
     font-variant-numeric: tabular-nums;
   }
   .wp-count-label {
-    font-size: .85rem; margin-top: .35rem;
+    font-size: var(--fs-sm); margin-top: .35rem;
     color: var(--muted, rgba(0,0,0,.6)); letter-spacing: .04em;
   }
   .wp-count-stories       { background: #fef3c7; border-color: #fcd34d; color: #78350f; }
@@ -230,10 +230,10 @@
     background: var(--panel-2, rgba(0,0,0,.04));
     border-radius: 8px; display: grid; gap: .35rem;
   }
-  .wp-blog-tax-row { display: flex; flex-wrap: wrap; gap: .9rem; font-size: .9rem; }
+  .wp-blog-tax-row { display: flex; flex-wrap: wrap; gap: .9rem; font-size: var(--fs-sm); }
   .wp-blog-tax-label {
     text-transform: uppercase; letter-spacing: .14em;
-    font-size: .68rem; font-weight: 700;
+    font-size: var(--fs-3xs); font-weight: 700;
     color: var(--muted, rgba(0,0,0,.6));
     min-width: 88px;
   }
@@ -242,11 +242,11 @@
   .wp-warn-list { margin: 0; padding-left: 1.25rem; line-height: 1.65; }
 
   .wp-result-table-wrap { overflow-x: auto; }
-  .wp-result-table th { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; }
+  .wp-result-table th { font-size: var(--fs-2xs); letter-spacing: .12em; text-transform: uppercase; }
   .wp-target-pill {
     padding: 4px 11px;
     border-radius: 999px;
-    font-size: .82rem;
+    font-size: var(--fs-xs);
     display: inline-block;
   }
   .wp-target-pill--stories.is-active       { background: #fef3c7; color: #78350f; }

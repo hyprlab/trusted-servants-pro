@@ -77,9 +77,18 @@
     return { type: b.type, data: data };
   }
 
+  // Set once the first render is done, so building the editor from the
+  // saved blocks doesn't count as an edit.
+  let booted = false;
   function commit() {
     const payload = blocks.map(stripBlock);
+    const before = hidden.value;
     hidden.value = JSON.stringify(payload);
+    // Tell the page's save bar (content_editor.js): a script-set value
+    // fires no input event of its own.
+    if (booted && hidden.value !== before && hidden.form) {
+      hidden.form.dispatchEvent(new CustomEvent('editor:changed'));
+    }
     // The legacy markdown body stays in the hidden `body` field, but
     // once the editor has any blocks at all the public render reads
     // blocks first — so clear `body` to avoid stale Markdown poking
@@ -1426,4 +1435,5 @@
   // conversion of carefully-tuned Markdown.
   loadInitial();
   render();
+  booted = true;
 })();

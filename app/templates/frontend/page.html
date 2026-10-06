@@ -448,18 +448,26 @@
     {%- if d.hover_shadow and _PP_CONT_SHADOW.get(d.hover_shadow, '') %}{%- set _ = _hover_classes.append('block-container--hover-shadow') -%}{%- endif -%}
     {%- if d.hover_lift %}{%- set _ = _hover_classes.append('block-container--hover-lift') -%}{%- endif -%}
     {%- set _ppc_active = d.get('bg_dynamic_key') or d.get('bg_dynbg_overlay') -%}
+    {# `knobs` + `animate` are NOT optional here. This dict IS the config
+         the renderer decodes (decode_config reads the top-level `knobs` and
+         `animate` keys), so a key omitted from it is a setting the block
+         silently loses: without `knobs` the pattern preset re-rolled its
+         motif on every page load no matter which one the admin pinned, and
+         scale / weight / rotation / dot size / motion speed all fell back
+         to the recipe defaults; without `animate`, "Freeze movement" never
+         applied. Keep this list in step with the per-surface builders in
+         frontend/*_list.html. #}
     {%- set _ppc_pseudo_cfg = {'overlay': d.get('bg_dynbg_overlay'),
                                 'colors': d.get('bg_dynbg_colors') or [],
                                 'overlay_scope': d.get('bg_dynbg_overlay_scope'),
                                 'overlay_size': d.get('bg_dynbg_overlay_size'),
                                 'overlay_intensity': d.get('bg_dynbg_overlay_intensity'),
                                 'randomize_colors': d.get('bg_dynbg_randomize_colors') or d.get('bg_dynbg_randomize'),
-                                'randomize_positions': d.get('bg_dynbg_randomize_positions') or d.get('bg_dynbg_randomize')} -%}
-    {%- set _ppc_colors = dynbg_resolve_colors(_ppc_pseudo_cfg) -%}
-    {%- set _ppc_color_vars = '' -%}
-    {%- for _c in _ppc_colors -%}
-      {%- set _ppc_color_vars = _ppc_color_vars ~ '--fe-dynbg-c' ~ loop.index ~ ': ' ~ _c ~ '; ' -%}
-    {%- endfor -%}
+                                'randomize_positions': d.get('bg_dynbg_randomize_positions') or d.get('bg_dynbg_randomize'),
+                                'animate': d.get('bg_dynbg_animate', True),
+                                'knobs': d.get('bg_dynbg_knobs', {}),
+                              'v': d.get('bg_dynbg_v'), 'pastel_light': d.get('bg_dynbg_pastel_light'), 'modes': d.get('bg_dynbg_modes')} -%}
+    {%- set _ppc_color_vars = dynbg_colors_css(dynbg_resolve_colors(_ppc_pseudo_cfg), _ppc_pseudo_cfg) -%}
     {%- set _ppc_pos_vars = dynbg_resolve_positions(_ppc_pseudo_cfg, d.get('bg_dynamic_key')) -%}
     {%- set _ppc_style = pp_container_styles(d) | trim -%}
     {%- if _ppc_active and _ppc_color_vars -%}
@@ -829,8 +837,10 @@
      pages). The inline declaration still takes precedence on desktop. #}
   {%- set _shell_style = 'max-width: none; --fe-pp-pad-x-full: ' ~ _pad_pct ~ 'vw' -%}
 {%- else -%}
-  {%- set _mw = (page.max_width or 1160) | int -%}
+  {# `site` follows Design → Layout; `boxed` uses the page's own px. #}
+  {%- set _mw = width_px(site, _width_mode, (page.max_width or 1160)) | int -%}
   {%- set _shell_style = 'max-width: ' ~ _mw ~ 'px' -%}
+  {%- set _width_mode = 'boxed' -%}
 {%- endif -%}
 {%- set _pp_cfg = dynbg_decode(page.bg_dynbg_config_json) -%}
 {%- set _pp_dynbg_active = page.bg_dynamic_key or _pp_cfg.overlay -%}

@@ -1,0 +1,51 @@
+{# Featured image picker for the announcement / event, story and blog
+   post editors.
+
+   featured_image_field(src, about)
+     src    the current image's URL, or '' when there is none
+     about  the help chip's text: where the image shows
+
+   Posts featured_image (an upload), convert_featured_to_webp,
+   clear_featured_image and featured_image_media_id (a File Browser
+   pick; app.js routes the picker's answer here through
+   [data-post-featured-image]). Both states, the thumbnail with its
+   remove pill and the empty placeholder, are always in the page with
+   `hidden` choosing one, because the save bar (content_editor.js)
+   flips them after a save without reloading. #}
+{% from "_help_chip.html" import chip, hrow %}
+{% macro featured_image_field(src, about='Leads the post on the public page and in link previews.') -%}
+<div data-post-featured-image>
+  <h3 class="ds-group-title">{{ icon('image') }}Featured image {% call chip('Featured image') %}{{ about }}{% endcall %}</h3>
+  <div class="og-image-row">
+    <div class="og-image-preview" data-featured-preview>
+      <img {% if src %}src="{{ src }}"{% endif %}
+           alt="Featured image" data-featured-preview-img
+           {% if not src %}hidden{% endif %}>
+      <div class="og-image-empty muted small" data-featured-preview-empty
+           {% if src %}hidden{% endif %}>No image uploaded yet.</div>
+      {# A real checkbox dressed as a pill that turns red when armed. #}
+      <label class="post-featured-clear" data-featured-clear
+             {% if not src %}hidden{% endif %}>
+        <input type="checkbox" name="clear_featured_image" value="1">
+        <span>{{ icon('x') }} Remove current image</span>
+      </label>
+    </div>
+    <div class="og-image-fields">
+      <label>{% call hrow('Upload new image') %}PNG, JPG, or WebP. Replaces the current featured image when you save.{% endcall %}
+        <input type="file" name="featured_image" accept="image/png,image/jpeg,image/webp" data-featured-upload>
+      </label>
+      <label class="check og-image-webp">
+        <input type="checkbox" name="convert_featured_to_webp" value="1">
+        <span class="field-label-row">Auto convert to WebP {% call chip('Auto convert to WebP') %}Converts the upload to WebP on save: smaller files and faster public pages, at the cost of the original format.{% endcall %}</span>
+      </label>
+      <div class="og-image-actions">
+        <button type="button" class="btn" data-post-featured-picker>{{ icon('folder') }} Choose from File Browser</button>
+      </div>
+      {# Set by the File Browser picker; the server resolves it to the
+         stored file. A fresh upload on the same save wins over it. #}
+      <input type="hidden" name="featured_image_media_id" value="" data-featured-media-id>
+      <div class="og-image-picked muted small" data-featured-picked-label hidden></div>
+    </div>
+  </div>
+</div>
+{%- endmacro %}

@@ -86,6 +86,10 @@
     <h2 class="request-access-title">Trusted Servants Pro<br>Access Request</h2>
     <form method="post" action="{{ url_for('public.request_access_submit') }}" class="form request-access-form">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {# Honeypot: hidden from people; a bot that fills it is turned away. #}
+      <div class="request-access-hp" aria-hidden="true">
+        <label>Leave this field empty <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+      </div>
       <label>
         <span>Name <span class="req">*</span></span>
         <input name="name" type="text" required>
@@ -101,7 +105,7 @@
 
       <fieldset class="request-access-roles">
         <legend>I am a (check all that apply) <span class="req">*</span></legend>
-        {% for role in ['Intergroup Member', 'Zoom Tech', 'Meeting GSR', 'Meeting Secretary', 'Meeting Chair', 'Other'] %}
+        {% for role in ACCESS_ROLE_OPTIONS %}
         <label class="check">
           <input type="checkbox" name="roles" value="{{ role }}">
           <span>{{ role }}</span>
@@ -114,6 +118,14 @@
         <input name="meeting_name" type="text">
       </label>
 
+      <label class="request-access-message">
+        <span>Message <span class="muted smaller">(optional)</span></span>
+        <textarea name="message" rows="3" maxlength="2000" placeholder="Anything the admins should know, such as what you'll use it for."></textarea>
+      </label>
+
+      {% if site and site.turnstile_enabled and site.turnstile_site_key %}
+      <div class="cf-turnstile request-access-turnstile" data-sitekey="{{ site.turnstile_site_key }}" data-theme="auto"></div>
+      {% endif %}
       <div class="request-access-actions">
         <button class="btn btn-primary request-access-submit" type="submit">Request Access</button>
       </div>
@@ -121,6 +133,16 @@
   </div>
 </div>
 <script src="{{ url_for('static', filename='js/login_fx.js', v=app_build_id) }}"></script>
+<script>
+// Arriving from the public site's Request access link without its popup
+// (sign-in page #request-access): open the form straight away.
+if (location.hash === '#request-access') {
+  window.addEventListener('load', function () {
+    var b = document.querySelector('.login-request-btn');
+    if (b) b.click();
+  });
+}
+</script>
 <script>
 (function surfaceStashedFlash(){
   // Pick up a flash stashed by a previous failed login so the user sees

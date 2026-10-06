@@ -54,6 +54,12 @@ def all_forms():
             # this column directly through its inline toggle, so a
             # future form just needs to declare its own column here.
             "enabled_setting": "submission_form_enabled",
+            # Where its submissions are reviewed.
+            "inbox_endpoint": "main.posts",
+            # Has a pop-up version (frontend/_submission_modal.html), so a
+            # menu link can open it in place. The other forms only have
+            # their own page.
+            "has_modal": True,
         },
         {
             "key": "story",
@@ -71,6 +77,8 @@ def all_forms():
             "settings_endpoint": "main.frontend_form_story",
             "public_url_endpoint": "frontend.story_submission_form",
             "enabled_setting": "story_form_enabled",
+            # Where its submissions are reviewed.
+            "inbox_endpoint": "main.stories",
         },
         {
             "key": "contact",
@@ -85,6 +93,8 @@ def all_forms():
             "settings_endpoint": "main.frontend_form_contact",
             "public_url_endpoint": "frontend.contact",
             "enabled_setting": "contact_form_enabled",
+            # Where its submissions are reviewed.
+            "inbox_endpoint": "main.contact_form",
         },
         {
             "key": "recovery_contacts",
@@ -100,6 +110,8 @@ def all_forms():
             "settings_endpoint": "main.frontend_form_recovery_contacts",
             "public_url_endpoint": "frontend.recovery_contacts",
             "enabled_setting": "recovery_contacts_enabled",
+            # Where its submissions are reviewed.
+            "inbox_endpoint": "main.recovery_contacts",
         },
     ]
 

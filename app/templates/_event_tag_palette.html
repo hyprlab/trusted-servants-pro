@@ -11,12 +11,12 @@
    how each tag formats.
 
    Requires: `event_tag_groups` (from event_tokens.catalog()). #}
+{% from "_help_chip.html" import chip %}
 <details class="event-tags" data-event-tags>
   <summary class="event-tags-head">
     <span class="event-tags-icon" aria-hidden="true">{{ icon('calendar-clock') }}</span>
     <span class="event-tags-head-text">
-      <span class="event-tags-title">Insert dynamic date &amp; time tags</span>
-      <span class="muted smaller">Auto-updating tags for the summary and body — they follow the event's date.</span>
+      <span class="event-tags-title">Insert dynamic date &amp; time tags {% call chip('Dynamic date tags') %}Auto-updating tags for the summary and body — they save as text and render as this event's real date everywhere the post appears, so moving the event updates every mention at once.{% endcall %}</span>
     </span>
   </summary>
   <div class="event-tags-body">

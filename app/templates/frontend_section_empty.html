@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{# Pages or Popups with nothing in them yet: the sidebar entry lands here
+   and offers New. Once one exists, the entry opens its editor. #}
+{% set _what = 'page' if kind == 'page' else 'popup' %}
+{% block heading %}{{ 'Pages' if kind == 'page' else 'Popups' }}{% endblock %}
+{% block heading_help %}{% if kind == 'page' %}Pages you write yourself, built from blocks.{% else %}Boxes that open over a page from a link to their #name.{% endif %}{% endblock %}
+{% block content %}
+<div class="fe-admin-layout">
+  {% include "_frontend_subnav.html" %}
+  <div class="fe-admin-main">
+    <section class="card fe-empty-section" data-no-collapse>
+      <span class="ol-glyph">{{ icon('file-text' if kind == 'page' else 'message-square') }}</span>
+      <h2>No {{ _what }}s yet</h2>
+      <p class="muted">{% if kind == 'page' %}Make your first page; it opens in the editor, where a menu at the top moves between your pages.{% else %}Make your first popup, then open it from any link to its #name.{% endif %}</p>
+      <button type="button" class="btn btn-primary" data-open-modal="new-{{ _what }}-modal">{{ icon('plus') }} New {{ _what }}</button>
+    </section>
+  </div>
+</div>
+{% if kind == 'page' %}{% include "_new_page_modal.html" %}{% else %}{% include "_new_popup_modal.html" %}{% endif %}
+{% endblock %}

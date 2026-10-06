@@ -26,7 +26,7 @@ just want to kick the tires or run it behind your own proxy, use **Path B**.
 
 !!! note "Prefer not to install anything yet?"
     Every feature in this documentation is available to try in the [live
-    demo](/demo) — no install required. Your changes there are private to your
+    demo](site:/demo) — no install required. Your changes there are private to your
     browser session and reset automatically when you leave.
 
 ## Before you begin
@@ -41,7 +41,7 @@ Whichever path you choose, it helps to have these ready:
 - **A way to generate a random secret.** The installer does this for you; for
   the manual path you'll run a single `openssl` command shown below.
 
-## Path A — One-command installer (production + HTTPS)
+## Path A: One-command installer (production and HTTPS)
 
 `install.sh` is a turnkey installer for a public server. In one run it:
 
@@ -50,7 +50,7 @@ Whichever path you choose, it helps to have these ready:
 2. Writes a hardened `docker-compose.yml` to the install directory — complete
    with capped container logs and a daily image-prune janitor so the box can't
    fill its own disk over time (see
-   [Disk Space &amp; Housekeeping](/docs/disk-space)).
+   [Disk Space &amp; Housekeeping](disk-space.md)).
 3. Generates a random `TSP_SECRET_KEY` and stores it in a `.env` file with
    mode `600` (readable only by root).
 4. Configures **Caddy** for automatic TLS — a real Let's Encrypt certificate if
@@ -167,7 +167,7 @@ Recognized installer variables:
 | `TSP_ADMIN_PASSWORD` | `admin` | Seeded on first boot only. |
 | `TSP_ADMIN_EMAIL` | `admin@example.com` | Seeded on first boot only. |
 
-## Path B — Docker Compose (any machine)
+## Path B: Docker Compose (any machine)
 
 The quickest way to run the portal anywhere — a laptop, a homelab box, or any
 VPS. One container, one SQLite file, no TLS automation.
@@ -218,7 +218,7 @@ database and uploads persist in `./data` next to the compose file.
     The production installer (Path A) also adds a daily image-prune janitor that
     keeps a long-lived Docker host from filling its disk with stale images. It's
     host-wide, so it's left out of this minimal single-machine file — see
-    [Disk Space &amp; Housekeeping](/docs/disk-space) if you want to add it, plus
+    [Disk Space &amp; Housekeeping](disk-space.md) if you want to add it, plus
     how the built-in low-disk warning works.
 
 ### 3. Set a secret key
@@ -258,7 +258,7 @@ A few things worth doing right away:
 - **Brand it** (Settings → Appearance) — pick a theme, upload your logo, and
   configure the login screen.
 - **Take your first backup** once you've added content — see
-  [Backup &amp; Restore](/docs/backup-restore).
+  [Backup &amp; Restore](backup-restore.md).
 
 ## Troubleshooting
 
@@ -285,11 +285,11 @@ another admin account under Settings → Users.
 
 ## Next steps
 
-- [Configuration &amp; Security](/docs/configuration) — every environment
+- [Configuration &amp; Security](configuration.md) — every environment
   variable, the `.env` file, and how credentials are encrypted.
-- [Backup &amp; Restore](/docs/backup-restore) — export a portable archive and
+- [Backup &amp; Restore](backup-restore.md) — export a portable archive and
   migrate to a new host.
-- [Disk Space &amp; Housekeeping](/docs/disk-space) — the safeguards that keep an
+- [Disk Space &amp; Housekeeping](disk-space.md) — the safeguards that keep an
   unattended server from filling its own disk.
-- [Upgrading &amp; Uninstalling](/docs/upgrading) — Watchtower auto-updates,
+- [Upgrading &amp; Uninstalling](upgrading.md) — Watchtower auto-updates,
   manual upgrades, and a clean teardown.
