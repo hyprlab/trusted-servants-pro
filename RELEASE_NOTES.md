@@ -20,6 +20,7 @@ release notes expanded by default and the changelog collapsed.
 - On phones, the menu in the Modern Dark, Cyberpunk, Sanctuary, Terminal and Neobrutal headers opens below the header instead of over the logo.
 - When someone requests access with an email that already has an account, that inbox is sent the username with a sign-in link and a password reset link. The form shows everyone the same reply, so it doesn't reveal who has an account.
 - In Watchtower, a request from an email that already has an account shows that account, and its menu offers Reset Password instead of Create User. The admin notification says so too.
+- In Settings > Users, an account whose username is its email no longer shows the email twice.
 
 ## 3.0.3 — 2026-10-06 (latest)
 

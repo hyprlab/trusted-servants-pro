@@ -201,7 +201,8 @@
       <div class="ulist-main">
         <div class="ulist-name">
           <b class="users-cell-text" title="{{ _who }}">{{ _who }}</b>
-          {% if u.name %}<span class="ulist-handle">@{{ u.username }}</span>{% endif %}
+          {#- The handle, unless it is the email shown on the line below. -#}
+          {% if u.name and u.username|lower != (u.email or '')|lower %}<span class="ulist-handle">@{{ u.username }}</span>{% endif %}
           {% if u.id == current_user.id %}<span class="badge badge-muted">You</span>{% endif %}
           {% if _lock_seconds %}<span class="badge badge-warning user-locked-badge" title="Auto-unlocks in about {{ (_lock_seconds // 60) + 1 }} min">Locked</span>{% endif %}
           {% if u.disabled %}<span class="badge badge-muted user-disabled-badge" title="Sign-ins for this account are blocked">Disabled</span>{% endif %}

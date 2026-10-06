@@ -19,6 +19,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The access request reply reads "Watch your email for next steps." on the sign-in page and the public popup, true whether or not the email already has an account.
 
 ### Fixed
+- `users.html`: the `@username` handle beside a name is left out when the username is the account's email, which the line below already shows.
 - `frontend.css`: the themed header's mobile `.fe-th-nav` drops from `top: 100%` instead of `var(--fe-header-h)`, which left out the utility bar inside `.fe-header-themed` and opened the menu over the logo row.
 
 ## [3.0.3] — 2026-10-06
