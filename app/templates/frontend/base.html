@@ -59,12 +59,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css', v=app_build_id) }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/frontend.css', v=app_build_id) }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dynbg.css', v=app_build_id) }}">
-{# Per-theme stylesheet — loaded only for the alternate themes (classic +
-   recovery-blue live in frontend.css). The file is static/css/themes/<key>.css
-   and is scoped under body[data-fe-theme="<key>"]; one conditional link
-   serves every alternate theme. #}
+{# Per-theme stylesheet — loaded for every theme but Recovery Blue, which
+   lives in frontend.css. The file is static/css/themes/<key>.css and is
+   scoped under body[data-fe-theme="<key>"]; one conditional link serves
+   every theme. #}
 {%- set _head_theme = (site.frontend_theme if site else 'classic') or 'classic' -%}
-{% if _head_theme not in ('classic', 'recovery-blue') %}
+{% if _head_theme != 'recovery-blue' %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/themes/' ~ _head_theme ~ '.css', v=app_build_id) }}">
 {% endif %}
 {# Admin-added custom fonts. Both upload and google sources are served

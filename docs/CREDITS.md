@@ -13,8 +13,8 @@ No outside contributions yet.
 ## Third-party work
 
 - The fonts in `app/static/fonts/` (Inter, Fraunces, Archivo Black, Chakra
-  Petch, Libre Baskerville, Lora, Orbitron) are under the SIL Open Font
-  License 1.1.
+  Petch, JetBrains Mono, Libre Baskerville, Lora, Orbitron, Space Grotesk)
+  are under the SIL Open Font License 1.1.
 - The "Pattern tile" dynamic background's SVG patterns come from
   [Pattern Monster](https://pattern.monster), MIT licensed
   (`app/dynbg_patterns.LICENSE.md`).

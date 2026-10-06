@@ -1,0 +1,1242 @@
+/* ============================================================================
+   THEME · Classic
+   Loaded only when SiteSetting.frontend_theme == "classic" (see base.html).
+   Scoped to body[data-fe-theme="classic"]; the shared structure lives in
+   frontend.css, which this file refines and never edits.
+
+   Direction: the original Trusted Servants Pro look, refined. White paper,
+   slate ink, the brand blue for action and an amber accent used sparingly
+   (rules, eyebrows, dates, hover warmth). Fraunces with optical sizing for
+   display, Inter for reading and UI, 1px hairlines, layered soft shadows
+   and a consistent spacing rhythm. The dark companion is a neutral deep ink
+   rather than the Recovery Blue navy. Every color reads a design token
+   where one exists so the admin's Design page overrides keep working.
+   ========================================================================== */
+
+/* ===== 1. Tokens ========================================================= */
+body[data-fe-theme="classic"] {
+  --cl-paper:      var(--fe-color-surface, #ffffff);
+  --cl-paper-2:    var(--fe-color-surface-alt, #f7f8fa);
+  --cl-card:       var(--fe-color-card-primary-bg, #ffffff);
+  --cl-ink:        var(--fe-color-text, #0f172a);
+  --cl-ink-2:      var(--fe-color-text-soft, #475569);
+  --cl-ink-3:      #5b6678;
+  --cl-line:       var(--fe-color-border, #e4e7ec);
+  --cl-line-2:     #d0d5dd;
+  --cl-brand:      var(--fe-color-brand, #0b5cff);
+  --cl-brand-ink:  var(--fe-color-link, #0b5cff);
+  --cl-brand-wash: color-mix(in srgb, var(--cl-brand) 8%, transparent);
+  --cl-brand-tint: color-mix(in srgb, var(--cl-brand) 14%, transparent);
+  --cl-amber:      var(--fe-color-accent, #f59e0b);
+  /* Amber darkened for text on white (about 5:1). */
+  --cl-amber-ink:  color-mix(in srgb, var(--cl-amber) 52%, #451a03);
+  --cl-hover:      rgba(15, 23, 42, 0.045);
+  --cl-focus:      var(--cl-brand);
+  --cl-radius:     var(--fe-card-radius, 16px);
+  --cl-radius-sm:  10px;
+  --cl-shadow-sm:  0 1px 2px rgba(15, 23, 42, 0.05);
+  --cl-shadow-md:  0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -8px rgba(15, 23, 42, 0.12);
+  --cl-shadow-lg:  0 2px 6px rgba(15, 23, 42, 0.05), 0 24px 56px -16px rgba(15, 23, 42, 0.22);
+  --cl-ease:       cubic-bezier(0.2, 0.7, 0.2, 1);
+  --cl-display:    var(--fe-font-heading, "Fraunces", Georgia, serif);
+  --cl-ui:         var(--fe-font-body, "Inter", system-ui, sans-serif);
+  --cl-mono:       ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Legacy variables frontend.css still reads (footer icons, chips,
+     dynamic backgrounds, list accents). Without these they fall back to
+     the old indigo / navy values. */
+  --fe-accent:          var(--fe-color-brand, #0b5cff);
+  --fe-accent-2:        var(--fe-color-accent, #f59e0b);
+  --fe-accent-3:        var(--fe-color-brand, #0b5cff);
+  --fe-recovery-blue:   var(--fe-color-brand, #0b5cff);
+  --fe-recovery-blue-2: var(--fe-color-btn-primary-hover-bg, #0a4fe0);
+  --fe-ink:             var(--fe-color-text, #0f172a);
+  --fe-ink-muted:       var(--fe-color-text-soft, #475569);
+  --fe-ink-soft:        #5b6678;
+  --fe-border:          var(--fe-color-border, #e4e7ec);
+  --fe-panel-soft:      var(--fe-color-surface-alt, #f7f8fa);
+  --fe-gradient:        linear-gradient(135deg, var(--fe-color-brand, #0b5cff), color-mix(in srgb, var(--fe-color-brand, #0b5cff) 55%, #7c3aed));
+  --fe-shadow:          var(--cl-shadow-md);
+  --fe-shadow-lg:       var(--cl-shadow-lg);
+  /* Tokens some templates read under other names. */
+  --fe-color-bg:         var(--fe-color-surface, #ffffff);
+  --fe-color-muted:      var(--fe-color-text-soft, #475569);
+  --fe-color-text-muted: var(--fe-color-text-soft, #475569);
+  --fe-muted:            var(--fe-color-text-soft, #475569);
+  /* Brand lightened for links and accents on the dark ink surface. */
+  --cl-link-dk:       color-mix(in srgb, var(--fe-color-link, #0b5cff) 52%, #ffffff);
+  --cl-link-dk-hover: color-mix(in srgb, var(--fe-color-link, #0b5cff) 35%, #ffffff);
+}
+
+/* Deep-ink dark companion. Declared on <body> because the per-theme tokens
+   are inline on <body>; frontend.css sets the --fe-dm-* palette on <html>,
+   where those tokens are not visible, so it would fall back to navy. */
+html[data-theme="dark"] body[data-fe-theme="classic"],
+body[data-fe-theme="classic"].fe-frontend-force-dark {
+  --cl-paper:      var(--fe-color-surface-dark, #0d0f14);
+  --cl-paper-2:    color-mix(in srgb, var(--fe-color-surface-dark, #0d0f14) 92%, #ffffff);
+  --cl-card:       var(--fe-color-card-primary-bg-dark, #15181f);
+  --cl-ink:        var(--fe-color-text-dark, #e7e9ee);
+  --cl-ink-2:      #a7adb9;
+  --cl-ink-3:      #8b92a0;
+  --cl-line:       var(--fe-color-card-primary-border-dark, #262a33);
+  --cl-line-2:     #363b46;
+  --cl-brand-ink:  var(--cl-link-dk);
+  --cl-brand-wash: color-mix(in srgb, var(--cl-link-dk) 10%, transparent);
+  --cl-brand-tint: color-mix(in srgb, var(--cl-link-dk) 18%, transparent);
+  --cl-amber-ink:  color-mix(in srgb, var(--cl-amber) 78%, #ffffff);
+  --cl-hover:      rgba(255, 255, 255, 0.05);
+  --cl-focus:      var(--cl-link-dk);
+  --cl-shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.4);
+  --cl-shadow-md:  0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
+  --cl-shadow-lg:  0 2px 6px rgba(0, 0, 0, 0.4), 0 28px 60px -18px rgba(0, 0, 0, 0.75);
+
+  --fe-dm-surface:        var(--fe-color-card-primary-bg-dark, #15181f);
+  --fe-dm-surface-soft:   rgba(255, 255, 255, 0.035);
+  --fe-dm-border:         var(--fe-color-card-primary-border-dark, #262a33);
+  --fe-dm-border-hover:   color-mix(in srgb, var(--fe-color-card-primary-hover-border, #f0b65a) 55%, transparent);
+  --fe-dm-text-strong:    var(--fe-color-text-dark, #f1f3f6);
+  --fe-dm-text:           var(--fe-color-text-dark, #e7e9ee);
+  --fe-dm-text-muted:     #a7adb9;
+  --fe-dm-link:           var(--cl-link-dk);
+  --fe-dm-link-hover:     var(--cl-link-dk-hover);
+  --fe-dm-code-bg:        rgba(255, 255, 255, 0.07);
+  /* Primary buttons stay the brand blue in the dark (white on #0b5cff is
+     about 5:1) instead of frontend.css's darkened navy mix. */
+  --fe-dm-btn-primary-bg:         var(--fe-color-btn-primary-bg, #0b5cff);
+  --fe-dm-btn-primary-bg-hover:   var(--fe-color-btn-primary-hover-bg, #0a4fe0);
+  --fe-dm-btn-primary-text:       var(--fe-color-btn-primary-text, #ffffff);
+  --fe-dm-btn-primary-text-hover: var(--fe-color-btn-primary-text, #ffffff);
+  --fe-dm-btn-primary-shadow:     none;
+  --fe-accent:   var(--cl-link-dk);
+  --fe-accent-3: var(--cl-link-dk);
+  --fe-border:   var(--fe-color-card-primary-border-dark, #262a33);
+  --fe-panel-soft: var(--fe-color-card-primary-bg-dark, #15181f);
+  --fe-ink-muted: #a7adb9;
+  --fe-ink-soft:  #8b92a0;
+  --fe-color-bg:  var(--fe-color-surface-dark, #0d0f14);
+  --fe-color-muted:      #a7adb9;
+  --fe-color-text-muted: #a7adb9;
+  --fe-muted:            #a7adb9;
+  --fe-text-dark-active: var(--fe-color-text-dark, #e7e9ee);
+}
+/* Light-mode tokens re-pointed for dark content. These tokens are inline
+   on <body>, so they are re-declared one level down, on the regions. */
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-page, .fe-header, .fe-megamenu, .fe-search-modal) {
+  --fe-color-surface:     var(--cl-paper);
+  --fe-color-surface-alt: var(--cl-paper-2);
+  --fe-color-border:      var(--cl-line);
+  --fe-color-text-soft:   var(--cl-ink-2);
+  --fe-color-link:        var(--cl-link-dk);
+  --fe-color-link-hover:  var(--cl-link-dk-hover);
+}
+
+/* ===== 2. Atmosphere ===================================================== */
+body[data-fe-theme="classic"] {
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+  font-feature-settings: "cv11", "ss01";
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] { background: var(--cl-paper); }
+body[data-fe-theme="classic"] ::selection { background: color-mix(in srgb, var(--cl-brand) 20%, transparent); }
+
+/* Form controls take the page face (buttons default to the UA font). */
+body[data-fe-theme="classic"] :is(button, input, select, textarea) { font-family: inherit; }
+
+/* One focus ring everywhere: 2px brand outline, offset from the shape. */
+body[data-fe-theme="classic"] :is(a, button, summary, select, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--cl-focus);
+  outline-offset: 2px;
+}
+
+/* Sections sit on the page paper; dividers are hairlines. */
+body[data-fe-theme="classic"] .fe-section + .fe-section { border-top-color: var(--cl-line); }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-features, .fe-about, .fe-quick, .fe-stats-block, .fe-meeting-detail, .fe-meeting-stack, .fe-meeting-mag, .fe-meeting-min, .fe-event-poster, .fe-event-time, .fe-event-min) {
+  background: var(--cl-paper);
+}
+
+/* Page-builder containers saved with the historic navy dark-mode colors
+   (#0b1026 page, #131a33 card) are re-pointed to this theme's ink
+   equivalents. Any other admin-chosen dark color is left alone. */
+html[data-theme="dark"] body[data-fe-theme="classic"] [style*="--tsp-bg-dm: #0b1026"] { --tsp-bg-dm: var(--cl-paper) !important; }
+html[data-theme="dark"] body[data-fe-theme="classic"] [style*="--tsp-bg-dm: #131a33"] { --tsp-bg-dm: var(--cl-card) !important; }
+html[data-theme="dark"] body[data-fe-theme="classic"] [style*="--tsp-border-dm: #131a33"],
+html[data-theme="dark"] body[data-fe-theme="classic"] [style*="--tsp-border-dm: #1f2a44"] { --tsp-border-dm: var(--cl-line) !important; }
+
+/* ===== 3. Typography ===================================================== */
+/* Fraunces' optical-size axis: display sizes get the high-contrast cut,
+   small headings the sturdier text cut. */
+body[data-fe-theme="classic"] :is(h1, h2, h3, h4) { font-optical-sizing: auto; }
+
+body[data-fe-theme="classic"] .fe-section-head { max-width: 680px; margin-bottom: 48px; }
+body[data-fe-theme="classic"] .fe-faq--bare .fe-section-head { max-width: none; }
+body[data-fe-theme="classic"] .fe-section-head::before {
+  content: ""; display: block; width: 28px; height: 2px; margin: 0 auto 20px;
+  border-radius: 2px; background: var(--cl-amber);
+}
+body[data-fe-theme="classic"] .fe-section-head h2 {
+  font-family: var(--cl-display);
+  font-weight: 600;
+  font-size: clamp(2rem, 1.35rem + 2.2vw, 2.875rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  font-variation-settings: "opsz" 96;
+  color: var(--cl-ink);
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+body[data-fe-theme="classic"] .fe-section-head p {
+  color: var(--cl-ink-2); font-size: 1.0625rem; line-height: 1.6;
+  max-width: 52ch; margin: 0 auto; text-wrap: pretty;
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-section-head p { color: var(--cl-ink-2); }
+
+/* Long-form reading: links are underlined, not color alone. */
+body[data-fe-theme="classic"] :is(.fe-event-detail-desc, .fe-meeting-detail-desc, .fe-blog-cls-body, .fe-story-mag-body, .fe-faq-body-inner, .fe-feature-body, .fe-pp-prose) a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+body[data-fe-theme="classic"] :is(.fe-event-detail-desc, .fe-meeting-detail-desc, .fe-blog-cls-body, .fe-story-mag-body, .fe-faq-body-inner, .fe-feature-body, .fe-pp-prose) a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* ===== 4. Utility bar ===================================================
+   Its colors are the admin's (Design → Header) and the yellow live band
+   is fixed; only the type and pill shapes are refined. */
+body[data-fe-theme="classic"] .fe-utility-bar { font-size: 0.8125rem; letter-spacing: 0.005em; }
+body[data-fe-theme="classic"] .fe-utility-btn { padding: 4px 11px; font-weight: 600; }
+body[data-fe-theme="classic"] .fe-utility-live-cta { padding: 4px 12px; letter-spacing: 0.01em; }
+
+/* ===== 5. Header ========================================================= */
+body[data-fe-theme="classic"] .fe-header {
+  background: rgba(255, 255, 255, 0.78);
+  -webkit-backdrop-filter: saturate(1.6) blur(14px);
+  backdrop-filter: saturate(1.6) blur(14px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+body[data-fe-theme="classic"] .fe-header.fe-header-scrolled {
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 30px -18px rgba(15, 23, 42, 0.25);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-header {
+  background: color-mix(in srgb, var(--cl-paper) 74%, transparent);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-header.fe-header-scrolled {
+  background: color-mix(in srgb, var(--cl-paper) 90%, transparent);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 32px -18px rgba(0, 0, 0, 0.8);
+}
+body[data-fe-theme="classic"] .fe-brand-name {
+  font-family: var(--cl-display); font-weight: 600; font-size: 1.3rem;
+  letter-spacing: -0.02em; font-variation-settings: "opsz" 48;
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-brand { color: var(--cl-ink); }
+
+body[data-fe-theme="classic"] .fe-nav { gap: 2px; }
+body[data-fe-theme="classic"] .fe-nav a {
+  padding: 8px 13px; border-radius: 999px;
+  font-size: 0.9375rem; font-weight: 500; letter-spacing: -0.005em;
+  color: var(--fe-color-nav-link, var(--cl-ink-2));
+  transition: color 160ms var(--cl-ease), background-color 160ms var(--cl-ease);
+}
+body[data-fe-theme="classic"] .fe-nav a:hover {
+  background: var(--cl-hover);
+  color: var(--fe-color-nav-link-hover, var(--cl-ink));
+}
+body[data-fe-theme="classic"] .fe-nav a.fe-megaparent.mega-active {
+  background: var(--cl-brand-wash);
+  color: var(--cl-brand-ink);
+}
+body[data-fe-theme="classic"] .fe-nav a .fe-nav-caret { transition: transform 200ms var(--cl-ease); opacity: 0.7; }
+body[data-fe-theme="classic"] .fe-nav a.mega-active .fe-nav-caret { transform: rotate(180deg); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-nav a { color: var(--cl-ink-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-nav a:hover { color: var(--cl-ink); background: var(--cl-hover); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-nav a.fe-megaparent.mega-active {
+  color: var(--cl-link-dk); background: var(--cl-brand-wash);
+}
+
+/* Call-to-action: an ink pill that turns brand blue on hover. */
+body[data-fe-theme="classic"] .fe-nav .fe-nav-cta {
+  margin-left: 10px; padding: 9px 18px !important; /* beats frontend.css's !important padding */
+  border-radius: var(--fe-btn-radius, 999px);
+  background: var(--cl-ink); color: var(--cl-paper) !important;
+  font-weight: 600; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+body[data-fe-theme="classic"] .fe-nav .fe-nav-cta:hover {
+  background: var(--fe-color-btn-primary-bg, var(--cl-brand)) !important; /* frontend.css hover is !important */
+  color: var(--fe-color-btn-primary-text, #fff) !important;
+  transform: var(--fe-btn-hover-transform, none);
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--cl-brand) 60%, transparent);
+}
+/* frontend.css darkens the CTA to a navy mix with !important. */
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-nav .fe-nav-cta {
+  background: var(--fe-color-btn-primary-bg, #0b5cff) !important;
+  border-color: transparent !important;
+  color: var(--fe-color-btn-primary-text, #fff) !important;
+  box-shadow: none;
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-nav .fe-nav-cta:hover {
+  background: var(--fe-color-btn-primary-hover-bg, #0a4fe0) !important;
+  border-color: transparent !important;
+}
+/* The two-bar button stacks its bars (frontend.css shows it as a row
+   flex, which laid the bars side by side and broke the X). */
+body[data-fe-theme="classic"] .fe-menu-btn {
+  flex-direction: column; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0; border-radius: 999px;
+}
+body[data-fe-theme="classic"] .fe-menu-btn:hover { background: var(--cl-hover); }
+body[data-fe-theme="classic"] .fe-menu-btn span { background: var(--cl-ink); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-menu-btn span { background: var(--cl-ink); }
+
+@media (max-width: 880px) {
+  body[data-fe-theme="classic"] .fe-nav {
+    background: var(--cl-paper); border-bottom: 1px solid var(--cl-line);
+    box-shadow: 0 18px 40px -20px rgba(15, 23, 42, 0.35);
+    padding: 8px 5vw 18px;
+  }
+  body[data-fe-theme="classic"] .fe-nav a { border-radius: 10px; padding: 12px 14px; font-size: 1rem; }
+  body[data-fe-theme="classic"] .fe-nav .fe-nav-cta { margin: 10px 0 0; text-align: center; justify-content: center; }
+  html[data-theme="dark"] body[data-fe-theme="classic"] .fe-nav {
+    background: var(--cl-card); border-bottom-color: var(--cl-line);
+    box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* ===== 6. Mega menu (classic) ===========================================
+   Surface and text colors are the admin's (inline); this refines type,
+   spacing, dividers and hover states so they read on any surface. */
+body[data-fe-theme="classic"] .fe-megamenu-classic { --fe-mm-heading-base: 0.6875rem; --fe-mm-link-base: 0.9375rem; padding-top: 10px; }
+body[data-fe-theme="classic"] .fe-megamenu-classic-card {
+  padding: 30px 30px 26px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 28px 64px -24px rgba(15, 23, 42, 0.35);
+}
+body[data-fe-theme="classic"] .fe-megamenu-classic-col { padding: 0 20px; }
+body[data-fe-theme="classic"] .fe-megamenu-classic-col + .fe-megamenu-classic-col {
+  border-left-color: color-mix(in srgb, currentColor 14%, transparent);
+}
+body[data-fe-theme="classic"] .fe-megamenu-classic-block-title {
+  font-family: var(--cl-ui); font-weight: 600;
+  letter-spacing: 0.14em; opacity: 0.72;
+  margin: 18px 10px 6px;
+}
+body[data-fe-theme="classic"] .fe-megamenu-classic-link {
+  padding: 8px 10px; border-radius: 8px; font-weight: 500; letter-spacing: -0.005em;
+  transition: background-color 140ms var(--cl-ease);
+}
+/* frontend.css turns the hover text #0b5cff, which vanishes on the default
+   blue panel; keep the panel's own text color and tint the row instead. */
+body[data-fe-theme="classic"] .fe-megamenu-classic-link:not(.fe-megamenu-classic-link-colored):hover,
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-megamenu-classic-link:not(.fe-megamenu-classic-link-colored):hover {
+  color: inherit;
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+body[data-fe-theme="classic"] .fe-megamenu-classic-arrow { opacity: 0.55; transition: transform 160ms var(--cl-ease), opacity 160ms var(--cl-ease); }
+body[data-fe-theme="classic"] .fe-megamenu-classic-arrow .icon { width: 16px; height: 16px; }
+body[data-fe-theme="classic"] .fe-megamenu-classic-link:hover .fe-megamenu-classic-arrow { opacity: 1; }
+body[data-fe-theme="classic"] .fe-megamenu-classic-block-section { opacity: 0.7; }
+body[data-fe-theme="classic"] .fe-megamenu-classic-block-btn {
+  color: inherit; font-weight: 600;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  border-color: color-mix(in srgb, currentColor 22%, transparent);
+}
+body[data-fe-theme="classic"] .fe-megamenu-classic-block-btn:hover {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+body[data-fe-theme="classic"] .fe-megamenu-classic-search {
+  border-radius: 10px; background: color-mix(in srgb, currentColor 8%, transparent);
+  border-color: color-mix(in srgb, currentColor 16%, transparent); color: inherit;
+}
+/* The template's fallback dark surface is the old navy; when that default
+   is in effect, use this theme's ink card instead. */
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-megamenu-classic-card[style*="--fe-mm-bg-dark: #131a33"] {
+  --fe-mm-bg-dark: var(--cl-card);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-megamenu-classic-card {
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 30px 70px -24px rgba(0, 0, 0, 0.85);
+}
+body[data-fe-theme="classic"] .fe-megamenu-backdrop { background: rgba(15, 23, 42, 0.22); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-megamenu-backdrop { background: rgba(0, 0, 0, 0.45); }
+
+/* ===== 7. Buttons ======================================================== */
+body[data-fe-theme="classic"] .fe-btn {
+  border-radius: var(--fe-btn-radius, 999px);
+  font-size: 0.9375rem; font-weight: var(--fe-btn-weight, 600);
+  letter-spacing: -0.005em; line-height: 1.2;
+  text-transform: var(--fe-btn-text-transform, none);
+  transition: transform 160ms var(--cl-ease), box-shadow 160ms var(--cl-ease),
+              background-color 160ms var(--cl-ease), border-color 160ms var(--cl-ease), color 160ms var(--cl-ease);
+}
+body[data-fe-theme="classic"] .fe-btn:active { transform: translateY(0); }
+/* Dark: primary keeps the brand token instead of frontend.css's navy. */
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-btn-primary, .fe-btn-blue, .fe-meeting-card-actions .fe-btn-primary, .fe-mlist-card-action-stack .fe-btn-primary, .fe-hero-cta .fe-btn-primary) {
+  background: var(--fe-btn-bg, var(--fe-color-btn-primary-bg, #0b5cff));
+  color: var(--fe-btn-text, var(--fe-color-btn-primary-text, #fff));
+  border-color: var(--fe-btn-bg, var(--fe-color-btn-primary-border, var(--fe-color-btn-primary-bg, #0b5cff)));
+  box-shadow: none;
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-btn-primary, .fe-btn-blue, .fe-meeting-card-actions .fe-btn-primary, .fe-mlist-card-action-stack .fe-btn-primary, .fe-hero-cta .fe-btn-primary):hover {
+  background: var(--fe-btn-hover-bg, var(--fe-color-btn-primary-hover-bg, #0a4fe0));
+  color: var(--fe-btn-hover-text, var(--fe-btn-text, var(--fe-color-btn-primary-text, #fff)));
+  border-color: var(--fe-btn-hover-bg, var(--fe-color-btn-primary-hover-border, var(--fe-color-btn-primary-hover-bg, #0a4fe0)));
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-btn-ghost {
+  background: transparent; color: var(--cl-ink); border-color: var(--cl-line-2);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-btn-ghost:hover,
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-hero-cta .fe-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06); color: var(--cl-ink); border-color: #5a6170;
+}
+body[data-fe-theme="classic"] .fe-card-read-more { color: var(--cl-brand-ink); font-size: 0.9rem; }
+
+/* ===== 8. Badges and chips ============================================== */
+body[data-fe-theme="classic"] .fe-meeting-type {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 8px; border-radius: 999px;
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; line-height: 1.5;
+}
+body[data-fe-theme="classic"] .fe-meeting-type::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.85;
+}
+body[data-fe-theme="classic"] .fe-meeting-type-online    { background: color-mix(in srgb, var(--cl-brand) 9%, #fff); color: color-mix(in srgb, var(--cl-brand) 80%, #000); }
+body[data-fe-theme="classic"] .fe-meeting-type-in_person { background: #ecfdf3; color: #067647; }
+body[data-fe-theme="classic"] .fe-meeting-type-hybrid    { background: #fffaeb; color: #b54708; }
+body[data-fe-theme="classic"] .fe-meeting-type-archived  { background: #f2f4f7; color: #475467; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-meeting-type-online    { background: rgba(122, 167, 255, 0.13); color: #a9c4ff; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-meeting-type-in_person { background: rgba(50, 213, 131, 0.12); color: #75e0a7; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-meeting-type-hybrid    { background: rgba(253, 176, 34, 0.13); color: #fec84b; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-meeting-type-archived  { background: rgba(255, 255, 255, 0.07); color: var(--cl-ink-2); }
+body[data-fe-theme="classic"] .fe-fellowships-card-chip--virtual { background: color-mix(in srgb, var(--cl-brand) 9%, #fff); color: color-mix(in srgb, var(--cl-brand) 80%, #000); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-fellowships-card-chip--virtual { background: rgba(122, 167, 255, 0.13); color: #a9c4ff; }
+
+body[data-fe-theme="classic"] .fe-copy-btn { border-color: var(--cl-line); color: var(--cl-ink-3); border-radius: 8px; }
+body[data-fe-theme="classic"] .fe-copy-btn:hover { color: var(--cl-brand-ink); border-color: color-mix(in srgb, var(--cl-brand) 45%, transparent); }
+body[data-fe-theme="classic"] .fe-copy-btn.fe-copy-url-pill { color: var(--cl-ink-3); letter-spacing: 0.08em; font-weight: 600; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-copy-btn { border-color: var(--cl-line-2); }
+
+/* ===== 9. Forms ========================================================== */
+body[data-fe-theme="classic"] :is(.fe-submission-form, .fe-custom-form-field) :is(input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="search"], input[type="datetime-local"], input[type="date"], input[type="number"], textarea, select) {
+  padding: 10px 14px;
+}
+body[data-fe-theme="classic"] :is(.fe-submission-form, .fe-custom-form-field) :is(input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="search"], input[type="datetime-local"], input[type="date"], input[type="number"], textarea, select),
+body[data-fe-theme="classic"] .fe-rc-search-input {
+  min-height: 44px;
+  border: 1px solid var(--cl-line-2); border-radius: var(--cl-radius-sm);
+  background: var(--cl-paper); color: var(--cl-ink);
+  font: inherit; font-size: 1rem; line-height: 1.4;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 140ms var(--cl-ease), box-shadow 140ms var(--cl-ease);
+}
+body[data-fe-theme="classic"] :is(.fe-submission-form, .fe-custom-form-field) textarea { min-height: 7.5rem; }
+body[data-fe-theme="classic"] :is(.fe-submission-form, .fe-custom-form-field) :is(input, textarea, select):hover { border-color: #98a2b3; }
+body[data-fe-theme="classic"] :is(.fe-submission-form, .fe-custom-form-field) :is(input, textarea, select):focus,
+body[data-fe-theme="classic"] .fe-rc-search-input:focus {
+  outline: none; border-color: var(--cl-brand);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--cl-brand) 16%, transparent);
+}
+body[data-fe-theme="classic"] :is(.fe-submission-form, .fe-custom-form-field) ::placeholder { color: #98a2b3; }
+body[data-fe-theme="classic"] :is(.fe-custom-form-label, .fe-submission-form label) {
+  font-size: 0.875rem; font-weight: 600; color: var(--cl-ink); letter-spacing: -0.003em;
+}
+body[data-fe-theme="classic"] .fe-submission-form .check { font-weight: 400; font-size: 0.9375rem; }
+/* Labels written as "Text <span class=req>*</span> <input>" put the
+   asterisk on its own row in the column layout; keep it on the text line. */
+body[data-fe-theme="classic"] .fe-submission-form label:has(> .req) { display: block; }
+body[data-fe-theme="classic"] .fe-submission-form label:has(> .req) > :is(input, textarea, select) { display: block; margin-top: 6px; }
+body[data-fe-theme="classic"] .fe-submission-form fieldset { border-color: var(--cl-line); border-radius: 12px; padding: 1.125rem 1.25rem; }
+body[data-fe-theme="classic"] .fe-submission-form fieldset legend { font-weight: 600; font-size: 0.875rem; color: var(--cl-ink); }
+body[data-fe-theme="classic"] .fe-submission-form input[type="checkbox"],
+body[data-fe-theme="classic"] .fe-submission-form input[type="radio"] { accent-color: var(--cl-brand); }
+body[data-fe-theme="classic"] .fe-submission-fineprint { color: var(--cl-ink-3); font-size: 0.8125rem; }
+body[data-fe-theme="classic"] .fe-submission-submit {
+  border-radius: var(--fe-btn-radius, 999px);
+  padding: var(--fe-btn-padding-y, 11px) var(--fe-btn-padding-x, 22px);
+  font-size: 0.9375rem; box-shadow: var(--fe-btn-shadow, none);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-submission-form, .fe-custom-form-field) :is(input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="search"], input[type="datetime-local"], input[type="date"], input[type="number"], textarea, select),
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-rc-search-input {
+  background: var(--cl-paper-2); border-color: var(--cl-line-2); color: var(--cl-ink); box-shadow: none;
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-submission-form, .fe-custom-form-field) :is(input, textarea, select):hover { border-color: #4b5261; }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-submission-form, .fe-custom-form-field) ::placeholder { color: #737b8a; }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-custom-form-label, .fe-submission-form label, .fe-submission-form fieldset legend) { color: var(--cl-ink); }
+
+/* ===== 10. Cards: shared surface ======================================== */
+body[data-fe-theme="classic"] :is(.fe-meeting-card, .fe-event-row, .fe-mlist-card, .fe-events-card, .fe-events-mag-hero, .fe-announcements-card, .fe-fellowships-card, .fe-library-item, .fe-meeting-detail-card, .fe-event-detail-card, .fe-submission-card, .fe-rc-item-card) {
+  border-radius: var(--cl-radius);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-meeting-card, .fe-event-row, .fe-mlist-card, .fe-events-card, .fe-events-mag-hero, .fe-announcements-card, .fe-fellowships-card, .fe-library-item, .fe-meeting-detail-card, .fe-event-detail-card, .fe-submission-card, .fe-rc-item-card, .fe-card-primary, .fe-events-tl-card, .fe-events-cal) {
+  background: var(--cl-card);
+  border-color: var(--cl-line);
+}
+
+/* ===== 11. Hero ========================================================== */
+body[data-fe-theme="classic"] .fe-hero-heading {
+  font-weight: 600;
+  font-variation-settings: "opsz" 144;
+  letter-spacing: -0.028em;
+  line-height: 1.04;
+  padding-bottom: 0.1em;
+  text-wrap: balance;
+}
+body[data-fe-theme="classic"] .fe-hero-heading-inter { font-weight: 700; letter-spacing: -0.04em; }
+body[data-fe-theme="classic"] .fe-hero-sub { line-height: 1.6; max-width: 38rem; text-wrap: pretty; }
+body[data-fe-theme="classic"] .fe-hero-cta { gap: 12px; }
+body[data-fe-theme="classic"] .fe-hero-eyebrow {
+  background: rgba(255, 255, 255, 0.6); color: var(--cl-amber-ink);
+  border: 1px solid color-mix(in srgb, var(--cl-amber) 35%, transparent);
+  letter-spacing: 0.14em; font-size: 0.75rem;
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-hero:not(.fe-hero-bg-dynamic):not([style*="background"]) {
+  background: radial-gradient(70% 90% at 50% 0%, color-mix(in srgb, var(--cl-brand) 16%, transparent), transparent 70%), var(--cl-paper);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-hero-eyebrow {
+  background: rgba(255, 255, 255, 0.05); color: var(--cl-amber-ink);
+}
+
+/* ===== 12. Home: today's meetings ======================================= */
+body[data-fe-theme="classic"] .fe-meeting-grid { gap: 20px; }
+body[data-fe-theme="classic"] .fe-meeting-card { padding: 24px 24px 22px; }
+body[data-fe-theme="classic"] .fe-meeting-card h3 {
+  font-family: var(--cl-display); font-weight: 600; font-size: 1.3rem;
+  line-height: 1.2; letter-spacing: -0.015em; margin: 14px 0 12px;
+  text-wrap: balance;
+}
+body[data-fe-theme="classic"] .fe-meeting-sched { gap: 5px; font-size: 0.9rem; color: var(--cl-ink-2); font-variant-numeric: tabular-nums; }
+body[data-fe-theme="classic"] .fe-meeting-day { color: var(--cl-ink); font-weight: 600; }
+body[data-fe-theme="classic"] .fe-meeting-card-cta { color: var(--cl-ink-3); font-size: 0.8125rem; font-weight: 500; }
+body[data-fe-theme="classic"] .fe-meeting-card:hover .fe-meeting-card-cta { color: var(--cl-brand-ink); }
+body[data-fe-theme="classic"] .fe-meeting-card-actions .fe-btn { padding: 9px 14px; font-size: 0.875rem; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-meeting-sched { color: var(--cl-ink-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-meeting-day { color: var(--cl-ink); }
+
+/* ===== 13. Home: upcoming events ======================================== */
+body[data-fe-theme="classic"] .fe-events-list { gap: 14px; }
+body[data-fe-theme="classic"] .fe-event-row { gap: 22px; padding: 18px 22px 18px 18px; }
+body[data-fe-theme="classic"] .fe-event-date {
+  min-width: 72px; padding: 10px 12px; border-radius: 12px;
+  background: var(--cl-paper); border-color: var(--cl-line);
+}
+body[data-fe-theme="classic"] .fe-event-date-month,
+body[data-fe-theme="classic"] .fe-events-card-date-month,
+body[data-fe-theme="classic"] .fe-events-tl-month {
+  color: var(--cl-amber-ink); font-weight: 700; letter-spacing: 0.14em; font-size: 0.6875rem;
+}
+body[data-fe-theme="classic"] .fe-event-date-day {
+  font-family: var(--cl-display); font-weight: 600; font-size: 2rem;
+  letter-spacing: -0.03em; line-height: 1; margin-top: 4px;
+  font-variation-settings: "opsz" 72; color: var(--cl-ink);
+}
+body[data-fe-theme="classic"] .fe-event-date-year { color: var(--cl-ink-3); font-size: 0.6875rem; margin-top: 4px; font-variant-numeric: tabular-nums; }
+body[data-fe-theme="classic"] .fe-event-thumb { border-radius: 12px; border-color: var(--cl-line); }
+body[data-fe-theme="classic"] .fe-event-title {
+  font-family: var(--cl-display); font-weight: 600; font-size: 1.2rem;
+  letter-spacing: -0.012em; line-height: 1.25; margin-bottom: 6px;
+}
+body[data-fe-theme="classic"] .fe-event-attrs { color: var(--cl-ink-3); font-size: 0.8125rem; gap: 4px 16px; }
+body[data-fe-theme="classic"] .fe-event-attr-online { color: var(--cl-brand-ink); }
+body[data-fe-theme="classic"] .fe-event-summary { color: var(--cl-ink-2); font-size: 0.9rem; line-height: 1.55; }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-event-date, .fe-event-thumb) { background: var(--cl-paper); border-color: var(--cl-line); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-event-date-month { color: var(--cl-amber-ink); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-event-date-day { color: var(--cl-ink); }
+
+/* ===== 14. Home: features, FAQ, inclusion =============================== */
+body[data-fe-theme="classic"] .fe-features { background: transparent; }
+body[data-fe-theme="classic"] .fe-features-grid { gap: 22px; }
+body[data-fe-theme="classic"] .fe-feature-card { padding: 30px 28px 28px; border-radius: var(--cl-radius); }
+body[data-fe-theme="classic"] .fe-feature-icon {
+  width: 42px; height: 42px; border-radius: 12px; margin-bottom: 20px;
+  background: var(--cl-paper); color: var(--cl-brand);
+  border: 1px solid var(--cl-line); box-shadow: var(--cl-shadow-sm);
+}
+body[data-fe-theme="classic"] .fe-feature-icon .icon { width: 20px; height: 20px; }
+body[data-fe-theme="classic"] .fe-feature-card h3 {
+  font-family: var(--cl-display); font-weight: 600; font-size: 1.375rem;
+  letter-spacing: -0.015em; line-height: 1.2; margin-bottom: 10px; color: var(--cl-ink);
+}
+body[data-fe-theme="classic"] :is(.fe-feature-body, .fe-feature-card p) { color: var(--cl-ink-2); line-height: 1.65; font-size: 0.9375rem; }
+body[data-fe-theme="classic"] .fe-feature-body strong { color: var(--cl-ink); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-feature-card {
+  background: var(--fe-color-card-secondary-bg-dark, var(--cl-card));
+  border-color: var(--fe-color-card-secondary-border-dark, var(--cl-line));
+  color: var(--cl-ink);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-feature-body, .fe-feature-card p) { color: var(--cl-ink-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-feature-icon,
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-faq-summary-icon,
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-inclusion-icon,
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-protips-icon {
+  background: rgba(255, 255, 255, 0.04); color: var(--cl-link-dk);
+  border-color: var(--cl-line-2);
+}
+
+body[data-fe-theme="classic"] .fe-faq-list { gap: 10px; }
+body[data-fe-theme="classic"] .fe-faq-item { border-radius: 12px; }
+body[data-fe-theme="classic"] .fe-faq-item:hover { border-color: var(--cl-line-2); }
+body[data-fe-theme="classic"] .fe-faq-item.is-open { border-color: var(--cl-line-2); box-shadow: var(--cl-shadow-md); background: var(--cl-card); }
+body[data-fe-theme="classic"] .fe-faq-summary { padding: 18px 20px; font-size: 0.975rem; font-weight: 600; color: var(--cl-ink); letter-spacing: -0.005em; }
+body[data-fe-theme="classic"] .fe-faq-summary-icon {
+  border-radius: 10px; background: var(--cl-paper); color: var(--cl-brand);
+  border: 1px solid var(--cl-line);
+}
+body[data-fe-theme="classic"] .fe-faq-summary-chevron { color: var(--cl-ink-3); }
+body[data-fe-theme="classic"] .fe-faq-item.is-open .fe-faq-summary-chevron { color: var(--cl-amber-ink); }
+body[data-fe-theme="classic"] .fe-faq-body-inner { color: var(--cl-ink-2); line-height: 1.65; padding-left: 20px; padding-right: 20px; }
+body[data-fe-theme="classic"] .fe-faq-item.is-open .fe-faq-body-inner { padding: 2px 20px 20px; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-faq-item {
+  background: var(--fe-color-card-secondary-bg-dark, var(--cl-card));
+  border-color: var(--fe-color-card-secondary-border-dark, var(--cl-line));
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-faq-item:is(:hover, .is-open) { border-color: var(--cl-line-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-faq-summary { color: var(--cl-ink); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-faq-body-inner { color: var(--cl-ink-2); }
+
+body[data-fe-theme="classic"] .fe-inclusion-icon { background: var(--cl-brand-wash); color: var(--cl-brand); }
+body[data-fe-theme="classic"] .fe-inclusion-heading { font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.02em; }
+body[data-fe-theme="classic"] .fe-inclusion-tag { background: var(--cl-brand-wash); color: var(--cl-brand-ink); border-color: var(--cl-brand-tint); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-inclusion-card {
+  background: var(--fe-color-card-secondary-bg-dark, var(--cl-card));
+  border-color: var(--fe-color-card-secondary-border-dark, var(--cl-line));
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-inclusion-body { color: var(--cl-ink-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-inclusion-tag { background: var(--cl-brand-wash); color: #c4d6ff; border-color: var(--cl-brand-tint); }
+
+/* Pill lists inherit the theme surface; their own colors stay the admin's. */
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-pp-list-pills > li {
+  background: var(--cl-card); border-color: var(--cl-line-2);
+}
+
+/* ===== 15. Meetings list (/meetings) ==================================== */
+body[data-fe-theme="classic"] .fe-mlist { background: var(--cl-paper-2); padding: 40px 0 80px; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-mlist { background: var(--cl-paper); }
+body[data-fe-theme="classic"] .fe-mlist-head h1,
+body[data-fe-theme="classic"] .fe-mlist-sidebar .fe-mlist-rail > .fe-mlist-head h1 {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.025em;
+  font-variation-settings: "opsz" 96; line-height: 1.1; color: var(--cl-ink);
+}
+body[data-fe-theme="classic"] .fe-mlist-sidebar .fe-mlist-rail > .fe-mlist-head h1 {
+  font-size: 1.875rem; letter-spacing: -0.018em; font-variation-settings: "opsz" 40;
+}
+body[data-fe-theme="classic"] .fe-mlist-head p { color: var(--cl-ink-2); line-height: 1.55; }
+
+/* Rail: search, day list, links */
+body[data-fe-theme="classic"] .fe-mlist-rail-search input {
+  min-height: 42px; padding: 10px 44px 10px 38px;
+  background: var(--cl-card); border: 1px solid var(--cl-line); border-radius: 12px;
+  box-shadow: var(--cl-shadow-sm); font-size: 0.9375rem;
+}
+body[data-fe-theme="classic"] .fe-mlist-rail-search input:focus {
+  background: var(--cl-card); border-color: var(--cl-brand);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--cl-brand) 15%, transparent);
+}
+body[data-fe-theme="classic"] .fe-mlist-search-kbd {
+  border: 1px solid var(--cl-line); background: var(--cl-paper-2); color: var(--cl-ink-3);
+  font-size: 0.75rem; border-radius: 6px;
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-mlist-rail-search input { background: var(--cl-card); border-color: var(--cl-line); color: var(--cl-ink); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-mlist-search-kbd { background: var(--cl-paper-2); border-color: var(--cl-line-2); }
+
+body[data-fe-theme="classic"] .fe-mlist-day-list > li + li { margin-top: 2px; }
+body[data-fe-theme="classic"] .fe-mlist-day-pill,
+body[data-fe-theme="classic"] .fe-page .fe-mlist-rail-link {
+  padding: 9px 12px; border-radius: 10px; font-size: 0.9375rem; font-weight: 500;
+  color: var(--cl-ink-2);
+  transition: background-color 140ms var(--cl-ease), color 140ms var(--cl-ease), box-shadow 140ms var(--cl-ease);
+}
+body[data-fe-theme="classic"] .fe-mlist-day-pill:hover,
+body[data-fe-theme="classic"] .fe-page .fe-mlist-rail-link:hover { background: var(--cl-hover); color: var(--cl-ink); }
+body[data-fe-theme="classic"] .fe-mlist-day-pill.is-active {
+  background: var(--cl-card); border-color: var(--cl-line); color: var(--cl-ink); font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--cl-brand), var(--cl-shadow-sm);
+}
+body[data-fe-theme="classic"] .fe-mlist-day-count {
+  min-width: 26px; text-align: center; font-size: 0.75rem; font-weight: 600;
+  color: var(--cl-ink-3); background: transparent;
+}
+body[data-fe-theme="classic"] .fe-mlist-day-pill.is-active .fe-mlist-day-count { background: var(--cl-brand-wash); color: var(--cl-brand-ink); }
+body[data-fe-theme="classic"] .fe-mlist-rail-section {
+  margin-top: 16px; padding: 14px 12px 6px; border-top-color: var(--cl-line);
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.14em; color: var(--cl-ink-3);
+}
+body[data-fe-theme="classic"] .fe-mlist-link-list { border-top-color: var(--cl-line); margin-top: 16px; }
+
+/* Day sections */
+body[data-fe-theme="classic"] .fe-mlist-day-section + .fe-mlist-day-section { margin-top: 40px; }
+body[data-fe-theme="classic"] .fe-mlist-day-section-heading {
+  font-family: var(--cl-display); font-weight: 600; font-size: 1.5rem;
+  letter-spacing: -0.02em; color: var(--cl-ink);
+  border-bottom-color: var(--cl-line); padding-bottom: 12px; margin-bottom: 18px;
+}
+body[data-fe-theme="classic"] .fe-mlist-day-section-count {
+  font-family: var(--cl-ui); font-size: 0.75rem; font-weight: 600;
+  background: var(--cl-card); color: var(--cl-ink-2); border: 1px solid var(--cl-line);
+}
+body[data-fe-theme="classic"] .fe-mlist-card-stack { display: flex; flex-direction: column; gap: 14px; }
+
+/* Meeting card (three-column list row) */
+body[data-fe-theme="classic"] .fe-mlist-card { padding: 22px 24px; }
+body[data-fe-theme="classic"] .fe-mlist-card.is-3col {
+  grid-template-columns: 148px minmax(0, 1fr) minmax(220px, 268px);
+  gap: 28px; padding: 22px 24px; max-width: none;
+}
+body[data-fe-theme="classic"] .fe-mlist-card-col-logo {
+  width: 148px; height: 148px; padding: 14px; border-radius: 12px;
+  background: var(--cl-paper-2); border: 1px solid var(--cl-line);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-mlist-card-col-logo { background: var(--cl-paper); }
+body[data-fe-theme="classic"] .fe-mlist-card.is-3col .fe-mlist-card-col-info { gap: 12px; }
+body[data-fe-theme="classic"] .fe-mlist-card-name,
+body[data-fe-theme="classic"] .fe-mlist-card.is-3col .fe-mlist-card-name {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.02em;
+  line-height: 1.18; color: var(--cl-ink); text-wrap: balance;
+}
+body[data-fe-theme="classic"] .fe-mlist-card.is-3col .fe-mlist-card-name { font-size: 1.5rem; margin: 2px 0 2px; }
+body[data-fe-theme="classic"] .fe-mlist-card-times { gap: 14px 30px; align-items: flex-end; }
+body[data-fe-theme="classic"] :is(.fe-mlist-card-times-cell dt, .fe-mlist-card-zoom-creds dt) {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.12em; color: var(--cl-ink-3);
+}
+body[data-fe-theme="classic"] .fe-mlist-card-times-cell dd {
+  font-family: var(--cl-ui); font-size: 1.125rem; font-weight: 600;
+  letter-spacing: -0.015em; color: var(--cl-ink); font-variant-numeric: tabular-nums;
+}
+body[data-fe-theme="classic"] .fe-mlist-card-dur-chip {
+  padding: 3px 9px; font-size: 0.75rem; font-weight: 600; color: var(--cl-ink-2);
+  background: var(--cl-paper-2); border: 1px solid var(--cl-line);
+}
+body[data-fe-theme="classic"] .fe-mlist-card-also { font-size: 0.8125rem; color: var(--cl-ink-3); }
+body[data-fe-theme="classic"] .fe-mlist-card-desc,
+body[data-fe-theme="classic"] .fe-mlist-card.is-3col .fe-mlist-card-desc {
+  color: var(--cl-ink-2); font-size: 0.9375rem; line-height: 1.6; max-width: 62ch;
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-mlist-card .fe-mlist-card-desc { color: var(--cl-ink-2); }
+body[data-fe-theme="classic"] .fe-mlist-card.is-3col .fe-mlist-card-col-actions { border-left-color: var(--cl-line); padding-left: 24px; gap: 14px; }
+body[data-fe-theme="classic"] .fe-mlist-card-loc-name { font-weight: 600; color: var(--cl-ink); }
+body[data-fe-theme="classic"] .fe-mlist-card-loc-line { color: var(--cl-ink-2); }
+body[data-fe-theme="classic"] .fe-mlist-card-conf-label { font-size: 0.8125rem; font-weight: 600; color: var(--cl-ink); }
+body[data-fe-theme="classic"] .fe-mlist-card-zoom-creds code,
+body[data-fe-theme="classic"] :is(.fe-meeting-detail-creds, .fe-event-detail-creds) code {
+  font-family: var(--cl-mono); font-size: 0.875rem; font-variant-numeric: tabular-nums;
+  padding: 3px 9px; border-radius: 7px;
+  background: var(--cl-paper-2); border: 1px solid var(--cl-line); color: var(--cl-ink);
+}
+body[data-fe-theme="classic"] .fe-copy-btn.fe-mlist-copy:hover code { background: var(--cl-brand-wash); border-color: var(--cl-brand-tint); }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-mlist-card-zoom-creds, .fe-meeting-detail-creds, .fe-event-detail-creds) code {
+  background: var(--cl-paper); border-color: var(--cl-line-2); color: var(--cl-ink);
+}
+body[data-fe-theme="classic"] .fe-mlist-card-action-stack { gap: 8px; }
+body[data-fe-theme="classic"] .fe-mlist-card-action-stack .fe-btn { padding: 10px 14px; font-size: 0.875rem; border-radius: var(--fe-btn-radius, 999px); }
+body[data-fe-theme="classic"] .fe-mlist-card.is-3col .fe-mlist-card-permalink { color: var(--cl-ink-2); font-size: 0.8125rem; }
+body[data-fe-theme="classic"] .fe-mlist-card.is-3col .fe-mlist-card-permalink:hover { color: var(--cl-brand-ink); }
+
+/* Pro Tips under the list */
+body[data-fe-theme="classic"] .fe-protips-icon {
+  border-radius: 12px; background: var(--cl-card); color: var(--cl-brand);
+  border: 1px solid var(--cl-line); box-shadow: var(--cl-shadow-sm);
+}
+body[data-fe-theme="classic"] .fe-mlist-protips-head h2 { font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.02em; }
+body[data-fe-theme="classic"] .fe-mlist-protips-head p { color: var(--cl-ink-2); }
+body[data-fe-theme="classic"] .fe-mlist-protips-inline .fe-faq-item.is-open { border-color: var(--cl-line-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-mlist-protips-head p { color: var(--cl-ink-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-mlist-protips-inline .fe-protips-icon { background: rgba(255, 255, 255, 0.04); color: var(--cl-link-dk); }
+
+/* ===== 16. Meeting and event detail ===================================== */
+body[data-fe-theme="classic"] :is(.fe-meeting-detail, .fe-event-detail) { padding: 48px 0 96px; }
+body[data-fe-theme="classic"] :is(.fe-meeting-detail-back, .fe-event-detail-back) {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--cl-ink-2); font-size: 0.875rem; font-weight: 500;
+}
+body[data-fe-theme="classic"] :is(.fe-meeting-detail-back, .fe-event-detail-back):hover { color: var(--cl-brand-ink); }
+body[data-fe-theme="classic"] :is(.fe-meeting-detail-head h1, .fe-event-detail-head h1) {
+  font-weight: 600; letter-spacing: -0.03em; line-height: 1.06;
+  font-variation-settings: "opsz" 144; text-wrap: balance;
+}
+body[data-fe-theme="classic"] .fe-meeting-detail-head { margin-bottom: 3.5rem; }
+body[data-fe-theme="classic"] .fe-meeting-detail-head-logo .fe-meeting-logo { box-shadow: var(--cl-shadow-md); border: 1px solid var(--cl-line); }
+body[data-fe-theme="classic"] :is(.fe-meeting-detail-desc, .fe-event-detail-desc) { line-height: 1.75; max-width: 68ch; }
+body[data-fe-theme="classic"] .fe-event-detail-summary { color: var(--cl-ink-2); }
+body[data-fe-theme="classic"] :is(.fe-meeting-detail-card, .fe-event-detail-card, .fe-meeting-resources) { padding: 24px 24px 22px; }
+body[data-fe-theme="classic"] :is(.fe-meeting-detail-card, .fe-event-detail-card, .fe-meeting-resources) h3 {
+  font-family: var(--cl-ui); font-size: 0.6875rem; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--cl-ink-3);
+  margin: 0 0 16px;
+}
+body[data-fe-theme="classic"] :is(.fe-meeting-detail-card, .fe-event-detail-card, .fe-meeting-resources) h3 .icon { color: var(--cl-amber-ink); width: 16px; height: 16px; }
+body[data-fe-theme="classic"] :is(.fe-meeting-detail-day, .fe-event-detail-day) { font-weight: 600; color: var(--cl-ink); }
+body[data-fe-theme="classic"] :is(.fe-meeting-detail-time, .fe-event-detail-time) { color: var(--cl-ink-2); font-variant-numeric: tabular-nums; }
+body[data-fe-theme="classic"] .fe-meeting-resources { border-radius: var(--cl-radius); }
+body[data-fe-theme="classic"] .fe-meeting-resources-group h4 { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.12em; color: var(--cl-ink-3); }
+body[data-fe-theme="classic"] .fe-page .fe-meeting-resources-group li > a { font-weight: 500; color: var(--cl-brand-ink); }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-meeting-resources, .fe-meeting-detail-grid > .fe-meeting-resources) { background: var(--cl-card); border-color: var(--cl-line); }
+body[data-fe-theme="classic"] .fe-event-detail-cover { border-radius: var(--cl-radius); border-color: var(--cl-line); box-shadow: var(--cl-shadow-md); }
+body[data-fe-theme="classic"] .fe-detail-submit-cta {
+  border: 1px dashed var(--cl-line-2); border-radius: var(--cl-radius);
+  background: var(--cl-paper-2); padding: 20px 24px;
+}
+body[data-fe-theme="classic"] .fe-detail-submit-cta h3 { font-family: var(--cl-display); font-weight: 600; font-size: 1.05rem; color: var(--cl-ink); }
+body[data-fe-theme="classic"] .fe-detail-submit-cta p { color: var(--cl-ink-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-meeting-detail-card, .fe-event-detail-card) h3 { color: var(--cl-ink-3); }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-meeting-detail-day, .fe-event-detail-day, .fe-meeting-detail-location, .fe-event-detail-location) { color: var(--cl-ink); }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-meeting-detail-time, .fe-event-detail-time) { color: var(--cl-ink-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-detail-submit-cta { background: var(--cl-card); border-color: var(--cl-line-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-meeting-detail { background: var(--cl-paper); }
+
+/* ===== 17. Events and announcements lists =============================== */
+body[data-fe-theme="classic"] :is(.fe-events-list-omni, .fe-announcements-list) { background: var(--cl-paper-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-events-list-omni, .fe-announcements-list) { background: var(--cl-paper); }
+body[data-fe-theme="classic"] .fe-events-list-omni .fe-mlist-head h1,
+body[data-fe-theme="classic"] .fe-announcements-list .fe-mlist-head h1 { font-size: clamp(2rem, 1.4rem + 2vw, 2.75rem); }
+
+/* Segmented tabs */
+body[data-fe-theme="classic"] .fe-events-omni-tabs,
+body[data-fe-theme="classic"] a.fe-events-omni-archive {
+  padding: 4px; background: var(--cl-card);
+  border: 1px solid var(--cl-line); box-shadow: var(--cl-shadow-sm);
+}
+body[data-fe-theme="classic"] .fe-events-omni-tab { padding: 7px 14px; font-size: 0.875rem; color: var(--cl-ink-2); }
+body[data-fe-theme="classic"] .fe-events-omni-tab:hover { background: var(--cl-hover); color: var(--cl-ink); }
+body[data-fe-theme="classic"] .fe-events-omni-tab.is-active,
+body[data-fe-theme="classic"] .fe-events-omni-tab.is-active:hover {
+  background: var(--cl-ink); color: var(--cl-paper); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+}
+body[data-fe-theme="classic"] .fe-events-omni-archive-inner { padding: 7px 14px; font-size: 0.875rem; }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-events-omni-tabs, a.fe-events-omni-archive) {
+  background: var(--cl-card); border-color: var(--cl-line); box-shadow: none;
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-events-omni-tab { color: var(--cl-ink-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-events-omni-tab.is-active {
+  background: var(--cl-ink); color: var(--cl-paper); box-shadow: none;
+}
+
+/* Event cards */
+body[data-fe-theme="classic"] .fe-events-card { gap: 22px; padding: 20px 22px; }
+body[data-fe-theme="classic"] .fe-events-card-date {
+  background: var(--cl-paper-2); color: var(--cl-ink); border: 1px solid var(--cl-line); border-radius: 12px;
+}
+body[data-fe-theme="classic"] .fe-events-card-date-day {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.03em; font-variation-settings: "opsz" 72;
+}
+body[data-fe-theme="classic"] .fe-events-card-date-year { color: var(--cl-ink-3); }
+body[data-fe-theme="classic"] .fe-events-card-cover { border-radius: 12px; }
+body[data-fe-theme="classic"] :is(.fe-events-card-title, .fe-announcements-card-title, .fe-events-tl-title) {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.015em; line-height: 1.22; text-wrap: balance;
+}
+body[data-fe-theme="classic"] :is(.fe-events-card-meta, .fe-announcements-card-meta, .fe-events-tl-meta) { color: var(--cl-ink-3); font-size: 0.8125rem; }
+body[data-fe-theme="classic"] :is(.fe-events-card-summary, .fe-events-card-body-preview) { color: var(--cl-ink-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-events-card-date { background: var(--cl-paper); border-color: var(--cl-line); color: var(--cl-ink); }
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-events-card-body-preview, .fe-events-card-summary) { color: var(--cl-ink-2); }
+
+/* Magazine lead event */
+body[data-fe-theme="classic"] .fe-events-mag-hero { margin-bottom: 48px; box-shadow: var(--cl-shadow-md); }
+body[data-fe-theme="classic"] .fe-events-mag-hero-body { padding: 36px 40px; gap: 14px; justify-content: center; }
+body[data-fe-theme="classic"] .fe-events-mag-hero-eyebrow { color: var(--cl-amber-ink); letter-spacing: 0.16em; font-weight: 700; font-size: 0.6875rem; }
+body[data-fe-theme="classic"] .fe-events-mag-hero-day { font-family: var(--cl-ui); font-weight: 600; font-size: 0.9375rem; color: var(--cl-ink); }
+body[data-fe-theme="classic"] .fe-events-mag-hero-time { font-family: var(--cl-ui); color: var(--cl-ink-3); font-size: 0.875rem; }
+body[data-fe-theme="classic"] .fe-events-mag-hero-title {
+  font-weight: 600; font-size: clamp(1.75rem, 1.3rem + 1.2vw, 2.375rem);
+  letter-spacing: -0.025em; line-height: 1.1; font-variation-settings: "opsz" 120;
+}
+body[data-fe-theme="classic"] .fe-events-mag-hero-summary { color: var(--cl-ink-2); line-height: 1.6; }
+body[data-fe-theme="classic"] .fe-events-mag-hero-tag { background: var(--cl-brand-wash); color: var(--cl-brand-ink); font-weight: 600; font-size: 0.8125rem; }
+body[data-fe-theme="classic"] .fe-events-mag-rest-head {
+  font-family: var(--cl-ui); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--cl-ink-3);
+  padding-bottom: 12px; border-bottom: 1px solid var(--cl-line); margin-bottom: 20px;
+}
+body[data-fe-theme="classic"] .fe-events-mag-grid { gap: 20px; }
+body[data-fe-theme="classic"] .fe-events-mag-grid .fe-events-card-cover { border-radius: calc(var(--cl-radius) - 1px) calc(var(--cl-radius) - 1px) 0 0; }
+body[data-fe-theme="classic"] .fe-events-mag-grid .fe-events-card-date { border-radius: 999px; padding: 4px 10px; background: var(--cl-paper-2); }
+body[data-fe-theme="classic"] .fe-events-mag-grid .fe-events-card-date-day { font-family: var(--cl-ui); letter-spacing: 0; font-variation-settings: normal; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-events-mag-hero-day { color: var(--cl-ink); }
+
+/* Calendar and timeline */
+body[data-fe-theme="classic"] .fe-events-cal { border-color: var(--cl-line); box-shadow: var(--cl-shadow-md); border-radius: var(--cl-radius); }
+body[data-fe-theme="classic"] .fe-events-card:not(.fe-events-mag-grid .fe-events-card) .fe-events-card-date { align-self: start; min-height: 96px; }
+body[data-fe-theme="classic"] .fe-events-tl::before,
+body[data-fe-theme="classic"] :is(.fe-events-tl-row--left, .fe-events-tl-row--right) .fe-events-tl-card::after { background: var(--cl-line-2); }
+body[data-fe-theme="classic"] .fe-events-tl-date {
+  background: var(--cl-card); color: var(--cl-ink);
+  border: 1px solid var(--cl-line); box-shadow: var(--cl-shadow-md);
+}
+body[data-fe-theme="classic"] .fe-events-tl-day {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.03em; font-variation-settings: "opsz" 72;
+}
+body[data-fe-theme="classic"] .fe-events-tl-year { color: var(--cl-ink-3); opacity: 1; }
+body[data-fe-theme="classic"] .fe-events-tl-card {
+  border-radius: var(--cl-radius); background: var(--cl-card);
+  border-color: var(--fe-color-card-primary-border, var(--cl-line)); box-shadow: var(--cl-shadow-sm);
+}
+body[data-fe-theme="classic"] .fe-events-tl-card:hover {
+  border-color: var(--fe-color-card-primary-hover-border, var(--cl-line-2)); box-shadow: var(--cl-shadow-md);
+}
+body[data-fe-theme="classic"] .fe-events-tl-cover { border-radius: calc(var(--cl-radius) - 1px) calc(var(--cl-radius) - 1px) 0 0; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-events-tl-card:hover { border-color: var(--fe-dm-border-hover); }
+
+/* Announcement cards */
+body[data-fe-theme="classic"] .fe-announcements-card-cover { border-radius: 12px; }
+body[data-fe-theme="classic"] .fe-announcements-card-fulltext { color: var(--cl-ink-2); max-width: 76ch; }
+body[data-fe-theme="classic"] .fe-announcements-card-title { font-size: 1.375rem; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-announcements-card-fulltext { color: var(--cl-ink-2); max-width: 76ch; }
+body[data-fe-theme="classic"] .fe-announcements-card-title { font-size: 1.375rem; }
+
+/* ===== 18. Library, fellowships, archive ================================ */
+body[data-fe-theme="classic"] .fe-library-list { gap: 8px; }
+body[data-fe-theme="classic"] .fe-library-item { padding: 14px 16px; border-radius: 12px; gap: 16px; }
+body[data-fe-theme="classic"] .fe-library-item-title { font-size: 0.975rem; font-weight: 600; letter-spacing: -0.005em; }
+body[data-fe-theme="classic"] .fe-library-item-title a { color: var(--cl-ink); font-weight: 600; }
+body[data-fe-theme="classic"] .fe-library-item-sub { color: var(--cl-ink-3); font-size: 0.8125rem; }
+body[data-fe-theme="classic"] .fe-library-item-summary { color: var(--cl-ink-2); }
+body[data-fe-theme="classic"] .fe-library-ftype {
+  width: 48px; height: 56px; border-radius: 8px;
+  background: var(--cl-paper-2); border: 1px solid var(--cl-line);
+  color: var(--cl-ink-2); font-size: 0.625rem; letter-spacing: 0.1em;
+  box-shadow: inset 0 3px 0 var(--cl-amber);
+}
+body[data-fe-theme="classic"] .fe-library-thumb { width: 48px; height: 56px; border-radius: 8px; border: 1px solid var(--cl-line); }
+body[data-fe-theme="classic"] .fe-library-section-desc { color: var(--cl-ink-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-library-ftype { background: var(--cl-paper); border-color: var(--cl-line-2); color: var(--cl-ink-2); }
+
+body[data-fe-theme="classic"] .fe-fellowships-card-cta a { color: var(--cl-brand-ink); font-size: 0.9rem; }
+body[data-fe-theme="classic"] .fe-fellowships-card-chip:not(.fe-fellowships-card-chip--virtual) {
+  background: color-mix(in srgb, var(--cl-amber) 12%, transparent); color: var(--cl-amber-ink);
+  font-weight: 600; letter-spacing: 0.08em; font-size: 0.6875rem;
+}
+body[data-fe-theme="classic"] .fe-fellowships-card-title { font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.012em; }
+
+/* ===== 19. Stories =====================================================
+   The magazine templates carry their own warm-paper palette in an inline
+   <style>; these re-point its variables to Classic's paper, ink and amber. */
+body[data-fe-theme="classic"] .fe-stories-mag {
+  --mag-bg: var(--tpl-bg, var(--cl-paper));
+  --mag-card: var(--cl-card);
+  --mag-ink: var(--cl-ink);
+  --mag-ink-soft: var(--cl-ink-2);
+  --mag-rule: var(--cl-line);
+  --mag-accent: var(--cl-amber-ink);
+  font-family: var(--cl-ui);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-stories-mag {
+  --mag-bg: var(--cl-paper);
+  --mag-card: var(--cl-card);
+  --mag-ink: var(--cl-ink);
+  --mag-ink-soft: var(--cl-ink-2);
+  --mag-rule: var(--cl-line);
+  --mag-accent: var(--cl-amber-ink);
+}
+body[data-fe-theme="classic"] .fe-stories-mag-head::before {
+  content: ""; display: block; width: 28px; height: 2px; margin: 0 auto 22px;
+  border-radius: 2px; background: var(--cl-amber);
+}
+body[data-fe-theme="classic"] .fe-stories-mag-title {
+  font-family: var(--cl-display); font-weight: 600;
+  font-size: clamp(2.5rem, 1.6rem + 3vw, 4rem); line-height: 1.04;
+  letter-spacing: -0.028em; font-variation-settings: "opsz" 144; text-wrap: balance;
+}
+body[data-fe-theme="classic"] .fe-stories-mag-sub { font-size: 1.0625rem; }
+body[data-fe-theme="classic"] :is(.fe-stories-mag-hero, .fe-stories-mag-card) {
+  color: var(--cl-ink);
+  border: 1px solid var(--cl-line); border-radius: var(--cl-radius);
+  box-shadow: var(--cl-shadow-sm);
+  transition: transform 220ms var(--cl-ease), box-shadow 220ms var(--cl-ease), border-color 220ms var(--cl-ease);
+}
+body[data-fe-theme="classic"] :is(.fe-stories-mag-hero, .fe-stories-mag-card):hover {
+  transform: var(--fe-card-primary-hover-transform, translateY(-1px));
+  box-shadow: var(--cl-shadow-md);
+  border-color: var(--fe-color-card-primary-hover-border, var(--cl-line-2));
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] :is(.fe-stories-mag-hero, .fe-stories-mag-card):hover { border-color: var(--fe-dm-border-hover); }
+body[data-fe-theme="classic"] .fe-stories-mag-hero-img { aspect-ratio: auto; min-height: 320px; }
+body[data-fe-theme="classic"] .fe-stories-mag-hero-img img { display: block; }
+body[data-fe-theme="classic"] :is(.fe-stories-mag-hero, .fe-stories-mag-card):hover :is(.fe-stories-mag-hero-title, .fe-stories-mag-card-title),
+body[data-fe-theme="classic"] .fe-blog-cards-link:hover .fe-blog-cards-card-title { color: var(--cl-brand-ink); }
+body[data-fe-theme="classic"] .fe-stories-mag-hero-eyebrow,
+body[data-fe-theme="classic"] .fe-story-mag-no-hero .fe-story-mag-eyebrow { font-weight: 700; letter-spacing: 0.18em; }
+body[data-fe-theme="classic"] .fe-stories-mag-hero-title {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.025em;
+  font-variation-settings: "opsz" 120; text-wrap: balance;
+}
+body[data-fe-theme="classic"] :is(.fe-stories-mag-hero-title, .fe-stories-mag-card-title) { transition: color 160ms var(--cl-ease); }
+body[data-fe-theme="classic"] .fe-stories-mag-card-title {
+  font-family: var(--cl-display); font-weight: 600; font-size: 1.25rem;
+  letter-spacing: -0.015em; text-wrap: balance;
+}
+body[data-fe-theme="classic"] .fe-stories-mag-card-deck { font-size: 0.9375rem; }
+body[data-fe-theme="classic"] .fe-stories-mag-card-meta,
+body[data-fe-theme="classic"] .fe-stories-mag-hero-meta { color: var(--cl-ink-3); letter-spacing: 0.01em; }
+body[data-fe-theme="classic"] .fe-stories-mag-card-pin { background: var(--cl-amber); color: #1f1300; font-weight: 700; }
+body[data-fe-theme="classic"] :is(.fe-stories-mag-hero-fallback, .fe-stories-mag-card-fallback) {
+  background:
+    radial-gradient(80% 90% at 15% 10%, color-mix(in srgb, var(--cl-brand) 30%, transparent), transparent 60%),
+    radial-gradient(70% 80% at 90% 90%, color-mix(in srgb, var(--cl-amber) 40%, transparent), transparent 60%),
+    var(--cl-paper-2);
+}
+
+/* Story detail */
+body[data-fe-theme="classic"] .fe-story-mag {
+  --m-bg: var(--tpl-bg, var(--cl-paper));
+  --m-card: var(--cl-paper-2);
+  --m-ink: var(--cl-ink);
+  --m-ink-soft: var(--cl-ink-2);
+  --m-rule: var(--cl-line);
+  --m-accent: var(--cl-amber-ink);
+  font-family: var(--cl-ui);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-story-mag {
+  --m-bg: var(--cl-paper);
+  --m-card: var(--cl-card);
+  --m-ink: var(--cl-ink);
+  --m-ink-soft: var(--cl-ink-2);
+  --m-rule: var(--cl-line);
+  --m-accent: var(--cl-amber-ink);
+}
+body[data-fe-theme="classic"] .fe-story-mag-title {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.028em;
+  line-height: 1.02; font-variation-settings: "opsz" 144; text-wrap: balance;
+}
+body[data-fe-theme="classic"] .fe-story-mag-eyebrow { font-weight: 700; letter-spacing: 0.2em; }
+body[data-fe-theme="classic"] .fe-story-mag-room { max-width: 700px; }
+body[data-fe-theme="classic"] .fe-story-mag-back {
+  font-style: normal; font-weight: 500; font-size: 0.875rem; color: var(--cl-ink-2);
+}
+body[data-fe-theme="classic"] .fe-story-mag-back:hover { color: var(--cl-brand-ink); }
+body[data-fe-theme="classic"] .fe-story-mag-body {
+  font-family: var(--cl-display); font-size: 1.1875rem; line-height: 1.75;
+  font-variation-settings: "opsz" 18; color: var(--cl-ink);
+  hanging-punctuation: first; text-wrap: pretty;
+}
+body[data-fe-theme="classic"] .fe-story-mag-body p { margin-bottom: 1.35em; }
+body[data-fe-theme="classic"] .fe-story-mag-body p:first-child::first-letter {
+  font-weight: 600; font-size: 4.2em; line-height: 0.85;
+  padding: 0.06em 0.1em 0 0; font-variation-settings: "opsz" 144;
+}
+body[data-fe-theme="classic"] .fe-story-mag-body a {
+  color: var(--cl-brand-ink); border-bottom: 0;
+}
+body[data-fe-theme="classic"] .fe-story-mag-body blockquote {
+  border-left: 2px solid var(--cl-amber); padding-left: 1.4rem;
+  color: var(--cl-ink-2); font-size: 1.3rem; line-height: 1.5;
+}
+body[data-fe-theme="classic"] .fe-story-mag-bio { border-radius: var(--cl-radius); border-left-width: 3px; border-left-color: var(--cl-amber); }
+body[data-fe-theme="classic"] .fe-story-mag-foot a { color: var(--cl-brand-ink); }
+
+/* ===== 20. Blog ========================================================= */
+body[data-fe-theme="classic"] .fe-blog-cards {
+  --blog-bg: var(--cl-paper-2);
+  --blog-card: var(--cl-card);
+  --blog-ink: var(--cl-ink);
+  --blog-ink-soft: var(--cl-ink-2);
+  --blog-rule: var(--cl-line);
+  --blog-accent: var(--cl-brand-ink);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-blog-cards {
+  --blog-bg: var(--cl-paper);
+  --blog-card: var(--cl-card);
+  --blog-ink: var(--cl-ink);
+  --blog-ink-soft: var(--cl-ink-2);
+  --blog-rule: var(--cl-line);
+  --blog-accent: var(--cl-link-dk);
+}
+body[data-fe-theme="classic"] .fe-blog-cards-head::before {
+  content: ""; display: block; width: 28px; height: 2px; margin: 0 auto 22px;
+  border-radius: 2px; background: var(--cl-amber);
+}
+body[data-fe-theme="classic"] :is(.fe-blog-cards-title, .fe-blog-cls-title) {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.028em;
+  line-height: 1.04; font-variation-settings: "opsz" 144; text-wrap: balance;
+}
+body[data-fe-theme="classic"] .fe-blog-cards-title { font-size: clamp(2.5rem, 1.6rem + 3vw, 4rem); }
+body[data-fe-theme="classic"] .fe-blog-cards-cat { border-radius: 999px; padding: 6px 14px; font-weight: 500; }
+body[data-fe-theme="classic"] .fe-blog-cards-grid { gap: 24px; }
+body[data-fe-theme="classic"] .fe-blog-cards-art { border-bottom: 1px solid var(--cl-line); }
+body[data-fe-theme="classic"] .fe-blog-cards-body { padding: 20px 22px 22px; }
+body[data-fe-theme="classic"] :is(.fe-blog-cards-cat-chip, .fe-blog-cls-cat) {
+  background: transparent; padding: 0; border-radius: 0;
+  color: var(--cl-amber-ink); font-weight: 700; letter-spacing: 0.14em; font-size: 0.6875rem;
+}
+body[data-fe-theme="classic"] .fe-page .fe-blog-cards-link { color: var(--cl-ink); }
+body[data-fe-theme="classic"] .fe-blog-cards-card-title {
+  transition: color 160ms var(--cl-ease);
+  font-family: var(--cl-display); font-weight: 600; font-size: 1.3rem;
+  letter-spacing: -0.015em; line-height: 1.22; text-wrap: balance;
+}
+body[data-fe-theme="classic"] .fe-blog-cards-summary { font-size: 0.9375rem; line-height: 1.6; }
+body[data-fe-theme="classic"] .fe-blog-cards-meta { color: var(--cl-ink-3); font-size: 0.8125rem; }
+
+body[data-fe-theme="classic"] .fe-blog-post-classic {
+  --blog-bg: var(--tpl-bg, var(--cl-paper-2));
+  --blog-card: var(--cl-card);
+  --blog-ink: var(--cl-ink);
+  --blog-ink-soft: var(--cl-ink-2);
+  --blog-rule: var(--cl-line);
+  --blog-accent: var(--cl-brand-ink);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-blog-post-classic {
+  --blog-bg: var(--tpl-bg, var(--cl-paper));
+  --blog-card: var(--cl-card);
+  --blog-ink: var(--cl-ink);
+  --blog-ink-soft: var(--cl-ink-2);
+  --blog-rule: var(--cl-line);
+  --blog-accent: var(--cl-link-dk);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-blog-post-classic :is(.fe-blog-cls-main, .fe-blog-cls-widget, .fe-blog-cls-bio):hover { border-color: var(--cl-line); }
+body[data-fe-theme="classic"] .fe-blog-cls-back { font-size: 0.875rem; font-weight: 500; }
+body[data-fe-theme="classic"] .fe-blog-cls-title { font-size: clamp(2.25rem, 1.5rem + 2.6vw, 3.5rem); margin-bottom: 1.25rem; }
+body[data-fe-theme="classic"] .fe-blog-cls-byline { color: var(--cl-ink-3); font-size: 0.875rem; }
+body[data-fe-theme="classic"] .fe-blog-cls-body {
+  font-size: 1.0625rem; line-height: 1.78; max-width: 68ch; text-wrap: pretty;
+}
+body[data-fe-theme="classic"] .fe-blog-cls-body :is(h2, h3) {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.02em; line-height: 1.2;
+}
+body[data-fe-theme="classic"] .fe-blog-cls-body h2 { font-size: 1.75rem; margin: 2.6rem 0 0.9rem; }
+body[data-fe-theme="classic"] .fe-blog-cls-body h3 { font-size: 1.3rem; margin: 2rem 0 0.7rem; }
+body[data-fe-theme="classic"] .fe-blog-cls-body blockquote {
+  border-left: 2px solid var(--cl-amber); padding-left: 1.4rem;
+  font-family: var(--cl-display); font-size: 1.25rem; line-height: 1.5; color: var(--cl-ink-2);
+}
+body[data-fe-theme="classic"] .fe-blog-cls-widget-title {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.16em; color: var(--cl-ink-3);
+}
+body[data-fe-theme="classic"] .fe-blog-cls-related a > div > span { font-family: var(--cl-display); font-weight: 600; font-size: 0.975rem; letter-spacing: -0.01em; }
+body[data-fe-theme="classic"] .fe-blog-cls-tag { border-radius: 999px; }
+
+/* ===== 21. Contact and recovery contacts ================================ */
+body[data-fe-theme="classic"] .fe-contact-eyebrow {
+  background: transparent; padding: 0; border-radius: 0;
+  display: inline-flex; align-items: center; gap: 10px;
+  color: var(--cl-amber-ink); font-size: 0.6875rem; letter-spacing: 0.18em;
+}
+body[data-fe-theme="classic"] .fe-contact-eyebrow::before {
+  content: ""; width: 22px; height: 2px; border-radius: 2px; background: var(--cl-amber);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-contact-eyebrow { background: transparent; }
+body[data-fe-theme="classic"] .fe-contact-title {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.028em;
+  line-height: 1.04; font-variation-settings: "opsz" 144; color: var(--cl-ink);
+}
+body[data-fe-theme="classic"] .fe-contact-blurb { color: var(--cl-ink-2); line-height: 1.6; }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-contact-blurb { color: var(--cl-ink-2); }
+body[data-fe-theme="classic"] .fe-contact-channel-icon {
+  border-radius: 12px; background: var(--cl-card); color: var(--cl-brand);
+  border: 1px solid var(--cl-line); box-shadow: var(--cl-shadow-sm);
+}
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-contact-channel-icon { background: var(--cl-card); color: var(--cl-link-dk); }
+body[data-fe-theme="classic"] .fe-contact-channel-label { font-size: 0.6875rem; letter-spacing: 0.14em; color: var(--cl-ink-3); }
+body[data-fe-theme="classic"] .fe-contact-card {
+  border-radius: calc(var(--cl-radius) + 4px); border-color: var(--cl-line);
+  box-shadow: var(--cl-shadow-lg);
+}
+body[data-fe-theme="classic"] .fe-contact-card:hover { transform: none; box-shadow: var(--cl-shadow-lg); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-contact-card,
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-contact-card:hover {
+  background: var(--cl-card); border-color: var(--cl-line); box-shadow: var(--cl-shadow-lg);
+}
+body[data-fe-theme="classic"] .fe-rc-item-name { font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.012em; }
+body[data-fe-theme="classic"] .fe-rc-main-title { font-family: var(--cl-display); font-weight: 600; }
+
+/* ===== 22. Submission and story forms =================================== */
+body[data-fe-theme="classic"] .fe-submission-section { background: var(--cl-paper-2); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-submission-section { background: var(--cl-paper); }
+body[data-fe-theme="classic"] .fe-submission-page-title {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.03em;
+  font-size: clamp(2rem, 1.4rem + 2vw, 2.75rem); font-variation-settings: "opsz" 120; line-height: 1.08;
+}
+body[data-fe-theme="classic"] .fe-submission-page-blurb { color: var(--cl-ink-2); }
+body[data-fe-theme="classic"] .fe-submission-card { padding: 2.25rem 2.25rem 2.5rem; box-shadow: var(--cl-shadow-md); }
+body[data-fe-theme="classic"] .fe-submission-card:hover { transform: none; box-shadow: var(--cl-shadow-md); border-color: var(--fe-color-card-primary-border, var(--cl-line)); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-submission-card:hover { border-color: var(--cl-line); }
+
+/* ===== 23. Site index and 404 =========================================== */
+body[data-fe-theme="classic"] .fe-site-index-title,
+body[data-fe-theme="classic"] .fe-404-heading {
+  font-family: var(--cl-display); font-weight: 600; letter-spacing: -0.03em;
+  font-variation-settings: "opsz" 144; line-height: 1.06;
+}
+body[data-fe-theme="classic"] .fe-site-index-title { font-size: clamp(2.25rem, 1.5rem + 2.5vw, 3.25rem); }
+body[data-fe-theme="classic"] .fe-site-index-eyebrow { color: var(--cl-amber-ink); letter-spacing: 0.16em; }
+body[data-fe-theme="classic"] .fe-site-index-group-head { border-bottom-color: var(--cl-line); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-site-index-group-head { border-bottom-color: var(--cl-line); }
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-site-index-blurb { color: var(--cl-ink-2); }
+body[data-fe-theme="classic"] .fe-404-heading { font-size: clamp(2rem, 1.5rem + 2vw, 2.75rem); }
+body[data-fe-theme="classic"] .fe-404-sub { color: var(--cl-ink-2); }
+
+/* ===== 24. Footer =======================================================
+   The footer surface and text colors are the admin's (Design → Footer);
+   this refines the type and the location / contact blocks inside it. */
+body[data-fe-theme="classic"] :is(.fe-footer-locations-heading, .fe-footer-contact-pane h3.fe-footer-contact-heading, .fe-footer-col-title) {
+  font-family: var(--cl-ui); font-weight: 600; font-size: 0.72em;
+  letter-spacing: 0.16em; text-transform: uppercase;
+}
+body[data-fe-theme="classic"] .fe-footer-locations-heading { margin-bottom: 18px; opacity: 0.8; }
+body[data-fe-theme="classic"] .fe-footer-locations-grid { gap: 16px; }
+body[data-fe-theme="classic"] .fe-footer-location-card { padding: 18px 20px; border-radius: 14px; gap: 14px; }
+body[data-fe-theme="classic"] .fe-footer-location-icon { width: 34px; height: 34px; border-radius: 10px; }
+body[data-fe-theme="classic"] .fe-footer-location-name { font-weight: 600; font-size: 0.975em; letter-spacing: -0.005em; }
+body[data-fe-theme="classic"] .fe-footer-location-addr { line-height: 1.55; }
+body[data-fe-theme="classic"] .fe-footer-location-directions { padding: 6px 13px; font-weight: 600; }
+/* On a dark footer (dark page, or the admin's forced-dark footer) the
+   cards become quiet glass panels with an amber pin. */
+:is(html[data-theme="dark"] body[data-fe-theme="classic"], body[data-fe-theme="classic"].fe-footer-force-dark) .fe-footer-location-card {
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+:is(html[data-theme="dark"] body[data-fe-theme="classic"], body[data-fe-theme="classic"].fe-footer-force-dark) .fe-footer-location-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: color-mix(in srgb, var(--cl-amber) 45%, transparent);
+  box-shadow: 0 16px 36px -18px rgba(0, 0, 0, 0.8);
+}
+:is(html[data-theme="dark"] body[data-fe-theme="classic"], body[data-fe-theme="classic"].fe-footer-force-dark) .fe-footer-location-icon {
+  background: color-mix(in srgb, var(--cl-amber) 14%, transparent);
+  color: color-mix(in srgb, var(--cl-amber) 80%, #ffffff);
+}
+:is(html[data-theme="dark"] body[data-fe-theme="classic"], body[data-fe-theme="classic"].fe-footer-force-dark) :is(.fe-footer-location-directions, .fe-footer-admin-login) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+:is(html[data-theme="dark"] body[data-fe-theme="classic"], body[data-fe-theme="classic"].fe-footer-force-dark) :is(.fe-footer-location-directions, .fe-footer-admin-login):is(:hover, :focus-visible) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+:is(html[data-theme="dark"] body[data-fe-theme="classic"], body[data-fe-theme="classic"].fe-footer-force-dark) .fe-footer-contact-body a {
+  color: var(--cl-link-dk);
+  text-decoration: underline; text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+body[data-fe-theme="classic"] .fe-footer-contact-body { line-height: 1.6; }
+/* frontend.css dims the copyright to #64748b on a dark page (about 4:1);
+   use the footer's own muted token instead. */
+html[data-theme="dark"] body[data-fe-theme="classic"] .fe-footer-copy { color: var(--fe-color-footer-dark-muted, #9aa1ad); }
+body[data-fe-theme="classic"] .fe-footer-block-powered-by a { border-color: color-mix(in srgb, currentColor 40%, transparent); }
+
+/* ===== 25. Motion ======================================================= */
+@media (prefers-reduced-motion: reduce) {
+  body[data-fe-theme="classic"] *,
+  body[data-fe-theme="classic"] *::before,
+  body[data-fe-theme="classic"] *::after {
+    transition-duration: 0.01ms !important;
+  }
+  body[data-fe-theme="classic"] :is(.fe-btn, .fe-nav-cta, .fe-meeting-card, .fe-event-row, .fe-mlist-card, .fe-events-card, .fe-announcements-card, .fe-library-item, .fe-feature-card, .fe-card-primary, .fe-card-secondary, .fe-stories-mag-hero, .fe-stories-mag-card, .fe-footer-location-card):hover {
+    transform: none;
+  }
+}
+
+/* ===== 26. Responsive =================================================== */
+/* The homepage Meetings / Events blocks sit in a page-builder grid whose
+   1fr track would otherwise size to their min-content and run past a
+   phone's edge. */
+body[data-fe-theme="classic"] :is(.fe-meetings, .fe-events) { min-width: 0; }
+@media (max-width: 900px) {
+  body[data-fe-theme="classic"] .fe-mlist-card.is-3col { grid-template-columns: 1fr; gap: 18px; }
+  body[data-fe-theme="classic"] .fe-mlist-card.is-3col .fe-mlist-card-col-actions { border-left: 0; padding-left: 0; border-top: 1px solid var(--cl-line); padding-top: 18px; }
+}
+@media (max-width: 720px) {
+  body[data-fe-theme="classic"] .fe-section-head { margin-bottom: 32px; }
+  body[data-fe-theme="classic"] .fe-events-mag-hero-body { padding: 24px; }
+  body[data-fe-theme="classic"] .fe-submission-card { padding: 1.5rem 1.25rem 1.75rem; }
+  body[data-fe-theme="classic"] .fe-event-row { padding: 16px; gap: 14px; }
+}

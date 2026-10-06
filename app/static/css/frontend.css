@@ -12336,7 +12336,9 @@ html[data-theme="dark"] .fe-th-nav-link:not(.fe-th-nav-cta) { color: var(--fe-dm
   .fe-th-menu-btn { display: block; }
   .fe-th-nav {
     display: none; position: absolute; left: 0; right: 0;
-    top: var(--fe-header-h, 76px);
+    /* Below the whole header: --fe-header-h leaves out the utility bar,
+       which sits inside .fe-header-themed. */
+    top: 100%;
     flex-direction: column; align-items: stretch; gap: 2px;
     padding: 12px 5vw 20px;
     background: var(--fe-color-surface, #fff);

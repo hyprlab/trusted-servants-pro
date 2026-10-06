@@ -1,312 +1,1230 @@
 /* ============================================================================
-   THEME · Modern Dark ("Mission Control")
-   Loaded only when SiteSetting.frontend_theme == "modern-dark" (see base.html).
-   Scoped to body[data-fe-theme="modern-dark"] so it never leaks to other
-   themes. Deep-indigo canvas, diffuse aurora, film grain, teal→cyan gradient
-   CTAs, gradient-lit glass cards, Fraunces display over Inter. Defaults to dark
-   mode; a clean light companion is provided for the visitor sun/moon toggle.
+   THEME · Modern Dark ("Aurora")
+   Loaded only when SiteSetting.frontend_theme == "modern-dark" (base.html).
+   Every rule is scoped to body[data-fe-theme="modern-dark"].
+
+   Direction: a precise, luminous dark interface. A deep indigo-black canvas
+   lit by slow, soft aurora light (teal, cyan, violet) fixed behind the page;
+   glass surfaces with hairline borders and a lit top edge; one luminous
+   mint-teal action color used for primary actions and live state; Fraunces
+   display headlines (optical size, medium weight, tight tracking) over crisp
+   Inter UI text. The light mode is "daylight": a cool lavender-white canvas
+   with a faint aurora wash and the same structure.
+
+   How it reads the design tokens: colors come from the --fe-color-* tokens
+   emitted inline on <body> (Site → Design). Dark-mode variants are derived
+   from those tokens with color-mix() into --au-* properties on <body>, then
+   re-pointed onto the token names for the subtree (body > *), so shared
+   frontend.css rules that read a token get the dark value too.
+
+   Selector prefixes used below:
+     body[data-fe-theme="modern-dark"]                    tokens only
+     html[data-theme] body[data-fe-theme="modern-dark"]   both modes (0,2,2)
+     html[data-theme="dark"] body[data-fe-theme=...]      dark only  (0,2,2)
+   The (0,2,2) prefix outranks the shared html[data-theme="dark"] .x rules.
    ========================================================================== */
 
+
+/* ===== 1. Tokens ========================================================== */
+
+/* Daylight (light mode) values. */
 body[data-fe-theme="modern-dark"] {
-  --md-ink:        #070a1f;
-  --md-ink-2:      #0c1130;
-  --md-brand:      #6366f1;
-  --md-brand-2:    #8b5cf6;
-  --md-teal:       #2dd4bf;
-  --md-cyan:       #38bdf8;
-  --md-text:       #eef0ff;
-  --md-muted:      #a3a9d4;
-  --md-line:       rgba(255,255,255,0.10);
-  --md-panel:      rgba(255,255,255,0.045);
-  --md-panel-2:    rgba(255,255,255,0.08);
-  --md-grad-cta:   linear-gradient(100deg, #2dd4bf, #38bdf8);
-  --md-grad-text:  linear-gradient(100deg, #ffffff 0%, #c7d2fe 44%, #2dd4bf 100%);
-  --md-grad-edge:  linear-gradient(120deg, rgba(99,102,241,0.9), rgba(45,212,191,0.8));
-  --md-ease:       cubic-bezier(.2,.7,.2,1);
+  --au-canvas:      var(--fe-color-surface, #f5f5fb);
+  --au-ink:         var(--fe-color-text, #11132b);
+  --au-ink-2:       var(--fe-color-text-soft, #4f5377);
+  --au-ink-3:       color-mix(in srgb, var(--fe-color-text-soft, #4f5377) 88%, var(--fe-color-surface, #f5f5fb));
+  --au-line:        var(--fe-color-border, #e3e3f1);
+  --au-line-2:      color-mix(in srgb, var(--fe-color-text, #11132b) 16%, transparent);
+  --au-raise:       color-mix(in srgb, var(--fe-color-brand, #7c6cf2) 5%, #ffffff);
+  --au-tint:        color-mix(in srgb, var(--fe-color-brand, #7c6cf2) 9%, transparent);
+  --au-tint-2:      color-mix(in srgb, var(--fe-color-brand, #7c6cf2) 16%, transparent);
+  --au-card:        var(--fe-color-card-primary-bg, #ffffff);
+  --au-card-2:      var(--fe-color-card-secondary-bg, #fbfbfe);
+  --au-card-line:   var(--fe-color-card-primary-border, #e4e3f2);
+  --au-card-line-2: var(--fe-color-card-secondary-border, #e4e3f2);
+  --au-card-shadow: var(--fe-card-primary-shadow, none);
+  --au-card-shadow-hover: var(--fe-card-primary-hover-shadow, none);
+  --au-card-shadow-2: var(--fe-card-secondary-shadow, none);
+  --au-card-shadow-2-hover: var(--fe-card-secondary-hover-shadow, none);
+  --au-sheen:       rgba(255, 255, 255, 0.95);
+  --au-highlight:   rgba(255, 255, 255, 0.9);
+  --au-glass:       color-mix(in srgb, var(--fe-color-surface, #f5f5fb) 78%, transparent);
+  --au-glass-solid: color-mix(in srgb, var(--fe-color-surface, #f5f5fb) 96%, transparent);
+  --au-field:       #ffffff;
+  --au-field-line:  color-mix(in srgb, var(--fe-color-text, #11132b) 18%, transparent);
+  --au-brand:       var(--fe-color-brand, #7c6cf2);
+  --au-brand-ink:   color-mix(in oklab, var(--fe-color-brand, #7c6cf2) 72%, #000);
+  --au-link:        var(--fe-color-link, #4f46e5);
+  --au-link-hover:  var(--fe-color-link-hover, #3730a3);
+  --au-accent:      var(--fe-color-accent, #0f766e);
+  --au-nav:         var(--fe-color-nav-link, #3f4366);
+  --au-nav-hover:   var(--fe-color-nav-link-hover, #11132b);
+  --au-action:      var(--fe-color-btn-primary-bg, #2dd4bf);
+  --au-action-ink:  color-mix(in oklab, var(--fe-color-btn-primary-bg, #2dd4bf) 45%, #00110f);
+  --au-focus:       color-mix(in oklab, var(--fe-color-brand, #7c6cf2) 85%, #000);
+  /* State colors for meeting-format badges (online / in person / hybrid). */
+  --au-online-bg:   #e3f6fb;  --au-online-ink:   #0b5566;  --au-online-dot:   #06b6d4;
+  --au-inperson-bg: #ddf8f1;  --au-inperson-ink: #0c5b52;  --au-inperson-dot: #14b8a6;
+  --au-hybrid-bg:   #eeeaff;  --au-hybrid-ink:   #4636b0;  --au-hybrid-dot:   #8b5cf6;
+  /* Aurora light. */
+  --au-aurora-a:    rgba(45, 212, 191, 0.20);
+  --au-aurora-b:    rgba(139, 92, 246, 0.16);
+  --au-aurora-c:    rgba(56, 189, 248, 0.14);
+  --au-ribbon-a:    rgba(45, 212, 191, 0.26);
+  --au-ribbon-b:    rgba(56, 189, 248, 0.18);
+  --au-ribbon-c:    rgba(139, 92, 246, 0.24);
+  --au-horizon:     linear-gradient(90deg, transparent, #2dd4bf 22%, #38bdf8 50%, #8b5cf6 78%, transparent);
+  --au-ease:        cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* Shared legacy variables that frontend.css still reads. */
+  --fe-ink:         var(--au-ink);
+  --fe-ink-muted:   var(--au-ink-2);
+  --fe-ink-soft:    var(--au-ink-3);
+  --fe-border:      var(--au-line);
+  --fe-panel:       var(--au-card);
+  --fe-panel-soft:  var(--au-raise);
+  --fe-accent:      var(--au-brand-ink);
+  --fe-accent-2:    #2dd4bf;
+  --fe-accent-3:    #38bdf8;
+  --fe-recovery-blue:   var(--fe-color-brand, #7c6cf2);
+  --fe-recovery-blue-2: var(--fe-color-brand, #7c6cf2);
+  --fe-gradient:    linear-gradient(120deg, #2dd4bf, #38bdf8 50%, #8b5cf6);
+  --fe-shadow:      0 12px 40px rgba(42, 36, 112, 0.10);
+  --fe-shadow-lg:   0 24px 60px rgba(42, 36, 112, 0.16);
 }
 
-/* ---- Dark-mode palette (the default for this theme) ---------------------- */
+/* Night (dark mode) values. Also applied to a footer pinned dark on a
+   daylight page, so it carries the same palette. */
 html[data-theme="dark"] body[data-fe-theme="modern-dark"],
-body[data-fe-theme="modern-dark"].fe-footer-force-dark {
-  --fe-dm-surface:        #0c1130;
-  --fe-dm-surface-soft:   rgba(255,255,255,0.045);
-  --fe-dm-border:         #1d2747;
-  --fe-dm-border-hover:   rgba(45,212,191,0.55);
-  --fe-dm-text-strong:    var(--fe-color-text-dark, #ffffff);
-  --fe-dm-text:           var(--fe-color-text-dark, #eef0ff);
-  --fe-dm-text-muted:     #a3a9d4;
-  --fe-dm-link-hover:     #5cb4f7;
+html:not([data-theme="dark"]) body[data-fe-theme="modern-dark"].fe-footer-force-dark > .fe-footer {
+  --au-canvas:      var(--fe-color-surface-dark, #07081a);
+  --au-ink:         var(--fe-color-text-dark, #e9eaf8);
+  --au-ink-2:       color-mix(in srgb, var(--fe-color-text-dark, #e9eaf8) 70%, var(--fe-color-surface-dark, #07081a));
+  --au-ink-3:       color-mix(in srgb, var(--fe-color-text-dark, #e9eaf8) 62%, var(--fe-color-surface-dark, #07081a));
+  --au-line:        rgba(255, 255, 255, 0.08);
+  --au-line-2:      rgba(255, 255, 255, 0.14);
+  --au-raise:       rgba(255, 255, 255, 0.035);
+  --au-tint:        color-mix(in srgb, var(--fe-color-brand, #7c6cf2) 14%, transparent);
+  --au-tint-2:      color-mix(in srgb, var(--fe-color-brand, #7c6cf2) 24%, transparent);
+  --au-card:        color-mix(in srgb, var(--fe-color-card-primary-bg-dark, #0d0f26) 74%, transparent);
+  --au-card-2:      color-mix(in srgb, var(--fe-color-card-secondary-bg-dark, #0d0f26) 66%, transparent);
+  --au-card-line:   var(--fe-color-card-primary-border-dark, #24274a);
+  --au-card-line-2: var(--fe-color-card-secondary-border-dark, #24274a);
+  --au-card-shadow: var(--fe-card-primary-shadow-dark, none);
+  --au-card-shadow-hover: var(--fe-card-primary-hover-shadow-dark, none);
+  --au-card-shadow-2: var(--fe-card-secondary-shadow-dark, none);
+  --au-card-shadow-2-hover: var(--fe-card-secondary-hover-shadow-dark, none);
+  --au-sheen:       rgba(255, 255, 255, 0.035);
+  --au-highlight:   rgba(255, 255, 255, 0.07);
+  --au-glass:       color-mix(in srgb, var(--fe-color-surface-dark, #07081a) 70%, transparent);
+  --au-glass-solid: color-mix(in srgb, var(--fe-color-surface-dark, #07081a) 94%, transparent);
+  --au-field:       rgba(255, 255, 255, 0.04);
+  --au-field-line:  rgba(255, 255, 255, 0.14);
+  --au-brand:       color-mix(in oklab, var(--fe-color-brand, #7c6cf2) 55%, #ffffff);
+  --au-brand-ink:   color-mix(in oklab, var(--fe-color-brand, #7c6cf2) 40%, #ffffff);
+  --au-link:        color-mix(in oklab, var(--fe-color-link, #4f46e5) 42%, #ffffff);
+  --au-link-hover:  color-mix(in oklab, var(--fe-color-btn-primary-bg, #2dd4bf) 70%, #ffffff);
+  --au-accent:      color-mix(in oklch, var(--fe-color-accent, #0f766e) 50%, #ffffff);
+  --au-nav:         color-mix(in oklab, var(--fe-color-nav-link, #3f4366) 22%, #ffffff);
+  --au-nav-hover:   #ffffff;
+  --au-action-ink:  color-mix(in oklab, var(--fe-color-btn-primary-bg, #2dd4bf) 70%, #ffffff);
+  --au-focus:       color-mix(in oklab, var(--fe-color-btn-primary-bg, #2dd4bf) 75%, #ffffff);
+  --au-online-bg:   rgba(103, 232, 249, 0.10); --au-online-ink:   #9beefb; --au-online-dot:   #67e8f9;
+  --au-inperson-bg: rgba(94, 234, 212, 0.10);  --au-inperson-ink: #8ef3e1; --au-inperson-dot: #5eead4;
+  --au-hybrid-bg:   rgba(180, 166, 255, 0.12); --au-hybrid-ink:   #cfc6ff; --au-hybrid-dot:   #b4a6ff;
+  --au-aurora-a:    rgba(45, 212, 191, 0.17);
+  --au-aurora-b:    rgba(124, 92, 246, 0.24);
+  --au-aurora-c:    rgba(56, 189, 248, 0.13);
+  --au-ribbon-a:    rgba(45, 212, 191, 0.34);
+  --au-ribbon-b:    rgba(56, 189, 248, 0.24);
+  --au-ribbon-c:    rgba(139, 92, 246, 0.40);
+
+  --fe-panel-soft:  rgba(255, 255, 255, 0.04);
+  --fe-accent:      var(--au-brand);
+  --fe-recovery-blue:   var(--au-brand);
+  --fe-recovery-blue-2: var(--au-brand);
+  /* Shared dark palette (frontend.css), re-resolved on <body> so it reads
+     this theme's tokens instead of the navy defaults set on <html>. */
+  --fe-dm-page-bg:      var(--fe-color-surface-dark, #07081a);
+  --fe-dm-surface:      var(--au-card);
+  --fe-dm-surface-soft: rgba(255, 255, 255, 0.04);
+  --fe-dm-border:       var(--fe-color-card-primary-border-dark, #24274a);
+  --fe-dm-border-hover: color-mix(in srgb, var(--fe-color-card-primary-hover-border, #8b7cf6) 60%, transparent);
+  --fe-dm-text-strong:  var(--fe-color-text-dark, #e9eaf8);
+  --fe-dm-text:         var(--fe-color-text-dark, #e9eaf8);
+  --fe-dm-text-muted:   var(--au-ink-2);
+  --fe-dm-link-hover:   var(--au-link-hover);
+  --fe-dm-code-bg:      rgba(255, 255, 255, 0.08);
+  --fe-text-dark-active: var(--fe-color-text-dark, #e9eaf8);
 }
 
-/* ===== Atmosphere — diffuse aurora + grain (no transform anim) ============
-   The aurora is three soft colour fields that bleed in from off-canvas
-   edges, so there's no defined "circle" anywhere. Only opacity animates
-   (cheap on the GPU); animating transform on a blurred fixed layer caused
-   the corner flicker, so it's gone. */
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] {
-  background:
-    radial-gradient(1200px 760px at 10% -12%, #161c47 0%, transparent 60%),
-    radial-gradient(1100px 720px at 100% -6%, #120f38 0%, transparent 55%),
-    var(--md-ink);
+/* Point the token names at the dark variants for everything below <body>
+   (the tokens themselves are inline on <body>, so they can't be redefined
+   there without !important). */
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] > *,
+html:not([data-theme="dark"]) body[data-fe-theme="modern-dark"].fe-footer-force-dark > .fe-footer > * {
+  --fe-color-link:        var(--au-link);
+  --fe-color-link-hover:  var(--au-link-hover);
+  --fe-color-nav-link:    var(--au-nav);
+  --fe-color-nav-link-hover: var(--au-nav-hover);
+  --fe-color-text-soft:   var(--au-ink-2);
+  --fe-color-border:      var(--au-line);
+  --fe-color-surface:     var(--au-canvas);
+  --fe-color-surface-alt: var(--au-raise);
+  --fe-color-brand:       var(--au-brand);
+  --fe-color-accent:      var(--au-accent);
 }
-body[data-fe-theme="modern-dark"]::before {
-  content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
-  background:
-    radial-gradient(58vmax 58vmax at 6% -12%, rgba(67,56,202,0.40), transparent 70%),
-    radial-gradient(54vmax 54vmax at 110% 10%, rgba(124,58,237,0.30), transparent 72%),
-    radial-gradient(52vmax 52vmax at 50% 122%, rgba(20,184,166,0.22), transparent 70%);
-  opacity: 0.85; will-change: opacity;
-  animation: md-aurora 22s var(--md-ease) infinite alternate;
+
+
+/* ===== 2. Atmosphere ====================================================== */
+
+/* Canvas + two fixed aurora layers. The layers only animate opacity, out of
+   phase, so the light drifts between teal and violet without repainting. */
+html[data-theme] body[data-fe-theme="modern-dark"] {
+  background: var(--au-canvas);
+  color: var(--au-ink);
 }
-@keyframes md-aurora { from { opacity: 0.65; } to { opacity: 0.95; } }
+body[data-fe-theme="modern-dark"]::before,
 body[data-fe-theme="modern-dark"]::after {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  opacity: 0.22; mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-html[data-theme="light"] body[data-fe-theme="modern-dark"]::before { opacity: 0.22; }
-html[data-theme="light"] body[data-fe-theme="modern-dark"]::after  { opacity: 0.05; mix-blend-mode: multiply; }
-@media (prefers-reduced-motion: reduce) {
-  body[data-fe-theme="modern-dark"]::before { animation: none; opacity: 0.8; }
-}
-
-/* Sections stay transparent so the canvas shows between glass panels — in
-   BOTH modes (the .fe-features band ships a #fff light-mode background that
-   otherwise drew a white box around the "What is CMA" / "Additional Resources"
-   sections, breaking the canvas). */
-body[data-fe-theme="modern-dark"] .fe-page,
-body[data-fe-theme="modern-dark"] .fe-section,
-body[data-fe-theme="modern-dark"] .fe-features { background: transparent; }
-
-/* ===== Structure — mission-control rhythm ================================
-   Generous vertical breathing + a gradient hairline between top-level
-   sections (a recognisable rhythm distinct from the flat full-bleed
-   bands of the other themes). */
-body[data-fe-theme="modern-dark"] .fe-section { padding-top: 92px; padding-bottom: 92px; }
-/* The hero supplies its own internal padding — don't let the section band's
-   top padding push it below the header. Scoped to hero sections only so it
-   doesn't zero the meeting-detail page's top padding. */
-body[data-fe-theme="modern-dark"] .fe-section:has(.fe-hero) { padding-top: 0; }
-/* (No `.fe-section + .fe-section` divider — `.fe-section` is also used by
-   side-by-side blocks inside row containers, where a top-border renders as
-   a stray half-width line. Vertical spacing carries the rhythm instead.) */
-body[data-fe-theme="modern-dark"] .fe-features-grid { gap: 20px; }
-@media (max-width: 768px) {
-  body[data-fe-theme="modern-dark"] .fe-section { padding-top: 60px; padding-bottom: 60px; }
-}
-
-/* ===== Typography — gradient display headings + accent rule =============== */
-body[data-fe-theme="modern-dark"] .fe-section-head { position: relative; }
-body[data-fe-theme="modern-dark"] .fe-section-head h2 {
-  background: var(--md-grad-text);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
-  letter-spacing: -0.025em;
-}
-html[data-theme="light"] body[data-fe-theme="modern-dark"] .fe-section-head h2 {
-  background: linear-gradient(100deg, #0e1330 0%, #4338ca 60%, #0d9488 100%);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
-}
-/* Signature: a short gradient rule centred under every section heading. */
-body[data-fe-theme="modern-dark"] .fe-section-head::after {
-  content: ""; display: block; width: 56px; height: 3px;
-  margin: 16px auto 0; border-radius: 3px; background: var(--md-grad-cta);
-  box-shadow: 0 0 16px rgba(45,212,191,0.5);
-}
-
-/* ===== Hero — its own teal/violet "mission-control" scene ================
-   Replaces the recovery-blue dynamic background + particle starfield (which
-   were still rendering through the old transparent hero, making it read as
-   recovery-blue) with a self-contained teal→violet→cyan glow mesh + a faint
-   theme-tinted starfield. The admin's hero dynbg/particles are hidden (config
-   kept, just not shown on this theme). */
-body[data-fe-theme="modern-dark"] .fe-hero { overflow: hidden; position: relative; }
-body[data-fe-theme="modern-dark"] .fe-hero > .fe-dynbg,
-body[data-fe-theme="modern-dark"] .fe-hero > .fe-hero-particles { display: none !important; }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-hero-blob { opacity: 0; }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-hero {
+body[data-fe-theme="modern-dark"]::before {
   background:
-    radial-gradient(680px 460px at 20% 16%, rgba(45,212,191,0.26), transparent 60%),
-    radial-gradient(740px 520px at 84% 26%, rgba(139,92,246,0.30), transparent 62%),
-    radial-gradient(1000px 560px at 50% 122%, rgba(56,189,248,0.20), transparent 62%),
-    linear-gradient(180deg, #0a0f2b 0%, #0a0a22 100%) !important;
+    radial-gradient(70vw 46vh at 12% -8%, var(--au-aurora-a), transparent 70%),
+    radial-gradient(60vw 50vh at 50% 118%, var(--au-aurora-c), transparent 70%);
+  animation: au-breathe 26s var(--au-ease) infinite alternate;
 }
-html[data-theme="light"] body[data-fe-theme="modern-dark"] .fe-hero {
+body[data-fe-theme="modern-dark"]::after {
   background:
-    radial-gradient(620px 440px at 18% 20%, rgba(45,212,191,0.18), transparent 60%),
-    radial-gradient(680px 480px at 86% 26%, rgba(139,92,246,0.16), transparent 62%),
-    linear-gradient(180deg, #f6f7ff 0%, #eef1fb 100%) !important;
+    radial-gradient(64vw 54vh at 92% -4%, var(--au-aurora-b), transparent 68%),
+    radial-gradient(40vw 40vh at 0% 70%, color-mix(in srgb, var(--au-aurora-b) 50%, transparent), transparent 70%);
+  animation: au-breathe 26s var(--au-ease) -13s infinite alternate;
 }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-hero-heading {
-  background-image: var(--md-grad-text) !important; letter-spacing: -0.03em;
-}
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-hero-sub { color: var(--md-muted) !important; }
-body[data-fe-theme="modern-dark"] .fe-hero-eyebrow {
-  background: rgba(45,212,191,0.14); color: #5fe3d0;
-  border: 1px solid rgba(45,212,191,0.34);
-  text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.7rem;
-}
-html[data-theme="light"] body[data-fe-theme="modern-dark"] .fe-hero-eyebrow { color: #0d9488; }
+@keyframes au-breathe { from { opacity: 0.55; } to { opacity: 1; } }
 
-/* ===== Gradient-lit glass cards ==========================================
-   The signature surface: translucent glass with a lit top edge + a faint
-   gradient ring that warms to teal on hover, plus a real lift. Targets the
-   tokenised cards AND the homepage/meeting/feature/faq cards. */
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-card-primary,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-card-secondary,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-meeting-card,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-feature-card,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-faq-item {
-  background: var(--md-panel);
-  border: 1px solid var(--md-line);
-  border-radius: 16px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+/* Page sections stay transparent so the canvas reads continuously. */
+html[data-theme] body[data-fe-theme="modern-dark"] :is(
+  .fe-page, .fe-section, .fe-features, .fe-mlist, .fe-meeting-detail,
+  .fe-event-detail, .fe-contact-section, .fe-page-dynbg-host, .fe-quick,
+  .fe-about, .fe-stats-block, .fe-events, .fe-meetings, .fe-faq,
+  .fe-submission-page, .fe-site-index, .fe-404, .fe-blog-post, .fe-story-mag
+) { background: transparent; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-section + .fe-section { border-top: 0; }
+
+/* Region backgrounds chosen in the admin (hero, list pages, meeting and
+   contact pages) step aside for the aurora canvas on this theme. The
+   settings are kept. Backgrounds set on page-builder containers are content
+   and stay as configured. */
+body[data-fe-theme="modern-dark"] .fe-page .fe-dynbg-host:not(.block) > :is(.fe-dynbg, .fe-dynbg-overlay),
+body[data-fe-theme="modern-dark"] .fe-page-dynbg-host > :is(.fe-dynbg, .fe-dynbg-overlay),
+body[data-fe-theme="modern-dark"] .fe-hero > .fe-hero-particles { display: none; }
+
+
+/* ===== 3. Type ============================================================ */
+
+html[data-theme] body[data-fe-theme="modern-dark"] {
+  font-size: var(--fe-text-size-base, 1.0625rem);
+  line-height: var(--fe-text-line-height, 1.6);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(h1, h2, h3, h4) {
+  font-optical-sizing: auto;
+  text-wrap: balance;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-section-head {
+  max-width: 680px; margin-bottom: 40px;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-section-head h2 {
+  font-weight: 500; letter-spacing: -0.028em; line-height: 1.08;
+  font-size: clamp(2rem, 1.45rem + 1.7vw, 2.9rem);
+  color: var(--au-ink); margin-bottom: 12px;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-section-head p {
+  color: var(--au-ink-2); font-size: 1.05rem;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-page a:not(.fe-btn):not([class*="-card"]) {
+  text-underline-offset: 0.18em; text-decoration-thickness: 1px;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] ::selection {
+  background: color-mix(in srgb, var(--fe-color-btn-primary-bg, #2dd4bf) 35%, transparent);
+}
+
+
+/* ===== 4. Utility bar ===================================================== */
+
+/* Light mode keeps the admin's idle colors (inline on the bar). Dark mode
+   uses the admin's dark colors when set, otherwise a dark glass strip. */
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-utility-bar:not(.is-live):not([data-ub-dark]) {
+  /* !important: the idle palette is an inline style on the bar. */
+  background: color-mix(in srgb, var(--fe-color-surface-dark, #07081a) 82%, #1a1c44) !important;
+  color: var(--au-ink-2) !important;
+}
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-utility-bar[data-ub-dark]:not(.is-live) {
+  background: var(--ub-bg-dark) !important; color: var(--ub-fg-dark) !important;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-utility-bar {
+  box-shadow: inset 0 -1px 0 var(--au-line);
+  font-size: 0.84rem;
+}
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-utility-bar:not(.is-live) :is(.fe-utility-btn, .fe-theme-toggle, .fe-utility-search-btn, .fe-utility-container--collapsed) {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-utility-bar:not(.is-live) :is(.fe-utility-btn, .fe-theme-toggle, .fe-utility-search-btn):hover {
+  background: rgba(255, 255, 255, 0.12); color: var(--au-ink);
+}
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-utility-bar:not(.is-live) a:hover { color: var(--au-ink); }
+/* Live meeting: a warm amber band (unmistakable in both modes) with an ink
+   join pill instead of the stock blue one. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-utility-bar.is-live {
+  background: linear-gradient(90deg, #fbd24e, #fde68a 50%, #fbd24e);
+  color: #1c1503 !important;
+}
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-utility-bar.is-live {
+  background: linear-gradient(90deg, #e9b93a, #f4cf5d 50%, #e9b93a);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-utility-bar.is-live .fe-utility-live-cta {
+  background: #11132b; color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-utility-bar.is-live .fe-utility-live-cta:hover {
+  background: #23264d; color: #ffffff;
+}
+
+
+/* ===== 5. Header ========================================================== */
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-header-themed {
+  background: var(--au-glass);
+  border-bottom: 1px solid var(--au-line);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+}
+/* The horizon: a faint aurora hairline along the header's lower edge. */
+body[data-fe-theme="modern-dark"] .fe-header-themed::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: var(--au-horizon); opacity: 0.55; pointer-events: none;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-brand { color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-brand-name {
+  font-weight: 600; letter-spacing: -0.02em;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-nav { gap: 2px; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-nav-link:not(.fe-th-nav-cta) {
+  color: var(--au-nav);
+  font-size: 0.94rem; font-weight: 500; letter-spacing: -0.005em;
+  padding: 8px 13px; border-radius: 999px;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-nav-link:not(.fe-th-nav-cta):hover,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-nav-link:not(.fe-th-nav-cta).mega-active {
+  color: var(--au-nav-hover);
+  background: var(--au-tint);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-nav-link .fe-nav-caret { opacity: 0.6; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-menu-btn span { background: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-menu-btn:hover { background: var(--au-tint); }
+
+
+/* ===== 6. Mega menu ======================================================= */
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed:not(.fe-megamenu-has-dynbg) {
+  background:
+    radial-gradient(60% 120% at 0% 0%, color-mix(in srgb, var(--au-aurora-a) 70%, transparent), transparent 70%),
+    radial-gradient(50% 120% at 100% 0%, color-mix(in srgb, var(--au-aurora-b) 70%, transparent), transparent 70%),
+    var(--au-glass-solid);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed {
+  color: var(--au-ink);
+  border-bottom: 1px solid var(--au-line);
+  box-shadow: inset 0 1px 0 var(--au-highlight), 0 40px 80px -30px rgba(7, 8, 26, 0.45);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+  --fe-mm-link-base: 1rem; --fe-mm-heading-base: 1.15rem;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-inner { gap: 40px; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-block-title {
+  font-family: var(--fe-font-heading); font-weight: 500;
+  letter-spacing: -0.015em; color: var(--au-ink);
+  margin: 18px 12px 6px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--au-line);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-blocks > .fe-megamenu-block-title:first-child { margin-top: 0; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-link {
+  padding: 8px 12px; border-radius: 10px; font-weight: 450;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-link:hover {
+  background: var(--au-tint); padding-left: 12px;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-chevron { opacity: 0; transform: translateX(-4px); transition: opacity 160ms ease, transform 160ms ease; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-link:hover .fe-megamenu-chevron,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-link:focus-visible .fe-megamenu-chevron { opacity: 0.7; transform: translateX(0); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-chevron .icon { width: 16px; height: 16px; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-block-section { color: var(--au-ink-3); opacity: 1; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-block-section-label { text-transform: none; letter-spacing: 0; font-size: 0.82rem; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-block-btn {
+  color: var(--au-ink); background: var(--au-raise);
+  border: 1px solid var(--au-line-2);
+  box-shadow: inset 0 1px 0 var(--au-highlight);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-block-btn:hover {
+  background: var(--au-tint); border-color: color-mix(in srgb, var(--au-brand) 50%, transparent);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-search {
+  background: var(--au-field); color: var(--au-ink); border-color: var(--au-field-line);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-megamenu-backdrop {
+  background: color-mix(in srgb, var(--au-canvas) 40%, transparent);
+}
+
+
+/* ===== 7. Buttons, links, focus =========================================== */
+
+/* Primary: lit from above, token colors, a soft action-colored glow. */
+html[data-theme] body[data-fe-theme="modern-dark"].frontend-body :is(.fe-btn-primary, .fe-btn-blue, .fe-th-nav-cta) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 55%),
+    var(--fe-color-btn-primary-bg, #2dd4bf);
+  color: var(--fe-color-btn-primary-text, #042f2e) !important; /* !important: shared nav CTA rule */
+  border-color: var(--fe-color-btn-primary-border, var(--fe-color-btn-primary-bg, #2dd4bf));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4),
+              0 0 0 1px color-mix(in srgb, var(--fe-color-btn-primary-bg, #2dd4bf) 60%, #000 10%),
+              var(--fe-btn-shadow, none);
+  font-weight: var(--fe-btn-weight, 600);
+  letter-spacing: -0.005em;
+  transition: transform 160ms var(--au-ease), box-shadow 200ms var(--au-ease), background-color 160ms ease;
+}
+html[data-theme="dark"] body[data-fe-theme="modern-dark"].frontend-body :is(.fe-btn-primary, .fe-btn-blue, .fe-th-nav-cta) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45),
+              0 0 0 1px color-mix(in srgb, var(--fe-color-btn-primary-bg, #2dd4bf) 70%, transparent),
+              0 8px 28px -8px color-mix(in srgb, var(--fe-color-btn-primary-bg, #2dd4bf) 55%, transparent);
+}
+html[data-theme] body[data-fe-theme="modern-dark"].frontend-body :is(.fe-btn-primary, .fe-btn-blue, .fe-th-nav-cta):hover {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 55%),
+    var(--fe-color-btn-primary-hover-bg, var(--fe-color-btn-primary-bg, #5eead4));
+  color: var(--fe-color-btn-primary-text, #042f2e) !important;
+  border-color: var(--fe-color-btn-primary-hover-border, var(--fe-color-btn-primary-hover-bg, #5eead4));
+  transform: var(--fe-btn-hover-transform, none);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5),
+              0 0 0 1px color-mix(in srgb, var(--fe-color-btn-primary-hover-bg, #5eead4) 70%, transparent),
+              0 12px 34px -10px color-mix(in srgb, var(--fe-color-btn-primary-hover-bg, #5eead4) 70%, transparent);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-nav-cta {
+  padding: 9px 18px; margin-left: 10px; font-size: 0.92rem;
+}
+
+/* Secondary: daylight reads the tokens as-is; night turns them to glass. */
+html[data-theme] body[data-fe-theme="modern-dark"].frontend-body .fe-btn-ghost {
+  background: linear-gradient(180deg, var(--au-sheen), transparent), var(--fe-color-btn-secondary-bg, #ffffff);
+  color: var(--fe-color-btn-secondary-text, var(--au-ink));
+  border-color: var(--fe-color-btn-secondary-border, var(--au-line-2));
+  box-shadow: inset 0 1px 0 var(--au-highlight), 0 1px 2px rgba(42, 36, 112, 0.06);
+  font-weight: var(--fe-btn-weight, 600);
+}
+html[data-theme] body[data-fe-theme="modern-dark"].frontend-body .fe-btn-ghost:hover {
+  background: var(--fe-color-btn-secondary-hover-bg, var(--au-tint));
+  color: var(--fe-color-btn-secondary-text, var(--au-ink));
+  border-color: var(--fe-color-btn-secondary-hover-border, var(--au-brand));
+}
+html[data-theme="dark"] body[data-fe-theme="modern-dark"].frontend-body .fe-btn-ghost {
+  background: color-mix(in srgb, var(--fe-color-btn-secondary-bg, #ffffff) 5%, transparent);
+  color: var(--au-ink);
+  border-color: color-mix(in srgb, var(--fe-color-btn-secondary-border, #dcdcec) 18%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+html[data-theme="dark"] body[data-fe-theme="modern-dark"].frontend-body .fe-btn-ghost:hover {
+  background: color-mix(in srgb, var(--fe-color-btn-secondary-bg, #ffffff) 10%, transparent);
+  color: #ffffff;
+  border-color: color-mix(in srgb, var(--fe-color-btn-secondary-hover-border, #a5a0ee) 70%, transparent);
+}
+
+/* Green (WhatsApp) button: a deeper green so its white label passes AA,
+   lit like the primary. */
+html[data-theme] body[data-fe-theme="modern-dark"].frontend-body .fe-btn-green {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 55%), #15803d;
+  color: #ffffff; border-color: #15803d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 8px 26px -10px rgba(21, 128, 61, 0.6);
+}
+html[data-theme] body[data-fe-theme="modern-dark"].frontend-body .fe-btn-green:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 55%), #166534;
+  color: #ffffff; border-color: #166534;
+}
+
+/* Focus: one clear ring everywhere. */
+html[data-theme] body[data-fe-theme="modern-dark"] :is(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--au-focus);
+  outline-offset: 2px;
+}
+
+
+/* ===== 8. Forms =========================================================== */
+
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-page, .fe-submission-modal, .fe-search-modal) :is(
+  input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="search"],
+  input[type="date"], input[type="time"], input[type="number"], input[type="password"], input:not([type]),
+  select, textarea) {
+  background-color: var(--au-field);
+  color: var(--au-ink);
+  border-color: var(--au-field-line);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-page, .fe-submission-modal) :is(input, select, textarea)::placeholder {
+  color: var(--au-ink-3); opacity: 1;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-page, .fe-submission-modal, .fe-search-modal) :is(input, select, textarea):focus {
+  border-color: var(--au-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--au-focus) 22%, transparent);
+  outline: none;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-page, .fe-submission-modal) input[type="file"]::file-selector-button {
+  margin-right: 10px; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 0.85rem; font-weight: 600;
+  background: var(--au-raise); color: var(--au-ink);
+  border: 1px solid var(--au-line-2);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-page, .fe-submission-modal) :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--fe-color-btn-primary-bg, #2dd4bf);
+}
+
+
+/* ===== 9. Badges ========================================================== */
+
+/* Meeting format: sentence case with a status dot. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-type {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 4px 10px 4px 9px; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.01em; text-transform: none;
+  background: var(--au-tint); color: var(--au-brand-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+}
+body[data-fe-theme="modern-dark"] .fe-meeting-type::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; flex: 0 0 auto;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-type-online    { background: var(--au-online-bg);   color: var(--au-online-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-type-in_person { background: var(--au-inperson-bg); color: var(--au-inperson-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-type-hybrid    { background: var(--au-hybrid-bg);   color: var(--au-hybrid-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-type-online::before    { background: var(--au-online-dot);   box-shadow: 0 0 8px var(--au-online-dot); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-type-in_person::before { background: var(--au-inperson-dot); box-shadow: 0 0 8px var(--au-inperson-dot); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-type-hybrid::before    { background: var(--au-hybrid-dot);   box-shadow: 0 0 8px var(--au-hybrid-dot); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-fellowships-card-chip--virtual { background: var(--au-online-bg); color: var(--au-online-ink); border-color: transparent; }
+
+
+/* ===== 10. Cards: glass surfaces ========================================== */
+
+/* Primary cards (meetings, events, announcements, library, forms). */
+html[data-theme] body[data-fe-theme="modern-dark"] :is(
+  .fe-meeting-card, .fe-meeting-detail-card, .fe-meeting-extended-card, .fe-event-detail-card,
+  .fe-event-row, .fe-meeting-resources, .fe-mlist-card, .fe-events-card, .fe-events-mag-hero,
+  .fe-announcements-card, .fe-fellowships-card, .fe-library-item, .fe-submission-card,
+  .fe-rc-item-card, .fe-card-primary) {
+  background: linear-gradient(180deg, var(--au-sheen), transparent 120px), var(--au-card);
+  border-color: var(--au-card-line);
+  border-radius: var(--fe-card-radius, 16px);
+  box-shadow: inset 0 1px 0 var(--au-highlight), var(--au-card-shadow);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(
+  .fe-meeting-card, .fe-meeting-detail-card, .fe-meeting-extended-card, .fe-event-detail-card,
+  .fe-event-row, .fe-meeting-resources, .fe-mlist-card, .fe-events-card, .fe-events-mag-hero,
+  .fe-announcements-card, .fe-fellowships-card, .fe-library-item, .fe-submission-card,
+  .fe-rc-item-card, .fe-card-primary):hover {
+  border-color: color-mix(in srgb, var(--fe-color-card-primary-hover-border, #8b7cf6) 70%, transparent);
+  box-shadow: inset 0 1px 0 var(--au-highlight), var(--au-card-shadow-hover),
+              0 0 0 1px color-mix(in srgb, var(--fe-color-card-primary-hover-border, #8b7cf6) 16%, transparent);
+}
+/* Secondary cards (features, FAQ, inclusion, quick links). */
+html[data-theme] body[data-fe-theme="modern-dark"] :is(
+  .fe-feature-card, .fe-quick-card, .fe-faq-item, .fe-inclusion-card, .fe-meeting-mag-side-card,
+  .fe-card-secondary, .fe-contact-card, .fe-testimonial) {
+  background: linear-gradient(180deg, var(--au-sheen), transparent 120px), var(--au-card-2);
+  border-color: var(--au-card-line-2);
+  color: var(--au-ink);
+  box-shadow: inset 0 1px 0 var(--au-highlight), var(--au-card-shadow-2);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(
+  .fe-feature-card, .fe-quick-card, .fe-faq-item, .fe-inclusion-card, .fe-meeting-mag-side-card,
+  .fe-card-secondary, .fe-contact-card, .fe-testimonial):hover {
+  border-color: color-mix(in srgb, var(--fe-color-card-secondary-hover-border, #8b7cf6) 60%, transparent);
+  box-shadow: inset 0 1px 0 var(--au-highlight), var(--au-card-shadow-2-hover);
+}
+/* Icon chips: a small lit glass tile with the accent glyph. */
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-feature-icon, .fe-faq-summary-icon, .fe-inclusion-icon, .fe-protips-icon, .fe-footer-location-icon) {
+  background:
+    linear-gradient(140deg, color-mix(in srgb, #2dd4bf 22%, transparent), color-mix(in srgb, #8b5cf6 18%, transparent)),
+    var(--au-raise);
+  color: var(--au-action-ink);
+  box-shadow: inset 0 0 0 1px var(--au-line-2), inset 0 1px 0 var(--au-highlight);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-feature-body, .fe-feature-card p, .fe-faq-body-inner, .fe-inclusion-body) { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-feature-body, .fe-faq-body-inner, .fe-inclusion-body) strong { color: var(--au-ink); }
+
+
+/* ===== 11. Home: hero ===================================================== */
+
+/* The aurora gathers behind the hero: one soft ribbon of light (teal into
+   cyan into violet) tilted across the top, fading out before the text, and
+   a horizon line along the bottom. The ribbon is static; only the canvas
+   layers behind it breathe. Hero text colors and font remain the admin's
+   hero settings. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-hero {
+  background: radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, var(--au-aurora-c) 60%, transparent), transparent 75%);
+  isolation: isolate;
+}
+body[data-fe-theme="modern-dark"] .fe-hero::before {
+  content: ""; position: absolute; z-index: 0; pointer-events: none;
+  left: -15%; right: -15%; top: -45%; height: 95%;
+  background: linear-gradient(100deg, transparent 14%, var(--au-ribbon-a) 30%,
+    var(--au-ribbon-b) 46%, var(--au-ribbon-c) 62%, transparent 80%);
+  filter: blur(56px);
+  transform: rotate(-7deg);
+  -webkit-mask-image: radial-gradient(75% 95% at 50% 25%, #000 20%, transparent 88%);
+  mask-image: radial-gradient(75% 95% at 50% 25%, #000 20%, transparent 88%);
+}
+body[data-fe-theme="modern-dark"] .fe-hero::after {
+  content: ""; position: absolute; left: 8%; right: 8%; bottom: 0; height: 1px;
+  background: var(--au-horizon); opacity: 0.4; pointer-events: none;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-hero-heading {
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+  padding-bottom: 0.1em;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-hero-sub { line-height: 1.6; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-hero-eyebrow {
+  background: var(--au-tint); color: var(--au-brand-ink);
+  text-transform: none; letter-spacing: 0; font-size: 0.85rem;
+  box-shadow: inset 0 0 0 1px var(--au-line-2);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-hero-blob { display: none; }
+
+
+/* ===== 12. Home: meetings, events, features, FAQ, inclusion =============== */
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-card h3 {
+  font-weight: 500; font-size: 1.3rem; letter-spacing: -0.02em; line-height: 1.18;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-sched { color: var(--au-ink-2); font-size: 0.92rem; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-day { color: var(--au-ink); font-weight: 600; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-card-cta { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-card:hover .fe-meeting-card-cta { color: var(--au-link); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-card-logo img { border-radius: 12px; }
+
+/* Event rows read like a schedule: a lit date tile, title, meta. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-date {
+  background: var(--au-raise);
+  border: 1px solid var(--au-line-2);
+  box-shadow: inset 0 1px 0 var(--au-highlight);
+  border-radius: 14px;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-date-month {
+  color: var(--au-action-ink); letter-spacing: 0.06em;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-date-day {
+  font-weight: 500; letter-spacing: -0.03em; color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-date-year { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-thumb { border-color: var(--au-line); background: var(--au-raise); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-title,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-title a {
+  color: var(--au-ink); font-weight: 500; letter-spacing: -0.015em;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-attrs { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-attr-online { color: var(--au-online-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-summary { color: var(--au-ink-2); }
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-feature-card h3 {
+  font-weight: 500; letter-spacing: -0.02em; font-size: 1.4rem;
+}
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-faq-summary {
+  color: var(--au-ink); font-weight: 550; padding: 18px 22px;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-faq-summary-chevron { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-faq-item.is-open {
+  border-color: color-mix(in srgb, var(--fe-color-card-secondary-hover-border, #8b7cf6) 55%, transparent);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-faq-item.is-open .fe-faq-summary-chevron { color: var(--au-action-ink); }
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-inclusion-heading { color: var(--au-ink); font-weight: 500; letter-spacing: -0.025em; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-inclusion-tag {
+  background: var(--au-tint); color: var(--au-brand-ink);
+  border-color: color-mix(in srgb, var(--au-brand) 26%, transparent);
+}
+
+
+/* ===== 13. Shared page furniture ========================================== */
+
+/* Eyebrow labels and small meta labels: sentence case, no tracking. */
+html[data-theme] body[data-fe-theme="modern-dark"] :is(
+  .fe-contact-eyebrow, .fe-site-index-eyebrow, .fe-events-mag-hero-eyebrow, .fe-stories-mag-eyebrow,
+  .fe-stories-mag-hero-eyebrow, .fe-story-mag-eyebrow, .fe-rc-eyebrow, .fe-contact-channel-label,
+  .fe-mlist-card-times-cell dt, .fe-mlist-card-zoom-creds dt, .fe-mlist-rail-section,
+  .fe-meeting-detail-card h3, .fe-event-detail-card h3, .fe-meeting-resources h3,
+  .fe-meeting-resources-group h4, .fe-footer-locations-heading, .fe-footer-contact-heading,
+  .fe-story-mag-meta-label, .fe-rc-count, .fe-copy-url-pill) {
+  text-transform: none; letter-spacing: 0;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-contact-eyebrow, .fe-site-index-eyebrow, .fe-rc-eyebrow) {
+  font-size: 0.8rem; font-weight: 600;
+  color: var(--au-brand-ink); background: var(--au-tint);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--au-brand) 22%, transparent);
+}
+/* Page titles on list and form pages use the display face. */
+html[data-theme] body[data-fe-theme="modern-dark"] :is(
+  .fe-mlist-head h1, .fe-contact-title, .fe-rc-main-title, .fe-site-index-title,
+  .fe-submission-page-title, .fe-404-heading, .fe-blog-cards-title, .fe-stories-mag-title,
+  .fe-mlist-protips-head h2, .fe-mlist-day-section-heading) {
+  font-family: var(--tpl-heading-font, var(--fe-font-heading));
+  font-weight: 500; letter-spacing: -0.028em; color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-mlist-head p, .fe-contact-blurb, .fe-site-index-blurb, .fe-submission-page-blurb, .fe-404-sub) {
+  color: var(--au-ink-2);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-page, .fe-submission-modal) .muted { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-page, .fe-submission-modal) .req { color: #e11d48; }
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] :is(.fe-page, .fe-submission-modal) .req { color: #fb7185; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-archive-types-legend { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-detail-submit-cta-copy :is(p, span) { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-mag-hero-tag { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-card-date-year { color: var(--au-ink-2); }
+/* Text tokens some shared rules read but the design system doesn't emit. */
+body[data-fe-theme="modern-dark"] > * {
+  --fe-color-text-muted: var(--au-ink-2);
+  --fe-color-muted: var(--au-ink-2);
+  --fe-color-bg: var(--au-card);
+}
+/* Dark primary-button variables used by older shared rules (event hero,
+   contact form, submission forms): point them at the action tokens. */
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] {
+  --fe-dm-btn-primary-bg:         var(--fe-color-btn-primary-bg, #2dd4bf);
+  --fe-dm-btn-primary-bg-hover:   var(--fe-color-btn-primary-hover-bg, #5eead4);
+  --fe-dm-btn-primary-text:       var(--fe-color-btn-primary-text, #042f2e);
+  --fe-dm-btn-primary-text-hover: var(--fe-color-btn-primary-text, #042f2e);
+  --fe-dm-btn-primary-shadow:     0 8px 28px -8px color-mix(in srgb, var(--fe-color-btn-primary-bg, #2dd4bf) 55%, transparent);
+}
+/* Form submit buttons are styled as primary actions. */
+html[data-theme] body[data-fe-theme="modern-dark"].frontend-body :is(.fe-submission-submit, .fe-rc-cta-btn) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 55%), var(--fe-color-btn-primary-bg, #2dd4bf);
+  color: var(--fe-color-btn-primary-text, #042f2e);
+  border: 1px solid var(--fe-color-btn-primary-border, #2dd4bf);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 8px 26px -10px color-mix(in srgb, var(--fe-color-btn-primary-bg, #2dd4bf) 60%, transparent);
+}
+html[data-theme] body[data-fe-theme="modern-dark"].frontend-body :is(.fe-submission-submit, .fe-rc-cta-btn):hover {
+  background: var(--fe-color-btn-primary-hover-bg, #5eead4);
+  color: var(--fe-color-btn-primary-text, #042f2e);
+}
+
+/* Page-builder containers whose dark background the admin left on "Auto"
+   (stamped as --tsp-bg-dm) are shown as a tint over the canvas, so the
+   aurora light continues behind them instead of a flat slab. */
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] [style*="--tsp-bg-dm"] {
+  /* !important: matches the shared rule, which beats the inline style. */
+  background-color: color-mix(in srgb, var(--tsp-bg-dm) 45%, transparent) !important;
+}
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] [style*="--tsp-border-dm"] {
+  border-color: color-mix(in srgb, var(--tsp-border-dm) 60%, transparent) !important;
+}
+
+/* Segmented controls (events/announcements tabs, archive link, blog cats). */
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-events-omni-tabs, a.fe-events-omni-archive) {
+  background: var(--au-raise);
+  box-shadow: inset 0 0 0 1px var(--au-line-2);
+  color: var(--au-ink-2);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-omni-tab { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-events-omni-tab:hover, a.fe-events-omni-archive:hover .fe-events-omni-archive-inner) {
+  background: var(--au-tint); color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-omni-tab.is-active,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-omni-tab.is-active:hover {
+  background: linear-gradient(180deg, var(--au-sheen), transparent), var(--au-card);
+  color: var(--au-ink);
+  box-shadow: inset 0 1px 0 var(--au-highlight), 0 0 0 1px var(--au-line-2), 0 4px 14px -4px rgba(7, 8, 26, 0.35);
+}
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-events-omni-tab.is-active,
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-events-omni-tab.is-active:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-omni-tab.is-active .fe-events-omni-tab-icon { color: var(--au-action-ink); }
+
+
+/* ===== 14. Meetings list ================================================== */
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-rail-search input,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-search input {
+  background: var(--au-field); border: 1px solid var(--au-field-line); color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-search-kbd {
+  background: var(--au-raise); box-shadow: inset 0 0 0 1px var(--au-line-2); color: var(--au-ink-3);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-rail-section {
+  color: var(--au-ink-3); font-weight: 600; font-size: 0.8rem;
+  border-top-color: var(--au-line);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-day-pill { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-day-pill:hover { background: var(--au-tint); color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-day-pill.is-active {
+  background: linear-gradient(180deg, var(--au-sheen), transparent), var(--au-card);
+  border-color: var(--au-card-line);
+  color: var(--au-ink); font-weight: 600;
+  box-shadow: inset 0 1px 0 var(--au-highlight), inset 2px 0 0 var(--fe-color-btn-primary-bg, #2dd4bf);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-day-count {
+  background: var(--au-raise); color: var(--au-ink-3);
+  box-shadow: inset 0 0 0 1px var(--au-line);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-day-pill.is-active .fe-mlist-day-count {
+  background: color-mix(in srgb, var(--fe-color-btn-primary-bg, #2dd4bf) 22%, transparent); color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-link-list { border-top-color: var(--au-line); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-rail-link:hover { background: var(--au-tint); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-day-section-heading {
+  border-bottom-color: var(--au-line); font-size: 1.6rem;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-day-section-count {
+  background: var(--au-tint); color: var(--au-brand-ink);
+}
+/* Meeting card: the times are the first thing the eye needs. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-name {
+  font-weight: 500; letter-spacing: -0.022em; color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-col-logo {
+  background: var(--au-raise);
+  box-shadow: inset 0 0 0 1px var(--au-line);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-times-cell dt,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-zoom-creds dt {
+  font-size: 0.78rem; font-weight: 500; color: var(--au-ink-3);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-times-cell dd {
+  font-size: 1.3rem; font-weight: 500; letter-spacing: -0.02em; color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-dur-chip {
+  background: var(--au-raise); border-color: var(--au-line-2); color: var(--au-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-mlist-card-also, .fe-mlist-card-loc-line) { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-desc { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card.is-3col .fe-mlist-card-col-actions { border-left-color: var(--au-line); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-conf-label { color: var(--au-ink-2); font-weight: 600; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-zoom-creds code {
+  background: var(--au-raise); color: var(--au-ink);
+  box-shadow: inset 0 0 0 1px var(--au-line);
+  font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-copy-btn.fe-mlist-copy:hover code { background: var(--au-tint); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-mlist-card-permalink, .fe-mlist-card.is-3col .fe-mlist-card-permalink) { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-mlist-card-permalink, .fe-mlist-card.is-3col .fe-mlist-card-permalink):hover { color: var(--au-link); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-action-stack .fe-btn-primary,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-action-stack .fe-btn-primary:hover { transform: none; }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-mlist-toolbar, .fe-mlist-week-col) {
+  background: var(--au-card-2); border-color: var(--au-card-line-2);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  transition: transform 220ms var(--md-ease), box-shadow 220ms var(--md-ease),
-              border-color 220ms var(--md-ease), background 220ms var(--md-ease);
 }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-card-primary:hover,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-card-secondary:hover,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-meeting-card:hover,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-feature-card:hover {
-  transform: translateY(-4px);
-  background: var(--md-panel-2);
-  border-color: rgba(45,212,191,0.55);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10),
-              0 0 0 1px rgba(45,212,191,0.22),
-              0 26px 60px -22px rgba(0,0,0,0.75);
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-chip { background: var(--au-raise); box-shadow: inset 0 0 0 1px var(--au-line); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-chip.is-active {
+  background: var(--au-tint-2); border-color: color-mix(in srgb, var(--au-brand) 45%, transparent);
 }
-/* Gradient icon chips inside feature cards. */
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-feature-icon {
-  background: linear-gradient(140deg, rgba(99,102,241,0.28), rgba(45,212,191,0.20));
-  border: 1px solid var(--md-line); color: var(--md-teal);
+/* Week board: the columns are narrow, so the logo sits in the flow above
+   the name instead of reserving a right-hand gutter. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-weekboard .fe-mlist-card.has-logo { padding-right: 14px; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-weekboard .fe-mlist-card-logo {
+  position: static; width: 40px; height: 40px; justify-content: flex-start;
+}
+/* Pro tips header beside the list. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-protips-head p { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-protips-inline .fe-faq-item.is-open {
+  border-color: color-mix(in srgb, var(--fe-color-card-primary-hover-border, #8b7cf6) 55%, transparent);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-protips-inline :is(.fe-faq-summary, .fe-faq-body-inner) { color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-protips-inline .fe-faq-body-inner { color: var(--au-ink-2); }
+
+
+/* ===== 15. Meeting detail ================================================= */
+
+/* A calm hero: the title sits in a pool of aurora light, the cards below
+   form the action panel. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-detail { position: relative; isolation: isolate; }
+body[data-fe-theme="modern-dark"] .fe-meeting-detail::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 520px; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(40% 70% at 30% 0%, var(--au-aurora-a), transparent 70%),
+    radial-gradient(36% 64% at 72% 6%, var(--au-aurora-b), transparent 70%);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-detail-back,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-detail-back,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-cls-back,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-story-mag-back {
+  color: var(--au-ink-2); font-size: 0.9rem; font-weight: 500; font-style: normal;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-meeting-detail-back, .fe-event-detail-back, .fe-blog-cls-back, .fe-story-mag-back):hover {
+  color: var(--au-ink); text-decoration: none;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-detail-head { margin-bottom: 3rem; align-items: center; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-detail-head h1 {
+  font-weight: 500; letter-spacing: -0.035em; line-height: 1.02;
+  font-size: clamp(2.4rem, 1.6rem + 3vw, 4rem);
+  color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-detail-head-logo .fe-meeting-logo {
+  border-radius: 18px;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-copy-url-pill {
+  background: var(--au-raise); color: var(--au-ink-2);
+  border-color: var(--au-line-2); font-weight: 500;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-copy-url-pill:hover { color: var(--au-ink); background: var(--au-tint); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-meeting-detail-card, .fe-event-detail-card, .fe-meeting-resources) h3 {
+  font-family: var(--fe-font-body); font-size: 0.86rem; font-weight: 600; color: var(--au-ink-3);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-meeting-detail-card, .fe-event-detail-card, .fe-meeting-resources) h3 .icon { color: var(--au-action-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-detail-day {
+  font-family: var(--fe-font-heading); font-size: 1.5rem; font-weight: 500; letter-spacing: -0.02em; color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-detail-time { color: var(--au-ink); font-variant-numeric: tabular-nums; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-detail-location {
+  font-family: var(--fe-font-heading); font-size: 1.35rem; font-weight: 500; letter-spacing: -0.015em; color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-resources-group h4 { color: var(--au-ink-3); font-weight: 500; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-resources a { color: var(--au-link); font-weight: 500; }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-meeting-detail-card, .fe-event-detail-card, .fe-meeting-resources):hover { transform: none; }
+
+
+/* ===== 16. Events, announcements, archive ================================= */
+
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-events-card-title, .fe-announcements-card-title, .fe-events-tl-title, .fe-events-mag-hero-title) {
+  font-family: var(--fe-font-heading); font-weight: 500; letter-spacing: -0.02em; color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-events-card-title, .fe-announcements-card-title, .fe-events-tl-title) a { color: inherit; }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-events-card-date, .fe-events-tl-date) {
+  background: var(--au-tint); color: var(--au-brand-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--au-brand) 22%, transparent);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-events-card-meta, .fe-announcements-card-meta, .fe-events-tl-meta, .fe-events-mag-hero-meta) { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-events-card-summary, .fe-events-card-body-preview, .fe-announcements-card-fulltext, .fe-events-mag-hero-summary, .fe-events-tl-summary) { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-card-read-more, .fe-events-tl-read-more) { color: var(--au-link); font-weight: 600; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-mag-hero-eyebrow { color: var(--au-action-ink); font-weight: 600; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-mag-hero-day { color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-mag-rest-head { color: var(--au-ink); font-weight: 500; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-cal { background: var(--au-card); border-color: var(--au-card-line); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-cal-grid { background: var(--au-line); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-cal-cell { background: var(--au-canvas); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-events-cal-chip {
+  background: var(--au-tint); color: var(--au-ink); border-left-color: var(--fe-color-btn-primary-bg, #2dd4bf);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-announcements-card-fulltext { max-width: 75ch; }
+/* GSR summary view keeps its paper look; only its frame follows the theme. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-announcements-gsr-paper { border-radius: var(--fe-card-radius, 16px); }
+
+/* Event / announcement detail. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-detail { position: relative; isolation: isolate; }
+body[data-fe-theme="modern-dark"] .fe-event-detail::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 520px; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(40% 70% at 70% 0%, var(--au-aurora-b), transparent 70%),
+    radial-gradient(36% 60% at 24% 4%, var(--au-aurora-a), transparent 70%);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-detail h1 {
+  font-weight: 500; letter-spacing: -0.032em; line-height: 1.05; color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-detail-desc { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-event-detail-cover { border-radius: var(--fe-card-radius, 16px); overflow: hidden; }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-event-detail-day, .fe-event-detail-when) { color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-detail-submit-cta {
+  background: var(--au-raise); border-color: var(--au-line-2); color: var(--au-ink-2);
+  border-radius: var(--fe-card-radius, 16px);
 }
 
-/* ===== Buttons — teal→cyan gradient with glow ============================ */
-body[data-fe-theme="modern-dark"] .fe-btn-primary,
-body[data-fe-theme="modern-dark"] .fe-th-nav-cta,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-btn-primary,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-page .fe-hero-cta .fe-btn-primary {
-  background: var(--md-grad-cta) !important;
-  color: #06241f !important; border: 0 !important; font-weight: 700;
-  box-shadow: 0 10px 30px rgba(45,212,191,0.30);
+
+/* ===== 17. Library, fellowships, site index =============================== */
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-library-section h2 {
+  font-weight: 500; letter-spacing: -0.02em; color: var(--au-ink);
 }
-body[data-fe-theme="modern-dark"] .fe-btn-primary:hover,
-body[data-fe-theme="modern-dark"] .fe-th-nav-cta:hover,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-btn-primary:hover {
-  filter: brightness(1.06);
-  box-shadow: 0 16px 44px rgba(45,212,191,0.48) !important;
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-library-section-desc { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-library-item-title { color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-library-item-sub, .fe-library-item-summary) { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-library-ftype {
+  background: var(--au-tint); color: var(--au-brand-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-fellowships-card-title { font-family: var(--fe-font-heading); font-weight: 500; letter-spacing: -0.015em; color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-fellowships-card-where { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-fellowships-card-chip {
+  background: var(--au-inperson-bg); color: var(--au-inperson-ink); border-color: transparent;
+  text-transform: none; letter-spacing: 0; font-weight: 600;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-fellowships-country { color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-site-index-group-head { border-bottom-color: var(--au-line); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-site-index-count { background: var(--au-raise); color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-site-index-row-link { border-radius: 12px; color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-site-index-row-link:hover {
+  background: linear-gradient(180deg, var(--au-sheen), transparent), var(--au-card);
+  box-shadow: inset 0 1px 0 var(--au-highlight), 0 0 0 1px var(--au-card-line);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-site-index-row-sub { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-site-index-row-arrow { color: var(--au-ink-3); }
+
+
+/* ===== 18. Stories and story ============================================== */
+
+/* The magazine templates expose their palette as variables; this theme
+   supplies them, so stories read as part of the site rather than a
+   separate sepia publication. Template fonts stay the admin's choice. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-stories-mag {
+  --mag-bg: var(--tpl-bg, transparent);
+  --mag-card: var(--au-card);
+  --mag-ink: var(--au-ink);
+  --mag-ink-soft: var(--au-ink-2);
+  --mag-rule: var(--au-line);
+  --mag-accent: var(--au-action-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-stories-mag-hero, .fe-stories-mag-card) {
+  border: 1px solid var(--au-card-line);
+  box-shadow: inset 0 1px 0 var(--au-highlight), var(--au-card-shadow);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-stories-mag-hero, .fe-stories-mag-card):hover {
   transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--fe-color-card-primary-hover-border, #8b7cf6) 65%, transparent);
+  box-shadow: inset 0 1px 0 var(--au-highlight), var(--au-card-shadow-hover);
 }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-btn-ghost,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-btn-secondary {
-  background: var(--md-panel); color: var(--md-text);
-  border: 1px solid var(--md-line);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-page :is(.fe-stories-mag-hero, .fe-stories-mag-card) { color: var(--au-ink); text-decoration: none; }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-stories-mag-hero-img, .fe-stories-mag-card-img) { background: var(--au-raise); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-stories-mag-hero-img { aspect-ratio: auto; min-height: 100%; }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-stories-mag-hero-fallback, .fe-stories-mag-card-fallback) {
+  background:
+    radial-gradient(70% 90% at 20% 10%, rgba(45, 212, 191, 0.55), transparent 70%),
+    radial-gradient(70% 90% at 90% 30%, rgba(139, 92, 246, 0.55), transparent 70%),
+    #0d0f26;
 }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-btn-ghost:hover,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-btn-secondary:hover {
-  background: var(--md-panel-2); border-color: var(--fe-dm-border-hover);
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-stories-mag-card-pin {
+  background: var(--fe-color-btn-primary-bg, #2dd4bf); color: var(--fe-color-btn-primary-text, #042f2e);
+  text-transform: none; letter-spacing: 0; font-weight: 600;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-stories-mag-hero-meta, .fe-stories-mag-card-meta) { letter-spacing: 0; }
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-story-mag {
+  --m-bg: var(--tpl-bg, transparent);
+  --m-card: var(--au-card);
+  --m-ink: var(--au-ink);
+  --m-ink-soft: var(--au-ink-2);
+  --m-rule: var(--au-line);
+  --m-accent: var(--au-action-ink);
+}
+/* Long reading: a comfortable measure and leading. The drop cap takes the
+   action color as the single accent on the page. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-story-mag-room { max-width: 700px; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-story-mag-body { font-size: 1.16rem; line-height: 1.8; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-story-mag-body p:first-child::first-letter { font-weight: 500; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-story-mag-body a { color: var(--au-link); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-story-mag-bio {
+  background: linear-gradient(180deg, var(--au-sheen), transparent), var(--au-card);
+  border-color: var(--au-card-line); border-left-color: var(--fe-color-btn-primary-bg, #2dd4bf);
+  border-radius: var(--fe-card-radius, 16px);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-story-mag-bio h2 { text-transform: none; letter-spacing: 0; font-size: 0.82rem; }
+/* At night the story hero image fades into the canvas instead of black. */
+html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-story-mag-hero-shade {
+  background: linear-gradient(180deg, transparent 0%, transparent 35%,
+    color-mix(in srgb, var(--au-canvas) 30%, transparent) 58%, var(--au-canvas) 100%);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-story-mag-title { font-weight: 500; letter-spacing: -0.03em; }
+
+
+/* ===== 19. Blog and blog post ============================================= */
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-cards,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-post-classic {
+  --blog-bg: var(--tpl-bg, transparent);
+  --blog-card: var(--au-card);
+  --blog-ink: var(--au-ink);
+  --blog-ink-soft: var(--au-ink-2);
+  --blog-rule: var(--au-line);
+  --blog-accent: var(--au-link);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-cards-cat {
+  border-radius: 999px; background: var(--au-raise); border-color: var(--au-line-2); color: var(--au-ink-2);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-cards-cat:hover { color: var(--au-ink); border-color: var(--au-brand); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-cards-cat.is-active {
+  background: linear-gradient(180deg, var(--au-sheen), transparent), var(--au-card);
+  color: var(--au-ink); border-color: var(--au-card-line);
+  box-shadow: inset 0 1px 0 var(--au-highlight), 0 4px 14px -4px rgba(7, 8, 26, 0.35);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-blog-cards-card-title, .fe-blog-cls-title) {
+  font-weight: 500; letter-spacing: -0.025em; color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-cards-cat-chip {
+  text-transform: none; letter-spacing: 0; font-weight: 600;
+}
+/* The post is a reading surface: no hover movement on its panels. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-post-classic :is(.fe-blog-cls-main, .fe-blog-cls-widget, .fe-blog-cls-bio):hover {
+  transform: none; border-color: var(--au-card-line);
+  box-shadow: inset 0 1px 0 var(--au-highlight), var(--au-card-shadow);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-cls-body { font-size: 1.08rem; line-height: 1.75; max-width: 68ch; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-cls-body :is(h2, h3) {
+  font-family: var(--tpl-heading-font, var(--fe-font-heading)); font-weight: 500; letter-spacing: -0.02em;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-cls-cat { text-transform: none; letter-spacing: 0; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-blog-cls-widget-title {
+  text-transform: none; letter-spacing: 0; font-size: 0.86rem; color: var(--au-ink-3);
 }
 
-/* ===== Header — translucent glass with a gradient hairline =============== */
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-header-themed {
-  background: rgba(7,10,31,0.66);
-  border-bottom: 1px solid transparent;
-  box-shadow: 0 1px 0 rgba(99,102,241,0.22), 0 14px 40px -28px rgba(0,0,0,0.9);
-  -webkit-backdrop-filter: blur(18px) saturate(150%); backdrop-filter: blur(18px) saturate(150%);
+
+/* ===== 20. Contact, contact list, forms =================================== */
+
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-contact-card, .fe-rc-aside .fe-contact-card) {
+  border-radius: calc(var(--fe-card-radius, 16px) + 4px);
 }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-th-brand,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-th-brand-name { color: var(--md-text); }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-th-nav-link {
-  color: var(--md-muted); text-transform: uppercase; letter-spacing: 0.06em;
-  font-size: 0.82rem; font-weight: 600;
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-contact-channel-icon,
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-rc-item-contact-icon, .fe-rc-item-sponsor-icon) {
+  background: var(--au-tint); color: var(--au-brand-ink);
 }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-th-nav-link:hover,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-th-nav-link.mega-active {
-  color: #fff; background: rgba(255,255,255,0.06);
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-contact-channel-label { font-weight: 500; color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-custom-form-label, .fe-contact-form label, .fe-submission-form label) { color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-contact-fineprint, .fe-submission-fineprint, .fe-field-help, .fe-rc-help, .fe-rc-hint) { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-rc-item-name { color: var(--au-ink); font-weight: 600; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-rc-sponsor,
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-rc-item-sponsor {
+  background: var(--au-hybrid-bg); color: var(--au-hybrid-ink);
 }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-th-menu-btn span { background: var(--md-text); }
-/* The dark nav background is ONLY for the mobile dropdown panel — on desktop
-   the nav must stay transparent (an unscoped bg here drew a dark navy box
-   behind all the desktop nav links). */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-submission-card {
+  border-radius: calc(var(--fe-card-radius, 16px) + 4px);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-submission-card:hover { transform: none; }
+
+
+/* ===== 21. 404 ============================================================ */
+
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-404-heading { font-size: clamp(2.2rem, 1.6rem + 2.4vw, 3.4rem); }
+
+
+/* ===== 22. Modals (search, submission, request access) ==================== */
+
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-search-modal-panel, .fe-submission-modal-panel) {
+  background: linear-gradient(180deg, var(--au-sheen), transparent 160px), var(--au-glass-solid);
+  color: var(--au-ink);
+  border: 1px solid var(--au-line-2);
+  box-shadow: inset 0 1px 0 var(--au-highlight), 0 40px 100px -20px rgba(7, 8, 26, 0.6);
+  -webkit-backdrop-filter: blur(24px) saturate(150%); backdrop-filter: blur(24px) saturate(150%);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-search-modal-backdrop, .fe-submission-modal-backdrop) {
+  background: color-mix(in srgb, #07081a 55%, transparent);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-search-modal-input { color: var(--au-ink); background: transparent; }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-search-modal-input-row, .fe-submission-modal-head, .fe-submission-modal-foot) { border-color: var(--au-line); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-submission-modal-head h2 { font-family: var(--fe-font-heading); font-weight: 500; letter-spacing: -0.02em; }
+html[data-theme] body[data-fe-theme="modern-dark"] :is(.fe-search-modal kbd, .fe-search-modal-kbd) {
+  background: var(--au-raise); color: var(--au-ink-3); box-shadow: inset 0 0 0 1px var(--au-line-2); border: 0;
+}
+
+
+/* ===== 23. Footer ========================================================= */
+
+/* The theme paints its own footer (not in FOOTER_SURFACE_THEMES): the canvas
+   with aurora light rising from the bottom edge, and a horizon hairline on
+   top. The admin's footer image and particle overlay are not shown. */
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer {
+  /* !important: the footer background is an inline style. */
+  background:
+    radial-gradient(60% 90% at 18% 120%, var(--au-aurora-a), transparent 70%),
+    radial-gradient(55% 90% at 85% 115%, var(--au-aurora-b), transparent 70%),
+    var(--au-canvas) !important;
+  color: var(--au-ink-2);
+  border-top: 1px solid var(--au-line);
+  min-height: 0 !important;
+}
+body[data-fe-theme="modern-dark"] .fe-footer::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px; z-index: 3;
+  background: var(--au-horizon); opacity: 0.5; pointer-events: none;
+}
+body[data-fe-theme="modern-dark"] .fe-footer :is(.fe-footer-particles, .fe-footer-bg-effects) { display: none; }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer :is(.fe-footer-locations-heading, .fe-footer-contact-heading, .fe-footer-col-title) {
+  font-family: var(--fe-font-body); font-size: 0.8rem; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--au-ink-3); margin-bottom: 16px;
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer-location-card {
+  background: linear-gradient(180deg, var(--au-sheen), transparent 100px), var(--au-card);
+  border: 1px solid var(--au-card-line);
+  border-radius: var(--fe-card-radius, 16px);
+  box-shadow: inset 0 1px 0 var(--au-highlight);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer-location-card:hover {
+  background: linear-gradient(180deg, var(--au-sheen), transparent 100px), var(--au-card);
+  border-color: color-mix(in srgb, var(--fe-color-card-primary-hover-border, #8b7cf6) 60%, transparent);
+  box-shadow: inset 0 1px 0 var(--au-highlight), 0 16px 40px -18px rgba(0, 0, 0, 0.6);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer .fe-footer-location-name {
+  font-family: var(--fe-font-heading); font-weight: 500; font-size: 1.1em; letter-spacing: -0.01em; color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer .fe-footer-location-addr { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer .fe-footer-location-note { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer :is(.fe-footer-location-directions, .fe-footer-admin-login, .fe-footer-privacy-link) {
+  background: var(--au-raise); color: var(--au-ink);
+  border: 1px solid var(--au-line-2);
+  box-shadow: inset 0 1px 0 var(--au-highlight);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer :is(.fe-footer-location-directions, .fe-footer-admin-login, .fe-footer-privacy-link):hover {
+  background: var(--au-tint); border-color: color-mix(in srgb, var(--au-brand) 50%, transparent); color: var(--au-ink);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer :is(.fe-footer-tagline, .fe-footer-contact-body) { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer .fe-footer-copy { color: var(--au-ink-3); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer a:not([class]) { color: var(--au-link); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer a:not([class]):hover { color: var(--au-link-hover); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer .fe-footer-block-powered-by a {
+  color: var(--au-ink-2); border-color: var(--au-line-2); background: var(--au-raise);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer :is(.fe-footer-name, .fe-footer-location-website) { color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer :is(.fe-footer-link-list a, .fe-footer-secondary-nav a) { color: var(--au-ink-2); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer :is(.fe-footer-link-list a, .fe-footer-secondary-nav a):hover { color: var(--au-ink); }
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer .fe-footer-social a {
+  background: var(--au-raise); color: var(--au-ink-2); border-color: var(--au-line-2);
+}
+html[data-theme] body[data-fe-theme="modern-dark"] .fe-footer .fe-footer-social a:hover {
+  background: var(--fe-color-btn-primary-bg, #2dd4bf); color: var(--fe-color-btn-primary-text, #042f2e);
+}
+
+
+/* ===== 24. Motion =========================================================
+
+   Card transitions come from the card transition tokens. The only ambient
+   motion is the slow opacity breathing of the two aurora layers. */
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-fe-theme="modern-dark"]::before,
+  body[data-fe-theme="modern-dark"]::after { animation: none; opacity: 0.85; }
+  /* !important: shared component rules set their own transitions. */
+  html[data-theme] body[data-fe-theme="modern-dark"] * { transition-duration: 0s !important; }
+}
+
+
+/* ===== 25. Responsive ==================================================== */
+
 @media (max-width: 880px) {
-  html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-th-nav { background: rgba(7,10,31,0.97); border-bottom-color: var(--md-line); }
+  /* The dropdown hangs from the brand row, not from the top of the header
+     (the utility bar sits inside the header, so the shared top offset
+     landed the panel over the logo). */
+  html[data-theme] body[data-fe-theme="modern-dark"] .fe-header-themed-inner { position: relative; }
+  html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-nav {
+    top: 100%; left: calc(50% - 50vw); right: calc(50% - 50vw);
+    padding: 10px 5vw 22px; gap: 2px;
+    background: var(--au-canvas);
+    border-bottom: 1px solid var(--au-line);
+    box-shadow: 0 40px 60px -30px rgba(7, 8, 26, 0.55);
+    max-height: calc(100vh - var(--fe-header-full-h, 160px));
+  }
+  html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-nav-link:not(.fe-th-nav-cta) {
+    padding: 13px 14px; border-radius: 12px; font-size: 1.02rem;
+  }
+  html[data-theme] body[data-fe-theme="modern-dark"] .fe-th-nav-cta { margin: 10px 0 0; padding: 13px 18px; }
 }
-
-/* ===== Utility bar — dark glass (admin idle palette is inline → !important) */
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-utility-bar:not(.is-live) {
-  background: rgba(7,10,31,0.80) !important; color: var(--md-muted) !important;
-  box-shadow: inset 0 -1px 0 var(--md-line);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+@media (max-width: 900px) {
+  html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card-col-logo { height: 132px; }
+  html[data-theme] body[data-fe-theme="modern-dark"] .fe-mlist-card.is-3col .fe-mlist-card-col-actions { border-top-color: var(--au-line); }
 }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-utility-bar:not(.is-live) a { color: var(--md-muted); }
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-utility-bar:not(.is-live) a:hover { color: #fff; }
-
-/* ===== Mega menu — deep glass panel ====================================== */
-body[data-fe-theme="modern-dark"] .fe-megamenu-themed {
-  background: rgba(10,14,38,0.92); color: var(--md-text);
-  border: 1px solid var(--md-line); border-top: 0;
-  -webkit-backdrop-filter: blur(22px) saturate(150%); backdrop-filter: blur(22px) saturate(150%);
-}
-body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-block-title { color: #fff; }
-body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-link:hover { background: rgba(255,255,255,0.08); }
-body[data-fe-theme="modern-dark"] .fe-megamenu-themed .fe-megamenu-block-section-line { background: var(--md-teal); opacity: 0.4; }
-
-/* ===== Meeting detail page — show the theme atmosphere ================== */
-/* Drop the admin's per-template dynamic background so the aurora canvas
-   shows through the detail page instead. */
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-meeting-detail,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-contact-section,
-html[data-theme="dark"] body[data-fe-theme="modern-dark"] .fe-page-dynbg-host { background: transparent !important; }
-body[data-fe-theme="modern-dark"] .fe-meeting-detail > .fe-dynbg,
-body[data-fe-theme="modern-dark"] .fe-contact-section > .fe-dynbg,
-body[data-fe-theme="modern-dark"] .fe-page-dynbg-host > .fe-dynbg { display: none !important; }
-
-/* ===== Footer — teal/violet glow panel + gradient rule ==================
-   Rebuilt away from the plain deep-navy slab (which read like recovery-blue):
-   a darker base lit by the theme's teal + violet glows, a teal→violet→cyan
-   gradient top rule, and theme-accent headings / icons / links. The admin's
-   footer sinewave + particle overlay is dropped (config kept, just not shown). */
-body[data-fe-theme="modern-dark"] .fe-footer {
-  background-color: #080b20 !important;
-  background-image:
-    radial-gradient(760px 480px at 12% 14%, rgba(99,102,241,0.24), transparent 62%),
-    radial-gradient(700px 460px at 88% 92%, rgba(45,212,191,0.16), transparent 60%) !important;
-  background-repeat: no-repeat, no-repeat !important;
-  background-position: center, center !important;
-  border-top: 2px solid transparent;
-  border-image: var(--md-grad-edge) 1;
-}
-body[data-fe-theme="modern-dark"] .fe-footer-particles,
-body[data-fe-theme="modern-dark"] .fe-footer-bg-effects { display: none !important; }
-body[data-fe-theme="modern-dark"] .fe-footer,
-body[data-fe-theme="modern-dark"] .fe-footer p,
-body[data-fe-theme="modern-dark"] .fe-footer li,
-body[data-fe-theme="modern-dark"] .fe-footer a { color: var(--md-text); }
-body[data-fe-theme="modern-dark"] .fe-footer a:hover,
-body[data-fe-theme="modern-dark"] .fe-footer-secondary-nav a:hover,
-body[data-fe-theme="modern-dark"] .fe-footer-location-website:hover { color: var(--md-teal); }
-body[data-fe-theme="modern-dark"] .fe-footer-locations-heading,
-body[data-fe-theme="modern-dark"] .fe-footer-contact-heading,
-body[data-fe-theme="modern-dark"] .fe-footer-name,
-body[data-fe-theme="modern-dark"] .fe-footer-col-title { color: #fff; }
-/* Location cards — glass, with a teal gradient icon chip. */
-body[data-fe-theme="modern-dark"] .fe-footer-location-card {
-  background: var(--md-panel); border: 1px solid var(--md-line);
-}
-body[data-fe-theme="modern-dark"] .fe-footer-location-card:hover {
-  background: var(--md-panel-2); border-color: var(--fe-dm-border-hover);
-}
-body[data-fe-theme="modern-dark"] .fe-footer-location-icon {
-  background: linear-gradient(140deg, rgba(99,102,241,0.30), rgba(45,212,191,0.22));
-  border: 1px solid var(--md-line); color: var(--md-teal);
-}
-body[data-fe-theme="modern-dark"] .fe-footer-location-name { color: #fff; }
-body[data-fe-theme="modern-dark"] .fe-footer-location-directions {
-  border: 1px solid var(--md-line); color: var(--md-text);
-}
-body[data-fe-theme="modern-dark"] .fe-footer-location-directions:hover {
-  background: var(--md-panel-2); border-color: var(--fe-dm-border-hover); color: #fff;
+@media (max-width: 640px) {
+  html[data-theme] body[data-fe-theme="modern-dark"] .fe-section-head { margin-bottom: 28px; }
+  html[data-theme] body[data-fe-theme="modern-dark"] .fe-meeting-detail-head h1 { font-size: clamp(2rem, 1.4rem + 4vw, 2.6rem); }
 }

@@ -75,6 +75,22 @@ FONTS = [
         "stack": "'Archivo Black', 'Arial Black', system-ui, sans-serif",
         "kind": "display",
     },
+    {
+        # Self-hosted variable monospace (see @font-face in app.css).
+        # The Terminal theme's face, the same on every OS.
+        "key": "jetbrains-mono",
+        "name": "JetBrains Mono",
+        "stack": "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+        "kind": "mono",
+    },
+    {
+        # Self-hosted grotesque with quirky details (see @font-face in
+        # app.css). The Neobrutal theme's body and UI face.
+        "key": "space-grotesk",
+        "name": "Space Grotesk",
+        "stack": "'Space Grotesk', 'Inter', system-ui, sans-serif",
+        "kind": "sans",
+    },
 ]
 FONTS_BY_KEY = {f["key"]: f for f in FONTS}
 
@@ -110,16 +126,17 @@ THEME_DEFAULTS = {
         "heading": "lora",
         "body":    "inter",
     },
-    # Terminal — all-monospace TUI: the system mono stack for both roles, so
-    # every heading and line of body copy reads like terminal output.
+    # Terminal: an all-monospace TUI. Self-hosted JetBrains Mono for both
+    # roles so every OS renders the same face and the character grid holds.
     "terminal": {
-        "heading": "mono",
-        "body":    "mono",
+        "heading": "jetbrains-mono",
+        "body":    "jetbrains-mono",
     },
-    # Neobrutal — chunky Archivo Black display headings over an Inter body.
+    # Neobrutal: chunky Archivo Black display headings over a Space Grotesk
+    # body and UI face.
     "neobrutal": {
         "heading": "archivo-black",
-        "body":    "inter",
+        "body":    "space-grotesk",
     },
 }
 

@@ -9,6 +9,16 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Every website theme except Recovery Blue is redesigned, in both light and dark mode, and now styles every public page, including stories, the blog and forms:
+  - Classic is quieter and more polished, with a deep ink dark mode.
+  - Modern Dark uses glass panels under a soft aurora light.
+  - Cyberpunk is a neon heads-up display with cut-corner panels.
+  - Sanctuary is warm and bookish, with a candlelit dark mode.
+  - Terminal looks like a terminal app, with windowed panels and bracketed buttons.
+  - Neobrutal gives each part of the site its own color.
+- JetBrains Mono and Space Grotesk are new choices in the font picker.
+- On phones, the menu in the Modern Dark, Cyberpunk, Sanctuary, Terminal and Neobrutal headers opens below the header instead of over the logo.
+
 ## 3.0.3 — 2026-10-06 (latest)
 
 - Werkzeug, the web library the app runs on, is updated to 3.1.9 for a security fix. The flaw affects only servers running on Windows, so Docker installs were not exposed.

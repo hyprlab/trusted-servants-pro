@@ -6,6 +6,18 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added
+- Vendored fonts: JetBrains Mono (variable, upright and italic) and Space Grotesk (variable), latin and latin-ext subsets under `app/static/fonts/`, with `@font-face` in `app.css` and `FONTS` entries `jetbrains-mono` and `space-grotesk`. Lora Italic (variable) is vendored beside Lora, its `@font-face` in `themes/sanctuary.css`.
+- `themes/classic.css`: Classic's own scoped stylesheet. `frontend/base.html` now loads `themes/<key>.css` for every theme but Recovery Blue, which still lives unscoped in `frontend.css`.
+
+### Changed
+- `themes/modern-dark.css`, `cyberpunk.css`, `sanctuary.css`, `terminal.css` and `neobrutal.css` rewritten, and `classic.css` written. Each has a light and dark token block that reads the design tokens, so Design page overrides still apply. Each re-resolves the `--fe-dm-*` dark variables on `body`, ending the Recovery Blue navy fallback. Each repoints the legacy `--fe-accent*` / `--fe-recovery-blue*` variables and replaces the hardcoded meeting-type badge colors. Each maps the palette variables of all 21 story and blog layout templates, and adds `:focus-visible` rings and `prefers-reduced-motion` handling. Page-builder blocks get typography and token colors only.
+- `design.py` `THEME_DEFAULTS` for those six themes: new palettes, card, button and footer dark tokens. `fonts.py`: Terminal uses `jetbrains-mono` for headings and body, Neobrutal uses `space-grotesk` for body text. Recovery Blue's entries are unchanged.
+- `frontend.py`: theme, header and mega menu descriptions for the six themes. `UTILITY_BAR_COLOR_MODES["modern-dark"]` is now `("light", "dark")`, as Modern Dark uses the admin's dark utility-bar colors when they are set.
+
+### Fixed
+- `frontend.css`: the themed header's mobile `.fe-th-nav` drops from `top: 100%` instead of `var(--fe-header-h)`, which left out the utility bar inside `.fe-header-themed` and opened the menu over the logo row.
+
 ## [3.0.3] — 2026-10-06
 
 ### Fixed
