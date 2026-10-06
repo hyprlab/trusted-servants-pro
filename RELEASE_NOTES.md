@@ -9,9 +9,11 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.0.3 — 2026-10-06 (latest)
+
 - Werkzeug, the web library the app runs on, is updated to 3.1.9 for a security fix. The flaw affects only servers running on Windows, so Docker installs were not exposed.
 
-## 3.0.2 — 2026-10-06 (latest)
+## 3.0.2 — 2026-10-06
 
 - On a meeting's page in the Classic layout, there's more space between the meeting's heading and its cards.
 
