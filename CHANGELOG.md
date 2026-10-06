@@ -6,6 +6,22 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.0.3] — 2026-10-06
+
+### Fixed
+- `requirements.txt`: Werkzeug 3.1.8 to 3.1.9 for CVE-2026-102598 (GHSA-g6x2-hccm-hh4m), where `safe_join` let Windows device names with an empty ADS marker (`NUL:`) through `send_from_directory`. Windows and NTFS only; the scheduled pip-audit job failed on it.
+
+## [3.0.2] — 2026-10-06
+
+### Changed
+- `frontend.css`: `.fe-meeting-detail-head` bottom margin raised from 32px to 4rem, widening the gap above the Classic meeting cards.
+
+## [3.0.1] — 2026-10-06
+
+### Changed
+- `RELEASE_NOTES.md` 3.0.0: 230 entries condensed to 94 of at most two sentences, ordered by significance.
+- `README.md`: Highlights rewritten as one short entry per area, ordered by significance, adding the public website, Watchtower, backups, two-factor sign-in, posts, the Email List and the alert bar.
+
 ### Fixed
 - `file_type` filter: a name with no extension read `reading.url`, a name that doesn't exist there, and raised `NameError`; it reads the item's own `url`. A body-only library item hit it on `/library` and meeting pages.
 
