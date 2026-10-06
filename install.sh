@@ -16,7 +16,9 @@
 #   TSP_DOMAIN        Public hostname for HTTPS     (default: unset — uses self-signed cert)
 #   TSP_ACME_EMAIL    Email for Let's Encrypt cert  (default: admin@<TSP_DOMAIN>)
 #   TSP_ADMIN_USERNAME / TSP_ADMIN_PASSWORD / TSP_ADMIN_EMAIL
-#                     Seeded admin credentials      (defaults: admin / admin / admin@example.com)
+#                     Seeded admin credentials      (defaults: the email / random / admin@example.com)
+#                     Usernames are email addresses; a TSP_ADMIN_USERNAME that
+#                     isn't one is replaced by TSP_ADMIN_EMAIL.
 #
 
 set -euo pipefail
@@ -26,7 +28,6 @@ INSTALL_DIR="${TSP_INSTALL_DIR:-/opt/tspro}"
 IMAGE="${TSP_IMAGE:-hyprlab/tspro:latest}"
 DOMAIN="${TSP_DOMAIN:-}"
 ACME_EMAIL="${TSP_ACME_EMAIL:-}"
-ADMIN_USERNAME="${TSP_ADMIN_USERNAME:-admin}"
 # Operators who supply TSP_ADMIN_PASSWORD via env get to pick their own;
 # otherwise we generate a strong random one and print it once at the end
 # of the run. Defaulting to "admin" would seed a public-internet
@@ -34,6 +35,7 @@ ADMIN_USERNAME="${TSP_ADMIN_USERNAME:-admin}"
 # request — and the app itself now refuses that in production.
 ADMIN_PASSWORD="${TSP_ADMIN_PASSWORD:-}"
 ADMIN_EMAIL="${TSP_ADMIN_EMAIL:-admin@example.com}"
+ADMIN_USERNAME="${TSP_ADMIN_USERNAME:-${ADMIN_EMAIL}}"
 
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a   # auto-restart services without prompting
@@ -41,6 +43,13 @@ export NEEDRESTART_MODE=a   # auto-restart services without prompting
 log()  { printf '\n\033[1;36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\n\033[1;33m!! \033[0m %s\n' "$*" >&2; }
 fail() { printf '\n\033[1;31mXX \033[0m %s\n' "$*" >&2; exit 1; }
+
+# Usernames are email addresses (the app enforces it for new accounts).
+case "${ADMIN_USERNAME}" in
+  *@*.*) ;;
+  *) warn "TSP_ADMIN_USERNAME '${ADMIN_USERNAME}' is not an email address; using ${ADMIN_EMAIL} as the admin username."
+     ADMIN_USERNAME="${ADMIN_EMAIL}" ;;
+esac
 
 # ---------- preflight ----------
 [[ $EUID -eq 0 ]] || fail "This installer must be run as root (try: sudo bash install.sh)"
@@ -264,7 +273,7 @@ services:
       - /etc/hostname:/host/etc/hostname:ro
     environment:
       - TSP_SECRET_KEY=\${TSP_SECRET_KEY:?TSP_SECRET_KEY must be set in .env}
-      - TSP_ADMIN_USERNAME=\${TSP_ADMIN_USERNAME:-admin}
+      - TSP_ADMIN_USERNAME=\${TSP_ADMIN_USERNAME:-}
       - TSP_ADMIN_PASSWORD=\${TSP_ADMIN_PASSWORD:?TSP_ADMIN_PASSWORD must be set in .env (used only on first boot to seed the admin account)}
       - TSP_ADMIN_EMAIL=\${TSP_ADMIN_EMAIL:-admin@example.com}
       - TSP_HOST_PROC=/host/proc

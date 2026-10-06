@@ -9,7 +9,7 @@ often as useful as a patch.
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 git config core.hooksPath tools/git-hooks     # once per clone or worktree
-echo 'TSP_DEBUG=1' >> .env                    # local only: HTTP cookies, admin/admin seed
+echo 'TSP_DEBUG=1' >> .env                    # local only: HTTP cookies, an admin seed with password admin
 .venv/bin/python run.py                       # http://localhost:8000
 ```
 

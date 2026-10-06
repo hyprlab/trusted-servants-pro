@@ -25,9 +25,12 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
         {% if _prefill_rid %}<input type="hidden" name="access_request_id" value="{{ _prefill_rid }}">{% endif %}
-        <label>Username<input name="username" value="{{ _prefill }}" required></label>
+        {# Usernames are email addresses: this one follows the Email field
+           below until it's typed into (script at the end of the form). #}
+        <label>Username<input name="username" type="email" value="{{ _prefill }}" required maxlength="255"
+                              placeholder="Their email address" autocomplete="off" data-username-follows-email></label>
         <label>Name<input name="name" value="{{ _prefill_name }}" placeholder="(optional)"></label>
-        <label>Email<input name="email" type="email" value="{{ _prefill }}" required></label>
+        <label>Email<input name="email" type="email" value="{{ _prefill }}" required maxlength="255"></label>
         <label>Phone<input name="phone" type="tel" value="{{ _prefill_phone }}" placeholder="(optional)"></label>
         {# Password generator. "Generate" asks the server for a random
            password (auth._generate_password: CSPRNG, no look-alike
@@ -89,6 +92,19 @@
         </label>
         <div class="form-actions"><button class="btn btn-primary">Create</button></div>
       </form>
+      <script>
+      (function () {
+        // The username follows the email until the admin types a different one.
+        var user = document.querySelector('[data-username-follows-email]');
+        var email = user && user.form.elements.email;
+        if (!email) return;
+        var follows = !user.value || user.value === email.value;
+        user.addEventListener('input', function () { follows = !user.value || user.value === email.value; });
+        email.addEventListener('input', function () {
+          if (follows) { user.value = email.value; user.dispatchEvent(new Event('input')); follows = true; }
+        });
+      })();
+      </script>
     </div>
 
     <div class="users-perm-card">
@@ -286,7 +302,7 @@
       <div class="modal-body">
         <div class="form user-edit-form-grid">
           <label>Username
-            <input name="username" id="user-edit-username" required maxlength="64">
+            <input name="username" id="user-edit-username" required maxlength="255">
           </label>
           <label>Name
             <input name="name" id="user-edit-name" maxlength="120" placeholder="(optional)">

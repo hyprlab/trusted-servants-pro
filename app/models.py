@@ -63,7 +63,9 @@ class MeetingLibrary(db.Model):
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    # An email address for every account created since usernames became
+    # emails; older accounts may keep a plain name (see auth.is_email_username).
+    username = db.Column(db.String(255), unique=True, nullable=False, index=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(32), nullable=False, default="viewer")

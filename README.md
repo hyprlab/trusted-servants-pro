@@ -29,7 +29,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 docker compose up -d --build
 ```
 
-Open http://localhost:8090 and sign in with the admin account seeded on first boot. Set `TSP_ADMIN_PASSWORD` in `.env` before first run: without it the app refuses to boot on an empty database. For local development, set `TSP_DEBUG=1` in `.env` instead: that serves over plain HTTP (no Secure cookie flag) and falls back to seeding `admin` / `admin`. Never run production with `TSP_DEBUG=1`.
+Open http://localhost:8090 and sign in with the admin account seeded on first boot. Set `TSP_ADMIN_PASSWORD` in `.env` before first run: without it the app refuses to boot on an empty database. For local development, set `TSP_DEBUG=1` in `.env` instead: that serves over plain HTTP (no Secure cookie flag) and falls back to seeding an admin with the username `admin@example.com` (or your `TSP_ADMIN_EMAIL`) and the password `admin`. Never run production with `TSP_DEBUG=1`.
 
 ### docker-compose.yml
 
@@ -44,7 +44,7 @@ services:
       - ./data:/data
     environment:
       - TSP_SECRET_KEY=${TSP_SECRET_KEY:?TSP_SECRET_KEY must be set in .env}
-      - TSP_ADMIN_USERNAME=${TSP_ADMIN_USERNAME:-admin}
+      - TSP_ADMIN_USERNAME=${TSP_ADMIN_USERNAME:-}
       - TSP_ADMIN_PASSWORD=${TSP_ADMIN_PASSWORD:-}
       - TSP_ADMIN_EMAIL=${TSP_ADMIN_EMAIL:-admin@example.com}
       - TSP_DEBUG=${TSP_DEBUG:-0}

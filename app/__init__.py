@@ -2420,9 +2420,19 @@ def _seed_homepage_page(app):
 def _seed_admin(app):
     from werkzeug.security import generate_password_hash
     if User.query.count() == 0:
-        username = os.environ.get("TSP_ADMIN_USERNAME", "admin")
         password = os.environ.get("TSP_ADMIN_PASSWORD", "").strip()
-        email = os.environ.get("TSP_ADMIN_EMAIL", "admin@example.com")
+        email = os.environ.get("TSP_ADMIN_EMAIL", "admin@example.com").strip()
+        # Usernames are email addresses. TSP_ADMIN_USERNAME is used when it
+        # is one; otherwise (unset, or an old plain "admin") the seeded
+        # admin signs in with TSP_ADMIN_EMAIL.
+        from .auth import is_email_username
+        username = os.environ.get("TSP_ADMIN_USERNAME", "").strip()
+        if not is_email_username(username):
+            if username:
+                app.logger.warning(
+                    "TSP_ADMIN_USERNAME %r is not an email address; seeding "
+                    "the admin with the username %s (TSP_ADMIN_EMAIL).", username, email)
+            username = email
         # Production: refuse to seed admin/admin. The installer always
         # generates a random TSP_ADMIN_PASSWORD into the .env file, but
         # someone bringing the image up manually (docker run / a

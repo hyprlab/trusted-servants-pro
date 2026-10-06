@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import re
 from datetime import datetime, timedelta
 from urllib.parse import urlparse, urljoin
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app
@@ -73,6 +74,20 @@ ROLE_PERMISSIONS = {
         "Cannot edit, upload, or reach admin areas.",
     ],
 }
+
+
+# Usernames of new accounts are email addresses. Existing accounts keep
+# whatever username they have until someone changes it; a change must be
+# to an email address too. The length matches the email column.
+USERNAME_MAX_LENGTH = 255
+_EMAIL_USERNAME_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s.]+$")
+
+
+def is_email_username(value):
+    """True when ``value`` reads as an email address (one @, a dot in the
+    domain, no spaces) and fits the username column."""
+    value = (value or "").strip()
+    return len(value) <= USERNAME_MAX_LENGTH and bool(_EMAIL_USERNAME_RE.match(value))
 
 
 PASSWORD_MIN_LENGTH = 12
@@ -1140,14 +1155,18 @@ def add_user_to_email_list(u):
 def users_create():
     if not current_user.is_admin():
         return redirect(url_for("main.index"))
-    username = request.form["username"].strip()
     email = request.form["email"].strip()
+    # The username is an email address; left blank, it's the account's email.
+    username = request.form.get("username", "").strip() or email
     password = request.form["password"]
     name = (request.form.get("name") or "").strip()[:120] or None
     phone = (request.form.get("phone") or "").strip() or None
     role = request.form.get("role", "viewer")
     if role not in ROLES:
         role = "viewer"
+    if not is_email_username(username):
+        flash("The username must be an email address.", "danger")
+        return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
     if User.query.filter(
         (func.lower(User.username) == username.lower())
         | (func.lower(User.email) == email.lower())
@@ -1229,8 +1248,9 @@ def users_update(uid):
         u.role = new_role
     new_username = request.form.get("username", "").strip()
     if new_username and new_username != u.username:
-        if len(new_username) > 64:
-            flash("Username must be 64 characters or fewer", "danger")
+        # An existing username may stay as it is; a new one is an email.
+        if not is_email_username(new_username):
+            flash("A new username must be an email address.", "danger")
             return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
         # Case-insensitive collision check — login lookup is also
         # case-insensitive, so two usernames that differ only in case
