@@ -34,19 +34,21 @@ TSP_ADMIN_EMAIL=admin@example.com
 
 ## Environment variables
 
-All variables have defaults except `TSP_SECRET_KEY`, which you should always set
-explicitly in production.
+All variables have defaults except `TSP_SECRET_KEY` and, on the first boot,
+`TSP_ADMIN_PASSWORD`: without them the portal refuses to start (unless
+`TSP_DEBUG=1`, for local development only).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `TSP_SECRET_KEY` | `dev-secret-change-me` | Flask session signing key. **Set this in production.** |
+| `TSP_SECRET_KEY` | _none_ | Flask session signing key. **Required.** |
 | `TSP_ADMIN_USERNAME` | `admin` | Seeded on first boot only. |
-| `TSP_ADMIN_PASSWORD` | `admin` | Seeded on first boot only. |
+| `TSP_ADMIN_PASSWORD` | _none_ | Seeded on first boot only, and required then. The seeded admin sets up two-factor authentication at first sign-in. |
 | `TSP_ADMIN_EMAIL` | `admin@example.com` | Seeded on first boot only. |
 | `TSP_DATA_DIR` | `/data` | In-container data directory. Mounted to `./data` by default. |
 | `TSP_UPLOAD_DIR` | `$TSP_DATA_DIR/uploads` | Where uploaded files are stored. |
 | `TSP_TMP_DIR` | _the data volume_ | Scratch location for building backup archives. Defaults to the data volume (guaranteed headroom); point it at a dedicated scratch disk to override. Falls back to the system temp dir if unwritable. |
 | `TSP_MAX_UPLOAD_MB` | `4096` | Maximum upload size in MiB (default 4 GiB). |
+| `TSP_DEBUG` | `0` | Local development only: plain HTTP cookies, a fallback secret key, and an `admin` / `admin` seed without two-factor. Never in production. |
 | `TSP_FERNET_KEY` | _auto-generated_ | Encryption key for stored credentials. If unset, a key is generated and saved to `data/zoom.key`. |
 
 !!! note "The admin variables only seed the first boot"

@@ -132,17 +132,16 @@ waits for a healthy response. Typical runtime is **2–5 minutes** on a fresh VM
 ### 5. Sign in and secure it
 
 When it finishes, the installer prints your portal URL — either
-`https://<your-domain>` or `https://<server-ip>`. Open it and sign in with the
-seeded admin:
+`https://<your-domain>` or `https://<server-ip>`, and the seeded admin:
 
 ```text
-user: admin   ·   pass: admin
+username : admin
+password : (a random password the installer generated)
 ```
 
-!!! danger "Change the admin password immediately"
-    The seeded `admin` / `admin` credentials are public knowledge. Your first
-    action should be **Settings → Users → change password**. You can also set a
-    strong password up front with the non-interactive install below.
+The password is also saved in `/opt/tspro/.env`. To choose your own, pass
+`TSP_ADMIN_PASSWORD` with the non-interactive install below. The first sign-in
+walks the admin through setting up two-factor authentication.
 
 ### Non-interactive installs
 
@@ -164,7 +163,7 @@ Recognized installer variables:
 | `TSP_DOMAIN` | _unset_ | Public hostname. If set, Caddy requests a Let's Encrypt cert. |
 | `TSP_ACME_EMAIL` | `admin@$TSP_DOMAIN` | Contact address for renewal notices. |
 | `TSP_ADMIN_USERNAME` | `admin` | Seeded on first boot only. |
-| `TSP_ADMIN_PASSWORD` | `admin` | Seeded on first boot only. |
+| `TSP_ADMIN_PASSWORD` | _random, printed at the end_ | Seeded on first boot only. |
 | `TSP_ADMIN_EMAIL` | `admin@example.com` | Seeded on first boot only. |
 
 ## Path B: Docker Compose (any machine)
@@ -200,7 +199,7 @@ services:
     environment:
       - TSP_SECRET_KEY=${TSP_SECRET_KEY:?TSP_SECRET_KEY must be set in .env}
       - TSP_ADMIN_USERNAME=admin
-      - TSP_ADMIN_PASSWORD=admin
+      - TSP_ADMIN_PASSWORD=${TSP_ADMIN_PASSWORD:?TSP_ADMIN_PASSWORD must be set in .env}
       - TSP_ADMIN_EMAIL=admin@example.com
     restart: unless-stopped
     # Cap container logs so they can't grow without bound over time.
@@ -221,13 +220,16 @@ database and uploads persist in `./data` next to the compose file.
     [Disk Space &amp; Housekeeping](disk-space.md) if you want to add it, plus
     how the built-in low-disk warning works.
 
-### 3. Set a secret key
+### 3. Set a secret key and an admin password
 
-Trusted Servants Pro signs session cookies with `TSP_SECRET_KEY`. Generate a
-random value into a `.env` file beside your compose file:
+Trusted Servants Pro signs session cookies with `TSP_SECRET_KEY` and seeds the
+first admin with `TSP_ADMIN_PASSWORD`; it won't start on an empty database
+without both. Generate them into a `.env` file beside your compose file:
 
 ```bash
 echo "TSP_SECRET_KEY=$(openssl rand -hex 32)" > .env
+echo "TSP_ADMIN_PASSWORD=$(openssl rand -base64 18)" >> .env
+cat .env   # note the password
 ```
 
 ### 4. Build and start
@@ -243,17 +245,18 @@ pulling it, use `docker compose up -d --build`.)
 
 ```text
 → http://localhost:8090         # public site
-→ http://localhost:8090/tspro   # admin (admin / admin)
+→ http://localhost:8090/tspro   # admin
 ```
 
-Sign in, then change the admin password from **Settings → Users**.
+Sign in as `admin` with the password from your `.env`, and set up two-factor
+authentication when it asks.
 
 ## After installation
 
 A few things worth doing right away:
 
 - **Change the admin password** (Settings → Users) if you haven't already.
-- **Set up email** (Settings → Email) so access-request notifications can be
+- **Set up email** (Settings → Domain / Email) so access-request notifications can be
   delivered, and send yourself a test message.
 - **Brand it** (Settings → Appearance) — pick a theme, upload your logo, and
   configure the login screen.

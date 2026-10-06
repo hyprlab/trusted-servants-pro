@@ -73,6 +73,9 @@ Notes for a public/HTTPS host (Fly.io, Render, a VPS behind Caddy/nginx, etc.):
 - When serving over **HTTPS**, drop `TSP_DEBUG=1` from the compose env so secure
   cookies are used; keep `TSP_ADMIN_PASSWORD=admin` so the demo creds still work.
   (`TSP_DEBUG=1` is only there to make cookies work over plain `http://localhost`.)
+  Without `TSP_DEBUG`, an admin seeded on a fresh volume must set up two-factor
+  at a password sign-in; the one-click `/demo/login-admin` skips the password
+  form, so it is unaffected.
 - The `/data` volume holds the golden seed plus per-session copies. Backing it
   with ephemeral storage (or periodically `down -v`) keeps the demo tidy.
 - Tune `TSP_DEMO_SESSION_TTL_MIN` to control how long idle visitor sessions live.

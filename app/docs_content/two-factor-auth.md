@@ -40,17 +40,14 @@ From the next sign-in onward, you'll enter your password and then a code from
 your app.
 
 The label your authenticator shows for the account is the portal's name — it
-comes from the **email "from" name** under Settings → Email if one is set, and
+comes from the **email "from" name** under Settings → Domain / Email if one is set, and
 falls back to *Trusted Servants Pro* otherwise.
 
 ## Requiring it for other people (admins)
 
-Admins can require 2FA on any account, in either of two places:
-
-- **Settings → Users** — each user row has a **Two-factor** toggle. Flip it on
-  to require 2FA for that account; flip it off to remove the requirement.
-- **The Edit-user dialog** — the same **Require two-factor (2FA)** option, set
-  when you create or edit a user.
+Admins can require 2FA on any account from **Settings → Users**: open a
+user's **Edit** dialog (or create a user) and turn on **Require two-factor
+(2FA)**. Turning it off removes the requirement and clears any existing 2FA.
 
 A required account doesn't have to be enrolled by the admin. The next time that
 person signs in, a **one-time setup wizard** walks them through scanning the QR
@@ -58,12 +55,12 @@ code, confirming a code, and saving their recovery codes.
 
 The Users list shows where each account stands at a glance:
 
-- **✓ (enrolled)** — 2FA is required *and* fully set up.
-- **⏳ (awaiting setup)** — 2FA is required but the person hasn't finished the
+- **2FA** — 2FA is set up.
+- **2FA pending** — 2FA is required but the person hasn't finished the
   wizard yet.
 
 !!! warning "Turning the requirement off clears existing 2FA"
-    Switching a user's **Two-factor** toggle off doesn't just drop the
+    Turning a user's **Require two-factor (2FA)** option off doesn't just drop the
     requirement — it clears their stored secret and recovery codes. If they want
     2FA again afterward, they'll set it up fresh. This is also how a second
     admin rescues someone who has lost both their phone and their recovery codes
