@@ -10,7 +10,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 - Full create / edit / archive / restore with per-meeting logo and alert banner.
 - In-person, online, and hybrid types with matching zoom/address fields shown conditionally.
 - Unlimited per-day schedules (day-of-week + start time + duration + optional "opens" time).
-- Table and card views with sort by name / day / type, both per-user remembered via cookies.
+- A list with a sidebar of live search, filters (status, type, the day they meet) with counts, sort, and list or grid views; each meeting is edited on its own page.
 - Attach any number of libraries with `all` or `granular` visibility so each meeting can show just the readings it uses.
 - Meeting detail page: schedule table, Zoom info (meeting ID, passcode, link, host account) with click-to-copy and Reveal controls, embedded OTP email credentials for hybrid/online meetings, and per-category file lists (documents, scripts, links, videos, images).
 
@@ -18,15 +18,18 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 - Grouped reading collections with optional alert banner and description.
 - Drag-and-drop ordering, inline edit, thumbnail support, optional inline body text, and external-link entries.
 - File uploads or existing-asset selection from the File Browser.
+- The same list layout as Meetings, with a back link from a library to all libraries.
 
 ### File Browser
 - Central media library indexed from every upload across the app (`MediaItem` auto-backfilled on startup).
-- Search, sort, grid / table views, rename, upload with progress, delete with reference-count guard.
+- A sidebar of live search, upload, kind of file and uploader filters with counts, sort, and list or grid views; rename, and delete with a reference-count guard.
+- Opening a file shows it in the page, without a reload: images (zoom in place with click, wheel or pinch), PDFs, video and audio, beside its details: the full link (click to copy), kind, format, size, image dimensions and camera data, uploader, and every meeting, library, post, story or page that uses it. Previous and Next step through the list in its order.
 - Public shareable URLs at `/pub/<original-filename>`: human-readable, no hashes or tokens. Serves the newest file of that name with the correct `Content-Disposition`.
 - Inline **Copy Link** buttons everywhere a file appears (File Browser, Meetings, Libraries).
 
 ### Access Requests
-- Public Request Access form on the login screen captures name, phone, email, role(s), and meeting.
+- Request Access on the login screen and as a popup on the public site (from the mega menu and the footer, beside Login) captures name, phone, email, role(s), meeting and an optional message, with a honeypot and optional Turnstile.
+- New accounts default to Viewer, and every new user is added to the trusted servants email list.
 - Submissions emailed to a configurable recipient list via the portal's SMTP settings.
 - Admin-only Access Requests page (sidebar with pending-count badge) for triage: Mark Handled / Reopen / Delete.
 - Recent requests widget on the dashboard.
@@ -44,10 +47,10 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 - Adjustable **speed** and **particle size** sliders, **mouse-reactive physics**, live preview inside Settings.
 - Configurable background: default sine-wave gradient, solid color, or custom gradient with 2–4 color stops and a palette randomizer.
 - Optional 3D **login transition**: doors swing open on successful authentication to reveal a moving full-saturation sine-wave rainbow with the branding logo, then fades to the active theme's background before the next page loads.
-- Theme carries through: the chosen theme is applied to the login screen before paint.
+- Light or dark carries through: the login screen follows the same choice before paint.
 
-### Themes & branding
-- Six full palettes: Light, Dark, Neobrutal Light/Dark, Cyberpunk, Solarpunk.
+### Appearance & branding
+- Each user picks Light, Dark, or Follow system for their own account, on any device they sign in from.
 - Unified accent color (`#0b5cff`) across buttons, links, and active nav states.
 - Inter font (weights 100–900) shipped app-wide.
 - Admin-configurable sidebar footer logo (upload + width slider + link URL) and login screen (particles, background, transition).
@@ -55,12 +58,13 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 ### Dashboard
 - Stats row (meeting count, library count, your role).
 - Configurable widgets: Recent Meetings, Libraries, Recent Files, Intergroup, Public Information Chair contact, Access Requests (admin).
-- Each widget toggleable from the Customize Dashboard modal.
+- Each widget toggleable from the Customize Dashboard modal and reordered by dragging; every widget shares one layout.
 
 ### Settings
-- Full-viewport modal on mobile, horizontally-scrollable tabs with fade hint, AJAX-save with in-modal toast; the modal never closes when you save.
-- Tabs: **Appearance** (theme, branding, login screen), **Users**, **Zoom Accounts**, **Meeting Locations**, **External Links**, **Special Sections**, **Email**, **Data**, **About**.
-- Role gating: admins see everything; editors/viewers see Appearance → Theme, Zoom Accounts (read-only), and About.
+- A window with a section list on the left (on a phone, a list that slides to each section) and one save bar for every section.
+- Sections: **Appearance** (light or dark, branding, login screen), **Your Access**, **Users**, **Global** (locations, officers, fellowships), **Sidebar**, **Modules**, **Domain / Email**, **Timezone**, **Alert Bar**, **Security**, **Data**, **About**.
+- **Alert Bar:** admins post a message to signed-in users on the dashboard, above the top bar, or at the foot of the sidebar, in a tone they choose, optionally dismissible, with an expiry and a details window written in Markdown with a live preview.
+- Role gating: admins see everything; editors and viewers see Appearance, Your Access, and About.
 
 ### Email
 - Global SMTP configuration (host, port, username/password, STARTTLS / SSL / plain).
@@ -80,7 +84,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 - 6-month remember-me cookie so users aren't repeatedly prompted for credentials.
 
 ### Mobile
-- Dedicated mobile layouts across the app (meetings/libraries/files, users/zoom/locations inside Settings).
+- Dedicated mobile layouts across the app; list filters fold behind a Filters button so the list comes first.
 - Stacked "data cards" replace overflowing tables, actions expand to full width.
 - Sidebar is a slide-in drawer with tap-outside-to-close.
 
