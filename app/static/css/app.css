@@ -16882,6 +16882,10 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .wt-req-message { margin-top: 4px; max-width: 32ch; color: var(--muted); font-size: var(--fs-xs); font-weight: 400; line-height: 1.4;
   white-space: pre-line; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
+/* The matched account under a request's name, when its email already had
+   one (Watchtower > Requests). */
+.wt-req-account { margin-top: 4px; color: var(--muted); font-size: var(--fs-xs); font-weight: 400; }
+
 /* The Request Access form's honeypot (login.html): off screen, out of
    the tab order, for bots only. */
 .request-access-hp { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;

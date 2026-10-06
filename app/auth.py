@@ -842,6 +842,73 @@ def _send_reset_email(user, token):
                      body, body_html=body_html)
 
 
+def send_existing_account_help(user, ip):
+    """Email an access requester whose address already has an account:
+    their username, a sign-in link and, when self-service reset is allowed
+    on the account, a single-use reset link. The public form shows every
+    requester the same reply, so only the inbox owner learns the account
+    exists. Shares the forgot-password rate limit (keyed on the email) so
+    the form can't be used to flood an inbox. Returns (sent, error)."""
+    from .mail import send_mail
+    from .routes import _public_url_for
+    site = SiteSetting.query.first()
+    if not site or not site.mail_ready() or not user.email:
+        return False, "Mail is not configured"
+    if _reset_request_rate_limited(ip, user.email):
+        return False, "Rate limited"
+    _record_reset_request(ip, user.email)
+
+    reset_link = None
+    if getattr(user, "password_reset_allowed", True):
+        _purge_stale_reset_tokens()
+        import secrets as _secrets
+        token = _secrets.token_urlsafe(32)
+        db.session.add(PasswordResetToken(
+            user_id=user.id,
+            token_hash=_hash_reset_token(token),
+            expires_at=datetime.utcnow() + timedelta(hours=RESET_TOKEN_TTL_HOURS),
+            requested_ip=(ip or "")[:64],
+        ))
+        db.session.commit()
+        reset_link = _public_url_for("auth.reset_password", token=token)
+    login_link = _public_url_for("auth.login")
+
+    portal_name = (site.smtp_from_name or "Trusted Servants Pro").strip() or "Trusted Servants Pro"
+    _ttl = f"{RESET_TOKEN_TTL_HOURS} hour{'s' if RESET_TOKEN_TTL_HOURS != 1 else ''}"
+    greeting = user.name or user.username
+    intro = (f"Hello {greeting}, someone asked for access to {portal_name} with this "
+             f"email address, which already has an account. Your username is "
+             f"{user.username}. ")
+    if reset_link:
+        intro += (f"Sign in below, or choose a new password if you've forgotten it. "
+                  f"The password link is valid for {_ttl} and can only be used once.")
+    else:
+        intro += ("Sign in below. If you've forgotten your password, ask an "
+                  "administrator to reset it.")
+    note = ("If you need different access, an administrator has your request. "
+            "If you didn't ask for access, you can ignore this email; nothing on "
+            "your account has changed.")
+    lines = [intro, "", f"Sign in: {login_link}"]
+    if reset_link:
+        lines.append(f"Choose a new password: {reset_link}")
+    body = "\n".join(lines + ["", note])
+    buttons = [{"url": login_link, "label": "Sign in", "style": "primary"}]
+    if reset_link:
+        buttons.append({"url": reset_link, "label": "Choose a new password",
+                        "style": "secondary"})
+    from .frontend import _render_branded_email
+    body_html = _render_branded_email(
+        site, eyebrow="Access request", title=f"You already have a {portal_name} account",
+        intro=intro, buttons=buttons, meta_text=note,
+    )
+    from . import activity
+    activity.log("access_request.existing_account", user=user,
+                 summary=("Access request from an existing account's email; sent "
+                          + ("sign-in and reset links" if reset_link else "a sign-in link")))
+    return send_mail(site, user.email, f"Your {portal_name} account",
+                     body, body_html=body_html)
+
+
 @bp.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     if current_user.is_authenticated:

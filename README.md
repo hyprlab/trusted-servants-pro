@@ -12,7 +12,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 - **File Browser.** Every upload in one place, with a view of each file beside its details and everywhere it's used. Public links read `/pub/<filename>`, with no hashes or tokens.
 - **Announcements, events, stories and blog.** Written in Markdown with a formatting toolbar and live preview. Visitors can submit events and stories for review.
 - **Watchtower.** Visitor metrics, missing pages, failed sign-ins, IP blocking, access requests and the Delete Log in one place.
-- **Access requests.** Visitors ask for an account from the sign-in page or a popup on the public site. New accounts start as Viewer and join the trusted servants email list.
+- **Access requests.** Visitors ask for an account from the sign-in page or a popup on the public site. New accounts start as Viewer and join the trusted servants email list. An email that already has an account is sent its username and sign-in and reset links instead.
 - **Roles and security.** Admin, editor and viewer roles with per-module access and two-factor sign-in. Zoom, email and backup credentials are encrypted.
 - **Zoom accounts.** Host credentials assigned to meetings, with a weekly calendar showing each account's free time and overlaps. Online meeting pages give members what they need to fetch one-time passcodes.
 - **Backups.** Daily snapshots, scheduled off-site backups (end-to-end encrypted to TS Pro Backup, or SFTP, FTP or Dropbox) and a one-screen restore. A full export and import moves a portal between servers.

@@ -18047,7 +18047,9 @@ def request_access_submit():
 
     wants_json = request.headers.get("X-Requested-With") == "fetch" \
                  or request.accept_mimetypes.best == "application/json"
-    thanks = "Thanks, your request has been submitted. An administrator will follow up by email."
+    # One reply for every requester, whether or not the email already has an
+    # account, so the form can't reveal who has one (see below).
+    thanks = "Thanks, your request has been submitted. Watch your email for next steps."
 
     # The form is on the public site too (frontend/_request_access_modal
     # .html), so it has the public forms' guards. A filled honeypot is a
@@ -18077,11 +18079,32 @@ def request_access_submit():
             return _refuse(err or "The security check failed. Please try again.")
 
     from .frontend import _client_ip
+    from sqlalchemy import func as _func
+    ip = (_client_ip() or "")[:64] or None
+    # An email that already has an account: the request is still saved (they
+    # may want more access) and tagged with the account, and the account's
+    # inbox gets its username, a sign-in link and a reset link. The visitor
+    # sees the same reply either way.
+    existing = User.query.filter(_func.lower(User.email) == email.lower()).first()
+    if existing:
+        from .auth import ROLE_LABELS
+        existing_desc = f"{existing.username} ({ROLE_LABELS.get(existing.role, existing.role)})"
     req = AccessRequest(name=name, phone=phone, email=email,
                         roles_json=json.dumps(roles), meeting_name=meeting_name, message=message,
-                        ip_address=(_client_ip() or "")[:64] or None)
+                        ip_address=ip, existing_user_id=existing.id if existing else None)
     db.session.add(req)
     db.session.commit()
+
+    if existing:
+        from .auth import send_existing_account_help
+        try:
+            ok, err = send_existing_account_help(existing, ip)
+        except Exception as e:  # noqa: BLE001 — never surface to the visitor
+            db.session.rollback()
+            ok, err = False, str(e)
+        if not ok:
+            current_app.logger.warning(
+                "Existing-account help email not sent for user_id=%s: %s", existing.id, err)
 
     mail_error = None
     if s.mail_ready() and s.access_request_to:
@@ -18097,6 +18120,9 @@ def request_access_submit():
             lines.append(f"Meeting: {meeting_name}")
         if message:
             lines += ["", "Message:", message]
+        if existing:
+            lines += ["", f"This email already belongs to the account {existing_desc}. "
+                          "They've been emailed their username and a sign-in link."]
         lines += ["", "Review pending requests in the portal under Access Requests."]
         # Branded HTML twin — same style as every other form email.
         from .frontend import _render_branded_email, _branded_field
@@ -18106,8 +18132,12 @@ def request_access_submit():
             review_url = None
         body_html = _render_branded_email(
             s, eyebrow="New access request", title=f"Access request from {name}",
-            intro="It's awaiting your review and isn't active yet.",
+            intro=(f"This email already belongs to the account {existing_desc}. They've "
+                   "been emailed their username and a sign-in link, so you only need to "
+                   "act if they're asking for different access."
+                   if existing else "It's awaiting your review and isn't active yet."),
             fields=[
+                _branded_field("Existing account", existing_desc if existing else None),
                 _branded_field("Name", name),
                 _branded_field("Phone", phone, "phone"),
                 _branded_field("Email", email, "email"),
@@ -18744,9 +18774,16 @@ def watchtower_requests():
                   .filter(IPBlock.expires_at.is_(None)
                           | (IPBlock.expires_at > now2)).all()):
             blocked_ips[b.ip] = b
+    # Accounts whose email matched a request's when it came in.
+    from .auth import ROLE_LABELS
+    _uids = {r.existing_user_id for r in items if r.existing_user_id}
+    existing_users = ({u.id: u for u in User.query.filter(User.id.in_(_uids)).all()}
+                      if _uids else {})
     return render_template("watchtower/requests.html",
                            active_tab="requests",
                            items=items, view=view,
+                           existing_users=existing_users,
+                           role_labels=ROLE_LABELS,
                            archived_count=archived_count,
                            active_count=active_count,
                            pending_resets=pending_resets,

@@ -166,6 +166,7 @@ ACTION_LABELS = {
     "password.reset.self":  ("Reset their own password",   "key"),
     "password.reset.admin": ("Admin reset password",       "key"),
     "password.forgot":      ("Requested password reset",   "mail"),
+    "access_request.existing_account": ("Sent sign-in help after an access request", "mail"),
     "user.create":          ("Created user",               "user-plus"),
     "user.update":          ("Updated user",               "user-cog"),
     "user.delete":          ("Deleted user",               "user-minus"),
