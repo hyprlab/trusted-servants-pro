@@ -6,6 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+- `requirements.txt`: Werkzeug 3.1.8 to 3.1.9 for CVE-2026-102598 (GHSA-g6x2-hccm-hh4m), where `safe_join` let Windows device names with an empty ADS marker (`NUL:`) through `send_from_directory`. Windows and NTFS only; the scheduled pip-audit job failed on it.
+
 ## [3.0.2] — 2026-10-06
 
 ### Changed
