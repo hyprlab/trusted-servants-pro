@@ -9,10 +9,12 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.0.1 — 2026-10-06 (latest)
+
 - A library item with no file, such as a reading written in the page, no longer breaks the public Literature Library page or a meeting's page.
 - The 3.0.0 notes in Settings > About and the dashboard's What's new are shorter, with the biggest changes first.
 
-## 3.0.0 — 2026-10-05 (latest)
+## 3.0.0 — 2026-10-05
 
 - Opening a file in the File Browser shows it in the page, beside its details: full link (click to copy), kind, size, dimensions, camera data, uploader and where it's used. Arrows or the Left and Right keys step through the list, and Esc goes back.
 - Every list page (Meetings, Libraries, posts, Stories, Blog, Email List, Recovery Contacts, Zoom Accounts, form inboxes) shares one layout. It has a sidebar with live search, filters with counts, sort, and List or Grid, plus bulk actions in a bar at the foot of the list.

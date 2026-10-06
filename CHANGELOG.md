@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.0.1] — 2026-10-06
+
 ### Changed
 - `RELEASE_NOTES.md` 3.0.0: 230 entries condensed to 94 of at most two sentences, ordered by significance.
 - `README.md`: Highlights rewritten as one short entry per area, ordered by significance, adding the public website, Watchtower, backups, two-factor sign-in, posts, the Email List and the alert bar.
