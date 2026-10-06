@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.0.2] — 2026-10-06
+
 ### Changed
 - `frontend.css`: `.fe-meeting-detail-head` bottom margin raised from 32px to 4rem, widening the gap above the Classic meeting cards.
 
