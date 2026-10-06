@@ -14,6 +14,16 @@
 .tsp-demobar a:hover{background:rgba(255,255,255,.22)}
 .tsp-demobar code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(0,0,0,.22);padding:1px 5px;border-radius:5px}
 @media(max-width:680px){.tsp-demobar .txt{display:none}}
+/* In the admin the sidebar is fixed over the left of the window: start the
+   banner beside it, and take the banner's height (--demobar-h, set below)
+   out of the views that fill the window (the File Browser's list and a
+   file's view). */
+@media(min-width:901px){body:has(> .layout) .tsp-demobar{margin-left:var(--sidebar-w,248px)}}
+body:has(> .tsp-demobar) > .layout{min-height:calc(100vh - var(--demobar-h,0px))}
+/* Not again inside a window embedded in a page (the file picker, Settings
+   panes): the page around it has the banner. */
+body.embed > .tsp-demobar{display:none}
+body:not(.embed):has(> .tsp-demobar) :is(.fb-pick--page,.fb-file-view){--fb-h:calc(100vh - var(--topbar-h,56px) - 2 * var(--content-px,20px) - var(--demobar-h,0px))}
 </style>
 <div class="tsp-demobar" role="region" aria-label="Demo mode">
   <div class="tsp-demobar-in">
@@ -26,4 +36,12 @@
     <a href="/" title="The TSP Pro product page">About TSP&nbsp;Pro</a>
   </div>
 </div>
+<script>
+(function () {
+  var bar = document.querySelector('.tsp-demobar');
+  function set() { document.documentElement.style.setProperty('--demobar-h', bar.offsetHeight + 'px'); }
+  set();
+  window.addEventListener('resize', set);
+})();
+</script>
 {%- endif %}

@@ -172,6 +172,7 @@
             <li>{{ tick() }}<span>Admin · editor · viewer roles with per-module gating</span></li>
             <li>{{ tick() }}<span>Watchtower: visitor metrics, 404s, access requests, IP controls</span></li>
             <li>{{ tick() }}<span>Daily snapshots, end-to-end-encrypted off-site backups, full-portal export/restore</span></li>
+            <li>{{ tick() }}<span>Every list searchable as you type, with filters, sort, and list or grid views</span></li>
           </ul>
           <p style="margin-top:1.4rem"><a class="pp-btn pp-btn-ghost" href="{{ DEMO_ADMIN }}">Open the admin (admin / admin) →</a></p>
         </div>
@@ -212,13 +213,13 @@
           ('megaphone', 'Events & announcements', 'Post events with locations and Zoom links; announcements auto-archive when they expire.'),
           ('heart', 'Recovery stories', 'First-person stories with author bylines and milestone dates — a moderated, public submission flow included.'),
           ('feather', 'Blog', 'Long-form posts with categories and tags; one table can power many committee blogs.'),
-          ('layout', 'Page builder', 'Drag-and-drop blocks — heroes, cards, galleries, containers — for any page, no code.'),
-          ('palette', 'Design system', 'Themes, design tokens, custom fonts, light/dark mode, mega-menus, and footers you control.'),
-          ('shield', 'Roles & permissions', 'Admin, editor, and viewer roles with fine-grained per-module access gating.'),
+          ('layout', 'Page builder', 'Build any page from blocks (heroes, cards, galleries, containers), with the page structure, block library, and a live preview side by side.'),
+          ('palette', 'Design system', 'A design page with a live preview: themes, colors with light and dark values, fonts, buttons, cards, mega menus, headers, and footers.'),
+          ('shield', 'Roles & access requests', 'Admin, editor, and viewer roles with per-module gating, two-factor sign-in, and a Request Access popup on the public site.'),
           ('activity', 'Watchtower analytics', 'Privacy-first visitor metrics, 404 tracking, access requests, and IP blocking.'),
           ('save', 'Backups & restore', 'Daily snapshots and scheduled off-site backups — end-to-end encrypted to TS Pro Backup, or SFTP/FTP/Dropbox — with one-screen restore.'),
-          ('video', 'Zoom & tech hub', 'A built-in knowledge base of hosting checklists and security best practices.'),
-          ('globe', 'Forms, contact & more', 'Custom forms, contact routing, a fellowships index, trusted-servant mailing list, and printable schedules.')
+          ('video', 'Zoom & tech hub', 'Zoom host accounts on a weekly calendar, plus a training page of hosting checklists with zoomable screenshots.'),
+          ('globe', 'Files, forms & more', "A file browser that shows each file with where it's used, custom forms, contact routing, a trusted-servant email list, and an alert bar for your team.")
         ] %}
         {% for icon, title, body in cards %}
         <article class="pp-card">
@@ -281,9 +282,10 @@ Contact email: you@yourfellowship.org
             </li>
             <li>
               <span class="pp-step-h">Sign in &amp; secure it</span>
-              <p>Open the URL the installer prints, sign in with the seeded admin, and <b>change the password immediately</b> from Settings → Users.</p>
+              <p>Open the URL the installer prints and sign in with the admin password it generated (also saved in <code>/opt/tspro/.env</code>). The first sign-in sets up <b>two-factor authentication</b>.</p>
               <div class="pp-code"><pre><span class="p">→</span> https://portal.yourfellowship.org
-   user: <span class="g">admin</span>   ·   pass: <span class="g">admin</span>   <span class="c"># change this now</span></pre></div>
+   username : <span class="g">admin</span>
+   password : <span class="g">(printed by the installer)</span></pre></div>
             </li>
           </ol>
         </div>
@@ -313,6 +315,7 @@ services:
       - ./data:/data
     environment:
       - TSP_SECRET_KEY=${TSP_SECRET_KEY:?TSP_SECRET_KEY must be set in .env}
+      - TSP_ADMIN_PASSWORD=${TSP_ADMIN_PASSWORD:?TSP_ADMIN_PASSWORD must be set in .env}
     restart: unless-stopped
     <span class="c"># cap logs so they can't fill the disk over time</span>
     logging:
@@ -320,9 +323,11 @@ services:
       options: { max-size: "10m", max-file: "3" }</pre></div>
             </li>
             <li>
-              <span class="pp-step-h">Set a secret key</span>
-              <p>Trusted Servants Pro signs session cookies with this. Generate a random value into a <code>.env</code> file.</p>
-              <div class="pp-code"><pre><span class="g">$</span> echo "TSP_SECRET_KEY=$(openssl rand -hex 32)" &gt; .env</pre></div>
+              <span class="pp-step-h">Set a secret key and admin password</span>
+              <p>The secret key signs session cookies; the password seeds the first admin. It won't start without both, so generate them into a <code>.env</code> file.</p>
+              <div class="pp-code"><pre><span class="g">$</span> echo "TSP_SECRET_KEY=$(openssl rand -hex 32)" &gt; .env
+<span class="g">$</span> echo "TSP_ADMIN_PASSWORD=$(openssl rand -base64 18)" &gt;&gt; .env
+<span class="g">$</span> cat .env   <span class="c"># note the password</span></pre></div>
             </li>
             <li>
               <span class="pp-step-h">Start it</span>
@@ -331,9 +336,9 @@ services:
             </li>
             <li>
               <span class="pp-step-h">Open it</span>
-              <p>Visit the public site and the admin backend, sign in, and change the admin password.</p>
+              <p>Visit the public site and the admin backend, and sign in as <code>admin</code> with the password from <code>.env</code>; it then sets up two-factor authentication.</p>
               <div class="pp-code"><pre><span class="p">→</span> http://localhost:8090         <span class="c"># public site</span>
-<span class="p">→</span> http://localhost:8090/tspro   <span class="c"># admin (admin / admin)</span></pre></div>
+<span class="p">→</span> http://localhost:8090/tspro   <span class="c"># admin backend</span></pre></div>
             </li>
           </ol>
         </div>

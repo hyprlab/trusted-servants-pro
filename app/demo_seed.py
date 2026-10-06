@@ -24,6 +24,7 @@ from .models import (
     db, User, SiteSetting, Meeting, MeetingSchedule, MeetingFile, MeetingLibrary,
     Location, Library, LibraryItem, Post, Story, BlogCategory, BlogTag, BlogPost,
     Fellowship, IntergroupOfficer, TrustedServantSubscriber, Page, FrontendNavItem,
+    MediaItem,
 )
 
 FELLOWSHIP_NAME = "Meridian Recovery Collective"
@@ -72,6 +73,139 @@ def _write_logo():
         return stored
     except OSError:
         return None
+
+
+# ── files for the File Browser ──────────────────────────────────────────────
+def _seed_files(admin):
+    """Give the File Browser something to show: a flyer, a photo with camera
+    details, a PDF guide and a CSV, drawn with Pillow (no outside assets). The
+    PDF is the Chairperson Guide's file and the flyer the Regional Service
+    Workshop's image, so a file's view lists where it's used. Idempotent, and
+    run on every boot, so a golden DB seeded before it existed gets the files."""
+    import hashlib
+    import io
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        return
+    if MediaItem.query.filter(MediaItem.original_filename.like("meridian-%")).count():
+        return
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    os.makedirs(upload_dir, exist_ok=True)
+
+    def font(size):
+        return ImageFont.load_default(size=size)
+
+    def rgb(hex_):
+        return tuple(int(hex_[i:i + 2], 16) for i in (1, 3, 5))
+
+    def gradient(w, h, a, b):
+        im = Image.new("RGB", (w, h))
+        dr = ImageDraw.Draw(im)
+        a, b = rgb(a), rgb(b)
+        for y in range(h):
+            t = y / max(1, h - 1)
+            dr.line([(0, y), (w, y)], fill=tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3)))
+        return im
+
+    def save(name, data, mime, days_ago):
+        stored = f"{uuid.uuid4().hex}_{name}"
+        with open(os.path.join(upload_dir, stored), "wb") as fh:
+            fh.write(data)
+        db.session.add(MediaItem(
+            stored_filename=stored, original_filename=name,
+            content_hash=hashlib.sha256(data).hexdigest(), size_bytes=len(data),
+            mime_type=mime, uploaded_by=admin.id if admin else None,
+            created_at=datetime.utcnow() - timedelta(days=days_ago)))
+        return stored
+
+    def encode(im, fmt, **kw):
+        buf = io.BytesIO()
+        im.save(buf, fmt, **kw)
+        return buf.getvalue()
+
+    # Event flyer.
+    im = gradient(1600, 1000, BRAND, INK)
+    dr = ImageDraw.Draw(im)
+    dr.ellipse([1080, -220, 1820, 520], outline=rgb(ACCENT), width=10)
+    dr.text((110, 150), "REGIONAL SERVICE WORKSHOP", font=font(40), fill=rgb(ACCENT))
+    dr.text((110, 230), "Carrying the message,", font=font(96), fill="white")
+    dr.text((110, 345), "online and in person", font=font(96), fill="white")
+    dr.text((110, 560), "Outreach · Web service · Public information", font=font(44), fill=(205, 210, 255))
+    dr.text((110, 800), "Meridian Community Center · Saturday, 1 to 5 pm", font=font(40), fill="white")
+    flyer = save("meridian-service-workshop-flyer.png", encode(im, "PNG"), "image/png", 6)
+
+    # A photo, with the camera details a phone would record.
+    im = gradient(1800, 1200, "#F6C177", "#2E3A5C")
+    dr = ImageDraw.Draw(im)
+    dr.rectangle([0, 820, 1800, 1200], fill=(36, 52, 44))
+    for i, x in enumerate(range(80, 1800, 260)):
+        dr.ellipse([x, 640 - (i % 3) * 30, x + 220, 900], fill=(46, 92, 66))
+    dr.ellipse([1240, 260, 1460, 480], fill=(255, 226, 160))
+    exif = Image.Exif()
+    exif[0x010F] = "Apple"
+    exif[0x0110] = "iPhone 15"
+    exif[0x0132] = (datetime.utcnow() - timedelta(days=40)).strftime("%Y:%m:%d 18:42:10")
+    save("meridian-summer-picnic.jpg", encode(im, "JPEG", quality=88, exif=exif), "image/jpeg", 38)
+
+    # The Chairperson Guide as a one-page PDF.
+    page = Image.new("RGB", (1240, 1754), "white")
+    dr = ImageDraw.Draw(page)
+    dr.rectangle([0, 0, 1240, 170], fill=rgb(BRAND))
+    dr.text((90, 60), "Meridian Recovery Collective", font=font(44), fill="white")
+    dr.text((90, 250), "Chairperson Guide", font=font(64), fill=rgb(INK))
+    lines = ["Arrive ten minutes early and open the room.",
+             "Welcome newcomers first, by first name only.",
+             "Read the format, keeping to the time for each part.",
+             "Rotate sharing so quieter members get a chance.",
+             "Close on time, and thank the readers and greeters."]
+    for i, line in enumerate(lines):
+        dr.text((90, 420 + i * 90), f"{i + 1}.  {line}", font=font(34), fill=(40, 44, 60))
+    guide = save("meridian-chairperson-guide.pdf", encode(page, "PDF", resolution=150), "application/pdf", 20)
+
+    # A roster with no preview, for the file view's download-only state.
+    roster = ("Position,Name,Term ends\nChair,Jordan M.,2026-12-31\nSecretary,Priya S.,2026-09-30\n"
+              "Treasurer,Chris L.,2027-03-31\nWebservant,Alex R.,2027-06-30\n").encode()
+    save("meridian-service-roster.csv", roster, "text/csv", 12)
+
+    # Where they're used.
+    item = LibraryItem.query.filter_by(title="Chairperson Guide").first()
+    if item and not item.stored_filename:
+        item.stored_filename, item.original_filename = guide, "meridian-chairperson-guide.pdf"
+    workshop = Post.query.filter_by(slug="regional-service-workshop").first()
+    if workshop and not workshop.featured_image_filename:
+        workshop.featured_image_filename = flyer
+    db.session.commit()
+
+
+# ── keep the seeded events upcoming ─────────────────────────────────────────
+_SEEDED_POSTS = ("annual-online-convention", "regional-service-workshop", "gratitude-marathon",
+                 "new-late-night-lifeline", "website-refresh", "call-for-service-outreach")
+
+
+def _refresh_post_dates():
+    """The seed dates its events and announcements from the day it ran, so a
+    demo seeded weeks ago shows no upcoming events. Move them all forward by
+    the time since, keeping their spacing: the newest is published a day ago,
+    as when seeded. Events start and end on the hour. The event lists show
+    the start of a post's body under its title, so a body that opens by
+    repeating the title as a heading loses that heading. Runs on every boot."""
+    posts = Post.query.filter(Post.slug.in_(_SEEDED_POSTS)).all()
+    newest = max((p.published_at for p in posts if p.published_at), default=None)
+    shift = (datetime.utcnow() - timedelta(days=1)) - newest if newest else timedelta(0)
+    for p in posts:
+        if shift >= timedelta(hours=1):
+            for col in ("published_at", "event_starts_at", "event_ends_at", "announcement_auto_archive_at"):
+                if getattr(p, col, None):
+                    setattr(p, col, getattr(p, col) + shift)
+            p.is_archived = False
+        for col in ("event_starts_at", "event_ends_at"):
+            if getattr(p, col, None):
+                setattr(p, col, getattr(p, col).replace(minute=0, second=0, microsecond=0))
+        heading = "# " + (p.title or "")
+        if p._body and p._body.startswith(heading + "\n"):
+            p._body = p._body[len(heading):].lstrip("\n")
+    db.session.commit()
 
 
 # ── users ───────────────────────────────────────────────────────────────────
@@ -848,8 +982,12 @@ def _seed_nav(s):
 
 # ── entry point ──────────────────────────────────────────────────────────────
 def seed_demo_data(app):
-    """Idempotently populate the golden demo dataset. No-op once meetings exist."""
+    """Idempotently populate the golden demo dataset. Once meetings exist it
+    only adds the File Browser's files (to a golden DB seeded before they
+    existed) and moves the seeded events forward so they stay upcoming."""
     if Meeting.query.count() > 0:
+        _seed_files(User.query.filter_by(username="admin").first())
+        _refresh_post_dates()
         return
     app.logger.info("Seeding demo data: %s", FELLOWSHIP_NAME)
     logo = _write_logo()
@@ -867,6 +1005,8 @@ def seed_demo_data(app):
     _seed_pages(s, libraries, news.id if news else 0)
     _seed_nav(s)
     db.session.commit()
+    _seed_files(admin)
+    _refresh_post_dates()
     app.logger.info("Demo data seeded.")
 
 
