@@ -90,10 +90,23 @@
             <span class="muted smaller">— sends username, password, and a summary of what their role can do (requires SMTP).</span>
           </span>
         </label>
-        <div class="form-actions"><button class="btn btn-primary">Create</button></div>
+        <div class="form-actions"><button class="btn btn-primary" data-create-user-submit>Create</button></div>
       </form>
       <script>
       (function () {
+        // Create shows a spinner until the reloaded page brings its toasts;
+        // it clears if the page comes back from the back/forward cache.
+        var create = document.querySelector('[data-create-user-submit]');
+        if (create) {
+          create.form.addEventListener('submit', function () {
+            create.classList.add('is-submitting');
+            create.setAttribute('aria-busy', 'true');
+          });
+          window.addEventListener('pageshow', function () {
+            create.classList.remove('is-submitting');
+            create.removeAttribute('aria-busy');
+          });
+        }
         // The username follows the email until the admin types a different one.
         var user = document.querySelector('[data-username-follows-email]');
         var email = user && user.form.elements.email;

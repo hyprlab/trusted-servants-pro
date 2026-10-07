@@ -4532,8 +4532,9 @@ html.login-fade-in body { animation: login-page-fade-in 650ms ease-out both; }
 .login-form label.check.login-remember input { margin: 0; width: auto; accent-color: var(--access); }
 .login-submit { position: relative; background: var(--access); color: #fff; border: 0; border-radius: var(--r-pill);
   padding: 10px 22px; font-size: var(--fs-base); font-weight: 600; cursor: pointer; box-shadow: none; }
-.login-submit.is-loading { color: transparent; pointer-events: none; }
-.login-submit.is-loading::after {
+/* The spinner also fills any button marked .is-submitting while its form posts. */
+.login-submit.is-loading, .btn.is-submitting { position: relative; color: transparent; pointer-events: none; }
+.login-submit.is-loading::after, .btn.is-submitting::after {
   content: ""; position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
   margin: -9px 0 0 -9px; border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff;
@@ -16179,11 +16180,8 @@ a.dash-stat--link .dash-stat-value { color: var(--access, var(--brand)); }
     min-height: 0; padding: 0; margin: 0; border: 0; background: none; }
   #settings-modal .settings-main-head .settings-pane-title { position: absolute; width: 1px; height: 1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  /* Bare until hovered or focused, then it takes its button face. */
-  #settings-modal .settings-main-head [data-close] { background: transparent; border: 1px solid transparent;
-    box-shadow: none; transition: background .12s ease, border-color .12s ease, box-shadow .12s ease; }
-  #settings-modal .settings-main-head [data-close]:hover,
-  #settings-modal .settings-main-head [data-close]:focus-visible { background: var(--panel); border-color: var(--border);
+  /* Always its button face, so it reads as a button over a scrolled card. */
+  #settings-modal .settings-main-head [data-close] { background: var(--panel); border: 1px solid var(--border);
     box-shadow: var(--shadow); }
   /* Room for the close button above each section's first card. */
   #settings-modal .settings-pane.active,

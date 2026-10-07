@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+- Users: the Create button gets `.is-submitting` on submit and shows the login button's spinner (the `.login-submit.is-loading` rule now also covers `.btn.is-submitting`); `pageshow` clears it.
+- Settings: the floating close button keeps its panel background, border and shadow on desktop instead of showing them only on hover or focus.
+
 ## [3.1.0] — 2026-10-06
 
 ### Added
