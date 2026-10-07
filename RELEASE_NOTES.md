@@ -9,10 +9,12 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.1.1 — 2026-10-07 (latest)
+
 - The Create button on the Users page shows a spinner while the account is being created.
 - The close button in Settings keeps its button background, so it stays visible over a scrolled section.
 
-## 3.1.0 — 2026-10-06 (latest)
+## 3.1.0 — 2026-10-06
 
 - Every website theme except Recovery Blue is redesigned, in both light and dark mode, and now styles every public page, including stories, the blog and forms.
 - The Classic theme is quieter and more polished, with a deep ink dark mode.
