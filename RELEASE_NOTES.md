@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- Event and announcement pages leave more space between the featured image and the cards below it.
+
 ## 3.1.1 — 2026-10-07 (latest)
 
 - The Create button on the Users page shows a spinner while the account is being created.

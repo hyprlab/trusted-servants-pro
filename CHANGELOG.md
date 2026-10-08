@@ -6,6 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+- Event and announcement detail (Classic layout): `.fe-event-detail-hero` bottom margin is 4rem, up from 28px.
+
 ## [3.1.1] — 2026-10-07
 
 ### Changed
