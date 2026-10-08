@@ -9,9 +9,11 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.1.2 — 2026-10-08 (latest)
+
 - Event and announcement pages leave more space between the featured image and the cards below it.
 
-## 3.1.1 — 2026-10-07 (latest)
+## 3.1.1 — 2026-10-07
 
 - The Create button on the Users page shows a spinner while the account is being created.
 - The close button in Settings keeps its button background, so it stays visible over a scrolled section.
