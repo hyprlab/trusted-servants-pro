@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.2.0 — 2026-10-10 (latest)
+
 New features:
 
 - Settings dialogs open as pages with a back button
@@ -28,7 +30,7 @@ Fixes:
 - closing a sidebar link dialog closing all of Settings
 - city, state and zip running past the location form
 
-## 3.1.2 — 2026-10-08 (latest)
+## 3.1.2 — 2026-10-08
 
 Changes:
 

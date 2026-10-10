@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.2.0] — 2026-10-10
+
 ### Added
 - Edit user: a Reset password button, shown when the user has an email, opening Reset password for that user.
 - Users: Add user (`#user-new-modal`), opened from the All users card head, replaces the always-shown Add a user card and its Roles and permissions column.
