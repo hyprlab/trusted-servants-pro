@@ -9,11 +9,13 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.2.1 — 2026-10-10 (latest)
+
 Fixes:
 
 - a security flaw in CairoSVG, which renders uploaded SVG logos (CVE-2026-107378)
 
-## 3.2.0 — 2026-10-10 (latest)
+## 3.2.0 — 2026-10-10
 
 New features:
 

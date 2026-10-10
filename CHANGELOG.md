@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.2.1] — 2026-10-10
+
 ### Fixed
 - `cairosvg` 2.9.0 to 2.9.1 for CVE-2026-107378: path data with many segments rendered in O(n²) time, so a crafted SVG logo could hold a worker for tens of seconds. Only SVGs an admin uploads are rendered (`app/svg_raster.py`).
 
