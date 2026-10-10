@@ -65,8 +65,10 @@ published release reaches them within a day.
 
 - `python3 tools/check-docs.py` passes. A release does not go out while it fails.
 - Both Unreleased sections are written in the project's prose style
-  ([CONTRIBUTING.md](CONTRIBUTING.md#prose-style)). `RELEASE_NOTES.md`: plain
-  bullets from the user's side, no title, no sub-headings.
+  ([CONTRIBUTING.md](CONTRIBUTING.md#prose-style)). `RELEASE_NOTES.md`: short
+  entries under `New features:`, `Changes:`, `Fixes:` and `Translations:`, no
+  title, no bold
+  ([the format](CONTRIBUTING.md#release-notes-and-the-changelog)).
 - Every contributor in the release is in `CONTRIBUTORS` **before** the notes
   are generated, or `tools/release-notes.sh` strips their @.
 - `git log origin/main..main --format=%B | grep -iE 'anthropic|claude'` prints
@@ -95,8 +97,9 @@ tools/redeploy.sh                              # the maintainer's own instance o
 ```
 
 The release title is the version and nothing else: no name, no tagline. The
-body is that version's `RELEASE_NOTES.md` section plus the generated list of
-commits; never hand either file itself to `gh release create`.
+body is that version's `RELEASE_NOTES.md` section and a `Full changelog:`
+compare link against the previous release, with no list of commits; never hand
+either file itself to `gh release create`.
 
 Then reply to and close every issue the release fixes, and delete the
 superseded release, if any (below).

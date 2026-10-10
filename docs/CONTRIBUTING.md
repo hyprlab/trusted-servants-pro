@@ -85,12 +85,40 @@ Documentation, release notes, the changelog, UI text and issue replies:
 tspro keeps two records, and the About modal in Settings renders both:
 
 - **`RELEASE_NOTES.md`** is for the people running a portal. Each version is
-  `## X.Y.Z — date`, then one flat list of plain bullets saying what now
-  happens, from the user's side. No release title, no sub-headings, no
-  implementation detail. The GitHub release body is this section.
+  `## X.Y.Z — date`, then its entries in groups, as below. The GitHub release
+  body is this section and a `Full changelog:` compare link.
 - **`CHANGELOG.md`** is the technical log, in
   [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) shape: `### Added`,
   `### Changed`, `### Fixed` under `## [X.Y.Z] — date`.
+
+A version's release notes look like this:
+
+```markdown
+## X.Y.Z — YYYY-MM-DD
+
+New features:
+
+- Add user opens as its own page - (#12)
+- Role cards in Add user and Edit user
+
+Fixes:
+
+- city, state and zip running past the location form - (#14)
+
+Translations:
+
+- Polish by [Name](https://github.com/login)
+```
+
+- Groups, in this order, each only when it has entries: `New features:`,
+  `Changes:` (for a change that is neither), `Fixes:`, `Translations:`. A
+  group's name is a plain line ending in a colon, not a heading.
+- An entry is a short phrase, a few words, not a sentence: no explanation, no
+  full stop, no bold. A feature names the thing; a fix names what was wrong,
+  starting lower case. ` - (#N)` follows when there is an issue.
+- A translation names its language and links its translator, without an `@`.
+- No list of commits: the release adds `Full changelog:` and the compare link,
+  which is that list.
 
 Every user-visible change adds a line under `## Unreleased` in
 `RELEASE_NOTES.md` and an entry under `## [Unreleased]` in `CHANGELOG.md`.

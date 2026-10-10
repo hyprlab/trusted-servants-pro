@@ -9,15 +9,23 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
-- In Settings, anything that used to open in a pop-up window (editing a user, resetting a password, adding a location or a sidebar link, off-site backups, the WordPress importer) now opens as its own page beside the section: the section slides left as the page comes in, and both slide back together when you press the back button.
-- Forms opened from the Sidebar section keep their own Create and Save buttons and return to the section once saved.
-- Those pages use the full width of the Settings window: each is split into titled sections with a short explanation beside the fields, and Save and Cancel stay pinned at the bottom.
-- Editing a user has a Reset password button, so you no longer need to go back to the list for it.
-- Users opens straight to the list. Add user, at the top of the list, opens the new-account form as its own page, in the same sections as Edit user; an access request's Create user opens it filled in.
-- Picking a role, in Add user and Edit user, shows every role as a card saying what it can reach.
-- If creating a user fails (the email is taken, or the password falls short), the form opens again with what you typed, apart from the password, and the reason shows above it.
-- Adding a sidebar link shows how it will look in the sidebar as you type its title.
-- The City, State and ZIP fields on a location no longer run past the edge of the form.
+New features:
+
+- Settings dialogs open as pages with a back button
+- Add user opens as its own page
+- Role cards in Add user and Edit user
+- Reset password from Edit user
+- Sidebar link preview while typing its title
+
+Changes:
+
+- Settings pages laid out in sections across the full width
+- Sidebar link forms keep their own Create and Save buttons
+- A failed Add user reopens with what was typed
+
+Fixes:
+
+- city, state and zip running past the location form
 
 ## 3.1.2 — 2026-10-08 (latest)
 
