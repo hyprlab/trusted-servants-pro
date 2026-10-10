@@ -7,8 +7,10 @@
 # record) and nothing else. Never hand RELEASE_NOTES.md or CHANGELOG.md itself
 # to `gh release create`: every release page would carry the whole history.
 #
-# With the tag present, it appends a "What's changed" list against the previous
-# release tag and a compare link.
+# With the tag present, it appends one "Full changelog:" line, the compare link
+# against the previous release tag, which GitHub shows as vA...vB. No list of
+# commits: the compare page is that list, and a week of commits here is too
+# long to read in a release.
 #
 # GitHub keeps every line break in a release body, so paragraphs and list items
 # are unwrapped to one line each. An @handle keeps its @ only if the person is
@@ -47,16 +49,10 @@ PY
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
     prev=$(git tag -l 'v*' --sort=-v:refname | grep -vE -- '-' | grep -vx "$TAG" \
            | while read -r t; do git merge-base --is-ancestor "$t" "$TAG" && { echo "$t"; break; }; done || true)
-    if [ -n "$prev" ]; then
+    repo=$(git remote get-url origin 2>/dev/null | sed -E 's#^(git@[^:]+:|https://github\.com/)##; s#\.git$##' || true)
+    if [ -n "$prev" ] && [ -n "$repo" ]; then
         echo
-        echo "### What's changed"
-        echo
-        git log --no-merges --format='- %s' "$prev..$TAG" | grep -v '^- chore(release)' || true
-        repo=$(git remote get-url origin 2>/dev/null | sed -E 's#^(git@[^:]+:|https://github\.com/)##; s#\.git$##' || true)
-        if [ -n "$repo" ]; then
-            echo
-            echo "**Full changes:** https://github.com/$repo/compare/$prev...$TAG"
-        fi
+        echo "Full changelog: https://github.com/$repo/compare/$prev...$TAG"
     fi
 fi
 } | python3 -c '

@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import re
 from datetime import datetime, timedelta
 from urllib.parse import urlparse, urljoin
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app
@@ -73,6 +74,20 @@ ROLE_PERMISSIONS = {
         "Cannot edit, upload, or reach admin areas.",
     ],
 }
+
+
+# Usernames of new accounts are email addresses. Existing accounts keep
+# whatever username they have until someone changes it; a change must be
+# to an email address too. The length matches the email column.
+USERNAME_MAX_LENGTH = 255
+_EMAIL_USERNAME_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s.]+$")
+
+
+def is_email_username(value):
+    """True when ``value`` reads as an email address (one @, a dot in the
+    domain, no spaces) and fits the username column."""
+    value = (value or "").strip()
+    return len(value) <= USERNAME_MAX_LENGTH and bool(_EMAIL_USERNAME_RE.match(value))
 
 
 PASSWORD_MIN_LENGTH = 12
@@ -842,6 +857,73 @@ def _send_reset_email(user, token):
                      body, body_html=body_html)
 
 
+def send_existing_account_help(user, ip):
+    """Email an access requester whose address already has an account:
+    their username, a sign-in link and, when self-service reset is allowed
+    on the account, a single-use reset link. The public form shows every
+    requester the same reply, so only the inbox owner learns the account
+    exists. Shares the forgot-password rate limit (keyed on the email) so
+    the form can't be used to flood an inbox. Returns (sent, error)."""
+    from .mail import send_mail
+    from .routes import _public_url_for
+    site = SiteSetting.query.first()
+    if not site or not site.mail_ready() or not user.email:
+        return False, "Mail is not configured"
+    if _reset_request_rate_limited(ip, user.email):
+        return False, "Rate limited"
+    _record_reset_request(ip, user.email)
+
+    reset_link = None
+    if getattr(user, "password_reset_allowed", True):
+        _purge_stale_reset_tokens()
+        import secrets as _secrets
+        token = _secrets.token_urlsafe(32)
+        db.session.add(PasswordResetToken(
+            user_id=user.id,
+            token_hash=_hash_reset_token(token),
+            expires_at=datetime.utcnow() + timedelta(hours=RESET_TOKEN_TTL_HOURS),
+            requested_ip=(ip or "")[:64],
+        ))
+        db.session.commit()
+        reset_link = _public_url_for("auth.reset_password", token=token)
+    login_link = _public_url_for("auth.login")
+
+    portal_name = (site.smtp_from_name or "Trusted Servants Pro").strip() or "Trusted Servants Pro"
+    _ttl = f"{RESET_TOKEN_TTL_HOURS} hour{'s' if RESET_TOKEN_TTL_HOURS != 1 else ''}"
+    greeting = user.name or user.username
+    intro = (f"Hello {greeting}, someone asked for access to {portal_name} with this "
+             f"email address, which already has an account. Your username is "
+             f"{user.username}. ")
+    if reset_link:
+        intro += (f"Sign in below, or choose a new password if you've forgotten it. "
+                  f"The password link is valid for {_ttl} and can only be used once.")
+    else:
+        intro += ("Sign in below. If you've forgotten your password, ask an "
+                  "administrator to reset it.")
+    note = ("If you need different access, an administrator has your request. "
+            "If you didn't ask for access, you can ignore this email; nothing on "
+            "your account has changed.")
+    lines = [intro, "", f"Sign in: {login_link}"]
+    if reset_link:
+        lines.append(f"Choose a new password: {reset_link}")
+    body = "\n".join(lines + ["", note])
+    buttons = [{"url": login_link, "label": "Sign in", "style": "primary"}]
+    if reset_link:
+        buttons.append({"url": reset_link, "label": "Choose a new password",
+                        "style": "secondary"})
+    from .frontend import _render_branded_email
+    body_html = _render_branded_email(
+        site, eyebrow="Access request", title=f"You already have a {portal_name} account",
+        intro=intro, buttons=buttons, meta_text=note,
+    )
+    from . import activity
+    activity.log("access_request.existing_account", user=user,
+                 summary=("Access request from an existing account's email; sent "
+                          + ("sign-in and reset links" if reset_link else "a sign-in link")))
+    return send_mail(site, user.email, f"Your {portal_name} account",
+                     body, body_html=body_html)
+
+
 @bp.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     if current_user.is_authenticated:
@@ -1068,31 +1150,49 @@ def add_user_to_email_list(u):
     return None
 
 
+def _back_to_new_user(username, email, name, phone, role):
+    """Back to Users with the Add user page open again and filled in as it
+    was posted (all but the password), after a create that failed."""
+    args = {"new": 1, "prefill_username": username, "prefill_email": email,
+            "prefill_name": name or "", "prefill_phone": phone or "",
+            "prefill_role": role}
+    rid = request.form.get("access_request_id")
+    if rid:
+        args["prefill_rid"] = rid
+    if request.form.get("embed") == "1":
+        args["embed"] = 1
+    return redirect(url_for("auth.users", **args))
+
+
 @bp.route("/users/create", methods=["POST"])
 @login_required
 def users_create():
     if not current_user.is_admin():
         return redirect(url_for("main.index"))
-    username = request.form["username"].strip()
     email = request.form["email"].strip()
+    # The username is an email address; left blank, it's the account's email.
+    username = request.form.get("username", "").strip() or email
     password = request.form["password"]
     name = (request.form.get("name") or "").strip()[:120] or None
     phone = (request.form.get("phone") or "").strip() or None
     role = request.form.get("role", "viewer")
     if role not in ROLES:
         role = "viewer"
+    if not is_email_username(username):
+        flash("The username must be an email address.", "danger")
+        return _back_to_new_user(username, email, name, phone, role)
     if User.query.filter(
         (func.lower(User.username) == username.lower())
         | (func.lower(User.email) == email.lower())
     ).first():
         flash("Username or email already exists", "danger")
-        return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
+        return _back_to_new_user(username, email, name, phone, role)
     # Same policy the reset flows enforce — an admin typing a throwaway
     # "abc123" here would otherwise mint the one weak account in the DB.
     ok, errors = validate_password_policy(password, username=username, email=email)
     if not ok:
         flash("Password doesn't meet the policy: " + " ".join(errors), "danger")
-        return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
+        return _back_to_new_user(username, email, name, phone, role)
     u = User(username=username, email=email, name=name, phone=phone,
              password_hash=generate_password_hash(password), role=role)
     # Admin accounts require 2FA — enrolment happens via the one-time
@@ -1162,8 +1262,9 @@ def users_update(uid):
         u.role = new_role
     new_username = request.form.get("username", "").strip()
     if new_username and new_username != u.username:
-        if len(new_username) > 64:
-            flash("Username must be 64 characters or fewer", "danger")
+        # An existing username may stay as it is; a new one is an email.
+        if not is_email_username(new_username):
+            flash("A new username must be an email address.", "danger")
             return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
         # Case-insensitive collision check — login lookup is also
         # case-insensitive, so two usernames that differ only in case

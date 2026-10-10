@@ -77,7 +77,7 @@ HEADER_TEMPLATES = [
     {
         "key": "classic",
         "name": "Classic",
-        "description": "Sticky glassy header with a logo on the left and nav on the right. The first header we built — fluid opacity on scroll, Inter/Fraunces typography.",
+        "description": "Sticky glassy header with a logo on the left and pill-shaped nav links on the right, a hairline that firms up on scroll, and an ink call-to-action that turns blue on hover.",
         "partial": "frontend/headers/classic.html",
     },
     {
@@ -89,31 +89,31 @@ HEADER_TEMPLATES = [
     {
         "key": "modern-dark",
         "name": "Modern Dark",
-        "description": "Glassy mission-control header — translucent dark bar that blurs the page behind it, wide logotype, primary nav with full-width mega menus, and a gradient call-to-action pill. Styled by the active theme.",
+        "description": "Translucent glass bar that blurs the page behind it, with a thin teal-to-violet line along its lower edge, quiet sentence-case nav links, full-width mega menus, and a lit mint call-to-action pill. Styled by the active theme.",
         "partial": "frontend/headers/themed.html",
     },
     {
         "key": "cyberpunk",
         "name": "Cyberpunk",
-        "description": "Neon HUD header — near-black bar with a glowing cyan/magenta underline, monospace uppercase nav, and a sharp neon call-to-action. Styled by the active theme.",
+        "description": "HUD header: a translucent bar (near-black in dark mode, pale paper in light) with a hairline rule, wide-tracked uppercase Chakra Petch nav with a cyan underline on hover, and a chamfered call-to-action. Styled by the active theme.",
         "partial": "frontend/headers/themed.html",
     },
     {
         "key": "sanctuary",
         "name": "Sanctuary",
-        "description": "Warm cream header — soft sand bar with a hairline border, serif logotype, sage-green nav hovers, and a rounded sage call-to-action. Styled by the active theme.",
+        "description": "Translucent cream header over a sand utility strip, with a hairline border, a sage underline that grows under the hovered nav link, and a rounded sage call-to-action. Styled by the active theme.",
         "partial": "frontend/headers/themed.html",
     },
     {
         "key": "terminal",
         "name": "Terminal",
-        "description": "A TUI status bar — near-black mono header with a phosphor-green underline, monospace nav, and a green command-style call-to-action. Styled by the active theme.",
+        "description": "A terminal menu bar: JetBrains Mono, lowercase nav items that invert on hover, a double rule underneath, and a bracketed [ key ] call-to-action. The utility bar is a status line that turns amber while a meeting is live. Styled by the active theme.",
         "partial": "frontend/headers/themed.html",
     },
     {
         "key": "neobrutal",
         "name": "Neobrutal",
-        "description": "A bold neobrutalist bar — flat colour, thick black border, chunky Archivo Black logotype + nav, and a hard-shadowed call-to-action that presses on click. Styled by the active theme.",
+        "description": "A white bar with a thick ink rule under an ink utility strip. Uppercase nav labels fill with their page's color on hover (meetings yellow, events cyan, announcements lime, literature lavender, stories pink), and the pink call-to-action has a hard shadow and presses on click. Styled by the active theme.",
         "partial": "frontend/headers/themed.html",
     },
 ]
@@ -248,31 +248,31 @@ MEGAMENU_TEMPLATES = [
     {
         "key": "modern-dark",
         "name": "Modern Dark",
-        "description": "Full-width glass panel with a soft aurora wash, gradient hairline divider, and chevron-slide links. Styled by the active theme.",
+        "description": "Full-width frosted glass panel lit by a faint teal and violet wash, serif column titles over hairline rules, and links that show a chevron on hover. Styled by the active theme.",
         "partial": "frontend/megamenus/themed.html",
     },
     {
         "key": "cyberpunk",
         "name": "Cyberpunk",
-        "description": "Full-width neon panel — near-black with a glowing grid, cyan section rules, and magenta hover states on monospace links. Styled by the active theme.",
+        "description": "Full-width near-black panel in both modes with a fine cyan grid, corner brackets, magenta section labels, and a cyan edge bar on hovered links. Styled by the active theme.",
         "partial": "frontend/megamenus/themed.html",
     },
     {
         "key": "sanctuary",
         "name": "Sanctuary",
-        "description": "Full-width warm cream panel with a soft shadow, sage section rules, and gentle sage hover states. Styled by the active theme.",
+        "description": "Full-width cream paper panel (warm brown in dark mode) with a soft warm shadow, Lora column titles, italic section labels on hairline rules, and sage hover states. Styled by the active theme.",
         "partial": "frontend/megamenus/themed.html",
     },
     {
         "key": "terminal",
         "name": "Terminal",
-        "description": "Full-width near-black panel with a phosphor-green rule, monospace links prefixed like command output, and a green hover state. Styled by the active theme.",
+        "description": "Full-width dropdown window on the page color (near-black in dark mode, paper in light), columns divided by thin rules, uppercase green headings, and links marked with a › that invert on hover. Styled by the active theme.",
         "partial": "frontend/megamenus/themed.html",
     },
     {
         "key": "neobrutal",
         "name": "Neobrutal",
-        "description": "Full-width flat-colour panel with a thick black border + hard offset shadow and chunky links that get a colour-block highlight on hover. Styled by the active theme.",
+        "description": "A full-width off-white sheet holding each column as a color block (yellow, cyan, lavender) with an ink outline and hard shadow. Column titles are set in Archivo Black; links turn into white outlined labels on hover. Styled by the active theme.",
         "partial": "frontend/megamenus/themed.html",
     },
 ]
@@ -281,7 +281,7 @@ THEMES = [
     {
         "key": "classic",
         "name": "Classic",
-        "description": "Our original — animated-blob hero, glassy header, Inter + Fraunces typography. Light, modern, web-default. Picking this theme cascades to every section's layout.",
+        "description": "The original theme, refined: glassy sticky header, soft gradient hero, Fraunces display headings over Inter text, hairline cards with soft shadows, a blue brand with amber accents, and a deep ink dark mode. Picking this theme cascades to every section's layout.",
     },
     {
         "key": "recovery-blue",
@@ -291,31 +291,31 @@ THEMES = [
     {
         "key": "modern-dark",
         "name": "Modern Dark",
-        "description": "Mission-control aesthetic — deep-indigo canvas, animated aurora glow, film grain, teal→cyan gradient buttons, Fraunces display over Inter. Defaults to dark mode; the light/dark toggle still works. Cascades to every region.",
+        "description": "Aurora: an indigo-black canvas under slow teal, cyan and violet light, glass cards with hairline borders and a lit top edge, mint action buttons, and Fraunces display headings over Inter. Defaults to dark mode; the light mode is a pale lavender daylight version with the same structure. Cascades to every region.",
         "default_mode": "dark",
     },
     {
         "key": "cyberpunk",
         "name": "Cyberpunk",
-        "description": "Neon-grid HUD — near-black canvas, scanlines + perspective grid, neon cyan/magenta, sharp zero-radius edges, corner-bracket cards, glitch monospace headings. Defaults to dark mode. Cascades to every region.",
+        "description": "Neon heads-up display: near-black canvas with a faint perspective grid and scanlines, cyan as the main color, magenta as the accent, yellow for live meetings. Orbitron display headlines over Chakra Petch, chamfered panels with corner brackets. Defaults to dark mode; light mode is pale blueprint paper with ink text. Cascades to every region.",
         "default_mode": "dark",
     },
     {
         "key": "sanctuary",
         "name": "Sanctuary",
-        "description": "Warm and calm — sand/cream canvas, sage-green + clay accents, Lora humanist-serif headings, soft rounded cards, airy editorial spacing. A grounded, supportive light theme. Defaults to light mode. Cascades to every region.",
+        "description": "A printed book: cream paper canvas with a faint grain, olive-ink text, sage green for actions and terracotta clay for accents. Lora headings, italic decks and long reading with drop caps and pull quotes, soft rounded cards with warm shadows, leaf marks under section heads and a domed olive footer. Defaults to light mode; the dark mode is a candlelit warm brown. Cascades to every region.",
         "default_mode": "light",
     },
     {
         "key": "terminal",
         "name": "Terminal",
-        "description": "A utilitarian command line — near-black canvas, phosphor-green accents, all-monospace type, flat boxy panels with visible borders, zero radius, prompt-prefixed headings and a blinking cursor. Defaults to dark mode; the light toggle is a clean printout paper. Cascades to every region.",
+        "description": "The site as a terminal application: JetBrains Mono throughout, a near-black canvas with phosphor-green and amber for live meetings, panels drawn as framed windows with titles set into the border, prompt-prefixed headings with a blinking cursor, and [ key ] buttons that invert on hover. Defaults to dark mode; light mode is a printout on off-white paper. Cascades to every region.",
         "default_mode": "dark",
     },
     {
         "key": "neobrutal",
         "name": "Neobrutal",
-        "description": "Neobrutalism — colourful flat surfaces (yellow / pink / cyan), thick black borders, hard offset drop-shadows, chunky Archivo Black headings, and buttons that 'press' on click. Bold, high-contrast, playful. Defaults to light mode; the dark companion keeps the bright blocks on a near-black canvas. Cascades to every region.",
+        "description": "Neobrutalism: flat saturated color blocks on a warm off-white canvas, thick ink outlines, hard offset shadows, Archivo Black headings over Space Grotesk text, and buttons that press on click. Each page family keeps one color (meetings yellow, events cyan, announcements lime, literature lavender, stories and blog pink); cards are white panels and reading pages a plain white column. Defaults to light mode; dark mode keeps the bright blocks on a near-black canvas with light outlines. Cascades to every region.",
         "default_mode": "light",
     },
 ]
@@ -338,7 +338,7 @@ FOOTER_SURFACE_THEMES = {"classic", "recovery-blue"}
 UTILITY_BAR_COLOR_MODES = {
     "classic": ("light", "dark"),
     "recovery-blue": ("light", "dark"),
-    "modern-dark": ("light",),
+    "modern-dark": ("light", "dark"),
 }
 
 

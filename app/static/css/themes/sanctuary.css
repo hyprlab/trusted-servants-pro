@@ -1,265 +1,1397 @@
 /* ============================================================================
-   THEME · Sanctuary (warm light)
-   Loaded only when SiteSetting.frontend_theme == "sanctuary" (see base.html).
-   Scoped to body[data-fe-theme="sanctuary"]. Calm + organic: sand/cream
-   canvas, sage-green + clay accents, Lora humanist-serif headings, soft
-   rounded cards (token-driven), airy spacing. Defaults to light mode with a
-   warm dark companion. Cards/buttons inherit the warm palette from the design
-   tokens; this file adds the atmosphere, chrome, hero, and dynbg overrides.
+   THEME · Sanctuary
+   Loaded only when the public site's theme is "sanctuary" (see base.html);
+   every rule is scoped to body[data-fe-theme="sanctuary"].
+
+   Direction: a beautifully printed book, or the site of a quiet retreat
+   center. Cream paper with a faint grain, olive-ink text, sage green for
+   action, terracotta clay for warmth. Lora sets headings, decks and long
+   reading; Inter carries the interface. Cards are soft paper leaves with
+   hairline borders and warm, low shadows. Organic touches are CSS only and
+   used sparingly: a leaf mark under section heads, a domed footer edge,
+   soft sage and clay washes behind heroes. The dark mode is "candlelit":
+   deep warm brown with cream text and glowing clay, never navy.
+
+   Colors come from the design tokens (app/design.py THEME_DEFAULTS) through
+   the --sa-* aliases below, so the admin's Design page overrides still
+   apply. Dark values are derived from the same tokens where a dark token
+   exists; the rest are fixed warm values.
    ========================================================================== */
 
+/* ===== Fonts ==============================================================
+   Lora italic (SIL OFL, vendored next to the upright face) gives decks,
+   pull quotes and <em> in long reading a real italic instead of a slanted
+   roman. Declared here so it only loads with this theme. */
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("../../fonts/lora/Lora-Italic-Variable-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("../../fonts/lora/Lora-Italic-Variable-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+                 U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ===== Tokens =============================================================
+   --sa-* are the theme's working names. Light values alias the design
+   tokens; dark values are re-resolved on the body (where the tokens live)
+   so nothing falls back to the Recovery Blue navy defined on <html>. */
 body[data-fe-theme="sanctuary"] {
-  --sa-cream:     #faf6ee;
-  --sa-sand:      #f1e9da;
-  --sa-card:      #fffdf8;
-  --sa-sage:      #5e7d6a;
-  --sa-sage-deep: #496353;
-  --sa-clay:      #c07a4e;
-  --sa-ink:       #3a3127;
-  --sa-muted:     #7c6f5d;
-  --sa-line:      #e4d9c5;
-  --sa-ease:      cubic-bezier(.2,.7,.2,1);
-  /* Override the legacy (non-tokenised) accent vars — several elements,
-     notably the footer location icons, still read --fe-accent / the old
-     recovery-blue vars (#5164ff), which is what made the footer read blue. */
-  --fe-accent:          #5e7d6a;
-  --fe-accent-2:        #c07a4e;
-  --fe-accent-3:        #8a9b6e;
-  --fe-recovery-blue:   #5e7d6a;
-  --fe-recovery-blue-2: #c07a4e;
+  --sa-paper:     var(--fe-color-surface, #f5efe3);
+  --sa-sand:      var(--fe-color-surface-alt, #ebe2d0);
+  --sa-card:      var(--fe-color-card-primary-bg, #fffcf6);
+  --sa-card-2:    var(--fe-color-card-secondary-bg, #f9f4ea);
+  --sa-ink:       var(--fe-color-text, #2e3127);
+  --sa-ink-soft:  var(--fe-color-text-soft, #645f4d);
+  --sa-line:      var(--fe-color-border, #e0d5c0);
+  --sa-sage:      var(--fe-color-brand, #56735c);
+  --sa-clay:      var(--fe-color-accent, #9e5536);
+  --sa-link:      var(--fe-color-link, #46624d);
+  --sa-ochre:     #a77a2c;
+  --sa-sage-wash: color-mix(in srgb, var(--sa-sage) 12%, transparent);
+  --sa-clay-wash: color-mix(in srgb, var(--sa-clay) 11%, transparent);
+  --sa-hair:      color-mix(in srgb, var(--sa-ink) 13%, transparent);
+  --sa-chip:      color-mix(in srgb, var(--sa-ink) 6%, transparent);
+  --sa-shadow:    0 1px 2px rgba(74, 58, 36, 0.06), 0 10px 30px -18px rgba(74, 58, 36, 0.35);
+  --sa-shadow-lg: 0 2px 4px rgba(74, 58, 36, 0.06), 0 24px 48px -24px rgba(74, 58, 36, 0.40);
+  --sa-ring:      0 0 0 3px color-mix(in srgb, var(--sa-sage) 35%, transparent);
+  --sa-read:      'Lora', Georgia, 'Times New Roman', serif;
+  --sa-radius:    var(--fe-card-radius, 16px);
+  --sa-ease:      cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* Leaf mark used under section heads: a sage leaf between two hairlines. */
+  --sa-leaf: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16'%3E%3Cpath d='M0 8h46M74 8h46' stroke='%23000' stroke-opacity='.18' stroke-width='1'/%3E%3Cpath d='M51 9c4-6 12-7 18-5-3 6-11 9-18 5z' fill='%2356735c'/%3E%3Cpath d='M51 9c6-1 11-3 15-6' stroke='%23f5efe3' stroke-width='.8' fill='none'/%3E%3C/svg%3E");
+  /* Paper grain (SVG fractal noise), multiplied over the canvas. */
+  --sa-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.24 0 0 0 0 0.15 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* Legacy and shared variables that frontend.css still reads directly
+     (footer icons, quick cards, dynbg fallbacks, slate text colors). */
+  --fe-accent:          var(--sa-sage);
+  --fe-accent-2:        var(--sa-clay);
+  --fe-accent-3:        var(--sa-ochre);
+  --fe-recovery-blue:   var(--sa-sage);
+  --fe-recovery-blue-2: var(--sa-clay);
+  --fe-ink:             var(--sa-ink);
+  --fe-ink-muted:       var(--sa-ink-soft);
+  --fe-ink-soft:        var(--sa-ink-soft);
+  --fe-border:          var(--sa-line);
+  --fe-panel:           var(--sa-card);
+  --fe-panel-soft:      var(--sa-sand);
+  --fe-color-bg:        var(--sa-paper);
+  --fe-gradient:        linear-gradient(135deg, var(--sa-sage), var(--sa-clay));
+  --fe-shadow:          var(--sa-shadow);
+  --fe-shadow-lg:       var(--sa-shadow-lg);
 }
 
-/* ---- Warm dark companion palette ---------------------------------------- */
-html[data-theme="dark"] body[data-fe-theme="sanctuary"],
-body[data-fe-theme="sanctuary"].fe-footer-force-dark {
-  --fe-dm-surface:        #2a2319;
-  --fe-dm-surface-soft:   rgba(255,255,255,0.045);
-  --fe-dm-border:         #3a3022;
-  --fe-dm-border-hover:   rgba(192,122,78,0.5);
-  --fe-dm-text-strong:    var(--fe-color-text-dark, #f5efe2);
-  --fe-dm-text:           var(--fe-color-text-dark, #ece3d2);
-  --fe-dm-text-muted:     #b8ab95;
-  --fe-dm-link-hover:     #a9c2b2;
+/* Candlelit dark: deep warm brown, cream text, glowing clay and sage. */
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] {
+  --sa-paper:     var(--fe-color-surface-dark, #1e1a14);
+  --sa-sand:      #2a241c;
+  --sa-card:      var(--fe-color-card-primary-bg-dark, #29241c);
+  --sa-card-2:    var(--fe-color-card-secondary-bg-dark, #26211a);
+  --sa-ink:       var(--fe-color-text-dark, #eee4d1);
+  --sa-ink-soft:  #c4b69c;
+  --sa-line:      var(--fe-color-card-primary-border-dark, #3b3326);
+  --sa-sage:      color-mix(in srgb, var(--fe-color-brand, #56735c) 58%, #e4efd9);
+  --sa-clay:      color-mix(in srgb, var(--fe-color-accent, #9e5536) 45%, #ffcfa6);
+  --sa-link:      color-mix(in srgb, var(--fe-color-link, #46624d) 45%, #e4efd9);
+  --sa-ochre:     #e0b469;
+  --sa-sage-wash: color-mix(in srgb, var(--sa-sage) 16%, transparent);
+  --sa-clay-wash: color-mix(in srgb, var(--sa-clay) 15%, transparent);
+  --sa-hair:      color-mix(in srgb, var(--sa-ink) 14%, transparent);
+  --sa-chip:      color-mix(in srgb, var(--sa-ink) 8%, transparent);
+  --sa-shadow:    0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 30px -16px rgba(0, 0, 0, 0.6);
+  --sa-shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.3), 0 26px 50px -22px rgba(0, 0, 0, 0.7);
+  --sa-leaf: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16'%3E%3Cpath d='M0 8h46M74 8h46' stroke='%23f3e8d2' stroke-opacity='.2' stroke-width='1'/%3E%3Cpath d='M51 9c4-6 12-7 18-5-3 6-11 9-18 5z' fill='%23d79a72'/%3E%3Cpath d='M51 9c6-1 11-3 15-6' stroke='%231e1a14' stroke-width='.8' fill='none'/%3E%3C/svg%3E");
+
+  /* Shared dark palette (frontend.css) re-pointed at the warm values. */
+  --fe-dm-page-bg:        var(--sa-paper);
+  --fe-dm-bg:             var(--sa-paper);
+  --fe-dm-surface:        var(--sa-card);
+  --fe-dm-surface-alt:    var(--sa-sand);
+  --fe-dm-surface-soft:   rgba(255, 240, 214, 0.045);
+  --fe-dm-border:         var(--sa-line);
+  --fe-dm-border-hover:   color-mix(in srgb, var(--sa-clay) 55%, transparent);
+  --fe-dm-text-muted:     var(--sa-ink-soft);
+  --fe-dm-text-soft:      var(--sa-ink-soft);
+  --fe-dm-link:           var(--sa-link);
+  --fe-dm-link-hover:     var(--sa-clay);
+  --fe-dm-code-bg:        rgba(255, 240, 214, 0.08);
+  --fe-dm-btn-primary-bg:         var(--fe-color-btn-primary-bg, #56735c);
+  --fe-dm-btn-primary-bg-hover:   var(--fe-color-btn-primary-hover-bg, #46624d);
+  --fe-dm-btn-primary-text:       var(--fe-color-btn-primary-text, #fbf6ec);
+  --fe-dm-btn-primary-text-hover: var(--fe-color-btn-primary-text, #fbf6ec);
+  --fe-dm-btn-primary-shadow:     none;
+  --fe-ink-muted: var(--sa-ink-soft);
+  --fe-ink-soft:  var(--sa-ink-soft);
+  /* Light-only tokens that shared components read in both modes; the
+     light values are inline on <body>, hence !important. */
+  --fe-color-text-soft:   var(--sa-ink-soft) !important;
+  --fe-color-border:      var(--sa-line) !important;
+  --fe-color-surface-alt: var(--sa-sand) !important;
+}
+/* Page-builder pages redefine the dark palette on .fe-pp with navy values;
+   point those variables back at the warm ones (token colors only). */
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-pp {
+  --fe-dm-bg:        var(--sa-paper);
+  --fe-dm-surface:   var(--sa-card);
+  --fe-dm-border:    var(--sa-line);
+  --fe-dm-text-soft: var(--sa-ink-soft);
+  --fe-dm-link:      var(--sa-link);
+}
+/* Body links: the link token is tuned for cream paper, so dark mode reads
+   a lightened mix of it. Set below <body> so the mix sees the token. */
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-page {
+  --fe-color-link: var(--sa-link);
+  --fe-color-link-hover: var(--sa-clay);
 }
 
-/* ===== Atmosphere — warm paper canvas =================================== */
-html[data-theme="light"] body[data-fe-theme="sanctuary"] {
-  background:
-    radial-gradient(1100px 700px at 12% -10%, #f3ead9 0%, transparent 55%),
-    radial-gradient(900px 620px at 100% 0%, #f0ebd6 0%, transparent 52%),
-    var(--sa-cream);
+/* ===== Atmosphere: the paper canvas ===================================== */
+body[data-fe-theme="sanctuary"] {
+  background-color: var(--sa-paper);
+  background-image:
+    radial-gradient(1100px 620px at 8% -6%, color-mix(in srgb, var(--sa-sage) 9%, transparent), transparent 60%),
+    radial-gradient(900px 560px at 100% 4%, color-mix(in srgb, var(--sa-clay) 7%, transparent), transparent 58%);
+  background-repeat: no-repeat;
+  color: var(--sa-ink);
+  -webkit-font-smoothing: antialiased;
 }
 html[data-theme="dark"] body[data-fe-theme="sanctuary"] {
-  background:
-    radial-gradient(1100px 700px at 12% -10%, #2d251a 0%, transparent 55%),
-    var(--fe-color-surface-dark, #221d16);
+  background-color: var(--sa-paper);
+  background-image:
+    radial-gradient(1100px 620px at 8% -6%, rgba(224, 150, 96, 0.08), transparent 60%),
+    radial-gradient(900px 560px at 100% 4%, rgba(160, 190, 150, 0.05), transparent 58%);
 }
-/* Faint warm paper grain. */
-body[data-fe-theme="sanctuary"]::after {
+body[data-fe-theme="sanctuary"]::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  opacity: 0.05; mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: var(--sa-grain); background-size: 180px 180px;
+  opacity: 0.07; mix-blend-mode: multiply;
 }
-html[data-theme="dark"] body[data-fe-theme="sanctuary"]::after { opacity: 0.08; mix-blend-mode: overlay; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"]::before { opacity: 0.09; mix-blend-mode: screen; }
+body[data-fe-theme="sanctuary"] ::selection { background: color-mix(in srgb, var(--sa-sage) 28%, transparent); }
 
-/* Sections transparent so the warm canvas shows through. */
+/* Shared section surfaces step aside so the paper shows through. */
 body[data-fe-theme="sanctuary"] .fe-page,
-body[data-fe-theme="sanctuary"] .fe-section { background: transparent; }
+body[data-fe-theme="sanctuary"] .fe-section,
+body[data-fe-theme="sanctuary"] .fe-features,
+body[data-fe-theme="sanctuary"] .fe-mlist,
+body[data-fe-theme="sanctuary"] .fe-quick,
+body[data-fe-theme="sanctuary"] .fe-about { background: transparent; }
+body[data-fe-theme="sanctuary"] .fe-section + .fe-section { border-top-color: transparent; }
 
-/* ===== Typography — warm serif heads + soft sage accent ================= */
-body[data-fe-theme="sanctuary"] .fe-section-head { position: relative; }
-body[data-fe-theme="sanctuary"] .fe-section-head h2 { letter-spacing: -0.01em; color: var(--sa-ink); }
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-section-head h2 { color: var(--fe-dm-text-strong); }
-body[data-fe-theme="sanctuary"] .fe-section-head p { color: var(--sa-muted); }
+/* ===== Dynamic backgrounds ================================================
+   Admin-chosen backdrops (hero, page hosts, containers, meeting detail,
+   contact) keep their recipe and motion but take the theme's palette:
+   soft sage, clay and wheat on paper, or embers on bark in dark mode.
+   !important beats the per-host colors stamped inline. */
+body[data-fe-theme="sanctuary"] .fe-dynbg-host {
+  --fe-dynbg-c1: #c7d5c1 !important; --fe-dynbg-c1-light: #c7d5c1 !important;
+  --fe-dynbg-c2: #ecc9ad !important; --fe-dynbg-c2-light: #ecc9ad !important;
+  --fe-dynbg-c3: #efdcb2 !important; --fe-dynbg-c3-light: #efdcb2 !important;
+  --fe-dynbg-c4: #d9cbb0 !important; --fe-dynbg-c4-light: #d9cbb0 !important;
+  --fe-dynbg-c5: #f2ebdd !important; --fe-dynbg-c5-light: #f2ebdd !important;
+  --fe-dynbg-c6: #ebe2d0 !important; --fe-dynbg-c6-light: #ebe2d0 !important;
+  --fe-dynbg-c1-dark: #34402f !important; --fe-dynbg-c2-dark: #4a2f21 !important;
+  --fe-dynbg-c3-dark: #463821 !important; --fe-dynbg-c4-dark: #2f2a20 !important;
+  --fe-dynbg-c5-dark: #1e1a14 !important; --fe-dynbg-c6-dark: #241f18 !important;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-dynbg-host {
+  --fe-dynbg-c1: #34402f !important; --fe-dynbg-c2: #4a2f21 !important;
+  --fe-dynbg-c3: #463821 !important; --fe-dynbg-c4: #2f2a20 !important;
+  --fe-dynbg-c5: #1e1a14 !important; --fe-dynbg-c6: #241f18 !important;
+}
+
+/* Page-builder container panels: the dark colors auto-derived from a cool
+   light panel come out navy; keep dark panels on the warm secondary card
+   and hairline. !important matches frontend.css's per-block dark rules. */
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] [style*="--tsp-bg-dm"] {
+  background-color: var(--sa-card-2) !important;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] [style*="--tsp-border-dm"] {
+  border-color: var(--sa-line) !important;
+}
+
+/* ===== Type ============================================================== */
+/* Zero-specificity defaults: component rules (and the hero's own font
+   pick) still win. */
+:where(body[data-fe-theme="sanctuary"]) :where(h1, h2, h3, h4) {
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+body[data-fe-theme="sanctuary"] .fe-page p { text-wrap: pretty; }
+body[data-fe-theme="sanctuary"] .muted { color: var(--sa-ink-soft); }
+
+/* Section heads: Lora title, italic deck, a leaf mark beneath. */
+body[data-fe-theme="sanctuary"] .fe-section-head h2 {
+  font-weight: 500; font-size: clamp(1.85rem, 3.2vw, 2.6rem);
+  line-height: 1.12; letter-spacing: -0.02em; color: var(--sa-ink);
+}
+body[data-fe-theme="sanctuary"] .fe-section-head p {
+  font-family: var(--sa-read); font-style: italic;
+  font-size: 1.08rem; color: var(--sa-ink-soft);
+}
 body[data-fe-theme="sanctuary"] .fe-section-head::after {
-  content: ""; display: block; width: 48px; height: 3px; margin: 16px auto 0;
-  border-radius: 999px; background: var(--sa-sage);
+  content: ""; display: block; width: 120px; height: 16px; margin: 18px auto 0;
+  background: var(--sa-leaf) center / contain no-repeat;
 }
 
-/* ===== Hero — warm organic scene (replaces the recovery-blue dynbg) ===== */
-body[data-fe-theme="sanctuary"] .fe-hero { overflow: hidden; }
-body[data-fe-theme="sanctuary"] .fe-hero > .fe-dynbg,
-body[data-fe-theme="sanctuary"] .fe-hero > .fe-hero-particles { display: none !important; }
-body[data-fe-theme="sanctuary"] .fe-hero-blob { opacity: 0; }
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-hero {
-  background:
-    radial-gradient(520px 440px at 16% 28%, rgba(94,125,106,0.20), transparent 60%),
-    radial-gradient(560px 480px at 86% 66%, rgba(192,122,78,0.16), transparent 62%),
-    radial-gradient(760px 520px at 50% 118%, rgba(94,125,106,0.12), transparent 60%),
-    linear-gradient(180deg, #faf6ee 0%, #f3ead9 100%) !important;
+/* Focus: one soft sage ring everywhere a keyboard lands. */
+body[data-fe-theme="sanctuary"] a:focus-visible,
+body[data-fe-theme="sanctuary"] button:focus-visible,
+body[data-fe-theme="sanctuary"] summary:focus-visible,
+body[data-fe-theme="sanctuary"] [tabindex]:focus-visible {
+  outline: 2px solid var(--sa-sage);
+  outline-offset: 3px;
+  border-radius: 6px;
 }
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-hero {
-  background:
-    radial-gradient(520px 440px at 16% 28%, rgba(94,125,106,0.24), transparent 60%),
-    radial-gradient(560px 480px at 86% 66%, rgba(192,122,78,0.20), transparent 62%),
-    linear-gradient(180deg, #221d16 0%, #2a2319 100%) !important;
-}
-body[data-fe-theme="sanctuary"] .fe-hero-heading {
-  background-image: none !important; -webkit-text-fill-color: currentColor;
-}
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-hero-heading { color: var(--sa-ink); }
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-hero-heading { color: var(--fe-dm-text-strong); }
-body[data-fe-theme="sanctuary"] .fe-hero-sub { font-family: var(--fe-font-body) !important; }
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-hero-sub { color: var(--sa-muted) !important; }
-body[data-fe-theme="sanctuary"] .fe-hero-eyebrow {
-  background: rgba(94,125,106,0.12); color: var(--sa-sage-deep);
-  border: 1px solid rgba(94,125,106,0.30);
-}
+body[data-fe-theme="sanctuary"] .fe-btn:focus-visible,
+body[data-fe-theme="sanctuary"] .fe-th-nav-cta:focus-visible { border-radius: var(--fe-btn-radius, 999px); }
 
-/* ===== Buttons — sage primary (dark mode needs the warm override) ======= */
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-btn-primary,
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-page .fe-hero-cta .fe-btn-primary,
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-card-actions .fe-btn-primary {
-  background: var(--fe-color-btn-primary-bg, var(--sa-sage)) !important;
-  color: var(--fe-color-btn-primary-text, #faf6ee) !important;
-}
-/* Hover mirrors the rest selectors (matching specificity + :hover) so it wins,
-   and reads the hover-bg token so dark mode honours it like light mode. */
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-btn-primary:hover,
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-page .fe-hero-cta .fe-btn-primary:hover,
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-card-actions .fe-btn-primary:hover {
-  background: var(--fe-color-btn-primary-hover-bg, var(--sa-sage-deep)) !important;
-}
-/* (No custom .fe-btn-yellow shadow — it already follows the button-style
-   tokens, --fe-btn-shadow / --fe-btn-hover-transform / --fe-btn-hover-glow,
-   so the custom hero button matches the primary button's behaviour.) */
-
-/* ===== Header — warm cream glass ======================================= */
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-header-themed {
-  background: rgba(250,246,238,0.82); border-bottom: 1px solid var(--sa-line);
-  -webkit-backdrop-filter: blur(12px) saturate(120%); backdrop-filter: blur(12px) saturate(120%);
-}
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-header-themed {
-  background: rgba(34,29,22,0.85); border-bottom: 1px solid #3a3022;
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-}
-body[data-fe-theme="sanctuary"] .fe-th-brand-name { font-weight: 600; }
-body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta):hover,
-body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta).mega-active { background: rgba(94,125,106,0.10); }
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta):hover,
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta).mega-active { background: rgba(94,125,106,0.18); }
-
-/* ===== Utility bar — warm sand strip (override the admin's blue) ======== */
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) {
-  background: var(--sa-sand) !important; color: var(--sa-ink) !important;
-  box-shadow: inset 0 -1px 0 var(--sa-line);
+/* ===== Utility bar ========================================================
+   The theme paints the strip in both modes (not in UTILITY_BAR_COLOR_MODES):
+   a sand band in light, a deep bark band in dark. !important beats the idle
+   colors the utility-bar script writes inline from the admin's settings. */
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) {
+  background: var(--sa-sand) !important;
+  color: var(--sa-ink) !important;
+  box-shadow: inset 0 -1px 0 var(--sa-hair);
 }
 html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) {
-  background: #2a2319 !important; color: var(--fe-dm-text-muted) !important;
-  box-shadow: inset 0 -1px 0 #3a3022;
+  background: #16130e !important;
+  color: var(--sa-ink-soft) !important;
 }
-body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) a:hover { color: var(--sa-sage); }
-/* Singleton utility buttons (search, theme toggle, GSR, pill buttons) ship
-   white chrome for dark bars — recolour them to match the warm bar. */
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-theme-toggle,
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-search-btn,
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-btn,
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-container--collapsed {
-  background: rgba(58,49,39,0.07) !important; color: var(--sa-ink) !important;
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) a:hover { color: var(--sa-link); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) a:hover { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-theme-toggle,
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-search-btn,
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-btn,
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-gsr-btn,
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-container--collapsed {
+  background: var(--sa-chip) !important; color: inherit !important;
 }
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-theme-toggle:hover,
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-search-btn:hover,
-html[data-theme="light"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-btn:hover {
-  background: rgba(94,125,106,0.16) !important; color: var(--sa-sage-deep) !important;
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-theme-toggle:hover,
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-search-btn:hover,
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-btn:hover,
+body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-gsr-btn:hover {
+  background: var(--sa-sage-wash) !important; color: var(--sa-ink) !important;
 }
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-theme-toggle,
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-search-btn,
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-btn,
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-utility-bar:not(.is-live) .fe-utility-container--collapsed {
-  background: rgba(231,221,201,0.12) !important; color: var(--fe-dm-text) !important;
+/* Live meeting: a marigold band instead of highlighter yellow, still the
+   loudest thing on the page. The join pill turns sage. */
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live { background: #f2c14b; color: #2a2414 !important; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live { background: #d9a53a; color: #1d170c !important; }
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live a,
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-utility-text { color: #2a2414; }
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-utility-btn,
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-theme-toggle,
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-utility-search-btn,
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-utility-gsr-btn,
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-utility-container--collapsed {
+  background: rgba(60, 40, 0, 0.12); color: #2a2414;
 }
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-utility-btn:hover,
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-theme-toggle:hover,
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-utility-search-btn:hover,
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-utility-gsr-btn:hover { background: rgba(60, 40, 0, 0.2); }
+body[data-fe-theme="sanctuary"] .fe-utility-live-pulse { background: #a3341b; }
+body[data-fe-theme="sanctuary"] .fe-utility-live-cta,
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-utility-live-cta {
+  background: #2f4a37; color: #fbf6ec;
+}
+body[data-fe-theme="sanctuary"] .fe-utility-live-cta:hover,
+body[data-fe-theme="sanctuary"] .fe-utility-bar.is-live .fe-utility-live-cta:hover { background: #22382a; color: #fff; }
 
-/* ===== Mega menu — matches the footer: deep sage + organic texture ===== */
+/* ===== Header ============================================================ */
+body[data-fe-theme="sanctuary"] .fe-header-themed {
+  background: color-mix(in srgb, var(--sa-paper) 86%, transparent);
+  border-bottom: 1px solid var(--sa-hair);
+  -webkit-backdrop-filter: blur(14px) saturate(115%);
+  backdrop-filter: blur(14px) saturate(115%);
+}
+body[data-fe-theme="sanctuary"] .fe-th-brand { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-th-brand-name {
+  font-weight: 600; font-size: 1.45rem; letter-spacing: -0.015em;
+}
+body[data-fe-theme="sanctuary"] .fe-th-nav { gap: 2px; }
+/* Nav links: no pill fill; a sage hairline grows under the label. */
+body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta) {
+  position: relative; font-weight: 500; font-size: 0.98rem;
+  padding: 10px 14px; border-radius: 8px; background: transparent;
+}
+body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta)::after {
+  content: ""; position: absolute; left: 14px; right: 14px; bottom: 4px; height: 1.5px;
+  border-radius: 2px; background: var(--sa-sage);
+  transform: scaleX(0); transform-origin: left center;
+  transition: transform 260ms var(--sa-ease);
+}
+body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta):hover::after,
+body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta).mega-active::after { transform: scaleX(1); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta) { color: var(--sa-ink); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta):hover,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta).mega-active { color: var(--sa-sage); }
+body[data-fe-theme="sanctuary"] .fe-th-nav-twoline-lead {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 400; font-size: 0.78rem; opacity: 0.8;
+}
+body[data-fe-theme="sanctuary"] .fe-th-nav-cta { padding: 10px 22px; }
+@media (min-width: 881px) { body[data-fe-theme="sanctuary"] .fe-th-nav-cta { margin-left: 12px; } }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-th-nav-cta {
+  background: var(--fe-color-btn-primary-bg); border-color: var(--fe-color-btn-primary-border, var(--fe-color-btn-primary-bg));
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-th-nav-cta:hover {
+  background: var(--fe-color-btn-primary-hover-bg); border-color: var(--fe-color-btn-primary-hover-border, var(--fe-color-btn-primary-hover-bg));
+}
+body[data-fe-theme="sanctuary"] .fe-th-menu-btn span { background: var(--sa-ink); }
+
+/* ===== Mega menu ==========================================================
+   A cream paper leaf that drops under the header: Lora block titles, sage
+   hover, hairline section rules. Dark mode is a bark-brown leaf. */
 body[data-fe-theme="sanctuary"] .fe-megamenu-themed {
-  background-color: #26312a;
-  background-image:
-    radial-gradient(720px 470px at 14% 16%, rgba(122,150,128,0.32), transparent 62%),
-    radial-gradient(640px 430px at 88% 86%, rgba(192,122,78,0.16), transparent 60%);
-  color: #e7ddc9;
-  border: 1px solid #3a4a3f; border-top: 2px solid var(--sa-clay);
-  box-shadow: 0 22px 50px rgba(0,0,0,0.30);
+  background-color: var(--sa-card);
+  background-image: radial-gradient(700px 300px at 0% 0%, var(--sa-sage-wash), transparent 70%);
+  color: var(--sa-ink);
+  border-top: 1px solid var(--sa-hair);
+  box-shadow: 0 30px 60px -30px rgba(74, 58, 36, 0.45), 0 2px 6px rgba(74, 58, 36, 0.06);
 }
-body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-link { color: #e7ddc9; }
-body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-link:hover { background: rgba(231,221,201,0.10); color: #fff; }
-body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-block-title { color: #f0e7d3; }
-body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-chevron,
-body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-icon { color: inherit; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-megamenu-themed {
+  background-color: #241f18;
+  background-image: radial-gradient(700px 300px at 0% 0%, rgba(224, 150, 96, 0.08), transparent 70%);
+  box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.75);
+}
+body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-block-title {
+  font-family: var(--fe-font-heading); font-weight: 500; letter-spacing: -0.015em;
+  color: var(--sa-ink);
+}
+body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-link { border-radius: 10px; font-weight: 500; }
+body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-link:hover { background: var(--sa-sage-wash); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-link:not(.fe-megamenu-link-colored) { color: var(--sa-ink); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-link:not(.fe-megamenu-link-colored):hover { color: var(--sa-sage); }
+body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-chevron { opacity: 0.55; }
+body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-block-section { opacity: 1; color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-block-section-line { background: var(--sa-line); opacity: 1; }
+body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-block-section-label {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 400; font-size: 0.95rem;
+}
 body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-block-btn {
-  color: #e0a878; background: rgba(192,122,78,0.16); border-color: rgba(192,122,78,0.40);
+  color: var(--sa-ink); background: var(--sa-chip); border-color: var(--sa-hair);
 }
-body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-block-section-line { background: var(--sa-clay); opacity: 0.5; }
-body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-block-section-label { color: #cdbfa5; }
+body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-block-btn:hover {
+  background: var(--sa-sage-wash); border-color: color-mix(in srgb, var(--sa-sage) 45%, transparent);
+}
+body[data-fe-theme="sanctuary"] .fe-megamenu-backdrop { background: rgba(46, 40, 28, 0.28); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-megamenu-backdrop { background: rgba(8, 6, 3, 0.5); }
+body[data-fe-theme="sanctuary"] .fe-megamenu-themed .fe-megamenu-search {
+  background: var(--sa-paper); border-color: var(--sa-line); color: var(--sa-ink);
+}
 
-/* ===== Footer — deep sage, warm elements ==============================
-   The footer is forced dark; recolour it to a deep forest-sage (the brand
-   colour) so it reads as Sanctuary, not the recovery-blue navy. */
-body[data-fe-theme="sanctuary"] .fe-footer {
-  background-color: #26312a !important;
-  background-image:
-    radial-gradient(720px 470px at 14% 16%, rgba(122,150,128,0.32), transparent 62%),
-    radial-gradient(640px 430px at 88% 86%, rgba(192,122,78,0.16), transparent 60%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='o'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.4'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23o)'/%3E%3C/svg%3E") !important;
-  background-size: auto, auto, 240px 240px !important;
-  background-repeat: no-repeat, no-repeat, repeat !important;
-  background-position: center, center, center !important;
-  background-blend-mode: normal, normal, soft-light !important;
-  border-top: 2px solid var(--sa-clay);
+/* ===== Buttons ============================================================
+   Light mode is fully token-driven (frontend.css). Dark mode would turn the
+   primary into a navy mix; keep the admin's primary instead. */
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-btn-primary,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-card-actions .fe-btn-primary,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-page .fe-meeting-card-actions .fe-btn-primary,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .btn-primary {
+  background: var(--fe-color-btn-primary-bg); color: var(--fe-color-btn-primary-text);
+  border-color: var(--fe-color-btn-primary-border, var(--fe-color-btn-primary-bg));
+  box-shadow: var(--fe-btn-shadow, none);
 }
-/* Drop the admin's footer particle/sinewave overlay for a clean sage panel. */
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-btn-primary:hover,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-card-actions .fe-btn-primary:hover,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-page .fe-meeting-card-actions .fe-btn-primary:hover,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .btn-primary:hover {
+  background: var(--fe-color-btn-primary-hover-bg); color: var(--fe-color-btn-primary-text);
+  border-color: var(--fe-color-btn-primary-hover-border, var(--fe-color-btn-primary-hover-bg));
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-hero-cta .fe-btn-primary,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-btn-blue {
+  background: var(--fe-btn-bg, var(--fe-color-btn-primary-bg));
+  color: var(--fe-btn-text, var(--fe-color-btn-primary-text));
+  border-color: var(--fe-btn-bg, var(--fe-color-btn-primary-bg));
+  box-shadow: none;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-hero-cta .fe-btn-primary:hover,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-btn-blue:hover {
+  background: var(--fe-btn-hover-bg, var(--fe-color-btn-primary-hover-bg));
+  color: var(--fe-btn-hover-text, var(--fe-color-btn-primary-text));
+  border-color: var(--fe-btn-hover-bg, var(--fe-color-btn-primary-hover-bg));
+}
+/* The WhatsApp-green button carries white text on a green too light to
+   read (2:1); deepen it to an earthier green that clears 4.5:1. */
+body[data-fe-theme="sanctuary"] .fe-btn-green,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-btn-green { background: #1d7a45; color: #fff; }
+body[data-fe-theme="sanctuary"] .fe-btn-green:hover,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-btn-green:hover { background: #17653a; color: #fff; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-btn-ghost {
+  background: rgba(255, 240, 214, 0.06); color: var(--sa-ink); border-color: var(--sa-line);
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-btn-ghost:hover {
+  background: rgba(255, 240, 214, 0.11); color: var(--sa-ink);
+  border-color: color-mix(in srgb, var(--sa-sage) 60%, transparent);
+}
+
+/* ===== Badges =============================================================
+   Meeting format reads as a quiet sentence-case tag with a colored dot:
+   sage for online, clay for in person, ochre for hybrid. */
+body[data-fe-theme="sanctuary"] .fe-meeting-type {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 3px 11px 3px 9px; border-radius: 999px;
+  font-size: 0.78rem; font-weight: 600; letter-spacing: 0.01em; text-transform: none;
+  background: var(--sa-chip); color: var(--sa-ink);
+  border: 1px solid var(--sa-hair);
+}
+body[data-fe-theme="sanctuary"] .fe-meeting-type::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none;
+}
+body[data-fe-theme="sanctuary"] .fe-meeting-type-online    { color: #3c5a44; background: color-mix(in srgb, #56735c 12%, transparent); border-color: color-mix(in srgb, #56735c 26%, transparent); }
+body[data-fe-theme="sanctuary"] .fe-meeting-type-in_person { color: #8a4527; background: color-mix(in srgb, #b0603f 11%, transparent); border-color: color-mix(in srgb, #b0603f 26%, transparent); }
+body[data-fe-theme="sanctuary"] .fe-meeting-type-hybrid    { color: #775619; background: color-mix(in srgb, #c39434 14%, transparent); border-color: color-mix(in srgb, #c39434 30%, transparent); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-type-online    { color: #b4cfb3; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-type-in_person { color: #eab08c; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-type-hybrid    { color: #e8c57e; }
+
+/* ===== Home: hero =========================================================
+   The admin's dynamic background is kept and re-tinted (see Dynamic
+   backgrounds); the heading drops its slate gradient for flat olive ink,
+   or cream when the hero is flagged for light text over a dark image.
+   !important beats frontend.css's !important dark and dynamic-text rules. */
+body[data-fe-theme="sanctuary"] .fe-hero-heading {
+  background-image: none !important;
+  -webkit-text-fill-color: currentColor;
+  color: var(--sa-ink);
+  letter-spacing: -0.03em;
+}
+body[data-fe-theme="sanctuary"] .fe-hero:not(.fe-hero-text-light) .fe-hero-sub { color: var(--sa-ink-soft) !important; }
+body[data-fe-theme="sanctuary"] .fe-hero-text-light .fe-hero-heading { color: #fbf5e8; }
+body[data-fe-theme="sanctuary"] .fe-hero-sub em { font-family: var(--sa-read); font-size: 1.04em; }
+body[data-fe-theme="sanctuary"] .fe-hero-eyebrow {
+  background: var(--sa-sage-wash); color: var(--sa-link);
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 400; font-size: 0.98rem;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-hero .fe-hero-particles { display: none; }
+
+/* ===== Home: meeting cards and event rows ================================ */
+body[data-fe-theme="sanctuary"] .fe-meeting-card,
+body[data-fe-theme="sanctuary"] .fe-event-row { border-radius: var(--sa-radius); }
+body[data-fe-theme="sanctuary"] .fe-meeting-card h3 { font-weight: 500; font-size: 1.3rem; }
+body[data-fe-theme="sanctuary"] .fe-meeting-sched { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-meeting-day { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-meeting-card-cta { color: var(--sa-link); font-weight: 600; }
+body[data-fe-theme="sanctuary"] .fe-event-date {
+  background: var(--sa-paper); border-color: var(--sa-line); border-radius: 14px;
+}
+body[data-fe-theme="sanctuary"] .fe-event-date-month {
+  color: var(--sa-clay); text-transform: none; letter-spacing: 0;
+  font-family: var(--sa-read); font-style: italic; font-weight: 500; font-size: 0.85rem;
+}
+body[data-fe-theme="sanctuary"] .fe-event-date-day { font-weight: 500; }
+body[data-fe-theme="sanctuary"] .fe-event-title { font-weight: 500; }
+body[data-fe-theme="sanctuary"] .fe-event-thumb { border-color: var(--sa-line); border-radius: 12px; }
+body[data-fe-theme="sanctuary"] .fe-event-attr-online { color: var(--sa-link); }
+
+/* Feature cards, FAQ and icon chips. */
+body[data-fe-theme="sanctuary"] .fe-feature-card { border-radius: var(--sa-radius); }
+body[data-fe-theme="sanctuary"] .fe-feature-card h3 { font-weight: 500; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-feature-card :is(p, .fe-feature-body) { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-feature-icon,
+body[data-fe-theme="sanctuary"] .fe-faq-summary-icon,
+body[data-fe-theme="sanctuary"] .fe-inclusion-icon,
+body[data-fe-theme="sanctuary"] .fe-protips-icon {
+  background: var(--sa-sage-wash); color: var(--sa-sage); border-radius: 50% 50% 50% 14%;
+}
+body[data-fe-theme="sanctuary"] .fe-faq-item { border-radius: 14px; }
+body[data-fe-theme="sanctuary"] .fe-faq-item.is-open { border-color: color-mix(in srgb, var(--sa-sage) 45%, transparent); }
+body[data-fe-theme="sanctuary"] .fe-faq-summary { font-weight: 500; color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-faq-summary-chevron { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-faq-body-inner { color: var(--sa-ink-soft); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-faq-summary,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-faq-body-inner { color: var(--sa-ink); }
+
+/* ===== List pages: shared rail and heads ==================================
+   Meetings, library, fellowships and archive share the sidebar rail: a Lora
+   title, a paper search field, and day/filter pills where the active one is
+   a filled sage leaf. */
+body[data-fe-theme="sanctuary"] .fe-mlist { padding-top: 48px; padding-bottom: 88px; }
+body[data-fe-theme="sanctuary"] .fe-mlist-head h1 {
+  font-weight: 500; letter-spacing: -0.02em; color: var(--sa-ink);
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-sidebar .fe-mlist-rail > .fe-mlist-head h1 { font-size: 2.1rem; }
+body[data-fe-theme="sanctuary"] .fe-mlist-head p {
+  font-family: var(--sa-read); font-style: italic; font-size: 1rem; line-height: 1.5;
+  color: var(--sa-ink-soft);
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-sidebar .fe-mlist-rail > .fe-mlist-head p { font-size: 0.98rem; }
+body[data-fe-theme="sanctuary"] .fe-mlist-rail-search input,
+body[data-fe-theme="sanctuary"] .fe-rc-search-input {
+  background: var(--sa-card); border: 1px solid var(--sa-line); border-radius: 12px;
+  color: var(--sa-ink);
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-rail-search input:focus,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-mlist-rail-search input:focus {
+  background: var(--sa-card); border-color: var(--sa-sage); box-shadow: var(--sa-ring);
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-mlist-rail-search input { background: var(--sa-card); color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-mlist-search-kbd { background: var(--sa-chip); border-radius: 5px; }
+body[data-fe-theme="sanctuary"] .fe-mlist-rail-section {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 400; font-size: 0.92rem; color: var(--sa-ink-soft);
+  border-top-color: var(--sa-hair); padding-left: 12px;
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-day-pill,
+body[data-fe-theme="sanctuary"] .fe-page .fe-mlist-rail-link { border-radius: 10px; color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-mlist-day-pill:hover,
+body[data-fe-theme="sanctuary"] .fe-page .fe-mlist-rail-link:hover { background: var(--sa-sage-wash); }
+body[data-fe-theme="sanctuary"] .fe-mlist-day-pill.is-active {
+  background: var(--fe-color-btn-primary-bg); color: var(--fe-color-btn-primary-text);
+  border-color: transparent; font-weight: 600;
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-day-count { background: var(--sa-chip); color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-mlist-day-pill.is-active .fe-mlist-day-count {
+  background: rgba(255, 252, 240, 0.22); color: inherit;
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-link-list { border-top-color: var(--sa-hair); }
+body[data-fe-theme="sanctuary"] .fe-mlist-day-section-heading {
+  font-weight: 500; font-size: 1.6rem; border-bottom-color: var(--sa-hair); color: var(--sa-ink);
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-day-section-count {
+  background: var(--sa-clay-wash); color: var(--sa-clay);
+  font-family: var(--fe-font-body);
+}
+
+/* ===== Meetings list ======================================================
+   The most used page. Each meeting is a paper leaf in three columns: logo,
+   the who/when, and what to do. Times are set large in Lora with lining
+   figures so a newcomer finds "when" first; labels are quiet italics. */
+body[data-fe-theme="sanctuary"] .fe-mlist-card { border-radius: var(--sa-radius); }
+@media (min-width: 901px) {
+  body[data-fe-theme="sanctuary"] .fe-mlist-card.is-3col { gap: 32px; padding: 26px 28px; }
+  body[data-fe-theme="sanctuary"] .fe-mlist-card.is-3col .fe-mlist-card-name { font-size: 1.7rem; line-height: 1.15; }
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-card-col-logo,
+body[data-fe-theme="sanctuary"] .fe-mlist-card.is-3col:not(.has-logo) .fe-mlist-card-col-logo {
+  background: var(--sa-sand); border-radius: 14px;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-mlist-card-col-logo { background: rgba(255, 240, 214, 0.05); }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-name { font-weight: 500; letter-spacing: -0.015em; }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-name a:hover { color: var(--sa-link); }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-times { gap: 14px 32px; }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-times-cell dt,
+body[data-fe-theme="sanctuary"] .fe-mlist-card-zoom-creds dt {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 400; font-size: 0.86rem; color: var(--sa-ink-soft);
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-card-times-cell dd {
+  font-size: 1.32rem; font-weight: 600; letter-spacing: -0.01em;
+  font-variant-numeric: lining-nums tabular-nums; word-spacing: -0.15em; color: var(--sa-ink);
+}
+/* "Starts" is the time people come for: give it the clay accent. */
+body[data-fe-theme="sanctuary"] .fe-mlist-card-times-cell:first-child dd { color: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-dur-chip {
+  background: transparent; border: 1px solid var(--sa-line); color: var(--sa-ink-soft);
+  font-weight: 500;
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-card-also { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-desc { color: var(--sa-ink-soft); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-mlist-card .fe-mlist-card-desc { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-mlist-card.is-3col .fe-mlist-card-col-actions { border-left-color: var(--sa-hair); border-top-color: var(--sa-hair); }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-conf-label { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-zoom-creds code,
+body[data-fe-theme="sanctuary"] .fe-mlist-card-row-text code {
+  background: var(--sa-sand); color: var(--sa-ink); border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-mlist-card-zoom-creds code { background: rgba(255, 240, 214, 0.07); }
+body[data-fe-theme="sanctuary"] .fe-copy-btn.fe-mlist-copy:hover code { background: var(--sa-sage-wash); }
+body[data-fe-theme="sanctuary"] .fe-copy-btn.fe-mlist-copy.is-copied::after { background: var(--sa-sage); color: #fbf6ec; box-shadow: none; }
+body[data-fe-theme="sanctuary"] .fe-copy-btn.fe-mlist-copy.is-copied::before { border-top-color: var(--sa-sage); }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-loc-name { font-weight: 600; }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-loc-line { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-permalink { color: var(--sa-link); font-weight: 500; }
+body[data-fe-theme="sanctuary"] .fe-mlist-card-sched {
+  background: var(--sa-sage-wash); border-color: color-mix(in srgb, var(--sa-sage) 22%, transparent);
+}
+body[data-fe-theme="sanctuary"] .fe-mlist-card-alert {
+  background: color-mix(in srgb, #d9a53a 16%, var(--sa-card)); color: var(--sa-ink);
+  border-color: color-mix(in srgb, #d9a53a 60%, transparent); border-radius: 12px;
+}
+
+/* Pro Tips under the list. */
+body[data-fe-theme="sanctuary"] .fe-mlist-protips-head h2 { font-weight: 500; font-size: 1.9rem; }
+body[data-fe-theme="sanctuary"] .fe-mlist-protips-head p {
+  font-family: var(--sa-read); font-style: italic; font-size: 0.98rem; color: var(--sa-ink-soft);
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-mlist-protips-head h2 { color: var(--sa-ink); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-mlist-protips-head p { color: var(--sa-ink-soft); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-mlist-protips-inline .fe-protips-icon { background: var(--sa-sage-wash); color: var(--sa-sage); }
+body[data-fe-theme="sanctuary"] .fe-mlist-protips-inline .fe-faq-item.is-open { border-color: color-mix(in srgb, var(--sa-sage) 45%, transparent); }
+
+/* ===== Meeting, event and announcement detail =============================
+   One family: a Lora title over an italic summary, then small paper cards
+   whose heads read like chapter labels (icon in a leaf, sentence case). */
+body[data-fe-theme="sanctuary"] .fe-meeting-detail,
+body[data-fe-theme="sanctuary"] .fe-event-detail { background: var(--tpl-bg, transparent); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-detail,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail { background: var(--tpl-bg-dark, transparent); }
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-back,
+body[data-fe-theme="sanctuary"] .fe-event-detail-back,
+body[data-fe-theme="sanctuary"] .fe-blog-cls-back,
+body[data-fe-theme="sanctuary"] .fe-story-mag-back,
+body[data-fe-theme="sanctuary"] .fe-events-archive-back {
+  color: var(--sa-link); font-weight: 500; font-size: 0.92rem;
+}
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-back:hover,
+body[data-fe-theme="sanctuary"] .fe-event-detail-back:hover,
+body[data-fe-theme="sanctuary"] .fe-blog-cls-back:hover,
+body[data-fe-theme="sanctuary"] .fe-story-mag-back:hover { color: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-head { align-items: center; margin-bottom: 3.5rem; }
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-head-logo .fe-meeting-logo {
+  border-radius: 22px;
+  background: var(--sa-card); padding: 18px; box-shadow: var(--sa-shadow);
+  border: 1px solid var(--sa-line);
+}
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-head h1,
+body[data-fe-theme="sanctuary"] .fe-event-detail-head h1 {
+  font-weight: 500; letter-spacing: -0.025em; line-height: 1.06;
+  font-size: var(--tpl-heading-size, clamp(2.4rem, 5vw, 3.6rem));
+  color: var(--sa-ink);
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-detail-head h1,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail-head h1 { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-event-detail-summary {
+  font-family: var(--sa-read); font-style: italic; font-size: 1.22rem; line-height: 1.55;
+  color: var(--sa-ink-soft);
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail-summary { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-desc,
+body[data-fe-theme="sanctuary"] .fe-event-detail-desc { max-width: 68ch; line-height: 1.75; }
+body[data-fe-theme="sanctuary"] .fe-copy-btn.fe-copy-url-pill {
+  text-transform: none; letter-spacing: 0.01em; font-size: 0.78rem; font-weight: 600;
+  padding: 3px 12px; color: var(--sa-ink-soft); border-color: var(--sa-line);
+}
+body[data-fe-theme="sanctuary"] .fe-copy-btn.fe-copy-url-pill:hover { color: var(--sa-link); border-color: var(--sa-sage); }
+body[data-fe-theme="sanctuary"] .fe-copy-btn.fe-copy-url-pill.is-copied { background: var(--sa-sage); border-color: var(--sa-sage); color: #fbf6ec; }
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-card,
+body[data-fe-theme="sanctuary"] .fe-event-detail-card,
+body[data-fe-theme="sanctuary"] .fe-meeting-resources { border-radius: var(--sa-radius); padding: 26px; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail-card { background: var(--sa-card); border-color: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-card h3,
+body[data-fe-theme="sanctuary"] .fe-event-detail-card h3,
+body[data-fe-theme="sanctuary"] .fe-meeting-resources h3 {
+  gap: 12px; margin: 0 0 18px;
+  font-family: var(--fe-font-heading); font-weight: 500; font-size: 1.22rem;
+  text-transform: none; letter-spacing: -0.01em; color: var(--sa-ink);
+}
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-card h3 .icon,
+body[data-fe-theme="sanctuary"] .fe-event-detail-card h3 .icon,
+body[data-fe-theme="sanctuary"] .fe-meeting-resources h3 .icon {
+  box-sizing: content-box; width: 16px; height: 16px; padding: 8px;
+  border-radius: 50% 50% 50% 12%; background: var(--sa-sage-wash); color: var(--sa-sage);
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail-card h3 { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-meeting-resources-group h4 {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 400; font-size: 0.92rem; color: var(--sa-ink-soft);
+}
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-day,
+body[data-fe-theme="sanctuary"] .fe-event-detail-day {
+  font-family: var(--fe-font-heading); font-weight: 600; font-size: 1.15rem; color: var(--sa-ink);
+}
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-time,
+body[data-fe-theme="sanctuary"] .fe-event-detail-time {
+  font-size: 1.05rem; color: var(--sa-ink); font-variant-numeric: lining-nums tabular-nums;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-detail-day,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-detail-time,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-detail-location,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail-day,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail-time,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail-location { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-creds dt,
+body[data-fe-theme="sanctuary"] .fe-event-detail-creds dt {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 400; font-size: 0.92rem; color: var(--sa-ink-soft);
+}
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-creds code,
+body[data-fe-theme="sanctuary"] .fe-event-detail-creds code,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-meeting-detail-creds code,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail-creds code {
+  background: var(--sa-sand); border-color: transparent; color: var(--sa-ink); border-radius: 8px;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail-card .fe-btn-primary {
+  background: var(--fe-color-btn-primary-bg) !important;   /* beats frontend.css's !important navy mix */
+  color: var(--fe-color-btn-primary-text) !important;
+  border-color: var(--fe-color-btn-primary-bg) !important;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-event-detail-card .fe-btn-primary:hover {
+  background: var(--fe-color-btn-primary-hover-bg) !important;
+  border-color: var(--fe-color-btn-primary-hover-bg) !important;
+}
+body[data-fe-theme="sanctuary"] .fe-event-detail-cover {
+  border-radius: var(--sa-radius); border: 0;
+}
+body[data-fe-theme="sanctuary"] .fe-event-detail-cover-zoom { background: rgba(46, 49, 39, 0.6); }
+body[data-fe-theme="sanctuary"] .fe-detail-submit-cta {
+  border: 1px dashed color-mix(in srgb, var(--sa-clay) 45%, transparent);
+  background: var(--sa-clay-wash); border-radius: var(--sa-radius);
+}
+body[data-fe-theme="sanctuary"] .fe-detail-submit-cta h3 { font-weight: 500; font-size: 1.12rem; color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-detail-submit-cta p,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-detail-submit-cta p { color: var(--sa-ink-soft); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-detail-submit-cta h3 { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-meeting-detail-alert {
+  background: color-mix(in srgb, #d9a53a 16%, var(--sa-card)); color: var(--sa-ink);
+  border-color: color-mix(in srgb, #d9a53a 60%, transparent); border-radius: 12px;
+}
+
+/* ===== Events and announcements lists =====================================
+   The omni switcher is a sand track with a sage leaf for the active view.
+   Dates read like a book's running head: italic clay month over a Lora
+   numeral. Announcements keep a reading measure even on wide screens. */
+body[data-fe-theme="sanctuary"] .fe-events-list-omni .fe-mlist-head h1,
+body[data-fe-theme="sanctuary"] .fe-announcements-list .fe-mlist-head h1 { font-size: clamp(2.2rem, 1.6rem + 2vw, 3.2rem); }
+body[data-fe-theme="sanctuary"] .fe-events-list-omni .fe-mlist-head::after,
+body[data-fe-theme="sanctuary"] .fe-announcements-list .fe-mlist-head::after {
+  content: ""; display: block; width: 120px; height: 16px; margin: 16px auto 0;
+  background: var(--sa-leaf) center / contain no-repeat;
+}
+html body[data-fe-theme="sanctuary"] .fe-events-omni-tabs,
+html body[data-fe-theme="sanctuary"] a.fe-events-omni-archive {
+  background: var(--sa-sand); box-shadow: inset 0 0 0 1px var(--sa-hair);
+}
+body[data-fe-theme="sanctuary"] .fe-events-omni-tab,
+body[data-fe-theme="sanctuary"] a.fe-events-omni-archive { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-events-omni-tab:hover,
+body[data-fe-theme="sanctuary"] a.fe-events-omni-archive:hover { color: var(--sa-ink); background: var(--sa-chip); }
+html body[data-fe-theme="sanctuary"] .fe-events-omni-tab.is-active,
+html body[data-fe-theme="sanctuary"] .fe-events-omni-tab.is-active:hover {
+  background: var(--fe-color-btn-primary-bg); color: var(--fe-color-btn-primary-text);
+  box-shadow: 0 2px 8px -2px rgba(46, 49, 39, 0.35);
+}
+
+body[data-fe-theme="sanctuary"] .fe-events-mag-hero,
+body[data-fe-theme="sanctuary"] .fe-events-card,
+body[data-fe-theme="sanctuary"] .fe-announcements-card { border-radius: var(--sa-radius); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-events-mag-hero,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-events-card,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-announcements-card { background: var(--sa-card); border-color: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-events-mag-hero-body { padding: 36px 40px; gap: 14px; }
+body[data-fe-theme="sanctuary"] .fe-events-mag-hero-eyebrow,
+body[data-fe-theme="sanctuary"] .fe-stories-mag-hero-eyebrow,
+body[data-fe-theme="sanctuary"] .fe-story-mag-eyebrow {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 500; font-size: 1rem; color: var(--sa-clay);
+}
+body[data-fe-theme="sanctuary"] .fe-events-mag-hero-day { font-size: 1.2rem; font-weight: 600; }
+body[data-fe-theme="sanctuary"] .fe-events-mag-hero-title { font-weight: 500; font-size: clamp(1.9rem, 1.5rem + 1vw, 2.5rem); letter-spacing: -0.02em; }
+body[data-fe-theme="sanctuary"] .fe-events-mag-hero-summary { color: var(--sa-ink-soft); line-height: 1.65; }
+body[data-fe-theme="sanctuary"] .fe-events-mag-hero-tag { background: var(--sa-sage-wash); color: var(--sa-link); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-events-mag-hero .fe-btn-primary {
+  background: var(--fe-color-btn-primary-bg) !important;   /* beats frontend.css's !important navy mix */
+  border-color: var(--fe-color-btn-primary-bg) !important;
+  color: var(--fe-color-btn-primary-text) !important;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-events-mag-hero .fe-btn-primary:hover {
+  background: var(--fe-color-btn-primary-hover-bg) !important;
+  border-color: var(--fe-color-btn-primary-hover-bg) !important;
+}
+body[data-fe-theme="sanctuary"] .fe-events-mag-rest-head { font-weight: 500; font-size: 1.5rem; }
+body[data-fe-theme="sanctuary"] .fe-events-card-date,
+body[data-fe-theme="sanctuary"] .fe-events-tl-date {
+  background: var(--sa-paper); color: var(--sa-ink);
+  border: 1px solid var(--sa-line); box-shadow: none;
+}
+body[data-fe-theme="sanctuary"] .fe-events-card-date-month,
+body[data-fe-theme="sanctuary"] .fe-events-tl-month,
+body[data-fe-theme="sanctuary"] .fe-events-mag-grid .fe-events-card-date-month {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 500; color: var(--sa-clay);
+}
+body[data-fe-theme="sanctuary"] .fe-events-card-date-day { font-weight: 500; }
+body[data-fe-theme="sanctuary"] .fe-events-mag-grid .fe-events-card-date { border-radius: 999px; padding: 4px 12px; gap: 5px; }
+body[data-fe-theme="sanctuary"] .fe-events-mag-grid .fe-events-card-date-month { font-size: 0.86rem; }
+body[data-fe-theme="sanctuary"] .fe-events-mag-grid .fe-events-card-date-day { font-size: 0.86rem; font-weight: 600; }
+body[data-fe-theme="sanctuary"] .fe-events-mag-grid .fe-events-card-cover { border-radius: calc(var(--sa-radius) - 1px) calc(var(--sa-radius) - 1px) 0 0; }
+body[data-fe-theme="sanctuary"] .fe-events-card-title,
+body[data-fe-theme="sanctuary"] .fe-announcements-card-title { font-weight: 500; letter-spacing: -0.012em; }
+body[data-fe-theme="sanctuary"] .fe-events-card-title a:hover,
+body[data-fe-theme="sanctuary"] .fe-announcements-card-title a:hover { color: var(--sa-link); text-decoration: none; }
+body[data-fe-theme="sanctuary"] .fe-events-card-meta,
+body[data-fe-theme="sanctuary"] .fe-announcements-card-meta,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-announcements-card-meta { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-events-card-summary,
+body[data-fe-theme="sanctuary"] .fe-events-card-body-preview { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-card-read-more,
+body[data-fe-theme="sanctuary"] .fe-announcements-card-cta { color: var(--sa-link); }
+body[data-fe-theme="sanctuary"] .fe-card-read-more:hover { color: var(--sa-clay); }
+
+/* Calendar and timeline views (alternate layouts of the same lists). */
+body[data-fe-theme="sanctuary"] .fe-events-cal {
+  background: var(--sa-card); border-color: var(--sa-line); border-radius: var(--sa-radius);
+  box-shadow: var(--sa-shadow);
+}
+body[data-fe-theme="sanctuary"] .fe-events-cal-grid { background: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-events-cal-cell { background: var(--sa-card); }
+body[data-fe-theme="sanctuary"] .fe-events-cal-cell.is-out { background: var(--sa-paper); }
+body[data-fe-theme="sanctuary"] .fe-events-cal-cell.is-today .fe-events-cal-cell-num { background: var(--sa-clay); color: #fbf6ec; }
+body[data-fe-theme="sanctuary"] .fe-events-cal-chip { background: var(--sa-sage-wash); border-left-color: var(--sa-sage); }
+body[data-fe-theme="sanctuary"] .fe-events-cal-chip.is-online { background: var(--sa-clay-wash); border-left-color: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-events-cal-list-day { color: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-events-tl::before,
+body[data-fe-theme="sanctuary"] .fe-events-tl-row--left .fe-events-tl-card::after,
+body[data-fe-theme="sanctuary"] .fe-events-tl-row--right .fe-events-tl-card::after { background: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-events-tl-card { background: var(--sa-card); border-color: var(--sa-line); border-radius: var(--sa-radius); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-events-cal,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-events-tl-card { background: var(--sa-card); border-color: var(--sa-line); }
+
+/* Announcements: cards hold full text, so they keep a reading width. */
+body[data-fe-theme="sanctuary"] .fe-announcements-stack { max-width: 900px; margin-left: auto; margin-right: auto; gap: 24px; }
+body[data-fe-theme="sanctuary"] .fe-announcements-card { padding: 30px 34px; }
+body[data-fe-theme="sanctuary"] .fe-announcements-card-title { font-size: 1.6rem; line-height: 1.2; }
+body[data-fe-theme="sanctuary"] .fe-announcements-card-fulltext { font-size: 1rem; line-height: 1.7; max-width: 68ch; overflow-wrap: anywhere; }
+body[data-fe-theme="sanctuary"] .fe-announcements-card-fulltext li::marker { color: var(--sa-sage); }
+body[data-fe-theme="sanctuary"] .fe-announcements-card-cover { border-radius: 12px; background: var(--sa-sand); }
+/* GSR summary: already a printed sheet; set it on the theme's paper. */
+body[data-fe-theme="sanctuary"] .fe-announcements-gsr-paper {
+  background: var(--sa-card); color: var(--sa-ink); border-radius: 6px;
+  box-shadow: var(--sa-shadow-lg); border: 1px solid var(--sa-line);
+  font-family: var(--sa-read);
+}
+body[data-fe-theme="sanctuary"] .fe-announcements-gsr-paper-head { border-bottom-color: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-announcements-gsr-paper-head h2,
+body[data-fe-theme="sanctuary"] .fe-announcements-gsr-title { font-family: var(--fe-font-heading); font-weight: 500; }
+body[data-fe-theme="sanctuary"] .fe-announcements-gsr-paper-head p,
+body[data-fe-theme="sanctuary"] .fe-announcements-gsr-summary { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-announcements-gsr-item::marker { color: var(--sa-clay); font-family: var(--fe-font-heading); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-announcements-gsr-paper { background: var(--sa-card); color: var(--sa-ink); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-announcements-gsr-summary,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-announcements-gsr-paper-head p { color: var(--sa-ink-soft); }
+
+/* ===== Stories and blog ===================================================
+   These templates carry their own palettes (inline <style> blocks with
+   per-template variables). Re-point every template's variables at the
+   theme so all layouts sit on the same paper, not only the live ones.
+   The background stays the admin's template background when one is set. */
+body[data-fe-theme="sanctuary"] {
+  --surface: transparent; --surface-alt: var(--sa-card); --ink: var(--sa-ink);
+  --fe-color-muted: var(--sa-ink-soft);
+  --tpl-heading-font: var(--fe-font-heading);
+}
+body[data-fe-theme="sanctuary"] :is(.fe-blog-post-classic, .fe-blog-post-cover, .fe-blog-post-longform,
+  .fe-blog-post-modern, .fe-blog-cards, .fe-blog-magazine, .fe-blog-minimal, .fe-blog-mosaic, .fe-blog-sidebar) {
+  --blog-bg: var(--tpl-bg, transparent); --blog-card: var(--sa-card); --blog-ink: var(--sa-ink);
+  --blog-ink-soft: var(--sa-ink-soft); --blog-rule: var(--sa-line); --blog-accent: var(--sa-clay);
+}
+body[data-fe-theme="sanctuary"] .fe-blog-gazette {
+  --gaz-paper: var(--sa-card); --gaz-paper-edge: var(--sa-line); --gaz-ink: var(--sa-ink);
+  --gaz-ink-soft: var(--sa-ink-soft); --gaz-rule: var(--sa-line); --gaz-accent: var(--sa-clay);
+}
+body[data-fe-theme="sanctuary"] .fe-story-mag { --m-bg: var(--tpl-bg, transparent); --m-card: var(--sa-card); --m-ink: var(--sa-ink); --m-ink-soft: var(--sa-ink-soft); --m-rule: var(--sa-line); --m-accent: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-stories-mag { --mag-bg: var(--tpl-bg, transparent); --mag-card: var(--sa-card); --mag-ink: var(--sa-ink); --mag-ink-soft: var(--sa-ink-soft); --mag-rule: var(--sa-line); --mag-accent: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-story-anth { --an-bg: var(--tpl-bg, transparent); --an-ink: var(--sa-ink); --an-ink-soft: var(--sa-ink-soft); --an-rule: var(--sa-line); --an-accent: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-story-journal { --jr-bg: var(--tpl-bg, transparent); --jr-ink: var(--sa-ink); --jr-ink-soft: var(--sa-ink-soft); --jr-rule: var(--sa-line); --jr-accent: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-story-letter { --lt-bg: var(--tpl-bg, transparent); --lt-ink: var(--sa-ink); --lt-ink-soft: var(--sa-ink-soft); --lt-rule: var(--sa-line); --lt-accent: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-story-paper { --pp-bg: var(--tpl-bg, transparent); --pp-ink: var(--sa-ink); --pp-ink-soft: var(--sa-ink-soft); --pp-rule: var(--sa-line); --pp-accent: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-stories-broadsheet { --bs-bg: var(--tpl-bg, transparent); --bs-ink: var(--sa-ink); --bs-ink-soft: var(--sa-ink-soft); --bs-rule: var(--sa-line); --bs-accent: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-stories-ledger { --led-bg: var(--tpl-bg, transparent); --led-ink: var(--sa-ink); --led-ink-soft: var(--sa-ink-soft); --led-rule: var(--sa-line); --led-accent: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-stories-manuscript { --ms-bg: var(--tpl-bg, transparent); --ms-ink: var(--sa-ink); --ms-ink-soft: var(--sa-ink-soft); --ms-rule: var(--sa-line); --ms-accent: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-stories-minimal { --min-bg: var(--tpl-bg, transparent); --min-ink: var(--sa-ink); --min-ink-soft: var(--sa-ink-soft); --min-rule: var(--sa-line); --min-accent: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-stories-paper-stack { --paper-bg: var(--tpl-bg, transparent); --paper-card: var(--sa-card); --paper-ink: var(--sa-ink); --paper-ink-soft: var(--sa-ink-soft); --paper-rule: var(--sa-line); }
+
+/* Long reading: the best-set text on the site. Lora at a comfortable size
+   and leading, a 64ch measure, a three-line clay drop cap, pull quotes
+   set large in italic between hairlines, sage list markers. Applies to
+   story bodies and blog post bodies. */
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) {
+  font-family: var(--tpl-body-font, var(--sa-read));
+  font-size: 1.16rem; line-height: 1.8; color: var(--sa-ink);
+  max-width: 64ch;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+}
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) p { margin: 0 0 1.25em; }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) > p:first-of-type::first-letter {
+  float: left; font-family: var(--fe-font-heading); font-weight: 500; font-style: normal;
+  font-size: 4.3em; line-height: 0.8; padding: 0.06em 0.09em 0 0; margin-right: 0.02em;
+  color: var(--sa-clay);
+}
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) :is(h2, h3) {
+  font-family: var(--fe-font-heading); font-weight: 500; letter-spacing: -0.015em;
+  line-height: 1.2; color: var(--sa-ink);
+}
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) h2 { font-size: 1.65rem; margin: 2.2em 0 0.7em; }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) h3 { font-size: 1.3rem; margin: 1.8em 0 0.6em; }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) a {
+  color: var(--sa-link); text-decoration: underline; text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em; text-decoration-color: color-mix(in srgb, var(--sa-link) 45%, transparent);
+  border-bottom: 0;
+}
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) a:hover { color: var(--sa-clay); text-decoration-color: currentColor; }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) blockquote {
+  margin: 2em 0; padding: 1.1em 0 1.1em; border: 0;
+  border-top: 1px solid var(--sa-line); border-bottom: 1px solid var(--sa-line);
+  font-family: var(--sa-read); font-style: italic; font-size: 1.35em; line-height: 1.5;
+  color: var(--sa-ink); text-align: center;
+}
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) blockquote::before {
+  content: "\201C"; display: block; height: 0.55em; margin-bottom: 0.15em;
+  font-size: 2.4em; line-height: 1; color: var(--sa-clay); font-style: normal;
+}
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) blockquote p { margin: 0; }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) :is(ul, ol) { padding-left: 1.3em; margin: 0 0 1.25em; }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) li { margin: 0.35em 0; padding-left: 0.2em; }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) ul { list-style: none; }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) ul > li { position: relative; }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) ul > li::before {
+  content: ""; position: absolute; left: -1.05em; top: 0.68em; width: 0.42em; height: 0.42em;
+  border-radius: 0 60% 0 60%; background: var(--sa-sage);
+}
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) ol > li::marker { color: var(--sa-clay); font-family: var(--fe-font-heading); }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) hr {
+  border: 0; height: 16px; margin: 2.4em auto; width: 120px;
+  background: var(--sa-leaf) center / contain no-repeat;
+}
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) img { border-radius: 12px; }
+body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) code {
+  font-size: 0.85em; background: var(--sa-sand); border-radius: 5px; padding: 0.1em 0.35em;
+}
+
+/* Story detail (magazine): the title sits on a warm olive-brown shade
+   over the cover image instead of a black one. */
+body[data-fe-theme="sanctuary"] .fe-story-mag { font-family: var(--fe-font-body); }
+body[data-fe-theme="sanctuary"] .fe-story-mag-hero { min-height: 62vh; }
+body[data-fe-theme="sanctuary"] .fe-story-mag-hero-shade {
+  background: linear-gradient(180deg, rgba(36, 32, 22, 0) 30%, rgba(36, 32, 22, 0.45) 62%, rgba(30, 26, 18, 0.88) 100%);
+}
+body[data-fe-theme="sanctuary"] .fe-story-mag-hero-content { max-width: 64ch; }
+body[data-fe-theme="sanctuary"] .fe-story-mag-hero-overlay .fe-story-mag-eyebrow { color: #f0c9a6; }
+body[data-fe-theme="sanctuary"] .fe-story-mag-title { font-weight: 500; letter-spacing: -0.025em; }
+body[data-fe-theme="sanctuary"] .fe-story-mag-hero-overlay .fe-story-mag-title { color: #fbf5e8; }
+body[data-fe-theme="sanctuary"] .fe-story-mag-hero-meta { font-family: var(--sa-read); font-style: italic; font-size: 1.05rem; }
+body[data-fe-theme="sanctuary"] .fe-story-mag-room { max-width: calc(64ch + 6rem); }
+body[data-fe-theme="sanctuary"] .fe-story-mag-back { font-family: var(--sa-read); font-style: italic; font-size: 1rem; }
+body[data-fe-theme="sanctuary"] .fe-story-mag-meta-label { text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic; font-size: 0.9rem; }
+body[data-fe-theme="sanctuary"] .fe-story-mag-bio {
+  border: 1px solid var(--sa-line); border-left: 0; border-radius: var(--sa-radius);
+  background: var(--sa-card); box-shadow: var(--sa-shadow); padding: 1.6rem 1.8rem;
+}
+body[data-fe-theme="sanctuary"] .fe-story-mag-bio h2 {
+  font-family: var(--sa-read); font-style: italic; font-weight: 400; text-transform: none;
+  letter-spacing: 0; font-size: 0.95rem; color: var(--sa-clay);
+}
+body[data-fe-theme="sanctuary"] .fe-story-mag-foot { border-top: 0; text-align: center; }
+body[data-fe-theme="sanctuary"] .fe-story-mag-foot::before {
+  content: ""; display: block; width: 120px; height: 16px; margin: 0 auto 1.4rem;
+  background: var(--sa-leaf) center / contain no-repeat;
+}
+body[data-fe-theme="sanctuary"] .fe-story-mag-foot a { border-bottom: 0; color: var(--sa-link); font-family: var(--sa-read); font-style: italic; font-size: 1.1rem; font-weight: 500; }
+body[data-fe-theme="sanctuary"] .fe-story-mag-foot a:hover { color: var(--sa-clay); }
+
+/* Stories list (magazine): leaves of paper with soft warm shadows. */
+body[data-fe-theme="sanctuary"] .fe-stories-mag-title { font-weight: 500; letter-spacing: -0.025em; }
+body[data-fe-theme="sanctuary"] .fe-stories-mag-sub { font-family: var(--sa-read); font-style: italic; font-size: 1.12rem; }
+body[data-fe-theme="sanctuary"] .fe-stories-mag-head::after {
+  content: ""; display: block; width: 120px; height: 16px; margin: 1.4rem auto 0;
+  background: var(--sa-leaf) center / contain no-repeat;
+}
+body[data-fe-theme="sanctuary"] .fe-stories-submit-wrap { margin-top: 1.5rem; }
+body[data-fe-theme="sanctuary"] :is(.fe-stories-mag-hero, .fe-stories-mag-card) {
+  border: 1px solid var(--sa-line); border-radius: var(--sa-radius); box-shadow: var(--sa-shadow);
+}
+body[data-fe-theme="sanctuary"] :is(.fe-stories-mag-hero, .fe-stories-mag-card):hover {
+  transform: translateY(-2px); box-shadow: var(--sa-shadow-lg);
+  border-color: color-mix(in srgb, var(--sa-clay) 35%, var(--sa-line));
+}
+body[data-fe-theme="sanctuary"] .fe-page :is(.fe-stories-mag-hero, .fe-stories-mag-card) { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-page :is(.fe-stories-mag-hero, .fe-stories-mag-card):hover :is(.fe-stories-mag-hero-title, .fe-stories-mag-card-title) { color: var(--sa-link); }
+body[data-fe-theme="sanctuary"] .fe-stories-mag-hero-img { aspect-ratio: auto; min-height: 320px; }
+body[data-fe-theme="sanctuary"] .fe-stories-mag-hero-title,
+body[data-fe-theme="sanctuary"] .fe-stories-mag-card-title { font-weight: 500; letter-spacing: -0.015em; }
+body[data-fe-theme="sanctuary"] .fe-stories-mag-hero-deck,
+body[data-fe-theme="sanctuary"] .fe-stories-mag-card-deck { font-family: var(--sa-read); line-height: 1.65; }
+body[data-fe-theme="sanctuary"] .fe-stories-mag-hero-meta,
+body[data-fe-theme="sanctuary"] .fe-stories-mag-card-meta { letter-spacing: 0; font-family: var(--sa-read); font-style: italic; }
+body[data-fe-theme="sanctuary"] .fe-stories-mag-card-pin { background: var(--sa-clay); text-transform: none; letter-spacing: 0.01em; font-size: 0.72rem; }
+body[data-fe-theme="sanctuary"] :is(.fe-stories-mag-hero-fallback, .fe-stories-mag-card-fallback) {
+  background: radial-gradient(circle at 30% 25%, rgba(255, 250, 238, 0.5), transparent 45%),
+              linear-gradient(135deg, #c7d5c1, #b98a66);
+}
+
+/* Blog list (cards) and post (classic). */
+body[data-fe-theme="sanctuary"] .fe-blog-cards-title,
+body[data-fe-theme="sanctuary"] .fe-blog-cls-title { font-weight: 500; letter-spacing: -0.025em; }
+body[data-fe-theme="sanctuary"] .fe-blog-cards-sub { font-family: var(--sa-read); font-style: italic; font-size: 1.12rem; }
+body[data-fe-theme="sanctuary"] .fe-blog-cards-head::after {
+  content: ""; display: block; width: 120px; height: 16px; margin: 1.2rem auto 0;
+  background: var(--sa-leaf) center / contain no-repeat;
+}
+body[data-fe-theme="sanctuary"] .fe-blog-cards-cat { border-radius: 999px; background: transparent; }
+body[data-fe-theme="sanctuary"] .fe-blog-cards-cat.is-active { background: var(--fe-color-btn-primary-bg); border-color: var(--fe-color-btn-primary-bg); color: var(--fe-color-btn-primary-text); }
+body[data-fe-theme="sanctuary"] :is(.fe-blog-cards-cat-chip, .fe-blog-cls-cat) {
+  text-transform: none; letter-spacing: 0; border-radius: 999px; font-weight: 600; font-size: 0.78rem;
+}
+body[data-fe-theme="sanctuary"] .fe-blog-cards-card-title { font-weight: 500; font-size: 1.32rem; letter-spacing: -0.012em; }
+body[data-fe-theme="sanctuary"] .fe-blog-cards-art { background: var(--sa-sand); }
+body[data-fe-theme="sanctuary"] .fe-blog-cards-meta { font-family: var(--sa-read); font-style: italic; font-size: 0.86rem; }
+body[data-fe-theme="sanctuary"] .fe-blog-cls-title { font-size: clamp(2.2rem, 4.5vw, 3.3rem); line-height: 1.06; }
+body[data-fe-theme="sanctuary"] .fe-blog-cls-byline { font-family: var(--sa-read); font-style: italic; font-size: 0.98rem; }
+body[data-fe-theme="sanctuary"] .fe-blog-cls-byline b { font-style: normal; font-weight: 600; color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-blog-cls-widget-title {
+  text-transform: none; letter-spacing: -0.005em; font-family: var(--fe-font-heading);
+  font-weight: 500; font-size: 1.15rem;
+}
+body[data-fe-theme="sanctuary"] .fe-blog-cls-related a > div > span { font-weight: 500; }
+body[data-fe-theme="sanctuary"] .fe-blog-cls-related time { font-family: var(--sa-read); font-style: italic; font-size: 0.8rem; }
+
+/* ===== Library, fellowships, archive and site index ======================= */
+body[data-fe-theme="sanctuary"] .fe-library-item { border-radius: 14px; padding: 14px 16px; gap: 16px; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-library-item { background: var(--sa-card); border-color: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-library-item-title { font-family: var(--fe-font-heading); font-weight: 500; font-size: 1.12rem; }
+body[data-fe-theme="sanctuary"] .fe-library-item-title a,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-library-item-title a { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-library-item-title a:hover { color: var(--sa-link); text-decoration: none; }
+body[data-fe-theme="sanctuary"] .fe-library-item-summary { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-library-thumb,
+body[data-fe-theme="sanctuary"] .fe-library-ftype { border-radius: 10px; }
+body[data-fe-theme="sanctuary"] .fe-library-ftype {
+  background: var(--sa-clay-wash); color: var(--sa-clay);
+  border-color: color-mix(in srgb, var(--sa-clay) 25%, transparent);
+}
+body[data-fe-theme="sanctuary"] .fe-library-item-ext-marker,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-library-item-ext-marker { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-library-section-desc,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-library-section-desc {
+  font-family: var(--sa-read); font-style: italic; color: var(--sa-ink-soft);
+}
+body[data-fe-theme="sanctuary"] .fe-fellowships-card { border-radius: 14px; padding: 18px 20px; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-fellowships-card { background: var(--sa-card); border-color: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-fellowships-card-title { font-weight: 500; font-size: 1.2rem; }
+body[data-fe-theme="sanctuary"] .fe-fellowships-card-chip {
+  text-transform: none; letter-spacing: 0.01em; font-weight: 600; font-size: 0.76rem;
+  background: var(--sa-clay-wash); color: var(--sa-clay); border-color: color-mix(in srgb, var(--sa-clay) 26%, transparent);
+}
+body[data-fe-theme="sanctuary"] .fe-fellowships-card-chip--virtual {
+  background: var(--sa-sage-wash); color: var(--sa-link); border-color: color-mix(in srgb, var(--sa-sage) 28%, transparent);
+}
+body[data-fe-theme="sanctuary"] .fe-fellowships-card-where { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-fellowships-card-cta a { color: var(--sa-link); }
+body[data-fe-theme="sanctuary"] .fe-archive-types-legend {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 400; font-size: 0.92rem; color: var(--sa-ink-soft);
+}
+body[data-fe-theme="sanctuary"] .fe-archive-type-check input,
+body[data-fe-theme="sanctuary"] .fe-submission-form .check input[type="checkbox"],
+body[data-fe-theme="sanctuary"] input[type="radio"] { accent-color: var(--fe-color-btn-primary-bg); }
+body[data-fe-theme="sanctuary"] .fe-mlist-sort select,
+body[data-fe-theme="sanctuary"] .fe-mlist select {
+  background-color: var(--sa-card); color: var(--sa-ink); border: 1px solid var(--sa-line); border-radius: 10px;
+}
+
+body[data-fe-theme="sanctuary"] .fe-site-index-title { font-weight: 500; letter-spacing: -0.025em; font-size: clamp(2.2rem, 1.6rem + 2vw, 3.2rem); }
+body[data-fe-theme="sanctuary"] .fe-site-index-blurb,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-site-index-blurb { font-family: var(--sa-read); font-style: italic; color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-site-index-head::after {
+  content: ""; display: block; width: 120px; height: 16px; margin: 1.2rem auto 0;
+  background: var(--sa-leaf) center / contain no-repeat;
+}
+body[data-fe-theme="sanctuary"] .fe-site-index-group-head,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-site-index-group-head { border-bottom-color: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-site-index-eyebrow {
+  text-transform: none; letter-spacing: -0.01em; font-family: var(--fe-font-heading);
+  font-weight: 500; font-size: 1.35rem; color: var(--sa-ink);
+}
+body[data-fe-theme="sanctuary"] .fe-site-index-count { background: var(--sa-clay-wash); color: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-site-index-list { gap: 0; }
+body[data-fe-theme="sanctuary"] .fe-site-index-row + .fe-site-index-row { border-top: 1px dashed var(--sa-hair); }
+body[data-fe-theme="sanctuary"] .fe-site-index-row-link { border-radius: 10px; padding: 12px 14px; }
+body[data-fe-theme="sanctuary"] .fe-site-index-row-link:hover,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-site-index-row-link:hover {
+  background: var(--sa-sage-wash); border-color: transparent;
+}
+body[data-fe-theme="sanctuary"] .fe-site-index-row-title { font-weight: 500; color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-site-index-row-sub { font-family: var(--sa-read); font-style: italic; color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-site-index-row-arrow { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-site-index-row-link:hover .fe-site-index-row-arrow { color: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-site-index-row-chip {
+  text-transform: none; letter-spacing: 0.01em; color: var(--sa-link);
+  background: var(--sa-sage-wash); border-color: color-mix(in srgb, var(--sa-sage) 24%, transparent);
+}
+
+/* ===== Forms: submission, story, contact and contact list ================
+   Paper cards with hairline fields; labels in the interface face, help in
+   quiet italics, focus as a soft sage ring. */
+body[data-fe-theme="sanctuary"] { --fe-color-text-muted: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-submission-section,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-submission-section { background: var(--fe-tpl-bg, transparent); }
+body[data-fe-theme="sanctuary"] .fe-submission-page-title { font-weight: 500; letter-spacing: -0.025em; font-size: clamp(2rem, 1.5rem + 1.6vw, 2.8rem); }
+body[data-fe-theme="sanctuary"] .fe-submission-page-blurb { font-family: var(--sa-read); font-style: italic; font-size: 1.05rem; }
+body[data-fe-theme="sanctuary"] .fe-submission-card,
+body[data-fe-theme="sanctuary"] .fe-contact-card {
+  border-radius: calc(var(--sa-radius) + 4px); box-shadow: var(--sa-shadow-lg);
+  background: var(--sa-card); border: 1px solid var(--sa-line);
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-submission-card,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-contact-card {
+  background: var(--sa-card); border-color: var(--sa-line); box-shadow: var(--sa-shadow-lg);
+}
+body[data-fe-theme="sanctuary"] .fe-submission-card:hover,
+body[data-fe-theme="sanctuary"] .fe-contact-card:hover { transform: none; box-shadow: var(--sa-shadow-lg); border-color: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-submission-form label { color: var(--sa-ink); font-weight: 500; }
+body[data-fe-theme="sanctuary"] .fe-submission-form .muted,
+body[data-fe-theme="sanctuary"] .fe-field-help { font-family: var(--sa-read); font-style: italic; color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-submission-form .req { color: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-submission-form :is(input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="datetime-local"], input[type="date"], input[type="time"], input[type="number"], input[type="file"], select, textarea),
+body[data-fe-theme="sanctuary"] .fe-rc-search-input {
+  background: var(--sa-paper); color: var(--sa-ink); border: 1px solid var(--sa-line); border-radius: 10px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-submission-form :is(input, textarea, select) {
+  background: #1a1611; color: var(--sa-ink); border-color: var(--sa-line);
+}
+body[data-fe-theme="sanctuary"] .fe-submission-form :is(input, textarea, select):hover { border-color: color-mix(in srgb, var(--sa-ink) 30%, transparent); }
+body[data-fe-theme="sanctuary"] .fe-submission-form :is(input, textarea, select):focus,
+body[data-fe-theme="sanctuary"] .fe-rc-search-input:focus {
+  outline: none; border-color: var(--sa-sage); box-shadow: var(--sa-ring); background: var(--sa-card);
+}
+body[data-fe-theme="sanctuary"] .fe-submission-form :is(input, textarea)::placeholder { color: color-mix(in srgb, var(--sa-ink-soft) 75%, transparent); }
+body[data-fe-theme="sanctuary"] .fe-submission-form fieldset,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-submission-form fieldset { border-color: var(--sa-line); border-radius: 14px; }
+body[data-fe-theme="sanctuary"] .fe-submission-form fieldset legend { font-family: var(--fe-font-heading); font-weight: 500; font-size: 1.02rem; color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-submission-public-warning {
+  background: color-mix(in srgb, #d9a53a 14%, transparent); color: var(--sa-ink);
+  border-color: color-mix(in srgb, #d9a53a 45%, transparent); border-radius: 10px;
+}
+body[data-fe-theme="sanctuary"] .fe-submission-public-warning strong { color: var(--sa-ink); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-submission-public-warning,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-submission-public-warning strong { color: var(--sa-ink); }
+
+/* Contact page and contact list share the aside + card layout. */
+body[data-fe-theme="sanctuary"] .fe-contact-eyebrow {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 500; font-size: 0.98rem; padding: 4px 14px;
+  background: var(--sa-clay-wash); color: var(--sa-clay);
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-contact-eyebrow { background: var(--sa-clay-wash); }
+body[data-fe-theme="sanctuary"] .fe-contact-title,
+body[data-fe-theme="sanctuary"] .fe-rc-main-title {
+  font-family: var(--fe-font-heading); font-weight: 500; letter-spacing: -0.025em; color: var(--sa-ink);
+}
+body[data-fe-theme="sanctuary"] .fe-contact-title { font-size: clamp(2.4rem, 1.6rem + 2.6vw, 3.6rem); line-height: 1.05; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-contact-title,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-main-title { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-contact-blurb { color: var(--sa-ink-soft); line-height: 1.65; }
+body[data-fe-theme="sanctuary"] .fe-contact-channel-icon,
+body[data-fe-theme="sanctuary"] .fe-rc-item-contact-icon,
+body[data-fe-theme="sanctuary"] .fe-rc-item-empty-icon,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-contact-channel-icon,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-item-contact-icon,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-item-empty-icon {
+  background: var(--sa-sage-wash); color: var(--sa-sage); border-radius: 50% 50% 50% 14%;
+}
+body[data-fe-theme="sanctuary"] .fe-contact-channel-label {
+  text-transform: none; letter-spacing: 0; font-family: var(--sa-read); font-style: italic;
+  font-weight: 400; font-size: 0.9rem; color: var(--sa-ink-soft);
+}
+body[data-fe-theme="sanctuary"] .fe-contact-channel-value { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-contact-channel-link:hover { color: var(--sa-link); }
+body[data-fe-theme="sanctuary"] .fe-rc-main-head { border-bottom-color: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-rc-item-card { border-radius: 14px; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-item-card { background: var(--sa-card); border-color: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-rc-item-name { font-family: var(--fe-font-heading); font-weight: 500; font-size: 1.15rem; color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-rc-item-sponsor,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-item-sponsor { background: var(--sa-clay-wash); color: var(--sa-clay); border-color: transparent; }
+body[data-fe-theme="sanctuary"] .fe-rc-item-sponsor-icon .icon { fill: var(--sa-clay); stroke: var(--sa-clay); }
+body[data-fe-theme="sanctuary"] .fe-rc-item-contact { color: var(--sa-ink-soft); }
+body[data-fe-theme="sanctuary"] .fe-rc-item-contact:hover { color: var(--sa-link); }
+body[data-fe-theme="sanctuary"] .fe-rc-contact-btn {
+  color: var(--sa-link); border-color: color-mix(in srgb, var(--sa-sage) 35%, transparent); background: var(--sa-sage-wash);
+}
+body[data-fe-theme="sanctuary"] .fe-rc-cta,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-cta { border-top-color: var(--sa-line); }
+body[data-fe-theme="sanctuary"] .fe-rc-cta-text { color: var(--sa-ink-soft); }
+
+body[data-fe-theme="sanctuary"] .fe-submission-page-title { font-family: var(--fe-tpl-heading-font, var(--fe-font-heading)); color: var(--sa-ink); }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-submission-page-title { color: var(--sa-ink); }
+body[data-fe-theme="sanctuary"] .fe-submission-form input[type="file"]::file-selector-button {
+  margin-right: 12px; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-weight: 600; font-size: 0.86rem;
+  background: var(--fe-color-btn-secondary-bg); color: var(--fe-color-btn-secondary-text);
+  border: 1px solid var(--fe-color-btn-secondary-border, var(--sa-line));
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-submission-form input[type="file"]::file-selector-button {
+  background: rgba(255, 240, 214, 0.08); color: var(--sa-ink); border-color: var(--sa-line);
+}
+body[data-fe-theme="sanctuary"] .fe-rc-prefs,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-prefs { border-color: var(--sa-line); border-radius: 14px; }
+body[data-fe-theme="sanctuary"] .fe-rc-prefs legend { font-family: var(--fe-font-heading); font-weight: 500; font-size: 0.98rem; letter-spacing: 0; }
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-prefs legend { color: var(--sa-ink); }
+/* Checkbox rows pick up the admin shell's .check panel (app.css); give
+   them the theme's paper and hairline instead. */
+body[data-fe-theme="sanctuary"] .fe-submission-form label.check {
+  background: var(--sa-paper); border-color: var(--sa-line); border-radius: 10px;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-submission-form label.check { background: #1a1611; }
+body[data-fe-theme="sanctuary"] .fe-submission-form label.check:has(input:checked) {
+  border-color: color-mix(in srgb, var(--sa-sage) 55%, transparent); background: var(--sa-sage-wash);
+}
+
+/* "Update my entry" and "remove me" keep their good/destructive meaning
+   in the theme's sage and brick. */
+body[data-fe-theme="sanctuary"] .fe-rc-update,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-update {
+  background: var(--sa-sage-wash); border-color: color-mix(in srgb, var(--sa-sage) 32%, transparent);
+}
+body[data-fe-theme="sanctuary"] .fe-rc-remove,
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-remove {
+  background: color-mix(in srgb, #b4442c 8%, transparent); border-color: color-mix(in srgb, #b4442c 30%, transparent);
+}
+
+/* The contact list's PDF link uses the admin shell's .btn; match ghosts. */
+body[data-fe-theme="sanctuary"] .fe-rc-action.btn {
+  background: var(--fe-color-btn-secondary-bg); color: var(--fe-color-btn-secondary-text);
+  border-color: var(--fe-color-btn-secondary-border, var(--sa-line)); border-radius: 999px;
+}
+body[data-fe-theme="sanctuary"] .fe-rc-action.btn:hover {
+  background: var(--fe-color-btn-secondary-hover-bg); border-color: var(--fe-color-btn-secondary-hover-border, var(--sa-sage));
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-rc-action.btn { background: rgba(255, 240, 214, 0.06); color: var(--sa-ink); border-color: var(--sa-line); }
+
+/* ===== 404 ================================================================ */
+body[data-fe-theme="sanctuary"] .fe-404 { padding: 5rem 0 4rem; }
+body[data-fe-theme="sanctuary"] .fe-404-heading { font-weight: 500; font-size: clamp(2.2rem, 4vw, 3rem); letter-spacing: -0.025em; }
+body[data-fe-theme="sanctuary"] .fe-404-sub { font-family: var(--sa-read); font-style: italic; font-size: 1.12rem; color: var(--sa-ink-soft); }
+
+/* ===== Footer =============================================================
+   The theme paints its own footer (not in FOOTER_SURFACE_THEMES): deep
+   olive bookcloth with grain and a gently domed top edge. !important beats
+   the inline sinewave/solid backgrounds the footer background script and
+   the admin settings write. */
+body[data-fe-theme="sanctuary"] .fe-footer {
+  --sa-f-bg: #2b3125; --sa-f-ink: #efe6d2; --sa-f-soft: #cdc3ab; --sa-f-line: rgba(239, 230, 210, 0.16);
+  background-color: var(--sa-f-bg) !important;
+  background-image:
+    var(--sa-grain),
+    radial-gradient(900px 420px at 12% 0%, rgba(150, 180, 140, 0.16), transparent 65%),
+    radial-gradient(700px 420px at 92% 100%, rgba(196, 120, 80, 0.16), transparent 62%) !important;
+  background-size: 180px 180px, auto, auto !important;
+  background-repeat: repeat, no-repeat, no-repeat !important;
+  background-position: 0 0, center, center !important;
+  background-blend-mode: soft-light, normal, normal !important;
+  color: var(--sa-f-ink);
+  border-top: 0;
+  border-radius: 50% 50% 0 0 / 56px 56px 0 0;
+  margin-top: 56px;
+  padding-top: 88px;
+}
+html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-footer {
+  --sa-f-bg: #15120d;
+}
 body[data-fe-theme="sanctuary"] .fe-footer-particles,
 body[data-fe-theme="sanctuary"] .fe-footer-bg-effects { display: none !important; }
-body[data-fe-theme="sanctuary"] .fe-footer,
-body[data-fe-theme="sanctuary"] .fe-footer p,
-body[data-fe-theme="sanctuary"] .fe-footer li,
-body[data-fe-theme="sanctuary"] .fe-footer a { color: #e7ddc9; }
-body[data-fe-theme="sanctuary"] .fe-footer a:hover { color: var(--sa-clay); }
-body[data-fe-theme="sanctuary"] .fe-footer-locations-heading,
-body[data-fe-theme="sanctuary"] .fe-footer-contact-heading,
-body[data-fe-theme="sanctuary"] .fe-footer-name,
-body[data-fe-theme="sanctuary"] .fe-footer-col-title {
-  font-family: var(--fe-font-heading); color: #f0e7d3;
+html body[data-fe-theme="sanctuary"] .fe-footer,
+html body[data-fe-theme="sanctuary"] .fe-footer p,
+html body[data-fe-theme="sanctuary"] .fe-footer li,
+html body[data-fe-theme="sanctuary"] .fe-footer a,
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-tagline,
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-copy,
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-contact-body,
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-location-addr,
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-location-note,
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-link-list a,
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-secondary-nav a { color: var(--sa-f-soft); }
+html body[data-fe-theme="sanctuary"] .fe-footer a:hover { color: var(--sa-f-ink); }
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-locations-heading,
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-contact-pane h3.fe-footer-contact-heading,
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-name,
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-col-title {
+  font-family: var(--fe-font-heading); font-weight: 500;
+  text-transform: none; letter-spacing: -0.005em; font-size: 1.2em;
+  color: var(--sa-f-ink);
 }
-/* Location cards — warm translucent panel with a clay icon tile. */
+html body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-location-name { color: var(--sa-f-ink); font-weight: 600; }
+body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-contact-body a { color: #e7b993; }
 body[data-fe-theme="sanctuary"] .fe-footer-location-card {
-  background: rgba(255,248,235,0.06); border: 1px solid rgba(231,221,201,0.16);
-  border-radius: 14px;
+  background: rgba(255, 246, 228, 0.05); border: 1px solid var(--sa-f-line);
+  border-radius: 14px; -webkit-backdrop-filter: none; backdrop-filter: none;
 }
 body[data-fe-theme="sanctuary"] .fe-footer-location-card:hover {
-  background: rgba(255,248,235,0.10); border-color: rgba(192,122,78,0.5);
+  background: rgba(255, 246, 228, 0.09); border-color: rgba(231, 185, 147, 0.5);
+  box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.6);
 }
 body[data-fe-theme="sanctuary"] .fe-footer-location-icon {
-  background: rgba(192,122,78,0.22); color: #e0a878;
+  background: rgba(214, 140, 96, 0.18); color: #e7b993; border-radius: 50% 50% 50% 12%;
 }
-body[data-fe-theme="sanctuary"] .fe-footer-location-name { color: #f0e7d3; }
-body[data-fe-theme="sanctuary"] .fe-footer-location-directions {
-  border: 1px solid rgba(231,221,201,0.3); color: #e7ddc9;
+body[data-fe-theme="sanctuary"] .fe-footer-location-directions,
+body[data-fe-theme="sanctuary"] .fe-footer-admin-login {
+  background: rgba(255, 246, 228, 0.06); border-color: rgba(239, 230, 210, 0.28); color: var(--sa-f-ink);
 }
-body[data-fe-theme="sanctuary"] .fe-footer-location-directions:hover {
-  background: rgba(192,122,78,0.18); border-color: var(--sa-clay); color: #fff;
+body[data-fe-theme="sanctuary"] .fe-footer-location-directions:hover,
+body[data-fe-theme="sanctuary"] .fe-footer-admin-login:hover {
+  background: rgba(214, 140, 96, 0.2); border-color: rgba(231, 185, 147, 0.7);
+}
+body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-block-divider,
+body[data-fe-theme="sanctuary"] .fe-footer .fe-footer-bottom { border-color: var(--sa-f-line); }
+body[data-fe-theme="sanctuary"] .fe-footer-social a {
+  background: rgba(255, 246, 228, 0.07); color: var(--sa-f-ink); border-color: var(--sa-f-line);
+}
+body[data-fe-theme="sanctuary"] .fe-footer-social a:hover { background: #d58c62; color: #1f1a12; }
+
+/* ===== Motion ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  body[data-fe-theme="sanctuary"] *,
+  body[data-fe-theme="sanctuary"] *::before,
+  body[data-fe-theme="sanctuary"] *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
-/* ===== Dark-mode icon chips — retint from blue to sage ================
-   The feature / FAQ / inclusion icon tiles hardcode a recovery-blue tint in
-   dark mode; recolour them to the theme's sage. */
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-feature-icon,
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-faq-summary-icon,
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-inclusion-icon {
-  background: rgba(94,125,106,0.20); color: #a9c2b2;
+/* ===== Responsive ========================================================= */
+/* Shared-layout fix: a grid track in a page-builder container sizes to its
+   content's min width, so the home meetings/events sections pushed the
+   page 26px wider than a phone. Letting the sections shrink is layout
+   only; the wrappers themselves are untouched. */
+body[data-fe-theme="sanctuary"] .fe-pp-container > .fe-section { min-width: 0; }
+@media (max-width: 900px) {
+  body[data-fe-theme="sanctuary"] .fe-events-mag-hero-body { padding: 24px 22px; }
+  body[data-fe-theme="sanctuary"] .fe-announcements-card { padding: 22px 20px; }
+  body[data-fe-theme="sanctuary"] .fe-announcements-card-title { font-size: 1.35rem; }
 }
-
-/* ===== Container panels — keep dark-mode warm ==========================
-   A container's dark background is auto-derived from the admin's (cool) light
-   colour, which derives to navy — disconnected from the theme. Re-point any
-   dark container background to the warm card token so dark mode stays warm
-   instead of recovery-blue navy. */
-html[data-theme="dark"] body[data-fe-theme="sanctuary"] [style*="--tsp-bg-dm"] {
-  background-color: var(--fe-color-card-secondary-bg-dark, #2a2319) !important;
+@media (max-width: 720px) {
+  body[data-fe-theme="sanctuary"] .fe-footer {
+    border-radius: 50% 50% 0 0 / 26px 26px 0 0;
+    margin-top: 40px; padding-top: 56px;
+  }
+  body[data-fe-theme="sanctuary"] .fe-section-head h2 { font-size: clamp(1.7rem, 7vw, 2.1rem); }
+  body[data-fe-theme="sanctuary"] .fe-mlist-card-times-cell dd { font-size: 1.22rem; }
+  body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) { font-size: 1.08rem; line-height: 1.75; }
+  body[data-fe-theme="sanctuary"] :is(.fe-story-mag-body, .fe-blog-cls-body) blockquote { font-size: 1.2em; }
+  body[data-fe-theme="sanctuary"] .fe-meeting-detail-head { gap: 20px; margin-bottom: 2.5rem; }
+  body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta)::after { display: none; }
 }
-
-/* ===== Dynamic backgrounds → the warm theme canvas ===================== */
-body[data-fe-theme="sanctuary"] .fe-meeting-detail,
-body[data-fe-theme="sanctuary"] .fe-contact-section,
-body[data-fe-theme="sanctuary"] .fe-page-dynbg-host { background: transparent !important; }
-body[data-fe-theme="sanctuary"] .fe-meeting-detail > .fe-dynbg,
-body[data-fe-theme="sanctuary"] .fe-contact-section > .fe-dynbg,
-body[data-fe-theme="sanctuary"] .fe-page-dynbg-host > .fe-dynbg { display: none !important; }
+/* Mobile menu panel: a paper sheet under the header. The panel is
+   positioned from the brand row rather than the whole header, so the
+   utility bar above it no longer pushes it over the logo. */
+@media (max-width: 880px) {
+  body[data-fe-theme="sanctuary"] .fe-header-themed-inner { position: relative; }
+  body[data-fe-theme="sanctuary"] .fe-th-nav {
+    top: 100%;
+    background: var(--sa-card); border-bottom: 1px solid var(--sa-line);
+    box-shadow: 0 30px 50px -24px rgba(74, 58, 36, 0.45);
+  }
+  html[data-theme="dark"] body[data-fe-theme="sanctuary"] .fe-th-nav { background: #241f18; box-shadow: 0 30px 50px -20px rgba(0, 0, 0, 0.7); }
+  body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta) { border-radius: 10px; }
+  body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta):hover,
+  body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta).mega-active { background: var(--sa-sage-wash); }
+  body[data-fe-theme="sanctuary"] .fe-th-nav-link:not(.fe-th-nav-cta)::after { display: none; }
+}

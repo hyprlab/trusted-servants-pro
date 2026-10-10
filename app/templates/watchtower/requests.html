@@ -101,9 +101,10 @@
     </thead>
     <tbody>
       {% for r in items %}
+      {% set xu = existing_users.get(r.existing_user_id) if r.existing_user_id else None %}
       <tr data-request-row="{{ r.id }}">
         <td class="wt-req-status"><span class="badge {% if r.status == 'pending' %}badge-warning{% else %}badge-muted{% endif %}">{{ r.status }}</span></td>
-        <td class="wt-req-name">{{ r.name }}{% if r.message %}<div class="wt-req-message" title="{{ r.message }}">{{ r.message }}</div>{% endif %}</td>
+        <td class="wt-req-name">{{ r.name }}{% if xu %}<div class="wt-req-account" title="This email already had an account when the request came in. They were emailed their username and a sign-in link."><span class="badge badge-muted">Has an account</span> {{ xu.username }} · {{ role_labels.get(xu.role, xu.role) }}</div>{% endif %}{% if r.message %}<div class="wt-req-message" title="{{ r.message }}">{{ r.message }}</div>{% endif %}</td>
         <td class="muted small" data-label="Contact"><div><a href="mailto:{{ r.email }}">{{ r.email }}</a></div><div>{{ r.phone }}</div></td>
         <td data-label="Roles"><div class="wt-req-roles">{% for role in r.roles %}<span class="chip">{{ role }}</span>{% endfor %}</div></td>
         <td class="muted" data-label="Meeting">{{ r.meeting_name or '—' }}</td>
@@ -141,10 +142,15 @@
         <td class="row-actions wt-req-actions">
           {% call row_menu() %}
             {% if view == 'active' %}
+            {% if xu %}
+            <button type="button" class="row-menu-item js-pwreset-open"
+                    data-uid="{{ xu.id }}" data-username="{{ xu.username }}" data-email="{{ xu.email or '' }}">{{ icon('key') }}<span>Reset Password</span></button>
+            {% else %}
             <button type="button" class="row-menu-item"
                     data-create-user-from-request data-email="{{ r.email }}"
                     data-name="{{ r.name }}" data-phone="{{ r.phone or '' }}"
                     data-rid="{{ r.id }}">{{ icon('user-plus') }}<span>Create User</span></button>
+            {% endif %}
             <form method="post" action="{{ url_for('main.watchtower_request_handled', rid=r.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="view" value="{{ view }}">

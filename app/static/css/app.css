@@ -92,6 +92,60 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* Self-hosted JetBrains Mono (variable, SIL OFL) — the Terminal theme's
+   monospace, so every visitor sees the same face instead of whatever mono
+   their OS ships. Upright + italic, latin and latin-ext subsets. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: italic;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("../fonts/jetbrains-mono/JetBrainsMono-Variable-Italic-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: italic;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("../fonts/jetbrains-mono/JetBrainsMono-Variable-Italic-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("../fonts/jetbrains-mono/JetBrainsMono-Variable-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("../fonts/jetbrains-mono/JetBrainsMono-Variable-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* Self-hosted Space Grotesk (variable, SIL OFL) — the Neobrutal theme's
+   body and UI face. Latin and latin-ext subsets. */
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("../fonts/space-grotesk/SpaceGrotesk-Variable-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("../fonts/space-grotesk/SpaceGrotesk-Variable-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* ── Type scale ───────────────────────────────────────────────────
    Ten steps, and nothing in between: every `font-size` in the admin
    resolves to one of these tokens so a new rule can't quietly invent a
@@ -737,40 +791,23 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
   width: 14px; height: 14px; stroke: currentColor; color: #fff;
 }
 
-/* ===== Users tab — top grid + roles/permissions explainer ===== */
-.users-top-grid {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--gap-4xl);
-  align-items: start;
-}
-@media (max-width: 880px) { .users-top-grid { grid-template-columns: 1fr; } }
-/* Sub-section headings inside the "Add a user" data-card. The card
-   itself owns the title + lead; the two columns below each carry
-   their own compact h3 + muted hint so they read as labeled regions
-   rather than wholly independent sections. */
-.users-subhead {
-  margin: 0 0 .35rem;
-  font-size: var(--fs-base);
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--text);
-}
-.users-subhead-lead { margin: 0 0 .9rem; }
-
-.perm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--gap-md); }
-.perm-row {
-  /* Role column auto-sizes to the widest pill across all rows so longer
-     labels (e.g. "Intergroup member") don't overflow into the blurb
-     column. minmax keeps a 140px floor so short labels still align. */
-  display: grid; grid-template-columns: minmax(140px, max-content) minmax(0, 1fr);
-  gap: var(--gap-xl);
-  align-items: start; padding: 10px 12px;
-  border: 1px solid var(--border); border-radius: var(--r-lg);
-  background: var(--panel-2);
-}
-@media (max-width: 720px) { .perm-row { grid-template-columns: 1fr; gap: var(--gap-xs); } }
-.perm-role { display: flex; align-items: center; }
-.perm-blurb { line-height: 1.45; }
+/* ===== Users: the role, as a card per role (Add user, Edit user) =====
+   The radio picks the card; the picked one takes the brand's edge and
+   tint, like a selected theme tile. */
+.role-choices { display: flex; flex-direction: column; gap: var(--gap-sm); }
+.role-choice { position: relative; display: flex; align-items: flex-start; gap: var(--gap-lg);
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: var(--panel-2); cursor: pointer; font-weight: 400;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease; }
+.form label.role-choice { flex-direction: row; gap: var(--gap-lg); font-weight: 400; }
+.role-choice input[type="radio"] { flex: 0 0 auto; width: 16px; height: 16px; margin: 2px 0 0; padding: 0;
+  accent-color: var(--brand); }
+.role-choice-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--gap-xs); min-width: 0; }
+.role-choice-text { color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
+@media (hover: hover) { .role-choice:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--border)); } }
+.role-choice:has(input:checked) { border-color: var(--brand); background: var(--brand-soft);
+  box-shadow: 0 0 0 1px var(--brand) inset; }
+.role-choice:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
 .perm-badge {
   display: inline-block;
   padding: 4px 10px; border-radius: var(--r-pill);
@@ -2984,6 +3021,8 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
    bar wrapping taller on mobile); the fallback covers first paint before
    the observer runs. Embed mode has no topbar, so it keeps top: 16px. */
 body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
+/* In a Settings section's page, below its head and the window's close button. */
+html.in-settings .flashes { top: 72px; }
 .flash {
   pointer-events: auto;
   box-shadow: 0 6px 24px rgba(0,0,0,0.18);
@@ -3260,16 +3299,8 @@ body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
   .tour-title { font-size: var(--fs-base); }
 }
 
-/* Help modal: tour row */
-.help-tour-row { display: flex; align-items: center; justify-content: space-between;
-  gap: var(--gap-xl); padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-lg);
-  background: var(--panel-2); }
-.help-tour-copy { min-width: 0; }
-.help-tour-copy .u-name { font-size: var(--fs-base); margin-bottom: 2px; }
-.help-tour-copy p { margin: 0; }
-@media (max-width: 520px) {
-  .help-tour-row { flex-direction: column; align-items: stretch; }
-}
+/* Help: the tour's button keeps its own width beside the intro. */
+.help-tour-row { align-items: flex-start; }
 
 .muted { color: var(--muted); }
 .small { font-size: var(--fs-xs); }
@@ -3760,8 +3791,12 @@ input[type="file"]::-webkit-file-upload-button {
    policy checklist (also used by the public reset form).
    ================================================================ */
 .pwreset-modal .modal-panel { max-width: 520px; }
-.pwreset-target { background: var(--panel-2); border: 1px solid var(--border);
-  border-radius: var(--r-lg); padding: 10px 12px; line-height: 1.5; }
+/* Whose password: the initial on the avatar disc, the username and the
+   address it is mailed to. */
+.pwreset-target { display: flex; align-items: center; gap: var(--gap-lg); min-width: 0; }
+.pwreset-target .avatar { width: 44px; height: 44px; font-size: var(--fs-lg); }
+.pwreset-target-text { display: flex; flex-direction: column; gap: var(--gap-3xs); min-width: 0; line-height: 1.35; }
+.pwreset-target-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Replaces the previous .pwreset-tabs two-tab control: a single
    toggle that flips between Generate (off, default) and Custom
    (on). When off, only the readonly Generated-password readout is
@@ -4478,8 +4513,9 @@ html.login-fade-in body { animation: login-page-fade-in 650ms ease-out both; }
 .login-form label.check.login-remember input { margin: 0; width: auto; accent-color: var(--access); }
 .login-submit { position: relative; background: var(--access); color: #fff; border: 0; border-radius: var(--r-pill);
   padding: 10px 22px; font-size: var(--fs-base); font-weight: 600; cursor: pointer; box-shadow: none; }
-.login-submit.is-loading { color: transparent; pointer-events: none; }
-.login-submit.is-loading::after {
+/* The spinner also fills any button marked .is-submitting while its form posts. */
+.login-submit.is-loading, .btn.is-submitting { position: relative; color: transparent; pointer-events: none; }
+.login-submit.is-loading::after, .btn.is-submitting::after {
   content: ""; position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
   margin: -9px 0 0 -9px; border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff;
@@ -4572,25 +4608,27 @@ html.login-fade-in body { animation: login-page-fade-in 650ms ease-out both; }
 /* Static text inside the All Users table — same vertical rhythm as
    the inputs they replaced so adjacent cells line up. */
 
-/* Edit-user modal — two-column field grid that collapses to one on
-   narrow viewports; toggles stack underneath as full-width rows. */
+/* Edit user: the fields two to a row (one in a narrow dialog or page),
+   labeled and drawn like every .form's; the sign-in switches as full-width rows with the password row lined up
+   under their labels. */
 .user-edit-modal .modal-panel { max-width: 560px; }
 .user-edit-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-lg) var(--gap-2xl); }
-.user-edit-form-grid label { display: flex; flex-direction: column; gap: var(--gap-2xs);
-  font-size: var(--fs-xs); font-weight: 600; }
-.user-edit-form-grid input,
-.user-edit-form-grid select { padding: 8px 10px; border-radius: var(--r-md);
-  border: 1px solid var(--border); background: var(--panel-2);
-  color: var(--text); font-size: var(--fs-sm); }
-.user-edit-toggles { display: flex; flex-direction: column; gap: var(--gap-md);
-  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.user-edit-toggles { display: flex; flex-direction: column; gap: var(--gap-md); }
 .user-edit-toggle { display: flex; align-items: center; gap: var(--gap-lg);
   cursor: pointer; padding: 6px 0; }
 .user-edit-toggle-label { display: flex; flex-direction: column; gap: var(--gap-3xs);
   line-height: 1.35; }
 .user-edit-toggle input:disabled ~ .mode-track { opacity: 0.5; cursor: not-allowed; }
-.user-edit-self-warn { margin: 8px 0 0; }
-@media (max-width: 560px){
+.form label.user-edit-toggle { flex-direction: row; gap: var(--gap-lg); font-size: var(--fs-sm); font-weight: 400; }
+.user-edit-pw-row { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-lg); font-size: var(--fs-sm);
+  margin-left: calc(36px + var(--gap-lg)); padding-top: var(--gap-lg); border-top: 1px solid var(--border); }
+.user-edit-pw-row[hidden] { display: none; }
+.user-edit-pw-row .btn { flex: 0 0 auto; }
+.user-edit-self-warn { margin: 0; }
+@media (max-width: 560px) {
+  .user-edit-form-grid { grid-template-columns: 1fr; }
+}
+@container subpage (max-width: 520px) {
   .user-edit-form-grid { grid-template-columns: 1fr; }
 }
 
@@ -6912,7 +6950,7 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 .rich-content h2 { margin-top: 24px; }
 .rich-content hr { margin: 24px 0; border: 0; border-top: 1px solid var(--border); }
 
-.pic-contact { display: flex; flex-direction: column; gap: var(--gap-sm); margin-top: 8px; }
+.pic-contact { display: flex; flex-direction: column; gap: var(--gap-sm); }
 .pic-row { display: flex; align-items: center; gap: var(--gap-md); }
 .pic-row .pic-icon { width: 20px; display: inline-flex; justify-content: center;
   color: var(--muted); }
@@ -6959,15 +6997,11 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 
 
 
-.users-new-card .form { gap: var(--gap-lg); }
-.users-new-card .users-new-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: var(--gap-lg); align-items: end; }
-.users-new-card .users-new-row label { min-width: 0; }
 .pic-form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--gap-lg); align-items: end; }
 .pic-form-row label { min-width: 0; }
 .pic-title-field { max-width: 480px; }
 .pic-title-field small { font-weight: 400; }
 @media (max-width: 720px) { .pic-form-row { grid-template-columns: 1fr; } }
-.users-new-card .form-actions { justify-content: flex-end; margin-top: 4px; }
 /* Create-user password generator. The field and its Show / Copy
    buttons share a row; Generate and the length picker sit under it,
    then the shared strength meter + policy checklist (.pwreset-*). */
@@ -6981,9 +7015,6 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 .form label.pwgen-length { flex-direction: row; align-items: center; gap: var(--gap-sm);
   font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
 .form label.pwgen-length select { width: auto; }
-@media (max-width: 720px) {
-  .users-new-card .users-new-row { grid-template-columns: 1fr 1fr; }
-}
 
 @media (max-width: 700px) {
   .day-row { grid-template-columns: 1fr 1fr; }
@@ -7105,7 +7136,7 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   body.embed .embed-actions .btn-primary { width: 100%; justify-content: center; }
 
 
-  .loc-csz-row { grid-template-columns: 1fr 1fr 1fr; }
+  .loc-csz-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   /* .tbl.wt-* (not bare .wt-*-table): the shared watchtower td rule
      further down the sheet sets padding + border-top at equal
@@ -7157,8 +7188,7 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
    below 480px in the mobile rule above. */
 .loc-csz-row {
   display: grid; gap: var(--gap-sm) var(--gap-lg);
-  grid-template-columns: 2fr 1fr 1fr;
-  margin-top: 8px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
 }
 .loc-csz-row label { display: flex; flex-direction: column; }
 @media (max-width: 480px) {
@@ -13555,17 +13585,9 @@ body.embed .backups-wrap {
 .fe-sync-snap-row { margin: .1rem 0 1rem; }
 @media (max-width: 480px) { .dash-sync-actions { grid-template-columns: 1fr; } }
 
-/* Rollback snapshots modal — restore how-to + downloadable bundle list. */
-.fe-snap-howto {
-  margin: .9rem 0;
-  padding: .85rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--panel-2, var(--panel));
-}
-.fe-snap-howto-head { font-weight: 600; margin-bottom: .35rem; }
+/* Rollback snapshots: the bundle list and the restore steps. */
 .fe-snap-howto-steps { margin: 0; padding-left: 1.2rem; }
-.fe-snap-howto-steps li { margin: .3rem 0; line-height: 1.45; }
+.fe-snap-howto-steps li { margin: 0 0 .5rem; line-height: 1.5; }
 .fe-snap-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--gap-sm); }
 .fe-snap-row {
   display: flex;
@@ -16125,19 +16147,164 @@ a.dash-stat--link .dash-stat-value { color: var(--access, var(--brand)); }
     min-height: 0; padding: 0; margin: 0; border: 0; background: none; }
   #settings-modal .settings-main-head .settings-pane-title { position: absolute; width: 1px; height: 1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  /* Bare until hovered or focused, then it takes its button face. */
-  #settings-modal .settings-main-head [data-close] { background: transparent; border: 1px solid transparent;
-    box-shadow: none; transition: background .12s ease, border-color .12s ease, box-shadow .12s ease; }
-  #settings-modal .settings-main-head [data-close]:hover,
-  #settings-modal .settings-main-head [data-close]:focus-visible { background: var(--panel); border-color: var(--border);
+  /* Always its button face, so it reads as a button over a scrolled card. */
+  #settings-modal .settings-main-head [data-close] { background: var(--panel); border: 1px solid var(--border);
     box-shadow: var(--shadow); }
   /* Room for the close button above each section's first card. */
   #settings-modal .settings-pane.active,
   #settings-modal .settings-pane.active:not(:has(> iframe.settings-frame)) { padding-top: calc(46px + var(--content-px)); }
+  /* A section that is a page in an iframe runs to the pane's top edge and
+     scrolls there like the others; the page makes the same room itself
+     (the rule after this block). */
   #settings-modal .settings-pane.active:has(> iframe.settings-frame),
-  #settings-modal .settings-pane.active:has(> .settings-frame) { padding-top: 46px; }
+  #settings-modal .settings-pane.active:has(> .settings-frame) { padding-top: 0; }
 }
+html.in-settings-float-close body.embed .embed-content { padding-top: calc(46px + var(--content-px)); }
+/* Modals opened from Settings sit over it with no dim and no blur, whether
+   they open in the Settings window or in a section's page. The backdrop is
+   kept, clear, so a click outside still closes them. */
+body:has(#settings-modal.open) .modal.open:not(#settings-modal):not(.settings-sub) > .modal-backdrop,
+html.in-settings .modal:not(.settings-sub) > .modal-backdrop { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
 #settings-modal .settings-body, .settings-frame, body.embed { background: var(--bg); }
+
+/* ── Settings pages: a dialog opened from Settings, or from a page shown in
+   a section, becomes a page of its own, like a phone's settings app
+   (app.js settingsSubpages). The section and the page sit side by side on
+   one strip: the section moves a full width left as the page comes in
+   from the right, and back together for Back. A page beneath another
+   moves the same way. In the Settings window a page fills the section's
+   box; in a section's page it fills the frame. The selectors carry
+   :not(#settings-modal), which never excludes a page, so they outrank
+   the dialogs' sizing by ID. ── */
+:root { --sub-ms: 380ms; --sub-ease: cubic-bezier(0.32, 0.72, 0, 1); }
+/* clip, not hidden: a field focused mid-slide would scroll a hidden box
+   sideways. */
+.modal.settings-sub { overflow: clip; opacity: 1; transition: visibility 0s linear var(--sub-ms); }
+.modal.settings-sub.open { transition: visibility 0s linear 0s; }
+.settings-main > .modal.settings-sub { position: absolute; inset: 0; }
+.modal.settings-sub > .modal-backdrop { display: none; }
+/* Column, though inside the Settings window its own row rule reaches it. */
+.modal.settings-sub:not(#settings-modal) .modal-panel { flex-direction: column; margin: 0; width: 100%; max-width: none;
+  height: 100%; max-height: none; border: 0; border-radius: 0; background: var(--bg); box-shadow: none;
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  transform: translateX(100%); transition: transform var(--sub-ms) var(--sub-ease); }
+.modal.settings-sub.open:not(#settings-modal) .modal-panel { transform: none;
+  animation: settings-sub-in var(--sub-ms) var(--sub-ease); }
+.modal.settings-sub.open.settings-sub-under:not(#settings-modal) .modal-panel { transform: translateX(-100%); }
+@keyframes settings-sub-in { from { transform: translateX(100%); } }
+/* The section's side of the strip; once it is out of view it is hidden,
+   so Tab doesn't wander into it. */
+#settings-modal .settings-main { overflow: clip; }
+#settings-modal .settings-main > .settings-body,
+#settings-modal .settings-main > .settings-save-bar,
+html.in-settings .embed-content {
+  transition: transform var(--sub-ms) var(--sub-ease), visibility 0s linear 0s; }
+#settings-modal .settings-main.settings-pushed > .settings-body,
+#settings-modal .settings-main.settings-pushed > .settings-save-bar,
+html.in-settings.settings-pushed .embed-content { transform: translateX(-100%); visibility: hidden;
+  transition: transform var(--sub-ms) var(--sub-ease), visibility 0s linear var(--sub-ms); }
+#settings-modal .settings-main.settings-pushed > .settings-save-bar { transform: translateX(calc(-100% - 24px)); }
+html.in-settings body.embed { overflow-x: clip; }
+.settings-sub-instant > *, html.settings-sub-instant .embed-content { transition: none !important; }
+.modal.settings-sub:not(#settings-modal) .modal-panel > form { flex: 1 0 auto; display: flex; flex-direction: column;
+  width: 100%; min-height: 0; max-height: none; gap: 0; }
+.modal.settings-sub:not(#settings-modal) .modal-panel:has(> iframe) { overflow: hidden; }
+.modal.settings-sub:not(#settings-modal) .modal-panel > iframe { flex: 1 1 auto; height: auto; min-height: 0; }
+
+/* The head is a navigation bar: Back on the left, the title centered,
+   frosted over the page as it scrolls under. */
+.modal.settings-sub:not(#settings-modal) .modal-head { position: sticky; top: 0; z-index: 3;
+  justify-content: flex-start; gap: var(--gap-sm); min-height: 61px; box-sizing: border-box;
+  padding: 10px 18px 10px 8px; background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(16px); backdrop-filter: saturate(180%) blur(16px); }
+html.in-settings-float-close .modal.settings-sub:not(#settings-modal) .modal-head { padding-right: 64px; }
+.modal.settings-sub:not(#settings-modal) .modal-head h2 { position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%); max-width: 48%; margin: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; text-align: center; font-size: var(--fs-md); font-weight: 650; }
+.modal.settings-sub .modal-head > [data-close] { display: none; }
+.settings-sub-back, .settings-sub-close { display: none; }
+.modal.settings-sub .settings-sub-back { display: inline-flex; align-items: center; gap: 2px;
+  max-width: 25%; min-width: 0; padding: 6px 10px 6px 2px; border: 0; border-radius: var(--r-md);
+  background: none; color: var(--access, var(--brand)); font: inherit; font-size: var(--fs-base);
+  font-weight: 600; line-height: 1.2; cursor: pointer; }
+.settings-sub-back .icon { flex: 0 0 auto; width: 24px; height: 24px; stroke-width: 2.25;
+  transition: transform 160ms ease; }
+.settings-sub-back-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (hover: hover) {
+  .modal.settings-sub .settings-sub-back:hover { background: color-mix(in srgb, var(--brand) 9%, transparent); }
+  .modal.settings-sub .settings-sub-back:hover .icon { transform: translateX(-2px); }
+}
+.settings-sub-back:focus-visible { outline: 2px solid var(--brand); outline-offset: 0; }
+
+/* A page's body is the page itself: its sections stack like a Settings
+   section's cards, the full width of the pane. Its actions sit in a bar
+   pinned to the foot, frosted like the head; a foot holding only a close
+   button goes, Back does that. */
+.modal.settings-sub:not(#settings-modal) .modal-panel { container: subpage / inline-size; }
+.modal.settings-sub:not(#settings-modal) .modal-body { flex: 1 0 auto; min-height: 0; overflow: visible;
+  padding: var(--content-px); gap: var(--stack-gap); }
+.modal.settings-sub:not(#settings-modal) .modal-body > .data-card { margin: 0; }
+.modal.settings-sub:not(#settings-modal) .modal-foot { position: sticky; bottom: 0; z-index: 3;
+  padding: 14px var(--content-px) calc(14px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(16px); backdrop-filter: saturate(180%) blur(16px); }
+.modal.settings-sub .modal-foot:has(> [data-close]:only-child) { display: none; }
+
+/* A dialog's sections (.dlg-section): a card per topic, its title and a
+   line about it beside the fields when the page is wide, above them
+   otherwise. In a plain dialog they lose the card and part with a rule. */
+.dlg-section { display: grid; gap: var(--gap-lg) var(--gap-5xl); align-items: start; }
+.dlg-section-intro .data-card-head { margin-bottom: 8px; }
+.dlg-section-intro p { margin: 0; max-width: 46ch; color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
+.dlg-section-fields { display: flex; flex-direction: column; gap: var(--gap-xl); min-width: 0; }
+.dlg-fields-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-lg) var(--gap-2xl); }
+@container subpage (min-width: 760px) {
+  .dlg-section { grid-template-columns: minmax(200px, 1fr) minmax(0, 2.2fr); }
+}
+@container subpage (max-width: 520px) {
+  .dlg-fields-2 { grid-template-columns: minmax(0, 1fr); }
+}
+/* A choice among a few options, labeled like a field. */
+.dlg-choice { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--gap-xs); }
+.dlg-choice legend { padding: 0; margin-bottom: var(--gap-xs); font-size: var(--fs-base); font-weight: 600; color: var(--text); }
+/* External link: a row drawn like the sidebar's, following the title. */
+@container subpage (min-width: 521px) {
+  .navlink-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
+}
+.navlink-preview { display: flex; flex-direction: column; gap: var(--gap-xs); }
+.navlink-preview-row { display: flex; align-items: center; gap: var(--gap-md); width: min(100%, 260px);
+  padding: 9px 12px; border: 1px dashed var(--border); border-radius: var(--r-md);
+  background: var(--panel-2); color: var(--text); font-weight: 500; line-height: 1.3; }
+.navlink-preview-row .icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--muted); }
+.navlink-preview-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navlink-preview-row > span.is-empty { color: var(--muted); }
+.dlg-section.card:not(.settings-sub .dlg-section) { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; margin: 0; }
+.dlg-section.card:not(.settings-sub .dlg-section) + .dlg-section.card { padding-top: var(--gap-2xl); border-top: 1px solid var(--border); }
+/* A section about removing or locking something. */
+.dlg-section.is-danger .data-card-head > .icon { background: color-mix(in srgb, #dc2626 12%, transparent); color: #dc2626; }
+.modal.settings-sub .dlg-section.card.is-danger { border-color: color-mix(in srgb, #dc2626 30%, var(--border)); }
+@media (min-width: 721px) {
+  /* The window's close button stays put above the pages, which leave it
+     room. */
+  #settings-modal .settings-main-head { z-index: 150; }
+  #settings-modal .modal.settings-sub:not(#settings-modal) .modal-head { padding-right: 64px; }
+}
+@media (max-width: 720px) {
+  /* The section's head (Back to the list, the title, close) is part of
+     the strip; the page brings its own close button. */
+  #settings-modal .settings-main > .settings-main-head { transition: transform var(--sub-ms) var(--sub-ease); }
+  #settings-modal .settings-main.settings-pushed > .settings-main-head { transform: translateX(-100%); }
+  .modal.settings-sub .settings-sub-close { display: inline-grid; place-items: center; margin-left: auto; }
+  #settings-modal.settings-frame-sub .settings-main-head { display: none; }
+  .modal.settings-sub .settings-sub-back { max-width: 31%; }
+  .modal.settings-sub:not(#settings-modal) .modal-head h2 { max-width: 40%; }
+}
+.modal.settings-sub-instant, .modal.settings-sub-instant * { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .modal.settings-sub, .modal.settings-sub *, #settings-modal .settings-main > *,
+  html.in-settings .embed-content { transition-duration: 0s !important;
+    transition-delay: 0s !important; animation: none !important; }
+}
 
 /* Meeting page: the Zoom card on a pale blue (a deep, quiet blue in dark
    mode), with the standard text, chips and buttons. Scoped up to win over
@@ -16827,6 +16994,10 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
    lines at most, the whole of it on hover. */
 .wt-req-message { margin-top: 4px; max-width: 32ch; color: var(--muted); font-size: var(--fs-xs); font-weight: 400; line-height: 1.4;
   white-space: pre-line; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+
+/* The matched account under a request's name, when its email already had
+   one (Watchtower > Requests). */
+.wt-req-account { margin-top: 4px; color: var(--muted); font-size: var(--fs-xs); font-weight: 400; }
 
 /* The Request Access form's honeypot (login.html): off screen, out of
    the tab order, for bots only. */

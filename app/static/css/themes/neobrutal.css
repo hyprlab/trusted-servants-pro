@@ -1,403 +1,1704 @@
 /* ============================================================================
-   THEME · Neobrutal (neobrutalism)
-   Loaded only when SiteSetting.frontend_theme == "neobrutal" (see base.html).
-   Scoped to body[data-fe-theme="neobrutal"]. Colourful flat surfaces, thick
-   black borders, hard offset drop-shadows, chunky Archivo Black headings, and
-   controls that "press" on click. Defaults to light; the dark companion keeps
-   the bright blocks on a near-black canvas. Colours + radius come from the
-   design tokens; this file paints the borders, hard shadows, and chrome.
+   THEME · Neobrutal
+   Loaded only when SiteSetting.frontend_theme == "neobrutal" (see base.html);
+   every rule is scoped to body[data-fe-theme="neobrutal"].
+
+   Direction: a loud, joyful poster language held together by a strict
+   system. Flat saturated color blocks on a warm off-white canvas, thick ink
+   borders, hard offset shadows with no blur, Archivo Black for display and
+   Space Grotesk for body and UI. Controls press into the page on click.
+
+   Color has one job per family, everywhere it appears (section stickers,
+   card bands, date tiles, tab fills, nav hover):
+     meetings + fellowships  yellow   (--fe-color-accent)
+     events                  cyan
+     announcements + archive lime
+     literature + info       lavender
+     stories + blog          pink     (--fe-color-brand)
+   Pink is also the action color (primary buttons). Cards are white panels so
+   long lists stay calm; reading pages are a plain white column.
+
+   Dark mode keeps the bright blocks on a near-black canvas: panels go
+   charcoal, borders and button shadows go cream, card shadows take the
+   family color, and text on color blocks stays ink.
+
+   Tokens: colors, card and button borders, radii and fonts come from the
+   design tokens (app/design.py, app/fonts.py) and are read through var();
+   this file adds the hard shadows, the family palette and the layout of the
+   chrome. !important is used only to beat inline styles or unscoped
+   Recovery Blue rules, and says why.
    ========================================================================== */
 
+
+/* ===== 1. Tokens ========================================================= */
+
 body[data-fe-theme="neobrutal"] {
-  --nb-ink:      #111111;   /* borders / shadows / text on bright surfaces */
-  --nb-paper:    #faf4e6;   /* light canvas */
-  --nb-paper-dk: #18161f;   /* dark canvas */
-  --nb-yellow:   #ffd23f;
-  --nb-pink:     #ff4d8d;
-  --nb-cyan:     #8fe3ef;
-  --nb-lav:      #c9b8ff;
-  --nb-lime:     #c2f24a;
-  --nb-cream:    #f7f3e8;   /* text on dark canvas */
-  --nb-bw:       3px;       /* border width */
-  --nb-shadow:    5px 5px 0 0 var(--nb-ink);
-  --nb-shadow-sm: 3px 3px 0 0 var(--nb-ink);
-  --nb-shadow-lg: 8px 8px 0 0 var(--nb-ink);
-  --nb-ease:     cubic-bezier(.2,.7,.2,1);
-  /* Legacy non-tokenised accents → bold palette. */
-  --fe-accent:          #ff4d8d;
-  --fe-accent-2:        #ffd23f;
-  --fe-accent-3:        #8fe3ef;
-  --fe-recovery-blue:   #ff4d8d;
-  --fe-recovery-blue-2: #ffd23f;
+  /* Palette. Yellow and pink follow the admin's accent and brand tokens. */
+  --nb-yellow:   var(--fe-color-accent, #ffd23f);
+  --nb-pink:     var(--fe-color-brand, #ff4d8d);
+  --nb-cyan:     #6fd8f0;
+  --nb-lime:     #b6ee52;
+  --nb-lav:      #c4b3ff;
+  --nb-ink:      #121212;            /* text and outlines on color blocks */
+  --nb-cream:    #f6f1e4;
+
+  /* Surfaces. */
+  --nb-canvas:   var(--fe-color-surface, #fbf5e9);
+  --nb-canvas-2: var(--fe-color-surface-alt, #f2e9d4);
+  --nb-panel:    var(--fe-color-card-primary-bg, #ffffff);
+  --nb-panel-2:  var(--fe-color-card-secondary-bg, #ffffff);
+  --nb-line:     var(--fe-color-card-primary-border, #121212);
+  --nb-text:     var(--fe-color-text, #16130e);
+  --nb-muted:    var(--fe-color-text-soft, #5a5144);
+  --nb-link:     var(--fe-color-link, #c2005c);
+  --nb-link-hover: var(--fe-color-link-hover, #8f0045);
+
+  /* Hard shadows. --nb-drop paints cards, --nb-drop-btn paints controls. */
+  --nb-drop:     var(--nb-line);
+  --nb-drop-btn: var(--nb-ink);
+  --nb-bw:       var(--fe-card-primary-border-width, 3px);
+  --nb-r:        var(--fe-card-radius, 8px);
+  --nb-sh-xs:    2px 2px 0 0;
+  --nb-sh-sm:    4px 4px 0 0;
+  --nb-sh:       6px 6px 0 0;
+  --nb-sh-lg:    9px 9px 0 0;
+  --nb-ease:     cubic-bezier(.2, .8, .2, 1);
+
+  /* Family color: set per page family in section 4; yellow by default.
+     --nb-band (the colored strip across the top of list cards) is declared
+     with it, in section 4, so it resolves against the right family. */
+  --nb-fam:      var(--nb-yellow);
+
+  /* Shared frontend.css aliases, pointed at the theme so Recovery Blue's
+     defaults (blue accents, slate text, hairline borders) don't leak. */
+  --fe-ink:             var(--nb-text);
+  --fe-ink-muted:       var(--nb-muted);
+  --fe-ink-soft:        var(--nb-muted);
+  --fe-border:          var(--nb-line);
+  --fe-panel-soft:      var(--nb-canvas-2);
+  --fe-accent:          var(--nb-link);   /* also used as text, so the AA-safe pink */
+  --fe-accent-2:        var(--nb-yellow);
+  --fe-accent-3:        var(--nb-cyan);
+  --fe-recovery-blue:   var(--nb-pink);
+  --fe-recovery-blue-2: var(--nb-yellow);
+  --fe-recovery-ink:    var(--nb-text);
+  --fe-recovery-ink-soft: var(--nb-muted);
 }
 
-/* ---- Dark companion palette -------------------------------------------- */
-html[data-theme="dark"] body[data-fe-theme="neobrutal"],
-body[data-fe-theme="neobrutal"].fe-footer-force-dark {
-  --fe-dm-surface:        #211d2c;
-  --fe-dm-surface-soft:   rgba(255,255,255,0.06);
-  --fe-dm-border:         #111111;
-  --fe-dm-border-hover:   #111111;
-  --fe-dm-text-strong:    var(--fe-color-text-dark, #f7f3e8);
-  --fe-dm-text:           var(--fe-color-text-dark, #f7f3e8);
-  --fe-dm-text-muted:     #b3a9c9;
-  --fe-dm-link-hover:     #ff8fb9;
-  /* Bright primary button in dark mode (not the default 40%-black mix). */
-  --fe-dm-btn-primary-bg:       var(--fe-color-btn-primary-bg, #ff4d8d);
-  --fe-dm-btn-primary-bg-hover: var(--fe-color-btn-primary-hover-bg, #ff2d77);
-  --fe-dm-btn-primary-text:       #111111;
-  --fe-dm-btn-primary-text-hover: #111111;
+/* Dark mode. Defined on <body> (not <html>) so the inline design tokens are
+   visible; frontend.css's <html>-level dark vars would otherwise resolve to
+   Recovery Blue navy. */
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] {
+  --nb-canvas:   var(--fe-color-surface-dark, #131118);
+  --nb-canvas-2: color-mix(in srgb, var(--fe-color-surface-dark, #131118) 88%, #ffffff);
+  --nb-panel:    var(--fe-color-card-primary-bg-dark, #1e1b26);
+  --nb-panel-2:  var(--fe-color-card-secondary-bg-dark, #1e1b26);
+  --nb-line:     var(--fe-color-card-primary-border-dark, #f3ede0);
+  --nb-text:     var(--fe-color-text-dark, #f6f1e4);
+  --nb-muted:    color-mix(in srgb, var(--fe-color-text-dark, #f6f1e4) 72%, var(--fe-color-surface-dark, #131118));
+  /* The link token is tuned for a light page; lift it toward white so it
+     keeps its hue and reads on charcoal. */
+  --nb-link:     color-mix(in srgb, var(--fe-color-link, #c2005c) 45%, #ffffff);
+  --nb-link-hover: color-mix(in srgb, var(--fe-color-link, #c2005c) 25%, #ffffff);
+  --nb-drop-btn: var(--nb-line);
+
+  --fe-dm-page-bg:      var(--nb-canvas);
+  --fe-dm-surface:      var(--nb-panel);
+  --fe-dm-surface-alt:  var(--nb-canvas-2);
+  --fe-dm-surface-soft: rgba(255, 255, 255, 0.06);
+  --fe-dm-border:       var(--nb-line);
+  --fe-dm-border-hover: var(--nb-line);
+  --fe-dm-text-strong:  var(--nb-text);
+  --fe-dm-text-muted:   var(--nb-muted);
+  --fe-dm-text-soft:    var(--nb-muted);
+  --fe-dm-link:         var(--nb-link);
+  --fe-dm-link-hover:   var(--nb-link-hover);
+  --fe-dm-btn-primary-bg:         var(--fe-color-btn-primary-bg, #ff4d8d);
+  --fe-dm-btn-primary-bg-hover:   var(--fe-color-btn-primary-hover-bg, #ff70a6);
+  --fe-dm-btn-primary-text:       var(--fe-color-btn-primary-text, #121212);
+  --fe-dm-btn-primary-text-hover: var(--fe-color-btn-primary-text, #121212);
+  --fe-dm-btn-primary-shadow:     var(--nb-sh-sm) var(--nb-drop-btn);
+}
+/* Light-tuned text tokens re-pointed for dark. Set on the body's children:
+   on <body> itself the inline tokens would win, and --nb-link is derived
+   from --fe-color-link there. */
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] > * {
+  --fe-color-link:       var(--nb-link);
+  --fe-color-link-hover: var(--nb-link-hover);
+  --fe-color-text-soft:  var(--nb-muted);
 }
 
-/* ===== Atmosphere — flat canvas + faint dot grid ======================== */
-html[data-theme="light"] body[data-fe-theme="neobrutal"] { background: var(--nb-paper); }
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] { background: var(--fe-color-surface-dark, #18161f); }
+
+/* ===== 2. Atmosphere: canvas, sections, admin backgrounds ================ */
+
+body[data-fe-theme="neobrutal"].frontend-body {
+  background-color: var(--nb-canvas);
+  color: var(--nb-text);
+}
+/* A faint dot grid printed on the canvas. */
 body[data-fe-theme="neobrutal"]::after {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background-image: radial-gradient(var(--nb-ink) 1.4px, transparent 1.4px);
-  background-size: 26px 26px; opacity: 0.06;
+  background-image: radial-gradient(var(--nb-text) 1.2px, transparent 1.4px);
+  background-size: 24px 24px; opacity: 0.07;
 }
-html[data-theme="dark"] body[data-fe-theme="neobrutal"]::after {
-  background-image: radial-gradient(#ffffff 1.4px, transparent 1.4px); opacity: 0.05;
+html[data-theme="dark"] body[data-fe-theme="neobrutal"]::after { opacity: 0.06; }
+
+body[data-fe-theme="neobrutal"] ::selection { background: var(--nb-yellow); color: var(--nb-ink); }
+
+/* Section shells are transparent so the canvas reads through; the global
+   navy hairline between sections is dropped. */
+body[data-fe-theme="neobrutal"] .fe-section,
+body[data-fe-theme="neobrutal"] .fe-features,
+body[data-fe-theme="neobrutal"] .fe-mlist,
+body[data-fe-theme="neobrutal"] .fe-events-list-omni,
+body[data-fe-theme="neobrutal"] .fe-meeting-detail,
+body[data-fe-theme="neobrutal"] .fe-contact-section,
+body[data-fe-theme="neobrutal"] .fe-rc-section,
+body[data-fe-theme="neobrutal"] .fe-page-dynbg-host { background: transparent; }
+body[data-fe-theme="neobrutal"] .fe-section + .fe-section { border-top: 0; }
+
+/* Animated backgrounds behind the theme's own page regions (hero, meeting
+   detail, contact, list pages) give way to the flat canvas. Page-builder
+   containers keep theirs: that is block content. */
+body[data-fe-theme="neobrutal"] .fe-hero > .fe-dynbg,
+body[data-fe-theme="neobrutal"] .fe-hero > .fe-hero-particles,
+body[data-fe-theme="neobrutal"] .fe-hero-blob,
+body[data-fe-theme="neobrutal"] .fe-meeting-detail > .fe-dynbg,
+body[data-fe-theme="neobrutal"] .fe-contact-section > .fe-dynbg,
+body[data-fe-theme="neobrutal"] .fe-rc-section > .fe-dynbg,
+body[data-fe-theme="neobrutal"] .fe-page-dynbg-host > .fe-dynbg { display: none !important; /* beats inline display from the dynbg partial */ }
+
+/* Page-builder containers still carrying Recovery Blue's stock panel colors
+   (#f4f7fb light; #0b1026 page and #131a33 panel dark) map to this theme's
+   equivalents. A color the admin picked themselves is left alone. */
+body[data-fe-theme="neobrutal"] [style*="--block-cont-bg: #f4f7fb"] {
+  background-color: var(--nb-canvas-2); /* Recovery Blue's stock light panel */
 }
-body[data-fe-theme="neobrutal"] .fe-page,
-body[data-fe-theme="neobrutal"] .fe-section { background: transparent; }
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] [style*="--tsp-bg-dm: #0b1026"] {
+  background-color: var(--nb-canvas) !important; /* beats frontend.css !important */
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] [style*="--tsp-bg-dm: #131a33"] {
+  background-color: var(--nb-panel) !important; /* beats frontend.css !important */
+}
 
-/* ===== Type + section heads — chunky sticker headline =================== */
-body[data-fe-theme="neobrutal"] .fe-section { padding-top: 72px; padding-bottom: 72px; }
-body[data-fe-theme="neobrutal"] .fe-section:has(.fe-hero) { padding-top: 0; }
-body[data-fe-theme="neobrutal"] .fe-meeting-detail { padding-top: 6rem; }
-/* Drop the global navy inter-section divider. */
-body[data-fe-theme="neobrutal"] .fe-section + .fe-section,
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-section + .fe-section { border-top: 0; }
 
-body[data-fe-theme="neobrutal"] .fe-section-head { position: relative; }
+/* ===== 3. Type ========================================================== */
+
+body[data-fe-theme="neobrutal"] :is(h1, h2, h3) { color: inherit; }
+
+/* Section head: an oversized sticker in the family color, tilted a hair. */
+body[data-fe-theme="neobrutal"] .fe-section-head { margin-bottom: 48px; }
 body[data-fe-theme="neobrutal"] .fe-section-head::after { display: none; }
 body[data-fe-theme="neobrutal"] .fe-section-head h2 {
-  display: inline-block;
-  font-family: var(--fe-font-heading); text-transform: uppercase;
-  letter-spacing: 0.005em; line-height: 1.1; color: var(--nb-ink) !important;
-  -webkit-text-fill-color: var(--nb-ink);
-  background: var(--nb-yellow);
+  display: inline-block; margin: 0 0 18px;
+  padding: 0.12em 0.42em 0.16em;
+  font-family: var(--fe-font-heading); font-weight: 400;
+  font-size: clamp(1.7rem, 1.1rem + 1.7vw, 2.6rem); line-height: 1;
+  text-transform: uppercase; letter-spacing: -0.01em;
+  color: var(--nb-ink);
+  background: var(--nb-fam);
   border: var(--nb-bw) solid var(--nb-ink); border-radius: 6px;
-  box-shadow: var(--nb-shadow-sm);
-  padding: 6px 16px; margin-bottom: 8px;
+  box-shadow: var(--nb-sh) var(--nb-drop-btn);
+  transform: rotate(-1.2deg);
 }
 body[data-fe-theme="neobrutal"] .fe-section-head p {
-  font-family: var(--fe-font-body); font-weight: 600; color: var(--nb-ink);
+  max-width: 52ch; margin: 0 auto;
+  font-size: 1.05rem; font-weight: 500; color: var(--nb-muted);
 }
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-section-head p { color: var(--nb-cream); }
 
-/* ===== Hero — bold colour block ======================================== */
-body[data-fe-theme="neobrutal"] .fe-hero { overflow: hidden; position: relative; }
-body[data-fe-theme="neobrutal"] .fe-hero > .fe-dynbg,
-body[data-fe-theme="neobrutal"] .fe-hero > .fe-hero-particles { display: none !important; }
-body[data-fe-theme="neobrutal"] .fe-hero-blob { opacity: 0; }
-body[data-fe-theme="neobrutal"] .fe-hero {
-  background: var(--nb-lav) !important;
-  border-bottom: var(--nb-bw) solid var(--nb-ink);
+/* List-page headings (meetings, events, library, ...): a big display line
+   with a family-colored underline block. */
+body[data-fe-theme="neobrutal"] .fe-mlist-head h1,
+body[data-fe-theme="neobrutal"] .fe-site-index-title,
+body[data-fe-theme="neobrutal"] .fe-submission-page-title,
+body[data-fe-theme="neobrutal"] .fe-contact-title,
+body[data-fe-theme="neobrutal"] .fe-rc-main-title {
+  font-family: var(--fe-font-heading); font-weight: 400;
+  text-transform: uppercase; letter-spacing: -0.01em; line-height: 1.02;
+  color: var(--nb-text);
 }
-/* Geometric backdrop: a faint graph grid + bold black-outlined shapes scattered
-   to the edges (the neobrutal hero signature). Content is lifted above via the
-   z-index on the hero's direct children. */
+body[data-fe-theme="neobrutal"] .fe-mlist-head h1,
+body[data-fe-theme="neobrutal"] .fe-site-index-title,
+body[data-fe-theme="neobrutal"] .fe-submission-page-title,
+body[data-fe-theme="neobrutal"] .fe-contact-title,
+body[data-fe-theme="neobrutal"] .fe-rc-main-title {
+  text-decoration: underline; text-decoration-color: var(--nb-fam);
+  text-decoration-thickness: 0.3em; text-underline-offset: -0.12em;
+  text-decoration-skip-ink: none;
+}
+body[data-fe-theme="neobrutal"] :is(.fe-site-index-title, .fe-submission-page-title, .fe-contact-title) {
+  font-size: clamp(2rem, 1.3rem + 2.4vw, 3.4rem);
+}
+body[data-fe-theme="neobrutal"] .fe-mlist-head p,
+body[data-fe-theme="neobrutal"] .fe-mlist-head .muted { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .muted { color: var(--nb-muted); }
+
+/* Prose links get an underline so they are findable without color. */
+body[data-fe-theme="neobrutal"] :is(.markdown-body, .fe-event-detail-desc, .fe-faq-body-inner,
+  .fe-feature-body, .fe-pp-prose, .fe-announcements-card-fulltext) a:not(.fe-btn) {
+  color: var(--nb-link);
+  text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px;
+}
+body[data-fe-theme="neobrutal"] :is(.markdown-body, .fe-event-detail-desc, .fe-faq-body-inner,
+  .fe-feature-body, .fe-pp-prose, .fe-announcements-card-fulltext) a:not(.fe-btn):hover {
+  color: var(--nb-link-hover); text-decoration-thickness: 4px;
+}
+
+
+/* ===== 4. Family colors ================================================== */
+
+body[data-fe-theme="neobrutal"] :is(.fe-meetings, .fe-mlist, .fe-meeting-detail,
+  .fe-fellowships, .fe-footer-block-locations) { --nb-fam: var(--nb-yellow); }
+body[data-fe-theme="neobrutal"] :is(.fe-events, .fe-event-detail, .fe-events-list-omni) { --nb-fam: var(--nb-cyan); }
+body[data-fe-theme="neobrutal"] :is(.fe-announcements, .fe-announcements-list, .fe-archive) { --nb-fam: var(--nb-lime); }
+body[data-fe-theme="neobrutal"] :is(.fe-library, .fe-features, .fe-faq, .fe-protips,
+  .fe-site-index, .fe-inclusion) { --nb-fam: var(--nb-lav); }
+body[data-fe-theme="neobrutal"] :is(.fe-stories, .fe-stories-mag, .fe-story-mag, .fe-story-paper,
+  .fe-story-anth, .fe-story-letter, .fe-story-journal, .fe-blog, .fe-blog-post,
+  .fe-contact-section, .fe-rc-section, .fe-submission-section, .fe-404) { --nb-fam: var(--nb-pink); }
+/* The library page also carries .fe-mlist/.fe-events/.fe-archive; the
+   library role wins. */
+body[data-fe-theme="neobrutal"] .fe-mlist.fe-library { --nb-fam: var(--nb-lav); }
+/* Values built from --nb-fam are declared again on every family root, so
+   they resolve against that root's color rather than the body's. In dark
+   mode card shadows take the family color. */
+body[data-fe-theme="neobrutal"],
+body[data-fe-theme="neobrutal"] :is(.fe-meetings, .fe-mlist, .fe-meeting-detail, .fe-fellowships,
+  .fe-footer-block-locations, .fe-events, .fe-event-detail, .fe-events-list-omni, .fe-announcements,
+  .fe-announcements-list, .fe-archive, .fe-library, .fe-features, .fe-faq, .fe-protips, .fe-site-index,
+  .fe-inclusion, .fe-stories, .fe-stories-mag, .fe-story-mag, .fe-story-paper, .fe-story-anth,
+  .fe-story-letter, .fe-story-journal, .fe-blog, .fe-blog-post, .fe-contact-section, .fe-rc-section,
+  .fe-submission-section, .fe-404) {
+  --nb-band: inset 0 8px 0 0 var(--nb-fam), inset 0 11px 0 0 var(--nb-line);
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"],
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] :is(.fe-meetings, .fe-mlist, .fe-meeting-detail,
+  .fe-fellowships, .fe-footer-block-locations, .fe-events, .fe-event-detail, .fe-events-list-omni,
+  .fe-announcements, .fe-announcements-list, .fe-archive, .fe-library, .fe-features, .fe-faq, .fe-protips,
+  .fe-site-index, .fe-inclusion, .fe-stories, .fe-stories-mag, .fe-story-mag, .fe-story-paper,
+  .fe-story-anth, .fe-story-letter, .fe-story-journal, .fe-blog, .fe-blog-post, .fe-contact-section,
+  .fe-rc-section, .fe-submission-section, .fe-404) {
+  --nb-drop: var(--nb-fam);
+}
+
+
+/* ===== 5. Utility bar ==================================================== */
+
+/* Resting strip: ink with cream type. Live: the stock yellow band, with ink
+   outlines on its controls. Both are painted here, so the admin's utility
+   colors are not used by this theme (see UTILITY_BAR_COLOR_MODES). */
+body[data-fe-theme="neobrutal"] .fe-utility-bar {
+  font-family: var(--fe-font-body); font-weight: 600; letter-spacing: 0.01em;
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar:not(.is-live) {
+  background: var(--nb-ink) !important; color: var(--nb-cream) !important; /* beats the inline admin colors */
+  box-shadow: none;
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-utility-bar:not(.is-live) {
+  background: #08070b !important; /* beats the inline admin colors */
+  box-shadow: inset 0 -1px 0 rgba(246, 241, 228, 0.16);
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar.is-live {
+  background: var(--nb-yellow); color: var(--nb-ink) !important; /* frontend.css sets this with !important */
+  box-shadow: inset 0 -3px 0 var(--nb-ink);
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-utility-bar.is-live {
+  background: var(--nb-yellow);
+  box-shadow: inset 0 -3px 0 var(--nb-line);
+}
+/* Chips: small outlined pills. */
+body[data-fe-theme="neobrutal"] .fe-utility-bar :is(.fe-utility-btn, .fe-theme-toggle,
+  .fe-utility-search-btn, .fe-utility-overflow-btn, .fe-utility-container--collapsed) {
+  background: transparent; color: inherit;
+  border: 2px solid color-mix(in srgb, currentColor 38%, transparent);
+  border-radius: 6px;
+  transition: background 120ms var(--nb-ease), border-color 120ms var(--nb-ease), transform 90ms var(--nb-ease);
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar .fe-utility-btn { padding: 3px 10px; }
+body[data-fe-theme="neobrutal"] .fe-utility-bar:not(.is-live) :is(.fe-utility-btn, .fe-theme-toggle,
+  .fe-utility-search-btn, .fe-utility-overflow-btn, .fe-utility-container--collapsed):hover {
+  background: var(--nb-yellow); color: var(--nb-ink); border-color: var(--nb-yellow); transform: none;
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar.is-live :is(.fe-utility-btn, .fe-theme-toggle,
+  .fe-utility-search-btn, .fe-utility-overflow-btn, .fe-utility-container--collapsed) {
+  border-color: var(--nb-ink); background: transparent; color: var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar.is-live :is(.fe-utility-btn, .fe-theme-toggle,
+  .fe-utility-search-btn, .fe-utility-overflow-btn, .fe-utility-container--collapsed):hover {
+  background: var(--nb-ink); color: var(--nb-yellow); transform: none;
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar a:not(.fe-utility-btn):not(.fe-utility-live-cta):hover { color: var(--nb-yellow); }
+body[data-fe-theme="neobrutal"] .fe-utility-bar.is-live a:not(.fe-utility-btn):not(.fe-utility-live-cta):hover { color: var(--nb-ink); }
+/* Live meeting: the Join button is a pink action chip. */
+body[data-fe-theme="neobrutal"] .fe-utility-bar .fe-utility-live-label {
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar.is-live .fe-utility-live-cta {
+  background: var(--fe-color-btn-primary-bg, var(--nb-pink)); color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 6px;
+  padding: 2px 10px; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.05em;
+  box-shadow: var(--nb-sh-xs) var(--nb-ink);
+  transition: transform 90ms var(--nb-ease), box-shadow 90ms var(--nb-ease);
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar.is-live .fe-utility-live-cta:hover {
+  color: var(--nb-ink); background: var(--fe-color-btn-primary-hover-bg, var(--nb-pink));
+  transform: translate(-1px, -1px); box-shadow: 3px 3px 0 0 var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar.is-live .fe-utility-live-cta:active {
+  transform: translate(2px, 2px); box-shadow: none;
+}
+body[data-fe-theme="neobrutal"] .fe-utility-live-pulse { background: #e8002d; }
+/* Overflow popover: a small poster card. */
+body[data-fe-theme="neobrutal"] .fe-utility-overflow-panel {
+  background: var(--nb-panel); color: var(--nb-text);
+  border: var(--nb-bw) solid var(--nb-line); border-radius: var(--nb-r);
+  box-shadow: var(--nb-sh) var(--nb-drop-btn);
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar .fe-utility-overflow-panel :is(.fe-utility-btn, .fe-utility-link) {
+  border: 0;
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar .fe-utility-overflow-panel :is(.fe-utility-btn, .fe-utility-link):hover {
+  background: var(--nb-yellow); color: var(--nb-ink);
+}
+
+
+/* ===== 6. Header ========================================================= */
+
+body[data-fe-theme="neobrutal"] .fe-header-themed {
+  background: var(--nb-panel);
+  border-bottom: var(--nb-bw) solid var(--nb-line);
+  box-shadow: none;
+}
+body[data-fe-theme="neobrutal"] .fe-th-brand { color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-th-brand-name {
+  font-family: var(--fe-font-heading); font-weight: 400;
+  font-size: 1.5rem; text-transform: uppercase; letter-spacing: -0.01em;
+  padding: 2px 10px; background: var(--nb-yellow); color: var(--nb-ink);
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 6px;
+  box-shadow: var(--nb-sh-sm) var(--nb-drop-btn);
+  transform: rotate(-2deg);
+}
+body[data-fe-theme="neobrutal"] .fe-th-nav { gap: 6px; }
+/* Nav links: chunky labels that fill with their page's family color. */
+body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta) {
+  --nb-fam: var(--nb-yellow);
+  padding: 8px 14px;
+  font-family: var(--fe-font-body); font-weight: 700; font-size: 0.9rem;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--fe-color-nav-link, var(--nb-text));
+  border: 2px solid transparent; border-radius: 6px;
+  transition: background 120ms var(--nb-ease), border-color 120ms var(--nb-ease),
+              box-shadow 120ms var(--nb-ease), transform 120ms var(--nb-ease);
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta) { color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-th-nav-link[href*="/event"]        { --nb-fam: var(--nb-cyan); }
+body[data-fe-theme="neobrutal"] .fe-th-nav-link[href*="/announcement"],
+body[data-fe-theme="neobrutal"] .fe-th-nav-link[href*="/archive"]      { --nb-fam: var(--nb-lime); }
+body[data-fe-theme="neobrutal"] .fe-th-nav-link[href*="/library"]      { --nb-fam: var(--nb-lav); }
+body[data-fe-theme="neobrutal"] .fe-th-nav-link[href*="/stor"],
+body[data-fe-theme="neobrutal"] .fe-th-nav-link[href*="/blog"],
+body[data-fe-theme="neobrutal"] .fe-th-nav-link[href*="donat"]        { --nb-fam: var(--nb-pink); }
+body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta):hover,
+body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta).mega-active {
+  background: var(--nb-fam);
+  color: var(--fe-color-nav-link-hover, var(--nb-ink)) !important; /* beats the dark-mode nav color in frontend.css */
+  border-color: var(--nb-ink);
+  box-shadow: var(--nb-sh-xs) var(--nb-drop-btn);
+  transform: translate(-1px, -1px);
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta):hover,
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta).mega-active {
+  color: var(--nb-ink) !important; /* ink on the color fill in both modes */
+}
+body[data-fe-theme="neobrutal"] .fe-th-nav-twoline-lead { opacity: 1; color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-th-nav-link:hover .fe-th-nav-twoline-lead { color: inherit; }
+
+/* Hamburger: a square button with a hard shadow. */
+body[data-fe-theme="neobrutal"] .fe-th-menu-btn {
+  background: var(--nb-yellow);
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 8px;
+  box-shadow: var(--nb-sh-sm) var(--nb-drop-btn);
+  transition: transform 90ms var(--nb-ease), box-shadow 90ms var(--nb-ease);
+}
+body[data-fe-theme="neobrutal"] .fe-th-menu-btn:active { transform: translate(3px, 3px); box-shadow: none; }
+body[data-fe-theme="neobrutal"] .fe-th-menu-btn span { background: var(--nb-ink); height: 3px; left: 9px; right: 9px; }
+body[data-fe-theme="neobrutal"] .fe-th-menu-btn span:first-child { top: 13px; }
+body[data-fe-theme="neobrutal"] .fe-th-menu-btn span:last-child  { bottom: 13px; }
+body[data-fe-theme="neobrutal"] .fe-header-themed.fe-nav-open .fe-th-menu-btn span:first-child { transform: translateY(4.5px) rotate(45deg); }
+body[data-fe-theme="neobrutal"] .fe-header-themed.fe-nav-open .fe-th-menu-btn span:last-child  { transform: translateY(-4.5px) rotate(-45deg); }
+
+@media (max-width: 880px) {
+  /* The dropdown hangs from the brand row, not from the top of the header:
+     the utility bar sits inside the header, so the shared top offset
+     (--fe-header-h) would lay the menu over the logo row. */
+  body[data-fe-theme="neobrutal"] .fe-header-themed-inner { position: relative; }
+  body[data-fe-theme="neobrutal"] .fe-th-nav {
+    top: calc(100% + var(--nb-bw));
+    max-height: calc(100vh - var(--fe-header-full-h, 140px));
+    background: var(--nb-canvas);
+    border-bottom: var(--nb-bw) solid var(--nb-line);
+    box-shadow: 0 10px 0 0 rgba(18, 18, 18, 0.12);
+    padding: 14px 5vw 22px; gap: 8px;
+  }
+  body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta) {
+    padding: 14px 16px; font-size: 1rem;
+    background: var(--nb-panel); border: 2px solid var(--nb-line);
+  }
+  body[data-fe-theme="neobrutal"] .fe-th-nav-cta { margin-top: 8px; }
+}
+
+
+/* ===== 7. Mega menu: a poster of colored panels ========================= */
+
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed {
+  --fe-mm-heading-base: 1.75rem; --fe-mm-link-base: 1.02rem;
+  background-color: var(--nb-canvas); color: var(--nb-ink);
+  border-bottom: var(--nb-bw) solid var(--nb-line);
+  border-radius: 0 !important; /* beats the inline admin corner radius: the panel is a flat poster sheet */
+  box-shadow: 0 12px 0 0 rgba(18, 18, 18, 0.14);
+  padding: 32px 0 40px;
+}
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-inner { gap: 28px; }
+/* Each column is a color block; colors run yellow, cyan, lavender. */
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-col {
+  --nb-col: var(--nb-yellow);
+  padding: 22px 18px 18px;
+  background: var(--nb-col); color: var(--nb-ink);
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 10px;
+  box-shadow: var(--nb-sh) var(--nb-drop-btn);
+}
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-col:nth-child(3n+2) { --nb-col: var(--nb-cyan); }
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-col:nth-child(3n+3) { --nb-col: var(--nb-lav); }
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed :is(.fe-megamenu-block-title, .fe-megamenu-heading) {
+  margin: 18px 8px 8px;
+  font-family: var(--fe-font-heading) !important; /* beats the Inter family hardcoded for Recovery Blue */
+  font-weight: 400; text-transform: uppercase; letter-spacing: -0.005em; line-height: 1;
+  color: var(--nb-ink); opacity: 1;
+}
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-blocks > .fe-megamenu-block-title:first-child { margin-top: 0; }
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-link {
+  padding: 8px 10px; margin: 1px 0;
+  color: var(--fe-color-megamenu-link, var(--nb-ink)) !important; /* the dark-mode token variant is tuned for dark panels; these stay color blocks */
+  font-weight: 600;
+  border: 2px solid transparent; border-radius: 6px;
+}
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-link-colored { color: var(--link-color-light) !important; /* admin per-link color */ }
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-link:hover {
+  background: #ffffff; border-color: var(--nb-ink); padding-left: 14px;
+  color: var(--fe-color-megamenu-link-hover, var(--nb-ink)) !important; /* same as above */
+  box-shadow: var(--nb-sh-xs) var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-block-section { opacity: 1; color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-block-section-line { background: var(--nb-ink); opacity: 1; height: 2px; }
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-block-btn {
+  margin: 8px 6px 4px 0;
+  background: #ffffff; color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 6px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.8rem;
+  box-shadow: var(--nb-sh-xs) var(--nb-ink);
+  transition: transform 90ms var(--nb-ease), box-shadow 90ms var(--nb-ease), background 120ms;
+}
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-block-btn:hover {
+  background: var(--fe-color-btn-primary-bg, var(--nb-pink)); color: var(--nb-ink);
+  transform: translate(-1px, -1px); box-shadow: 3px 3px 0 0 var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-block-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-search {
+  background: #ffffff; color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 6px;
+}
+body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-search-icon { color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-megamenu-backdrop { background: rgba(18, 18, 18, 0.35); backdrop-filter: none; }
+@media (max-width: 880px) {
+  body[data-fe-theme="neobrutal"] .fe-megamenu-themed { padding: 18px 0 24px; }
+  body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-inner { padding: 0 5vw; gap: 18px; }
+}
+
+
+/* ===== 8. Buttons, forms, focus ========================================= */
+
+/* Every button: a thick ink outline, uppercase Space Grotesk, a hard shadow,
+   a lift on hover and a press on click. The html[data-theme] + .frontend-body
+   prefix outranks frontend.css's dark-mode button rules. */
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body :is(.fe-btn, .fe-th-nav-cta, .btn,
+  .fe-submission-submit, .fe-recovery-btn) {
+  font-family: var(--fe-font-body); font-weight: var(--fe-btn-weight, 700);
+  text-transform: var(--fe-btn-text-transform, uppercase); letter-spacing: 0.05em;
+  border-radius: var(--fe-btn-radius, 8px);
+  border-style: solid;
+  box-shadow: var(--nb-sh-sm) var(--nb-drop-btn);
+  transform: none;
+  transition: transform 90ms var(--nb-ease), box-shadow 90ms var(--nb-ease),
+              background-color 120ms var(--nb-ease), color 120ms var(--nb-ease);
+}
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body :is(.fe-btn, .fe-th-nav-cta, .btn,
+  .fe-submission-submit, .fe-recovery-btn):hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--nb-sh) var(--nb-drop-btn);
+  text-decoration: none;
+}
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body :is(.fe-btn, .fe-th-nav-cta, .btn,
+  .fe-submission-submit, .fe-recovery-btn):active {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 0 var(--nb-drop-btn);
+}
+
+/* Primary: the action pink (button tokens). */
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body :is(.fe-btn-primary, .fe-btn-blue,
+  .fe-th-nav-cta, .btn-primary, .fe-submission-submit, .fe-recovery-btn-primary) {
+  background: var(--fe-btn-bg, var(--fe-color-btn-primary-bg, var(--nb-pink)));
+  color: var(--fe-btn-text, var(--fe-color-btn-primary-text, var(--nb-ink))) !important; /* beats the !important white in .fe-th-nav-cta */
+  border-width: var(--fe-btn-primary-border-width, 3px);
+  border-color: var(--fe-color-btn-primary-border, var(--nb-ink));
+}
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body :is(.fe-btn-primary, .fe-btn-blue,
+  .fe-th-nav-cta, .btn-primary, .fe-submission-submit, .fe-recovery-btn-primary):hover {
+  background: var(--fe-btn-hover-bg, var(--fe-color-btn-primary-hover-bg, var(--nb-pink)));
+  color: var(--fe-btn-hover-text, var(--fe-btn-text, var(--fe-color-btn-primary-text, var(--nb-ink)))) !important; /* as above */
+  border-color: var(--fe-color-btn-primary-hover-border, var(--nb-ink));
+}
+
+/* Secondary / ghost: white with ink type; fills yellow on hover. */
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body :is(.fe-btn-ghost, .fe-btn-secondary,
+  .btn:not(.btn-primary):not(.fe-submission-submit), .fe-recovery-btn-ghost) {
+  background: var(--fe-color-btn-secondary-bg, #ffffff);
+  color: var(--fe-color-btn-secondary-text, var(--nb-ink));
+  border-width: var(--fe-btn-secondary-border-width, 3px);
+  border-color: var(--fe-color-btn-secondary-border, var(--nb-ink));
+}
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body :is(.fe-btn-ghost, .fe-btn-secondary,
+  .btn:not(.btn-primary):not(.fe-submission-submit), .fe-recovery-btn-ghost):hover {
+  background: var(--fe-color-btn-secondary-hover-bg, var(--nb-yellow));
+  color: var(--fe-color-btn-secondary-text, var(--nb-ink));
+  border-color: var(--fe-color-btn-secondary-hover-border, var(--nb-ink));
+}
+/* Dark: ghost buttons go charcoal with cream type, then fill yellow. */
+html[data-theme="dark"] body[data-fe-theme="neobrutal"].frontend-body :is(.fe-btn-ghost, .fe-btn-secondary,
+  .btn:not(.btn-primary):not(.fe-submission-submit), .fe-recovery-btn-ghost) {
+  background: var(--nb-panel); color: var(--nb-text); border-color: var(--nb-line);
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"].frontend-body :is(.fe-btn-ghost, .fe-btn-secondary,
+  .btn:not(.btn-primary):not(.fe-submission-submit), .fe-recovery-btn-ghost):hover {
+  background: var(--nb-yellow); color: var(--nb-ink); border-color: var(--nb-line);
+}
+
+/* Named color buttons map onto the theme palette. */
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body .fe-btn-green {
+  background: var(--nb-lime); color: var(--nb-ink); border-width: 3px; border-color: var(--nb-ink);
+}
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body .fe-btn-green:hover { background: #c8f57a; color: var(--nb-ink); }
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body .fe-btn-yellow {
+  background: var(--nb-yellow); color: var(--nb-ink); border-width: 3px; border-color: var(--nb-ink);
+}
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body .fe-btn-yellow:hover { background: #ffe07a; color: var(--nb-ink); }
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body .fe-btn-custom { border-width: 3px; border-color: var(--nb-ink); }
+
+/* Focus: a dashed ring in the line color, offset from the outline. */
+body[data-fe-theme="neobrutal"] :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px dashed var(--nb-text);
+  outline-offset: 3px;
+}
+body[data-fe-theme="neobrutal"] .fe-utility-bar :is(a, button):focus-visible { outline-offset: 1px; outline-color: var(--nb-cream); }
+body[data-fe-theme="neobrutal"] .fe-utility-bar.is-live :is(a, button):focus-visible { outline-color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-footer :is(a, button):focus-visible { outline-color: var(--nb-cream); }
+body[data-fe-theme="neobrutal"] .fe-faq-summary:focus-visible { outline-offset: -6px; border-radius: 6px; }
+
+/* Form controls (contact, submission, story, search, filters). */
+body[data-fe-theme="neobrutal"] .fe-page :is(input[type="text"], input[type="email"], input[type="tel"],
+  input[type="url"], input[type="search"], input[type="number"], input[type="date"], input[type="time"],
+  input[type="password"], input:not([type]), select, textarea),
+body[data-fe-theme="neobrutal"] .fe-submission-modal :is(input[type="text"], input[type="email"],
+  input[type="tel"], input[type="url"], input[type="date"], input[type="time"], input:not([type]), select, textarea) {
+  background: var(--nb-panel); color: var(--nb-text);
+  border: var(--nb-bw) solid var(--nb-line); border-radius: 8px;
+  font-family: var(--fe-font-body); font-size: 1rem;
+  box-shadow: none;
+  transition: box-shadow 120ms var(--nb-ease), transform 120ms var(--nb-ease);
+}
+body[data-fe-theme="neobrutal"] .fe-page :is(input, select, textarea)::placeholder { color: var(--nb-muted); opacity: 1; }
+body[data-fe-theme="neobrutal"] .fe-page :is(input[type="text"], input[type="email"], input[type="tel"],
+  input[type="url"], input[type="search"], input[type="number"], input[type="date"], input[type="time"],
+  input[type="password"], input:not([type]), select, textarea):focus,
+body[data-fe-theme="neobrutal"] .fe-submission-modal :is(input, select, textarea):focus {
+  outline: none;
+  border-color: var(--nb-line);
+  box-shadow: var(--nb-sh-sm) var(--nb-pink);
+}
+body[data-fe-theme="neobrutal"] .fe-page input[type="file"]::file-selector-button {
+  margin-right: 10px; padding: 6px 12px;
+  font: inherit; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+  background: var(--nb-yellow); color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 6px; cursor: pointer;
+}
+body[data-fe-theme="neobrutal"] .fe-page :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--nb-pink); width: 18px; height: 18px;
+}
+body[data-fe-theme="neobrutal"] .fe-page form label,
+body[data-fe-theme="neobrutal"] .fe-custom-form-label,
+body[data-fe-theme="neobrutal"] .fe-page legend {
+  font-weight: 700; color: var(--nb-text);
+}
+body[data-fe-theme="neobrutal"] .fe-page legend {
+  font-family: var(--fe-font-heading); font-weight: 400; text-transform: uppercase; letter-spacing: 0.01em;
+}
+body[data-fe-theme="neobrutal"] .fe-page fieldset {
+  border: 2px dashed color-mix(in srgb, var(--nb-line) 45%, transparent); border-radius: 8px;
+}
+
+
+/* ===== 9. Badges and chips ============================================== */
+
+/* Meeting format: a tilted sticker. Online cyan, in person lime, hybrid
+   lavender, archived plain. */
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-type, .fe-recovery-meeting-type) {
+  display: inline-flex; align-items: center;
+  padding: 3px 9px;
+  font-family: var(--fe-font-body); font-weight: 700;
+  font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--nb-ink) !important; /* beats the dark-mode text forcing on cards */
+  background: #ffffff;
+  border: 2px solid var(--nb-ink); border-radius: 4px;
+  box-shadow: var(--nb-sh-xs) var(--nb-ink);
+  transform: rotate(-2deg);
+}
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-type-online, .fe-recovery-meeting-type-online)      { background: var(--nb-cyan) !important; /* beats hardcoded blue */ }
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-type-in_person, .fe-recovery-meeting-type-in_person) { background: var(--nb-lime) !important; /* beats hardcoded green */ }
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-type-hybrid, .fe-recovery-meeting-type-hybrid)     { background: var(--nb-lav) !important; /* beats hardcoded amber */ }
+body[data-fe-theme="neobrutal"] .fe-meeting-type-archived { background: var(--nb-canvas-2); }
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] :is(.fe-meeting-type, .fe-recovery-meeting-type) {
+  box-shadow: var(--nb-sh-xs) var(--nb-line);
+}
+
+/* Small inline chips (durations, counts, copy pills, categories). */
+body[data-fe-theme="neobrutal"] :is(.fe-mlist-card-dur-chip, .fe-copy-url-pill, .fe-fellowships-card-chip,
+  .fe-events-mag-hero-tag, .fe-events-cal-list-tag) {
+  background: var(--nb-panel); color: var(--nb-text);
+  border: 2px solid var(--nb-line); border-radius: 4px;
+  font-weight: 700;
+}
+body[data-fe-theme="neobrutal"] .fe-fellowships-card-chip--virtual { background: var(--nb-cyan) !important; color: var(--nb-ink) !important; border-color: var(--nb-ink) !important; /* beats hardcoded blue */ }
+body[data-fe-theme="neobrutal"] .fe-mlist-day-count {
+  background: transparent; border: 2px solid currentColor; border-radius: 4px;
+  font-weight: 700; padding: 0 6px;
+}
+
+
+/* ===== 10. Cards: the shared recipe ===================================== */
+
+/* White panel, thick outline, hard shadow; list cards also carry a band in
+   their family color. Hover lifts the card up and left. Page-builder
+   containers that opt into a card style (.block.fe-card-*) are left to the
+   card tokens: the theme adds no chrome to builder blocks. */
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-card, .fe-mlist-card, .fe-event-row, .fe-events-card,
+  .fe-events-mag-hero, .fe-announcements-card, .fe-library-item, .fe-fellowships-card,
+  .fe-feature-card, .fe-faq-item, .fe-card-primary:where(:not(.block)), .fe-card-secondary:where(:not(.block)), .fe-meeting-detail-card,
+  .fe-meeting-extended-card, .fe-meeting-resources, .fe-event-detail-card, .fe-submission-card,
+  .fe-contact-card, .fe-rc-item-card, .fe-inclusion-card, .fe-quick-card, .fe-meeting-mag-side-card,
+  .fe-events-tl-card, .fe-events-cal) {
+  background-color: var(--nb-panel);
+  color: var(--nb-text);
+  border: var(--nb-bw) solid var(--nb-line) !important; /* beats per-card dark border rules */
+  border-radius: var(--nb-r);
+  box-shadow: var(--nb-sh) var(--nb-drop);
+  transition: transform 120ms var(--nb-ease), box-shadow 120ms var(--nb-ease);
+}
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-card, .fe-mlist-card, .fe-event-row, .fe-events-card,
+  .fe-announcements-card, .fe-library-item, .fe-fellowships-card, .fe-feature-card) {
+  box-shadow: var(--nb-band), var(--nb-sh) var(--nb-drop);
+}
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-card, .fe-mlist-card, .fe-event-row, .fe-events-card,
+  .fe-announcements-card, .fe-library-item, .fe-fellowships-card, .fe-feature-card) {
+  padding-top: calc(var(--nb-pt, 22px) + 8px);
+}
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-card, .fe-mlist-card, .fe-event-row, .fe-events-card,
+  .fe-announcements-card, .fe-library-item, .fe-fellowships-card, .fe-feature-card, .fe-events-mag-hero,
+  .fe-rc-item-card, .fe-quick-card, .fe-events-tl-card):hover {
+  transform: translate(-3px, -3px);
+  border-color: var(--nb-line);
+  box-shadow: var(--nb-band), var(--nb-sh-lg) var(--nb-drop);
+}
+body[data-fe-theme="neobrutal"] :is(.fe-events-mag-hero, .fe-rc-item-card, .fe-quick-card, .fe-events-tl-card):hover {
+  box-shadow: var(--nb-sh-lg) var(--nb-drop);
+}
+/* Static surfaces (detail cards, forms, accordions) don't lift. */
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-detail-card, .fe-meeting-extended-card, .fe-meeting-resources,
+  .fe-event-detail-card, .fe-submission-card, .fe-contact-card, .fe-inclusion-card, .fe-faq-item,
+  .fe-card-primary:where(:not(.block)), .fe-card-secondary:where(:not(.block)), .fe-events-cal):hover {
+  transform: none; box-shadow: var(--nb-sh) var(--nb-drop);
+  border-color: var(--nb-line);
+}
+/* Card text in dark mode follows the panel (frontend.css pins slate). */
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] :is(.fe-meeting-sched, .fe-event-summary,
+  .fe-feature-body, .fe-feature-card p, .fe-faq-body-inner, .fe-inclusion-body, .fe-mlist-card-desc,
+  .fe-events-card-summary, .fe-library-item-summary, .fe-announcements-card-fulltext) {
+  color: var(--nb-muted);
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] :is(.fe-meeting-day, .fe-event-title, .fe-event-title a,
+  .fe-faq-summary, .fe-feature-body strong, .fe-faq-body-inner strong, .fe-inclusion-heading) {
+  color: var(--nb-text);
+}
+
+/* Shared card titles: the display face. */
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-card h3, .fe-mlist-card-name, .fe-event-title,
+  .fe-events-card-title, .fe-announcements-card-title, .fe-library-item-title, .fe-fellowships-card-title,
+  .fe-feature-card h3, .fe-events-mag-hero-title, .fe-rc-item-name, .fe-events-tl-title) {
+  font-family: var(--fe-font-heading); font-weight: 400; letter-spacing: 0; line-height: 1.12;
+}
+body[data-fe-theme="neobrutal"] :is(.fe-mlist-card-name, .fe-event-title, .fe-events-card-title,
+  .fe-announcements-card-title, .fe-library-item-title, .fe-fellowships-card-title) a {
+  color: inherit; text-decoration: none;
+}
+body[data-fe-theme="neobrutal"] :is(.fe-mlist-card-name, .fe-event-title, .fe-events-card-title,
+  .fe-announcements-card-title, .fe-library-item-title, .fe-fellowships-card-title) a:hover {
+  text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: var(--nb-fam);
+  text-underline-offset: 4px;
+}
+/* "Read more" style links inside cards. */
+body[data-fe-theme="neobrutal"] :is(.fe-card-read-more, .fe-meeting-card-cta, .fe-mlist-card-permalink,
+  .fe-events-tl-read-more) {
+  color: var(--nb-text) !important; /* beats .fe-page a link color */
+  font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;
+  text-decoration: none;
+  box-shadow: inset 0 -0.4em 0 var(--nb-fam);
+  align-self: flex-start; width: fit-content;
+}
+
+
+/* ===== 11. Home ========================================================= */
+
+/* Hero: a flat poster. Yellow (the accent token) in light mode, the night
+   canvas in dark, with a graph-paper grid and outlined shapes scattered to
+   the edges. Shape positions come per request from design.py
+   (neobrutal_hero_css_vars) and are pulled toward the edges here so the
+   headline stays clear. */
+body[data-fe-theme="neobrutal"] .fe-hero {
+  position: relative; overflow: hidden;
+  background: var(--nb-yellow) !important; /* beats the inline dynamic background */
+  border-bottom: var(--nb-bw) solid var(--nb-line);
+  --nb-grid: rgba(18, 18, 18, 0.12);
+  --nb-ring: var(--nb-ink);
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-hero {
+  background: var(--nb-canvas) !important; /* as above */
+  --nb-grid: rgba(246, 241, 228, 0.08);
+  --nb-ring: var(--nb-line);
+}
 body[data-fe-theme="neobrutal"] .fe-hero > * { position: relative; z-index: 1; }
 body[data-fe-theme="neobrutal"] .fe-hero::before {
   content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background-image:
-    radial-gradient(circle 92px at var(--nb-s1-x, 13%) var(--nb-s1-y, 24%), var(--nb-pink) 0 86px, var(--nb-ink) 86px 92px, transparent 92px),
-    radial-gradient(circle 56px at var(--nb-s2-x, 88%) var(--nb-s2-y, 17%), var(--nb-cyan) 0 50px, var(--nb-ink) 50px 56px, transparent 56px),
-    radial-gradient(circle 72px at var(--nb-s3-x, 91%) var(--nb-s3-y, 83%), var(--nb-lime) 0 66px, var(--nb-ink) 66px 72px, transparent 72px),
-    radial-gradient(circle 40px at var(--nb-s4-x, 21%) var(--nb-s4-y, 86%), var(--nb-yellow) 0 34px, var(--nb-ink) 34px 40px, transparent 40px),
-    repeating-linear-gradient(0deg, rgba(17,17,17,0.13) 0 2px, transparent 2px 48px),
-    repeating-linear-gradient(90deg, rgba(17,17,17,0.13) 0 2px, transparent 2px 48px);
+    radial-gradient(circle 62px at calc(var(--nb-s1-x, 13%) * 0.4) calc(var(--nb-s1-y, 24%) * 0.55),
+      var(--nb-pink) 0 58px, var(--nb-ring) 58px 62px, transparent 62.5px),
+    radial-gradient(circle 46px at calc(100% - (100% - var(--nb-s2-x, 88%)) * 0.45) var(--nb-s2-y, 17%),
+      var(--nb-cyan) 0 42px, var(--nb-ring) 42px 46px, transparent 46.5px),
+    radial-gradient(circle 56px at calc(100% - (100% - var(--nb-s3-x, 91%)) * 0.45) var(--nb-s3-y, 83%),
+      var(--nb-lime) 0 52px, var(--nb-ring) 52px 56px, transparent 56.5px),
+    radial-gradient(circle 34px at calc(var(--nb-s4-x, 21%) * 0.45) var(--nb-s4-y, 86%),
+      var(--nb-lav) 0 30px, var(--nb-ring) 30px 34px, transparent 34.5px),
+    repeating-linear-gradient(0deg, var(--nb-grid) 0 2px, transparent 2px 48px),
+    repeating-linear-gradient(90deg, var(--nb-grid) 0 2px, transparent 2px 48px);
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat;
 }
 body[data-fe-theme="neobrutal"] .fe-hero::after {
   content: ""; position: absolute; z-index: 0; pointer-events: none;
-  width: 116px; height: 116px; right: var(--nb-sq-right, 7%); bottom: -34px;
-  background: var(--nb-yellow); border: var(--nb-bw) solid var(--nb-ink);
+  width: 92px; height: 92px; right: calc(var(--nb-sq-right, 7%) + 60px); bottom: -30px;
+  background: var(--nb-pink); border: 4px solid var(--nb-ring);
   transform: rotate(var(--nb-sq-rot, 12deg));
 }
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-hero::after { background: var(--nb-yellow); }
+body[data-fe-theme="neobrutal"] .fe-hero-inner { max-width: 1040px; }
 body[data-fe-theme="neobrutal"] .fe-hero-heading {
-  background-image: none !important; -webkit-text-fill-color: var(--nb-ink);
-  color: var(--nb-ink); text-transform: uppercase; letter-spacing: -0.01em;
-  /* Force the chunky display face — the hero's own font picker would otherwise
-     leave the admin's serif headline in place. */
-  font-family: var(--fe-font-heading) !important;
+  font-family: var(--fe-font-heading) !important; /* the hero's own font picker would keep Fraunces */
+  font-weight: 400; text-transform: uppercase; letter-spacing: -0.015em; line-height: 0.98;
+  font-size: calc(clamp(2.6rem, 1.4rem + 5vw, 5.6rem) * min(var(--fe-hero-h-size, 1), 1.1));
+  background-image: none !important; /* drops the gradient-clip text */
+  -webkit-text-fill-color: currentColor; color: var(--nb-ink);
+  padding-bottom: 0; margin-bottom: 26px;
+  text-shadow: 4px 4px 0 #ffffff;
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-hero-heading {
+  color: var(--nb-text); text-shadow: 4px 4px 0 var(--nb-pink);
 }
 body[data-fe-theme="neobrutal"] .fe-hero-sub {
-  font-family: var(--fe-font-body) !important; font-weight: 600; color: var(--nb-ink) !important;
+  font-family: var(--fe-font-body) !important; /* the hero's font picker would keep Inter */
+  font-weight: 500; line-height: 1.6; max-width: 640px;
+  color: var(--nb-ink) !important; /* beats the inline admin sub color, tuned for the old surface */
 }
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-hero-sub { color: var(--nb-text) !important; /* as above */ }
 body[data-fe-theme="neobrutal"] .fe-hero-eyebrow {
   background: var(--nb-pink); color: var(--nb-ink);
   border: var(--nb-bw) solid var(--nb-ink); border-radius: 4px;
-  box-shadow: var(--nb-shadow-sm);
-  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; font-size: 0.7rem;
+  box-shadow: var(--nb-sh-xs) var(--nb-ink);
+  text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+  transform: rotate(-2deg);
+}
+body[data-fe-theme="neobrutal"] .fe-hero-cta { gap: 18px; }
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body .fe-hero-cta .fe-btn {
+  padding: 15px 28px; font-size: 1rem;
 }
 
-/* ===== Cards — thick border + hard shadow + lift on hover =============== */
-body[data-fe-theme="neobrutal"] .fe-card-primary,
-body[data-fe-theme="neobrutal"] .fe-card-secondary,
-body[data-fe-theme="neobrutal"] .fe-meeting-card,
-body[data-fe-theme="neobrutal"] .fe-mlist-card,
-body[data-fe-theme="neobrutal"] .fe-feature-card,
-body[data-fe-theme="neobrutal"] .fe-event-row,
-body[data-fe-theme="neobrutal"] .fe-faq-item,
-body[data-fe-theme="neobrutal"] .fe-events-card,
-body[data-fe-theme="neobrutal"] .fe-events-mag-hero,
-body[data-fe-theme="neobrutal"] .fe-announcements-card,
-body[data-fe-theme="neobrutal"] .fe-library-item,
-body[data-fe-theme="neobrutal"] .fe-fellowships-card {
-  border: var(--nb-bw) solid var(--nb-ink) !important;
-  box-shadow: var(--nb-shadow);
-  transition: transform 110ms var(--nb-ease), box-shadow 110ms var(--nb-ease);
+/* Meeting cards (home grid). */
+body[data-fe-theme="neobrutal"] .fe-meeting-grid { gap: 26px; }
+body[data-fe-theme="neobrutal"] .fe-meeting-card { --nb-pt: 20px; padding: 28px 22px 22px; }
+body[data-fe-theme="neobrutal"] .fe-meeting-card h3 { font-size: 1.3rem; margin: 14px 0 12px; color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-meeting-card-logo { top: 24px; }
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-meeting-card-logo {
+  padding: 6px; background: #ffffff; border-radius: 6px;  /* logos are drawn for light paper */
 }
-body[data-fe-theme="neobrutal"] .fe-card-primary:hover,
-body[data-fe-theme="neobrutal"] .fe-card-secondary:hover,
-body[data-fe-theme="neobrutal"] .fe-meeting-card:hover,
-body[data-fe-theme="neobrutal"] .fe-mlist-card:hover,
-body[data-fe-theme="neobrutal"] .fe-feature-card:hover,
-body[data-fe-theme="neobrutal"] .fe-event-row:hover,
-body[data-fe-theme="neobrutal"] .fe-events-card:hover,
-body[data-fe-theme="neobrutal"] .fe-announcements-card:hover,
-body[data-fe-theme="neobrutal"] .fe-library-item:hover,
-body[data-fe-theme="neobrutal"] .fe-fellowships-card:hover {
-  transform: translate(-3px, -3px);
-  box-shadow: var(--nb-shadow-lg);
+body[data-fe-theme="neobrutal"] .fe-meeting-sched { color: var(--nb-muted); gap: 6px; font-variant-numeric: tabular-nums; }
+body[data-fe-theme="neobrutal"] .fe-meeting-day { color: var(--nb-text); font-weight: 700; }
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body .fe-meeting-card-actions .fe-btn {
+  padding: 10px 14px; font-size: 0.85rem;
+  box-shadow: var(--nb-sh-xs) var(--nb-drop-btn);
 }
-/* Feature icon tiles become bold stickers. */
-body[data-fe-theme="neobrutal"] .fe-feature-icon,
-body[data-fe-theme="neobrutal"] .fe-faq-summary-icon,
-body[data-fe-theme="neobrutal"] .fe-inclusion-icon {
-  background: var(--nb-cyan) !important; color: var(--nb-ink) !important;
-  border: var(--nb-bw) solid var(--nb-ink); box-shadow: var(--nb-shadow-sm); border-radius: 6px;
+html[data-theme] body[data-fe-theme="neobrutal"].frontend-body .fe-meeting-card-actions .fe-btn:hover {
+  box-shadow: var(--nb-sh-sm) var(--nb-drop-btn);
 }
-/* Card titles ride the chunky display face. */
-body[data-fe-theme="neobrutal"] .fe-meeting-card-title,
-body[data-fe-theme="neobrutal"] .fe-mlist-card-title,
-body[data-fe-theme="neobrutal"] .fe-event-title,
-body[data-fe-theme="neobrutal"] .fe-event-title a,
-body[data-fe-theme="neobrutal"] .fe-events-card-title,
-body[data-fe-theme="neobrutal"] .fe-announcements-card-title,
-body[data-fe-theme="neobrutal"] .fe-library-item-title,
-body[data-fe-theme="neobrutal"] .fe-fellowships-card-title,
-body[data-fe-theme="neobrutal"] .fe-feature-card h3 {
-  font-family: var(--fe-font-heading); letter-spacing: 0;
-}
+body[data-fe-theme="neobrutal"] :is(.fe-meetings-foot, .fe-events-foot, .fe-features-foot, .fe-section-foot) { margin-top: 40px; }
 
-/* ----- Bright cards keep BLACK text in dark mode too -------------------
-   The cards stay colourful in dark mode, so their text must stay ink — the
-   site-wide "Text — Darkmode" token would otherwise turn it cream on yellow.
-   Re-pin the text vars to ink for the card subtree (with !important to beat
-   the body-level token redefine). */
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] :is(
-  .fe-card-primary, .fe-card-secondary, .fe-meeting-card, .fe-mlist-card,
-  .fe-feature-card, .fe-event-row, .fe-faq-item, .fe-events-card,
-  .fe-events-mag-hero, .fe-announcements-card, .fe-library-item,
-  .fe-fellowships-card, .fe-footer-location-card) {
-  --fe-color-text: var(--nb-ink) !important;
-  --fe-dm-text: var(--nb-ink) !important;
-  --fe-dm-text-strong: var(--nb-ink) !important;
-  --fe-text-dark-active: var(--nb-ink) !important;
-  color: var(--nb-ink) !important;
+/* Event rows (home list): a cyan date tile, framed thumbnail. */
+body[data-fe-theme="neobrutal"] .fe-events-list { gap: 22px; }
+body[data-fe-theme="neobrutal"] .fe-event-row { --nb-pt: 18px; padding: 26px 22px 18px; gap: 20px; }
+body[data-fe-theme="neobrutal"] :is(.fe-event-date, .fe-events-card-date, .fe-events-tl-date, .fe-events-mag-hero-date) {
+  background: var(--nb-fam); color: var(--nb-ink);
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 6px;
+  box-shadow: var(--nb-sh-xs) var(--nb-ink);
 }
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] :is(.fe-event-date, .fe-events-card-date, .fe-events-tl-date) {
+  background: var(--nb-fam); border-color: var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] .fe-event-date { min-width: 74px; padding: 8px 10px; transform: rotate(-2deg); }
+body[data-fe-theme="neobrutal"] :is(.fe-event-date-month, .fe-events-card-date-month, .fe-events-tl-month) {
+  color: var(--nb-ink) !important; /* beats the brand-colored month */
+  font-weight: 700; letter-spacing: 0.12em;
+}
+body[data-fe-theme="neobrutal"] :is(.fe-event-date-day, .fe-events-card-date-day, .fe-events-tl-day) {
+  font-family: var(--fe-font-heading); font-weight: 400; color: var(--nb-ink) !important; /* as above */
+}
+body[data-fe-theme="neobrutal"] :is(.fe-event-date-year, .fe-events-card-date-year, .fe-events-tl-year) {
+  color: var(--nb-ink) !important; opacity: 0.75; /* as above */
+}
+body[data-fe-theme="neobrutal"] .fe-event-thumb {
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 6px; background: var(--nb-canvas-2);
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-event-thumb { border-color: var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-event-title { font-size: 1.2rem; color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-event-summary { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-event-attrs { color: var(--nb-muted); font-weight: 500; }
+body[data-fe-theme="neobrutal"] .fe-event-attr-icon,
+body[data-fe-theme="neobrutal"] .fe-event-attr-online { color: var(--nb-text); }
 
-/* ===== Meeting-type badges — bold stickers ============================= */
-body[data-fe-theme="neobrutal"] .fe-meeting-type-online,
-body[data-fe-theme="neobrutal"] .fe-recovery-meeting-type-online,
-body[data-fe-theme="neobrutal"] .fe-meeting-type-in_person,
-body[data-fe-theme="neobrutal"] .fe-meeting-type-hybrid,
-body[data-fe-theme="neobrutal"] .fe-recovery-meeting-type-hybrid {
-  border: 2px solid var(--nb-ink) !important; border-radius: 4px;
-  font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--nb-ink) !important;
+/* Feature cards: lavender band, icon tiles in the family color. */
+body[data-fe-theme="neobrutal"] .fe-features-grid { gap: 28px; }
+body[data-fe-theme="neobrutal"] .fe-feature-card { --nb-pt: 26px; padding: 34px 26px 26px; }
+body[data-fe-theme="neobrutal"] .fe-feature-card h3 { font-size: 1.35rem; color: var(--nb-text); margin-top: 4px; }
+body[data-fe-theme="neobrutal"] .fe-feature-card p,
+body[data-fe-theme="neobrutal"] .fe-feature-body { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-feature-body strong { color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] :is(.fe-feature-icon, .fe-faq-summary-icon, .fe-inclusion-icon, .fe-protips-icon) {
+  background: var(--nb-fam) !important; color: var(--nb-ink) !important; /* beats the hardcoded blue tint */
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 8px;
+  box-shadow: var(--nb-sh-xs) var(--nb-ink);
 }
-body[data-fe-theme="neobrutal"] .fe-meeting-type-online,
-body[data-fe-theme="neobrutal"] .fe-recovery-meeting-type-online { background: var(--nb-cyan) !important; }
-body[data-fe-theme="neobrutal"] .fe-meeting-type-in_person { background: var(--nb-lime) !important; }
-body[data-fe-theme="neobrutal"] .fe-meeting-type-hybrid,
-body[data-fe-theme="neobrutal"] .fe-recovery-meeting-type-hybrid { background: var(--nb-yellow) !important; }
+body[data-fe-theme="neobrutal"] .fe-feature-icon { transform: rotate(-4deg); }
+body[data-fe-theme="neobrutal"] .fe-features .fe-feature-card:nth-child(4n+2) .fe-feature-icon { transform: rotate(3deg); }
+body[data-fe-theme="neobrutal"] .fe-features .fe-feature-card:nth-child(4n+3) .fe-feature-icon { transform: rotate(-1deg); }
 
-/* ===== Buttons — hard shadow, press on click =========================== */
-body[data-fe-theme="neobrutal"] .fe-btn-primary,
-body[data-fe-theme="neobrutal"] .fe-th-nav-cta,
-body[data-fe-theme="neobrutal"] .fe-btn-secondary,
-body[data-fe-theme="neobrutal"] .fe-btn-ghost,
-body[data-fe-theme="neobrutal"] .fe-btn-yellow,
-body[data-fe-theme="neobrutal"] .fe-btn-custom {
-  border: var(--nb-bw) solid var(--nb-ink) !important;
-  box-shadow: var(--nb-shadow-sm);
-  font-family: var(--fe-font-heading); text-transform: uppercase;
-  letter-spacing: 0.03em; font-weight: 400;
-  transition: transform 90ms var(--nb-ease), box-shadow 90ms var(--nb-ease),
-              background 120ms var(--nb-ease) !important;
+/* FAQ: white accordion rows; the chevron is a family-colored button. */
+body[data-fe-theme="neobrutal"] .fe-faq-list { gap: 16px; }
+body[data-fe-theme="neobrutal"] .fe-faq-cols-2 .fe-faq-col { gap: 16px; }
+body[data-fe-theme="neobrutal"] .fe-faq-item { overflow: hidden; }
+body[data-fe-theme="neobrutal"] .fe-faq-summary {
+  font-weight: 700; font-size: 1.05rem; color: var(--nb-text); padding: 16px 18px;
 }
-body[data-fe-theme="neobrutal"] .fe-btn-primary:hover,
-body[data-fe-theme="neobrutal"] .fe-th-nav-cta:hover,
-body[data-fe-theme="neobrutal"] .fe-btn-secondary:hover,
-body[data-fe-theme="neobrutal"] .fe-btn-ghost:hover,
-body[data-fe-theme="neobrutal"] .fe-btn-yellow:hover,
-body[data-fe-theme="neobrutal"] .fe-btn-custom:hover {
-  transform: translate(-2px, -2px); box-shadow: var(--nb-shadow) !important;
+body[data-fe-theme="neobrutal"] .fe-faq-summary-chevron {
+  width: 32px; height: 32px; color: var(--nb-ink);
+  background: var(--nb-fam); border: 2px solid var(--nb-ink); border-radius: 6px;
+  transition: transform 220ms var(--nb-ease);
 }
-body[data-fe-theme="neobrutal"] .fe-btn-primary:active,
-body[data-fe-theme="neobrutal"] .fe-th-nav-cta:active,
-body[data-fe-theme="neobrutal"] .fe-btn-secondary:active,
-body[data-fe-theme="neobrutal"] .fe-btn-ghost:active,
-body[data-fe-theme="neobrutal"] .fe-btn-yellow:active,
-body[data-fe-theme="neobrutal"] .fe-btn-custom:active {
-  transform: translate(2px, 2px); box-shadow: 1px 1px 0 0 var(--nb-ink) !important;
-}
-/* Dark mode: keep the primary button bright pink + ink text. */
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-btn-primary,
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-th-nav-cta,
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-page .fe-hero-cta .fe-btn-primary,
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-meeting-card-actions .fe-btn-primary {
-  background: var(--fe-color-btn-primary-bg, var(--nb-pink)) !important;
-  color: #111111 !important; border-color: var(--nb-ink) !important;
-}
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-btn-secondary,
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-btn-ghost {
-  background: #ffffff !important; color: #111111 !important;
-}
+body[data-fe-theme="neobrutal"] .fe-faq-item.is-open { box-shadow: var(--nb-sh) var(--nb-drop); }
+body[data-fe-theme="neobrutal"] .fe-faq-item.is-open .fe-faq-summary { background: var(--nb-fam); color: var(--nb-ink); border-bottom: var(--nb-bw) solid var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-faq-item.is-open .fe-faq-summary-chevron { color: var(--nb-ink); background: #ffffff; }
+body[data-fe-theme="neobrutal"] .fe-faq-item.is-open .fe-faq-body-inner { padding: 16px 20px 20px; }
+body[data-fe-theme="neobrutal"] .fe-faq-body-inner { color: var(--nb-muted); font-size: 1rem; line-height: 1.65; }
 
-/* ===== Header — flat bar, thick black bottom border ==================== */
-html[data-theme="light"] body[data-fe-theme="neobrutal"] .fe-header-themed {
-  background: var(--nb-yellow); border-bottom: var(--nb-bw) solid var(--nb-ink);
+/* Inclusion statement component. */
+body[data-fe-theme="neobrutal"] .fe-inclusion-heading { font-family: var(--fe-font-heading); font-weight: 400; text-transform: uppercase; color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-inclusion-body { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-inclusion-tag {
+  background: var(--nb-panel); color: var(--nb-text);
+  border: 2px solid var(--nb-line); border-radius: 4px; font-weight: 700;
 }
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-header-themed {
-  background: #211d2c; border-bottom: var(--nb-bw) solid var(--nb-ink);
+body[data-fe-theme="neobrutal"] .fe-inclusion-tag:nth-child(5n+1) { background: var(--nb-yellow); color: var(--nb-ink); border-color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-inclusion-tag:nth-child(5n+2) { background: var(--nb-cyan);   color: var(--nb-ink); border-color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-inclusion-tag:nth-child(5n+3) { background: var(--nb-lime);   color: var(--nb-ink); border-color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-inclusion-tag:nth-child(5n+4) { background: var(--nb-lav);    color: var(--nb-ink); border-color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-inclusion-tag:nth-child(5n+5) { background: var(--nb-pink);   color: var(--nb-ink); border-color: var(--nb-ink); }
+
+
+/* ===== 12. Meetings list ================================================= */
+
+body[data-fe-theme="neobrutal"] .fe-mlist { padding-top: 56px; }
+body[data-fe-theme="neobrutal"] .fe-mlist-sidebar .fe-mlist-rail > .fe-mlist-head h1 {
+  font-size: clamp(1.5rem, 1.2rem + 0.7vw, 2rem);
+  word-break: normal; overflow-wrap: normal; hyphens: manual;
 }
-body[data-fe-theme="neobrutal"] .fe-th-brand-name {
-  font-family: var(--fe-font-heading); text-transform: uppercase; letter-spacing: 0;
+/* Search: a framed input with a printed shortcut key. */
+body[data-fe-theme="neobrutal"] :is(.fe-mlist-rail-search, .fe-mlist-search) input,
+body[data-fe-theme="neobrutal"] .fe-rc-search-input {
+  background: var(--nb-panel) !important; color: var(--nb-text); /* beats the rail input's dark-mode tint */
+  border: var(--nb-bw) solid var(--nb-line) !important; border-radius: 8px; /* and its transparent border */
+  box-shadow: var(--nb-sh-sm) var(--nb-drop-btn);
+  font-weight: 500;
 }
-body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta) {
-  font-family: var(--fe-font-body); font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.02em; font-size: 0.8rem;
-  border-radius: 4px; border: 2px solid transparent;
+body[data-fe-theme="neobrutal"] :is(.fe-mlist-rail-search, .fe-mlist-search) input:focus,
+body[data-fe-theme="neobrutal"] .fe-rc-search-input:focus {
+  box-shadow: var(--nb-sh-sm) var(--nb-pink);
 }
-html[data-theme="light"] body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta) { color: var(--nb-ink); }
-body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta):hover,
-body[data-fe-theme="neobrutal"] .fe-th-nav-link:not(.fe-th-nav-cta).mega-active {
-  background: var(--nb-pink) !important; color: var(--nb-ink) !important;
+body[data-fe-theme="neobrutal"] .fe-mlist-search-icon { color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-mlist-search-kbd {
+  background: var(--nb-yellow); color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 4px;
+  box-shadow: 0 2px 0 0 var(--nb-ink);
+}
+/* Day filter: chunky tabs; the active day fills with the family color. */
+body[data-fe-theme="neobrutal"] .fe-mlist-day-list > li + li { margin-top: 8px; }
+body[data-fe-theme="neobrutal"] .fe-mlist-day-pill {
+  padding: 9px 12px;
+  background: var(--nb-panel); color: var(--nb-text);
+  border: 2px solid var(--nb-line); border-radius: 6px;
+  font-weight: 700; font-size: 0.95rem;
+  transition: transform 90ms var(--nb-ease), box-shadow 90ms var(--nb-ease), background 120ms;
+}
+body[data-fe-theme="neobrutal"] .fe-mlist-day-pill:hover {
+  background: color-mix(in srgb, var(--nb-fam) 45%, var(--nb-panel));
+  color: var(--nb-text);
+  transform: translate(-1px, -1px); box-shadow: var(--nb-sh-xs) var(--nb-drop-btn);
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-mlist-day-pill:hover { background: var(--nb-canvas-2); }
+body[data-fe-theme="neobrutal"] .fe-mlist-day-pill.is-active {
+  background: var(--nb-fam); color: var(--nb-ink);
   border-color: var(--nb-ink);
+  box-shadow: var(--nb-sh-sm) var(--nb-drop-btn);
+  transform: translate(-2px, -2px);
 }
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-th-menu-btn span { background: var(--nb-cream); }
-@media (max-width: 880px) {
-  html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-th-nav { background: #211d2c; }
+body[data-fe-theme="neobrutal"] .fe-mlist-day-pill.is-active .fe-mlist-day-count { background: #ffffff; border-color: var(--nb-ink); color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-mlist-day-pill:active { transform: translate(2px, 2px); box-shadow: none; }
+body[data-fe-theme="neobrutal"] .fe-mlist-rail-section {
+  border-top: 3px solid var(--nb-line); color: var(--nb-text); opacity: 1;
+  letter-spacing: 0.12em; padding-left: 2px;
+}
+body[data-fe-theme="neobrutal"] .fe-mlist-link-list { border-top: 3px solid var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-page .fe-mlist-rail-link { font-weight: 700; border: 2px solid transparent; border-radius: 6px; }
+body[data-fe-theme="neobrutal"] .fe-page .fe-mlist-rail-link:hover { background: var(--nb-fam); color: var(--nb-ink); border-color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-mlist-sort select,
+body[data-fe-theme="neobrutal"] .fe-archive-types { color: var(--nb-text); }
+/* Day headings in the results column. */
+body[data-fe-theme="neobrutal"] .fe-mlist-day-section-heading {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--fe-font-heading); font-weight: 400;
+  text-transform: uppercase; letter-spacing: 0; color: var(--nb-text);
+}
+body[data-fe-theme="neobrutal"] .fe-mlist-day-section-count {
+  font-family: var(--fe-font-body); font-weight: 700; font-size: 0.8rem;
+  background: var(--nb-fam); color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 4px; padding: 1px 8px;
 }
 
-/* ===== Utility bar — bold strip ======================================== */
-html[data-theme="light"] body[data-fe-theme="neobrutal"] .fe-utility-bar:not(.is-live) {
-  background: var(--nb-ink) !important; color: var(--nb-cream) !important;
-  box-shadow: inset 0 calc(-1 * var(--nb-bw)) 0 var(--nb-ink);
+/* Meeting list card: times first and big, actions stacked on the right. */
+body[data-fe-theme="neobrutal"] .fe-mlist-card-stack { gap: 26px; }
+body[data-fe-theme="neobrutal"] .fe-mlist-card { --nb-pt: 20px; }
+body[data-fe-theme="neobrutal"] .fe-mlist-card-col-logo img,
+body[data-fe-theme="neobrutal"] .fe-mlist-card-logo img { border-radius: 6px; }
+body[data-fe-theme="neobrutal"] .fe-mlist-card-col-logo > * { border-radius: 8px; }
+body[data-fe-theme="neobrutal"] .fe-mlist-card-name { font-size: 1.45rem; color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-mlist-card-times { gap: 8px 22px; }
+body[data-fe-theme="neobrutal"] .fe-mlist-card-times-cell > :first-child:not(.fe-mlist-card-dur-chip) {
+  font-weight: 700; letter-spacing: 0.12em; color: var(--nb-muted);
 }
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-utility-bar:not(.is-live) {
-  background: #000000 !important; color: var(--nb-cream) !important;
-  box-shadow: inset 0 calc(-1 * var(--nb-bw)) 0 var(--nb-ink);
+body[data-fe-theme="neobrutal"] .fe-mlist-card-times-cell strong,
+body[data-fe-theme="neobrutal"] .fe-mlist-card-times-cell b {
+  font-family: var(--fe-font-heading); font-weight: 400; color: var(--nb-text);
 }
-body[data-fe-theme="neobrutal"] .fe-utility-bar:not(.is-live) a:hover { color: var(--nb-yellow); }
-body[data-fe-theme="neobrutal"] .fe-utility-bar:not(.is-live) .fe-theme-toggle,
-body[data-fe-theme="neobrutal"] .fe-utility-bar:not(.is-live) .fe-utility-search-btn,
-body[data-fe-theme="neobrutal"] .fe-utility-bar:not(.is-live) .fe-utility-btn,
-body[data-fe-theme="neobrutal"] .fe-utility-bar:not(.is-live) .fe-utility-container--collapsed {
-  background: rgba(255,255,255,0.14) !important; color: var(--nb-cream) !important;
+body[data-fe-theme="neobrutal"] .fe-mlist-card-dur-chip { background: var(--nb-fam); color: var(--nb-ink); border-color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-mlist-card-also { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-mlist-card-desc { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-mlist-card.is-3col .fe-mlist-card-col-actions { border-left: 2px dashed color-mix(in srgb, var(--nb-line) 35%, transparent); }
+body[data-fe-theme="neobrutal"] :is(.fe-mlist-card-conf-label, .fe-mlist-card-loc-name) { color: var(--nb-text); font-weight: 700; }
+body[data-fe-theme="neobrutal"] .fe-mlist-card-zoom-creds dt { color: var(--nb-muted); font-weight: 700; letter-spacing: 0.12em; }
+body[data-fe-theme="neobrutal"] .fe-mlist-card-zoom-creds code {
+  background: var(--nb-canvas); color: var(--nb-text);
+  border: 2px solid var(--nb-line); border-radius: 4px;
+  font-weight: 600; font-variant-numeric: tabular-nums;
 }
+body[data-fe-theme="neobrutal"] .fe-copy-btn.fe-mlist-copy:hover code { background: var(--nb-fam); color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-copy-btn.fe-mlist-copy.is-copied::after {
+  background: var(--nb-lime); color: var(--nb-ink); border: 2px solid var(--nb-ink); border-radius: 4px;
+  box-shadow: var(--nb-sh-xs) var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] .fe-mlist-card-col-logo {
+  background: #ffffff; border: 2px solid var(--nb-line); border-radius: 8px;
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-mlist-card-col-logo { border-color: transparent; }
+body[data-fe-theme="neobrutal"] .fe-mlist-card.is-3col:not(.has-logo) .fe-mlist-card-col-logo {
+  background: repeating-linear-gradient(45deg, var(--nb-fam) 0 10px, transparent 10px 20px), var(--nb-panel);
+}
+body[data-fe-theme="neobrutal"] .fe-mlist-card-permalink { align-self: center; width: fit-content; }
+body[data-fe-theme="neobrutal"] .fe-mlist-card-alert {
+  background: var(--nb-yellow); color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 6px;
+}
+/* Pro tips under the list. */
+body[data-fe-theme="neobrutal"] .fe-mlist-protips-head h2 {
+  font-family: var(--fe-font-heading); font-weight: 400; text-transform: uppercase; color: var(--nb-text);
+}
+body[data-fe-theme="neobrutal"] .fe-mlist-protips-head p { color: var(--nb-muted); }
 
-/* ===== Mega menu — flat panel, thick border, hard shadow ============== */
-body[data-fe-theme="neobrutal"] .fe-megamenu-themed {
-  background-color: var(--nb-cyan); color: var(--nb-ink);
-  border: var(--nb-bw) solid var(--nb-ink); border-top: var(--nb-bw) solid var(--nb-ink);
-  box-shadow: var(--nb-shadow);
-}
-body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-link { color: var(--nb-ink); font-weight: 600; border-radius: 4px; }
-body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-link:hover { background: var(--nb-pink); color: var(--nb-ink); }
-body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-block-title,
-body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-heading {
-  color: var(--nb-ink); font-family: var(--fe-font-heading) !important; text-transform: uppercase;
-}
-body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-block-btn {
-  color: var(--nb-ink); background: var(--nb-yellow);
-  border: 2px solid var(--nb-ink); box-shadow: var(--nb-shadow-sm);
-}
-body[data-fe-theme="neobrutal"] .fe-megamenu-themed .fe-megamenu-block-section-line { background: var(--nb-ink); opacity: 1; }
 
-/* ===== Footer — dark slab, thick top border, colour accents =========== */
-body[data-fe-theme="neobrutal"] .fe-footer {
-  background-color: #15131c !important; background-image: none !important;
-  border-top: var(--nb-bw) solid var(--nb-ink);
+/* ===== 13. Meeting detail =============================================== */
+
+body[data-fe-theme="neobrutal"] .fe-meeting-detail { padding-top: 56px; }
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-detail-back, .fe-event-detail-back, .fe-blog-cls-back,
+  .fe-story-mag-back, .fe-events-archive-back) {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; margin-bottom: 20px;
+  color: var(--nb-text);
+  font-family: var(--fe-font-body); font-style: normal; font-weight: 700;
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; text-decoration: none;
+  background: var(--nb-panel); border: 2px solid var(--nb-line); border-radius: 6px;
+  box-shadow: var(--nb-sh-xs) var(--nb-drop-btn);
+  transition: transform 90ms var(--nb-ease), box-shadow 90ms var(--nb-ease);
 }
-body[data-fe-theme="neobrutal"] .fe-footer-particles,
-body[data-fe-theme="neobrutal"] .fe-footer-bg-effects { display: none !important; }
-body[data-fe-theme="neobrutal"] .fe-footer,
-body[data-fe-theme="neobrutal"] .fe-footer p,
-body[data-fe-theme="neobrutal"] .fe-footer li,
-body[data-fe-theme="neobrutal"] .fe-footer a { color: var(--nb-cream); }
-body[data-fe-theme="neobrutal"] .fe-footer a:hover,
-body[data-fe-theme="neobrutal"] .fe-footer-secondary-nav a:hover,
-body[data-fe-theme="neobrutal"] .fe-footer-location-website:hover { color: var(--nb-yellow); }
-body[data-fe-theme="neobrutal"] .fe-footer-locations-heading,
-body[data-fe-theme="neobrutal"] .fe-footer-contact-heading,
-body[data-fe-theme="neobrutal"] .fe-footer-name,
-body[data-fe-theme="neobrutal"] .fe-footer-col-title {
-  font-family: var(--fe-font-heading) !important; color: var(--nb-yellow); text-transform: uppercase;
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-detail-back, .fe-event-detail-back, .fe-blog-cls-back,
+  .fe-story-mag-back, .fe-events-archive-back):hover {
+  background: var(--nb-fam); color: var(--nb-ink);
+  transform: translate(-1px, -1px); box-shadow: 3px 3px 0 0 var(--nb-drop-btn);
 }
-/* Location cards become bright stickers on the dark footer. */
-body[data-fe-theme="neobrutal"] .fe-footer-location-card {
-  background: var(--nb-yellow); border: var(--nb-bw) solid var(--nb-ink);
-  box-shadow: var(--nb-shadow-sm); color: var(--nb-ink);
+body[data-fe-theme="neobrutal"] .fe-meeting-detail-head h1,
+body[data-fe-theme="neobrutal"] .fe-event-detail-head h1 {
+  font-family: var(--fe-font-heading); font-weight: 400;
+  font-size: clamp(2.2rem, 1.4rem + 3vw, 4rem); line-height: 1;
+  text-transform: uppercase; letter-spacing: -0.015em; color: var(--nb-text);
 }
-body[data-fe-theme="neobrutal"] .fe-footer-location-card:hover {
-  /* Re-assert the bright surface — the shared force-dark hover rule darkens
-     the card to near-black, which buried the (black) text. Neobrutal's hover
-     feedback is the lift + bigger hard shadow, not a colour change. */
-  background: var(--nb-yellow) !important;
-  border-color: var(--nb-ink) !important;
-  transform: translate(-2px,-2px); box-shadow: var(--nb-shadow);
+body[data-fe-theme="neobrutal"] .fe-meeting-detail-head-logo img,
+body[data-fe-theme="neobrutal"] .fe-meeting-logo {
+  background: #ffffff; border: var(--nb-bw) solid var(--nb-ink); border-radius: 10px;
+  box-shadow: var(--nb-sh) var(--nb-drop-btn);
 }
-body[data-fe-theme="neobrutal"] .fe-footer-location-name,
-body[data-fe-theme="neobrutal"] .fe-footer-location-addr,
-body[data-fe-theme="neobrutal"] .fe-footer-location-note { color: var(--nb-ink) !important; }
-body[data-fe-theme="neobrutal"] .fe-footer-location-icon {
+body[data-fe-theme="neobrutal"] .fe-meeting-detail-grid { gap: 26px; }
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-detail-card, .fe-event-detail-card, .fe-meeting-resources, .fe-meeting-extended-card) {
+  padding-top: 0; overflow: hidden;
+}
+/* Detail cards open with a label strip in the family color. */
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-detail-card, .fe-event-detail-card, .fe-meeting-resources) > h3:first-child {
+  margin: 0 -22px 16px; padding: 10px 22px;
+  background: var(--nb-fam); color: var(--nb-ink);
+  border-bottom: var(--nb-bw) solid var(--nb-ink);
+  font-family: var(--fe-font-body); font-weight: 700; font-size: 0.8rem;
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-detail-card, .fe-event-detail-card) :is(h3, h4) {
+  font-family: var(--fe-font-body); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+}
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-detail-day, .fe-event-detail-day) { font-weight: 700; color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] :is(.fe-meeting-detail-time, .fe-event-detail-time) {
+  font-family: var(--fe-font-heading); font-weight: 400; color: var(--nb-text);
+}
+body[data-fe-theme="neobrutal"] .fe-meeting-extended-title { font-family: var(--fe-font-heading); font-weight: 400; text-transform: uppercase; }
+
+
+/* ===== 14. Events ======================================================= */
+
+body[data-fe-theme="neobrutal"] .fe-events-list-omni .fe-mlist-head { margin-bottom: 26px; }
+/* Tab bar: separate chunky tabs, no capsule. */
+body[data-fe-theme="neobrutal"] .fe-events-omni-tabs {
+  gap: 10px; padding: 0;
+  background: transparent !important; box-shadow: none !important; /* beats the light-mode white capsule */
+}
+body[data-fe-theme="neobrutal"] .fe-events-omni-tab,
+body[data-fe-theme="neobrutal"] a.fe-events-omni-archive .fe-events-omni-archive-inner,
+body[data-fe-theme="neobrutal"] .fe-blog-cards-cat {
+  padding: 8px 14px;
+  background: var(--nb-panel); color: var(--nb-text);
+  border: 2px solid var(--nb-line); border-radius: 6px;
+  font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.04em;
+  box-shadow: var(--nb-sh-xs) var(--nb-drop-btn);
+  transition: transform 90ms var(--nb-ease), box-shadow 90ms var(--nb-ease), background 120ms;
+}
+body[data-fe-theme="neobrutal"] .fe-events-omni-tab:hover,
+body[data-fe-theme="neobrutal"] a.fe-events-omni-archive:hover .fe-events-omni-archive-inner,
+body[data-fe-theme="neobrutal"] .fe-blog-cards-cat:hover {
+  background: color-mix(in srgb, var(--nb-fam) 40%, var(--nb-panel)); color: var(--nb-text);
+  transform: translate(-1px, -1px); box-shadow: 3px 3px 0 0 var(--nb-drop-btn);
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-events-omni-tab:hover,
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] a.fe-events-omni-archive:hover .fe-events-omni-archive-inner,
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-blog-cards-cat:hover { background: var(--nb-canvas-2); }
+body[data-fe-theme="neobrutal"] .fe-events-omni-tab.is-active,
+body[data-fe-theme="neobrutal"] .fe-events-omni-tab.is-active:hover,
+body[data-fe-theme="neobrutal"] .fe-blog-cards-cat.is-active {
+  background: var(--nb-fam); color: var(--nb-ink);
+  border-color: var(--nb-ink);
+  box-shadow: var(--nb-sh-sm) var(--nb-drop-btn);
+  transform: translate(-2px, -2px);
+}
+body[data-fe-theme="neobrutal"] .fe-events-omni-tab:active { transform: translate(2px, 2px); box-shadow: none; }
+body[data-fe-theme="neobrutal"] a.fe-events-omni-archive { padding: 0; background: transparent !important; box-shadow: none !important; /* beats the light-mode white capsule */ color: var(--nb-text); }
+
+/* Magazine layout: the lead event is a big split card. */
+body[data-fe-theme="neobrutal"] .fe-events-mag-hero { overflow: hidden; }
+body[data-fe-theme="neobrutal"] .fe-events-mag-hero-cover { border-right: var(--nb-bw) solid var(--nb-line); background: #ffffff; }
+body[data-fe-theme="neobrutal"] .fe-events-mag-hero-eyebrow {
+  align-self: flex-start;
+  display: inline-block; padding: 2px 8px;
+  background: var(--nb-fam); color: var(--nb-ink); border: 2px solid var(--nb-ink); border-radius: 4px;
+  font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; transform: rotate(-2deg);
+}
+body[data-fe-theme="neobrutal"] .fe-events-mag-hero-date {
+  align-self: flex-start; flex-direction: row; align-items: baseline; gap: 10px;
+  padding: 6px 12px; transform: rotate(-1deg);
+}
+body[data-fe-theme="neobrutal"] .fe-events-mag-hero-time { color: var(--nb-ink); font-weight: 700; }
+body[data-fe-theme="neobrutal"] .fe-events-mag-hero-title { font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.4rem); color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-events-mag-hero-summary { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-events-mag-rest-head {
+  font-family: var(--fe-font-heading); font-weight: 400; text-transform: uppercase; color: var(--nb-text);
+}
+body[data-fe-theme="neobrutal"] .fe-events-mag-grid { gap: 26px; }
+/* Event cards (cards / magazine grids). */
+body[data-fe-theme="neobrutal"] .fe-events-card { overflow: hidden; }
+body[data-fe-theme="neobrutal"] .fe-events-card-cover { border: 2px solid var(--nb-line); border-radius: 6px; }
+/* Magazine grid: the cover runs edge to edge under the band. */
+body[data-fe-theme="neobrutal"] .fe-events-mag-grid .fe-events-card { padding-top: 18px; }
+body[data-fe-theme="neobrutal"] .fe-events-mag-grid .fe-events-card-cover {
+  margin: -7px -18px 6px; border: 0; border-bottom: var(--nb-bw) solid var(--nb-line); border-radius: 0;
+}
+body[data-fe-theme="neobrutal"] .fe-events-mag-grid .fe-events-card-date { transform: rotate(-2deg); }
+body[data-fe-theme="neobrutal"] .fe-events-card-title { color: var(--nb-text); font-size: 1.15rem; }
+body[data-fe-theme="neobrutal"] :is(.fe-events-card-meta, .fe-events-card-summary, .fe-events-card-body-preview) { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] :is(.fe-events-card-meta-icon, .fe-announcements-card-meta-icon) { color: var(--nb-text); }
+
+/* Calendar layout. */
+body[data-fe-theme="neobrutal"] .fe-events-cal { padding: 18px; }
+body[data-fe-theme="neobrutal"] .fe-events-cal-title { font-family: var(--fe-font-heading); font-weight: 400; text-transform: uppercase; }
+body[data-fe-theme="neobrutal"] .fe-events-cal-cell { border-color: color-mix(in srgb, var(--nb-line) 25%, transparent); }
+body[data-fe-theme="neobrutal"] .fe-events-cal-cell.is-today .fe-events-cal-cell-num {
   background: var(--nb-pink); color: var(--nb-ink); border: 2px solid var(--nb-ink); border-radius: 4px;
 }
+body[data-fe-theme="neobrutal"] .fe-events-cal-chip {
+  background: var(--nb-fam) !important; color: var(--nb-ink) !important; /* beats the brand-tinted chip */
+  border: 2px solid var(--nb-ink); border-radius: 4px;
+}
+/* Timeline layout. */
+body[data-fe-theme="neobrutal"] .fe-events-tl::before { background: var(--nb-line); width: 3px; }
+
+/* Event + announcement detail. */
+body[data-fe-theme="neobrutal"] .fe-event-detail { padding-top: 56px; }
+body[data-fe-theme="neobrutal"] .fe-event-detail-cover {
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 10px;
+  box-shadow: var(--nb-sh-lg) var(--nb-drop-btn) !important; /* beats the card-token shadow */
+  background: #ffffff;
+}
+body[data-fe-theme="neobrutal"] .fe-event-detail-cover:hover { transform: translate(-2px, -2px); }
+body[data-fe-theme="neobrutal"] .fe-event-detail-desc { font-size: 1.08rem; line-height: 1.7; color: var(--nb-text); max-width: 68ch; }
+body[data-fe-theme="neobrutal"] .fe-event-detail-grid { gap: 22px; }
+body[data-fe-theme="neobrutal"] .fe-detail-submit-cta {
+  background: var(--nb-panel); color: var(--nb-text);
+  border: var(--nb-bw) dashed var(--nb-line); border-radius: var(--nb-r);
+}
+
+
+/* ===== 15. Announcements + archive ====================================== */
+
+body[data-fe-theme="neobrutal"] .fe-announcements-stack { gap: 26px; }
+body[data-fe-theme="neobrutal"] .fe-announcements-card { --nb-pt: 20px; }
+body[data-fe-theme="neobrutal"] .fe-announcements-card-title { font-size: 1.35rem; color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-announcements-card-meta { color: var(--nb-muted); font-weight: 500; }
+body[data-fe-theme="neobrutal"] .fe-announcements-card-fulltext { color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-announcements-card-cover {
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 6px; background: #ffffff;
+}
+/* The GSR summary is a typed paper sheet; keep its serif, frame it. */
+body[data-fe-theme="neobrutal"] .fe-announcements-gsr-paper {
+  background: #fffdf6; color: var(--nb-ink);
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 4px;
+  box-shadow: var(--nb-sh-lg) var(--nb-drop-btn);
+}
+body[data-fe-theme="neobrutal"] .fe-events-archive-year .fe-mlist-day-section-heading { font-size: 2rem; }
+
+
+/* ===== 16. Library + fellowships ======================================== */
+
+body[data-fe-theme="neobrutal"] .fe-library-list { gap: 20px; }
+body[data-fe-theme="neobrutal"] .fe-library-item { --nb-pt: 16px; }
+body[data-fe-theme="neobrutal"] .fe-library-thumb {
+  border: 2px solid var(--nb-ink); border-radius: 4px; background: #ffffff;
+  box-shadow: var(--nb-sh-xs) var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] .fe-library-item-title { font-size: 1.1rem; color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] :is(.fe-library-item-sub, .fe-library-item-summary, .fe-library-section-desc) { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-library-ftype {
+  background: var(--nb-fam); color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 4px; font-weight: 700;
+}
+body[data-fe-theme="neobrutal"] .fe-library-item-ext-marker { color: var(--nb-text); }
+
+body[data-fe-theme="neobrutal"] .fe-fellowships-stack { gap: 18px; }
+body[data-fe-theme="neobrutal"] .fe-fellowships-card { --nb-pt: 14px; }
+body[data-fe-theme="neobrutal"] .fe-fellowships-card-title { font-size: 1.1rem; color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-fellowships-card-where { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-fellowships-card-cta a { color: var(--nb-link); }
+body[data-fe-theme="neobrutal"] .fe-mlist-sort-label { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-archive-type-check { font-weight: 600; }
+
+
+/* ===== 17. Stories ====================================================== */
+
+/* Every story and blog layout carries its own palette variables (a prefix
+   per template). Pointing them at the theme makes all of them, not only the
+   live site's choice, belong here. The admin's template background
+   (--tpl-bg) still wins over the canvas. The html prefix outranks the
+   templates' own [data-theme="dark"] blocks, which load later. */
+html body[data-fe-theme="neobrutal"] :is(.fe-stories-broadsheet, .fe-stories-ledger, .fe-stories-mag,
+  .fe-stories-manuscript, .fe-stories-minimal, .fe-stories-paper-stack, .fe-story-anth, .fe-story-journal,
+  .fe-story-letter, .fe-story-mag, .fe-story-paper, .fe-blog-cards, .fe-blog-gazette, .fe-blog-magazine,
+  .fe-blog-minimal, .fe-blog-mosaic, .fe-blog-sidebar, .fe-blog-post-classic, .fe-blog-post-cover,
+  .fe-blog-post-longform, .fe-blog-post-modern) {
+  --bs-bg: var(--tpl-bg, transparent);  --bs-paper: var(--nb-panel);  --bs-ink: var(--nb-text);  --bs-ink-soft: var(--nb-muted);  --bs-rule: var(--nb-line);  --bs-accent: var(--nb-link);
+  --led-bg: var(--tpl-bg, transparent); --led-paper: var(--nb-panel); --led-ink: var(--nb-text); --led-ink-soft: var(--nb-muted); --led-rule: var(--nb-line); --led-accent: var(--nb-link);
+  --mag-bg: var(--tpl-bg, transparent); --mag-card: var(--nb-panel);  --mag-ink: var(--nb-text); --mag-ink-soft: var(--nb-muted); --mag-rule: var(--nb-line); --mag-accent: var(--nb-link);
+  --ms-paper: var(--nb-panel);          --ms-ink: var(--nb-text);     --ms-ink-soft: var(--nb-muted);  --ms-rule: var(--nb-line);   --ms-accent: var(--nb-link);
+  --min-bg: var(--tpl-bg, transparent); --min-ink: var(--nb-text);    --min-ink-soft: var(--nb-muted); --min-rule: var(--nb-line);  --min-accent: var(--nb-link);
+  --paper-bg: var(--tpl-bg, transparent); --paper-card: var(--nb-panel); --paper-ink: var(--nb-text); --paper-ink-soft: var(--nb-muted); --paper-rule: var(--nb-line);
+  --an-bg: var(--tpl-bg, transparent);  --an-ink: var(--nb-text);     --an-ink-soft: var(--nb-muted);  --an-rule: var(--nb-line);   --an-accent: var(--nb-link);
+  --jr-bg: var(--tpl-bg, transparent);  --jr-paper: var(--nb-panel);  --jr-ink: var(--nb-text);  --jr-ink-soft: var(--nb-muted);  --jr-rule: var(--nb-line);  --jr-accent: var(--nb-link);
+  --lt-bg: var(--tpl-bg, transparent);  --lt-paper: var(--nb-panel);  --lt-ink: var(--nb-text);  --lt-ink-soft: var(--nb-muted);  --lt-rule: var(--nb-line);  --lt-accent: var(--nb-link);
+  --m-bg: var(--tpl-bg, transparent);   --m-card: var(--nb-panel);    --m-ink: var(--nb-text);   --m-ink-soft: var(--nb-muted);   --m-rule: var(--nb-line);   --m-accent: var(--nb-link);
+  --pp-paper: var(--nb-panel);          --pp-ink: var(--nb-text);     --pp-ink-soft: var(--nb-muted);  --pp-rule: var(--nb-line);   --pp-accent: var(--nb-link);
+  --gaz-paper: var(--nb-panel);         --gaz-ink: var(--nb-text);    --gaz-ink-soft: var(--nb-muted); --gaz-rule: var(--nb-line);  --gaz-accent: var(--nb-link);
+  --blog-bg: var(--tpl-bg, transparent); --blog-card: var(--nb-panel); --blog-surface: var(--nb-panel);
+  --blog-ink: var(--nb-text); --blog-ink-soft: var(--nb-muted); --blog-rule: var(--nb-line); --blog-accent: var(--nb-link);
+  font-family: var(--fe-font-body);
+}
+body[data-fe-theme="neobrutal"] .fe-stories-mag-title {
+  font-family: var(--fe-font-heading); font-weight: 400;
+  text-transform: uppercase; letter-spacing: -0.015em; line-height: 0.98;
+  font-size: clamp(2.4rem, 1.4rem + 4vw, 4.6rem);
+}
+body[data-fe-theme="neobrutal"] .fe-stories-mag-title::after {
+  content: ""; display: block; width: 120px; height: 14px; margin: 18px auto 0;
+  background: var(--nb-fam); border: var(--nb-bw) solid var(--nb-ink);
+  transform: rotate(-2deg);
+}
+body[data-fe-theme="neobrutal"] .fe-stories-mag-sub { font-size: 1.1rem; font-weight: 500; }
+body[data-fe-theme="neobrutal"] :is(.fe-stories-mag-hero, .fe-stories-mag-card) {
+  border: var(--nb-bw) solid var(--nb-line); border-radius: var(--nb-r);
+  box-shadow: var(--nb-sh) var(--nb-drop);
+  transition: transform 120ms var(--nb-ease), box-shadow 120ms var(--nb-ease);
+}
+body[data-fe-theme="neobrutal"] :is(.fe-stories-mag-hero, .fe-stories-mag-card):hover {
+  transform: translate(-3px, -3px); box-shadow: var(--nb-sh-lg) var(--nb-drop);
+}
+body[data-fe-theme="neobrutal"] .fe-stories-mag-hero-img { border-right: var(--nb-bw) solid var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-stories-mag-card-img { border-bottom: var(--nb-bw) solid var(--nb-line); }
+body[data-fe-theme="neobrutal"] :is(.fe-stories-mag-hero-eyebrow, .fe-stories-mag-eyebrow, .fe-stories-mag-card-pin) {
+  align-self: flex-start; display: inline-block;
+  padding: 3px 9px;
+  background: var(--nb-fam); color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 4px;
+  font-weight: 700; letter-spacing: 0.12em;
+  transform: rotate(-2deg);
+}
+body[data-fe-theme="neobrutal"] :is(.fe-stories-mag-hero-title, .fe-stories-mag-card-title) {
+  color: var(--nb-text);
+  font-family: var(--fe-font-heading); font-weight: 400; letter-spacing: 0; line-height: 1.08;
+}
+body[data-fe-theme="neobrutal"] .fe-stories-mag-card-title { font-size: 1.2rem; }
+body[data-fe-theme="neobrutal"] :is(.fe-stories-mag-hero-meta, .fe-stories-mag-card-meta) {
+  font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.75rem;
+}
+
+/* Story detail (magazine): the cover stays full-bleed; the title sits on a
+   pink poster card instead of a dark vignette, then a white reading column. */
+body[data-fe-theme="neobrutal"] .fe-story-mag-hero {
+  min-height: 56vh; border-bottom: var(--nb-bw) solid var(--nb-line);
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-hero-shade {
+  background: linear-gradient(180deg, transparent 45%, rgba(18, 18, 18, 0.35) 100%);
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-hero-content {
+  max-width: 820px; margin: 0 auto 0 0;
+  padding: 26px 30px 24px;
+  background: var(--nb-fam); color: var(--nb-ink);
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 10px;
+  box-shadow: var(--nb-sh-lg) var(--nb-ink);
+  transform: rotate(-1deg);
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-hero-content .fe-story-mag-eyebrow {
+  padding: 2px 8px; margin-bottom: 14px;
+  background: #ffffff; color: var(--nb-ink); border: 2px solid var(--nb-ink); border-radius: 4px;
+  font-weight: 700; letter-spacing: 0.14em;
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-title {
+  font-family: var(--fe-font-heading); font-weight: 400;
+  text-transform: uppercase; letter-spacing: -0.01em; line-height: 1;
+  font-size: clamp(2rem, 1.2rem + 3.4vw, 3.8rem);
+  text-shadow: none; color: var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-no-hero .fe-story-mag-title { color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-story-mag-hero-meta { color: var(--nb-ink); text-shadow: none; font-weight: 700; }
+body[data-fe-theme="neobrutal"] .fe-story-mag-room { max-width: 780px; padding-top: 48px; }
+/* The reading column: white, ink outline, generous measure and leading. */
+body[data-fe-theme="neobrutal"] .fe-story-mag-article {
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background: var(--nb-panel);
+  border: var(--nb-bw) solid var(--nb-line); border-radius: var(--nb-r);
+  box-shadow: var(--nb-sh) var(--nb-drop);
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-body {
+  font-family: var(--fe-font-body); font-size: 1.14rem; line-height: 1.8; color: var(--nb-text);
+  max-width: 66ch;
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-body p:first-child::first-letter {
+  font-family: var(--fe-font-heading); font-weight: 400; font-size: 3.4rem; line-height: 0.85;
+  margin: 6px 12px 0 0; padding: 8px 10px 6px;
+  color: var(--nb-ink); background: var(--nb-fam);
+  border: var(--nb-bw) solid var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-body :is(h2, h3) {
+  font-family: var(--fe-font-heading); font-weight: 400; color: var(--nb-text); line-height: 1.15;
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-body blockquote {
+  margin: 2rem 0; padding: 18px 22px;
+  font-style: normal; font-weight: 500; color: var(--nb-ink);
+  background: var(--nb-yellow);
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 6px;
+  box-shadow: var(--nb-sh-sm) var(--nb-drop-btn);
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-body a { border-bottom: 0; }
+body[data-fe-theme="neobrutal"] .fe-story-mag-meta-bar { border-width: 3px 0; border-color: var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-story-mag-bio {
+  border: var(--nb-bw) solid var(--nb-line); border-left-width: 12px; border-left-color: var(--nb-fam);
+  background: var(--nb-canvas); border-radius: 6px;
+}
+body[data-fe-theme="neobrutal"] .fe-story-mag-foot { border-top: 3px solid var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-story-mag-foot a {
+  color: var(--nb-text); border-bottom: 0; text-transform: uppercase; letter-spacing: 0.05em;
+  box-shadow: inset 0 -0.45em 0 var(--nb-fam);
+}
+
+
+/* ===== 18. Blog ========================================================= */
+
+/* Blog list: cards with pink category chips. */
+body[data-fe-theme="neobrutal"] .fe-blog-cards-title {
+  font-family: var(--fe-font-heading); font-weight: 400; text-transform: uppercase;
+  letter-spacing: -0.015em; line-height: 1; font-size: clamp(2.4rem, 1.4rem + 4vw, 4.6rem);
+  color: var(--nb-text);
+}
+body[data-fe-theme="neobrutal"] .fe-blog-cards-sub { color: var(--nb-muted); font-weight: 500; }
+body[data-fe-theme="neobrutal"] .fe-blog-cards-grid { gap: 28px; }
+body[data-fe-theme="neobrutal"] .fe-blog-cards-card { overflow: hidden; }
+body[data-fe-theme="neobrutal"] .fe-blog-cards-card:hover { transform: translate(-3px, -3px); box-shadow: var(--nb-sh-lg) var(--nb-drop); }
+body[data-fe-theme="neobrutal"] .fe-blog-cards-art { border-bottom: var(--nb-bw) solid var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-blog-cards-card-title {
+  font-family: var(--fe-font-heading); font-weight: 400; letter-spacing: 0; line-height: 1.1; color: var(--nb-text);
+}
+body[data-fe-theme="neobrutal"] :is(.fe-blog-cards-summary, .fe-blog-cards-meta) { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] :is(.fe-blog-cards-cat-chip, .fe-blog-cls-cat) {
+  background: var(--nb-fam); color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 4px;
+  font-weight: 700; letter-spacing: 0.08em;
+}
+/* A category color set by the admin tints the chip; the type stays ink. */
+body[data-fe-theme="neobrutal"] :is(.fe-blog-cards-cat-chip, .fe-blog-cls-cat)[style*="--blog-cat-color"] {
+  background: color-mix(in srgb, var(--blog-cat-color) 40%, #ffffff);
+}
+
+/* Blog post (classic): white reading card, sidebar widgets as stickers. */
+body[data-fe-theme="neobrutal"] .fe-blog-post-classic .fe-blog-cls-main:hover,
+body[data-fe-theme="neobrutal"] .fe-blog-post-classic .fe-blog-cls-widget:hover {
+  box-shadow: var(--nb-sh) var(--nb-drop); border-color: var(--nb-line);
+}
+body[data-fe-theme="neobrutal"] .fe-blog-cls-figure { border-bottom: var(--nb-bw) solid var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-blog-cls-title {
+  font-family: var(--fe-font-heading); font-weight: 400; text-transform: uppercase;
+  letter-spacing: -0.01em; line-height: 1.02;
+}
+body[data-fe-theme="neobrutal"] .fe-blog-cls-byline {
+  border-bottom: 3px solid var(--nb-line);
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem;
+}
+body[data-fe-theme="neobrutal"] .fe-blog-cls-body {
+  font-size: 1.12rem; line-height: 1.8; max-width: 68ch;
+}
+body[data-fe-theme="neobrutal"] .fe-blog-cls-body :is(h2, h3) {
+  font-family: var(--fe-font-heading); font-weight: 400; line-height: 1.15;
+}
+body[data-fe-theme="neobrutal"] .fe-blog-cls-body a {
+  text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px;
+}
+body[data-fe-theme="neobrutal"] .fe-blog-cls-body blockquote {
+  font-style: normal; color: var(--nb-ink);
+  background: var(--nb-yellow); padding: 16px 20px;
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 6px;
+}
+body[data-fe-theme="neobrutal"] .fe-blog-cls-body img { border: var(--nb-bw) solid var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-blog-cls-widget-title {
+  margin: -1.2rem -1.4rem 1rem; padding: 10px 1.4rem;
+  background: var(--nb-fam); color: var(--nb-ink);
+  border-bottom: var(--nb-bw) solid var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] .fe-blog-cls-widget { overflow: hidden; }
+body[data-fe-theme="neobrutal"] .fe-blog-cls-related img { border: 2px solid var(--nb-line); border-radius: 4px; }
+body[data-fe-theme="neobrutal"] .fe-blog-cls-tag { border: 2px solid var(--nb-line); font-weight: 600; }
+
+
+/* ===== 19. Forms, contact, recovery contacts ============================ */
+
+body[data-fe-theme="neobrutal"] :is(.fe-contact-section, .fe-submission-section, .fe-rc-section) { padding-top: 64px; }
+body[data-fe-theme="neobrutal"] .fe-contact-eyebrow {
+  display: inline-block; padding: 3px 9px;
+  background: var(--nb-fam); color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 4px;
+  font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  transform: rotate(-2deg);
+}
+body[data-fe-theme="neobrutal"] :is(.fe-contact-blurb, .fe-submission-page-blurb, .fe-submission-intro) { color: var(--nb-muted); font-size: 1.05rem; }
+body[data-fe-theme="neobrutal"] .fe-contact-channel-icon {
+  background: var(--nb-yellow) !important; color: var(--nb-ink) !important; /* beats the hardcoded blue tint */
+  border: 2px solid var(--nb-ink); border-radius: 6px;
+}
+body[data-fe-theme="neobrutal"] .fe-contact-channel:nth-child(2n) .fe-contact-channel-icon { background: var(--nb-cyan) !important; /* as above */ }
+body[data-fe-theme="neobrutal"] .fe-contact-channel-label { color: var(--nb-muted); font-weight: 700; letter-spacing: 0.1em; }
+body[data-fe-theme="neobrutal"] .fe-contact-channel-value { color: var(--nb-text); font-weight: 600; }
+body[data-fe-theme="neobrutal"] :is(.fe-contact-card, .fe-submission-card) { padding: clamp(1.25rem, 3vw, 2.25rem); }
+body[data-fe-theme="neobrutal"] :is(.fe-submission-fineprint, .fe-contact-fineprint, .fe-rc-help, .fe-field-help) { color: var(--nb-muted); }
+body[data-fe-theme="neobrutal"] .fe-story-terms-text {
+  background: var(--nb-canvas); border: 2px solid var(--nb-line); border-radius: 6px;
+}
+body[data-fe-theme="neobrutal"] .fe-submission-public-warning {
+  background: var(--nb-yellow); color: var(--nb-ink); border: 2px solid var(--nb-ink); border-radius: 6px;
+}
+body[data-fe-theme="neobrutal"] .req { color: var(--nb-link); }
+
+/* Recovery contacts list. */
+body[data-fe-theme="neobrutal"] .fe-rc-item-list { gap: 20px; }
+body[data-fe-theme="neobrutal"] .fe-rc-item-card { padding-top: 18px; box-shadow: inset 0 8px 0 0 var(--nb-yellow), inset 0 11px 0 0 var(--nb-line), var(--nb-sh) var(--nb-drop); }
+body[data-fe-theme="neobrutal"] .fe-rc-item-name { color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] :is(.fe-rc-item-contact-icon, .fe-rc-item-sponsor-icon) { color: var(--nb-text); }
+body[data-fe-theme="neobrutal"] .fe-rc-item-sponsor { color: var(--nb-link); font-weight: 700; }
+body[data-fe-theme="neobrutal"] .fe-rc-count {
+  background: var(--nb-fam); color: var(--nb-ink); border: 2px solid var(--nb-ink); border-radius: 4px; padding: 0 8px; font-weight: 700;
+}
+body[data-fe-theme="neobrutal"] .fe-rc-cta {
+  padding: 18px 20px;
+  background: var(--nb-panel); border: var(--nb-bw) dashed var(--nb-line); border-radius: var(--nb-r);
+}
+
+
+/* ===== 20. Site index + 404 ============================================= */
+
+body[data-fe-theme="neobrutal"] .fe-site-index-group-head { border-color: var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-site-index-eyebrow {
+  display: inline-block; padding: 3px 9px;
+  background: var(--nb-fam); color: var(--nb-ink);
+  border: 2px solid var(--nb-ink); border-radius: 4px;
+  font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+}
+body[data-fe-theme="neobrutal"] .fe-site-index-count { color: var(--nb-muted); font-weight: 700; }
+body[data-fe-theme="neobrutal"] .fe-site-index-list { gap: 10px; }
+body[data-fe-theme="neobrutal"] .fe-site-index-row-link {
+  background: var(--nb-panel); color: var(--nb-text);
+  border: 2px solid var(--nb-line); border-radius: 6px;
+}
+body[data-fe-theme="neobrutal"] .fe-site-index-row-link:hover {
+  background: var(--nb-fam); border-color: var(--nb-ink);
+  transform: translate(-2px, -2px); box-shadow: var(--nb-sh-sm) var(--nb-drop-btn);
+}
+body[data-fe-theme="neobrutal"] .fe-site-index-row-link:hover :is(.fe-site-index-row-title, .fe-site-index-row-sub, .fe-site-index-row-arrow) { color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-site-index-row-title { font-weight: 700; color: inherit; }
+body[data-fe-theme="neobrutal"] .fe-site-index-row-arrow { color: inherit; }
+body[data-fe-theme="neobrutal"] .fe-site-index-row-chip {
+  background: var(--nb-fam); color: var(--nb-ink); border: 2px solid var(--nb-ink); border-radius: 4px;
+}
+body[data-fe-theme="neobrutal"] .fe-site-index-row-meeting      { --nb-fam: var(--nb-yellow); }
+body[data-fe-theme="neobrutal"] .fe-site-index-row-event        { --nb-fam: var(--nb-cyan); }
+body[data-fe-theme="neobrutal"] .fe-site-index-row-announcement { --nb-fam: var(--nb-lime); }
+body[data-fe-theme="neobrutal"] .fe-site-index-row-library      { --nb-fam: var(--nb-lav); }
+body[data-fe-theme="neobrutal"] .fe-site-index-row-story        { --nb-fam: var(--nb-pink); }
+
+/* The default art's "404" numerals print pink with an ink outline. */
+body[data-fe-theme="neobrutal"] .fe-404-art text {
+  fill: var(--nb-pink); stroke: var(--nb-line); stroke-width: 5px; paint-order: stroke;
+  font-family: var(--fe-font-heading);
+}
+body[data-fe-theme="neobrutal"] .fe-404-art path { stroke: var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-404-heading {
+  display: inline-block; margin: 8px 0 22px;
+  padding: 0.12em 0.45em 0.16em;
+  font-family: var(--fe-font-heading); font-weight: 400;
+  font-size: clamp(1.8rem, 1.3rem + 1.8vw, 2.8rem); line-height: 1;
+  text-transform: uppercase; color: var(--nb-ink);
+  background: var(--nb-yellow);
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 6px;
+  box-shadow: var(--nb-sh) var(--nb-drop-btn);
+  transform: rotate(-1.5deg);
+}
+body[data-fe-theme="neobrutal"] .fe-404-sub { color: var(--nb-muted); font-size: 1.1rem; }
+
+
+/* ===== 21. Footer ======================================================== */
+
+/* An ink slab under a five-color tape stripe. The theme paints it, so the
+   admin's footer colors are not used (see FOOTER_SURFACE_THEMES). */
+body[data-fe-theme="neobrutal"] .fe-footer {
+  position: relative;
+  background-color: var(--nb-ink) !important; background-image: none !important; /* beats the admin footer surface */
+  color: var(--nb-cream);
+  border-top: 0;
+}
+html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-footer { background-color: #08070b !important; /* as above */ }
+body[data-fe-theme="neobrutal"] .fe-footer::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; z-index: 1; height: 12px;
+  background: linear-gradient(90deg,
+    var(--nb-yellow) 0 20%, var(--nb-cyan) 20% 40%, var(--nb-lime) 40% 60%,
+    var(--nb-lav) 60% 80%, var(--nb-pink) 80% 100%);
+  border-top: var(--nb-bw) solid var(--nb-line);
+  border-bottom: var(--nb-bw) solid var(--nb-ink);
+}
+body[data-fe-theme="neobrutal"] :is(.fe-footer-particles, .fe-footer-bg-effects) { display: none !important; /* beats inline display */ }
+body[data-fe-theme="neobrutal"] .fe-footer :is(p, li, a, .fe-footer-tagline, .fe-footer-copy) { color: var(--nb-cream); }
+body[data-fe-theme="neobrutal"] .fe-footer :is(.fe-footer-tagline, .fe-footer-copy) { opacity: 0.86; }
+body[data-fe-theme="neobrutal"] .fe-footer a:hover { color: var(--nb-yellow); }
+body[data-fe-theme="neobrutal"] .fe-footer :is(.fe-footer-locations-heading, .fe-footer-contact-pane h3.fe-footer-contact-heading,
+  .fe-footer-name, .fe-footer-col-title) {
+  font-family: var(--fe-font-heading) !important; /* beats the footer's Inter */
+  font-weight: 400; letter-spacing: 0.02em; text-transform: uppercase;
+  color: var(--nb-yellow);
+}
+/* Meeting-location cards are meetings-family stickers. */
+body[data-fe-theme="neobrutal"] .fe-footer-location-card {
+  background: var(--nb-yellow) !important; /* beats the force-dark footer card fill */
+  color: var(--nb-ink);
+  border: var(--nb-bw) solid var(--nb-ink) !important; /* as above */
+  border-radius: var(--nb-r);
+  box-shadow: var(--nb-sh) var(--nb-cream);
+  transition: transform 120ms var(--nb-ease), box-shadow 120ms var(--nb-ease);
+}
+body[data-fe-theme="neobrutal"] .fe-footer-location-card:hover {
+  background: var(--nb-yellow) !important; /* the force-dark hover darkens it */
+  transform: translate(-2px, -2px); box-shadow: var(--nb-sh-lg) var(--nb-cream);
+}
+body[data-fe-theme="neobrutal"] .fe-footer-location-card :is(.fe-footer-location-name, .fe-footer-location-addr,
+  .fe-footer-location-note, p, a, span) { color: var(--nb-ink) !important; /* beats the footer's light text */ }
+body[data-fe-theme="neobrutal"] .fe-footer-location-name {
+  font-family: var(--fe-font-heading); font-weight: 400; letter-spacing: 0.01em;
+}
+body[data-fe-theme="neobrutal"] .fe-footer-contact-body { color: var(--nb-cream); }
+body[data-fe-theme="neobrutal"] .fe-footer-contact-body a { color: var(--nb-yellow); text-decoration: underline; text-underline-offset: 3px; }
+body[data-fe-theme="neobrutal"] .fe-footer-location-icon {
+  background: var(--nb-pink) !important; color: var(--nb-ink) !important; /* beats the blue icon chip */
+  border: 2px solid var(--nb-ink); border-radius: 6px;
+}
 body[data-fe-theme="neobrutal"] .fe-footer-location-directions {
-  background: #ffffff; color: var(--nb-ink) !important; border: 2px solid var(--nb-ink); box-shadow: var(--nb-shadow-sm);
+  background: #ffffff !important; color: var(--nb-ink) !important; /* as above */
+  border: 2px solid var(--nb-ink) !important; border-radius: 6px; /* as above */
+  box-shadow: var(--nb-sh-xs) var(--nb-ink);
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+body[data-fe-theme="neobrutal"] .fe-footer-location-directions:hover { background: var(--nb-pink) !important; /* as above */ }
+body[data-fe-theme="neobrutal"] .fe-footer .fe-footer-block-powered-by a {
+  background: transparent !important; color: var(--nb-cream) !important; /* beats the footer's force-dark pill */
+  border: 2px solid rgba(246, 241, 228, 0.4); border-radius: 4px;
+}
+body[data-fe-theme="neobrutal"] .fe-footer .fe-footer-block-powered-by a:hover { background: var(--nb-yellow) !important; color: var(--nb-ink) !important; /* as above */ border-color: var(--nb-yellow); }
+/* Footer chips (cookie settings, login, request access): cream outlines
+   that fill yellow. */
+body[data-fe-theme="neobrutal"] .fe-footer :is(.fe-footer-admin-login, .fe-footer-privacy-link--btn) {
+  padding: 6px 12px;
+  background: transparent !important; color: var(--nb-cream) !important; /* beats the tinted pill */
+  border: 2px solid rgba(246, 241, 228, 0.55) !important; border-radius: 6px; /* as above */
+  font-weight: 700;
+}
+body[data-fe-theme="neobrutal"] .fe-footer :is(.fe-footer-admin-login, .fe-footer-privacy-link--btn):hover {
+  background: var(--nb-yellow) !important; color: var(--nb-ink) !important; border-color: var(--nb-yellow) !important; /* as above */
 }
 
-/* ===== Meetings-list filter rail ====================================== */
-body[data-fe-theme="neobrutal"] .fe-mlist-day-section-heading { font-family: var(--fe-font-heading); text-transform: uppercase; }
-body[data-fe-theme="neobrutal"] .fe-mlist-day-pill { border: 2px solid var(--nb-ink) !important; border-radius: 4px; font-weight: 700; }
-body[data-fe-theme="neobrutal"] .fe-mlist-day-pill.is-active { background: var(--nb-pink) !important; color: var(--nb-ink) !important; box-shadow: var(--nb-shadow-sm); }
-body[data-fe-theme="neobrutal"] .fe-mlist-rail-search input { border: var(--nb-bw) solid var(--nb-ink) !important; border-radius: 6px; }
 
-/* ===== Meeting DETAIL page ============================================= */
-body[data-fe-theme="neobrutal"] .fe-meeting-detail,
-body[data-fe-theme="neobrutal"] .fe-contact-section,
-body[data-fe-theme="neobrutal"] .fe-page-dynbg-host { background: transparent !important; }
-body[data-fe-theme="neobrutal"] .fe-meeting-detail > .fe-dynbg,
-body[data-fe-theme="neobrutal"] .fe-contact-section > .fe-dynbg,
-body[data-fe-theme="neobrutal"] .fe-page-dynbg-host > .fe-dynbg { display: none !important; }
-body[data-fe-theme="neobrutal"] .fe-meeting-detail-card,
-body[data-fe-theme="neobrutal"] .fe-meeting-extended-card,
-body[data-fe-theme="neobrutal"] .fe-meeting-resources {
-  border: var(--nb-bw) solid var(--nb-ink) !important; box-shadow: var(--nb-shadow);
+/* ===== 22. Overlays: search + submission modals, cookie banner ========= */
+
+body[data-fe-theme="neobrutal"] :is(.fe-search-modal-panel, .fe-submission-modal-panel, .fe-gsr-modal-panel, .rc-contact-panel) {
+  background: var(--nb-panel); color: var(--nb-text);
+  border: var(--nb-bw) solid var(--nb-line); border-radius: 12px;
+  box-shadow: var(--nb-sh-lg) var(--nb-drop-btn);
 }
-body[data-fe-theme="neobrutal"] .fe-meeting-detail-head h1 {
-  font-family: var(--fe-font-heading); text-transform: uppercase; color: var(--nb-ink);
-}
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-meeting-detail-head h1 { color: var(--nb-cream); }
-body[data-fe-theme="neobrutal"] .fe-meeting-detail-card h3,
-body[data-fe-theme="neobrutal"] .fe-meeting-resources h3,
-body[data-fe-theme="neobrutal"] .fe-meeting-extended-title {
-  font-family: var(--fe-font-heading); text-transform: uppercase;
+body[data-fe-theme="neobrutal"] .fe-search-modal-input-row { border-bottom: var(--nb-bw) solid var(--nb-line); }
+body[data-fe-theme="neobrutal"] .fe-search-modal-kbd { border: 2px solid var(--nb-line); border-radius: 4px; background: var(--nb-yellow); color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-submission-modal-head { background: var(--nb-pink); color: var(--nb-ink); border-bottom: var(--nb-bw) solid var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-submission-modal-head h2 { font-family: var(--fe-font-heading); font-weight: 400; text-transform: uppercase; color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .fe-submission-modal-head .muted { color: var(--nb-ink); }
+body[data-fe-theme="neobrutal"] .tsp-cc-panel {
+  border: var(--nb-bw) solid var(--nb-ink); border-radius: 10px;
+  box-shadow: var(--nb-sh) var(--nb-ink);
 }
 
-/* ===== Container panels — keep dark-mode on the theme surface ========== */
-html[data-theme="dark"] body[data-fe-theme="neobrutal"] [style*="--tsp-bg-dm"] {
-  background-color: var(--fe-color-surface-dark, #18161f) !important;
+
+/* ===== 23. Motion ======================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-fe-theme="neobrutal"] *,
+  body[data-fe-theme="neobrutal"] *::before,
+  body[data-fe-theme="neobrutal"] *::after { transition: none !important; /* outranks every component transition */ }
+  /* Keep the hard shadows; drop the lift and press movement. */
+  body[data-fe-theme="neobrutal"] :is(.fe-btn, .btn, .fe-th-nav-cta, .fe-th-nav-link, .fe-meeting-card,
+    .fe-mlist-card, .fe-event-row, .fe-events-card, .fe-announcements-card, .fe-library-item,
+    .fe-fellowships-card, .fe-feature-card, .fe-stories-mag-card, .fe-stories-mag-hero, .fe-blog-cards-card,
+    .fe-site-index-row, .fe-mlist-day-pill, .fe-events-omni-tab, .fe-footer-location-card):is(:hover, :active) {
+    transform: none !important; /* outranks the hover and press rules above */
+  }
 }
 
+
+/* ===== 24. Responsive =================================================== */
+
+@media (max-width: 900px) {
+  /* The meeting card's action column drops below the info; its divider
+     moves to the top edge. */
+  body[data-fe-theme="neobrutal"] .fe-mlist-card.is-3col .fe-mlist-card-col-actions {
+    border-left: 0; border-top: 2px dashed color-mix(in srgb, var(--nb-line) 35%, transparent);
+  }
+}
+@media (max-width: 880px) {
+  /* Smaller shapes; the two left-hand circles step aside for the headline. */
+  body[data-fe-theme="neobrutal"] .fe-hero::before {
+    background-image:
+      radial-gradient(circle 34px at 92% 9%, var(--nb-cyan) 0 30px, var(--nb-ring) 30px 34px, transparent 34.5px),
+      radial-gradient(circle 28px at 7% 92%, var(--nb-lav) 0 24px, var(--nb-ring) 24px 28px, transparent 28.5px),
+      repeating-linear-gradient(0deg, var(--nb-grid) 0 2px, transparent 2px 40px),
+      repeating-linear-gradient(90deg, var(--nb-grid) 0 2px, transparent 2px 40px);
+    background-repeat: no-repeat, no-repeat, repeat, repeat;
+  }
+  body[data-fe-theme="neobrutal"] .fe-hero::after { width: 60px; height: 60px; right: 8%; bottom: -24px; }
+}
 @media (max-width: 768px) {
-  body[data-fe-theme="neobrutal"] .fe-section { padding-top: 52px; padding-bottom: 52px; }
+  body[data-fe-theme="neobrutal"] .fe-section { padding-top: 56px; padding-bottom: 56px; }
+  body[data-fe-theme="neobrutal"] .fe-section-head { margin-bottom: 32px; }
+  body[data-fe-theme="neobrutal"] .fe-section-head h2 { box-shadow: var(--nb-sh-sm) var(--nb-drop-btn); }
+  body[data-fe-theme="neobrutal"] .fe-hero-heading { text-shadow: 3px 3px 0 #ffffff; }
+  html[data-theme="dark"] body[data-fe-theme="neobrutal"] .fe-hero-heading { text-shadow: 3px 3px 0 var(--nb-pink); }
+  body[data-fe-theme="neobrutal"] :is(.fe-meeting-card, .fe-mlist-card, .fe-event-row, .fe-events-card,
+    .fe-announcements-card, .fe-library-item, .fe-fellowships-card, .fe-feature-card) {
+    box-shadow: var(--nb-band), var(--nb-sh-sm) var(--nb-drop);
+  }
+  body[data-fe-theme="neobrutal"] .fe-event-row { align-items: flex-start; gap: 14px; }
+}
+@media (max-width: 560px) {
+  /* Event rows stack their text under the date + thumbnail so the row's
+     minimum width fits a phone. */
+  body[data-fe-theme="neobrutal"] .fe-event-row { flex-wrap: wrap; padding: 24px 16px 16px; }
+  body[data-fe-theme="neobrutal"] .fe-event-body { flex: 1 1 100%; min-width: 0; }
+  body[data-fe-theme="neobrutal"] .fe-event-thumb { width: 72px; height: 72px; }
+  body[data-fe-theme="neobrutal"] .fe-event-attr { white-space: normal; }
+  body[data-fe-theme="neobrutal"] .fe-story-mag-hero-content { transform: none; padding: 18px 20px; }
 }

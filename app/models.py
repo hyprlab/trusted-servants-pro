@@ -63,7 +63,9 @@ class MeetingLibrary(db.Model):
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    # An email address for every account created since usernames became
+    # emails; older accounts may keep a plain name (see auth.is_email_username).
+    username = db.Column(db.String(255), unique=True, nullable=False, index=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(32), nullable=False, default="viewer")
@@ -1769,6 +1771,9 @@ class AccessRequest(db.Model):
     meeting_name = db.Column(db.String(255))
     # Optional note from the requester, in their words.
     message = db.Column(db.Text)
+    # The account whose email matched the request's, if any, at submission.
+    # Plain id, no foreign key: a later-deleted user just stops matching.
+    existing_user_id = db.Column(db.Integer)
     status = db.Column(db.String(16), nullable=False, default="pending")  # pending|handled
     # IP the request was submitted from (best-effort, via _client_ip()).
     # Lets an admin block an abusive requester from Watchtower → Requests.

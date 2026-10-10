@@ -839,7 +839,9 @@
   }));
   onEachPage(() => document.querySelectorAll(".modal").forEach(m => {
     m.querySelectorAll("[data-close]").forEach(el => {
-      if (el._tspCloser) return;
+      // A dialog inside another (the Sidebar section's link dialogs sit
+      // in Settings) closes only itself.
+      if (el._tspCloser || el.closest(".modal") !== m) return;
       el._tspCloser = true;
       el.addEventListener("click", () => closeModal(m));
     });
@@ -1134,6 +1136,12 @@
           } else {
             showSettingsToast(isTestForm ? "Test sent" : "Saved");
           }
+          // Saved from a dialog: back to the section it opened from.
+          const dlg = f.closest(".modal");
+          if (dlg && dlg !== settingsModal && !(data && data.pageGone)) {
+            if (/-new-/.test(dlg.id)) f.reset();
+            if (dlg.classList.contains("open")) closeModal(dlg);
+          }
           // A module turned on: this page stays; the pinned buttons
           // (Web, View) follow.
           if (f.matches(".special-page-toggle-form") && !moduleOff && !(data && data.pageGone)) {
@@ -1267,6 +1275,9 @@
 
       function sbTrackable(form) {
         if (form.closest(".settings-frame")) return false;
+        // A dialog's form (a page slid in over the section) keeps its
+        // own button.
+        if (form.closest(".modal") !== settingsModal) return false;
         if (form.dataset.noAjax === "1") return false;
         if (form.dataset.savebarSkip === "1") return false;
         if (form.querySelector('[onchange*="this.form."]')) return false;
@@ -9033,5 +9044,267 @@
   // Going back to a list restores ticked boxes; show the bar for them.
   window.addEventListener("pageshow", function () {
     document.querySelectorAll("[data-bulk-scope]").forEach(refresh);
+  });
+})();
+
+// A preview that follows a field as it is typed: [data-mirror="<name>"]
+// shows the value of the same form's [data-mirror-source="<name>"], or its
+// data-mirror-empty text while that is blank (the external-link dialog's
+// sidebar row).
+(function initMirrors() {
+  function sync(src) {
+    const form = src.form;
+    if (!form) return;
+    form.querySelectorAll('[data-mirror="' + src.dataset.mirrorSource + '"]').forEach(el => {
+      const v = src.value.trim();
+      el.textContent = v || el.dataset.mirrorEmpty || "";
+      el.classList.toggle("is-empty", !v);
+    });
+  }
+  document.addEventListener("input", e => {
+    if (e.target.matches && e.target.matches("[data-mirror-source]")) sync(e.target);
+  });
+  // A form reset puts the values back after the event; follow them then.
+  document.addEventListener("reset", e => {
+    setTimeout(() => e.target.querySelectorAll("[data-mirror-source]").forEach(sync));
+  }, true);
+  document.querySelectorAll("[data-mirror-source]").forEach(sync);
+})();
+
+// Dialogs opened from Settings become pages, like a phone's settings app:
+// the section and the page sit side by side on one strip that moves left
+// to show the page and back again for Back, whose label names the page
+// it returns to. In the Settings window a dialog qualifies while Settings
+// is open; in a page shown in a section (html.in-settings) every dialog
+// does. Each dialog keeps its own open and close code: this watches its
+// .open class, adds .settings-sub, and Back presses the dialog's own
+// close button. Confirmations and the pickers stay dialogs.
+(function settingsSubpages() {
+  const settings = document.getElementById("settings-modal");
+  const tpl = document.getElementById("settings-sub-tpl");
+  const inFrame = document.documentElement.classList.contains("in-settings");
+  if (!tpl || (!inFrame && !settings)) return;
+  const NOT_SUB = "#settings-modal, .confirm-modal, #search-modal, #media-picker-modal, "
+                + "#dynbg-picker-modal, #icon-picker-modal";
+  const SLIDE_MS = 380;  // --sub-ms in app.css
+  // The strip: the surface that moves aside, and where the pages go
+  // while open, beside it rather than inside it.
+  const surface = inFrame ? document.documentElement : settings.querySelector(".settings-main");
+  const pageHost = inFrame ? document.body : surface;
+  const stack = [];
+  // The toasts belong to the window, not the surface: moved out, they
+  // stay in view over a page (a failed Add user reopens with its error).
+  if (inFrame) {
+    const toasts = document.querySelector(".embed-content > .flashes");
+    if (toasts) document.body.appendChild(toasts);
+  }
+
+  const qualifies = () => inFrame || settings.classList.contains("open");
+  const titleOf = m => {
+    const h = m.querySelector(".modal-head h2");
+    return h ? h.textContent.trim() : "";
+  };
+  // The page beneath the first dialog: the open section, or in a frame
+  // the section or page the frame sits in.
+  function baseLabel() {
+    let host = settings;
+    if (inFrame) {
+      try { host = window.frameElement && window.frameElement.closest(".modal"); } catch (e) { host = null; }
+    }
+    if (host && host.id === "settings-modal") {
+      const t = host.querySelector(".settings-pane-title");
+      return (t && t.textContent.trim()) || "Settings";
+    }
+    return (host && titleOf(host)) || "Back";
+  }
+
+  function chrome(m) {
+    if (m._subChrome) return m._subChrome;
+    let head = m.querySelector(".modal-head");
+    if (!head) {
+      const panel = m.querySelector(".modal-panel") || m;
+      head = document.createElement("div");
+      head.className = "modal-head";
+      const h = document.createElement("h2");
+      h.textContent = panel.getAttribute("aria-label") || "";
+      head.appendChild(h);
+      panel.prepend(head);
+    }
+    const parts = tpl.content.cloneNode(true);
+    const back = parts.querySelector(".settings-sub-back");
+    head.prepend(back);
+    back.addEventListener("click", () => dismiss(m));
+    // On a phone the page covers the Settings head and its close button,
+    // so it brings one (app.css shows it there only).
+    if (!inFrame) {
+      const close = parts.querySelector(".settings-sub-close");
+      head.appendChild(close);
+      close.addEventListener("click", () => {
+        const x = settings.querySelector(".settings-main-head [data-close]");
+        if (x) x.click();
+      });
+    }
+    return (m._subChrome = { back, label: back.querySelector(".settings-sub-back-label") });
+  }
+
+  function dismiss(m) {
+    const x = m.querySelector(".modal-head [data-close]") || m.querySelector("[data-close]");
+    if (x) x.click();
+    if (m.classList.contains("open")) {
+      m.classList.remove("open");
+      m.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  // A dialog moves beside the surface while it is a page (a placeholder
+  // keeps its place) and goes home once closed.
+  function moveOut(m) {
+    if (m.parentNode === pageHost) return;
+    if (!m._subHome) {
+      m._subHome = document.createComment("settings-sub");
+      m.parentNode.insertBefore(m._subHome, m);
+    }
+    pageHost.appendChild(m);
+  }
+  function goHome(m) {
+    if (m._subHome && m._subHome.parentNode) m._subHome.replaceWith(m);
+    m._subHome = null;
+  }
+  function release(m) {
+    m.classList.remove("settings-sub", "settings-sub-under");
+    m.style.zIndex = "";
+    goHome(m);
+  }
+
+  // Everything below the top page moves one width to the left.
+  function shift(instant) {
+    if (instant) {
+      surface.classList.add("settings-sub-instant");
+      stack.forEach(m => m.classList.add("settings-sub-instant"));
+    }
+    surface.classList.toggle("settings-pushed", stack.length > 0);
+    stack.forEach((m, i) => m.classList.toggle("settings-sub-under", i < stack.length - 1));
+    if (instant) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        surface.classList.remove("settings-sub-instant");
+        document.querySelectorAll(".modal.settings-sub-instant")
+          .forEach(m => m.classList.remove("settings-sub-instant"));
+      }));
+    }
+    if (inFrame) {
+      try { window.parent.postMessage({ type: "tsp-subpage" }, window.location.origin); } catch (e) {}
+    }
+  }
+
+  function push(m) {
+    const c = chrome(m);
+    const under = stack[stack.length - 1];
+    c.label.textContent = (under && titleOf(under)) || baseLabel();
+    c.back.setAttribute("aria-label", "Back to " + c.label.textContent);
+    clearTimeout(m._subT);
+    m.classList.add("settings-sub");
+    m.classList.remove("settings-sub-under");
+    m.style.zIndex = String(101 + stack.length);
+    moveOut(m);
+    stack.push(m);
+    shift();
+    setTimeout(() => {
+      if (m.classList.contains("open") && !m.contains(document.activeElement)) {
+        c.back.focus({ preventScroll: true });
+      }
+    }, 80);
+  }
+
+  function drop(m, instant) {
+    const i = stack.indexOf(m);
+    if (i >= 0) stack.splice(i, 1);
+    m.classList.remove("settings-sub-under");
+    clearTimeout(m._subT);
+    const settle = () => {
+      if (m.classList.contains("open")) return;
+      if (qualifies()) goHome(m); else release(m);
+    };
+    if (instant) settle(); else m._subT = setTimeout(settle, SLIDE_MS);
+  }
+
+  // Back to the section: every page closes, at once when Settings itself
+  // is closing.
+  function closeAll(instant) {
+    stack.slice().reverse().forEach(m => {
+      if (instant) m.classList.add("settings-sub-instant");
+      if (m.classList.contains("open")) dismiss(m);
+      drop(m, instant);
+    });
+    shift(instant);
+  }
+  window.tspCloseSubpages = closeAll;
+  window.tspSubDepth = () => stack.length;
+
+  function frames() {
+    return settings ? Array.from(settings.querySelectorAll("iframe")) : [];
+  }
+  function closeFrames() {
+    frames().forEach(f => {
+      try { if (f.contentWindow.tspCloseSubpages) f.contentWindow.tspCloseSubpages(true); } catch (e) {}
+    });
+  }
+  // On a phone the section's head (Back to the list) gives way while the
+  // section's frame shows a page; that page has its own.
+  function syncFrameSub() {
+    const pane = settings.querySelector(".settings-pane.active");
+    const f = pane && pane.querySelector("iframe");
+    let depth = 0;
+    try { depth = f && f.contentWindow.tspSubDepth ? f.contentWindow.tspSubDepth() : 0; } catch (e) {}
+    const on = depth > 0 && settings.classList.contains("open");
+    if (settings.classList.contains("settings-frame-sub") !== on) settings.classList.toggle("settings-frame-sub", on);
+  }
+
+  function settingsChanged() {
+    if (settings.classList.contains("open")) return;
+    closeAll(true);
+    closeFrames();
+    document.querySelectorAll(".modal.settings-sub:not(.open)").forEach(release);
+    if (settings.classList.contains("settings-frame-sub")) settings.classList.remove("settings-frame-sub");
+  }
+
+  function sync(m) {
+    if (m === settings) { settingsChanged(); return; }
+    const open = m.classList.contains("open");
+    const i = stack.indexOf(m);
+    if (open && i < 0) {
+      if (qualifies()) push(m);
+      else if (m.classList.contains("settings-sub")) release(m);
+    } else if (!open && i >= 0) {
+      drop(m);
+      shift();
+    }
+  }
+
+  const watched = new WeakSet();
+  const mo = new MutationObserver(recs => recs.forEach(r => sync(r.target)));
+  function scan() {
+    if (settings && !watched.has(settings)) {
+      watched.add(settings);
+      mo.observe(settings, { attributes: true, attributeFilter: ["class"] });
+    }
+    document.querySelectorAll(".modal").forEach(m => {
+      if (watched.has(m) || m.matches(NOT_SUB)) return;
+      watched.add(m);
+      mo.observe(m, { attributes: true, attributeFilter: ["class"] });
+      if (m.classList.contains("open")) sync(m);
+    });
+  }
+  if (window.tspOnEachPage) window.tspOnEachPage(scan); else scan();
+  shift(true);
+
+  if (inFrame) return;
+  // Picking another section leaves any page that was open.
+  settings.querySelectorAll(".settings-tab").forEach(t => t.addEventListener("click", () => {
+    closeAll(false);
+    closeFrames();
+    syncFrameSub();
+  }));
+  window.addEventListener("message", e => {
+    if (e.origin === window.location.origin && e.data && e.data.type === "tsp-subpage") syncFrameSub();
   });
 })();

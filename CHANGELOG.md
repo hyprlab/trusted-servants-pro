@@ -6,6 +6,60 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.2.0] — 2026-10-10
+
+### Added
+- Edit user: a Reset password button, shown when the user has an email, opening Reset password for that user.
+- Users: Add user (`#user-new-modal`), opened from the All users card head, replaces the always-shown Add a user card and its Roles and permissions column.
+
+### Changed
+- Settings: a dialog opened while Settings is open, or from a page shown in a section (`html.in-settings`, now also set in frames inside such a page), gets `.settings-sub` and becomes a page beside the section, with a back button labeled with the page it returns to (`settingsSubpages` in `app.js`, `#settings-sub-tpl` in `base.html`). While open the dialog moves next to the surface (`.settings-main`, or `body` in a frame, a comment keeping its place), the surface takes `.settings-pushed` and moves a full width left as the page comes in, and a page beneath another takes `.settings-sub-under`; Back reverses both on the same timing. On a desktop the window's close button stays above the pages; on a phone the section head moves with the strip and the page brings its own close button, and the section head hides while its frame shows a page (`.settings-frame-sub`). Picking another section or closing Settings closes every page. The confirmation dialog and the media, icon and background pickers stay dialogs.
+- Settings: the WordPress importer opens over Settings as a page instead of closing Settings first.
+- Settings: forms inside a dialog in the Settings window are left out of the yellow save bar, keep their own button, and close their dialog after an AJAX save.
+- Settings pages: the body spans the pane (`--content-px` padding, `--stack-gap` between sections) instead of a centered 720px card, with the foot a sticky frosted bar and a foot holding only a close button hidden. Sections are `.card.data-card.dlg-section`: a `.dlg-section-intro` (the card head and a line about it) beside `.dlg-section-fields` when the page's `subpage` container is at least 760px wide, above it otherwise; in a plain dialog they drop the card and part with a rule. `.dlg-fields-2`, `.dlg-choice` and `.dlg-section.is-danger` cover two-up fields, radio groups and the disable-account section.
+- Edit user (Profile, Role, Sign-in, Account access), Reset password (Account, New password), the location dialogs (Location, Address, Details), the external-link dialogs, Need help and the rollback snapshots are laid out in those sections. The location and external-link dialogs are each one macro for New and Edit. Edit user's fields take the shared `.form` label and input styles.
+- Users: the role in Add user and Edit user is a radio group of `.role-choice` cards (the `role_choices` macro in `users.html`), each with the role's badge and what it can reach, replacing the select and the `.perm-list` reference. Add user's fields are in Profile, Password, Role and Welcome sections, its two checkboxes now switches.
+- `auth.users_create`: a create that fails redirects through `_back_to_new_user`, which reopens Add user (`new=1`) with the posted username, email, name, phone, role and access request id; the old `data-autofocus-new-user` scroll is gone.
+- In a page shown in Settings the toast stack (`.flashes`) moves out of `.embed-content` to `body`, so a page sliding in doesn't take it out of view, and sits 72px from the top, clear of the page head and the window's close button.
+- `[data-mirror]` (app.js): an element that shows a form field's value as it is typed, used for the external link's sidebar preview.
+
+### Fixed
+- A dialog inside the Settings window (the Sidebar section's link dialogs) no longer closes Settings with it: `[data-close]` binds only to its nearest `.modal`.
+- Location dialogs: the City, State and ZIP grid uses `minmax(0, …)` columns, so the inputs' intrinsic width no longer pushes it past the form.
+
+## [3.1.2] — 2026-10-08
+
+### Changed
+- Event and announcement detail (Classic layout): `.fe-event-detail-hero` bottom margin is 4rem, up from 28px.
+
+## [3.1.1] — 2026-10-07
+
+### Changed
+- Users: the Create button gets `.is-submitting` on submit and shows the login button's spinner (the `.login-submit.is-loading` rule now also covers `.btn.is-submitting`); `pageshow` clears it.
+- Settings: the floating close button keeps its panel background, border and shadow on desktop instead of showing them only on hover or focus.
+
+## [3.1.0] — 2026-10-06
+
+### Added
+- Vendored fonts: JetBrains Mono (variable, upright and italic) and Space Grotesk (variable), latin and latin-ext subsets under `app/static/fonts/`, with `@font-face` in `app.css` and `FONTS` entries `jetbrains-mono` and `space-grotesk`. Lora Italic (variable) is vendored beside Lora, its `@font-face` in `themes/sanctuary.css`.
+- `themes/classic.css`: Classic's own scoped stylesheet. `frontend/base.html` now loads `themes/<key>.css` for every theme but Recovery Blue, which still lives unscoped in `frontend.css`.
+
+- `AccessRequest.existing_user_id` (added by `_migrate_sqlite`): the account whose email matched the request's, case-insensitive, when it came in. `request_access_submit` still saves the request, then calls `auth.send_existing_account_help`, which emails that account its username, a sign-in link and, when `password_reset_allowed`, a single-use `PasswordResetToken` link. It shares the forgot-password rate limit keyed on the email and logs `access_request.existing_account`. The visitor's reply and JSON are the same either way. The admin notification names the account; Watchtower's Requests row shows it (`.wt-req-account`) and offers Reset Password in place of Create User.
+
+### Changed
+- Usernames of new accounts are email addresses (`auth.is_email_username`: one `@`, a dot in the domain, no spaces, at most `USERNAME_MAX_LENGTH` 255). `users_create` refuses any other username and takes the email when the field is blank; `users_update` refuses a change to a non-email username, so existing usernames can stay. `User.username` is `String(255)` (was 64; SQLite doesn't enforce the length, so nothing to migrate) and the 64-character check is gone. On the Create user form the username is an email field that follows the Email field until it's typed into.
+- `_seed_admin` uses `TSP_ADMIN_USERNAME` only when it is an email address, otherwise `TSP_ADMIN_EMAIL` (logging a warning when one was given). `install.sh` defaults the username to the admin email and swaps out a non-email one; `docker-compose.yml`, `docker-compose.deploy.yml`, the installer's compose file and the README default `TSP_ADMIN_USERNAME` to empty instead of `admin`. `.env.example`, `docs/INSTALL.md`, `docs/DOCUMENTATION.md` and `docs/CONTRIBUTING.md` follow.
+- `themes/modern-dark.css`, `cyberpunk.css`, `sanctuary.css`, `terminal.css` and `neobrutal.css` rewritten, and `classic.css` written. Each has a light and dark token block that reads the design tokens, so Design page overrides still apply. Each re-resolves the `--fe-dm-*` dark variables on `body`, ending the Recovery Blue navy fallback. Each repoints the legacy `--fe-accent*` / `--fe-recovery-blue*` variables and replaces the hardcoded meeting-type badge colors. Each maps the palette variables of all 21 story and blog layout templates, and adds `:focus-visible` rings and `prefers-reduced-motion` handling. Page-builder blocks get typography and token colors only.
+- `design.py` `THEME_DEFAULTS` for those six themes: new palettes, card, button and footer dark tokens. `fonts.py`: Terminal uses `jetbrains-mono` for headings and body, Neobrutal uses `space-grotesk` for body text. Recovery Blue's entries are unchanged.
+- `frontend.py`: theme, header and mega menu descriptions for the six themes. `UTILITY_BAR_COLOR_MODES["modern-dark"]` is now `("light", "dark")`, as Modern Dark uses the admin's dark utility-bar colors when they are set.
+- The access request reply reads "Watch your email for next steps." on the sign-in page and the public popup, true whether or not the email already has an account.
+
+### Fixed
+- Settings sections that are pages in an iframe (Users, Locations) had `padding-top: 46px` on the pane on wide screens, so the page scrolled out of sight below that line. The pane now has none, and the embedded page pads its `.embed-content` by the same `calc(46px + var(--content-px))` as the other sections when `html.in-settings-float-close` is set. `base.html` sets that class, and `.in-settings`, in an embedded page whose iframe is inside `#settings-modal`, following the Settings window's 721px breakpoint rather than the iframe's.
+- Modals opened from Settings, in its window or in a section's page, get a clear `.modal-backdrop` (no dim, no `backdrop-filter`) that still closes them on click.
+- `users.html`: the `@username` handle beside a name is left out when the username is the account's email, which the line below already shows.
+- `frontend.css`: the themed header's mobile `.fe-th-nav` drops from `top: 100%` instead of `var(--fe-header-h)`, which left out the utility bar inside `.fe-header-themed` and opened the menu over the logo row.
+
 ## [3.0.3] — 2026-10-06
 
 ### Fixed
