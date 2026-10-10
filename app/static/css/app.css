@@ -13146,19 +13146,23 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
   border-radius: var(--r-md);
 }
 .wtc-svg { width: 100%; height: auto; display: block; overflow: visible; }
+/* The viewBox scales with the card. --wtc-k (set in app.js) is viewBox
+   units per screen pixel, so text sized by it, and strokes that don't
+   scale, look the same on a narrow card and a wide one. */
+.wtc-grid, .wtc-axis, .wtc-crosshair, .wtc-line, .wtc-focus-dot { vector-effect: non-scaling-stroke; }
 /* One shade off the surface — present enough to measure against, quiet
    enough that the series reads first. */
 .wtc-grid { stroke: color-mix(in srgb, var(--text) 10%, transparent); stroke-width: 1; }
 .wtc-axis { stroke: color-mix(in srgb, var(--text) 22%, transparent); stroke-width: 1; }
 .wtc-tick {
   fill: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--wtc-k, 1));
   font-variant-numeric: tabular-nums;
   font-family: inherit;
 }
 .wtc-axis-title {
   fill: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--wtc-k, 1));
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -13173,6 +13177,9 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
   stroke-width: 1;
   pointer-events: none;
 }
+/* The UA stylesheet doesn't hide SVG elements with `hidden`, so the idle
+   crosshair drew as a rule at the chart's left edge. */
+.wtc-crosshair[hidden], .wtc-focus-dots[hidden] { display: none; }
 /* 2px surface ring so a dot sitting on its own line stays legible. */
 .wtc-focus-dot {
   stroke: var(--panel);

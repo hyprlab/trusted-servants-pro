@@ -8488,6 +8488,18 @@
     const dots = fig.querySelector('.wtc-focus-dots');
     if (!svg || !dataEl || !tip) return;
 
+    // The viewBox scales with the card, and its text with it: 11px ticks
+    // read near 20px on a wide screen. --wtc-k is viewBox units per screen
+    // pixel; the CSS multiplies font sizes by it. Capped so a phone-width
+    // chart doesn't grow labels past its gutters.
+    const fitText = () => {
+      const w = svg.getBoundingClientRect().width;
+      const vw = Number((svg.getAttribute('viewBox') || '').split(/\s+/)[2]) || 0;
+      if (w && vw) fig.style.setProperty('--wtc-k', Math.min(vw / w, 1.6).toFixed(3));
+    };
+    fitText();
+    if (window.ResizeObserver) new ResizeObserver(fitText).observe(svg);
+
     let points = [];
     try {
       points = JSON.parse(dataEl.textContent) || [];

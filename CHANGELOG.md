@@ -9,6 +9,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ### Added
 - Watchtower > Requests: each request opens on its own page (`/watchtower/requests/<id>`, `watchtower/request.html`), laid out like a Contact Form message: the full message, contact, roles, meeting, IP with Block or Unblock, the matched account, and the row actions. The name, the message preview and a new Open menu item lead there. The handled, archive and unarchive routes honor a `return_url`.
 
+### Fixed
+- Watchtower charts: the SVG scales its 900-unit viewBox to the card, so 11px tick labels rendered near 20px on a wide screen. app.js sets `--wtc-k` (viewBox units per pixel, capped at 1.6) and the tick and title font sizes multiply by it; label offsets are in em and strokes are non-scaling.
+- Watchtower charts: the idle crosshair drew at x=0, because the UA stylesheet doesn't hide SVG elements with `hidden`.
+
 ## [3.2.1] — 2026-10-10
 
 ### Fixed

@@ -10,7 +10,10 @@
 
    The SVG deliberately does NOT set preserveAspectRatio="none". These
    charts carry text, and a non-uniform scale stretches the glyphs with
-   the plot — the reason the old charts had to stay wordless.
+   the plot — the reason the old charts had to stay wordless. The
+   uniform scale still enlarges text on a wide card, so app.js sets
+   `--wtc-k` to undo it and every label offset is in em, which keeps
+   type and gaps at their set size at any width.
 
    Styling lives in app.css (`.wtc-*`), the hover layer in app.js.
 
@@ -27,24 +30,24 @@
   {% for t in spec.y_ticks %}
   <line class="wtc-grid" x1="{{ spec.plot.x }}" y1="{{ t.y }}"
         x2="{{ spec.plot.right }}" y2="{{ t.y }}"/>
-  <text class="wtc-tick wtc-tick--y" x="{{ spec.plot.x - 8 }}" y="{{ t.y + 4 }}"
-        text-anchor="end">{{ t.label }}</text>
+  <text class="wtc-tick wtc-tick--y" x="{{ spec.plot.x }}" y="{{ t.y }}"
+        dx="-0.7em" dy="0.35em" text-anchor="end">{{ t.label }}</text>
   {% endfor %}
   <line class="wtc-axis" x1="{{ spec.plot.x }}" y1="{{ spec.plot.y }}"
         x2="{{ spec.plot.x }}" y2="{{ spec.plot.bottom }}"/>
   <line class="wtc-axis" x1="{{ spec.plot.x }}" y1="{{ spec.plot.bottom }}"
         x2="{{ spec.plot.right }}" y2="{{ spec.plot.bottom }}"/>
   {% for l in spec.x_labels %}
-  <text class="wtc-tick wtc-tick--x" x="{{ l.x }}" y="{{ spec.plot.bottom + 18 }}"
-        text-anchor="middle">{{ l.text }}</text>
+  <text class="wtc-tick wtc-tick--x" x="{{ l.x }}" y="{{ spec.plot.bottom }}"
+        dy="1.5em" text-anchor="middle">{{ l.text }}</text>
   {% endfor %}
   {% if y_title %}
   {# Horizontal, above the top tick: a rotated y-axis title costs width
      and is harder to read than the two words it saves. Anchored to the
      viewBox's left edge rather than the plot's — the title is wider than
      the y-tick gutter, so ending it at the axis clips its first glyphs. #}
-  <text class="wtc-axis-title" x="0" y="{{ spec.plot.y - 12 }}"
-        text-anchor="start">{{ y_title }}</text>
+  <text class="wtc-axis-title" x="0" y="{{ spec.plot.y }}"
+        dy="-1.2em" text-anchor="start">{{ y_title }}</text>
   {% endif %}
 {%- endmacro %}
 
