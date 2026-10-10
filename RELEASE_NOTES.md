@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.3.0 — 2026-10-10 (latest)
+
 New features:
 
 - Access requests open on their own page, with the whole message
@@ -18,7 +20,7 @@ Fixes:
 - Watchtower chart labels oversized on wide screens
 - a stray line at the left edge of Watchtower charts
 
-## 3.2.1 — 2026-10-10 (latest)
+## 3.2.1 — 2026-10-10
 
 Fixes:
 
