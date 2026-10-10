@@ -175,17 +175,19 @@
                     and current_user.fe_admin_autohide_sidebar -%}
 <body class="{% if embed %}embed{% endif %}{% if _fe_admin %} fe-admin-autohide{% endif %}">
 {% if embed %}
-{# A page shown in a Settings section marks itself, for the Settings rules
-   in app.css: .in-settings always, .in-settings-float-close while the
-   Settings window is wide enough that its close button floats over the
-   section (judged by the window's width, not this iframe's). #}
+{# A page shown in a Settings section, or in a page slid in over one,
+   marks itself, for the Settings rules in app.css: .in-settings always,
+   .in-settings-float-close while the Settings window is wide enough that
+   its close button floats over the section (judged by the window's
+   width, not this iframe's). #}
 <script>
 (function () {
   try {
     var f = window.frameElement;
-    if (!f || !f.closest('#settings-modal')) return;
+    if (!f || !f.closest('#settings-modal, .modal.settings-sub')) return;
     var root = document.documentElement, mq = window.parent.matchMedia('(min-width: 721px)');
-    var sync = function () { root.classList.toggle('in-settings-float-close', mq.matches); };
+    var float = !!f.closest('#settings-modal');
+    var sync = function () { root.classList.toggle('in-settings-float-close', float && mq.matches); };
     root.classList.add('in-settings');
     sync();
     mq.addEventListener('change', sync);
@@ -2458,8 +2460,7 @@
           </p>
           <div class="data-card-actions">
             <button type="button" class="btn btn-primary"
-                    data-open-modal="wp-import-modal"
-                    data-close-modal="settings-modal">
+                    data-open-modal="wp-import-modal">
               Launch importer →
             </button>
           </div>
@@ -2993,6 +2994,13 @@
 <template id="fb-side-fold-tpl">
   <button type="button" class="btn fb-side-fold" aria-expanded="false">{{ icon('sliders') }}<span>Filters</span><span class="fb-side-fold-n" hidden></span>{{ icon('chevron-down', 'fb-side-fold-chev') }}</button>
   <span class="fb-side-chip-x">{{ icon('x') }}</span>
+</template>
+{# A dialog opened from Settings becomes a page that slides in over the
+   section (app.js settingsSubpages): the back button labeled with the
+   page beneath, and in the Settings window itself a close button. #}
+<template id="settings-sub-tpl">
+  <button type="button" class="settings-sub-back">{{ icon('chevron-left') }}<span class="settings-sub-back-label">Settings</span></button>
+  <button type="button" class="icon-btn settings-sub-close" aria-label="Close Settings">{{ icon('x') }}</button>
 </template>
 <script src="{{ url_for('static', filename='js/app.js', v=app_build_id) }}"></script>
 {# Photo zoom: the lightbox (Zoom Tech Training) and in place (a File

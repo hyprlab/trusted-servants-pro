@@ -839,7 +839,9 @@
   }));
   onEachPage(() => document.querySelectorAll(".modal").forEach(m => {
     m.querySelectorAll("[data-close]").forEach(el => {
-      if (el._tspCloser) return;
+      // A dialog inside another (the Sidebar section's link dialogs sit
+      // in Settings) closes only itself.
+      if (el._tspCloser || el.closest(".modal") !== m) return;
       el._tspCloser = true;
       el.addEventListener("click", () => closeModal(m));
     });
@@ -1134,6 +1136,12 @@
           } else {
             showSettingsToast(isTestForm ? "Test sent" : "Saved");
           }
+          // Saved from a dialog: back to the section it opened from.
+          const dlg = f.closest(".modal");
+          if (dlg && dlg !== settingsModal && !(data && data.pageGone)) {
+            if (/-new-/.test(dlg.id)) f.reset();
+            if (dlg.classList.contains("open")) closeModal(dlg);
+          }
           // A module turned on: this page stays; the pinned buttons
           // (Web, View) follow.
           if (f.matches(".special-page-toggle-form") && !moduleOff && !(data && data.pageGone)) {
@@ -1267,6 +1275,9 @@
 
       function sbTrackable(form) {
         if (form.closest(".settings-frame")) return false;
+        // A dialog's form (a page slid in over the section) keeps its
+        // own button.
+        if (form.closest(".modal") !== settingsModal) return false;
         if (form.dataset.noAjax === "1") return false;
         if (form.dataset.savebarSkip === "1") return false;
         if (form.querySelector('[onchange*="this.form."]')) return false;
@@ -9033,5 +9044,216 @@
   // Going back to a list restores ticked boxes; show the bar for them.
   window.addEventListener("pageshow", function () {
     document.querySelectorAll("[data-bulk-scope]").forEach(refresh);
+  });
+})();
+
+// Dialogs opened from Settings become pages that slide in over the open
+// section, with a back button labeled with the page beneath, like a
+// phone's settings app. In the Settings window a dialog qualifies while
+// Settings is open; in a page shown in a section (html.in-settings)
+// every dialog does. Each dialog keeps its own open and close code: this
+// watches its .open class and adds .settings-sub, and Back presses the
+// dialog's own close button. Confirmations and the pickers stay dialogs.
+(function settingsSubpages() {
+  const settings = document.getElementById("settings-modal");
+  const tpl = document.getElementById("settings-sub-tpl");
+  const inFrame = document.documentElement.classList.contains("in-settings");
+  if (!tpl || (!inFrame && !settings)) return;
+  const NOT_SUB = "#settings-modal, .confirm-modal, #search-modal, #media-picker-modal, "
+                + "#dynbg-picker-modal, #icon-picker-modal";
+  const SLIDE_MS = 380;  // .modal.settings-sub --sub-ms in app.css
+  const stack = [];
+
+  const qualifies = () => inFrame || settings.classList.contains("open");
+  const titleOf = m => {
+    const h = m.querySelector(".modal-head h2");
+    return h ? h.textContent.trim() : "";
+  };
+  // The page beneath the first dialog: the open section, or in a frame
+  // the section or slid-in page the frame sits in.
+  function baseLabel() {
+    let host = settings;
+    if (inFrame) {
+      try { host = window.frameElement && window.frameElement.closest(".modal"); } catch (e) { host = null; }
+    }
+    if (host && host.id === "settings-modal") {
+      const t = host.querySelector(".settings-pane-title");
+      return (t && t.textContent.trim()) || "Settings";
+    }
+    return (host && titleOf(host)) || "Back";
+  }
+
+  function chrome(m) {
+    if (m._subChrome) return m._subChrome;
+    let head = m.querySelector(".modal-head");
+    if (!head) {
+      const panel = m.querySelector(".modal-panel") || m;
+      head = document.createElement("div");
+      head.className = "modal-head";
+      const h = document.createElement("h2");
+      h.textContent = panel.getAttribute("aria-label") || "";
+      head.appendChild(h);
+      panel.prepend(head);
+    }
+    const parts = tpl.content.cloneNode(true);
+    const back = parts.querySelector(".settings-sub-back");
+    head.prepend(back);
+    back.addEventListener("click", () => dismiss(m));
+    // In a frame the Settings window's own close button floats over the
+    // head; in the window the page covers it, so the page brings one.
+    if (!inFrame) {
+      const close = parts.querySelector(".settings-sub-close");
+      head.appendChild(close);
+      close.addEventListener("click", () => {
+        const x = settings.querySelector(".settings-main-head [data-close]");
+        if (x) x.click();
+      });
+    }
+    return (m._subChrome = { back, label: back.querySelector(".settings-sub-back-label") });
+  }
+
+  function dismiss(m) {
+    const x = m.querySelector(".modal-head [data-close]") || m.querySelector("[data-close]");
+    if (x) x.click();
+    if (m.classList.contains("open")) {
+      m.classList.remove("open");
+      m.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  // In the Settings window the page takes the section's box. Measured
+  // from where it lands at 0,0, since a dialog inside the Settings
+  // panel is placed from the panel, not the window.
+  function place(m) {
+    if (inFrame) return;
+    const r = settings.querySelector(".settings-main").getBoundingClientRect();
+    Object.assign(m.style, { left: "0px", top: "0px", right: "auto", bottom: "auto",
+                             width: r.width + "px", height: r.height + "px" });
+    const o = m.getBoundingClientRect();
+    m.style.left = (r.left - o.left) + "px";
+    m.style.top = (r.top - o.top) + "px";
+  }
+
+  function release(m) {
+    m.classList.remove("settings-sub");
+    ["left", "top", "right", "bottom", "width", "height", "zIndex"].forEach(k => { m.style[k] = ""; });
+  }
+
+  function changed() {
+    if (inFrame) {
+      try { window.parent.postMessage({ type: "tsp-subpage" }, window.location.origin); } catch (e) {}
+    }
+  }
+
+  function push(m) {
+    const c = chrome(m);
+    const under = stack[stack.length - 1];
+    c.label.textContent = (under && titleOf(under)) || baseLabel();
+    c.back.setAttribute("aria-label", "Back to " + c.label.textContent);
+    clearTimeout(m._subT);
+    m.classList.add("settings-sub");
+    m.style.zIndex = String(101 + stack.length);
+    place(m);
+    stack.push(m);
+    changed();
+    setTimeout(() => {
+      if (m.classList.contains("open") && !m.contains(document.activeElement)) {
+        c.back.focus({ preventScroll: true });
+      }
+    }, 80);
+  }
+
+  function drop(m, instant) {
+    const i = stack.indexOf(m);
+    if (i >= 0) stack.splice(i, 1);
+    clearTimeout(m._subT);
+    if (instant) {
+      if (!qualifies()) release(m);
+      requestAnimationFrame(() => requestAnimationFrame(() => m.classList.remove("settings-sub-instant")));
+    } else {
+      m._subT = setTimeout(() => {
+        if (!m.classList.contains("open") && !qualifies()) release(m);
+      }, SLIDE_MS);
+    }
+  }
+
+  // Back to the section: every page closes, at once when Settings itself
+  // is closing.
+  function closeAll(instant) {
+    stack.slice().reverse().forEach(m => {
+      if (instant) m.classList.add("settings-sub-instant");
+      if (m.classList.contains("open")) dismiss(m);
+      drop(m, instant);
+    });
+    changed();
+  }
+  window.tspCloseSubpages = closeAll;
+  window.tspSubDepth = () => stack.length;
+
+  function frames() {
+    return settings ? Array.from(settings.querySelectorAll("iframe")) : [];
+  }
+  // On a phone the section's head (Back to the list) gives way while a
+  // page slides in inside the section's frame; that page has its own.
+  function syncFrameSub() {
+    const pane = settings.querySelector(".settings-pane.active");
+    const f = pane && pane.querySelector("iframe");
+    let depth = 0;
+    try { depth = f && f.contentWindow.tspSubDepth ? f.contentWindow.tspSubDepth() : 0; } catch (e) {}
+    settings.classList.toggle("settings-frame-sub", depth > 0 && settings.classList.contains("open"));
+  }
+
+  function settingsChanged() {
+    if (settings.classList.contains("open")) return;
+    closeAll(true);
+    frames().forEach(f => {
+      try { if (f.contentWindow.tspCloseSubpages) f.contentWindow.tspCloseSubpages(true); } catch (e) {}
+    });
+    document.querySelectorAll(".modal.settings-sub:not(.open)").forEach(release);
+    if (settings.classList.contains("settings-frame-sub")) settings.classList.remove("settings-frame-sub");
+  }
+
+  function sync(m) {
+    if (m === settings) { settingsChanged(); return; }
+    const open = m.classList.contains("open");
+    const i = stack.indexOf(m);
+    if (open && i < 0) {
+      if (qualifies()) push(m);
+      else if (m.classList.contains("settings-sub")) release(m);
+    } else if (!open && i >= 0) {
+      drop(m);
+      changed();
+    }
+  }
+
+  const watched = new WeakSet();
+  const mo = new MutationObserver(recs => recs.forEach(r => sync(r.target)));
+  function scan() {
+    if (settings && !watched.has(settings)) {
+      watched.add(settings);
+      mo.observe(settings, { attributes: true, attributeFilter: ["class"] });
+    }
+    document.querySelectorAll(".modal").forEach(m => {
+      if (watched.has(m) || m.matches(NOT_SUB)) return;
+      watched.add(m);
+      mo.observe(m, { attributes: true, attributeFilter: ["class"] });
+      if (m.classList.contains("open")) sync(m);
+    });
+  }
+  if (window.tspOnEachPage) window.tspOnEachPage(scan); else scan();
+  changed();
+
+  if (inFrame) return;
+  window.addEventListener("resize", () => stack.forEach(place));
+  // Picking another section leaves any page that was open.
+  settings.querySelectorAll(".settings-tab").forEach(t => t.addEventListener("click", () => {
+    closeAll(false);
+    frames().forEach(f => {
+      try { if (f.contentWindow.tspCloseSubpages) f.contentWindow.tspCloseSubpages(true); } catch (e) {}
+    });
+    syncFrameSub();
+  }));
+  window.addEventListener("message", e => {
+    if (e.origin === window.location.origin && e.data && e.data.type === "tsp-subpage") syncFrameSub();
   });
 })();

@@ -6,7 +6,13 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+- Settings: a dialog opened while Settings is open, or from a page shown in a section (`html.in-settings`, now also set in frames inside such a page), gets `.settings-sub` and renders as a page sliding in over the section, with a back button labeled with the page beneath (`settingsSubpages` in `app.js`, `#settings-sub-tpl` in `base.html`). In the Settings window the page takes `.settings-main`'s box and brings its own close button; in a frame the window's floating close button stays over it, and on a phone the section head hides while a frame shows one (`.settings-frame-sub`). Picking another section or closing Settings closes every page. The confirmation dialog and the media, icon and background pickers stay dialogs.
+- Settings: the WordPress importer opens over Settings as a page instead of closing Settings first.
+- Settings: forms inside a dialog in the Settings window are left out of the yellow save bar, keep their own button, and close their dialog after an AJAX save.
+
 ### Fixed
+- A dialog inside the Settings window (the Sidebar section's link dialogs) no longer closes Settings with it: `[data-close]` binds only to its nearest `.modal`.
 - Location dialogs: the City, State and ZIP grid uses `minmax(0, …)` columns, so the inputs' intrinsic width no longer pushes it past the form.
 
 ## [3.1.2] — 2026-10-08
