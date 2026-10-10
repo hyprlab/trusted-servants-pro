@@ -19029,6 +19029,25 @@ def watchtower_delete_purge(rid):
     return redirect(url_for("main.watchtower_deletes"))
 
 
+@bp.route("/watchtower/requests/<int:rid>")
+@admin_required
+def watchtower_request(rid):
+    """One access request on its own page, laid out like a Contact Form
+    message, so a long note can be read in full."""
+    from .auth import ROLE_LABELS
+    from .models import IPBlock
+    r = db.session.get(AccessRequest, rid) or abort(404)
+    xu = db.session.get(User, r.existing_user_id) if r.existing_user_id else None
+    blk = None
+    if r.ip_address:
+        blk = (IPBlock.query.filter(IPBlock.ip == r.ip_address)
+               .filter(IPBlock.expires_at.is_(None)
+                       | (IPBlock.expires_at > datetime.utcnow())).first())
+    return render_template("watchtower/request.html", active_tab="requests",
+                           r=r, xu=xu, blk=blk, role_labels=ROLE_LABELS,
+                           view="archived" if r.is_archived else "active")
+
+
 @bp.route("/watchtower/requests/<int:rid>/handled", methods=["POST"])
 @admin_required
 def watchtower_request_handled(rid):
@@ -19040,8 +19059,9 @@ def watchtower_request_handled(rid):
     from . import activity
     activity.log("access_request.handle", entity_type="access_request", entity_id=r.id,
                  summary=f"Marked request from {r.name} <{r.email}> as {r.status}")
-    return redirect(url_for("main.watchtower_requests",
-                            view=request.form.get("view") or "active"))
+    return redirect(_safe_return_url(request.form.get("return_url"),
+                                     "main.watchtower_requests",
+                                     view=request.form.get("view") or "active"))
 
 
 @bp.route("/watchtower/requests/<int:rid>/archive", methods=["POST"])
@@ -19063,8 +19083,9 @@ def watchtower_request_archive(rid):
     activity.log("access_request.archive", entity_type="access_request", entity_id=r.id,
                  summary=f"Archived request from {r.name} <{r.email}>")
     flash("Request archived", "success")
-    return redirect(url_for("main.watchtower_requests",
-                            view=request.form.get("view") or "active"))
+    return redirect(_safe_return_url(request.form.get("return_url"),
+                                     "main.watchtower_requests",
+                                     view=request.form.get("view") or "active"))
 
 
 @bp.route("/watchtower/requests/<int:rid>/unarchive", methods=["POST"])
@@ -19075,8 +19096,9 @@ def watchtower_request_unarchive(rid):
     r.archived_at = None
     db.session.commit()
     flash("Request restored from archive", "success")
-    return redirect(url_for("main.watchtower_requests",
-                            view=request.form.get("view") or "archived"))
+    return redirect(_safe_return_url(request.form.get("return_url"),
+                                     "main.watchtower_requests",
+                                     view=request.form.get("view") or "archived"))
 
 
 @bp.route("/watchtower/requests/<int:rid>/delete", methods=["POST"])

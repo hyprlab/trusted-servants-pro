@@ -16990,8 +16990,10 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
    primary button looked ready). */
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 
-/* A request's message under the name (Watchtower > Requests): three
-   lines at most, the whole of it on hover. */
+/* A request's name and message (Watchtower > Requests): both open the
+   request's own page; the message shows three lines at most here. */
+.wt-req-open { color: var(--text); }
+.wt-req-open:hover, a.wt-req-message:hover { color: var(--access, var(--brand)); text-decoration: none; }
 .wt-req-message { margin-top: 4px; max-width: 32ch; color: var(--muted); font-size: var(--fs-xs); font-weight: 400; line-height: 1.4;
   white-space: pre-line; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 

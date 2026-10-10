@@ -104,7 +104,7 @@
       {% set xu = existing_users.get(r.existing_user_id) if r.existing_user_id else None %}
       <tr data-request-row="{{ r.id }}">
         <td class="wt-req-status"><span class="badge {% if r.status == 'pending' %}badge-warning{% else %}badge-muted{% endif %}">{{ r.status }}</span></td>
-        <td class="wt-req-name">{{ r.name }}{% if xu %}<div class="wt-req-account" title="This email already had an account when the request came in. They were emailed their username and a sign-in link."><span class="badge badge-muted">Has an account</span> {{ xu.username }} · {{ role_labels.get(xu.role, xu.role) }}</div>{% endif %}{% if r.message %}<div class="wt-req-message" title="{{ r.message }}">{{ r.message }}</div>{% endif %}</td>
+        <td class="wt-req-name"><a class="wt-req-open" href="{{ url_for('main.watchtower_request', rid=r.id) }}">{{ r.name }}</a>{% if xu %}<div class="wt-req-account" title="This email already had an account when the request came in. They were emailed their username and a sign-in link."><span class="badge badge-muted">Has an account</span> {{ xu.username }} · {{ role_labels.get(xu.role, xu.role) }}</div>{% endif %}{% if r.message %}<a class="wt-req-message" href="{{ url_for('main.watchtower_request', rid=r.id) }}" title="Open the request to read it in full">{{ r.message }}</a>{% endif %}</td>
         <td class="muted small" data-label="Contact"><div><a href="mailto:{{ r.email }}">{{ r.email }}</a></div><div>{{ r.phone }}</div></td>
         <td data-label="Roles"><div class="wt-req-roles">{% for role in r.roles %}<span class="chip">{{ role }}</span>{% endfor %}</div></td>
         <td class="muted" data-label="Meeting">{{ r.meeting_name or '—' }}</td>
@@ -141,6 +141,7 @@
         {% if view == 'archived' %}<td class="muted small" data-label="Archived">{% if r.archived_at %}{{ r.archived_at.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}</td>{% endif %}
         <td class="row-actions wt-req-actions">
           {% call row_menu() %}
+            <a class="row-menu-item" href="{{ url_for('main.watchtower_request', rid=r.id) }}">{{ icon('eye') }}<span>Open</span></a>
             {% if view == 'active' %}
             {% if xu %}
             <button type="button" class="row-menu-item js-pwreset-open"

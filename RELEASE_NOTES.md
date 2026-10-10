@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+New features:
+
+- Access requests open on their own page, with the whole message
+
 ## 3.2.1 — 2026-10-10 (latest)
 
 Fixes:

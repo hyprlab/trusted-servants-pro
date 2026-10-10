@@ -6,6 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added
+- Watchtower > Requests: each request opens on its own page (`/watchtower/requests/<id>`, `watchtower/request.html`), laid out like a Contact Form message: the full message, contact, roles, meeting, IP with Block or Unblock, the matched account, and the row actions. The name, the message preview and a new Open menu item lead there. The handled, archive and unarchive routes honor a `return_url`.
+
 ## [3.2.1] — 2026-10-10
 
 ### Fixed
