@@ -6,6 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+- Watchtower: login, session, block, password reset, request, 404 and deleted-file times called `strftime` on the naive UTC columns, so they read in UTC whatever the site timezone. They go through `fmt_site_local` now, which caches the zone on `g` for the request instead of querying `SiteSetting` per value.
+
 ## [3.3.0] — 2026-10-10
 
 ### Added

@@ -121,9 +121,9 @@
         </td>
         <td>{% if r.ip %}{{ ip_cell(r.ip) }}{% else %}<span class="mono">—</span>{% endif %}{% if r.blocked %} <span class="badge badge-danger">blocked</span>{% endif %}</td>
         <td>{{ r.attempts }}</td>
-        <td class="muted small">{{ r.last_attempt.strftime('%b %d, %H:%M') if r.last_attempt else '—' }}</td>
+        <td class="muted small">{{ r.last_attempt|fmt_site_local('%b %d, %H:%M') if r.last_attempt else '—' }}</td>
         <td class="muted small">
-          {% if r.locked %}Locked until {{ r.locked_until.strftime('%b %d') }}{% else %}—{% endif %}
+          {% if r.locked %}Locked until {{ r.locked_until|fmt_site_local('%b %d') }}{% else %}—{% endif %}
         </td>
         <td class="wt-rc-abuse-actions">
           {% if r.ip %}
@@ -294,7 +294,7 @@
         <tr>
           <td>{{ ip_cell(r.ip) }}{% if r.blocked %} <span class="badge badge-danger">blocked</span>{% endif %}</td>
           <td>{{ r.attempts }}</td>
-          <td class="muted small">{{ r.last_attempt.strftime('%b %d, %H:%M') if r.last_attempt else '—' }}</td>
+          <td class="muted small">{{ r.last_attempt|fmt_site_local('%b %d, %H:%M') if r.last_attempt else '—' }}</td>
           <td class="wt-ip-actions">
             {% if r.blocked %}
             <form method="post" action="{{ url_for('main.watchtower_unban_ip', bid=r.block_id) }}" style="display:inline">
@@ -338,7 +338,7 @@
             <span class="muted">· {{ ev.action.replace('.', ' › ') }}</span>
           </div>
           {% if ev.summary %}<div class="muted small wt-activity-sum">{{ ev.summary }}</div>{% endif %}
-          <div class="muted smaller">{{ ev.created_at.strftime('%b %d %H:%M') }}{% if ev.ip %} · {{ ip_cell(ev.ip) }}{% endif %}</div>
+          <div class="muted smaller">{{ ev.created_at|fmt_site_local('%b %d %H:%M') }}{% if ev.ip %} · {{ ip_cell(ev.ip) }}{% endif %}</div>
         </div>
       </li>
       {% endfor %}
@@ -363,7 +363,7 @@
         <tr>
           <td>{{ s.user.username if s.user else '—' }}</td>
           <td class="small">{% if s.ip %}{{ ip_cell(s.ip) }}{% else %}<span class="mono">—</span>{% endif %}</td>
-          <td class="muted small">{{ s.last_activity_at.strftime('%H:%M') }}</td>
+          <td class="muted small">{{ s.last_activity_at|fmt_site_local('%H:%M') }}</td>
           <td>
             <form method="post" action="{{ url_for('main.watchtower_end_session', sid=s.id) }}" style="display:inline"
                   onsubmit="return confirm('Force-end {{ (s.user.username if s.user else 'this session')|escape }}?');">
@@ -394,7 +394,7 @@
           <td>{{ ip_cell(b.ip) }}</td>
           <td class="muted small">{{ b.reason or '—' }}</td>
           <td>{{ b.hit_count or 0 }}</td>
-          <td class="muted small">{% if b.expires_at %}{{ b.expires_at.strftime('%b %d %H:%M') }}{% else %}—{% endif %}</td>
+          <td class="muted small">{% if b.expires_at %}{{ b.expires_at|fmt_site_local('%b %d %H:%M') }}{% else %}—{% endif %}</td>
           <td>
             <form method="post" action="{{ url_for('main.watchtower_unban_ip', bid=b.id) }}" style="display:inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Fixes:
+
+- Watchtower times shown in UTC instead of the site timezone
+
 ## 3.3.0 — 2026-10-10 (latest)
 
 New features:

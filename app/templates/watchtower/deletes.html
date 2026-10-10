@@ -21,7 +21,7 @@
         <div class="dlog-item-main">
           <div class="dlog-filename">{{ it.original_filename or it.title or '(untitled)' }}</div>
           <div class="dlog-meta muted smaller">
-            Deleted {{ it.deleted_at.strftime('%Y-%m-%d %H:%M') }}
+            Deleted {{ it.deleted_at|fmt_site_local('%Y-%m-%d %H:%M') }}
             by <b>{{ it.deleter }}</b>
             ·
             {% if it.days_left > 0 %}

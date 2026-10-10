@@ -439,13 +439,18 @@ def create_app():
         from datetime import datetime, timezone as _tz
         if not value or not isinstance(value, datetime):
             return ""
+        from flask import g, has_app_context
         from .timezone import site_timezone as _stz
         from .models import SiteSetting as _SS
-        try:
-            site = _SS.query.first()
-        except Exception:  # noqa: BLE001 — DB hiccup; fall back to UTC
-            site = None
-        zone = _stz(site)
+        zone = g.get("_site_zone") if has_app_context() else None
+        if zone is None:
+            try:
+                site = _SS.query.first()
+            except Exception:  # noqa: BLE001 — DB hiccup; fall back to UTC
+                site = None
+            zone = _stz(site)
+            if has_app_context():
+                g._site_zone = zone
         aware = value if value.tzinfo else value.replace(tzinfo=_tz.utc)
         return aware.astimezone(zone).strftime(fmt)
 
