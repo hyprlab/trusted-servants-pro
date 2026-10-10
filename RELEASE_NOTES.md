@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+- The City, State and ZIP fields on a location no longer run past the edge of the form.
+
 ## 3.1.2 — 2026-10-08 (latest)
 
 - Event and announcement pages leave more space between the featured image and the cards below it.

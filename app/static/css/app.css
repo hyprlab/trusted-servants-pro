@@ -7160,7 +7160,7 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   body.embed .embed-actions .btn-primary { width: 100%; justify-content: center; }
 
 
-  .loc-csz-row { grid-template-columns: 1fr 1fr 1fr; }
+  .loc-csz-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   /* .tbl.wt-* (not bare .wt-*-table): the shared watchtower td rule
      further down the sheet sets padding + border-top at equal
@@ -7212,7 +7212,7 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
    below 480px in the mobile rule above. */
 .loc-csz-row {
   display: grid; gap: var(--gap-sm) var(--gap-lg);
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
   margin-top: 8px;
 }
 .loc-csz-row label { display: flex; flex-direction: column; }

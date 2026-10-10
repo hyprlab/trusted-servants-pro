@@ -6,6 +6,9 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+- Location dialogs: the City, State and ZIP grid uses `minmax(0, …)` columns, so the inputs' intrinsic width no longer pushes it past the form.
+
 ## [3.1.2] — 2026-10-08
 
 ### Changed
