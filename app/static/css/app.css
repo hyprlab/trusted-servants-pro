@@ -16201,28 +16201,43 @@ html.in-settings .modal:not(.settings-sub) > .modal-backdrop { background: trans
 #settings-modal .settings-body, .settings-frame, body.embed { background: var(--bg); }
 
 /* ── Settings pages: a dialog opened from Settings, or from a page shown in
-   a section, slides in over the section as a page of its own with a back
-   button, like a phone's settings app (app.js settingsSubpages). In the
-   Settings window app.js gives it the section's box; in a section's page
-   it fills the frame. The selectors carry :not(#settings-modal), which
-   never excludes a page, so they outrank the dialogs' sizing by ID. ── */
-.modal.settings-sub { --sub-ms: 380ms; --sub-ease: cubic-bezier(0.32, 0.72, 0, 1);
-  overflow: hidden; opacity: 1; transition: visibility 0s linear var(--sub-ms); }
+   a section, becomes a page of its own, like a phone's settings app
+   (app.js settingsSubpages). The section and the page sit side by side on
+   one strip: the section moves a full width left as the page comes in
+   from the right, and back together for Back. A page beneath another
+   moves the same way. In the Settings window a page fills the section's
+   box; in a section's page it fills the frame. The selectors carry
+   :not(#settings-modal), which never excludes a page, so they outrank
+   the dialogs' sizing by ID. ── */
+:root { --sub-ms: 380ms; --sub-ease: cubic-bezier(0.32, 0.72, 0, 1); }
+/* clip, not hidden: a field focused mid-slide would scroll a hidden box
+   sideways. */
+.modal.settings-sub { overflow: clip; opacity: 1; transition: visibility 0s linear var(--sub-ms); }
 .modal.settings-sub.open { transition: visibility 0s linear 0s; }
-html:not(.in-settings) .modal.settings-sub { border-radius: 0 var(--r-2xl) var(--r-2xl) 0; }
-/* The page beneath dims as the new one slides over it. */
-.modal.settings-sub > .modal-backdrop { background: rgba(15, 23, 42, 0.18); backdrop-filter: none;
-  -webkit-backdrop-filter: none; opacity: 0; transition: opacity var(--sub-ms) var(--sub-ease); }
-.modal.settings-sub.open > .modal-backdrop { opacity: 1; animation: settings-sub-dim var(--sub-ms) var(--sub-ease); }
+.settings-main > .modal.settings-sub { position: absolute; inset: 0; }
+.modal.settings-sub > .modal-backdrop { display: none; }
 .modal.settings-sub:not(#settings-modal) .modal-panel { margin: 0; width: 100%; max-width: none;
-  height: 100%; max-height: none; border: 0; border-radius: 0; background: var(--bg);
-  box-shadow: -1px 0 0 var(--border), -18px 0 40px rgba(15, 23, 42, 0.16);
+  height: 100%; max-height: none; border: 0; border-radius: 0; background: var(--bg); box-shadow: none;
   overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
   transform: translateX(100%); transition: transform var(--sub-ms) var(--sub-ease); }
 .modal.settings-sub.open:not(#settings-modal) .modal-panel { transform: none;
   animation: settings-sub-in var(--sub-ms) var(--sub-ease); }
+.modal.settings-sub.open.settings-sub-under:not(#settings-modal) .modal-panel { transform: translateX(-100%); }
 @keyframes settings-sub-in { from { transform: translateX(100%); } }
-@keyframes settings-sub-dim { from { opacity: 0; } }
+/* The section's side of the strip; once it is out of view it is hidden,
+   so Tab doesn't wander into it. */
+#settings-modal .settings-main { overflow: clip; }
+#settings-modal .settings-main > .settings-body,
+#settings-modal .settings-main > .settings-save-bar,
+html.in-settings .embed-content {
+  transition: transform var(--sub-ms) var(--sub-ease), visibility 0s linear 0s; }
+#settings-modal .settings-main.settings-pushed > .settings-body,
+#settings-modal .settings-main.settings-pushed > .settings-save-bar,
+html.in-settings.settings-pushed .embed-content { transform: translateX(-100%); visibility: hidden;
+  transition: transform var(--sub-ms) var(--sub-ease), visibility 0s linear var(--sub-ms); }
+#settings-modal .settings-main.settings-pushed > .settings-save-bar { transform: translateX(calc(-100% - 24px)); }
+html.in-settings body.embed { overflow-x: clip; }
+.settings-sub-instant > *, html.settings-sub-instant .embed-content { transition: none !important; }
 .modal.settings-sub:not(#settings-modal) .modal-panel > form { flex: 0 0 auto; width: 100%; min-height: 0; max-height: none; gap: 0; }
 .modal.settings-sub:not(#settings-modal) .modal-panel:has(> iframe) { overflow: hidden; }
 .modal.settings-sub:not(#settings-modal) .modal-panel > iframe { flex: 1 1 auto; height: auto; min-height: 0; }
@@ -16251,7 +16266,6 @@ html.in-settings-float-close .modal.settings-sub:not(#settings-modal) .modal-hea
   .modal.settings-sub .settings-sub-back:hover .icon { transform: translateX(-2px); }
 }
 .settings-sub-back:focus-visible { outline: 2px solid var(--brand); outline-offset: 0; }
-.modal.settings-sub .settings-sub-close { display: inline-grid; place-items: center; margin-left: auto; }
 
 /* The dialog's body and foot read as one card on the page. */
 .modal.settings-sub:not(#settings-modal) .modal-body { flex: 0 0 auto; min-height: 0; overflow: visible;
@@ -16265,14 +16279,26 @@ html.in-settings-float-close .modal.settings-sub:not(#settings-modal) .modal-hea
   width: min(720px, calc(100% - 2 * var(--content-px))); margin: 0 auto var(--content-px);
   padding: 14px var(--card-pad-x); background: var(--panel-2); border: 1px solid var(--border);
   border-top: 0; border-radius: 0 0 var(--card-radius) var(--card-radius); box-shadow: var(--shadow); }
+@media (min-width: 721px) {
+  /* The window's close button stays put above the pages, which leave it
+     room. */
+  #settings-modal .settings-main-head { z-index: 150; }
+  #settings-modal .modal.settings-sub:not(#settings-modal) .modal-head { padding-right: 64px; }
+}
 @media (max-width: 720px) {
+  /* The section's head (Back to the list, the title, close) is part of
+     the strip; the page brings its own close button. */
+  #settings-modal .settings-main > .settings-main-head { transition: transform var(--sub-ms) var(--sub-ease); }
+  #settings-modal .settings-main.settings-pushed > .settings-main-head { transform: translateX(-100%); }
+  .modal.settings-sub .settings-sub-close { display: inline-grid; place-items: center; margin-left: auto; }
   #settings-modal.settings-frame-sub .settings-main-head { display: none; }
   .modal.settings-sub .settings-sub-back { max-width: 31%; }
   .modal.settings-sub:not(#settings-modal) .modal-head h2 { max-width: 40%; }
 }
 .modal.settings-sub-instant, .modal.settings-sub-instant * { transition: none !important; animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  .modal.settings-sub, .modal.settings-sub * { transition-duration: 0s !important;
+  .modal.settings-sub, .modal.settings-sub *, #settings-modal .settings-main > *,
+  html.in-settings .embed-content { transition-duration: 0s !important;
     transition-delay: 0s !important; animation: none !important; }
 }
 

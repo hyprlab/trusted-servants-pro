@@ -186,7 +186,7 @@
     var f = window.frameElement;
     if (!f || !f.closest('#settings-modal, .modal.settings-sub')) return;
     var root = document.documentElement, mq = window.parent.matchMedia('(min-width: 721px)');
-    var float = !!f.closest('#settings-modal');
+    var float = !!f.closest('#settings-modal') && !f.closest('.modal.settings-sub');
     var sync = function () { root.classList.toggle('in-settings-float-close', float && mq.matches); };
     root.classList.add('in-settings');
     sync();
@@ -2995,9 +2995,10 @@
   <button type="button" class="btn fb-side-fold" aria-expanded="false">{{ icon('sliders') }}<span>Filters</span><span class="fb-side-fold-n" hidden></span>{{ icon('chevron-down', 'fb-side-fold-chev') }}</button>
   <span class="fb-side-chip-x">{{ icon('x') }}</span>
 </template>
-{# A dialog opened from Settings becomes a page that slides in over the
-   section (app.js settingsSubpages): the back button labeled with the
-   page beneath, and in the Settings window itself a close button. #}
+{# A dialog opened from Settings becomes a page beside the section
+   (app.js settingsSubpages): the back button labeled with the page it
+   returns to, and on a phone, where the page covers the Settings head,
+   a close button. #}
 <template id="settings-sub-tpl">
   <button type="button" class="settings-sub-back">{{ icon('chevron-left') }}<span class="settings-sub-back-label">Settings</span></button>
   <button type="button" class="icon-btn settings-sub-close" aria-label="Close Settings">{{ icon('x') }}</button>
