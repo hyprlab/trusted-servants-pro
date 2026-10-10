@@ -1076,51 +1076,49 @@
           </form>
         </section>
 
-        {# Modal: add a new external link. POST hits the existing
-           /nav-links/new endpoint which redirects back so the modal
-           re-renders with the new entry on the next paint. #}
-        <div class="modal" id="navlink-new-modal" aria-hidden="true">
+        {# The external-link dialogs: New, and Edit per link. They post to
+           /nav-links/new and /nav-links/<id>; Settings saves them in the
+           background and refreshes the sidebar. The preview follows the
+           title as it is typed (app.js [data-mirror]). #}
+        {% macro _navlink_dialog(id, action, heading, submit, n=None) %}
+        <div class="modal" id="{{ id }}" aria-hidden="true">
           <div class="modal-backdrop" data-close></div>
-          <div class="modal-panel" role="dialog" aria-modal="true">
-            <form method="post" action="{{ url_for('main.nav_link_new') }}" class="form">
+          <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="{{ id }}-title">
+            <form method="post" action="{{ action }}" class="form">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="modal-head">
-                <h2>New external link</h2>
-                <button type="button" class="icon-btn" data-close>{{ icon('x') }}</button>
+                <h2 id="{{ id }}-title">{{ heading }}</h2>
+                <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
               </div>
               <div class="modal-body">
-                <label>Title<input name="title" required maxlength="100"></label>
-                <label>URL<input name="url" type="url" required placeholder="https://example.com"></label>
+                <section class="card data-card dlg-section">
+                  <div class="dlg-section-intro">
+                    <div class="data-card-head">{{ icon('link') }}<span>Link</span></div>
+                    <p>Listed in the sidebar under External links. It opens in a new tab.</p>
+                  </div>
+                  <div class="dlg-section-fields">
+                    <div class="dlg-fields-2 navlink-fields">
+                      <label>Title<input name="title" required maxlength="100" value="{{ n.title if n else '' }}" placeholder="Webmail" data-mirror-source="title"></label>
+                      <label>URL<input name="url" type="url" required value="{{ n.url if n else '' }}" placeholder="https://example.com"></label>
+                    </div>
+                    <div class="navlink-preview" aria-hidden="true">
+                      <span class="muted smaller">In the sidebar</span>
+                      <span class="navlink-preview-row">{{ icon('external-link') }}<span data-mirror="title" data-mirror-empty="Link title">{{ n.title if n else 'Link title' }}</span></span>
+                    </div>
+                  </div>
+                </section>
               </div>
               <div class="modal-foot">
                 <button type="button" class="btn" data-close>Cancel</button>
-                <button class="btn btn-primary">Create</button>
+                <button class="btn btn-primary">{{ submit }}</button>
               </div>
             </form>
           </div>
         </div>
-
+        {% endmacro %}
+        {{ _navlink_dialog('navlink-new-modal', url_for('main.nav_link_new'), 'New external link', 'Create') }}
         {% for n in nav_links %}
-        <div class="modal" id="navlink-edit-{{ n.id }}" aria-hidden="true">
-          <div class="modal-backdrop" data-close></div>
-          <div class="modal-panel" role="dialog" aria-modal="true">
-            <form method="post" action="{{ url_for('main.nav_link_edit', nid=n.id) }}" class="form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <div class="modal-head">
-                <h2>Edit external link</h2>
-                <button type="button" class="icon-btn" data-close>{{ icon('x') }}</button>
-              </div>
-              <div class="modal-body">
-                <label>Title<input name="title" required maxlength="100" value="{{ n.title }}"></label>
-                <label>URL<input name="url" type="url" required value="{{ n.url }}"></label>
-              </div>
-              <div class="modal-foot">
-                <button type="button" class="btn" data-close>Cancel</button>
-                <button class="btn btn-primary">Save</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        {{ _navlink_dialog('navlink-edit-' ~ n.id, url_for('main.nav_link_edit', nid=n.id), 'Edit external link', 'Save', n) }}
         {% endfor %}
         {% endif %}
       </div>
@@ -2561,26 +2559,33 @@
       <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
     </div>
     <div class="modal-body">
-      <div class="help-tour-row">
-        <div class="help-tour-copy">
-          <div class="u-name">Guided tour {% call chip() %}Replay the portal walkthrough — the sidebar, dashboard, files, and Zoom calendar.{% endcall %}</div>
+      <section class="card data-card dlg-section">
+        <div class="dlg-section-intro">
+          <div class="data-card-head">{{ icon('compass') }}<span>Guided tour</span></div>
+          <p>Replay the portal walkthrough: the sidebar, dashboard, files, and Zoom calendar.</p>
         </div>
-        <button type="button" class="btn btn-primary" id="help-tour-btn" data-close>Take the tour</button>
-      </div>
+        <div class="dlg-section-fields help-tour-row">
+          <button type="button" class="btn btn-primary" id="help-tour-btn" data-close>{{ icon('play') }} Take the tour</button>
+        </div>
+      </section>
       {% if site and (site.pic_name or site.pic_email or site.pic_phone) %}
-      <hr class="settings-sep">
-      <p class="muted small">Reach out to our {{ site.pic_role_label }} for questions, concerns, or guidance.</p>
-      <div class="pic-contact">
-        {% if site.pic_name %}
-        <div class="pic-row"><span class="pic-icon">{{ icon('user') }}</span>{{ site.pic_name }}</div>
-        {% endif %}
-        {% if site.pic_email %}
-        <div class="pic-row"><span class="pic-icon">{{ icon('mail') }}</span><a href="mailto:{{ site.pic_email }}">{{ site.pic_email }}</a></div>
-        {% endif %}
-        {% if site.pic_phone %}
-        <div class="pic-row"><span class="pic-icon">{{ icon('phone') }}</span><a href="tel:{{ site.pic_phone }}">{{ site.pic_phone }}</a></div>
-        {% endif %}
-      </div>
+      <section class="card data-card dlg-section">
+        <div class="dlg-section-intro">
+          <div class="data-card-head">{{ icon('help-circle') }}<span>{{ site.pic_role_label }}</span></div>
+          <p>Reach out to our {{ site.pic_role_label }} for questions, concerns, or guidance.</p>
+        </div>
+        <div class="dlg-section-fields pic-contact">
+          {% if site.pic_name %}
+          <div class="pic-row"><span class="pic-icon">{{ icon('user') }}</span>{{ site.pic_name }}</div>
+          {% endif %}
+          {% if site.pic_email %}
+          <div class="pic-row"><span class="pic-icon">{{ icon('mail') }}</span><a href="mailto:{{ site.pic_email }}">{{ site.pic_email }}</a></div>
+          {% endif %}
+          {% if site.pic_phone %}
+          <div class="pic-row"><span class="pic-icon">{{ icon('phone') }}</span><a href="tel:{{ site.pic_phone }}">{{ site.pic_phone }}</a></div>
+          {% endif %}
+        </div>
+      </section>
       {% endif %}
     </div>
     <div class="modal-foot">
@@ -2938,22 +2943,30 @@
       <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
     </div>
     <div class="modal-body">
-      <p class="muted small">
-        Before every sync overwrites this site's frontend, a complete rollback
-        bundle — including recovery Stories — is saved automatically. The 10 most
-        recent are kept.
-      </p>
-      <div class="fe-snap-howto">
-        <div class="fe-snap-howto-head">How to restore one</div>
+      <section class="card data-card dlg-section">
+        <div class="dlg-section-intro">
+          <div class="data-card-head">{{ icon('history') }}<span>Snapshots</span></div>
+          <p>Before every sync overwrites this site's frontend, a complete rollback bundle, including recovery Stories, is saved. The 10 most recent are kept.</p>
+        </div>
+        <div class="dlg-section-fields">
+          <ul class="fe-snap-list" data-fe-snap-list>
+            <li class="fe-snap-empty muted small">Loading…</li>
+          </ul>
+        </div>
+      </section>
+      <section class="card data-card dlg-section">
+        <div class="dlg-section-intro">
+          <div class="data-card-head">{{ icon('rotate-ccw') }}<span>Restoring one</span></div>
+          <p>A snapshot replaces the frontend only. Users, meetings, and libraries are left untouched.</p>
+        </div>
+        <div class="dlg-section-fields">
         <ol class="fe-snap-howto-steps">
-          <li>Download the snapshot you want below (a <code>.zip</code> bundle).</li>
+          <li>Download the snapshot you want (a <code>.zip</code> bundle).</li>
           <li>Open <strong>Settings → Data → Frontend bundle → Import frontend</strong>.</li>
-          <li>Choose the downloaded <code>.zip</code> and click <strong>Import frontend bundle</strong>. It replaces the frontend (settings, navigation, layouts, fonts, icons, assets, and Pages) with the snapshot — users, meetings, and libraries are left untouched.</li>
+          <li>Choose the downloaded <code>.zip</code> and click <strong>Import frontend bundle</strong>. It replaces the frontend settings, navigation, layouts, fonts, icons, assets, and Pages with the snapshot.</li>
         </ol>
-      </div>
-      <ul class="fe-snap-list" data-fe-snap-list>
-        <li class="fe-snap-empty muted small">Loading…</li>
-      </ul>
+        </div>
+      </section>
     </div>
     <div class="modal-foot">
       <button type="button" class="btn" data-close>Close</button>

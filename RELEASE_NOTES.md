@@ -11,6 +11,9 @@ release notes expanded by default and the changelog collapsed.
 
 - In Settings, anything that used to open in a pop-up window (editing a user, resetting a password, adding a location or a sidebar link, off-site backups, the WordPress importer) now opens as its own page beside the section: the section slides left as the page comes in, and both slide back together when you press the back button.
 - Forms opened from the Sidebar section keep their own Create and Save buttons and return to the section once saved.
+- Those pages use the full width of the Settings window: each is split into titled sections with a short explanation beside the fields, and Save and Cancel stay pinned at the bottom.
+- Editing a user has a Reset password button, so you no longer need to go back to the list for it.
+- Adding a sidebar link shows how it will look in the sidebar as you type its title.
 - The City, State and ZIP fields on a location no longer run past the edge of the form.
 
 ## 3.1.2 — 2026-10-08 (latest)

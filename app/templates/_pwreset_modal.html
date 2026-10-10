@@ -33,48 +33,61 @@
       {% if return_url %}<input type="hidden" name="return_url" value="{{ return_url }}">{% endif %}
       <input type="hidden" name="mode" id="pwreset-mode" value="generate">
       <div class="modal-body">
-        <p class="muted small pwreset-target">
-          Resetting the password for <b id="pwreset-username"></b>
-          (<span id="pwreset-email"></span>). A password reset email will be sent to
-          this address with the new password — their current password will stop working.
-        </p>
-
-        <label class="mode-toggle pwreset-mode-toggle"
-               title="Off: save the generated password shown below. On: type your own.">
-          <input type="checkbox" id="pwreset-custom-toggle">
-          <span class="mode-track"><span class="mode-thumb"></span></span>
-          <span class="pwreset-mode-label">Set custom password</span>
-        </label>
-
-        <div class="pwreset-pane" data-pwpane="generate">
-          <label class="pwreset-readout-label">Generated password</label>
-          <div class="pwreset-readout">
-            <input type="text" name="password" id="pwreset-generated" readonly aria-label="Generated password" autocomplete="off" spellcheck="false">
-            <button type="button" class="btn btn-sm" id="pwreset-copy" title="Copy to clipboard">Copy</button>
-            <button type="button" class="btn btn-sm" id="pwreset-reroll" title="Generate a new one">Re-roll</button>
+        <section class="card data-card dlg-section">
+          <div class="dlg-section-intro">
+            <div class="data-card-head">{{ icon('user') }}<span>Account</span></div>
+            <p>Their current password stops working as soon as you save.</p>
           </div>
-          <p class="muted smaller pwreset-hint">20 random characters · uppercase, lowercase, digits, and symbols, without look-alikes such as 0 and O. The value shown here is what gets saved when you submit.</p>
-        </div>
-
-        <div class="pwreset-pane" data-pwpane="custom" hidden>
-          <label class="pwreset-custom-label">New password
-            <div class="pwreset-custom-input">
-              <input type="password" name="password" id="pwreset-custom" autocomplete="new-password" minlength="12" disabled>
-              <button type="button" class="btn btn-sm" id="pwreset-show" aria-pressed="false">Show</button>
+          <div class="dlg-section-fields">
+            <div class="pwreset-target">
+              <span class="avatar" id="pwreset-initial" aria-hidden="true"></span>
+              <span class="pwreset-target-text"><b id="pwreset-username"></b><span class="muted smaller" id="pwreset-email"></span></span>
             </div>
-          </label>
-          <div class="pwreset-strength" aria-live="polite">
-            <div class="pwreset-strength-bar"><span data-strength-fill></span></div>
-            <div class="pwreset-strength-label" data-strength-label>Enter a password</div>
           </div>
-          <ul class="pwreset-policy" aria-label="Password requirements">
-            <li data-rule="length">At least 12 characters</li>
-            <li data-rule="lower">A lowercase letter</li>
-            <li data-rule="upper">An uppercase letter</li>
-            <li data-rule="digit">A digit</li>
-            <li data-rule="symbol">A symbol (! @ # $ % ^ &amp; * ? - _ = +)</li>
-          </ul>
-        </div>
+        </section>
+        <section class="card data-card dlg-section">
+          <div class="dlg-section-intro">
+            <div class="data-card-head">{{ icon('key') }}<span>New password</span></div>
+            <p>Save the generated one, or type your own. Reset and send email mails it to the address above.</p>
+          </div>
+          <div class="dlg-section-fields">
+            <label class="mode-toggle pwreset-mode-toggle"
+                   title="Off: save the generated password shown below. On: type your own.">
+              <input type="checkbox" id="pwreset-custom-toggle">
+              <span class="mode-track"><span class="mode-thumb"></span></span>
+              <span class="pwreset-mode-label">Set custom password</span>
+            </label>
+            <div class="pwreset-pane" data-pwpane="generate">
+              <label class="pwreset-readout-label">Generated password</label>
+              <div class="pwreset-readout">
+                <input type="text" name="password" id="pwreset-generated" readonly aria-label="Generated password" autocomplete="off" spellcheck="false">
+                <button type="button" class="btn btn-sm" id="pwreset-copy" title="Copy to clipboard">Copy</button>
+                <button type="button" class="btn btn-sm" id="pwreset-reroll" title="Generate a new one">Re-roll</button>
+              </div>
+              <p class="muted smaller pwreset-hint">20 random characters · uppercase, lowercase, digits, and symbols, without look-alikes such as 0 and O. The value shown here is what gets saved when you submit.</p>
+            </div>
+
+            <div class="pwreset-pane" data-pwpane="custom" hidden>
+              <label class="pwreset-custom-label">New password
+                <div class="pwreset-custom-input">
+                  <input type="password" name="password" id="pwreset-custom" autocomplete="new-password" minlength="12" disabled>
+                  <button type="button" class="btn btn-sm" id="pwreset-show" aria-pressed="false">Show</button>
+                </div>
+              </label>
+              <div class="pwreset-strength" aria-live="polite">
+                <div class="pwreset-strength-bar"><span data-strength-fill></span></div>
+                <div class="pwreset-strength-label" data-strength-label>Enter a password</div>
+              </div>
+              <ul class="pwreset-policy" aria-label="Password requirements">
+                <li data-rule="length">At least 12 characters</li>
+                <li data-rule="lower">A lowercase letter</li>
+                <li data-rule="upper">An uppercase letter</li>
+                <li data-rule="digit">A digit</li>
+                <li data-rule="symbol">A symbol (! @ # $ % ^ &amp; * ? - _ = +)</li>
+              </ul>
+            </div>
+          </div>
+        </section>
       </div>
       <input type="hidden" name="send_email" id="pwreset-send-email" value="1">
       <div class="modal-foot">
@@ -96,6 +109,7 @@
   const customToggle = document.getElementById('pwreset-custom-toggle');
   const usernameEl = document.getElementById('pwreset-username');
   const emailEl = document.getElementById('pwreset-email');
+  const initialEl = document.getElementById('pwreset-initial');
   const generatePane = modal.querySelector('[data-pwpane="generate"]');
   const customPane = modal.querySelector('[data-pwpane="custom"]');
   const generated = document.getElementById('pwreset-generated');
@@ -225,6 +239,7 @@
       const uid = btn.dataset.uid;
       form.action = ACTION_TEMPLATE.replace(/\/0\/reset_password$/, '/' + uid + '/reset_password');
       usernameEl.textContent = btn.dataset.username || '';
+      if (initialEl) initialEl.textContent = (btn.dataset.username || '?').charAt(0).toUpperCase();
       emailEl.textContent = btn.dataset.email || '';
       customIn.value = '';
       customIn.type = 'password';

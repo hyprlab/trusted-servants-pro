@@ -3314,16 +3314,8 @@ body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
   .tour-title { font-size: var(--fs-base); }
 }
 
-/* Help modal: tour row */
-.help-tour-row { display: flex; align-items: center; justify-content: space-between;
-  gap: var(--gap-xl); padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-lg);
-  background: var(--panel-2); }
-.help-tour-copy { min-width: 0; }
-.help-tour-copy .u-name { font-size: var(--fs-base); margin-bottom: 2px; }
-.help-tour-copy p { margin: 0; }
-@media (max-width: 520px) {
-  .help-tour-row { flex-direction: column; align-items: stretch; }
-}
+/* Help: the tour's button keeps its own width beside the intro. */
+.help-tour-row { align-items: flex-start; }
 
 .muted { color: var(--muted); }
 .small { font-size: var(--fs-xs); }
@@ -3814,8 +3806,12 @@ input[type="file"]::-webkit-file-upload-button {
    policy checklist (also used by the public reset form).
    ================================================================ */
 .pwreset-modal .modal-panel { max-width: 520px; }
-.pwreset-target { background: var(--panel-2); border: 1px solid var(--border);
-  border-radius: var(--r-lg); padding: 10px 12px; line-height: 1.5; }
+/* Whose password: the initial on the avatar disc, the username and the
+   address it is mailed to. */
+.pwreset-target { display: flex; align-items: center; gap: var(--gap-lg); min-width: 0; }
+.pwreset-target .avatar { width: 44px; height: 44px; font-size: var(--fs-lg); }
+.pwreset-target-text { display: flex; flex-direction: column; gap: var(--gap-3xs); min-width: 0; line-height: 1.35; }
+.pwreset-target-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Replaces the previous .pwreset-tabs two-tab control: a single
    toggle that flips between Generate (off, default) and Custom
    (on). When off, only the readonly Generated-password readout is
@@ -4627,25 +4623,26 @@ html.login-fade-in body { animation: login-page-fade-in 650ms ease-out both; }
 /* Static text inside the All Users table — same vertical rhythm as
    the inputs they replaced so adjacent cells line up. */
 
-/* Edit-user modal — two-column field grid that collapses to one on
-   narrow viewports; toggles stack underneath as full-width rows. */
+/* Edit user: the fields two to a row (one in a narrow dialog or page),
+   labeled and drawn like every .form's; the sign-in switches as full-width rows with the password row lined up
+   under their labels. */
 .user-edit-modal .modal-panel { max-width: 560px; }
 .user-edit-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-lg) var(--gap-2xl); }
-.user-edit-form-grid label { display: flex; flex-direction: column; gap: var(--gap-2xs);
-  font-size: var(--fs-xs); font-weight: 600; }
-.user-edit-form-grid input,
-.user-edit-form-grid select { padding: 8px 10px; border-radius: var(--r-md);
-  border: 1px solid var(--border); background: var(--panel-2);
-  color: var(--text); font-size: var(--fs-sm); }
-.user-edit-toggles { display: flex; flex-direction: column; gap: var(--gap-md);
-  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.user-edit-toggles { display: flex; flex-direction: column; gap: var(--gap-md); }
 .user-edit-toggle { display: flex; align-items: center; gap: var(--gap-lg);
   cursor: pointer; padding: 6px 0; }
 .user-edit-toggle-label { display: flex; flex-direction: column; gap: var(--gap-3xs);
   line-height: 1.35; }
 .user-edit-toggle input:disabled ~ .mode-track { opacity: 0.5; cursor: not-allowed; }
-.user-edit-self-warn { margin: 8px 0 0; }
-@media (max-width: 560px){
+.user-edit-pw-row { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-lg); font-size: var(--fs-sm);
+  margin-left: calc(36px + var(--gap-lg)); padding-top: var(--gap-lg); border-top: 1px solid var(--border); }
+.user-edit-pw-row[hidden] { display: none; }
+.user-edit-pw-row .btn { flex: 0 0 auto; }
+.user-edit-self-warn { margin: 0; }
+@media (max-width: 560px) {
+  .user-edit-form-grid { grid-template-columns: 1fr; }
+}
+@container subpage (max-width: 520px) {
   .user-edit-form-grid { grid-template-columns: 1fr; }
 }
 
@@ -6967,7 +6964,7 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 .rich-content h2 { margin-top: 24px; }
 .rich-content hr { margin: 24px 0; border: 0; border-top: 1px solid var(--border); }
 
-.pic-contact { display: flex; flex-direction: column; gap: var(--gap-sm); margin-top: 8px; }
+.pic-contact { display: flex; flex-direction: column; gap: var(--gap-sm); }
 .pic-row { display: flex; align-items: center; gap: var(--gap-md); }
 .pic-row .pic-icon { width: 20px; display: inline-flex; justify-content: center;
   color: var(--muted); }
@@ -7213,7 +7210,6 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
 .loc-csz-row {
   display: grid; gap: var(--gap-sm) var(--gap-lg);
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
-  margin-top: 8px;
 }
 .loc-csz-row label { display: flex; flex-direction: column; }
 @media (max-width: 480px) {
@@ -13610,17 +13606,9 @@ body.embed .backups-wrap {
 .fe-sync-snap-row { margin: .1rem 0 1rem; }
 @media (max-width: 480px) { .dash-sync-actions { grid-template-columns: 1fr; } }
 
-/* Rollback snapshots modal — restore how-to + downloadable bundle list. */
-.fe-snap-howto {
-  margin: .9rem 0;
-  padding: .85rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--panel-2, var(--panel));
-}
-.fe-snap-howto-head { font-weight: 600; margin-bottom: .35rem; }
+/* Rollback snapshots: the bundle list and the restore steps. */
 .fe-snap-howto-steps { margin: 0; padding-left: 1.2rem; }
-.fe-snap-howto-steps li { margin: .3rem 0; line-height: 1.45; }
+.fe-snap-howto-steps li { margin: 0 0 .5rem; line-height: 1.5; }
 .fe-snap-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--gap-sm); }
 .fe-snap-row {
   display: flex;
@@ -16216,7 +16204,8 @@ html.in-settings .modal:not(.settings-sub) > .modal-backdrop { background: trans
 .modal.settings-sub.open { transition: visibility 0s linear 0s; }
 .settings-main > .modal.settings-sub { position: absolute; inset: 0; }
 .modal.settings-sub > .modal-backdrop { display: none; }
-.modal.settings-sub:not(#settings-modal) .modal-panel { margin: 0; width: 100%; max-width: none;
+/* Column, though inside the Settings window its own row rule reaches it. */
+.modal.settings-sub:not(#settings-modal) .modal-panel { flex-direction: column; margin: 0; width: 100%; max-width: none;
   height: 100%; max-height: none; border: 0; border-radius: 0; background: var(--bg); box-shadow: none;
   overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
   transform: translateX(100%); transition: transform var(--sub-ms) var(--sub-ease); }
@@ -16238,7 +16227,8 @@ html.in-settings.settings-pushed .embed-content { transform: translateX(-100%); 
 #settings-modal .settings-main.settings-pushed > .settings-save-bar { transform: translateX(calc(-100% - 24px)); }
 html.in-settings body.embed { overflow-x: clip; }
 .settings-sub-instant > *, html.settings-sub-instant .embed-content { transition: none !important; }
-.modal.settings-sub:not(#settings-modal) .modal-panel > form { flex: 0 0 auto; width: 100%; min-height: 0; max-height: none; gap: 0; }
+.modal.settings-sub:not(#settings-modal) .modal-panel > form { flex: 1 0 auto; display: flex; flex-direction: column;
+  width: 100%; min-height: 0; max-height: none; gap: 0; }
 .modal.settings-sub:not(#settings-modal) .modal-panel:has(> iframe) { overflow: hidden; }
 .modal.settings-sub:not(#settings-modal) .modal-panel > iframe { flex: 1 1 auto; height: auto; min-height: 0; }
 
@@ -16267,18 +16257,54 @@ html.in-settings-float-close .modal.settings-sub:not(#settings-modal) .modal-hea
 }
 .settings-sub-back:focus-visible { outline: 2px solid var(--brand); outline-offset: 0; }
 
-/* The dialog's body and foot read as one card on the page. */
-.modal.settings-sub:not(#settings-modal) .modal-body { flex: 0 0 auto; min-height: 0; overflow: visible;
-  box-sizing: border-box; width: min(720px, calc(100% - 2 * var(--content-px)));
-  margin: var(--content-px) auto 0; padding: var(--card-pad); background: var(--panel);
-  border: 1px solid var(--border); border-radius: var(--card-radius) var(--card-radius) 0 0;
-  box-shadow: var(--shadow); }
-.modal.settings-sub:not(#settings-modal) .modal-body:last-child { margin-bottom: var(--content-px);
-  border-radius: var(--card-radius); }
-.modal.settings-sub:not(#settings-modal) .modal-foot { box-sizing: border-box;
-  width: min(720px, calc(100% - 2 * var(--content-px))); margin: 0 auto var(--content-px);
-  padding: 14px var(--card-pad-x); background: var(--panel-2); border: 1px solid var(--border);
-  border-top: 0; border-radius: 0 0 var(--card-radius) var(--card-radius); box-shadow: var(--shadow); }
+/* A page's body is the page itself: its sections stack like a Settings
+   section's cards, the full width of the pane. Its actions sit in a bar
+   pinned to the foot, frosted like the head; a foot holding only a close
+   button goes, Back does that. */
+.modal.settings-sub:not(#settings-modal) .modal-panel { container: subpage / inline-size; }
+.modal.settings-sub:not(#settings-modal) .modal-body { flex: 1 0 auto; min-height: 0; overflow: visible;
+  padding: var(--content-px); gap: var(--stack-gap); }
+.modal.settings-sub:not(#settings-modal) .modal-body > .data-card { margin: 0; }
+.modal.settings-sub:not(#settings-modal) .modal-foot { position: sticky; bottom: 0; z-index: 3;
+  padding: 14px var(--content-px) calc(14px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(16px); backdrop-filter: saturate(180%) blur(16px); }
+.modal.settings-sub .modal-foot:has(> [data-close]:only-child) { display: none; }
+
+/* A dialog's sections (.dlg-section): a card per topic, its title and a
+   line about it beside the fields when the page is wide, above them
+   otherwise. In a plain dialog they lose the card and part with a rule. */
+.dlg-section { display: grid; gap: var(--gap-lg) var(--gap-5xl); align-items: start; }
+.dlg-section-intro .data-card-head { margin-bottom: 8px; }
+.dlg-section-intro p { margin: 0; max-width: 46ch; color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
+.dlg-section-fields { display: flex; flex-direction: column; gap: var(--gap-xl); min-width: 0; }
+.dlg-fields-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-lg) var(--gap-2xl); }
+@container subpage (min-width: 760px) {
+  .dlg-section { grid-template-columns: minmax(200px, 1fr) minmax(0, 2.2fr); }
+  .dlg-section-intro { position: sticky; top: calc(61px + var(--content-px)); }
+}
+@container subpage (max-width: 520px) {
+  .dlg-fields-2 { grid-template-columns: minmax(0, 1fr); }
+}
+/* A choice among a few options, labeled like a field. */
+.dlg-choice { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--gap-xs); }
+.dlg-choice legend { padding: 0; margin-bottom: var(--gap-xs); font-size: var(--fs-base); font-weight: 600; color: var(--text); }
+/* External link: a row drawn like the sidebar's, following the title. */
+@container subpage (min-width: 521px) {
+  .navlink-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
+}
+.navlink-preview { display: flex; flex-direction: column; gap: var(--gap-xs); }
+.navlink-preview-row { display: flex; align-items: center; gap: var(--gap-md); width: min(100%, 260px);
+  padding: 9px 12px; border: 1px dashed var(--border); border-radius: var(--r-md);
+  background: var(--panel-2); color: var(--text); font-weight: 500; line-height: 1.3; }
+.navlink-preview-row .icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--muted); }
+.navlink-preview-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navlink-preview-row > span.is-empty { color: var(--muted); }
+.dlg-section.card:not(.settings-sub .dlg-section) { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; margin: 0; }
+.dlg-section.card:not(.settings-sub .dlg-section) + .dlg-section.card { padding-top: var(--gap-2xl); border-top: 1px solid var(--border); }
+/* A section about removing or locking something. */
+.dlg-section.is-danger .data-card-head > .icon { background: color-mix(in srgb, #dc2626 12%, transparent); color: #dc2626; }
+.modal.settings-sub .dlg-section.card.is-danger { border-color: color-mix(in srgb, #dc2626 30%, var(--border)); }
 @media (min-width: 721px) {
   /* The window's close button stays put above the pages, which leave it
      room. */

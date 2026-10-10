@@ -9047,6 +9047,30 @@
   });
 })();
 
+// A preview that follows a field as it is typed: [data-mirror="<name>"]
+// shows the value of the same form's [data-mirror-source="<name>"], or its
+// data-mirror-empty text while that is blank (the external-link dialog's
+// sidebar row).
+(function initMirrors() {
+  function sync(src) {
+    const form = src.form;
+    if (!form) return;
+    form.querySelectorAll('[data-mirror="' + src.dataset.mirrorSource + '"]').forEach(el => {
+      const v = src.value.trim();
+      el.textContent = v || el.dataset.mirrorEmpty || "";
+      el.classList.toggle("is-empty", !v);
+    });
+  }
+  document.addEventListener("input", e => {
+    if (e.target.matches && e.target.matches("[data-mirror-source]")) sync(e.target);
+  });
+  // A form reset puts the values back after the event; follow them then.
+  document.addEventListener("reset", e => {
+    setTimeout(() => e.target.querySelectorAll("[data-mirror-source]").forEach(sync));
+  }, true);
+  document.querySelectorAll("[data-mirror-source]").forEach(sync);
+})();
+
 // Dialogs opened from Settings become pages, like a phone's settings app:
 // the section and the page sit side by side on one strip that moves left
 // to show the page and back again for Back, whose label names the page

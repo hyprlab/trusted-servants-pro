@@ -313,60 +313,100 @@
       <input type="hidden" name="reset_allowed_present" value="1">
       <input type="hidden" name="mfa_present" value="1">
       <div class="modal-body">
-        <div class="form user-edit-form-grid">
-          <label>Username
-            <input name="username" id="user-edit-username" required maxlength="255">
-          </label>
-          <label>Name
-            <input name="name" id="user-edit-name" maxlength="120" placeholder="(optional)">
-          </label>
-          <label>Email
-            <input name="email" id="user-edit-email" type="email" required>
-          </label>
-          <label>Phone
-            <input name="phone" id="user-edit-phone" type="tel" placeholder="(optional)">
-          </label>
-          <label>Role
-            <select name="role" id="user-edit-role">
-              {% for r in roles %}<option value="{{ r }}">{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
-            </select>
-          </label>
-        </div>
-        <div class="user-edit-toggles">
-          <label class="mode-toggle user-edit-toggle"
-                 title="Allow this user to use the public Forgot Password flow. Admins can always reset the password regardless of this switch.">
-            <input type="checkbox" id="user-edit-reset-allowed">
-            <input type="hidden" name="password_reset_allowed" id="user-edit-reset-allowed-val" value="0">
-            <span class="mode-track"><span class="mode-thumb"></span></span>
-            <span class="user-edit-toggle-label">
-              <b>Self-reset password</b>
-              <span class="muted smaller">Account may use the public Forgot Password flow.</span>
-            </span>
-          </label>
-          <label class="mode-toggle user-edit-toggle"
-                 title="Require two-factor authentication. The user enrols via a one-time wizard at next login (and may skip it). Turning it off clears any existing 2FA.">
-            <input type="checkbox" id="user-edit-mfa">
-            <input type="hidden" name="mfa_required" id="user-edit-mfa-val" value="0">
-            <span class="mode-track"><span class="mode-thumb"></span></span>
-            <span class="user-edit-toggle-label">
-              <b>Require two-factor (2FA)</b>
-              <span class="muted smaller">Sets up via a one-time wizard at next login.</span>
-            </span>
-          </label>
-          <label class="mode-toggle user-edit-toggle user-edit-disabled-toggle"
-                 title="Disabled accounts cannot sign in. Existing sessions are revoked on the next request.">
-            <input type="checkbox" id="user-edit-disabled">
-            <input type="hidden" name="disabled" id="user-edit-disabled-val" value="0">
-            <span class="mode-track"><span class="mode-thumb"></span></span>
-            <span class="user-edit-toggle-label">
-              <b>Disable account</b>
-              <span class="muted smaller">Block sign-ins and end the user's live session.</span>
-            </span>
-          </label>
-        </div>
-        <p class="muted smaller user-edit-self-warn" id="user-edit-self-warn" hidden>
-          You can't disable your own account.
-        </p>
+        <section class="card data-card dlg-section">
+          <div class="dlg-section-intro">
+            <div class="data-card-head">{{ icon('user') }}<span>Profile</span></div>
+            <p>Who this is and how to reach them. They sign in with the username.</p>
+          </div>
+          <div class="dlg-section-fields">
+            <div class="form user-edit-form-grid">
+              <label>Username
+                <input name="username" id="user-edit-username" required maxlength="255">
+              </label>
+              <label>Name
+                <input name="name" id="user-edit-name" maxlength="120" placeholder="(optional)">
+              </label>
+              <label>Email
+                <input name="email" id="user-edit-email" type="email" required>
+              </label>
+              <label>Phone
+                <input name="phone" id="user-edit-phone" type="tel" placeholder="(optional)">
+              </label>
+            </div>
+          </div>
+        </section>
+        <section class="card data-card dlg-section">
+          <div class="dlg-section-intro">
+            <div class="data-card-head">{{ icon('key') }}<span>Role</span></div>
+            <p>Decides what they can see and change in the portal.</p>
+          </div>
+          <div class="dlg-section-fields">
+            <div class="form user-edit-form-grid">
+              <label>Role
+                <select name="role" id="user-edit-role">
+                  {% for r in roles %}<option value="{{ r }}">{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
+                </select>
+              </label>
+            </div>
+          </div>
+        </section>
+        <section class="card data-card dlg-section">
+          <div class="dlg-section-intro">
+            <div class="data-card-head">{{ icon('shield') }}<span>Sign-in</span></div>
+            <p>How they get into their account, and what happens when they forget the password.</p>
+          </div>
+          <div class="dlg-section-fields user-edit-toggles">
+            <label class="mode-toggle user-edit-toggle"
+                   title="Allow this user to use the public Forgot Password flow. Admins can always reset the password regardless of this switch.">
+              <input type="checkbox" id="user-edit-reset-allowed">
+              <input type="hidden" name="password_reset_allowed" id="user-edit-reset-allowed-val" value="0">
+              <span class="mode-track"><span class="mode-thumb"></span></span>
+              <span class="user-edit-toggle-label">
+                <b>Self-reset password</b>
+                <span class="muted smaller">Account may use the public Forgot Password flow.</span>
+              </span>
+            </label>
+            <label class="mode-toggle user-edit-toggle"
+                   title="Require two-factor authentication. The user enrols via a one-time wizard at next login (and may skip it). Turning it off clears any existing 2FA.">
+              <input type="checkbox" id="user-edit-mfa">
+              <input type="hidden" name="mfa_required" id="user-edit-mfa-val" value="0">
+              <span class="mode-track"><span class="mode-thumb"></span></span>
+              <span class="user-edit-toggle-label">
+                <b>Require two-factor (2FA)</b>
+                <span class="muted smaller">Sets up via a one-time wizard at next login.</span>
+              </span>
+            </label>
+            {# Opens Reset password for this user (filled in on open). #}
+            <div class="user-edit-pw-row" id="user-edit-pw-row">
+              <span class="user-edit-toggle-label">
+                <b>Password</b>
+                <span class="muted smaller">Set a new one and email it to them.</span>
+              </span>
+              <button type="button" class="btn btn-sm js-pwreset-open" id="user-edit-pwreset">{{ icon('key') }} Reset password</button>
+            </div>
+          </div>
+        </section>
+        <section class="card data-card dlg-section is-danger">
+          <div class="dlg-section-intro">
+            <div class="data-card-head">{{ icon('lock') }}<span>Account access</span></div>
+            <p>A disabled account can't sign in, and its open session ends at once.</p>
+          </div>
+          <div class="dlg-section-fields user-edit-toggles">
+            <label class="mode-toggle user-edit-toggle user-edit-disabled-toggle"
+                   title="Disabled accounts cannot sign in. Existing sessions are revoked on the next request.">
+              <input type="checkbox" id="user-edit-disabled">
+              <input type="hidden" name="disabled" id="user-edit-disabled-val" value="0">
+              <span class="mode-track"><span class="mode-thumb"></span></span>
+              <span class="user-edit-toggle-label">
+                <b>Disable account</b>
+                <span class="muted smaller">Block sign-ins and end the user's live session.</span>
+              </span>
+            </label>
+            <p class="muted smaller user-edit-self-warn" id="user-edit-self-warn" hidden>
+              You can't disable your own account.
+            </p>
+          </div>
+        </section>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn" data-close>Cancel</button>
@@ -413,6 +453,8 @@
   const mfaVal = document.getElementById('user-edit-mfa-val');
   const selfWarn = document.getElementById('user-edit-self-warn');
   const titleEl = document.getElementById('user-edit-title');
+  const pwRow = document.getElementById('user-edit-pw-row');
+  const pwBtn = document.getElementById('user-edit-pwreset');
   const ACTION_TEMPLATE = "{{ url_for('auth.users_update', uid=0) }}";
   const CURRENT_UID = "{{ current_user.id }}";
 
@@ -444,6 +486,11 @@
     disabledIn.disabled = isSelf;
     selfWarn.hidden = !isSelf;
     titleEl.textContent = 'Edit ' + (row.dataset.username || 'user');
+    // Reset password needs an email to send to, as in the row's menu.
+    pwRow.hidden = !row.dataset.email;
+    pwBtn.dataset.uid = uid;
+    pwBtn.dataset.username = row.dataset.username || '';
+    pwBtn.dataset.email = row.dataset.email || '';
     syncHidden();
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');

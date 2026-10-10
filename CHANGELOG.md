@@ -6,10 +6,16 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added
+- Edit user: a Reset password button, shown when the user has an email, opening Reset password for that user.
+
 ### Changed
 - Settings: a dialog opened while Settings is open, or from a page shown in a section (`html.in-settings`, now also set in frames inside such a page), gets `.settings-sub` and becomes a page beside the section, with a back button labeled with the page it returns to (`settingsSubpages` in `app.js`, `#settings-sub-tpl` in `base.html`). While open the dialog moves next to the surface (`.settings-main`, or `body` in a frame, a comment keeping its place), the surface takes `.settings-pushed` and moves a full width left as the page comes in, and a page beneath another takes `.settings-sub-under`; Back reverses both on the same timing. On a desktop the window's close button stays above the pages; on a phone the section head moves with the strip and the page brings its own close button, and the section head hides while its frame shows a page (`.settings-frame-sub`). Picking another section or closing Settings closes every page. The confirmation dialog and the media, icon and background pickers stay dialogs.
 - Settings: the WordPress importer opens over Settings as a page instead of closing Settings first.
 - Settings: forms inside a dialog in the Settings window are left out of the yellow save bar, keep their own button, and close their dialog after an AJAX save.
+- Settings pages: the body spans the pane (`--content-px` padding, `--stack-gap` between sections) instead of a centered 720px card, with the foot a sticky frosted bar and a foot holding only a close button hidden. Sections are `.card.data-card.dlg-section`: a `.dlg-section-intro` (the card head and a line about it) beside `.dlg-section-fields` when the page's `subpage` container is at least 760px wide, above it otherwise; in a plain dialog they drop the card and part with a rule. `.dlg-fields-2`, `.dlg-choice` and `.dlg-section.is-danger` cover two-up fields, radio groups and the disable-account section.
+- Edit user (Profile, Role, Sign-in, Account access), Reset password (Account, New password), the location dialogs (Location, Address, Details), the external-link dialogs, Need help and the rollback snapshots are laid out in those sections. The location and external-link dialogs are each one macro for New and Edit. Edit user's fields take the shared `.form` label and input styles.
+- `[data-mirror]` (app.js): an element that shows a form field's value as it is typed, used for the external link's sidebar preview.
 
 ### Fixed
 - A dialog inside the Settings window (the Sidebar section's link dialogs) no longer closes Settings with it: `[data-close]` binds only to its nearest `.modal`.
