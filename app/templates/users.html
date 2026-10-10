@@ -1,170 +1,53 @@
 {% extends "base.html" %}
-{% from "_help_chip.html" import chip, hrow %}
 {% from "_row_menu.html" import row_menu %}
 {% block heading %}Users{% endblock %}
 {% block content %}
 
-{# Top card holds Create User + Roles & permissions side-by-side. The
-   two halves are sub-sections inside one data-card so the permissions
-   reference reads as guidance for picking the right role on the form,
-   not as a separate disconnected section. #}
+{# Add user opens as its own page (or dialog): from the list's Add user
+   button, from an access request's Create user (prefill, prefill_name,
+   prefill_phone, prefill_rid) and again after a create that failed
+   (new=1 with the posted values, auth._back_to_new_user). #}
 {% set _prefill = request.args.get('prefill', '') %}
 {% set _prefill_name = request.args.get('prefill_name', '') %}
 {% set _prefill_phone = request.args.get('prefill_phone', '') %}
 {% set _prefill_rid = request.args.get('prefill_rid', '') %}
-{% set _has_prefill = _prefill or _prefill_name or _prefill_phone %}
-<section class="card data-card users-create-card"{% if _has_prefill %} data-autofocus-new-user{% endif %}>
-  <div class="data-card-head">
-    {{ icon('user-plus') }}
-    <span>Add a user {% call chip('Add a user') %}Create a new account and review what each role can access before assigning one.{% endcall %}</span>
-  </div>
-  <div class="users-top-grid">
-    <div class="users-new-card">
-      <h3 class="users-subhead">Create user</h3>
-      <form method="post" action="{{ url_for('auth.users_create') }}" class="form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
-        {% if _prefill_rid %}<input type="hidden" name="access_request_id" value="{{ _prefill_rid }}">{% endif %}
-        {# Usernames are email addresses: this one follows the Email field
-           below until it's typed into (script at the end of the form). #}
-        <label>Username<input name="username" type="email" value="{{ _prefill }}" required maxlength="255"
-                              placeholder="Their email address" autocomplete="off" data-username-follows-email></label>
-        <label>Name<input name="name" value="{{ _prefill_name }}" placeholder="(optional)"></label>
-        <label>Email<input name="email" type="email" value="{{ _prefill }}" required maxlength="255"></label>
-        <label>Phone<input name="phone" type="tel" value="{{ _prefill_phone }}" placeholder="(optional)"></label>
-        {# Password generator. "Generate" asks the server for a random
-           password (auth._generate_password: CSPRNG, no look-alike
-           characters, redrawn until it passes the policy for the
-           username and email typed above) and reveals it so it can be
-           copied. Typing your own works too; the checklist mirrors
-           validate_password_policy and blocks submit until it passes. #}
-        <div class="form-field-block pwgen" data-pwgen>
-          <label class="pwgen-label" for="new-user-password">Password</label>
-          <div class="pwgen-row">
-            <input id="new-user-password" name="password" type="password" required
-                   minlength="{{ pw_min_length }}" autocomplete="new-password"
-                   spellcheck="false" autocapitalize="off" data-pwgen-input>
-            <button type="button" class="btn btn-sm" data-pwgen-show aria-pressed="false"
-                    aria-controls="new-user-password">Show</button>
-            <button type="button" class="btn btn-sm" data-pwgen-copy
-                    title="Copy the password to the clipboard">Copy</button>
-          </div>
-          <div class="pwgen-controls">
-            <button type="button" class="btn btn-sm btn-secondary" data-pwgen-generate>
-              {{ icon('refresh') }}<span>Generate</span></button>
-            <label class="pwgen-length">Length
-              <select data-pwgen-length aria-label="Generated password length">
-                {% for n in pw_gen_lengths %}<option value="{{ n }}"{% if n == pw_gen_default %} selected{% endif %}>{{ n }}</option>{% endfor %}
-              </select>
-            </label>
-          </div>
-          <div class="pwreset-strength" aria-live="polite">
-            <div class="pwreset-strength-bar"><span data-pwgen-fill></span></div>
-            <div class="pwreset-strength-label" data-pwgen-label>Generate a password or type one</div>
-          </div>
-          <ul class="pwreset-policy" aria-label="Password requirements">
-            <li data-rule="length">At least {{ pw_min_length }} characters</li>
-            <li data-rule="lower">A lowercase letter</li>
-            <li data-rule="upper">An uppercase letter</li>
-            <li data-rule="digit">A digit</li>
-            <li data-rule="symbol">A symbol ({{ pw_symbols|list|join(' ') }})</li>
-            <li data-rule="personal">Not the username or email</li>
-          </ul>
-        </div>
-        <label>Role
-          <select name="role">
-            {# Viewer unless changed: an account made in a hurry (an access
-               request's Create user) never starts with admin rights. #}
-            {% for r in roles %}<option value="{{ r }}"{% if r == 'viewer' %} selected{% endif %}>{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
-          </select>
-        </label>
-        <label class="check welcome-email-check">
-          <input type="checkbox" name="add_to_email_list" value="1" checked>
-          <span>Add to the Email List
-            <span class="muted smaller">— their name, email and phone join the Trusted Servants Email List, for updates sent to everyone on it.</span>
-          </span>
-        </label>
-        <label class="check welcome-email-check">
-          <input type="checkbox" name="send_welcome_email" value="1" checked>
-          <span>Email login details to the new user
-            <span class="muted smaller">— sends username, password, and a summary of what their role can do (requires SMTP).</span>
-          </span>
-        </label>
-        <div class="form-actions"><button class="btn btn-primary" data-create-user-submit>Create</button></div>
-      </form>
-      <script>
-      (function () {
-        // Create shows a spinner until the reloaded page brings its toasts;
-        // it clears if the page comes back from the back/forward cache.
-        var create = document.querySelector('[data-create-user-submit]');
-        if (create) {
-          create.form.addEventListener('submit', function () {
-            create.classList.add('is-submitting');
-            create.setAttribute('aria-busy', 'true');
-          });
-          window.addEventListener('pageshow', function () {
-            create.classList.remove('is-submitting');
-            create.removeAttribute('aria-busy');
-          });
-        }
-        // The username follows the email until the admin types a different one.
-        var user = document.querySelector('[data-username-follows-email]');
-        var email = user && user.form.elements.email;
-        if (!email) return;
-        var follows = !user.value || user.value === email.value;
-        user.addEventListener('input', function () { follows = !user.value || user.value === email.value; });
-        email.addEventListener('input', function () {
-          if (follows) { user.value = email.value; user.dispatchEvent(new Event('input')); follows = true; }
-        });
-      })();
-      </script>
-    </div>
+{% set _prefill_username = request.args.get('prefill_username', '') or _prefill %}
+{% set _prefill_email = request.args.get('prefill_email', '') or _prefill %}
+{% set _prefill_role = request.args.get('prefill_role', '') %}
+{% set _open_new = _prefill or _prefill_name or _prefill_phone or request.args.get('new') %}
 
-    <div class="users-perm-card">
-      <h3 class="users-subhead">Roles &amp; permissions {% call chip('Roles and permissions') %}What each role can access. Module access is also gated per-module on the <b>Modules</b> tab.{% endcall %}</h3>
-      <ul class="perm-list">
-        <li class="perm-row perm-row-admin">
-          <div class="perm-role">
-            <span class="perm-badge perm-badge-admin">Admin</span>
-          </div>
-          <div class="perm-blurb">
-            <div class="muted small">Full access. Manages users, modules, settings, the Web Frontend, and every other feature in the portal.</div>
-          </div>
-        </li>
-        <li class="perm-row perm-row-editor">
-          <div class="perm-role">
-            <span class="perm-badge perm-badge-editor">Editor</span>
-          </div>
-          <div class="perm-blurb">
-            <div class="muted small">Edits existing meetings, locations, schedules, Zoom accounts, and meeting attachments (any uploader). <b>Cannot create new meetings or delete existing ones</b> — that's gated to admins and Intergroup Members. On <b>libraries</b>: may add files to existing libraries (and edit / delete only those whose uploader was another Editor — admin-, Intergroup-Member-, and legacy library files are protected); <b>cannot create new libraries or edit library settings</b> (name, description, alert) — admin / Intergroup Member only. Cannot reach Settings, Users, or the Web Frontend module.</div>
-          </div>
-        </li>
-        <li class="perm-row perm-row-ig">
-          <div class="perm-role">
-            <span class="perm-badge perm-badge-ig">Intergroup member</span>
-          </div>
-          <div class="perm-blurb">
-            <div class="muted small">Inherits every <b>Editor</b> permission (meetings, libraries, readings, uploads), <b>plus</b> exclusive edit access to Intergroup-flagged libraries — which regular Editors cannot touch. May delete any library file. Cannot reach Settings, Users, the Web Frontend module, or the Intergroup Email Accounts page (admin-only).</div>
-          </div>
-        </li>
-        <li class="perm-row perm-row-viewer">
-          <div class="perm-role">
-            <span class="perm-badge perm-badge-viewer">Viewer</span>
-          </div>
-          <div class="perm-blurb">
-            <div class="muted small">Read-only. Sees meetings, libraries, files, and any module the admin opens to <i>All signed-in users</i>; cannot edit anything.</div>
-          </div>
-        </li>
-      </ul>
-    </div>
-  </div>
-</section>
+{# The role as a card per role saying what it can reach, in Add user and
+   Edit user. Module access is also set per module in Settings, Modules. #}
+{% macro role_choices(selected=None) %}
+{% set _blurbs = {
+  'admin': 'Full access. Manages users, modules, settings, the Web Frontend, and every other feature in the portal.',
+  'editor': 'Edits existing meetings, locations, schedules, Zoom accounts, and meeting attachments. <b>Cannot create or delete meetings</b>, or create libraries and change their settings. May add files to existing libraries, and edit or delete only those another Editor uploaded. Cannot reach Settings, Users, or the Web Frontend.',
+  'intergroup_member': 'Everything an <b>Editor</b> can do, <b>plus</b> editing Intergroup libraries, which Editors cannot touch, and deleting any library file. Cannot reach Settings, Users, the Web Frontend, or the Intergroup Email Accounts page.',
+  'viewer': 'Read-only. Sees meetings, libraries, files, and any module opened to <i>All signed-in users</i>; cannot edit anything.',
+} %}
+{% set _badges = {'admin': 'perm-badge-admin', 'editor': 'perm-badge-editor',
+                  'intergroup_member': 'perm-badge-ig', 'viewer': 'perm-badge-viewer'} %}
+<div class="role-choices" role="radiogroup" aria-label="Role">
+  {% for r in roles %}
+  <label class="role-choice">
+    <input type="radio" name="role" value="{{ r }}"{% if r == selected %} checked{% endif %}>
+    <span class="role-choice-body">
+      <span class="perm-badge {{ _badges.get(r, 'perm-badge-viewer') }}">{{ role_labels[r] if role_labels and r in role_labels else r }}</span>
+      <span class="role-choice-text">{{ _blurbs.get(r, '')|safe }}</span>
+    </span>
+  </label>
+  {% endfor %}
+</div>
+{% endmacro %}
 
 <section class="card data-card">
   <div class="data-card-head">
     {{ icon('users') }}
     <span>All users</span>
     <span class="muted smaller users-count" data-users-count></span>
+    <div class="data-card-head-actions">
+      <button type="button" class="btn btn-primary" data-open-modal="user-new-modal" data-user-new-open>{{ icon('user-plus') }} Add user</button>
+    </div>
   </div>
 
   {# Standalone form carries the checked ids for bulk delete; row checkboxes
@@ -293,6 +176,166 @@
   <p class="muted small ulist-empty" data-users-empty hidden>No users match the filter.</p>
 </section>
 
+{# ---- Add user ---------------------------------------------------- #}
+<div class="modal" id="user-new-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="user-new-title">
+    <div class="modal-head">
+      <h2 id="user-new-title">Add user</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
+    </div>
+    <form method="post" action="{{ url_for('auth.users_create') }}" class="form" id="user-new-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if embed %}<input type="hidden" name="embed" value="1">{% endif %}
+      {% if _prefill_rid %}<input type="hidden" name="access_request_id" value="{{ _prefill_rid }}">{% endif %}
+      <div class="modal-body">
+        <section class="card data-card dlg-section">
+          <div class="dlg-section-intro">
+            <div class="data-card-head">{{ icon('user') }}<span>Profile</span></div>
+            <p>Who this is and how to reach them. They sign in with the username, which is their email unless you change it.</p>
+          </div>
+          <div class="dlg-section-fields">
+            <div class="dlg-fields-2">
+              <label>Email<input name="email" type="email" value="{{ _prefill_email }}" required maxlength="255" autocomplete="off"></label>
+              {# Usernames are email addresses: this one follows Email until
+                 it's typed into (script below). #}
+              <label>Username<input name="username" type="email" value="{{ _prefill_username }}" required maxlength="255"
+                                    placeholder="Their email address" autocomplete="off" data-username-follows-email></label>
+              <label>Name<input name="name" value="{{ _prefill_name }}" placeholder="(optional)"></label>
+              <label>Phone<input name="phone" type="tel" value="{{ _prefill_phone }}" placeholder="(optional)"></label>
+            </div>
+          </div>
+        </section>
+        <section class="card data-card dlg-section">
+          <div class="dlg-section-intro">
+            <div class="data-card-head">{{ icon('key') }}<span>Password</span></div>
+            <p>Generate one, or type your own. It has to meet every rule in the list.</p>
+          </div>
+          {# Password generator. "Generate" asks the server for a random
+             password (auth._generate_password: CSPRNG, no look-alike
+             characters, redrawn until it passes the policy for the
+             username and email typed above) and reveals it so it can be
+             copied. Typing your own works too; the checklist mirrors
+             validate_password_policy and blocks submit until it passes. #}
+          <div class="dlg-section-fields pwgen" data-pwgen>
+            <label class="pwgen-label" for="new-user-password">Password</label>
+            <div class="pwgen-row">
+              <input id="new-user-password" name="password" type="password" required
+                     minlength="{{ pw_min_length }}" autocomplete="new-password"
+                     spellcheck="false" autocapitalize="off" data-pwgen-input>
+              <button type="button" class="btn btn-sm" data-pwgen-show aria-pressed="false"
+                      aria-controls="new-user-password">Show</button>
+              <button type="button" class="btn btn-sm" data-pwgen-copy
+                      title="Copy the password to the clipboard">Copy</button>
+            </div>
+            <div class="pwgen-controls">
+              <button type="button" class="btn btn-sm btn-secondary" data-pwgen-generate>
+                {{ icon('refresh') }}<span>Generate</span></button>
+              <label class="pwgen-length">Length
+                <select data-pwgen-length aria-label="Generated password length">
+                  {% for n in pw_gen_lengths %}<option value="{{ n }}"{% if n == pw_gen_default %} selected{% endif %}>{{ n }}</option>{% endfor %}
+                </select>
+              </label>
+            </div>
+            <div class="pwreset-strength" aria-live="polite">
+              <div class="pwreset-strength-bar"><span data-pwgen-fill></span></div>
+              <div class="pwreset-strength-label" data-pwgen-label>Generate a password or type one</div>
+            </div>
+            <ul class="pwreset-policy" aria-label="Password requirements">
+              <li data-rule="length">At least {{ pw_min_length }} characters</li>
+              <li data-rule="lower">A lowercase letter</li>
+              <li data-rule="upper">An uppercase letter</li>
+              <li data-rule="digit">A digit</li>
+              <li data-rule="symbol">A symbol ({{ pw_symbols|list|join(' ') }})</li>
+              <li data-rule="personal">Not the username or email</li>
+            </ul>
+          </div>
+        </section>
+        <section class="card data-card dlg-section">
+          <div class="dlg-section-intro">
+            <div class="data-card-head">{{ icon('award') }}<span>Role</span></div>
+            <p>Decides what they can see and change. New accounts start as Viewer, so one made in a hurry never begins with admin rights. A new admin sets up two-factor at first sign-in.</p>
+          </div>
+          <div class="dlg-section-fields">
+            {{ role_choices(_prefill_role if _prefill_role in roles else 'viewer') }}
+          </div>
+        </section>
+        <section class="card data-card dlg-section">
+          <div class="dlg-section-intro">
+            <div class="data-card-head">{{ icon('mail') }}<span>Welcome</span></div>
+            <p>What happens once the account exists.</p>
+          </div>
+          <div class="dlg-section-fields user-edit-toggles">
+            <label class="mode-toggle user-edit-toggle">
+              <input type="checkbox" name="add_to_email_list" value="1" checked>
+              <span class="mode-track"><span class="mode-thumb"></span></span>
+              <span class="user-edit-toggle-label">
+                <b>Add to the Email List</b>
+                <span class="muted smaller">Their name, email and phone join the Trusted Servants Email List, for updates sent to everyone on it.</span>
+              </span>
+            </label>
+            <label class="mode-toggle user-edit-toggle">
+              <input type="checkbox" name="send_welcome_email" value="1" checked>
+              <span class="mode-track"><span class="mode-thumb"></span></span>
+              <span class="user-edit-toggle-label">
+                <b>Email login details to them</b>
+                <span class="muted smaller">Sends the username, password, and a summary of what their role can do. Needs email set up in Settings, Domain / Email.</span>
+              </span>
+            </label>
+          </div>
+        </section>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" data-create-user-submit>Create user</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  // Create shows a spinner until the reloaded page brings its toasts;
+  // it clears if the page comes back from the back/forward cache.
+  var create = document.querySelector('[data-create-user-submit]');
+  if (create) {
+    create.form.addEventListener('submit', function () {
+      create.classList.add('is-submitting');
+      create.setAttribute('aria-busy', 'true');
+    });
+    window.addEventListener('pageshow', function () {
+      create.classList.remove('is-submitting');
+      create.removeAttribute('aria-busy');
+    });
+  }
+  // The username follows the email until the admin types a different one.
+  var user = document.querySelector('[data-username-follows-email]');
+  var email = user && user.form.elements.email;
+  if (!email) return;
+  var follows = !user.value || user.value === email.value;
+  user.addEventListener('input', function () { follows = !user.value || user.value === email.value; });
+  email.addEventListener('input', function () {
+    if (follows) { user.value = email.value; user.dispatchEvent(new Event('input')); follows = true; }
+  });
+})();
+</script>
+{% if _open_new %}
+{# Opened for an access request, or again after a create that failed:
+   once app.js has bound the button, open the page and put the cursor in
+   the first field still empty. #}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.querySelector('[data-user-new-open]');
+    if (!btn) return;
+    btn.click();
+    setTimeout(function () {
+      var form = document.getElementById('user-new-form');
+      var f = form && (form.querySelector('.dlg-fields-2 input:invalid') || form.elements.password);
+      if (f) f.focus({ preventScroll: true });
+    }, 450);
+  });
+</script>
+{% endif %}
+
 {# ---- Edit user modal ----------------------------------------------
    One dialog drives every row — populated with the row's data
    attributes when its Edit button is clicked, posts to users_update
@@ -337,17 +380,11 @@
         </section>
         <section class="card data-card dlg-section">
           <div class="dlg-section-intro">
-            <div class="data-card-head">{{ icon('key') }}<span>Role</span></div>
+            <div class="data-card-head">{{ icon('award') }}<span>Role</span></div>
             <p>Decides what they can see and change in the portal.</p>
           </div>
           <div class="dlg-section-fields">
-            <div class="form user-edit-form-grid">
-              <label>Role
-                <select name="role" id="user-edit-role">
-                  {% for r in roles %}<option value="{{ r }}">{{ role_labels[r] if role_labels and r in role_labels else r }}</option>{% endfor %}
-                </select>
-              </label>
-            </div>
+            {{ role_choices() }}
           </div>
         </section>
         <section class="card data-card dlg-section">
@@ -444,7 +481,6 @@
   const nameIn = document.getElementById('user-edit-name');
   const emailIn = document.getElementById('user-edit-email');
   const phoneIn = document.getElementById('user-edit-phone');
-  const roleIn = document.getElementById('user-edit-role');
   const resetIn = document.getElementById('user-edit-reset-allowed');
   const resetVal = document.getElementById('user-edit-reset-allowed-val');
   const disabledIn = document.getElementById('user-edit-disabled');
@@ -478,7 +514,9 @@
     nameIn.value = row.dataset.name || '';
     emailIn.value = row.dataset.email || '';
     phoneIn.value = row.dataset.phone || '';
-    roleIn.value = row.dataset.role || 'viewer';
+    const roleIn = form.querySelector('input[name="role"][value="' + (row.dataset.role || 'viewer') + '"]')
+      || form.querySelector('input[name="role"][value="viewer"]');
+    if (roleIn) roleIn.checked = true;
     resetIn.checked = row.dataset.resetAllowed === '1';
     mfaIn.checked = row.dataset.mfaRequired === '1';
     const isSelf = String(uid) === String(CURRENT_UID);
@@ -962,15 +1000,4 @@
 })();
 </script>
 
-{% if _prefill %}
-<script>
-  (function(){
-    const card = document.querySelector('[data-autofocus-new-user]');
-    if (!card) return;
-    card.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    const pw = card.querySelector('input[name="password"]');
-    if (pw) setTimeout(() => pw.focus(), 250);
-  })();
-</script>
-{% endif %}
 {% endblock %}

@@ -9092,6 +9092,12 @@
   const surface = inFrame ? document.documentElement : settings.querySelector(".settings-main");
   const pageHost = inFrame ? document.body : surface;
   const stack = [];
+  // The toasts belong to the window, not the surface: moved out, they
+  // stay in view over a page (a failed Add user reopens with its error).
+  if (inFrame) {
+    const toasts = document.querySelector(".embed-content > .flashes");
+    if (toasts) document.body.appendChild(toasts);
+  }
 
   const qualifies = () => inFrame || settings.classList.contains("open");
   const titleOf = m => {

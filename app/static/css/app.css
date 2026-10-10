@@ -791,40 +791,23 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
   width: 14px; height: 14px; stroke: currentColor; color: #fff;
 }
 
-/* ===== Users tab — top grid + roles/permissions explainer ===== */
-.users-top-grid {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--gap-4xl);
-  align-items: start;
-}
-@media (max-width: 880px) { .users-top-grid { grid-template-columns: 1fr; } }
-/* Sub-section headings inside the "Add a user" data-card. The card
-   itself owns the title + lead; the two columns below each carry
-   their own compact h3 + muted hint so they read as labeled regions
-   rather than wholly independent sections. */
-.users-subhead {
-  margin: 0 0 .35rem;
-  font-size: var(--fs-base);
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--text);
-}
-.users-subhead-lead { margin: 0 0 .9rem; }
-
-.perm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--gap-md); }
-.perm-row {
-  /* Role column auto-sizes to the widest pill across all rows so longer
-     labels (e.g. "Intergroup member") don't overflow into the blurb
-     column. minmax keeps a 140px floor so short labels still align. */
-  display: grid; grid-template-columns: minmax(140px, max-content) minmax(0, 1fr);
-  gap: var(--gap-xl);
-  align-items: start; padding: 10px 12px;
-  border: 1px solid var(--border); border-radius: var(--r-lg);
-  background: var(--panel-2);
-}
-@media (max-width: 720px) { .perm-row { grid-template-columns: 1fr; gap: var(--gap-xs); } }
-.perm-role { display: flex; align-items: center; }
-.perm-blurb { line-height: 1.45; }
+/* ===== Users: the role, as a card per role (Add user, Edit user) =====
+   The radio picks the card; the picked one takes the brand's edge and
+   tint, like a selected theme tile. */
+.role-choices { display: flex; flex-direction: column; gap: var(--gap-sm); }
+.role-choice { position: relative; display: flex; align-items: flex-start; gap: var(--gap-lg);
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: var(--panel-2); cursor: pointer; font-weight: 400;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease; }
+.form label.role-choice { flex-direction: row; gap: var(--gap-lg); font-weight: 400; }
+.role-choice input[type="radio"] { flex: 0 0 auto; width: 16px; height: 16px; margin: 2px 0 0; padding: 0;
+  accent-color: var(--brand); }
+.role-choice-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--gap-xs); min-width: 0; }
+.role-choice-text { color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
+@media (hover: hover) { .role-choice:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--border)); } }
+.role-choice:has(input:checked) { border-color: var(--brand); background: var(--brand-soft);
+  box-shadow: 0 0 0 1px var(--brand) inset; }
+.role-choice:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
 .perm-badge {
   display: inline-block;
   padding: 4px 10px; border-radius: var(--r-pill);
@@ -3038,6 +3021,8 @@ button.sidebar-section-toggle[aria-expanded="false"] .sidebar-section-chevron {
    bar wrapping taller on mobile); the fallback covers first paint before
    the observer runs. Embed mode has no topbar, so it keeps top: 16px. */
 body:not(.embed) .flashes { top: calc(var(--topbar-h, 56px) + 12px); }
+/* In a Settings section's page, below its head and the window's close button. */
+html.in-settings .flashes { top: 72px; }
 .flash {
   pointer-events: auto;
   box-shadow: 0 6px 24px rgba(0,0,0,0.18);
@@ -4634,6 +4619,7 @@ html.login-fade-in body { animation: login-page-fade-in 650ms ease-out both; }
 .user-edit-toggle-label { display: flex; flex-direction: column; gap: var(--gap-3xs);
   line-height: 1.35; }
 .user-edit-toggle input:disabled ~ .mode-track { opacity: 0.5; cursor: not-allowed; }
+.form label.user-edit-toggle { flex-direction: row; gap: var(--gap-lg); font-size: var(--fs-sm); font-weight: 400; }
 .user-edit-pw-row { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-lg); font-size: var(--fs-sm);
   margin-left: calc(36px + var(--gap-lg)); padding-top: var(--gap-lg); border-top: 1px solid var(--border); }
 .user-edit-pw-row[hidden] { display: none; }
@@ -7011,15 +6997,11 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 
 
 
-.users-new-card .form { gap: var(--gap-lg); }
-.users-new-card .users-new-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: var(--gap-lg); align-items: end; }
-.users-new-card .users-new-row label { min-width: 0; }
 .pic-form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--gap-lg); align-items: end; }
 .pic-form-row label { min-width: 0; }
 .pic-title-field { max-width: 480px; }
 .pic-title-field small { font-weight: 400; }
 @media (max-width: 720px) { .pic-form-row { grid-template-columns: 1fr; } }
-.users-new-card .form-actions { justify-content: flex-end; margin-top: 4px; }
 /* Create-user password generator. The field and its Show / Copy
    buttons share a row; Generate and the length picker sit under it,
    then the shared strength meter + policy checklist (.pwreset-*). */
@@ -7033,9 +7015,6 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 .form label.pwgen-length { flex-direction: row; align-items: center; gap: var(--gap-sm);
   font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
 .form label.pwgen-length select { width: auto; }
-@media (max-width: 720px) {
-  .users-new-card .users-new-row { grid-template-columns: 1fr 1fr; }
-}
 
 @media (max-width: 700px) {
   .day-row { grid-template-columns: 1fr 1fr; }

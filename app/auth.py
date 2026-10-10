@@ -1150,6 +1150,20 @@ def add_user_to_email_list(u):
     return None
 
 
+def _back_to_new_user(username, email, name, phone, role):
+    """Back to Users with the Add user page open again and filled in as it
+    was posted (all but the password), after a create that failed."""
+    args = {"new": 1, "prefill_username": username, "prefill_email": email,
+            "prefill_name": name or "", "prefill_phone": phone or "",
+            "prefill_role": role}
+    rid = request.form.get("access_request_id")
+    if rid:
+        args["prefill_rid"] = rid
+    if request.form.get("embed") == "1":
+        args["embed"] = 1
+    return redirect(url_for("auth.users", **args))
+
+
 @bp.route("/users/create", methods=["POST"])
 @login_required
 def users_create():
@@ -1166,19 +1180,19 @@ def users_create():
         role = "viewer"
     if not is_email_username(username):
         flash("The username must be an email address.", "danger")
-        return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
+        return _back_to_new_user(username, email, name, phone, role)
     if User.query.filter(
         (func.lower(User.username) == username.lower())
         | (func.lower(User.email) == email.lower())
     ).first():
         flash("Username or email already exists", "danger")
-        return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
+        return _back_to_new_user(username, email, name, phone, role)
     # Same policy the reset flows enforce — an admin typing a throwaway
     # "abc123" here would otherwise mint the one weak account in the DB.
     ok, errors = validate_password_policy(password, username=username, email=email)
     if not ok:
         flash("Password doesn't meet the policy: " + " ".join(errors), "danger")
-        return redirect(url_for("auth.users", embed=1) if request.form.get("embed") == "1" else url_for("auth.users"))
+        return _back_to_new_user(username, email, name, phone, role)
     u = User(username=username, email=email, name=name, phone=phone,
              password_hash=generate_password_hash(password), role=role)
     # Admin accounts require 2FA — enrolment happens via the one-time
