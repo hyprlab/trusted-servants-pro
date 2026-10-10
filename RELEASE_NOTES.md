@@ -25,6 +25,7 @@ Changes:
 
 Fixes:
 
+- closing a sidebar link dialog closing all of Settings
 - city, state and zip running past the location form
 
 ## 3.1.2 — 2026-10-08 (latest)
