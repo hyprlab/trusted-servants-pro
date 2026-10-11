@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+- Users > Create user: `PASSWORD_GEN_DEFAULT_LENGTH` is 16 instead of 20, so the length select and the generate endpoint start at 16.
+
+### Fixed
+- Button spinner (`.btn.is-submitting::after`, `.login-submit.is-loading::after`): `* { box-sizing: border-box }` does not reach pseudo-elements, so the 18px ring rendered 22px with its border and sat 2px low and right of center. The pseudo-element sets `box-sizing: border-box` itself.
+
 ## [3.3.1] — 2026-10-11
 
 ### Fixed

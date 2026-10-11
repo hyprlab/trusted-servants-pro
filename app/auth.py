@@ -159,7 +159,7 @@ PASSWORD_GEN_ALPHABET = (
     + PASSWORD_SYMBOLS
 )
 PASSWORD_GEN_LENGTHS = (16, 20, 24, 32)
-PASSWORD_GEN_DEFAULT_LENGTH = 20
+PASSWORD_GEN_DEFAULT_LENGTH = 16
 
 
 def _generate_password(length=PASSWORD_GEN_DEFAULT_LENGTH, *, username=None, email=None):
@@ -172,10 +172,10 @@ def _generate_password(length=PASSWORD_GEN_DEFAULT_LENGTH, *, username=None, ema
     the policy is thrown away and redrawn whole, so every accepted
     password is uniform over the valid ones. Forcing one character per
     class into fixed slots and shuffling would skew that distribution.
-    At 20 characters a draw fails well under 5% of the time.
+    At 16 characters about one draw in five fails.
 
-    ``length`` is clamped to ``PASSWORD_GEN_LENGTHS``' range; 16
-    characters is ~98 bits, the default 20 is ~122."""
+    ``length`` is clamped to ``PASSWORD_GEN_LENGTHS``' range; the
+    default 16 characters is ~98 bits, 20 is ~122."""
     import secrets
     try:
         length = int(length)
