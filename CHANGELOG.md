@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.3.2] — 2026-10-11
+
 ### Changed
 - Users > Create user: `PASSWORD_GEN_DEFAULT_LENGTH` is 16 instead of 20, so the length select and the generate endpoint start at 16.
 

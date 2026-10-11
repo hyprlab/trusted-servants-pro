@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.3.2 — 2026-10-11 (latest)
+
 Changes:
 
 - Generated passwords for new users default to 16 characters
@@ -17,7 +19,7 @@ Fixes:
 
 - Create user button spinner sitting off center
 
-## 3.3.1 — 2026-10-11 (latest)
+## 3.3.1 — 2026-10-11
 
 Fixes:
 
