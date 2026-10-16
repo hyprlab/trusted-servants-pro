@@ -16708,23 +16708,27 @@ form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, min
 
 /* ── Meeting page (meeting_detail.html): the meeting on the left (about,
    schedule, files), where and how to join it on the right, which stays
-   in view on a wide screen and comes first on a narrow one. ── */
+   in view on a wide screen and sits between the schedule and the files on
+   a narrow one: the main column dissolves into the grid there, so the
+   layout takes over as the container for the About/Schedule query. ── */
 .mtg-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: var(--layout-gap); align-items: start; }
 .mtg-layout--single { grid-template-columns: minmax(0, 1fr); }
 .mtg-main, .mtg-side { display: flex; flex-direction: column; gap: var(--layout-gap); min-width: 0; }
 .mtg-main > .card, .mtg-side > .card { margin: 0; }
 /* Cards styled like the Dashboard's widgets. */
 .mtg-files .data-card-head .mtg-files-edit .icon { width: 14px; height: 14px; color: inherit; }
+.mtg-main { container-type: inline-size; }
 .mtg-side { position: sticky; top: calc(var(--topbar-h, 56px) + var(--content-px, 20px)); }
 @media (max-width: 1000px) {
-  .mtg-layout { grid-template-columns: minmax(0, 1fr); }
-  .mtg-side { order: -1; position: static; }
+  .mtg-layout { grid-template-columns: minmax(0, 1fr); container-type: inline-size; }
+  .mtg-main { display: contents; container-type: normal; }
+  .mtg-main > :not(.mtg-pair) { order: 1; }
+  .mtg-side { position: static; }
 }
 .mtg-public-alert { display: flex; gap: var(--gap-md); align-items: flex-start; margin: 0 0 16px; padding: 12px 16px;
   border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: var(--r-xl); background: var(--panel);
   font-size: var(--fs-sm); }
 .mtg-public-alert > .icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--brand); margin-top: 1px; }
-.mtg-main { container-type: inline-size; }
 .mtg-pair { display: flex; flex-direction: column; gap: var(--gap-3xl); min-width: 0; }
 .mtg-pair > .card { margin: 0; }
 /* About and Schedule side by side, 40 / 60, once the column is wide
