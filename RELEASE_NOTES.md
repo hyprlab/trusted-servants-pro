@@ -9,11 +9,13 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.3.3 — 2026-10-16 (latest)
+
 Changes:
 
 - Meeting page on a phone shows the Zoom details between the schedule and the files
 
-## 3.3.2 — 2026-10-11 (latest)
+## 3.3.2 — 2026-10-11
 
 Changes:
 

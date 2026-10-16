@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.3.3] — 2026-10-16
+
 ### Changed
 - Meeting page (`meeting_detail.html`): below 1000px the join column (`.mtg-side`) comes after the about and schedule cards and before the files instead of first. `.mtg-main` becomes `display: contents` there, so `.mtg-layout` is the inline-size container for the About/Schedule side-by-side query.
 
