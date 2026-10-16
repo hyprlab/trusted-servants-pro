@@ -9,11 +9,13 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.3.4 — 2026-10-16 (latest)
+
 Fixes:
 
 - Announcements & Events list squeezing titles when the window is narrow
 
-## 3.3.3 — 2026-10-16 (latest)
+## 3.3.3 — 2026-10-16
 
 Changes:
 

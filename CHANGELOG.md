@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.3.4] — 2026-10-16
+
 ### Fixed
 - Announcements & Events list (`posts.html`, `.lst-tbl--posts`): columns dropped at viewport widths (1100px, 760px), but the nav and filter sidebar leave the card far narrower, so a 1280px window crushed titles to a few letters behind a horizontal scroll. The card is now an inline-size container: Where and Edited go below 1080px of card, below 820px only Title, Posted and Actions stay (headings included), with a type and date line under each title, and the title keeps 200px while the other columns show.
 
