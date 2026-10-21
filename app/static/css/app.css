@@ -17190,7 +17190,11 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .za-otp-inline .otp-inline-fetch { width: 100%; justify-content: center; }
 .za-otp-manual { margin: 10px 2px 0; font-size: var(--fs-sm); }
 .za-otp-manual summary { cursor: pointer; color: var(--access, var(--brand)); font-weight: 600; }
-.za-otp-manual .zoom-info { margin: 8px 0; }
+/* The sidebar is too narrow for label and value side by side: stack
+   them, and let a long address break instead of overflowing. */
+.za-otp-manual .zoom-info { margin: 8px 0; grid-template-columns: minmax(0, 1fr); gap: var(--gap-2xs); }
+.za-otp-manual .zoom-info dd + dt { margin-top: var(--gap-sm); }
+.za-otp-manual .zoom-info .copy-btn { max-width: 100%; text-align: left; overflow-wrap: anywhere; }
 .za-otp-login { display: inline-flex; align-items: center; gap: var(--gap-xs); }
 .za-cal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-lg); flex-wrap: wrap; margin: 16px 0 12px; }
 .za-cal-head h2 { margin: 0; font-size: var(--fs-md); }
