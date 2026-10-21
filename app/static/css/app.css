@@ -4735,6 +4735,7 @@ form[data-savebar-row].is-dirty {
   align-items: center; gap: var(--gap-sm); box-shadow: 0 6px 18px rgba(11,92,255,.22); }
 .zoom-guide-btn .icon { width: 1.15em; height: 1.15em; }
 .zoom-guide-hint { margin: 1rem 2px 0; }
+.zoom-guide-launch .zg-callout { margin-top: 1rem; }
 
 /* Otp/IMAP settings block in the Security tab */
 .otp-imap-divider { display: flex; align-items: center; gap: var(--gap-md); margin: 10px 0 2px;

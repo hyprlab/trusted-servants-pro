@@ -9,6 +9,14 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Changes:
+
+- Computer-only hosting notice in the Zoom panel of a meeting
+
+Fixes:
+
+- passcode inbox details overflowing the Zoom Accounts sidebar
+
 ## 3.3.4 — 2026-10-16 (latest)
 
 Fixes:
