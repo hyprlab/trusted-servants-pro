@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.3.5] — 2026-10-21
+
 ### Changed
 - Meeting page Zoom panel (`meeting_detail.html`): the guided wizard's "Use a computer to host" warning (`.zg-callout-warn`) also shows under the Launch Zoom Meeting (Guided) button, above the meeting ID and passcode.
 - Launch Zoom Meeting (Guided) button (`.zoom-guide-btn`) spans the full width of the Zoom panel, label centered.
