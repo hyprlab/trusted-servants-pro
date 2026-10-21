@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Changes:
+
+- Every admin segmented control in the neutral raised-chip style
+
 ## 3.3.5 — 2026-10-21 (latest)
 
 Changes:

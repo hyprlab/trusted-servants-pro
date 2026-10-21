@@ -340,7 +340,9 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
    A squared track (9px) holds the options (6px); the chosen option is a
    raised panel with a hairline ring. The tracks and options are listed by
    class because several are built by script or keep their own markup;
-   component rules further down add layout only (width, wrap, flex). */
+   component rules further down add layout only (width, wrap, flex).
+   .st-seg (a settings column's parts) keeps its own shape further down
+   but takes its colors from here. */
 .ds-seg-btns, .ds-kind, .nav-megalink-seg, .ar-view-tabs, .fe-mlist-link-type,
 .dynbg-modal-tabs, .pbe-segmented,
 .view-toggle, .fe-template-picker {
@@ -360,7 +362,7 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
 .ds-seg-btns > button:hover, .ds-kind > button:hover, .ds-seg-btns > label:hover, .ds-seg-btns > a:hover,
 .nav-megalink-seg-opt:hover, .ar-view-tab:hover,
 .fe-mlist-link-type-opt:hover > span, .dynbg-modal-tab-wrap:hover, .pbe-segmented-btn:hover,
-.content-mode-seg-btn:hover, .view-toggle > .btn:hover {
+.content-mode-seg-btn:hover, .view-toggle > .btn:hover, .st-seg button:hover, .st-seg > a:hover {
   background: transparent; color: var(--text); text-decoration: none;
 }
 .ds-seg-btns > [aria-checked="true"], .ds-kind > [aria-checked="true"], .ds-seg-btns > label.is-active,
@@ -368,7 +370,8 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
 .ds-seg-btns > label:has(input:checked), .nav-megalink-seg-opt:has(input:checked), .ar-view-tab.is-active,
 .fe-mlist-link-type-opt input:checked + span, .dynbg-modal-tab-wrap.is-active,
 .pbe-segmented-btn.is-active, .content-mode-seg-btn.is-active,
-.view-toggle > .btn.active, .view-toggle > .btn.active:hover, .fe-template-picker .btn {
+.view-toggle > .btn.active, .view-toggle > .btn.active:hover, .fe-template-picker .btn,
+.st-seg button[aria-selected="true"], .st-seg > a[aria-current="page"] {
   background: var(--panel); color: var(--text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border);
 }
@@ -377,8 +380,9 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
    .st-seg) the chosen part drops its own chip and the shape behind it,
    in the same chip look, slides from part to part. */
 .ds-seg-btns.has-thumb { position: relative; }
-.ds-seg-btns > .st-seg-thumb { background: var(--panel); border-radius: var(--r-sm);
+.ds-seg-btns > .st-seg-thumb, .st-seg > .st-seg-thumb { background: var(--panel);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border); }
+.ds-seg-btns > .st-seg-thumb { border-radius: var(--r-sm); }
 .ds-seg-btns.has-thumb > :not(.st-seg-thumb) { position: relative; z-index: 1; }
 .ds-seg-btns.has-thumb > :is([aria-checked="true"], [aria-current="page"], label:has(input:checked), label.is-active) {
   background: transparent; box-shadow: none; }
@@ -12975,7 +12979,7 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
    other admin pages. ============================================ */
 
 /* Tabs strip ───────────────────────────────────────────────────────
-   The shared accent segmented control (.st-seg): only its spacing and
+   The shared segmented control (.st-seg): only its spacing and
    the phone swipe live here. Phones: one row that
    swipes sideways, with the fade mask driven by topActionsSwipeFade in
    app.js. */
@@ -15268,7 +15272,7 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   gap: var(--gap-3xs);
   margin: 14px 18px 2px;
   padding: 3px;
-  background: var(--panel);
+  background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   /* Segmented control: as many equal parts as fit a row, wrapping when a page has more (a form's seven). */
@@ -15290,21 +15294,17 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background .12s, color .12s;
+  transition: background .12s, color .12s, box-shadow .12s;
   white-space: normal; line-height: 1.2; text-align: center; min-height: 34px; text-decoration: none;
 }
 /* Links work as parts too (a page's sections), the current one marked
    aria-current="page". */
 .st-seg button .icon, .st-seg > a .icon { width: 15px; height: 15px; flex: 0 0 auto; }
-.st-seg button:not([aria-selected="true"]):hover,
-.st-seg > a:not([aria-current="page"]):hover { color: var(--text); background: var(--hover); text-decoration: none; }
-.st-seg button[aria-selected="true"],
-.st-seg > a[aria-current="page"] { background: var(--brand); color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
 /* With app.js's sliding highlight (.st-seg-thumb) the chosen part drops
-   its own fill and the shape behind it moves from part to part. */
+   its own chip and the shape behind it moves from part to part. */
 .st-seg.has-thumb { position: relative; }
 .st-seg-thumb { position: absolute; top: 0; left: 0; width: 0; height: 0; border-radius: 7px; pointer-events: none;
-  background: var(--brand); box-shadow: 0 1px 2px rgba(0, 0, 0, .15); opacity: 0; z-index: 0;
+  opacity: 0; z-index: 0;
   transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.2, .8, .2, 1),
     height .28s cubic-bezier(.2, .8, .2, 1), opacity .15s ease; }
 .st-seg-thumb.is-still { transition: none; }
@@ -15542,7 +15542,6 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 
 .st-seg .ds-tab-count { font-size: var(--fs-2xs); font-weight: 700; padding: 0 6px; border-radius: var(--r-pill); line-height: 16px;
   background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand); }
-.st-seg button[aria-selected="true"] .ds-tab-count { background: rgba(255, 255, 255, .25); color: #fff; }
 
 /* Page templates: the template picker in the card head. */
 .tp-head { position: relative; }
@@ -15821,7 +15820,7 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
    The frame is on the wrapper so the fade doesn't eat the border. */
 @property --seg-fade-l { syntax: "<length>"; inherits: false; initial-value: 0px; }
 @property --seg-fade-r { syntax: "<length>"; inherits: false; initial-value: 0px; }
-.st-seg-scroll { margin: 14px 18px 2px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg); min-width: 0; }
+.st-seg-scroll { margin: 14px 18px 2px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--r-lg); min-width: 0; }
 .st-seg-scroll > .st-seg { display: flex; margin: 0; border: 0; background: transparent; overflow-x: auto; overflow-y: hidden;
   overscroll-behavior-x: contain; scrollbar-width: none; scroll-padding-inline: 48px;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--seg-fade-l), #000 calc(100% - var(--seg-fade-r)), transparent);

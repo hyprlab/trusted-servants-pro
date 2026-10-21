@@ -8645,7 +8645,7 @@
   });
 });
 
-// Segmented controls (.st-seg, accent; .ds-seg-btns, raised chip): the
+// Segmented controls (.st-seg, .ds-seg-btns, both a raised chip): the
 // chosen part's highlight is one shape that slides to whichever part is
 // chosen, rather than each part lighting up on its own. It moves in both
 // directions, since a control with many parts wraps onto a second row,
