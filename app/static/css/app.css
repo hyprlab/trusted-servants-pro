@@ -4731,8 +4731,8 @@ form[data-savebar-row].is-dirty {
 
 /* ── Guided Zoom launcher ──────────────────────────────────────────── */
 .zoom-guide-launch { margin: 4px 0 18px; }
-.zoom-guide-btn { font-size: var(--fs-md); padding: 11px 20px; display: inline-flex;
-  align-items: center; gap: var(--gap-sm); box-shadow: 0 6px 18px rgba(11,92,255,.22); }
+.zoom-guide-btn { font-size: var(--fs-md); padding: 11px 20px; display: flex; width: 100%;
+  align-items: center; justify-content: center; gap: var(--gap-sm); box-shadow: 0 6px 18px rgba(11,92,255,.22); }
 .zoom-guide-btn .icon { width: 1.15em; height: 1.15em; }
 .zoom-guide-hint { margin: 1rem 2px 0; }
 .zoom-guide-launch .zg-callout { margin-top: 1rem; }

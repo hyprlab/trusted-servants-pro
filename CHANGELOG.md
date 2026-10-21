@@ -8,6 +8,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ### Changed
 - Meeting page Zoom panel (`meeting_detail.html`): the guided wizard's "Use a computer to host" warning (`.zg-callout-warn`) also shows under the Launch Zoom Meeting (Guided) button, above the meeting ID and passcode.
+- Launch Zoom Meeting (Guided) button (`.zoom-guide-btn`) spans the full width of the Zoom panel, label centered.
 
 ### Fixed
 - Zoom Accounts filter sidebar: "Open the passcode inbox yourself" laid Email and Password out in two columns, so the address and the Reveal button ran past the 222px sidebar. `.za-otp-manual .zoom-info` now stacks each label above its value and lets the address wrap.

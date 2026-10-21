@@ -12,6 +12,7 @@ release notes expanded by default and the changelog collapsed.
 Changes:
 
 - Computer-only hosting notice in the Zoom panel of a meeting
+- Full-width Launch Zoom Meeting (Guided) button
 
 Fixes:
 
