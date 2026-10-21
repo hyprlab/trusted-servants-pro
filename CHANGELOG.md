@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.3.6] — 2026-10-21
+
 ### Changed
 - Admin segmented controls: `.st-seg` (studio and settings sections, Watchtower tabs, meeting files) drops its brand-filled chosen part for the shared `.ds-seg-btns` colors, a `--panel-2` track with a raised `--panel` chip and hairline ring, in light and dark. Its colors now come from the shared segmented-control rules; the tab count on the chosen part keeps its brand tint.
 
