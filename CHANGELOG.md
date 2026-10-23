@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.3.7] — 2026-10-23
+
 ### Changed
 - Notification emails (`email/branded.html`): the uppercase eyebrow is gone, and the `eyebrow` argument of `_render_branded_email` with it; the inbox preview text is the intro, else the title. Solid 4px blue bar instead of the gradient, site logo left (linked to the Site URL when one is set) and submitted time right in the header, left-aligned title, fields as a two-column label/value table in sentence case, buttons after the fields without the arrow, 12px corners. The grey Powered by footer uses the TS Pro mark (`img/logo_tspro_email.png`, rasterized from `logo_tspro_about.svg`), replacing `logo_email.png`.
 - Custom-form submission emails render through `_render_branded_email`; `email/form_submission.html` is removed.
