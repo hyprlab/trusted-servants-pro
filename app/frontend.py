@@ -2426,7 +2426,7 @@ def story_submission_submit():
                           f"(download via the Stories admin)"]
         email_body = "\n".join(lines)
         body_html = _render_branded_email(
-            site, eyebrow="New story submission", title=title,
+            site, title=title,
             submitted=_email_submission_local(site, s.submitted_at),
             intro=("Reply directly to this email to reach the submitter."
                    if submitter_email else None),
@@ -2436,7 +2436,7 @@ def story_submission_submit():
                 _branded_field("Story", s.body),
             ],
             files=([{"name": s.submission_attachment_original,
-                     "label": "download via the Stories admin"}]
+                     "label": "Attachment"}]
                    if s.submission_attachment_original else None),
             cta_url=url_for("main.stories", show="pending", _external=True),
             cta_label="Review in the holding tank",
@@ -2808,7 +2808,7 @@ def submission_submit():
                 _branded_field("Website label", p.website_label),
             ]
         body_html = _render_branded_email(
-            site, eyebrow=f"New {kind_label.lower()} submission", title=title,
+            site, title=title,
             intro="Reply directly to this email to reach the submitter.",
             sections=[
                 {"heading": "Submitter", "rows": [
@@ -4510,10 +4510,9 @@ def contact_submit():
 
         # Branded HTML twin (same look as every other form email).
         body_html = _render_branded_email(
-            site, eyebrow="New contact message",
-            title=(subject or f"Message from {name}"),
+            site, title=(subject or f"Message from {name}"),
             submitted=_email_submission_local(site, sub.created_at),
-            intro="Reply directly to this email — your reply goes to the visitor.",
+            intro="Reply directly to this email and your reply goes to the visitor.",
             fields=[
                 _branded_field("Name", name),
                 _branded_field("Email", email, "email"),
@@ -4820,7 +4819,7 @@ def recovery_contacts_submit():
                            "Contacts listing. Confirm below and your listing updates "
                            "automatically.")
             body_html = _render_branded_email(
-                site, eyebrow="Please confirm", title=_vtitle, intro=_vintro,
+                site, title=_vtitle, intro=_vintro,
                 buttons=[
                     {"url": confirm_url,
                      "label": ("Confirm removal" if wants_removal else "Confirm update"),
@@ -4864,8 +4863,7 @@ def recovery_contacts_submit():
             except Exception:  # noqa: BLE001
                 pass
             body_html = _render_branded_email(
-                site, eyebrow="New Recovery Contacts entry",
-                title=f"New listing from {name}",
+                site, title=f"New listing from {name}",
                 intro="It is awaiting your approval and is not yet visible to the public.",
                 fields=[
                     _branded_field("Name", name),
@@ -4942,8 +4940,7 @@ def recovery_contacts_confirm(token):
         if getattr(site, "recovery_contacts_removal_alerts", False) and site.mail_ready() and recipients:
             site_label = (site.frontend_title or "Trusted Servants")
             body_html = _render_branded_email(
-                site, eyebrow="Recovery Contacts removal confirmed",
-                title=f"{name} was removed from the list",
+                site, title=f"{name} was removed from the list",
                 intro=(f"{name} confirmed their removal from the {site_label} Recovery "
                        "Contacts list and has been taken off it automatically. No action needed."),
             )
@@ -5054,8 +5051,7 @@ def recovery_contacts_disavow(token):
         except Exception:  # noqa: BLE001
             _wt_url = None
         body_html = _render_branded_email(
-            site, eyebrow="Reported as not submitted by the owner",
-            title=f"Disavowed {kind} request — {name}",
+            site, title=f"Disavowed {kind} request — {name}",
             intro=(f"A {kind} request for the {site_label} Recovery Contacts listing "
                    f"“{name}” was reported as not submitted by the owner. The "
                    "request has been discarded and the listing locked against further "
@@ -5202,9 +5198,8 @@ def recovery_contacts_contact():
         "", "─" * 56, "", vmsg, "", "─" * 56,
     ])
     body_html = _render_branded_email(
-        site, eyebrow="Someone wants to connect",
-        title=f"{vname} would like to connect with you",
-        intro="You received this through the contact list. Reply directly to this email — your reply goes straight to them.",
+        site, title=f"{vname} would like to connect with you",
+        intro="You received this through the contact list. Reply directly to this email and your reply goes straight to them.",
         fields=[
             _branded_field("From", vname),
             _branded_field("Email", vemail, "email"),
@@ -5511,24 +5506,20 @@ def custom_form_submit(slug):
             # must never block the notification, so guard it.
             _labels = {b.get("name"): (b.get("label") or b.get("name"))
                        for b in blocks if isinstance(b, dict) and b.get("name")}
-            try:
-                body_html = render_template(
-                    "email/form_submission.html",
-                    site_name=(site.frontend_title if site else None) or "Submission",
-                    site_logo_url=_email_site_logo_url(site),
-                    tspro_logo_url=_email_tspro_logo_url(site),
-                    form_title=cf.title,
-                    submitted=_email_submission_local(site, sub.created_at),
-                    ip=sub.ip,
-                    public_url=url_for("frontend.page_detail", slug=cf.slug, _external=True),
-                    detail_url=url_for("main.frontend_form_submission_detail",
-                                       sub_id=sub.id, _external=True),
-                    fields=_email_submission_fields(blocks, payload),
-                    files=[{"name": info.get("original"), "label": _labels.get(n)}
-                           for n, info in file_attachments.items()],
-                )
-            except Exception:
-                body_html = None
+            _fields = _email_submission_fields(blocks, payload)
+            body_html = _render_branded_email(
+                site, title=cf.title,
+                submitted=_email_submission_local(site, sub.created_at),
+                intro=(None if _fields else "No field values were submitted."),
+                fields=_fields,
+                files=[{"name": info.get("original"), "label": _labels.get(n)}
+                       for n, info in file_attachments.items()],
+                cta_url=url_for("main.frontend_form_submission_detail",
+                                sub_id=sub.id, _external=True),
+                cta_label="View submission in the admin",
+                meta_url=url_for("frontend.page_detail", slug=cf.slug, _external=True),
+                meta_text=f"IP {sub.ip or 'unknown'}",
+            )
             _send_with_reply_to(site, rcpts, subject, "\n".join(body_lines),
                                 body_html=body_html, reply_to=reply_to)
 
@@ -5615,7 +5606,7 @@ def _branded_field(label, value, ftype=None):
     return {"label": label, "value": v, "type": ftype}
 
 
-def _render_branded_email(site, *, eyebrow, title, submitted=None, intro=None,
+def _render_branded_email(site, *, title, submitted=None, intro=None,
                           sections=None, fields=None, files=None,
                           cta_url=None, cta_label=None, buttons=None,
                           meta_text=None, meta_url=None, meta_url_label=None):
@@ -5638,7 +5629,9 @@ def _render_branded_email(site, *, eyebrow, title, submitted=None, intro=None,
             site_name=(getattr(site, "frontend_title", None) if site else None) or "Notification",
             site_logo_url=_email_site_logo_url(site),
             tspro_logo_url=_email_tspro_logo_url(site),
-            eyebrow=eyebrow, title=title, submitted=submitted, intro=intro,
+            site_home_url=((getattr(site, "site_url", None) or "").strip().rstrip("/") + "/"
+                           if (getattr(site, "site_url", None) or "").strip() else None),
+            title=title, submitted=submitted, intro=intro,
             sections=sections, files=files or [], buttons=buttons or [],
             cta_url=cta_url, cta_label=cta_label,
             meta_text=meta_text, meta_url=meta_url, meta_url_label=meta_url_label,
@@ -5678,7 +5671,7 @@ def _email_asset_url(site, endpoint, **values):
 
 def _email_tspro_logo_url(site):
     """Absolute URL to the bundled Trusted Servants Pro email logo."""
-    return _email_asset_url(site, "static", filename="img/logo_email.png")
+    return _email_asset_url(site, "static", filename="img/logo_tspro_email.png")
 
 
 def _email_logo_png_ready(site, filename):

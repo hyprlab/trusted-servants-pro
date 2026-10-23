@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Changes:
+
+- Plainer notification emails: site logo and time in the header, answers in a label and value table, no uppercase heading
+
 ## 3.3.6 — 2026-10-21 (latest)
 
 Changes:

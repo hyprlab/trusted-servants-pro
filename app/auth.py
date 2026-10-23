@@ -214,14 +214,12 @@ def _send_welcome_email(user, plaintext_password, *, reason="created"):
         subject = f"Your {portal_name} password has been reset"
         text_intro = (f"An administrator has reset your password on {portal_name}. "
                       f"Use the updated sign-in details below.")
-        html_eyebrow = "Password reset"
         html_title = f"Your {portal_name} password was reset"
         html_intro = (f"Hello {user.username}, an administrator has reset your password "
                       f"on {portal_name}. Use the updated details below to sign in.")
     else:
         subject = f"Your {portal_name} account"
         text_intro = f"An account has been created for you on {portal_name}."
-        html_eyebrow = "Welcome aboard"
         html_title = f"Your {portal_name} account"
         html_intro = (f"Hello {user.username}, an account has been created for you on "
                       f"{portal_name}. Use the details below to sign in.")
@@ -257,7 +255,7 @@ def _send_welcome_email(user, plaintext_password, *, reason="created"):
     body = "\n".join(lines)
     from .frontend import _render_branded_email, _branded_field
     body_html = _render_branded_email(
-        site, eyebrow=html_eyebrow, title=html_title,
+        site, title=html_title,
         intro=html_intro,
         fields=[
             _branded_field("Username", user.username),
@@ -846,7 +844,7 @@ def _send_reset_email(user, token):
     )
     from .frontend import _render_branded_email
     body_html = _render_branded_email(
-        site, eyebrow="Password reset", title=f"Reset your {portal_name} password",
+        site, title=f"Reset your {portal_name} password",
         intro=(f"Hello {user.username}, someone requested a password reset for your "
                f"{portal_name} account. If that was you, use the button below to choose "
                f"a new password. The link is valid for {_ttl} and can only be used once."),
@@ -913,7 +911,7 @@ def send_existing_account_help(user, ip):
                         "style": "secondary"})
     from .frontend import _render_branded_email
     body_html = _render_branded_email(
-        site, eyebrow="Access request", title=f"You already have a {portal_name} account",
+        site, title=f"You already have a {portal_name} account",
         intro=intro, buttons=buttons, meta_text=note,
     )
     from . import activity

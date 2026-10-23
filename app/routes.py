@@ -18131,7 +18131,7 @@ def request_access_submit():
         except Exception:  # noqa: BLE001
             review_url = None
         body_html = _render_branded_email(
-            s, eyebrow="New access request", title=f"Access request from {name}",
+            s, title=f"Access request from {name}",
             intro=(f"This email already belongs to the account {existing_desc}. They've "
                    "been emailed their username and a sign-in link, so you only need to "
                    "act if they're asking for different access."
