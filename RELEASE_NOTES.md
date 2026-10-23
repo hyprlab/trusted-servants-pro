@@ -9,11 +9,13 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.3.8 — 2026-10-23 (latest)
+
 Fixes:
 
 - security flaws in Pillow, which resizes uploaded images
 
-## 3.3.7 — 2026-10-23 (latest)
+## 3.3.7 — 2026-10-23
 
 Changes:
 

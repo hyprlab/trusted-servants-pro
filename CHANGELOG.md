@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.3.8] — 2026-10-23
+
 ### Fixed
 - `Pillow` 12.3.0 to 13.0.0 for the 35 advisories pip-audit reported against 12.3.0 (34 CVEs plus GHSA-78g4-xqwv-q3g8, all fixed in 13.0.0), which failed the pip-audit workflow. None of 13.0's breaking changes touch the calls in `app/thumbnails.py` or `app/routes.py`; WeasyPrint and CairoSVG accept it.
 
