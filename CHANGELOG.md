@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+
+- The notifications modal no longer lists pending access requests or locked accounts. Both already show as chips on the sidebar Watchtower button, so `app/notifications.py` drops those two sources and the count no longer doubles them.
+
 ## [3.3.8] — 2026-10-23
 
 ### Fixed

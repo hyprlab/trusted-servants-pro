@@ -3,10 +3,10 @@
 
 Notifications are *derived* from live state, not stored as event rows:
 each render walks the same attention sources the sidebar badges use
-(pending access requests, locked accounts, unread contact messages,
-submissions awaiting review) and turns each item into a notification
-keyed by a stable string (``access_request:42``, ``locked_account:jdoe``,
-``pending_post:17`` …). The only thing persisted is the user's
+(unread contact messages, submissions awaiting review, low disk space)
+and turns each item into a notification keyed by a stable string
+(``contact_msg:42``, ``pending_post:17`` …). Watchtower's own items
+are left to its sidebar chips. The only thing persisted is the user's
 *dismissals* (``models.NotificationDismissal``).
 
 This keeps the feature self-maintaining — there's no place an event can
@@ -25,7 +25,7 @@ from datetime import datetime
 from flask import url_for
 from sqlalchemy import func
 
-from .models import (db, NotificationDismissal, AccessRequest,
+from .models import (db, NotificationDismissal,
                      ContactSubmission, Post, Story, RecoveryContact,
                      SiteSetting)
 
@@ -35,14 +35,6 @@ def _site():
         return SiteSetting.query.first()
     except Exception:  # noqa: BLE001
         return None
-
-
-def _locked_usernames():
-    try:
-        from .auth import currently_locked_usernames
-        return currently_locked_usernames()
-    except Exception:  # noqa: BLE001
-        return set()
 
 
 def _submission_preview(fs):
@@ -76,29 +68,9 @@ def _items(user):
     can_edit = user.can_edit()
     site = _site()
 
+    # Watchtower items (access requests, locked accounts) are left out:
+    # the sidebar's Watchtower button already carries their chips.
     if is_admin:
-        for r in (AccessRequest.query
-                  .filter_by(status="pending", is_archived=False)
-                  .order_by(AccessRequest.created_at.desc()).all()):
-            out.append({
-                "key": f"access_request:{r.id}",
-                "category": "Access requests",
-                "icon": "user-plus",
-                "title": f"Access request from {r.name}",
-                "body": " · ".join(p for p in (r.email, r.meeting_name) if p),
-                "url": url_for("main.watchtower_requests"),
-                "ts": r.created_at,
-            })
-        for uname in sorted(_locked_usernames()):
-            out.append({
-                "key": f"locked_account:{uname}",
-                "category": "Security",
-                "icon": "lock",
-                "title": f"Account locked: {uname}",
-                "body": "Locked after too many failed sign-in attempts.",
-                "url": url_for("main.watchtower_access"),
-                "ts": None,
-            })
         for c in (ContactSubmission.query
                   .filter_by(is_read=False, is_archived=False)
                   .order_by(ContactSubmission.created_at.desc()).all()):

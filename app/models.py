@@ -2023,15 +2023,14 @@ class NotificationDismissal(db.Model):
     """Per-user record that a derived notification has been cleared.
 
     The Notifications Center derives its items from live attention state
-    (pending access requests, locked accounts, unread contact messages,
-    submissions awaiting review) rather than from stored notification
+    (unread contact messages, submissions awaiting review) rather than from stored notification
     rows — so there's no event plumbing to maintain and items can never
     go stale. The only thing we persist is each user's *dismissals*,
-    keyed by a stable string like ``access_request:42`` or
-    ``locked_account:jdoe``. "Uncleared" = current attention items the
+    keyed by a stable string like ``contact_msg:42`` or
+    ``pending_post:17``. "Uncleared" = current attention items the
     user hasn't dismissed; clearing one inserts a row here. A dismissal
     whose underlying item later resolves is pruned, so if the same key
-    recurs (e.g. an account locks again) it surfaces fresh."""
+    recurs (e.g. disk space runs low again) it surfaces fresh."""
     __tablename__ = "notification_dismissal"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),

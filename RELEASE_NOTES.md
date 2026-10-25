@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Fixes:
+
+- access requests and locked accounts counted twice, in the notifications modal and on Watchtower
+
 ## 3.3.8 — 2026-10-23 (latest)
 
 Fixes:
