@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.4.0 — 2026-10-27 (latest)
+
 New features:
 
 - MCP server for AI agents to edit the web frontend, under Web Frontend → Agent access
@@ -19,7 +21,7 @@ Fixes:
 - linked headings on public pages drawn thinner than their template sets
 - the next event's title on the events page underlined on hover
 
-## 3.3.9 — 2026-10-25 (latest)
+## 3.3.9 — 2026-10-25
 
 Fixes:
 
