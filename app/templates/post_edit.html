@@ -931,7 +931,9 @@
       const target = field && field.querySelector('input[type="datetime-local"]');
       if (!target) return;
       target.value = nowLocalValue();
-      if (target === startEl) syncEnd();
+      // A scripted value fires no event; announce it so the save bar and
+      // the Starts → Ends sync see the change.
+      target.dispatchEvent(new Event('change', { bubbles: true }));
       target.focus();
       if (typeof target.showPicker === 'function') {
         try { target.showPicker(); } catch (_) { /* not all browsers */ }
