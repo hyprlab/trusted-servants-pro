@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+New features:
+
+- MCP server for AI agents to edit the web frontend, under Web Frontend → Agent access
+
 ## 3.3.9 — 2026-10-25 (latest)
 
 Fixes:

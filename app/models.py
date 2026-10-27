@@ -986,6 +986,9 @@ class SiteSetting(db.Model):
     # Module gate: when False, hides Web Frontend from the sidebar entirely,
     # blocks the admin editor routes, and the public homepage won't serve.
     frontend_module_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    # Built-in MCP server (Web Frontend → Agent access): off until an admin
+    # turns it on. Not a frontend_* column, so frontend sync never copies it.
+    mcp_enabled = db.Column(db.Boolean, nullable=False, default=False)
     # Which Page renders at the public `/` root. Nullable for the brief
     # window between column add and the auto-seed running; in normal
     # operation always points at a Page row. The Pages admin surfaces a
@@ -3787,3 +3790,60 @@ class FormSubmission(db.Model):
     # the chip. Distinct from archiving (a deliberate filing action).
     is_seen = db.Column(db.Boolean, nullable=False, default=False)
     seen_at = db.Column(db.DateTime)
+
+
+class McpToken(db.Model):
+    """An access token for the built-in MCP server (``app/mcp.py``).
+
+    Each token belongs to one admin and acts as that admin: an agent's
+    change is posted through the same Web Frontend forms the admin would
+    use, and is logged under their name with the token's label. Only the
+    SHA-256 of the token is stored; the token itself is shown once, when
+    it is made. ``access`` is ``read`` (look only), ``write`` (change, but
+    not delete) or ``delete`` (change and delete). A revoked token is kept
+    so the activity log can still name it."""
+    __tablename__ = "mcp_token"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"),
+                        nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    token_hash = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    # Last four characters, so the admin can tell tokens apart.
+    token_hint = db.Column(db.String(8), nullable=False, default="")
+    access = db.Column(db.String(16), nullable=False, default="write")
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    last_used_at = db.Column(db.DateTime)
+    last_used_ip = db.Column(db.String(64))
+    revoked_at = db.Column(db.DateTime)
+
+    user = db.relationship("User", foreign_keys=[user_id])
+
+    ACCESS_LEVELS = (
+        ("read", "Read only"),
+        ("write", "Read and change"),
+        ("delete", "Read, change and delete"),
+    )
+
+    @staticmethod
+    def hash(raw):
+        import hashlib
+        return hashlib.sha256((raw or "").encode("utf-8")).hexdigest()
+
+    @classmethod
+    def mint(cls, user, name, access):
+        """Create a token row; return ``(row, plaintext)``."""
+        import secrets
+        raw = "tspmcp_" + secrets.token_urlsafe(32)
+        row = cls(user_id=user.id, name=name, token_hash=cls.hash(raw),
+                  token_hint=raw[-4:], access=access)
+        return row, raw
+
+    @property
+    def active(self):
+        return self.revoked_at is None
+
+    def can_write(self):
+        return self.access in ("write", "delete")
+
+    def can_delete(self):
+        return self.access == "delete"

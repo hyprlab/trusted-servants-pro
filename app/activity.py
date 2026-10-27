@@ -191,6 +191,9 @@ ACTION_LABELS = {
     "access_request.handle": ("Handled access request",    "check"),
     "access_request.archive": ("Archived access request",  "archive"),
     "access_request.delete":  ("Deleted access request",   "trash"),
+    "mcp.change":           ("Changed the web frontend through MCP", "plug"),
+    "mcp.failed":           ("MCP change not saved",       "alert-triangle"),
+    "mcp.access":           ("Changed agent access",       "key"),
 }
 
 

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip %}
+{% from "_row_menu.html" import row_menu %}
+{% block heading %}Agent access{% endblock %}
+{% block heading_help %}Lets an AI agent change the web frontend through MCP (Model Context Protocol). An agent saves the same forms you use here, as the admin who made its token, so every change shows on these screens at once and can be changed back by hand.{% endblock %}
+{% block content %}
+<div class="fe-admin-layout">
+  {% include "_frontend_subnav.html" %}
+  <div class="fe-admin-main">
+
+  <form class="form" method="post" action="{{ url_for('main.frontend_mcp_save') }}" data-fe-auto-submit>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <section class="card">
+      <div class="card-head">
+        <h2>MCP server {% call chip('MCP server') %}Agents can change design, branding, header and menu, footer, page templates, pages, popups, forms, the 404 page, redirects, caching, the cookie notice, and fonts and icons. They can't open anything outside Web Frontend, read form submissions, make tokens, or turn the module off.{% endcall %}</h2>
+      </div>
+      <label class="mode-toggle pop-switch">
+        <input type="checkbox" name="mcp_enabled" value="1" {% if site.mcp_enabled %}checked{% endif %} onchange="this.form.submit()">
+        <span class="mode-track"><span class="mode-thumb"></span></span>
+        <span><b>Let agents connect</b></span>
+      </label>
+      <p class="muted small">Off: every token is refused until you turn it back on.</p>
+      <noscript><button class="btn btn-sm btn-primary">Save</button></noscript>
+      <label class="st-field"><span>Address</span>
+        <div class="fe-sync-tokenbox">
+          <code class="fe-sync-token-value">{{ endpoint }}</code>
+          <button type="button" class="btn btn-sm" data-copy-text="{{ endpoint }}">{{ icon('copy') }}<span>Copy</span></button>
+        </div>
+        <small class="muted">Streamable HTTP. The agent sends its token as <code>Authorization: Bearer &lt;token&gt;</code>.</small>
+      </label>
+    </section>
+  </form>
+
+  {% if new_token %}
+  <section class="card">
+    <div class="card-head"><h2>Token for “{{ new_token.name }}”</h2></div>
+    <p class="muted small">Copy it now: it is shown only this once. Lose it and you make a new one.</p>
+    <div class="fe-sync-tokenbox">
+      <code class="fe-sync-token-value">{{ new_token.token }}</code>
+      <button type="button" class="btn btn-sm" data-copy-text="{{ new_token.token }}">{{ icon('copy') }}<span>Copy</span></button>
+    </div>
+    {% set _cmd = 'claude mcp add --transport http tspro ' ~ endpoint ~ ' --header "Authorization: Bearer ' ~ new_token.token ~ '"' %}
+    <label class="st-field"><span>Claude Code</span>
+      <div class="fe-sync-tokenbox">
+        <code class="fe-sync-token-value">{{ _cmd }}</code>
+        <button type="button" class="btn btn-sm" data-copy-text="{{ _cmd }}">{{ icon('copy') }}<span>Copy</span></button>
+      </div>
+    </label>
+    {% set _json = '{"mcpServers": {"tspro": {"type": "http", "url": "' ~ endpoint ~ '", "headers": {"Authorization": "Bearer ' ~ new_token.token ~ '"}}}}' %}
+    <label class="st-field"><span>Other agents (JSON settings)</span>
+      <div class="fe-sync-tokenbox">
+        <code class="fe-sync-token-value">{{ _json }}</code>
+        <button type="button" class="btn btn-sm" data-copy-text="{{ _json }}">{{ icon('copy') }}<span>Copy</span></button>
+      </div>
+    </label>
+  </section>
+  {% endif %}
+
+  <section class="card" data-no-collapse>
+    <div class="card-head">
+      <h2>Tokens {% call chip('Tokens') %}Each token acts as the admin who made it, with the access you pick. Revoking one stops it at once. If its admin stops being an admin, it stops working too.{% endcall %}</h2>
+      <span class="muted small">{{ tokens|selectattr('active')|list|length }} active</span>
+    </div>
+    {% if tokens %}
+    <div class="fe-tbl-scroll">
+    <table class="tbl">
+      <thead><tr><th>Agent</th><th>Access</th><th class="hide-sm">Admin</th><th class="hide-sm">Made</th><th>Last used</th><th class="th-actions">Actions</th></tr></thead>
+      <tbody>
+        {% for t in tokens %}
+        <tr{% if not t.active %} class="muted"{% endif %}>
+          <td><b>{{ t.name }}</b> <span class="muted small">…{{ t.token_hint }}</span>{% if not t.active %} <span class="muted small">revoked {{ t.revoked_at|fmt_site_local('%b %-d, %Y') }}</span>{% endif %}</td>
+          <td>{{ dict(access_levels)[t.access] }}</td>
+          <td class="hide-sm">{{ t.user.username if t.user else '' }}</td>
+          <td class="hide-sm muted small">{{ t.created_at|fmt_site_local('%b %-d, %Y') }}</td>
+          <td class="muted small">{% if t.last_used_at %}{{ t.last_used_at|fmt_site_local('%b %-d, %Y %-I:%M %p') }}{% if t.last_used_ip %} · {{ t.last_used_ip }}{% endif %}{% else %}Never{% endif %}</td>
+          <td class="row-actions">
+            {% if t.active %}
+            {% call row_menu() %}
+              <form method="post" action="{{ url_for('main.frontend_mcp_token_revoke', tid=t.id) }}"
+                    onsubmit="return confirm('Revoke this token? The agent using it is refused from now on.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="row-menu-item row-menu-item-danger">{{ icon('x') }}<span>Revoke</span></button>
+              </form>
+            {% endcall %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted">No tokens yet.</p>
+    {% endif %}
+
+    <form class="form" method="post" action="{{ url_for('main.frontend_mcp_token_new') }}" data-fe-skip-save-bar>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="st-field"><span>Agent name</span>
+        <input type="text" name="name" maxlength="120" required placeholder="Claude on my laptop">
+        <small class="muted">Shown beside each change the agent makes.</small>
+      </label>
+      <label class="st-field"><span>Access</span>
+        <select name="access">
+          {% for key, label in access_levels %}
+          <option value="{{ key }}" {% if key == 'write' %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <small class="muted">Deleting covers pages, popups, forms, menu items, redirects, icons, fonts, layouts and resetting the design.</small>
+      </label>
+      <div>
+        <button class="btn btn-primary">{{ icon('key') }} Make a token</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" data-no-collapse>
+    <div class="card-head">
+      <h2>Agent changes {% call chip('Agent changes') %}Every save an agent made, newest first: which screen, which fields, and the message the screen gave. Pages also keep each save in their History. The same rows are in Watchtower’s user log.{% endcall %}</h2>
+      <span class="muted small">latest {{ changes|length }}</span>
+    </div>
+    {% if changes %}
+    <div class="fe-tbl-scroll">
+    <table class="tbl">
+      <thead><tr><th>When</th><th class="hide-sm">Admin</th><th>What</th></tr></thead>
+      <tbody>
+        {% for c in changes %}
+        <tr>
+          <td class="muted small">{{ c.created_at|fmt_site_local('%b %-d, %Y %-I:%M %p') }}</td>
+          <td class="hide-sm">{{ c.user.username if c.user else '' }}</td>
+          <td>{% if c.action == 'mcp.failed' %}<b>Not saved:</b> {% elif c.action == 'mcp.access' %}<b>Access:</b> {% endif %}{{ c.summary }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted">No agent has changed anything yet.</p>
+    {% endif %}
+  </section>
+
+  </div>
+</div>
+{% endblock %}

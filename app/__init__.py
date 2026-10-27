@@ -482,6 +482,11 @@ def create_app():
     # form-CSRF.
     csrf.exempt(restore_bp)
     csrf.exempt(frontend_sync_bp)
+    # Built-in MCP server: bearer-token JSON-RPC, so no form CSRF. Its
+    # changes are posted to the admin routes inside the app, with CSRF.
+    from .mcp import bp as mcp_bp
+    app.register_blueprint(mcp_bp)
+    csrf.exempt(mcp_bp)
 
     # Common attacker probe paths (env files, git internals, server config
     # files, off-the-shelf admin panels). We don't serve any of these — Flask
@@ -1790,6 +1795,7 @@ def _migrate_sqlite(app):
                          ("frontend_404_cta_url", "VARCHAR(500)"),
                          ("frontend_404_image_filename", "VARCHAR(500)"),
                          ("frontend_module_enabled", "BOOLEAN NOT NULL DEFAULT 1"),
+                         ("mcp_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("frontend_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
                          # Cookie & privacy compliance — see app/cookie_compliance.py
                          # and SiteSetting.cookie_compliance_* commentary.

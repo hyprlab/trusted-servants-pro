@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added
+
+- Built-in MCP server at `/tspro/mcp` (`app/mcp.py`, `app/mcp_forms.py`): JSON-RPC over Streamable HTTP with bearer tokens (`McpToken`, SHA-256 hashed, read / write / delete access), off by default (`SiteSetting.mcp_enabled`). Tools read a Web Frontend screen's forms as a browser would and post them with named fields changed, through an in-app test client signed in as the token's admin, so every change runs the admin's own route, validation and revisions. Scripted requests (reorders, mega menu blocks, themes, layouts, page status, popups) go through `call_action`. Page and popup `blocks_json` is checked against the editor's `BLOCK_TYPES`, and new blocks get `blankBlock` defaults read from `block_editor.js`. Each change is an `mcp.change` activity-log row. New screen Web Frontend → Agent access for the switch, tokens and the change list. Paths outside `/tspro/frontend`, form submissions, token routes and the module switch are refused.
+
 ## [3.3.9] — 2026-10-25
 
 ### Fixed

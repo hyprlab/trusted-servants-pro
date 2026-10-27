@@ -596,6 +596,10 @@ def _track_last_seen(response):
         return response
     if not getattr(current_user, "is_authenticated", False):
         return response
+    # An agent reading screens through the MCP server isn't the admin
+    # being online (app/mcp.py).
+    if request.environ.get("tspro.mcp_token_id"):
+        return response
     # The definitive "actual page" gate: only a successfully rendered
     # HTML page counts as presence. This is what restricts Currently
     # Online to real pages and excludes files/icons regardless of how
@@ -11661,6 +11665,82 @@ def frontend_caching_thumbnails_clear():
     removed = imgcache.clear_thumbnails()
     flash(f"Deleted {removed} thumbnail{'' if removed == 1 else 's'}. They are made again as pages need them.", "success")
     return redirect(url_for("main.frontend_caching"))
+
+
+# ── Agent access (built-in MCP server, app/mcp.py) ───────────────────
+
+def _mcp_endpoint_url(s):
+    base = (s.site_url or "").strip()
+    if not base.startswith(("http://", "https://")):
+        base = request.host_url
+    return base.rstrip("/") + "/tspro/mcp"
+
+
+@bp.route("/frontend/mcp")
+@admin_required
+def frontend_mcp():
+    """Agent access: turn the MCP server on, make and revoke tokens, and
+    see every change agents made."""
+    from .models import ActivityLog, McpToken
+    s = _get_site_setting()
+    tokens = (McpToken.query
+              .order_by(McpToken.revoked_at.isnot(None), McpToken.created_at.desc())
+              .all())
+    changes = (ActivityLog.query.filter(ActivityLog.action.like("mcp.%"))
+               .order_by(ActivityLog.created_at.desc()).limit(50).all())
+    return render_template("frontend_mcp.html", site=s, tokens=tokens, changes=changes,
+                           access_levels=McpToken.ACCESS_LEVELS,
+                           new_token=session.pop("mcp_new_token", None),
+                           endpoint=_mcp_endpoint_url(s))
+
+
+@bp.route("/frontend/mcp/save", methods=["POST"])
+@admin_required
+def frontend_mcp_save():
+    from . import activity
+    s = _get_site_setting()
+    s.mcp_enabled = request.form.get("mcp_enabled") == "1"
+    db.session.commit()
+    activity.log("mcp.access", summary="Turned the MCP server " + ("on" if s.mcp_enabled else "off"))
+    flash("MCP server turned " + ("on" if s.mcp_enabled else "off"), "success")
+    return redirect(url_for("main.frontend_mcp"))
+
+
+@bp.route("/frontend/mcp/tokens/new", methods=["POST"])
+@admin_required
+def frontend_mcp_token_new():
+    from . import activity
+    from .models import McpToken
+    name = (request.form.get("name") or "").strip()[:120]
+    access = (request.form.get("access") or "write").strip()
+    if not name:
+        flash("Name the token after the agent that will use it.", "danger")
+        return redirect(url_for("main.frontend_mcp"))
+    if access not in {k for k, _ in McpToken.ACCESS_LEVELS}:
+        access = "write"
+    row, raw = McpToken.mint(current_user, name, access)
+    db.session.add(row)
+    db.session.commit()
+    activity.log("mcp.access", summary=f"Made MCP token “{name}” ({access})",
+                 entity_type="mcp_token", entity_id=row.id)
+    # Shown once, on the next page load, then gone: only its hash is kept.
+    session["mcp_new_token"] = {"id": row.id, "name": name, "token": raw}
+    return redirect(url_for("main.frontend_mcp"))
+
+
+@bp.route("/frontend/mcp/tokens/<int:tid>/revoke", methods=["POST"])
+@admin_required
+def frontend_mcp_token_revoke(tid):
+    from . import activity
+    from .models import McpToken
+    row = db.session.get(McpToken, tid) or abort(404)
+    if row.revoked_at is None:
+        row.revoked_at = datetime.utcnow()
+        db.session.commit()
+        activity.log("mcp.access", summary=f"Revoked MCP token “{row.name}”",
+                     entity_type="mcp_token", entity_id=row.id)
+        flash(f"Token “{row.name}” revoked. Agents using it are signed out at once.", "success")
+    return redirect(url_for("main.frontend_mcp"))
 
 
 # ── Cookie & privacy compliance ───────────────────────────────────────

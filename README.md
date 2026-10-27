@@ -6,7 +6,7 @@ Flask + SQLAlchemy + SQLite, packaged to run in a single Docker container with a
 
 ## Highlights
 
-- **Public website.** A themeable public site with a page builder, header and footer studios, mega menus, forms and popups, each edited beside a live preview. Build it on a Staging copy and push it to Live over the network.
+- **Public website.** A themeable public site with a page builder, header and footer studios, mega menus, forms and popups, each edited beside a live preview. Build it on a Staging copy and push it to Live over the network, or let an AI agent edit it over MCP, with every change logged and editable by hand.
 - **Meetings.** In-person, online and hybrid meetings with schedules, Zoom details, libraries and files. The public schedule marks meetings happening now.
 - **Libraries.** Readings, scripts and service documents as files, links or text, public or members only, with categories and drag-to-order.
 - **File Browser.** Every upload in one place, with a view of each file beside its details and everywhere it's used. Public links read `/pub/<filename>`, with no hashes or tokens.
@@ -71,7 +71,7 @@ Trusted Servants Pro is built by a human maintainer working with generative AI a
 
 - **Code:** the large majority of the Python, JavaScript, and CSS in this repository was written with Anthropic's Claude (via Claude Code), working from the maintainer's direction. The maintainer decides what gets built, reviews the results, tests every release, and signs off on everything that ships.
 - **Text:** documentation, release notes, and in-app copy are largely AI-drafted and human-edited.
-- **The app itself contains no AI.** Trusted Servants Pro has no AI features and makes no requests to AI services, so your fellowship's documents and member data never leave your server for one. AI was used to *build* the app, not to run it.
+- **The app itself contains no AI.** Trusted Servants Pro has no AI features and makes no requests to AI services, so your fellowship's documents and member data never leave your server for one. AI was used to *build* the app, not to run it. An admin can let an outside AI agent edit the public website over MCP; that is off unless turned on, and reaches only the Web Frontend admin.
 
 Bug reports and pull requests are welcome from humans and their AI tools alike; everything merged gets the same human review.
 

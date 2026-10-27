@@ -23,6 +23,8 @@ def _record_visitor_event():
     fully defensive — any failure is swallowed so a flaky write
     can't break the public site."""
     from . import visitor_metrics
+    if request.environ.get("tspro.mcp_token_id"):
+        return  # an agent checking its work (app/mcp.py), not a visitor
     visitor_metrics.record_visit()
 
 

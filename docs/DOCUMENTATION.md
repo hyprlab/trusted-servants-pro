@@ -49,6 +49,18 @@ Uploads are limited to **4096 MB** per file by default (`TSP_MAX_UPLOAD_MB`).
 - Public file URLs (`/pub/<filename>`) are intentionally human-readable and unauthenticated. Anyone with the link can read the file. Do not upload content you do not want shared.
 - Access-request submissions are public (no login required) but rate-limited by the browser.
 
+## Agent access (MCP)
+
+The portal has a built-in [MCP](https://modelcontextprotocol.io) server, so an AI agent such as Claude Code can change the public website. It is off until an admin turns it on under **Web Frontend → Agent access**, which also makes and revokes tokens and lists every change agents made.
+
+- **Address:** `https://<your site>/tspro/mcp`, Streamable HTTP. The agent sends its token as `Authorization: Bearer <token>`. The Agent access screen shows the `claude mcp add` command and a JSON block for other agents when a token is made.
+- **Tokens** belong to the admin who makes them and act as that admin. Access is read only, read and change, or read, change and delete. Only a hash is stored; the token is shown once. A token stops working when it is revoked, when the server is turned off, or when its admin is no longer an admin.
+- **How changes are made.** An agent reads a Web Frontend screen's forms and saves one with some fields changed. The save is posted to the admin's own route inside the app, so it is validated, stored and redirected exactly as a click would be, and shows on that screen at once. Drag-and-drop and toggle requests (menu order, mega menu blocks, themes, layouts, page status and revisions, popups, form switches, icons) go through the same routes. New page and popup blocks are checked against the block editor's types and given the editor's default fields.
+- **Review.** Each change is in the activity log under the admin's name with the token's label, on the Agent access screen and in Watchtower's user log. Page saves are kept in the page's History; an agent can save a published page as a draft for someone to publish.
+- **Limits.** Agents reach only `/tspro/frontend`. They cannot read form submissions, make tokens, turn the module off, or change one admin's own preferences.
+
+Tools: `list_screens`, `read_screen`, `submit_form`, `list_actions`, `call_action`, `block_reference`, `view_public_page`, `recent_changes`.
+
 ## Local development
 
 ```bash
