@@ -16,6 +16,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - The year in the one-line date chip of the More events cards was drawn at 65% of the chip color, a leftover from the stacked date block; it now takes the chip color.
 - Shortened card text on event and announcement cards sliced the raw body before rendering it, so a cut inside a link printed `<a href="…` as text. The new `truncate_html` filter renders the markdown first, shortens the visible text and closes any open tags.
 - The Today buttons in the announcement and event editor (`post_edit.html`) set the date without firing a change event, so the save bar did not appear. They now dispatch `change`, which also runs the Starts to Ends sync.
+- A duplicated post has no `published_at`, so its Posted on field fell back to `created_at`, which is UTC and reads hours ahead of site-local time; publishing it as filled scheduled it into the future. Drafts now open with site-local now in that field, like pending submissions, unless their stored date is in the future.
 
 ## [3.4.0] — 2026-10-27
 

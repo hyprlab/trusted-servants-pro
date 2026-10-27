@@ -19,6 +19,7 @@ Fixes:
 - the year in event date chips in a second color
 - links in shortened event and announcement card text showing their HTML
 - the Today button in the event editor not bringing up the save bar
+- duplicated and draft posts opening with a posted time hours in the future
 
 ## 3.4.0 — 2026-10-27 (latest)
 

@@ -19874,10 +19874,15 @@ def post_edit(pid):
     # and it silently stays hidden from the public site. Prefill the
     # field with site-local "now" (the moment the admin opened the
     # editor) instead, so approving + posting goes live immediately.
+    # Drafts get the same: a duplicate has no published_at either, and
+    # an older draft's stamp would publish it back-dated. Only a future
+    # value, which the admin set to schedule the post, is kept.
     posted_prefill = None
-    if post.is_pending_review:
+    if post.is_pending_review or post.is_draft:
         from .timezone import now_local_naive
-        posted_prefill = now_local_naive(_get_site_setting())
+        _now = now_local_naive(_get_site_setting())
+        if not (post.published_at and post.published_at > _now):
+            posted_prefill = _now
     # A duplicated draft warns before it's saved / published with an
     # event date that's already passed (see the past-event modal in
     # post_edit.html). The page needs the source's title for the copy
