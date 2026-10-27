@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.5.0] — 2026-10-27
+
 ### Added
 
 - `Post.published_at_manual` records that the admin set Posted on by hand (typed or picked; Today clears it), sent by the editor as `published_at_set`. A draft keeps such a date when reopened and when published, through the form or the Publish button, so a post can go out back-dated. Other drafts still open at site-local now.

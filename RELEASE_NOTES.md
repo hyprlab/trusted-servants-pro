@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.5.0 — 2026-10-27 (latest)
+
 New features:
 
 - draft posts keep a posted date set by hand, including a past one
@@ -25,7 +27,7 @@ Fixes:
 - the Today button in the event editor not bringing up the save bar
 - duplicated and draft posts opening with a posted time hours in the future
 
-## 3.4.0 — 2026-10-27 (latest)
+## 3.4.0 — 2026-10-27
 
 New features:
 
