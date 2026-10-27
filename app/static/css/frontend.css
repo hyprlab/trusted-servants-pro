@@ -8068,12 +8068,14 @@ body.fe-frontend-force-dark .fe-events-omni-tab.is-active {
     "date"
     "body";
   gap: 10px;
-  padding: 18px;
+  /* The cover's negative margin follows this, so it stays edge to edge. */
+  --fe-mag-card-pad: 2rem;
+  padding: var(--fe-mag-card-pad);
 }
 .fe-events-mag-grid .fe-events-card-cover {
   display: block;
   grid-area: cover;
-  margin: -18px -18px 6px;
+  margin: calc(-1 * var(--fe-mag-card-pad)) calc(-1 * var(--fe-mag-card-pad)) calc(var(--fe-mag-card-pad) - 10px);
   border-radius: 14px 14px 0 0;
   aspect-ratio: 16 / 9;
 }
@@ -8094,6 +8096,8 @@ body.fe-frontend-force-dark .fe-events-omni-tab.is-active {
   font-weight: 600;
   margin: 0;
   line-height: 1;
+  /* One line, one color: the stacked block dims the year, the chip doesn't. */
+  color: inherit;
 }
 .fe-events-mag-grid .fe-events-card-body { grid-area: body; }
 @media (max-width: 720px) {
@@ -8106,6 +8110,7 @@ body.fe-frontend-force-dark .fe-events-omni-tab.is-active {
   .fe-events-mag-grid .fe-events-card,
   .fe-events-mag-grid .fe-events-card.has-cover {
     grid-template-columns: 1fr;
+    --fe-mag-card-pad: 18px;
   }
 }
 

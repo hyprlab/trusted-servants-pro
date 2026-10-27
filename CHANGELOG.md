@@ -6,6 +6,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- The More events cards on the events magazine layout have 2rem of padding around their text on desktop (18px from 720px down). The padding is `--fe-mag-card-pad`, which the cover's negative margin also reads, so the image stays edge to edge; the neobrutal theme's cover margin reads it too.
+
+### Fixed
+
+- Event cards (`events_list/_event_card.html`) showed the summary and then the body preview, which usually open with the same words. A card now shows the body, per the layout's "Text on each card" setting, and the summary only when there is no body.
+- The year in the one-line date chip of the More events cards was drawn at 65% of the chip color, a leftover from the stacked date block; it now takes the chip color.
+
 ## [3.4.0] — 2026-10-27
 
 ### Added

@@ -58,21 +58,20 @@
       </span>
       {% endif %}
     </div>
-    {% if ev.summary %}
-    <p class="fe-events-card-summary muted">{{ ev.summary|truncate(_summary_chars, True, '…') }}</p>
-    {% endif %}
-    {# Body preview mode comes from the per-template settings the
-       dispatcher (`templates/frontend/events_list.html`) sets as
-       `_events_list_tpl`. Default is truncated (200 chars) so the
-       card stays compact when admins haven't configured anything —
-       events historically rendered only the summary, so an
-       unbounded body would balloon the cards. Admins can flip to
-       full for long-form previews. The Magazine secondary tiles
-       force-compact themselves and skip this whole block. #}
+    {# One text per card: the body, shown as the per-template settings
+       the dispatcher (`templates/frontend/events_list.html`) sets as
+       `_events_list_tpl` say. Default is truncated (200 chars) so the
+       card stays compact when admins haven't configured anything;
+       admins can flip to full for long-form previews. The summary
+       stands in only when there is no body, since it usually opens
+       with the same words. The Magazine secondary tiles force-compact
+       themselves and skip this whole block. #}
     {%- set _ev_card_tpl = _events_list_tpl if _events_list_tpl is defined else {} -%}
     {%- set _ev_body_mode  = (_ev_card_tpl.get('card_body_mode') or 'truncated') -%}
     {%- set _ev_body_chars = (_ev_card_tpl.get('card_body_max_chars') or 200) | int -%}
-    {% if ev.body %}
+    {% if not ev.body and ev.summary %}
+    <p class="fe-events-card-summary muted">{{ ev.summary|truncate(_summary_chars, True, '…') }}</p>
+    {% elif ev.body %}
     <div class="fe-events-card-body-preview">
       {%- if _ev_body_mode == 'truncated' -%}
         {{ ev.body|truncate(_ev_body_chars, True, '…')|markdown_block }}

@@ -9,6 +9,15 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Changes:
+
+- more room around the text of the cards under More events
+
+Fixes:
+
+- event cards showing their text twice
+- the year in event date chips in a second color
+
 ## 3.4.0 — 2026-10-27 (latest)
 
 New features:
