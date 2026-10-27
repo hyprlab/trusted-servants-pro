@@ -40,17 +40,16 @@
        dispatcher (`templates/frontend/announcements_list.html`) sets
        as `_announcements_list_tpl`. Default is full — preserves the
        legacy behaviour for sites that haven't touched the new
-       setting. Truncated mode slices the raw markdown BEFORE
-       markdown_block renders, so the trailing `…` ellipsis appears
-       inside the rendered prose without breaking the trailing
-       paragraph wrapper. #}
+       setting. Truncated mode renders the markdown first and then
+       shortens the visible text (`truncate_html`), so a cut never
+       lands inside a tag and prints its markup. #}
     {%- set _ann_card_tpl = _announcements_list_tpl if _announcements_list_tpl is defined else {} -%}
     {%- set _ann_body_mode  = (_ann_card_tpl.get('card_body_mode') or 'full') -%}
     {%- set _ann_body_chars = (_ann_card_tpl.get('card_body_max_chars') or 200) | int -%}
     {% if ann.body %}
     <div class="fe-announcements-card-fulltext">
       {%- if _ann_body_mode == 'truncated' -%}
-        {{ ann.body|truncate(_ann_body_chars, True, '…')|markdown_block }}
+        {{ ann.body|markdown_block|truncate_html(_ann_body_chars) }}
       {%- else -%}
         {{ ann.body|markdown_block }}
       {%- endif -%}

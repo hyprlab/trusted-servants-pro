@@ -74,7 +74,7 @@
     {% elif ev.body %}
     <div class="fe-events-card-body-preview">
       {%- if _ev_body_mode == 'truncated' -%}
-        {{ ev.body|truncate(_ev_body_chars, True, '…')|markdown_block }}
+        {{ ev.body|markdown_block|truncate_html(_ev_body_chars) }}
       {%- else -%}
         {{ ev.body|markdown_block }}
       {%- endif -%}

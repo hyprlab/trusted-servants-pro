@@ -17,6 +17,8 @@ Fixes:
 
 - event cards showing their text twice
 - the year in event date chips in a second color
+- links in shortened event and announcement card text showing their HTML
+- the Today button in the event editor not bringing up the save bar
 
 ## 3.4.0 — 2026-10-27 (latest)
 

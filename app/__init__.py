@@ -354,6 +354,65 @@ def create_app():
         html = md_lib.markdown(prepped, extensions=["extra", "nl2br", "sane_lists"])
         return Markup(_clean_html(html, SAFE_RICH_TAGS, SAFE_RICH_ATTRS))
 
+    @app.template_filter("truncate_html")
+    def truncate_html_filter(value, length=200, end="…", leeway=5):
+        """Shorten rendered HTML to `length` characters of visible text,
+        closing any tags left open. Slicing the source instead can cut
+        through a tag and print its markup. Same leeway as Jinja's
+        `truncate`: text within `length + leeway` is left whole."""
+        from html import escape
+        from html.parser import HTMLParser
+        html = str(value or "")
+        void = {"br", "hr", "img", "input", "wbr", "source", "col"}
+
+        class _Cut(HTMLParser):
+            def __init__(self):
+                super().__init__(convert_charrefs=True)
+                self.out, self.open, self.left, self.done = [], [], length, False
+
+            def handle_starttag(self, tag, attrs):
+                if self.done:
+                    return
+                self.out.append(self.get_starttag_text())
+                if tag not in void:
+                    self.open.append(tag)
+
+            def handle_startendtag(self, tag, attrs):
+                if not self.done:
+                    self.out.append(self.get_starttag_text())
+
+            def handle_endtag(self, tag):
+                if self.done or tag not in self.open:
+                    return
+                while self.open:
+                    t = self.open.pop()
+                    self.out.append(f"</{t}>")
+                    if t == tag:
+                        break
+
+            def handle_data(self, data):
+                if self.done:
+                    return
+                if len(data) <= self.left:
+                    self.out.append(escape(data, quote=False))
+                    self.left -= len(data)
+                    return
+                self.out.append(escape(data[:self.left].rstrip(), quote=False) + end)
+                self.done = True
+                self.out.extend(f"</{t}>" for t in reversed(self.open))
+
+        probe = HTMLParser(convert_charrefs=True)
+        text = []
+        probe.handle_data = text.append
+        probe.feed(html)
+        probe.close()
+        if len("".join(text)) <= length + leeway:
+            return Markup(html)
+        cut = _Cut()
+        cut.feed(html)
+        cut.close()
+        return Markup("".join(cut.out))
+
     @app.template_filter("initials")
     def initials_filter(value):
         """Up to two capital letters from a name, for a person's avatar:
