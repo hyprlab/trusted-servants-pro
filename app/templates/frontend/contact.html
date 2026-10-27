@@ -40,7 +40,7 @@
 {%- set _dynbg_color_vars = dynbg_colors_css(dynbg_resolve_colors(_dynbg_cfg), _dynbg_cfg) -%}
 {%- set _dynbg_pos_vars = dynbg_resolve_positions(_dynbg_cfg, _dynbg) -%}
 {%- set _dynbg_inline = (_dynbg_color_vars ~ " " ~ _dynbg_pos_vars) | trim -%}
-<section class="fe-section fe-contact-section fe-dynbg-host fe-mlist--w-{{ _cwmode }}"{% if _dynbg_inline %} style="{{ _dynbg_inline }}"{% endif %}>
+<section class="fe-section fe-contact-section fe-dynbg-host fe-mlist--w-{{ _cwmode }}"{% set _host_style = (_dynbg_inline ~ ' ' ~ template_type_vars(_tpl)) | trim %}{% if _host_style %} style="{{ _host_style }}"{% endif %}>
   {% with dynbg_key=_dynbg, dynbg_config=_dynbg_cfg_raw %}{% include "frontend/_dynbg_apply.html" %}{% endwith %}
   <div class="{% if _cwmode == 'boxed' %}fe-container{% else %}fe-mlist-fullwrap{% endif %} fe-contact-container"
        {% if _cwmode == 'boxed' %}style="max-width: {{ _cwmax }}px;"

@@ -144,6 +144,10 @@ body.frontend-body {
    Each chrome surface owns its own colour token below. */
 .fe-page a { color: var(--fe-color-link, currentColor); text-decoration: var(--fe-link-decoration, underline); }
 .fe-page a:hover { color: var(--fe-color-link-hover, currentColor); text-decoration: var(--fe-link-decoration-hover, underline); }
+/* A linked heading keeps its heading's weight: without this the admin
+   stylesheet's `a { font-weight: 500 }` thins every linked title. Kept at
+   the specificity of a bare `a` so any layout's own rule still wins. */
+:where(.fe-page) :where(h1, h2, h3, h4, h5, h6) a { font-weight: inherit; }
 /* Buttons opt out of link styling — covers every button class used by
    the public site (.btn = admin-shared, .fe-btn = public hero/CTA,
    .fe-nav-cta = sticky-header CTA, .fe-recovery-nav-cta = DCCMA header
@@ -8012,6 +8016,7 @@ body.fe-frontend-force-dark .fe-events-omni-tab.is-active {
   line-height: 1.15; font-weight: 700;
 }
 .fe-events-mag-hero-title a { color: inherit; text-decoration: none; }
+.fe-page .fe-events-mag-hero-title a:hover { text-decoration: none; }
 .fe-events-mag-hero-summary {
   margin: 0;
   font-size: 1rem; line-height: 1.5;
@@ -10311,6 +10316,22 @@ html[data-theme="dark"] [style*="--tsp-border-dm"] {
 html[data-theme="dark"] [style*="--tpl-bg-dark"] {
   --tpl-bg: var(--tpl-bg-dark) !important;
 }
+
+/* Per-template typography (Page templates → Appearance). The layout's
+   outer element carries the `--tpl-*` variables in its style attribute
+   (frontend.template_type_vars); these rules apply them to any layout.
+   !important because the admin's explicit choice outranks the theme's
+   own heading and text rules. */
+[style*="--tpl-heading-font"] :is(h1, h2, h3, h4, h5, h6) { font-family: var(--tpl-heading-font) !important; }
+[style*="--tpl-heading-size"] h1 { font-size: var(--tpl-heading-size) !important; }
+[style*="--tpl-heading-weight"] :is(h1, h2, h3, h4, h5, h6),
+[style*="--tpl-heading-weight"] :is(h1, h2, h3, h4, h5, h6) a { font-weight: var(--tpl-heading-weight) !important; }
+[style*="--tpl-heading-spacing"] :is(h1, h2, h3, h4, h5, h6) { letter-spacing: var(--tpl-heading-spacing) !important; }
+[style*="--tpl-heading-case"] :is(h1, h2, h3, h4, h5, h6) { text-transform: var(--tpl-heading-case) !important; }
+[style*="--tpl-heading-link-hover"] :is(h1, h2, h3, h4, h5, h6) a:hover { text-decoration: var(--tpl-heading-link-hover) !important; }
+[style*="--tpl-body-font"] { --fe-font-body: var(--tpl-body-font); font-family: var(--tpl-body-font); }
+[style*="--tpl-body-weight"] :is(p, li, dd, blockquote, figcaption, td) { font-weight: var(--tpl-body-weight) !important; }
+[style*="--tpl-body-line"] :is(p, li, dd, blockquote, figcaption) { line-height: var(--tpl-body-line) !important; }
 
 /* ── Wiki sidebar block (toc_sidebar) ────────────────────────────
    On-page TOC built from heading blocks. Sits in any column of any

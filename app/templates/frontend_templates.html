@@ -150,31 +150,44 @@
               </div>
             </div>
 
-            <div class="ds-group st-group-body" data-tp-feature="heading_font body_font">
-              <h3 class="ds-group-title">{{ icon('type') }}Fonts</h3>
-              {% for role, label in [('heading_font', 'Headings'), ('body_font', 'Text')] %}
-              <label class="st-field" data-tp-feature="{{ role }}"><span>{{ label }}</span>
-                <select name="{{ role }}">
-                  <option value="">Site font (Design → Text)</option>
-                  {% for f in font_options %}<option value="{{ f.key }}" {% if settings[role] == f.key %}selected{% endif %}>{{ f.name }}</option>{% endfor %}
-                </select>
-              </label>
-              {% endfor %}
-            </div>
-
-            <div class="ds-group st-group-body" data-tp-feature="heading_size body_size">
-              <h3 class="ds-group-title">{{ icon('maximize') }}Sizes</h3>
-              {% for role, label, dflt in [('heading', 'Heading size', 2.0), ('body', 'Text size', 1.0)] %}
+            {# Headings and Text: font, size and the TPL_TYPE_CHOICES
+               settings. "Layout default" posts nothing, so the layout
+               and theme keep their own value. #}
+            {% for role, title, ic, dflt, extra in [
+                 ('heading', 'Headings', 'heading', 2.0,
+                  [('heading_weight', 'Weight'), ('heading_spacing', 'Letter spacing'),
+                   ('heading_case', 'Case'), ('heading_link_hover', 'Linked headings on hover')]),
+                 ('body', 'Text', 'type', 1.0,
+                  [('body_weight', 'Weight'), ('body_line_height', 'Line spacing')])] %}
+            <div class="ds-group st-group-body" data-tp-feature="{{ role }}_font {{ role }}_size {{ extra|map('first')|join(' ') }}">
+              <h3 class="ds-group-title">{{ icon(ic) }}{{ title }}</h3>
+              <div class="st-grid2">
+                <label class="st-field" data-tp-feature="{{ role }}_font"><span>Font</span>
+                  <select name="{{ role }}_font">
+                    <option value="">Site font (Design → Text)</option>
+                    {% for f in font_options %}<option value="{{ f.key }}" {% if settings[role ~ '_font'] == f.key %}selected{% endif %}>{{ f.name }}</option>{% endfor %}
+                  </select>
+                </label>
+                {% for name, label in extra %}
+                <label class="st-field" data-tp-feature="{{ name }}"><span>{{ label }}</span>
+                  <select name="{{ name }}">
+                    <option value="">Layout default</option>
+                    {% for key, text, _css in type_choices[name][1] %}<option value="{{ key }}" {% if settings.get(name) == key %}selected{% endif %}>{{ text }}</option>{% endfor %}
+                  </select>
+                </label>
+                {% endfor %}
+              </div>
               <div class="tp-size" data-tp-feature="{{ role }}_size">
-                <label class="mode-toggle"><input type="checkbox" name="{{ role }}_size_enabled" value="1" {% if settings[role ~ '_size'] %}checked{% endif %}><span class="mode-track"><span class="mode-thumb"></span></span><span>Own {{ label|lower }}</span></label>
+                {%- set _label = 'page title size' if role == 'heading' else 'text size' %}
+                <label class="mode-toggle"><input type="checkbox" name="{{ role }}_size_enabled" value="1" {% if settings[role ~ '_size'] %}checked{% endif %}><span class="mode-track"><span class="mode-thumb"></span></span><span>Own {{ _label }}</span></label>
                 <div class="tp-size-row" data-tp-when="{{ role }}_size_enabled">
                   <input type="range" name="{{ role }}_size" min="0.5" max="4.0" step="0.1" value="{{ '%.1f' % (settings[role ~ '_size'] or dflt) }}" data-tpl-size-slider="{{ role }}">
                   <output data-tpl-size-output="{{ role }}">{{ '%.1f' % (settings[role ~ '_size'] or dflt) }}rem</output>
                 </div>
+                <p class="muted smaller" data-tp-when="{{ role }}_size_enabled">On desktop; phones scale it down.</p>
               </div>
-              {% endfor %}
-              <p class="muted smaller">On desktop; phones scale it down.</p>
             </div>
+            {% endfor %}
 
             <div class="ds-group st-group-body" data-tp-feature="card_body">
               <h3 class="ds-group-title">{{ icon('square') }}Text on each card</h3>

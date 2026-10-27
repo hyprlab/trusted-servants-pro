@@ -12157,7 +12157,7 @@ def frontend_templates():
                            meetings_list_protips=_fe.meetings_list_protips_resolved(s),
                            meetings_list_sidebar_links=_fe.meetings_list_sidebar_links_resolved(s),
                            form_picker_options=_form_picker_options(),
-                           font_options=all_fonts())
+                           font_options=all_fonts(), type_choices=_fe.TPL_TYPE_CHOICES)
 
 
 def _form_picker_options():
@@ -12356,6 +12356,11 @@ def frontend_template_settings_save(kind, key):
         v = (request.form.get(fkey) or "").strip()
         if v and font_by_key(v):
             leaf[fkey] = v
+    from .frontend import TPL_TYPE_CHOICES
+    for tkey, (_var, choices) in TPL_TYPE_CHOICES.items():
+        v = (request.form.get(tkey) or "").strip()
+        if v in {c[0] for c in choices}:
+            leaf[tkey] = v
     for skey in ("heading_size", "body_size"):
         # Each size has an accompanying "<key>_enabled" checkbox: skip when
         # absent so leaving "Use template default" off clears the override.

@@ -9,6 +9,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ### Added
 
 - Built-in MCP server at `/tspro/mcp` (`app/mcp.py`, `app/mcp_forms.py`): JSON-RPC over Streamable HTTP with bearer tokens (`McpToken`, SHA-256 hashed, read / write / delete access), off by default (`SiteSetting.mcp_enabled`). Tools read a Web Frontend screen's forms as a browser would and post them with named fields changed, through an in-app test client signed in as the token's admin, so every change runs the admin's own route, validation and revisions. Scripted requests (reorders, mega menu blocks, themes, layouts, page status, popups) go through `call_action`. Page and popup `blocks_json` is checked against the editor's `BLOCK_TYPES`, and new blocks get `blankBlock` defaults read from `block_editor.js`. Each change is an `mcp.change` activity-log row. New screen Web Frontend → Agent access for the switch, tokens and the change list. Paths outside `/tspro/frontend`, form submissions, token routes and the module switch are refused.
+- Page templates → Appearance has Headings and Text groups for every layout but the printable list: font, weight, letter spacing, case, hover underline on linked headings and page title size for headings; font, weight and line spacing for text. The new settings are `TPL_TYPE_CHOICES` keys in the per-template leaf, emitted by `frontend.template_type_vars` as `--tpl-*` variables and applied by generic `[style*="--tpl-…"]` rules in `frontend.css`. List pages now put the type variables on their outer element, so their font and size choices take effect.
+
+### Fixed
+
+- Linked headings on public pages inherit the heading's weight instead of the admin stylesheet's `a { font-weight: 500 }`, so titles such as the events magazine hero, archive cards and library items render at the weight their CSS sets.
+- The events magazine hero title no longer underlines on hover; `.fe-page a:hover` was overriding the title link's `text-decoration: none`.
 
 ## [3.3.9] — 2026-10-25
 

@@ -12,6 +12,12 @@ release notes expanded by default and the changelog collapsed.
 New features:
 
 - MCP server for AI agents to edit the web frontend, under Web Frontend → Agent access
+- heading weight, letter spacing, case and link hover, text weight and line spacing for every page template
+
+Fixes:
+
+- linked headings on public pages drawn thinner than their template sets
+- the next event's title on the events page underlined on hover
 
 ## 3.3.9 — 2026-10-25 (latest)
 

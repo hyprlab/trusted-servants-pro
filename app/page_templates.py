@@ -104,6 +104,10 @@ _WRAPPER_DYNBG = {"meetings_list", "events_list", "announcements_list", "archive
                   "submission_form", "contact", "recovery_contacts", "printlist"}
 _VAR_FOR = {"bg": "--tpl-bg", "heading_font": "--tpl-heading-font", "body_font": "--tpl-body-font",
             "heading_size": "--tpl-heading-size", "body_size": "--tpl-body-size"}
+# Typography every layout takes, through the generic rules in frontend.css
+# (the printable list has its own stylesheet and takes none of them).
+_TYPE_GENERIC = {"heading_font", "heading_size", "heading_weight", "heading_spacing", "heading_case",
+                 "heading_link_hover", "body_font", "body_weight", "body_line_height"}
 _TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 
@@ -118,9 +122,9 @@ def _source(partial):
 
 def appearance_support(kind, layout):
     """The set of Appearance settings ``layout`` of ``kind`` uses: any of
-    bg, heading_font, body_font, heading_size, body_size, dynbg and
-    card_body. ``layout`` is a catalog entry dict (with ``partial``) or
-    None for single-layout kinds."""
+    bg, body_size, dynbg, card_body and the _TYPE_GENERIC typography.
+    ``layout`` is a catalog entry dict (with ``partial``) or None for
+    single-layout kinds."""
     out = set()
     partial = (layout or {}).get("partial") or ""
     src = _source(partial) if partial else ""
@@ -132,6 +136,11 @@ def appearance_support(kind, layout):
             out |= set(_VAR_FOR)
         else:
             out |= {k for k, var in _VAR_FOR.items() if var in src}
+    elif "--tpl-body-size" in src:
+        # List pages put only the type variables on their outer element.
+        out.add("body_size")
+    if kind != "printlist":
+        out |= _TYPE_GENERIC
     if kind in ("announcements_list", "events_list"):
         key = (layout or {}).get("key")
         if not (kind == "events_list" and key in ("calendar", "timeline")):
@@ -142,7 +151,10 @@ def appearance_support(kind, layout):
 
 
 APPEARANCE_LABELS = {"bg": "background color", "heading_font": "heading font", "body_font": "body font",
-                     "heading_size": "heading size", "body_size": "text size", "dynbg": "dynamic background"}
+                     "heading_size": "page title size", "body_size": "text size", "dynbg": "dynamic background",
+                     "heading_weight": "heading weight", "heading_spacing": "heading letter spacing",
+                     "heading_case": "heading case", "heading_link_hover": "linked heading hover",
+                     "body_weight": "text weight", "body_line_height": "line spacing"}
 
 
 def sample_path(kind):

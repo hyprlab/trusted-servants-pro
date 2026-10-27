@@ -931,6 +931,8 @@ def create_app():
     # each shell when the per-template entry is empty.
     from .frontend import template_settings as _template_settings
     app.jinja_env.globals["template_settings"] = _template_settings
+    from .frontend import template_type_vars as _template_type_vars
+    app.jinja_env.globals["template_type_vars"] = _template_type_vars
     app.jinja_env.globals["dynbg_animated_keys"] = lambda: list(_dynbg.ANIMATED_KEYS)
     app.jinja_env.globals["dynbg_defaults"] = lambda: {
         "noise_size": _dynbg.NOISE_SIZE_DEFAULT,

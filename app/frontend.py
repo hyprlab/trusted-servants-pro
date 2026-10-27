@@ -1033,6 +1033,8 @@ def _template_meta(templates, key):
 #   body_font     — same shape as heading_font
 #   heading_size  — int percent scale (default 100)
 #   body_size     — int percent scale (default 100)
+#   heading_weight, heading_spacing, heading_case, heading_link_hover,
+#   body_weight, body_line_height — a key from TPL_TYPE_CHOICES
 #
 # Resolves at render time into a CSS-vars string injected onto the template's
 # top-level <section> via inline style. Each template's CSS reads those vars
@@ -1043,6 +1045,27 @@ def _template_meta(templates, key):
 
 import re as _re_tpl
 _HEX_RE_TPL = _re_tpl.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
+
+# Typography settings every page template offers besides font and size:
+# setting -> (CSS variable, [(stored key, label, CSS value)]). The rules
+# that apply them to any layout are under "Per-template typography" in
+# frontend.css.
+_TPL_WEIGHTS = [("300", "Light", "300"), ("400", "Regular", "400"), ("500", "Medium", "500"),
+                ("600", "Semibold", "600"), ("700", "Bold", "700"), ("800", "Extra bold", "800"),
+                ("900", "Black", "900")]
+TPL_TYPE_CHOICES = {
+    "heading_weight": ("--tpl-heading-weight", _TPL_WEIGHTS),
+    "heading_spacing": ("--tpl-heading-spacing", [
+        ("tighter", "Tighter", "-0.03em"), ("tight", "Tight", "-0.015em"), ("normal", "Normal", "0"),
+        ("wide", "Wide", "0.03em"), ("wider", "Wider", "0.08em")]),
+    "heading_case": ("--tpl-heading-case", [("none", "As typed", "none"), ("uppercase", "Uppercase", "uppercase")]),
+    "heading_link_hover": ("--tpl-heading-link-hover", [
+        ("underline", "Underline", "underline"), ("none", "No underline", "none")]),
+    "body_weight": ("--tpl-body-weight", _TPL_WEIGHTS[:5]),
+    "body_line_height": ("--tpl-body-line", [
+        ("compact", "Compact", "1.4"), ("normal", "Normal", "1.6"), ("relaxed", "Relaxed", "1.8"),
+        ("loose", "Loose", "2")]),
+}
 
 
 def template_settings(site, kind, key):
@@ -1056,7 +1079,8 @@ def template_settings(site, kind, key):
     import json
     defaults = {"bg": "", "bg_dark": "", "bg_dark_mode": "same",
                 "heading_font": "", "body_font": "",
-                "heading_size": 0.0, "body_size": 0.0}
+                "heading_size": 0.0, "body_size": 0.0,
+                **{k: "" for k in TPL_TYPE_CHOICES}}
     raw = (site.frontend_template_settings_json if site else None) or ""
     if not raw:
         return defaults
@@ -1083,6 +1107,9 @@ def template_settings(site, kind, key):
                 out[k] = round(v, 1)
         except (TypeError, ValueError):
             pass
+    for k, (_var, choices) in TPL_TYPE_CHOICES.items():
+        if leaf.get(k) in {c[0] for c in choices}:
+            out[k] = leaf[k]
     # Pass through every dynbg-related leaf key so the admin's
     # customize panel and the public-render shell can both read what
     # was saved. Earlier the function silently dropped these keys
@@ -1156,7 +1183,6 @@ def template_css_vars(settings):
     so the admin-chosen rem value behaves as the *desktop* size and shrinks
     on narrow viewports — matching the responsive behavior of each
     template's built-in defaults."""
-    from .fonts import font_stack
     from .design import derive_dark_color
     parts = []
     bg = settings.get("bg")
@@ -1179,6 +1205,18 @@ def template_css_vars(settings):
             bg_dark_val = manual or "var(--fe-color-surface-dark)"
         if bg_dark_val:
             parts.append(f"--tpl-bg-dark: {bg_dark_val};")
+    type_vars = template_type_vars(settings)
+    if type_vars:
+        parts.append(type_vars)
+    return " ".join(parts)
+
+
+def template_type_vars(settings):
+    """The typography part of ``template_css_vars``: fonts, sizes and the
+    TPL_TYPE_CHOICES settings. List pages put only this on their outer
+    element, since their background comes from the dynamic background."""
+    from .fonts import font_stack
+    parts = []
     if settings.get("heading_font"):
         parts.append(f"--tpl-heading-font: {font_stack(settings['heading_font'])};")
     if settings.get("body_font"):
@@ -1189,6 +1227,10 @@ def template_css_vars(settings):
     bs = settings.get("body_size") or 0
     if bs:
         parts.append(f"--tpl-body-size: {_fluid_clamp(bs, 1.0)};")
+    for k, (var, choices) in TPL_TYPE_CHOICES.items():
+        css = next((c[2] for c in choices if c[0] == settings.get(k)), None)
+        if css is not None:
+            parts.append(f"{var}: {css};")
     return " ".join(parts)
 
 
