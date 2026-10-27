@@ -19875,13 +19875,15 @@ def post_edit(pid):
     # field with site-local "now" (the moment the admin opened the
     # editor) instead, so approving + posting goes live immediately.
     # Drafts get the same: a duplicate has no published_at either, and
-    # an older draft's stamp would publish it back-dated. Only a future
-    # value, which the admin set to schedule the post, is kept.
+    # an older draft's stamp would publish it back-dated. A date the
+    # admin set by hand is kept, as is a future one (a schedule set
+    # before the manual flag existed).
     posted_prefill = None
     if post.is_pending_review or post.is_draft:
         from .timezone import now_local_naive
         _now = now_local_naive(_get_site_setting())
-        if not (post.published_at and post.published_at > _now):
+        if not (post.published_at
+                and (post.published_at_manual or post.published_at > _now)):
             posted_prefill = _now
     # A duplicated draft warns before it's saved / published with an
     # event date that's already passed (see the past-event modal in
@@ -20036,6 +20038,13 @@ def post_save():
     if "published_at" in request.form:
         parsed_pub = _parse_post_dt(request.form.get("published_at"))
         post.published_at = parsed_pub
+        # The editor sends "1" when the admin set the date by hand and
+        # "0" after Today; nothing else leaves the flag as it was.
+        _pub_set = request.form.get("published_at_set")
+        if _pub_set == "1":
+            post.published_at_manual = parsed_pub is not None
+        elif _pub_set == "0":
+            post.published_at_manual = False
     # Public-visibility override — its own axis, independent of the
     # draft / archived lifecycle (see Post.public_visibility). Only
     # written when the form actually carried the field, so the flows
@@ -20213,9 +20222,11 @@ def post_save():
         # Normally publishing a draft resets "Published on" to now. But if the
         # admin set a *future* date they're scheduling the post — keep their
         # chosen moment; the public frontend hides it until then (see
-        # frontend._post_live_clause), and it appears automatically.
+        # frontend._post_live_clause), and it appears automatically. A past
+        # date set by hand is a back-date and is kept too.
         _nowl = _now_local(_site)
-        if post.published_at is None or post.published_at <= _nowl:
+        if post.published_at is None or (post.published_at <= _nowl
+                                         and not post.published_at_manual):
             post.published_at = _nowl
 
     # Default published_at on first save when the admin didn't set
@@ -20306,14 +20317,14 @@ def post_approve_pending(pid):
 @login_required
 def post_publish(pid):
     """Transition a draft to active. Stamps `published_at` with the
-    current UTC datetime whenever the post was actually a draft on the
-    way in — that's when "Published on …" should reset to "now",
-    regardless of whatever date the admin had keyed into the form for
-    back-dating. No-op (no timestamp bump) if the post was already
-    published."""
+    current site-local datetime whenever the post was actually a draft
+    on the way in — that's when "Published on …" should reset to "now",
+    unless the admin set the date by hand in the editor (a back-date or
+    a schedule), which is kept. No-op (no timestamp bump) if the post
+    was already published."""
     _require_posts_enabled()
     post = db.session.get(Post, pid) or abort(404)
-    if post.is_draft:
+    if post.is_draft and not (post.published_at and post.published_at_manual):
         from .timezone import now_local_naive as _now_local
         post.published_at = _now_local(_get_site_setting())
     post.is_draft = False

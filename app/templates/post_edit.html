@@ -225,9 +225,10 @@
                    hours ahead of site-local — saving it back would schedule
                    the post into the future. Prefilling "now at open" means
                    clicking Post makes it live immediately. #}
-                <input type="datetime-local" name="published_at"
+                <input type="datetime-local" name="published_at" data-published-at
                        value="{% if posted_prefill %}{{ posted_prefill.strftime('%Y-%m-%dT%H:%M') }}{% elif _p and _p.display_posted %}{{ _p.display_posted.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
                 <button type="button" class="btn btn-sm dt-today" data-dt-today="published" title="Jump to today">Today</button>
+                <input type="hidden" name="published_at_set" value="" data-published-at-set>
               </span>
               {# Fall back to ``display_posted`` so legacy rows whose
                  ``published_at`` is NULL still surface a value here — same
@@ -901,6 +902,17 @@
   if (!form) return;
   const startEl = form.querySelector('[data-event-start]');
   const endEl = form.querySelector('[data-event-end]');
+  const pubEl = form.querySelector('[data-published-at]');
+  const pubSetEl = form.querySelector('[data-published-at-set]');
+
+  // Tell the server whether the admin set Posted on by hand ("1"), so a
+  // draft keeps that date, or with Today ("0"), so it opens at "now".
+  // Today's own event is synthetic (not isTrusted) and doesn't count.
+  if (pubEl && pubSetEl) {
+    ['input', 'change'].forEach(type => pubEl.addEventListener(type, e => {
+      if (e.isTrusted) pubSetEl.value = '1';
+    }));
+  }
 
   // Current local wall-clock as the datetime-local value (YYYY-MM-DDTHH:MM).
   function nowLocalValue() {
@@ -932,6 +944,7 @@
       const target = field && field.querySelector('input[type="datetime-local"]');
       if (!target) return;
       target.value = nowLocalValue();
+      if (target === pubEl && pubSetEl) pubSetEl.value = '0';
       // A scripted value fires no event; announce it so the save bar and
       // the Starts → Ends sync see the change.
       target.dispatchEvent(new Event('change', { bubbles: true }));

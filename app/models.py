@@ -2496,6 +2496,10 @@ class Post(db.Model):
     # post can be backdated; falls back to created_at when NULL so the
     # display layer always has something to show.
     published_at = db.Column(db.DateTime)
+    # True once the admin sets published_at by hand. The editor then
+    # keeps it on a draft, even a past date; otherwise a draft opens
+    # with "now" so publishing it goes live at once.
+    published_at_manual = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"))

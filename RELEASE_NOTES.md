@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+New features:
+
+- draft posts keep a posted date set by hand, including a past one
+
 Changes:
 
 - more room around the text of the cards under More events
