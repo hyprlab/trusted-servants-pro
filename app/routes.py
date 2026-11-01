@@ -18170,6 +18170,22 @@ def request_access_submit():
     # may want more access) and tagged with the account, and the account's
     # inbox gets its username, a sign-in link and a reset link. The visitor
     # sees the same reply either way.
+    # A second post of the same request (a double click, a resend after a
+    # slow reply) saves and emails nothing more.
+    if (AccessRequest.query
+            .filter(_func.lower(AccessRequest.email) == email.lower(),
+                    AccessRequest.roles_json == json.dumps(roles),
+                    AccessRequest.meeting_name.is_(meeting_name) if meeting_name is None
+                    else AccessRequest.meeting_name == meeting_name,
+                    AccessRequest.message.is_(message) if message is None
+                    else AccessRequest.message == message,
+                    AccessRequest.created_at >= datetime.utcnow() - timedelta(minutes=10))
+            .first()):
+        if wants_json:
+            return _jsonify(ok=True, emailed=True, error=None)
+        flash(thanks, "success")
+        return redirect(url_for("auth.login"))
+
     existing = User.query.filter(_func.lower(User.email) == email.lower()).first()
     if existing:
         from .auth import ROLE_LABELS

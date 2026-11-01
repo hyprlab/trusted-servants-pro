@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+
+- A contact message notification linked to the Contact Form inbox (`main.contact_form`); it now opens the message (`main.contact_message`), which marks it read. The notification email's link goes there too.
+- The contact form, the sign-in page's access request form and custom forms posted again on a second click while the first was in flight. They now ignore the repeat, and the server drops a contact message or access request identical to one from the same email in the last 10 minutes, without saving or emailing it.
+- Contact form and contact list emails went through `_send_with_reply_to` and, if that reported a failure, a second send through `send_mail`. A failure raised after the server had taken the message (or a relay timeout) delivered it twice. Both now make one `send_mail` call, which sets Reply-To itself, and the duplicate helper is gone.
+
 ## [3.5.0] — 2026-10-27
 
 ### Added

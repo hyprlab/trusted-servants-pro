@@ -142,6 +142,17 @@ if (location.hash === '#request-access') {
     if (b) b.click();
   });
 }
+// Send the request once: a second click while it posts would file it twice.
+(function () {
+  var form = document.querySelector('.request-access-form');
+  if (!form) return;
+  var sent = false;
+  form.addEventListener('submit', function (e) {
+    if (sent) { e.preventDefault(); return; }
+    sent = true;
+  });
+  window.addEventListener('pageshow', function () { sent = false; });
+})();
 </script>
 <script>
 (function surfaceStashedFlash(){

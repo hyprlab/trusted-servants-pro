@@ -4508,6 +4508,21 @@ def contact_submit():
             flash(err or "Security check failed — please try again.", "danger")
             return redirect(url_for("frontend.contact"))
 
+    success_msg = (getattr(site, "contact_form_success_message", None)
+                   or "Thanks — your message has been sent. We'll be in touch shortly.")
+
+    # A second post of the same message (a double click, a resend after a
+    # slow reply) saves and emails nothing more.
+    from datetime import datetime as _dt, timedelta as _td
+    from sqlalchemy import func as _func
+    if (ContactSubmission.query
+            .filter(_func.lower(ContactSubmission.email) == email.lower(),
+                    ContactSubmission.message == message,
+                    ContactSubmission.created_at >= _dt.utcnow() - _td(minutes=10))
+            .first()):
+        flash(success_msg, "success")
+        return redirect(url_for("frontend.contact"))
+
     sub = ContactSubmission(
         name=name, email=email, phone=phone, subject=subject,
         message=message, ip_address=(_client_ip() or "")[:64],
@@ -4546,7 +4561,7 @@ def contact_submit():
             lines.append(f"IP:      {sub.ip_address}")
         lines += ["", "─" * 60, "", message, "", "─" * 60]
         try:
-            review_url = url_for("main.contact_form", _external=True)
+            review_url = url_for("main.contact_message", cid=sub.id, _external=True)
             lines += ["", f"View in the admin: {review_url}"]
         except Exception:  # noqa: BLE001 — url_for can fail outside request ctx
             pass
@@ -4564,31 +4579,21 @@ def contact_submit():
                 _branded_field("Subject", subject),
                 _branded_field("Message", message),
             ],
-            cta_url=url_for("main.contact_form", _external=True),
+            cta_url=url_for("main.contact_message", cid=sub.id, _external=True),
             cta_label="View in the admin",
             meta_text=(f"IP {sub.ip_address}" if sub.ip_address else None),
         )
 
-        # Override the From + Reply-To so admins can hit Reply in
-        # their mail client and have it route straight back to the
-        # visitor. send_mail() always writes From from SMTP settings
-        # and doesn't accept extras yet, so we hand-build the message
-        # below. Falls back to send_mail() on failure so an install
-        # that customised send_mail() doesn't lose the email path.
-        ok, err = _send_with_reply_to(site, recipients, subject_line,
-                                      body_text, body_html=body_html,
-                                      reply_to=email, reply_to_name=name)
-        if not ok:
-            # Fall back to the standard helper — drops Reply-To but
-            # still gets the message out (HTML twin included).
-            ok, err = send_mail(site, recipients, subject_line, body_text,
-                                body_html=body_html)
+        # Reply-To is the visitor, so admins can hit Reply in their mail
+        # client. One attempt only: a send that fails after the server
+        # took the message would otherwise deliver it twice.
+        ok, err = send_mail(site, recipients, subject_line, body_text,
+                            body_html=body_html,
+                            reply_to=email, reply_to_name=name)
         sub.email_sent = bool(ok)
         sub.email_error = (err or None) if not ok else None
         _db.session.commit()
 
-    success_msg = (getattr(site, "contact_form_success_message", None)
-                   or "Thanks — your message has been sent. We'll be in touch shortly.")
     flash(success_msg, "success")
     return redirect(url_for("frontend.contact"))
 
@@ -5250,11 +5255,8 @@ def recovery_contacts_contact():
             _branded_field("Message", vmsg),
         ],
     )
-    ok, err = _send_with_reply_to(site, entry.email, subject, body,
-                                  body_html=body_html,
-                                  reply_to=vemail, reply_to_name=vname)
-    if not ok:
-        ok, err = send_mail(site, entry.email, subject, body, body_html=body_html)
+    ok, err = send_mail(site, entry.email, subject, body, body_html=body_html,
+                        reply_to=vemail, reply_to_name=vname)
     if not ok:
         flash("Sorry — we couldn't send your message. Please try again later.", "danger")
         return back
@@ -5384,6 +5386,7 @@ def custom_form_submit(slug):
     everything."""
     import json as _json
     import uuid as _uuid
+    from .mail import send_mail
     from .models import CustomForm as _CF, FormSubmission as _FS, db as _db
 
     site = _site()
@@ -5564,8 +5567,8 @@ def custom_form_submit(slug):
                 meta_url=url_for("frontend.page_detail", slug=cf.slug, _external=True),
                 meta_text=f"IP {sub.ip or 'unknown'}",
             )
-            _send_with_reply_to(site, rcpts, subject, "\n".join(body_lines),
-                                body_html=body_html, reply_to=reply_to)
+            send_mail(site, rcpts, subject, "\n".join(body_lines),
+                      body_html=body_html, reply_to=reply_to)
 
     # Success handoff: redirect if configured, otherwise render the form
     # template again with a success message inline.
@@ -5573,69 +5576,6 @@ def custom_form_submit(slug):
         return redirect(cf.redirect_url)
     msg = cf.thank_you_message or "Thanks — your submission was received."
     return _render_custom_form(cf, ctx=_frontend_context(site), success_message=msg)
-
-
-def _send_with_reply_to(site, recipients, subject, body_text, body_html=None,
-                        reply_to=None, reply_to_name=None):
-    """Lightweight twin of mail.send_mail that lets us set Reply-To.
-
-    Mirrors the outer helper's transport handling (SSL vs STARTTLS
-    vs plain) so a site whose SMTP server requires implicit TLS still
-    works. Sends a ``multipart/alternative`` (text + HTML) when
-    ``body_html`` is given. Returns ``(ok, error)`` exactly like
-    ``send_mail`` so the caller can branch identically.
-    """
-    import smtplib, ssl
-    from email.message import EmailMessage
-    from email.utils import formataddr
-    from .crypto import decrypt
-    from .mail import _recipients, send_mail
-
-    # API-relay transport has no local SMTP socket — hand the whole
-    # message (Reply-To + HTML included) to the canonical relay sender.
-    if (getattr(site, "mail_transport", "smtp") or "smtp") == "relay":
-        return send_mail(site, recipients, subject, body_text,
-                         body_html=body_html,
-                         reply_to=reply_to, reply_to_name=reply_to_name)
-
-    if not site or not site.smtp_host or not site.smtp_from_email:
-        return False, "SMTP is not configured"
-    rcpts = recipients if isinstance(recipients, list) else _recipients(recipients)
-    if not rcpts:
-        return False, "No recipients"
-
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = formataddr((site.smtp_from_name or "", site.smtp_from_email))
-    msg["To"] = ", ".join(rcpts)
-    if reply_to:
-        msg["Reply-To"] = formataddr((reply_to_name or "", reply_to))
-    msg.set_content(body_text or "")
-    if body_html:
-        msg.add_alternative(body_html, subtype="html")
-
-    password = decrypt(site.smtp_password_enc) if site.smtp_password_enc else ""
-    port = int(site.smtp_port or (465 if site.smtp_security == "ssl" else 587))
-    host = site.smtp_host
-    try:
-        if site.smtp_security == "ssl":
-            ctx = ssl.create_default_context()
-            with smtplib.SMTP_SSL(host, port, timeout=20, context=ctx) as s:
-                if site.smtp_username:
-                    s.login(site.smtp_username, password)
-                s.send_message(msg)
-        else:
-            with smtplib.SMTP(host, port, timeout=20) as s:
-                s.ehlo()
-                if site.smtp_security == "starttls":
-                    s.starttls(context=ssl.create_default_context())
-                    s.ehlo()
-                if site.smtp_username:
-                    s.login(site.smtp_username, password)
-                s.send_message(msg)
-        return True, None
-    except Exception as exc:  # noqa: BLE001
-        return False, str(exc)
 
 
 def _branded_field(label, value, ftype=None):

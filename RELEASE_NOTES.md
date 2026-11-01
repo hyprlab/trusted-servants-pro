@@ -9,6 +9,12 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Fixes:
+
+- contact message notifications opening the inbox instead of the message
+- a double click filing a contact message, access request or form submission twice
+- contact form emails sometimes arriving twice
+
 ## 3.5.0 — 2026-10-27 (latest)
 
 New features:
