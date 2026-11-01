@@ -6,7 +6,6 @@
 {% block top_actions %}
   <a class="btn" href="{{ url_for('main.contact_form', show='archived' if c.is_archived else None) }}">← All</a>
   {% if c.is_archived %}<span class="post-chip post-chip-header">Archived</span>{% endif %}
-  <a class="btn btn-primary" href="#reply" data-msg-reply-jump>{{ icon('send') }} Reply</a>
   <form method="post" action="{{ url_for('main.contact_submission_toggle_read', cid=c.id) }}" style="display:inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn" title="Back to the list, with this message marked unread">Mark unread</button>
@@ -135,8 +134,8 @@ document.querySelectorAll('[data-msg-send]').forEach(function (form) {
     if (btn) btn.classList.remove('is-submitting');
   });
 });
-// Reply (the button, or a link to #reply from the inbox) puts the cursor
-// in the message, after the greeting and above the signature.
+// A link to #reply (the inbox's Reply) puts the cursor in the message,
+// after the greeting and above the signature.
 (function () {
   var ta = document.querySelector('#reply textarea[name="body"]');
   if (!ta) return;
@@ -149,9 +148,6 @@ document.querySelectorAll('[data-msg-send]').forEach(function (form) {
       ta.setSelectionRange(at, at);
     }, 0);
   }
-  document.querySelectorAll('[data-msg-reply-jump]').forEach(function (a) {
-    a.addEventListener('click', focusReply);
-  });
   // A signature saved in Settings from this page fills in at once, while
   // nothing has been written yet.
   document.addEventListener('settings:saved', function (e) {
