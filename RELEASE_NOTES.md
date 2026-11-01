@@ -9,11 +9,13 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.6.1 — 2026-11-01 (latest)
+
 Changes:
 
 - no Reply button above a contact message, the reply box is on the page
 
-## 3.6.0 — 2026-11-01 (latest)
+## 3.6.0 — 2026-11-01
 
 New features:
 

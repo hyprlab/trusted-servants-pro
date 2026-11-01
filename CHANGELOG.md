@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.6.1] — 2026-11-01
+
 ### Changed
 
 - The message page's top bar (`contact_message.html`) loses its Reply button: the reply box sits under the message, so the button only moved the cursor there. The inbox's Reply still opens the page at `#reply` with the cursor in the box.
