@@ -399,6 +399,7 @@
       ('Account', [
         ('appearance', 'Appearance', 'sun', True),
         ('your-access', 'Your Access', 'key', True),
+        ('signature', 'Reply Signature', 'pencil', False),
       ]),
       ('Administration', [
         ('users', 'Users', 'users', False),
@@ -1424,6 +1425,25 @@
         </section>
 
       </div>
+      {% if current_user.is_admin() %}
+      <div class="settings-pane" data-pane="signature">
+        <section class="card data-card">
+          <div class="data-card-head">
+            {{ icon('pencil') }}
+            <span>Reply Signature {% call chip('Reply Signature') %}Yours alone: it fills in under your replies to Contact Form messages, where you can still change it before sending.{% endcall %}</span>
+          </div>
+          <form class="form" method="post" action="{{ url_for('main.reply_signature_save') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>Signature
+              <textarea name="reply_signature" rows="5" maxlength="2000"
+                        placeholder="{{ current_user.name or 'Your name' }}&#10;Public Information Chair">{{ current_user.reply_signature or '' }}</textarea>
+            </label>
+            <div class="data-card-actions"><button class="btn btn-primary">Save Signature</button></div>
+          </form>
+        </section>
+      </div>
+      {% endif %}
+
       <div class="settings-pane" data-pane="timezone">
 
         {# ── Server Timezone ─────────────────────────────────────── #}

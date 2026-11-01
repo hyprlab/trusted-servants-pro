@@ -84,9 +84,12 @@
           <input type="text" name="subject" maxlength="255" value="{{ reply_subject }}" required>
         </label>
         <label>Message
-          <textarea name="body" rows="10" required>{{ reply_greeting }}</textarea>
+          <textarea name="body" rows="10" required
+                    data-msg-caret="{{ reply_greeting|length }}">{{ reply_body }}</textarea>
         </label>
-        <p class="muted small msg-reply-note">Goes to {{ c.email }}, with their message quoted below yours. When they answer, it goes to {{ reply_to }}.</p>
+        <p class="muted small msg-reply-note">Goes to {{ c.email }}, with their message quoted below yours. When they answer, it goes to {{ reply_to }}.
+          {% if current_user.reply_signature %}Your signature comes from{% else %}Add a signature that fills in here under{% endif %}
+          <a href="#" data-open-modal="settings-modal" data-settings-tab="signature">Settings, Reply Signature</a>.</p>
         <div>
           <button type="submit" class="btn btn-primary">{{ icon('send') }} Send reply</button>
         </div>
@@ -133,18 +136,31 @@ document.querySelectorAll('[data-msg-send]').forEach(function (form) {
   });
 });
 // Reply (the button, or a link to #reply from the inbox) puts the cursor
-// in the message, after the greeting.
+// in the message, after the greeting and above the signature.
 (function () {
   var ta = document.querySelector('#reply textarea[name="body"]');
   if (!ta) return;
   function focusReply() {
     setTimeout(function () {
       ta.focus({ preventScroll: true });
-      ta.setSelectionRange(ta.value.length, ta.value.length);
+      var at = ta.value === ta.defaultValue
+        ? Math.min(parseInt(ta.getAttribute('data-msg-caret'), 10) || 0, ta.value.length)
+        : ta.value.length;
+      ta.setSelectionRange(at, at);
     }, 0);
   }
   document.querySelectorAll('[data-msg-reply-jump]').forEach(function (a) {
     a.addEventListener('click', focusReply);
+  });
+  // A signature saved in Settings from this page fills in at once, while
+  // nothing has been written yet.
+  document.addEventListener('settings:saved', function (e) {
+    var f = e.target;
+    var field = f && f.querySelector && f.querySelector('[name="reply_signature"]');
+    if (!field || ta.value !== ta.defaultValue) return;
+    var greeting = ta.value.slice(0, parseInt(ta.getAttribute('data-msg-caret'), 10) || 0);
+    var sig = field.value.trim();
+    ta.defaultValue = ta.value = greeting + (sig ? '\n\n' + sig : '');
   });
   if (location.hash === '#reply') {
     if (document.readyState === 'complete') focusReply();

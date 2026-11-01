@@ -9,6 +9,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ### Added
 
 - Contact messages can be answered from their page (`contact_message.html`): a subject and message box send a plain-text email to the visitor through `send_mail`, quoting their message, with Reply-To set to the Contact form's recipient (first address of `contact_form_to`, `pic_email`, `access_request_to`, else the admin). Each reply is kept in the new `contact_reply` table (created by `db.create_all()` on existing installs) and listed under the message; one that fails to send keeps its error and a Send again button. The inbox marks answered messages Replied, its row menu's Reply opens the reply box, and replies are logged as `contact_submission.reply`.
+- Settings, Account, Reply Signature (admins, who are the ones who can reply): `User.reply_signature`, added to existing installs by `_migrate_sqlite()` and saved by `main.reply_signature_save`. The reply box starts with the greeting, a blank line to write on and the signature, with the cursor on that line; a signature saved from the message's page fills in at once while the box is untouched. A reply left as only the greeting and signature is refused.
 
 ### Changed
 

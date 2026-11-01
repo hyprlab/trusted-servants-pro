@@ -1490,6 +1490,7 @@ def _search_sections(tokens, per_section):
     _settings_tabs = [
         ("appearance",  "Appearance",     "theme branding colors login screen logo", True),
         ("your-access", "Your Access",    "role permissions access what can i do", True),
+        ("signature",   "Reply Signature", "signature contact form reply email sign off", False),
         ("users",       "Users",          "manage user accounts roles passwords disable", False),
         ("locations",   "Global",         "global meeting locations defaults", False),
         ("sidebar",     "Sidebar",        "sidebar layout order navigation modules", False),
@@ -17949,6 +17950,17 @@ def email_save():
     return redirect(_safe_referrer() or url_for("main.index"))
 
 
+@bp.route("/settings/reply-signature", methods=["POST"])
+@admin_required
+def reply_signature_save():
+    """The signed-in admin's signature for replies to contact messages."""
+    sig = (request.form.get("reply_signature") or "").replace("\r\n", "\n").strip()[:2000]
+    current_user.reply_signature = sig or None
+    db.session.commit()
+    flash("Reply signature saved", "success")
+    return redirect(_safe_referrer() or url_for("main.index"))
+
+
 @bp.route("/settings/timezone-save", methods=["POST"])
 @admin_required
 def timezone_save():
@@ -19307,13 +19319,21 @@ def contact_message(cid):
         "contact_message.html", c=sub, mail_ready=bool(s and s.mail_ready()),
         reply_to=_contact_reply_to(s),
         reply_subject=_contact_reply_subject(s, sub),
-        reply_greeting=_contact_reply_greeting(sub))
+        reply_greeting=_contact_reply_greeting(sub),
+        reply_body=_contact_reply_start(sub))
 
 
 def _contact_reply_greeting(sub):
     """What a new reply starts with: "Hi <first name>," and a blank line."""
     first = (sub.name or "").split()
     return f"Hi {first[0] if first else 'there'},\n\n"
+
+
+def _contact_reply_start(sub):
+    """The reply box's text before anything is written: the greeting, a
+    line to write on, and the admin's signature when they have one."""
+    sig = (current_user.reply_signature or "").strip()
+    return _contact_reply_greeting(sub) + (f"\n\n{sig}" if sig else "")
 
 
 def _contact_reply_to(s):
@@ -19369,7 +19389,8 @@ def contact_message_reply(cid):
         return back
     subject = (request.form.get("subject") or "").strip()[:255] or _contact_reply_subject(s, sub)
     body = (request.form.get("body") or "").replace("\r\n", "\n").strip()[:20000]
-    if not body or body == _contact_reply_greeting(sub).strip():
+    if not body or body in (_contact_reply_greeting(sub).strip(),
+                            _contact_reply_start(sub).strip()):
         flash("Write a reply before sending.", "danger")
         return back
     reply = ContactReply(submission_id=sub.id, user_id=current_user.id,

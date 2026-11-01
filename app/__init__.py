@@ -2117,7 +2117,9 @@ def _migrate_sqlite(app):
                          # from mfa_enabled (enrolment complete).
                          ("mfa_required", "BOOLEAN NOT NULL DEFAULT 0"),
                          # Admin look: system / light / dark (empty: not yet chosen).
-                         ("theme_pref", "VARCHAR(8)")):
+                         ("theme_pref", "VARCHAR(8)"),
+                         # Signature for replies to contact messages.
+                         ("reply_signature", "TEXT")):
             add("user", col, ddl)
         # 2.14.0 shipped before mfa_required existed and gated the login
         # challenge on mfa_enabled alone. Under the new master-gate model

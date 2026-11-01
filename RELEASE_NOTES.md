@@ -12,6 +12,7 @@ release notes expanded by default and the changelog collapsed.
 New features:
 
 - reply to contact messages from the message's page
+- a personal reply signature in Settings, filled in under contact replies
 
 Changes:
 
