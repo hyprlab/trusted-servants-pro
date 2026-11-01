@@ -80,7 +80,7 @@ def _items(user):
                 "icon": "mail",
                 "title": f"New message from {c.name}",
                 "body": (c.subject or c.message or "").strip()[:140],
-                "url": url_for("main.contact_form"),
+                "url": url_for("main.contact_message", cid=c.id),
                 "ts": c.created_at,
             })
         # Low disk space — same derived source as the admin banner
