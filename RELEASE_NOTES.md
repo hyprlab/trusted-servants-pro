@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.6.0 — 2026-11-01 (latest)
+
 New features:
 
 - reply to contact messages from the message's page
@@ -24,7 +26,7 @@ Fixes:
 - a double click filing a contact message, access request or form submission twice
 - contact form emails sometimes arriving twice
 
-## 3.5.0 — 2026-10-27 (latest)
+## 3.5.0 — 2026-10-27
 
 New features:
 

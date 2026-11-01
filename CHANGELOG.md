@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.6.0] — 2026-11-01
+
 ### Added
 
 - Contact messages can be answered from their page (`contact_message.html`): a subject and message box send a plain-text email to the visitor through `send_mail`, quoting their message, with Reply-To set to the Contact form's recipient (first address of `contact_form_to`, `pic_email`, `access_request_to`, else the admin). Each reply is kept in the new `contact_reply` table (created by `db.create_all()` on existing installs) and listed under the message; one that fails to send keeps its error and a Send again button. The inbox marks answered messages Replied, its row menu's Reply opens the reply box, and replies are logged as `contact_submission.reply`.
