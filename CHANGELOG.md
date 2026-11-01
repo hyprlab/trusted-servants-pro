@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- The Contact page's send button and the public site's Request access button show the frontend's `.fe-btn-spinner` and "Sending…" while the form posts; the spinner now keys off `[data-fe-submit-btn][aria-busy="true"]` rather than `.fe-custom-form.is-submitting`, so custom forms keep theirs. The sign-in page's Request Access button takes the admin `.btn.is-submitting` spinner, as Sign in does.
+
 ### Fixed
 
 - A contact message notification linked to the Contact Form inbox (`main.contact_form`); it now opens the message (`main.contact_message`), which marks it read. The notification email's link goes there too.

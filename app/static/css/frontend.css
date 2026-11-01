@@ -12031,11 +12031,11 @@ body.fe-frontend-force-dark .fe-request-access-error { background: #381416; colo
   vertical-align: -3px;
   margin-right: 8px;
 }
-.fe-custom-form.is-submitting [data-fe-submit-btn] {
+[data-fe-submit-btn][aria-busy="true"] {
   pointer-events: none;
   opacity: .9;
 }
-.fe-custom-form.is-submitting .fe-btn-spinner { display: inline-block; }
+[data-fe-submit-btn][aria-busy="true"] .fe-btn-spinner { display: inline-block; }
 
 .fe-form-submitting-overlay {
   position: absolute;

@@ -79,7 +79,10 @@
       <p class="muted smaller fe-submission-fineprint">Your details are only used to review your request and contact you about it.</p>
       <div class="fe-submission-modal-foot-actions">
         <button class="btn btn-primary fe-submission-submit" type="submit" form="{{ _ra_form_id }}"
-                data-fe-request-access-submit>Request access</button>
+                data-fe-request-access-submit data-fe-submit-btn>
+          <span class="fe-btn-spinner" aria-hidden="true"></span>
+          <span class="fe-btn-label">Request access</span>
+        </button>
         <button class="btn" type="button" data-fe-modal-close data-fe-request-access-closer hidden>Close</button>
       </div>
     </footer>
@@ -96,6 +99,8 @@
   var err = form.querySelector('[data-fe-request-access-error]');
   var done = modal.querySelector('[data-fe-request-access-done]');
   var submit = modal.querySelector('[data-fe-request-access-submit]');
+  var label = submit.querySelector('.fe-btn-label');
+  var labelText = label.textContent;
   var closer = modal.querySelector('[data-fe-request-access-closer]');
   function fail(msg) {
     err.textContent = msg;
@@ -108,6 +113,8 @@
     if (!form.querySelector('input[name="roles"]:checked')) { fail('Check at least one role.'); return; }
     if (!form.reportValidity()) return;
     submit.disabled = true;
+    submit.setAttribute('aria-busy', 'true');
+    label.textContent = 'Sending…';
     fetch(form.action, { method: 'POST', body: new FormData(form), credentials: 'same-origin',
                          headers: { 'X-Requested-With': 'fetch' } })
       .then(function (r) { return r.json().catch(function () { return { ok: false }; }); })
@@ -124,7 +131,11 @@
         closer.focus();
       })
       .catch(function () { fail('That didn’t go through. Check your connection and try again.'); })
-      .then(function () { submit.disabled = false; });
+      .then(function () {
+        submit.disabled = false;
+        submit.removeAttribute('aria-busy');
+        label.textContent = labelText;
+      });
   });
 })();
 </script>

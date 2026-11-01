@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Changes:
+
+- a spinner on the contact and access request send buttons while they send
+
 Fixes:
 
 - contact message notifications opening the inbox instead of the message

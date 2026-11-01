@@ -142,16 +142,23 @@ if (location.hash === '#request-access') {
     if (b) b.click();
   });
 }
-// Send the request once: a second click while it posts would file it twice.
+// Send the request once, with a spinner on the button while it posts: a
+// second click would file it twice.
 (function () {
   var form = document.querySelector('.request-access-form');
   if (!form) return;
+  var btn = form.querySelector('.request-access-submit');
   var sent = false;
   form.addEventListener('submit', function (e) {
     if (sent) { e.preventDefault(); return; }
     sent = true;
+    if (btn) btn.classList.add('is-submitting');
   });
-  window.addEventListener('pageshow', function () { sent = false; });
+  // Back from the next page: the form can be sent again.
+  window.addEventListener('pageshow', function () {
+    sent = false;
+    if (btn) btn.classList.remove('is-submitting');
+  });
 })();
 </script>
 <script>
