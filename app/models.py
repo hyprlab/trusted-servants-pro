@@ -1830,6 +1830,32 @@ class ContactSubmission(db.Model):
     email_error = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    replies = db.relationship("ContactReply", backref="submission",
+                              cascade="all, delete-orphan",
+                              order_by="ContactReply.created_at")
+
+
+class ContactReply(db.Model):
+    """A reply to a contact message, written and sent from the message's
+    page. ``body`` is what the admin wrote; the email also quotes the
+    visitor's message. A reply that failed to send is kept with its
+    error so it can be sent again."""
+    __tablename__ = "contact_reply"
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer,
+                              db.ForeignKey("contact_submission.id", ondelete="CASCADE"),
+                              nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"))
+    # Who sent it, as they were named then: the account may be renamed
+    # or deleted later.
+    sender_name = db.Column(db.String(255))
+    subject = db.Column(db.String(255), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    email_sent = db.Column(db.Boolean, nullable=False, default=False)
+    email_error = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sent_at = db.Column(db.DateTime)
+
 
 class RecoveryContact(db.Model):
     """A single entry on the public Recovery Contacts directory.

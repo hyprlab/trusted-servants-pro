@@ -16,7 +16,7 @@ from .models import (db, User, Meeting, MeetingFile, MeetingSchedule, MeetingSch
                      Post, Story, BlogPost, BlogCategory, BlogTag,
                      ZoomAccount, ZoomOtpEmail, Location, Library, LibraryItem,
                      LibraryCategory, MediaItem, NavLink, SiteSetting,
-                     IntergroupAccount, IntergroupOfficer, AccessRequest, ContactSubmission, RecoveryContact, log_recovery_contact, PasswordResetToken,
+                     IntergroupAccount, IntergroupOfficer, AccessRequest, ContactSubmission, ContactReply, RecoveryContact, log_recovery_contact, PasswordResetToken,
                      FrontendNavItem, UrlRedirect, EntitySlugHistory, Page,
                      FrontendNavColumn, FrontendNavLink, FILE_CATEGORIES,
                      DAYS_OF_WEEK, INTERGROUP_LIBRARY_NAMES,
@@ -19283,7 +19283,7 @@ def contact_form():
     }
     if sort not in orders:
         sort = "received_desc"
-    items = q.order_by(*orders[sort]).all()
+    items = q.options(db.selectinload(C.replies)).order_by(*orders[sort]).all()
     resp = current_app.make_response(render_template(
         "contact_form.html", site=s, items=items, show=show, delivery=delivery,
         sort=sort, view=view, q=q_text, show_counts=show_counts,
@@ -19296,12 +19296,119 @@ def contact_form():
 @bp.route("/contact-form/<int:cid>")
 @admin_required
 def contact_message(cid):
-    """One message on its own page. Opening it marks it read."""
+    """One message on its own page, with its replies and a box to write
+    one. Opening it marks it read."""
     sub = db.session.get(ContactSubmission, cid) or abort(404)
     if not sub.is_read:
         sub.is_read = True
         db.session.commit()
-    return render_template("contact_message.html", c=sub)
+    s = _get_site_setting()
+    return render_template(
+        "contact_message.html", c=sub, mail_ready=bool(s and s.mail_ready()),
+        reply_to=_contact_reply_to(s),
+        reply_subject=_contact_reply_subject(s, sub),
+        reply_greeting=_contact_reply_greeting(sub))
+
+
+def _contact_reply_greeting(sub):
+    """What a new reply starts with: "Hi <first name>," and a blank line."""
+    first = (sub.name or "").split()
+    return f"Hi {first[0] if first else 'there'},\n\n"
+
+
+def _contact_reply_to(s):
+    """Where the visitor's answer to a reply goes: the Contact form's
+    recipient (the same fallbacks as the message email), else the
+    signed-in admin."""
+    from .mail import _recipients
+    for raw in (getattr(s, "contact_form_to", None), getattr(s, "pic_email", None),
+                getattr(s, "access_request_to", None)):
+        rcpts = _recipients(raw)
+        if rcpts:
+            return rcpts[0]
+    return current_user.email
+
+
+def _contact_reply_subject(s, sub):
+    if sub.subject:
+        return sub.subject if sub.subject.lower().startswith("re:") else f"Re: {sub.subject}"
+    site_label = (getattr(s, "frontend_title", None) or "Trusted Servants")
+    return f"Re: Your message to {site_label}"
+
+
+def _send_contact_reply(s, reply):
+    """Email ``reply`` to the visitor, quoting their message below it,
+    and record the outcome on the row."""
+    from .mail import send_mail
+    sub = reply.submission
+    when = current_app.jinja_env.filters["fmt_site_local"](
+        sub.created_at, "%b %-d, %Y at %-I:%M %p %Z")
+    quoted = "\n".join("> " + line if line else ">" for line in sub.message.splitlines())
+    body = f"{reply.body.rstrip()}\n\nOn {when}, {sub.name} wrote:\n{quoted}\n"
+    ok, err = send_mail(s, sub.email, reply.subject, body,
+                        reply_to=_contact_reply_to(s),
+                        reply_to_name=(getattr(s, "frontend_title", None) or None))
+    reply.email_sent = bool(ok)
+    reply.email_error = None if ok else (err or "Not sent")
+    if ok:
+        reply.sent_at = datetime.utcnow()
+    return ok
+
+
+@bp.route("/contact-form/<int:cid>/reply", methods=["POST"])
+@admin_required
+def contact_message_reply(cid):
+    """Send a reply to the visitor by email and keep it under the
+    message. A failed send is kept, with its error, to send again."""
+    from . import activity
+    sub = db.session.get(ContactSubmission, cid) or abort(404)
+    s = _get_site_setting()
+    back = redirect(url_for("main.contact_message", cid=cid) + "#reply")
+    if not (s and s.mail_ready()):
+        flash("Email is not set up, so replies can't be sent.", "danger")
+        return back
+    subject = (request.form.get("subject") or "").strip()[:255] or _contact_reply_subject(s, sub)
+    body = (request.form.get("body") or "").replace("\r\n", "\n").strip()[:20000]
+    if not body or body == _contact_reply_greeting(sub).strip():
+        flash("Write a reply before sending.", "danger")
+        return back
+    reply = ContactReply(submission_id=sub.id, user_id=current_user.id,
+                         sender_name=current_user.name or current_user.username,
+                         subject=subject, body=body)
+    db.session.add(reply)
+    db.session.flush()
+    ok = _send_contact_reply(s, reply)
+    activity.log("contact_submission.reply",
+                 entity_type="contact_submission", entity_id=sub.id,
+                 summary=f"Replied to the contact message from {sub.name} <{sub.email}>"
+                         + ("" if ok else " (not sent)"))
+    db.session.commit()
+    if ok:
+        flash(f"Reply sent to {sub.email}.", "success")
+    else:
+        flash(f"The reply was not sent: {reply.email_error}", "danger")
+    return redirect(url_for("main.contact_message", cid=cid) + "#replies")
+
+
+@bp.route("/contact-form/reply/<int:rid>/resend", methods=["POST"])
+@admin_required
+def contact_reply_resend(rid):
+    """Try a reply that failed to send again."""
+    reply = db.session.get(ContactReply, rid) or abort(404)
+    back = redirect(url_for("main.contact_message", cid=reply.submission_id) + "#replies")
+    if reply.email_sent:
+        return back
+    s = _get_site_setting()
+    if not (s and s.mail_ready()):
+        flash("Email is not set up, so replies can't be sent.", "danger")
+        return back
+    ok = _send_contact_reply(s, reply)
+    db.session.commit()
+    if ok:
+        flash(f"Reply sent to {reply.submission.email}.", "success")
+    else:
+        flash(f"The reply was not sent: {reply.email_error}", "danger")
+    return back
 
 
 def _contact_back(cid=None, leave=False):

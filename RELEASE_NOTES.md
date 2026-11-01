@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+New features:
+
+- reply to contact messages from the message's page
+
 Changes:
 
 - a spinner on the contact and access request send buttons while they send

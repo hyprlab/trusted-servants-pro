@@ -17422,6 +17422,14 @@ html[data-theme="dark"] .lst-kind-text { color: #fbbf24; }
 .msg-subject { margin: 4px 0 0; font-size: var(--fs-lg); line-height: 1.35; }
 .msg-body { white-space: pre-wrap; font-size: var(--fs-base); line-height: 1.65; color: var(--text); overflow-wrap: anywhere; }
 .msg-fields { padding: 0; border: 0; background: none; }
+/* Replies sent from the message's page, then the box to write one. */
+.msg-replies, .msg-reply-form { display: flex; flex-direction: column; gap: var(--stack-gap);
+  padding-top: 16px; border-top: 1px solid var(--border); }
+.msg-replies .ds-group-title, .msg-reply-form .ds-group-title { margin: 0; }
+.msg-reply { display: flex; flex-direction: column; gap: var(--gap-xs); padding-left: 14px; border-left: 2px solid var(--border); }
+.msg-reply-head, .msg-reply-retry { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-sm); }
+.msg-reply-who { font-weight: 700; color: var(--text); }
+.msg-reply-note { margin: 0; }
 
 /* ── Zoom Tech Training (zoom_tech.html): the text at a reading width,
    centered in a wide window, and in the Wiki layout the sections beside

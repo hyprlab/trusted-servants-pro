@@ -2,11 +2,11 @@
 {% from "_help_chip.html" import chip %}
 {% block title %}Message from {{ c.name }} · Trusted Servants Pro{% endblock %}
 {% block heading %}{{ c.subject or ('Message from ' ~ c.name) }}{% endblock %}
-{% block heading_help %}A message from the public contact page. Reply by email, then archive it once it's handled.{% endblock %}
+{% block heading_help %}A message from the public contact page. Reply below and the visitor gets it by email; archive the message once it's handled.{% endblock %}
 {% block top_actions %}
   <a class="btn" href="{{ url_for('main.contact_form', show='archived' if c.is_archived else None) }}">← All</a>
   {% if c.is_archived %}<span class="post-chip post-chip-header">Archived</span>{% endif %}
-  <a class="btn btn-primary" href="mailto:{{ c.email }}{% if c.subject %}?subject={{ ('Re: ' ~ c.subject)|urlencode }}{% endif %}">{{ icon('mail') }} Reply</a>
+  <a class="btn btn-primary" href="#reply" data-msg-reply-jump>{{ icon('send') }} Reply</a>
   <form method="post" action="{{ url_for('main.contact_submission_toggle_read', cid=c.id) }}" style="display:inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn" title="Back to the list, with this message marked unread">Mark unread</button>
@@ -46,6 +46,54 @@
       </header>
       {% if c.subject %}<h2 class="msg-subject">{{ c.subject }}</h2>{% endif %}
       <div class="msg-body">{{ c.message }}</div>
+
+      {% if c.replies %}
+      <section class="msg-replies" id="replies">
+        <h3 class="ds-group-title">{{ icon('send') }}Replies</h3>
+        {% for r in c.replies %}
+        <article class="msg-reply">
+          <header class="msg-reply-head">
+            <span class="msg-reply-who">{{ r.sender_name or 'An admin' }}</span>
+            <span class="muted small">{{ (r.sent_at or r.created_at)|fmt_site_local('%b %-d, %Y · %-I:%M %p %Z') }}</span>
+            {% if r.email_sent %}
+            <span class="post-chip post-chip-online">Sent</span>
+            {% else %}
+            <span class="post-chip post-chip-danger" title="{{ r.email_error }}">Not sent</span>
+            {% endif %}
+          </header>
+          <div class="msg-reply-subject muted small">{{ r.subject }}</div>
+          <div class="msg-body">{{ r.body }}</div>
+          {% if not r.email_sent %}
+          <form method="post" action="{{ url_for('main.contact_reply_resend', rid=r.id) }}" class="msg-reply-retry" data-msg-send>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <span class="muted small">{{ r.email_error }}</span>
+            <button type="submit" class="btn btn-sm">Send again</button>
+          </form>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      <form class="form msg-reply-form" id="reply" method="post"
+            action="{{ url_for('main.contact_message_reply', cid=c.id) }}" data-msg-send>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h3 class="ds-group-title">{{ icon('mail') }}Reply to {{ c.name }}</h3>
+        {% if mail_ready %}
+        <label>Subject
+          <input type="text" name="subject" maxlength="255" value="{{ reply_subject }}" required>
+        </label>
+        <label>Message
+          <textarea name="body" rows="10" required>{{ reply_greeting }}</textarea>
+        </label>
+        <p class="muted small msg-reply-note">Goes to {{ c.email }}, with their message quoted below yours. When they answer, it goes to {{ reply_to }}.</p>
+        <div>
+          <button type="submit" class="btn btn-primary">{{ icon('send') }} Send reply</button>
+        </div>
+        {% else %}
+        <p class="muted small">Email is not set up, so replies can't be sent from here. Set it up under Settings, Domain / Email, or write to <a href="mailto:{{ c.email }}">{{ c.email }}</a> from your own mail.</p>
+        {% endif %}
+      </form>
     </div>
     <div class="st-controls">
       <div class="ds-group st-group-body">
@@ -68,4 +116,40 @@
     </div>
   </div>
 </section>
+<script>
+// Each send goes out once, with a spinner on its button while it posts.
+document.querySelectorAll('[data-msg-send]').forEach(function (form) {
+  var sent = false;
+  form.addEventListener('submit', function (e) {
+    if (sent) { e.preventDefault(); return; }
+    sent = true;
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) btn.classList.add('is-submitting');
+  });
+  window.addEventListener('pageshow', function () {
+    sent = false;
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) btn.classList.remove('is-submitting');
+  });
+});
+// Reply (the button, or a link to #reply from the inbox) puts the cursor
+// in the message, after the greeting.
+(function () {
+  var ta = document.querySelector('#reply textarea[name="body"]');
+  if (!ta) return;
+  function focusReply() {
+    setTimeout(function () {
+      ta.focus({ preventScroll: true });
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }, 0);
+  }
+  document.querySelectorAll('[data-msg-reply-jump]').forEach(function (a) {
+    a.addEventListener('click', focusReply);
+  });
+  if (location.hash === '#reply') {
+    if (document.readyState === 'complete') focusReply();
+    else window.addEventListener('load', focusReply);
+  }
+})();
+</script>
 {% endblock %}

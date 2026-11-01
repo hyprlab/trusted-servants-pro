@@ -3,7 +3,7 @@
 {% from "_list_page.html" import search_form, side_link, sort_link, view_switch, bulk_bar %}
 {% block title %}Contact Form · Trusted Servants Pro{% endblock %}
 {% block heading %}Contact Form{% endblock %}
-{% block heading_help %}Messages from the public /contact page. Each one is also emailed to the form's recipient; this is the record, so nothing is lost when an email lands in spam. Open a message to read it, reply or file it.{% endblock %}
+{% block heading_help %}Messages from the public /contact page. Each one is also emailed to the form's recipient; this is the record, so nothing is lost when an email lands in spam. Open a message to read it, reply to it from here or file it.{% endblock %}
 {% block top_actions %}{% endblock %}
 {% block content %}
 {# Every link keeps the page's settings and changes only what it passes
@@ -27,6 +27,7 @@
 {% macro _avatar(c) %}<span class="lst-thumb lst-thumb--person" aria-hidden="true">{{ c.name|initials if c.name else '?' }}</span>{% endmacro %}
 {% macro _chips(c) %}
   {% if not c.is_read %}<span class="post-chip post-chip-event">New</span>{% endif %}
+  {% if c.replies|selectattr('email_sent')|first %}<span class="post-chip post-chip-online">Replied</span>{% endif %}
   {% if c.is_archived %}<span class="post-chip">Archived</span>{% endif %}
   {% if not c.email_sent %}<span class="post-chip post-chip-danger" title="{{ c.email_error or 'Not emailed: no recipient, or email is not set up' }}">Not emailed</span>{% endif %}
 {% endmacro %}
@@ -34,7 +35,7 @@
 {% macro _actions(c, compact=False) %}
   {% call row_menu('Actions' if not compact else 'Actions for the message from ' ~ c.name, compact=compact) %}
     <a class="row-menu-item" href="{{ _open(c) }}">{{ icon('eye') }}<span>Open</span></a>
-    <a class="row-menu-item" href="{{ _reply(c) }}">{{ icon('mail') }}<span>Reply by email</span></a>
+    <a class="row-menu-item" href="{{ _open(c) }}#reply">{{ icon('send') }}<span>Reply</span></a>
     <button type="submit" form="cf-read-{{ c.id }}-form" class="row-menu-item">{{ icon('eye-off' if c.is_read else 'check') }}<span>{{ 'Mark unread' if c.is_read else 'Mark read' }}</span></button>
     {% if c.is_archived %}
     <button type="submit" form="cf-unarchive-{{ c.id }}-form" class="row-menu-item">{{ icon('rotate-ccw') }}<span>Restore</span></button>
