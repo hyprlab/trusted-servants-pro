@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Fixes:
+
+- image janitor deleting a fresh pull during an auto-update, leaving the service missing
+
 ## 3.6.1 — 2026-11-01 (latest)
 
 Changes:

@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+
+- The `docker-prune` janitor in `install.sh`'s generated compose and `docker-compose.deploy.yml` could delete a freshly pulled image while Watchtower was replacing its container, so the replacement failed with `No such image` and the service stayed gone (seen with `tspro-caddy`, which took a production site offline). On the containerd image store, `until` compares the tag record's creation date, which a pull onto an existing tag keeps, so the new image counted as old and, with its container stopped, as unused. The janitor now runs `docker image prune -f`, which never removes a tagged image. Images left behind by a tag moving are untagged and still swept; a tag no longer used stays until removed by hand. The build-cache prune is unchanged. Existing installs adopt this by re-running `install.sh`.
+
 ## [3.6.1] — 2026-11-01
 
 ### Changed
