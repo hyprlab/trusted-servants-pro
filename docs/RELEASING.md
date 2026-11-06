@@ -98,8 +98,8 @@ tools/redeploy.sh                              # the maintainer's own instance o
 
 The release title is the version and nothing else: no name, no tagline. The
 body is that version's `RELEASE_NOTES.md` section and a `Full changelog:`
-compare link against the previous release, with no list of commits; never hand
-either file itself to `gh release create`.
+compare link from the previous release commit, with no list of commits; never
+hand either file itself to `gh release create`.
 
 Then reply to and close every issue the release fixes, and delete the
 superseded release, if any (below).
