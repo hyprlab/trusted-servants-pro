@@ -3454,6 +3454,10 @@ class BackupTarget(db.Model):
     username = db.Column(db.String(255))
     password_enc = db.Column(db.LargeBinary)
     private_key_enc = db.Column(db.LargeBinary)
+    # SFTP only: the server's public host key as ``<type> <base64>``, saved on
+    # the first successful connection and required to match after that. Empty
+    # until then, and cleared when the host or port changes.
+    sftp_host_key = db.Column(db.Text)
     oauth_token_enc = db.Column(db.LargeBinary)
     app_key = db.Column(db.String(64))
     app_secret_enc = db.Column(db.LargeBinary)

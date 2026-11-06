@@ -19,7 +19,9 @@ Heavy imports (paramiko, dropbox) are deferred inside each class so the
 app boots cleanly even if one of those wheels is missing — only the
 backend the user actually picks needs its dep installed.
 """
+import base64
 import contextlib
+import hashlib
 import io
 import logging
 import os
@@ -203,14 +205,37 @@ class FTPBackend:
 # SFTP (SSH)
 # ─────────────────────────────────────────────────────────────────────
 
+def ssh_host_key_fingerprint(host_key):
+    """OpenSSH-style SHA256 fingerprint of a stored ``<type> <base64>`` host
+    key, the same text ``ssh-keygen -lf`` prints on the server."""
+    try:
+        blob = base64.b64decode((host_key or "").split()[1], validate=True)
+    except (IndexError, ValueError):
+        return ""
+    digest = base64.b64encode(hashlib.sha256(blob).digest()).decode("ascii")
+    return "SHA256:" + digest.rstrip("=")
+
+
 class SFTPBackend:
-    def __init__(self, host, port, username, password=None, private_key=None, remote_path="/"):
+    """SFTP destination that checks the server's identity.
+
+    ``host_key`` is the ``<type> <base64>`` key saved for this target. It is
+    compared before any credential is sent, and a different key refuses the
+    connection. With none saved, the first connection that authenticates
+    hands its key to ``on_host_key`` to be saved, like OpenSSH's
+    ``StrictHostKeyChecking=accept-new``.
+    """
+
+    def __init__(self, host, port, username, password=None, private_key=None,
+                 remote_path="/", host_key=None, on_host_key=None):
         self.host = host
         self.port = int(port or 22)
         self.username = username
         self.password = password or None
         self.private_key = private_key or None
         self.remote_path = remote_path or "/"
+        self.host_key = host_key or None
+        self.on_host_key = on_host_key
         self._sftp = None
         self._transport = None
 
@@ -221,16 +246,50 @@ class SFTPBackend:
             raise BackendError("SFTP backend requires the 'paramiko' package") from e
         try:
             transport = paramiko.Transport((self.host, self.port))
+            self._transport = transport
             pkey = None
             if self.private_key:
                 pkey = self._load_private_key(self.private_key)
-            transport.connect(username=self.username, password=self.password, pkey=pkey)
+            if self.host_key:
+                # Ask for the saved key's type. A server holds one key per
+                # type, so negotiating another would look like a changed key.
+                key_type = self.host_key.split()[0]
+                transport.get_security_options().key_types = (
+                    ("rsa-sha2-512", "rsa-sha2-256") if key_type == "ssh-rsa" else (key_type,))
+            transport.start_client()
+            remote = transport.get_remote_server_key()
+            seen = f"{remote.get_name()} {remote.get_base64()}"
+            if self.host_key and seen != self.host_key:
+                raise BackendError(
+                    f"SFTP server key for {self.host}:{self.port} does not match the saved key "
+                    f"(expected {ssh_host_key_fingerprint(self.host_key)}, "
+                    f"got {ssh_host_key_fingerprint(seen)}). Nothing was sent. If the server's "
+                    "key was changed on purpose, forget the saved key on this target's edit "
+                    "page; otherwise someone may be intercepting the connection.")
+            if pkey is not None:
+                transport.auth_publickey(self.username, pkey)
+            elif self.password is not None:
+                transport.auth_password(self.username, self.password)
             sftp = paramiko.SFTPClient.from_transport(transport)
+            self._sftp = sftp
+            if not self.host_key:
+                self.host_key = seen
+                if self.on_host_key:
+                    self.on_host_key(seen)
             self._mkdir_p(sftp, self.remote_path)
             sftp.chdir(self.remote_path)
-            self._sftp = sftp
-            self._transport = transport
+        except BackendError:
+            self.close()
+            raise
         except Exception as e:
+            self.close()
+            if self.host_key and "no acceptable host key" in str(e):
+                raise BackendError(
+                    f"SFTP server at {self.host}:{self.port} no longer offers a "
+                    f"{self.host_key.split()[0]} key, the type of the saved key. Nothing was "
+                    "sent. If the server's keys were changed on purpose, forget the saved key "
+                    "on this target's edit page; otherwise someone may be intercepting the "
+                    "connection.") from e
             raise BackendError(f"SFTP connect failed: {e}") from e
 
     def _load_private_key(self, key_text):
@@ -731,6 +790,7 @@ def make_backend(target):
     rotation takes effect the next time the scheduler picks the target up.
     """
     from .crypto import decrypt
+    from .models import db
     kind = target.kind
     if kind == "ftp":
         return FTPBackend(
@@ -742,6 +802,10 @@ def make_backend(target):
             use_tls=bool(target.use_tls),
         )
     if kind == "sftp":
+        def remember_host_key(host_key):
+            # Committed at once: a run that fails later rolls its session back.
+            target.sftp_host_key = host_key
+            db.session.commit()
         return SFTPBackend(
             host=target.host,
             port=target.port or 22,
@@ -749,6 +813,8 @@ def make_backend(target):
             password=decrypt(target.password_enc) if target.password_enc else None,
             private_key=decrypt(target.private_key_enc) if target.private_key_enc else None,
             remote_path=target.remote_path or "/",
+            host_key=target.sftp_host_key,
+            on_host_key=remember_host_key,
         )
     if kind == "dropbox":
         return DropboxBackend(

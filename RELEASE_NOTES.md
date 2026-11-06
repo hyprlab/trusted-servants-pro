@@ -12,6 +12,7 @@ release notes expanded by default and the changelog collapsed.
 Fixes:
 
 - image janitor deleting a fresh pull during an auto-update, leaving the service missing
+- SFTP backups not checking the server's identity
 
 ## 3.6.1 — 2026-11-01 (latest)
 

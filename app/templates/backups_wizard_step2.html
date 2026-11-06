@@ -54,6 +54,15 @@
         <textarea name="private_key_text" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;..."></textarea>
       </label>
     </details>
+    {% if t.sftp_host_key %}
+    <p class="muted smaller">Server key fingerprint: <code>{{ t.sftp_host_key|ssh_fp }}</code>. Backups stop if the server presents a different key. To compare, run <code>ssh-keygen -lf</code> on the server's public host key.</p>
+    <label class="check">
+      <input type="checkbox" name="forget_host_key" value="1">
+      <span>Forget this key and accept the one the server presents on the next connection. Only do this if you know the server's key changed.</span>
+    </label>
+    {% else %}
+    <p class="muted smaller">The server's key is saved on the first successful connection and must match after that. Test the connection to see its fingerprint.</p>
+    {% endif %}
     {% endif %}
     {% elif t.kind == 'tspro_backup' %}
     {# TS Pro Backup — end-to-end encrypted HTTP destination. We collect
@@ -126,6 +135,8 @@
       if (j.ok) {
         const ac = form.querySelector('input[name="auth_code"]');
         if (ac) ac.value = '';
+        const forget = form.querySelector('[name="forget_host_key"]');
+        if (forget) forget.checked = false;
       }
     } catch (e) {
       out.textContent = String(e);

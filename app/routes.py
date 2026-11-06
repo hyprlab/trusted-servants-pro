@@ -6603,6 +6603,14 @@ def backups_wizard(target_id, step):
     abort(404)
 
 
+def _sftp_review_host_key(t, prev_host, prev_port):
+    """Drop the saved SFTP server key when the target now points somewhere
+    else, or the admin asked to forget it. The next connection saves a new one."""
+    moved = (t.host, t.port or 22) != (prev_host, prev_port or 22)
+    if moved or request.form.get("forget_host_key") == "1":
+        t.sftp_host_key = None
+
+
 def _tspro_backup_pin_pubkey(t):
     """Ping a TS Pro Backup target and pin the site's current public key on
     the row. Returns (ok, message): on success ``message`` is the key's
@@ -6663,6 +6671,7 @@ def backups_wizard_step2_post(target_id):
     are Fernet-encrypted via app.crypto.encrypt before save."""
     t = db.session.get(BackupTarget, target_id) or abort(404)
     t.name = (request.form.get("name") or t.name).strip()
+    prev_host, prev_port = t.host, t.port
     t.host = (request.form.get("host") or "").strip() or None
     port_raw = (request.form.get("port") or "").strip()
     t.port = int(port_raw) if port_raw.isdigit() else None
@@ -6687,6 +6696,7 @@ def backups_wizard_step2_post(target_id):
                 key_text = ""
         if key_text:
             t.private_key_enc = encrypt(key_text)
+        _sftp_review_host_key(t, prev_host, prev_port)
     elif t.kind == "dropbox":
         # Dropbox refresh-token flow. The wizard collects three things:
         # app_key (public client id), app_secret (encrypted at rest),
@@ -6885,6 +6895,7 @@ def backups_edit_post(target_id):
 
     # ── Connection (same field-write pattern as step 2) ──
     t.name = (request.form.get("name") or t.name).strip()
+    prev_host, prev_port = t.host, t.port
     t.host = (request.form.get("host") or "").strip() or None
     port_raw = (request.form.get("port") or "").strip()
     t.port = int(port_raw) if port_raw.isdigit() else None
@@ -6909,6 +6920,7 @@ def backups_edit_post(target_id):
                 key_text = ""
         if key_text:
             t.private_key_enc = encrypt(key_text)
+        _sftp_review_host_key(t, prev_host, prev_port)
     elif t.kind == "dropbox":
         # Mirror of the wizard step 2 Dropbox flow — see comments there.
         # Pulls app_key / app_secret / auth_code from the form; when an
@@ -7035,7 +7047,7 @@ def backups_edit_post(target_id):
 def backups_test(target_id):
     """Round-trip a 1-byte sentinel file to the backend so we surface
     auth/path failures before the user advances the wizard."""
-    from .backup_backends import make_backend, BackendError
+    from .backup_backends import make_backend, BackendError, ssh_host_key_fingerprint
     t = db.session.get(BackupTarget, target_id) or abort(404)
     # TS Pro Backup: a ping authenticates and yields the encryption key —
     # no need to round-trip a probe file (and create a throwaway backup
@@ -7063,7 +7075,11 @@ def backups_test(target_id):
         finally:
             try: os.unlink(tmp_path)
             except OSError: pass
-        return jsonify({"ok": True, "message": "Connection ok — wrote and removed a probe file."})
+        message = "Connection ok — wrote and removed a probe file."
+        if t.kind == "sftp":
+            message += (f" Server key fingerprint {ssh_host_key_fingerprint(backend.host_key)}."
+                        " Confirm this matches the server.")
+        return jsonify({"ok": True, "message": message})
     except BackendError as e:
         return jsonify({"ok": False, "message": str(e)}), 200
     except Exception as e:  # noqa: BLE001

@@ -434,6 +434,12 @@ def create_app():
         from .pubkey import fingerprint
         return fingerprint(public_key or "")
 
+    @app.template_filter("ssh_fp")
+    def ssh_fp_filter(host_key):
+        """SHA256 fingerprint of a saved SFTP server host key."""
+        from .backup_backends import ssh_host_key_fingerprint
+        return ssh_host_key_fingerprint(host_key)
+
     @app.template_filter("safe_url")
     def safe_url_filter(value):
         """Render-side URL scheme guard for hrefs fed from model columns.
@@ -2151,7 +2157,9 @@ def _migrate_sqlite(app):
                          ("allow_remote_restore", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("restore_token_enc", "BLOB"),
                          ("public_url", "VARCHAR(500)"),
-                         ("last_remote_restore_at", "DATETIME")):
+                         ("last_remote_restore_at", "DATETIME"),
+                         # SFTP server host key, saved on first connection.
+                         ("sftp_host_key", "TEXT")):
             add("backup_target", col, ddl)
         for col, ddl in (("asset_files_json", "TEXT"),):
             add("custom_font", col, ddl)
