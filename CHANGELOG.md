@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+
+- The granular readings list in the meeting editor's library picker (`.library-picker .library-readings`) no longer caps its height at 240px with its own scrollbar; the library card grows to show every reading.
+
 ## [3.6.2] — 2026-11-06
 
 ### Fixed
