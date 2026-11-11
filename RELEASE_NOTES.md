@@ -9,11 +9,13 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.6.3 — 2026-11-11 (latest)
+
 Fixes:
 
 - library readings on the meeting edit page hidden behind an inner scrollbar
 
-## 3.6.2 — 2026-11-06 (latest)
+## 3.6.2 — 2026-11-06
 
 Fixes:
 
