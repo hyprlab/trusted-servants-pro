@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.6.4 — 2026-11-12 (latest)
+
 Changes:
 
 - access requests first on Watchtower Requests, then pending and recent password resets
@@ -18,7 +20,7 @@ Fixes:
 
 - Watchtower Requests columns squeezed by long email addresses: pills and dates wrapping, contact email split mid-word, table running off the side
 
-## 3.6.3 — 2026-11-11 (latest)
+## 3.6.3 — 2026-11-11
 
 Fixes:
 

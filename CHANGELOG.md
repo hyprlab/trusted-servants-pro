@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.6.4] — 2026-11-12
+
 ### Changed
 
 - Watchtower → Requests lists access requests first, then pending and recent password resets. The reset tables fold the Email column into User (shown only when it differs from the username) and show `Self` as the actor of a self-service reset; on a phone each reset is a stacked card like the other Watchtower tables.
