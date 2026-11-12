@@ -40,23 +40,19 @@
           {#- Blue accent bar -#}
           <tr><td style="height:4px; line-height:4px; font-size:0; background:#0b5cff;">&nbsp;</td></tr>
 
-          {#- Header: site logo (or name) left, submitted time right -#}
+          {#- Header: site logo (or name) centered, submitted time under it -#}
           <tr>
-            <td style="padding:28px 32px; border-bottom:1px solid #e9eef5;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-                <td valign="middle">
-                  {% if site_home_url %}<a href="{{ site_home_url }}" target="_blank" style="color:#0f172a; text-decoration:none;">{% endif %}
-                  {% if site_logo_url %}
-                  <img src="{{ site_logo_url }}" alt="{{ site_name }}" height="32" style="height:32px; width:auto; max-width:220px; display:block; border:0;">
-                  {% else %}
-                  <div style="font-size:16px; font-weight:700; color:#0f172a;">{{ site_name }}</div>
-                  {% endif %}
-                  {% if site_home_url %}</a>{% endif %}
-                </td>
-                {% if submitted %}
-                <td valign="middle" align="right" style="font-size:13px; color:#64748b; padding-left:12px;">{{ submitted }}</td>
-                {% endif %}
-              </tr></table>
+            <td align="center" style="padding:28px 32px; border-bottom:1px solid #e9eef5; text-align:center;">
+              {% if site_home_url %}<a href="{{ site_home_url }}" target="_blank" style="color:#0f172a; text-decoration:none;">{% endif %}
+              {% if site_logo_url %}
+              <img src="{{ site_logo_url }}" alt="{{ site_name }}" height="32" style="height:32px; width:auto; max-width:220px; display:block; margin:0 auto; border:0;">
+              {% else %}
+              <div style="font-size:16px; font-weight:700; color:#0f172a;">{{ site_name }}</div>
+              {% endif %}
+              {% if site_home_url %}</a>{% endif %}
+              {% if submitted %}
+              <div style="font-size:13px; color:#64748b; margin-top:10px;">{{ submitted }}</div>
+              {% endif %}
             </td>
           </tr>
 
