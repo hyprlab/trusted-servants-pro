@@ -6,6 +6,15 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- Watchtower → Requests lists access requests first, then pending and recent password resets. The reset tables fold the Email column into User (shown only when it differs from the username) and show `Self` as the actor of a self-service reset; on a phone each reset is a stacked card like the other Watchtower tables.
+- The header of `email/branded.html` centers the site logo, with the submitted time under it instead of to its right.
+
+### Fixed
+
+- Watchtower → Requests: `.badge` pills inside `.tbl` no longer wrap (same rule as `.chip`), date cells are `nowrap`, and the contact email breaks only after its `@` (a `<wbr>`, with `overflow-wrap: break-word` instead of the shared `anywhere`). The requests table switches to its card layout from a container query on its card (below 1020px) instead of a 720px viewport query, so it no longer overflows beside the sidebar; between 600px and 1020px the card's fields sit in columns. "Has an account" omits the username when it is the request's email.
+
 ## [3.6.3] — 2026-11-11
 
 ### Fixed

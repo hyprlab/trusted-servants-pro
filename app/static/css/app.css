@@ -3712,7 +3712,7 @@ input[type="file"]::-webkit-file-upload-button {
 /* Pills and status chips are atomic labels — never break them. Their
    natural width is small, so holding them on one line costs the table
    almost nothing. */
-.tbl td .chip, .tbl td .post-chip { white-space: nowrap; }
+.tbl td .chip, .tbl td .post-chip, .tbl td .badge { white-space: nowrap; }
 .tbl th { color: var(--muted); font-weight: 600; font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: .5px; }
 .tbl input, .tbl select { padding: 6px 8px; font-size: var(--fs-xs); }
 .nowrap { white-space: nowrap; }
@@ -6439,6 +6439,10 @@ html[data-theme="dark"] .access-matrix .access-foot-mark { color: #facc15; }
    the column the widest in the table. */
 .wt-req-roles { display: flex; flex-direction: column; align-items: flex-start; gap: var(--gap-2xs); }
 .wt-req-roles .chip { white-space: nowrap; }
+/* The contact email breaks at its @ (a <wbr> in the template), never
+   mid-word: the shared mailto rule's `anywhere` let the table squeeze it
+   into four ragged lines. */
+.tbl.wt-req-table td a[href^="mailto:"] { overflow-wrap: break-word; }
 .ar-view-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 6px;
@@ -7146,27 +7150,38 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   /* .tbl.wt-* (not bare .wt-*-table): the shared watchtower td rule
      further down the sheet sets padding + border-top at equal
      specificity and would out-cascade a single class here. */
-  .tbl.wt-ip-table, .tbl.wt-block-table, .tbl.wt-session-table { overflow-x: visible; }
-  .tbl.wt-ip-table thead, .tbl.wt-block-table thead, .tbl.wt-session-table thead { display: none; }
+  .tbl.wt-ip-table, .tbl.wt-block-table, .tbl.wt-session-table, .tbl.wt-reset-table { overflow-x: visible; }
+  .tbl.wt-ip-table thead, .tbl.wt-block-table thead, .tbl.wt-session-table thead,
+  .tbl.wt-reset-table thead { display: none; }
   .tbl.wt-ip-table tbody, .tbl.wt-ip-table tr,
   .tbl.wt-block-table tbody, .tbl.wt-block-table tr,
-  .tbl.wt-session-table tbody, .tbl.wt-session-table tr { display: block; }
-  .tbl.wt-ip-table tr, .tbl.wt-block-table tr, .tbl.wt-session-table tr {
+  .tbl.wt-session-table tbody, .tbl.wt-session-table tr,
+  .tbl.wt-reset-table tbody, .tbl.wt-reset-table tr { display: block; }
+  .tbl.wt-ip-table tr, .tbl.wt-block-table tr, .tbl.wt-session-table tr, .tbl.wt-reset-table tr {
     padding: 12px 0; border-bottom: 2px solid var(--border); }
-  .tbl.wt-ip-table td, .tbl.wt-block-table td, .tbl.wt-session-table td {
+  .tbl.wt-ip-table td, .tbl.wt-block-table td, .tbl.wt-session-table td, .tbl.wt-reset-table td {
     display: block; border: none; padding: 4px 0; white-space: normal; }
   .tbl.wt-ip-table td[data-label]::before,
   .tbl.wt-block-table td[data-label]::before,
-  .tbl.wt-session-table td[data-label]::before { content: attr(data-label); display: block;
+  .tbl.wt-session-table td[data-label]::before,
+  .tbl.wt-reset-table td[data-label]::before { content: attr(data-label); display: block;
     font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); text-transform: uppercase;
     letter-spacing: 0.04em; margin-bottom: 2px; }
-  .tbl.wt-session-table .wt-ua { overflow-wrap: anywhere; }
+  .tbl.wt-session-table .wt-ua,
+  .tbl.wt-reset-table td.wt-reset-user { overflow-wrap: anywhere; }
+  .tbl.wt-reset-table td.wt-reset-actions { padding-top: 8px; }
+  .tbl.wt-reset-table tr:last-child { border-bottom: none; }
   .tbl.wt-ip-table td.wt-ip-actions { display: flex; padding-top: 8px; }
+}
 
-  /* Watchtower → Requests. Nine columns can't fit a phone, and scrolled
-     sideways the Actions menu sat off-screen. Each request becomes a
-     card: status badge and Actions on the first line, the name under
-     them, then each field as a labelled row. */
+/* Watchtower → Requests. The columns need about 1000px (Archived adds
+   one); narrower than that (a phone, or a laptop beside the sidebar)
+   they squeezed and scrolled sideways with the Actions menu off-screen.
+   Measured on the card, not the viewport. Each request becomes a card:
+   status badge and Actions on the first line, the name under them, then
+   each field as a labelled row, in columns when the card is wide. */
+.card:has(> .wt-tbl-scroll > .tbl.wt-req-table) { container: wt-req / inline-size; }
+@container wt-req (max-width: 1020px) {
   .wt-tbl-scroll:has(> .tbl.wt-req-table) { overflow-x: visible; }
   .tbl.wt-req-table { overflow-x: visible; }
   .tbl.wt-req-table thead { display: none; }
@@ -7186,6 +7201,12 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .tbl.wt-req-table tbody tr .row-menu-btn { opacity: 1; }
   .tbl.wt-req-table td.wt-req-name { font-weight: 600; font-size: var(--fs-base); }
   .tbl.wt-req-table td a { overflow-wrap: anywhere; }
+}
+@container wt-req (min-width: 600px) and (max-width: 1020px) {
+  .tbl.wt-req-table tr { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .tbl.wt-req-table td.wt-req-status { grid-column: 1 / -2; justify-self: start; }
+  .tbl.wt-req-table td.wt-req-actions { grid-column: -2 / -1; justify-self: end; }
+  .tbl.wt-req-table td[data-label] { grid-column: auto; }
 }
 
 /* City / state / ZIP grid inside the Location create / edit modals.
