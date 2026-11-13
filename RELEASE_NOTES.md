@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Fixes:
+
+- long contact emails overflowing the event contact card
+
 ## 3.6.4 — 2026-11-12 (latest)
 
 Changes:

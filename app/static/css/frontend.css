@@ -4094,13 +4094,14 @@ body.fe-frontend-force-dark .fe-detail-submit-cta p { color: var(--fe-dm-text-mu
 }
 .fe-event-detail-zoom .fe-btn { margin-bottom: 18px; }
 .fe-event-detail-creds { margin: 0; display: grid;
-  grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 8px;
+  grid-template-columns: max-content minmax(0, 1fr); column-gap: 14px; row-gap: 8px;
 }
 .fe-event-detail-creds dt {
   font-size: 0.8125rem; font-weight: 600; color: var(--fe-ink-muted);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
-.fe-event-detail-creds dd { margin: 0; display: flex; align-items: center; gap: 8px; }
+.fe-event-detail-creds dd { margin: 0; display: flex; align-items: center; gap: 8px;
+  min-width: 0; overflow-wrap: anywhere; }
 .fe-event-detail-creds code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.95rem; padding: 4px 8px;
@@ -5264,7 +5265,8 @@ html[data-theme="dark"] .fe-meeting-min-cred code { background: #131a33; color: 
   display: flex; flex-direction: column; gap: 8px;
 }
 .fe-event-poster-contact ul li {
-  display: grid; grid-template-columns: 80px 1fr; gap: 14px; align-items: baseline;
+  display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 14px; align-items: baseline;
+  overflow-wrap: anywhere;
 }
 .fe-event-poster-contact ul li > span:first-child {
   font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
@@ -5428,7 +5430,7 @@ html[data-theme="dark"] .fe-event-poster-ticket-creds code { background: #0b1026
 .fe-event-time-contact ul {
   list-style: none; padding: 0; margin: 0;
   display: flex; flex-direction: column; gap: 4px;
-  color: var(--fe-color-text, var(--fe-ink));
+  color: var(--fe-color-text, var(--fe-ink)); overflow-wrap: anywhere;
 }
 html[data-theme="dark"] .fe-event-time { background: #0b1026; }
 html[data-theme="dark"] .fe-event-time-day,
@@ -5488,7 +5490,7 @@ html[data-theme="dark"] .fe-event-time-creds code {
 }
 .fe-event-min-prose p { margin: 0 0 16px; }
 .fe-event-min-info {
-  margin: 0; display: grid; grid-template-columns: 90px 1fr;
+  margin: 0; display: grid; grid-template-columns: 90px minmax(0, 1fr);
   gap: 22px 28px; align-items: baseline; text-align: left;
 }
 .fe-event-min-info dt {
@@ -5497,7 +5499,7 @@ html[data-theme="dark"] .fe-event-time-creds code {
   color: var(--fe-color-text-soft, var(--fe-ink-muted)); padding-top: 4px;
 }
 .fe-event-min-info dd {
-  margin: 0; color: var(--fe-color-text, var(--fe-ink));
+  margin: 0; color: var(--fe-color-text, var(--fe-ink)); overflow-wrap: anywhere;
   font-size: 1rem; line-height: 1.6;
 }
 .fe-page .fe-event-min-link,

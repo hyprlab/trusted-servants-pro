@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Fixed
+
+- Event detail contact details wrap long values (`overflow-wrap: anywhere`, `minmax(0, 1fr)` value column) in the classic, poster, timeline and minimal templates instead of running past the card edge.
+
 ## [3.6.4] — 2026-11-12
 
 ### Changed
