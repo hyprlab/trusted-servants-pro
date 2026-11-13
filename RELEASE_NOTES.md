@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.6.5 — 2026-11-13 (latest)
+
 Changes:
 
 - Event contact phone accepts numbers only
@@ -18,7 +20,7 @@ Fixes:
 - long contact emails overflowing the event contact card
 - saves blocked without a message when a field on a hidden editor tab was invalid
 
-## 3.6.4 — 2026-11-12 (latest)
+## 3.6.4 — 2026-11-12
 
 Changes:
 

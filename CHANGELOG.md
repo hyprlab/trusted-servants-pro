@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.6.5] — 2026-11-13
+
 ### Changed
 
 - The event contact phone, in the post editor and the public submission form, accepts only digits, spaces and `+ ( ) - .` with at least one digit (`app/phone.py` `PHONE_PATTERN` for the input's `pattern`, `is_phone` on the server). The server rejects anything else with a flash, so a name typed into the phone box is no longer saved.
