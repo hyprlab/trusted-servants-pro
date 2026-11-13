@@ -2637,6 +2637,10 @@ def submission_submit():
     if not (is_announcement or is_event):
         flash("Pick at least one type — Announcement or Event.", "danger")
         return redirect(url_for("frontend.submission_form"))
+    from .phone import is_phone, PHONE_HINT
+    if not is_phone(f.get("contact_phone")):
+        flash("Contact phone: " + PHONE_HINT, "danger")
+        return redirect(url_for("frontend.submission_form"))
     if not submitter_name or not submitter_email:
         flash("Please include your name and email so we can follow up.", "danger")
         return redirect(url_for("frontend.submission_form"))

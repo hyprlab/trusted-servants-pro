@@ -6,8 +6,13 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- The event contact phone, in the post editor and the public submission form, accepts only digits, spaces and `+ ( ) - .` with at least one digit (`app/phone.py` `PHONE_PATTERN` for the input's `pattern`, `is_phone` on the server). The server rejects anything else with a flash, so a name typed into the phone box is no longer saved.
+
 ### Fixed
 
+- `fe_studio.js` opens the tab holding a field that fails the browser's validation, so a native submit no longer stops silently on an invalid field in a hidden panel.
 - Event detail contact details wrap long values (`overflow-wrap: anywhere`, `minmax(0, 1fr)` value column) in the classic, poster, timeline and minimal templates instead of running past the card edge.
 
 ## [3.6.4] — 2026-11-12

@@ -61,6 +61,13 @@
     var hash = (location.hash || '').slice(1);
     show(hash || stored(key) || tabs[0].getAttribute('data-studio-tab'), false);
     root._studioShow = show;
+    // A field that fails the browser's validation on a hidden tab opens
+    // that tab, so the browser can point at it instead of blocking the
+    // save without a word.
+    root.addEventListener('invalid', function (e) {
+      var p = e.target.closest && e.target.closest('[data-studio-panel]');
+      if (p && p.hidden) show(p.getAttribute('data-studio-panel'), true);
+    }, true);
     // A link to #tab on the same page opens that tab.
     window.addEventListener('hashchange', function () {
       var h = (location.hash || '').slice(1);

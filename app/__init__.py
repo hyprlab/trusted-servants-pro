@@ -485,6 +485,10 @@ def create_app():
         from .phone import format_phone
         return format_phone(value)
 
+    from .phone import PHONE_PATTERN, PHONE_HINT
+    app.jinja_env.globals["phone_pattern"] = PHONE_PATTERN
+    app.jinja_env.globals["phone_hint"] = PHONE_HINT
+
     @app.template_filter("fmt_site_local")
     def fmt_site_local(value, fmt="%Y-%m-%d %H:%M %Z"):
         """Format a naive-UTC datetime in the site's configured timezone.

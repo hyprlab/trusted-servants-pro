@@ -157,7 +157,8 @@
         </label>
         <label>
           {{ lbl('contact_phone') }}
-          <input name="contact_phone" type="tel" maxlength="64"{{ ph('contact_phone') }}>
+          <input name="contact_phone" type="tel" maxlength="64" inputmode="tel"
+                 pattern="{{ phone_pattern }}" title="{{ phone_hint }}"{{ ph('contact_phone') }}>
         </label>
       </div>
       <label>

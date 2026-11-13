@@ -440,7 +440,8 @@
             </label>
             <div class="post-stack">
               <label>Phone
-                <input type="tel" name="contact_phone" maxlength="64"
+                <input type="tel" name="contact_phone" maxlength="64" inputmode="tel"
+                       pattern="{{ phone_pattern }}" title="{{ phone_hint }}"
                        value="{{ (_p.contact_phone if _p else '') or '' }}">
               </label>
               <label>Email

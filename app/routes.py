@@ -20133,6 +20133,16 @@ def post_save():
                             for c, m in get_flashed_messages(with_categories=True)],
             }), 400
         return redirect(_safe_referrer() or url_for("main.post_new"))
+    from .phone import is_phone, PHONE_HINT
+    if not is_phone(request.form.get("contact_phone")):
+        flash("Contact phone: " + PHONE_HINT, "danger")
+        if _post_save_wants_json():
+            return jsonify({
+                "ok": False,
+                "flashes": [{"category": c, "message": m}
+                            for c, m in get_flashed_messages(with_categories=True)],
+            }), 400
+        return redirect(_safe_referrer() or url_for("main.post_new"))
     post.title = title
 
     # Slug edits are gated to admins + frontend editors; all other users'
