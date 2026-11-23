@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.6.6] — 2026-11-23
+
 ### Changed
 
 - The public submission form's Announcement hint covers anything not tied to a specific dated event, and the Event hint tells visitors to tick both Event and Announcement to have the event added to the GSR summary (`frontend/_submission_form_body.html`).
