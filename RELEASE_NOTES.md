@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Changes:
+
+- Clearer Announcement and Event hints on the submission form
+
 ## 3.6.5 — 2026-11-13 (latest)
 
 Changes:
