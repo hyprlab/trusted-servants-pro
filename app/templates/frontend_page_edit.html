@@ -443,6 +443,13 @@
                 <input type="file" name="og_image" id="page-og-image-input"
                        accept="image/png,image/jpeg,image/webp">
               </label>
+              <div class="og-image-actions">
+                <button type="button" class="btn" data-page-og-picker>{{ icon('folder') }} Choose from File Browser</button>
+              </div>
+              {# Set by the File Browser picker; the server resolves it to
+                 the stored file. An upload on the same save wins over it. #}
+              <input type="hidden" name="og_image_media_id" value="" id="page-og-media-id">
+              <div class="og-image-picked muted small" id="page-og-picked" hidden></div>
               {% if page and page.og_image_filename %}
               <label class="checkbox-row">
                 <input type="checkbox" name="clear_og_image" value="1">
@@ -471,14 +478,36 @@
             const input = document.getElementById('page-og-image-input');
             const preview = document.getElementById('page-og-preview-img');
             const empty = document.getElementById('page-og-preview-empty');
+            const picked = document.getElementById('page-og-media-id');
+            const pickedLabel = document.getElementById('page-og-picked');
+            const clear = document.querySelector('input[name="clear_og_image"]');
             if (!input || !preview) return;
+            function show(src) {
+              preview.src = src;
+              preview.style.display = '';
+              if (empty) empty.hidden = true;
+              if (clear) clear.checked = false;
+            }
             input.addEventListener('change', () => {
               const file = input.files && input.files[0];
               if (!file) return;
-              preview.src = URL.createObjectURL(file);
-              preview.style.display = '';
-              if (empty) empty.hidden = true;
+              show(URL.createObjectURL(file));
+              // An upload wins over an earlier File Browser pick.
+              if (picked) picked.value = '';
+              if (pickedLabel) { pickedLabel.hidden = true; pickedLabel.textContent = ''; }
             });
+            // app.js hands the File Browser pick here.
+            window.tspPageOgPicked = function (item) {
+              if (!item || !picked) return;
+              picked.value = item.id;
+              input.value = '';
+              if (item.original_filename) show('/pub/' + encodeURIComponent(item.original_filename));
+              if (pickedLabel) {
+                pickedLabel.textContent = 'Selected from File Browser: ' + (item.original_filename || '');
+                pickedLabel.hidden = false;
+              }
+              picked.dispatchEvent(new Event('input', { bubbles: true }));
+            };
           })();
           </script>
         </div>

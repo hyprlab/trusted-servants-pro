@@ -9,6 +9,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 ### Added
 
 - Pick a block in the page and popup editors' live previews. In the editor's preview `pp_block` (`frontend/page.html`, when `preview_mode`) and `render_block` (`_blocks.html`, when the popup preview route sets `g.pb_marks`) bracket each block with `<!--pb:ID-->` and `<!--/pb-->`; comments change no layout or selector match, and public pages never carry them. `page_navigator.js` reads them on each `lp:load`, outlines the block under the pointer with its name (rows in the structure tree point at their block too), opens its settings or its own dialog on a click, and opens the row's menu on a right-click. Links and controls in the preview no longer act on a click. While the settings drawer is open its backdrop is cut away over the preview (`clip-path`, with the dialog box itself click-through), so the next block can be picked straight away, and the block being edited stays outlined across re-renders.
+- Page editor, Sharing tab: "Choose from File Browser" next to the preview image upload. The pick posts `og_image_media_id`, resolved to the item's stored file (images only) in both the draft and publish branches of `frontend_page_save`; an upload on the same save wins. `_cleanup_retired_asset` now counts `Page.og_image_filename` and saved page drafts as references, so a library image shared by a page and a post is not deleted when either one drops it.
 
 ## [3.8.1] — 2026-11-25
 

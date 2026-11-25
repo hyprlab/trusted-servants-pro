@@ -14589,6 +14589,10 @@ def frontend_page_save():
             if og_upload and og_upload.filename:
                 stored_og, _orig = _save_upload(og_upload)
                 og_filename_change = (True, stored_og)
+            else:
+                picked_og = _picked_image_filename("og_image_media_id")
+                if picked_og:
+                    og_filename_change = (True, picked_og)
         # bg_color trio — only when the present-marker is set.
         bg_color_overrides = None
         if request.form.get("bg_color_present") == "1":
@@ -14783,9 +14787,13 @@ def frontend_page_save():
             page.og_image_filename = None
             _cleanup_retired_asset(old_og)
         og_upload = request.files.get("og_image")
+        stored_og = None
         if og_upload and og_upload.filename:
-            old_og = page.og_image_filename
             stored_og, _orig = _save_upload(og_upload)
+        else:
+            stored_og = _picked_image_filename("og_image_media_id")
+        if stored_og:
+            old_og = page.og_image_filename
             page.og_image_filename = stored_og
             if old_og and old_og != stored_og:
                 _cleanup_retired_asset(old_og)
@@ -16845,6 +16853,20 @@ def _collect_body_inline_stored(html):
     return out
 
 
+def _picked_image_filename(field):
+    """The stored filename of the image a File Browser pick posted in
+    ``field`` (a MediaItem id), or None when it is missing, unknown or
+    not an image."""
+    raw = (request.form.get(field) or "").strip()
+    if not raw.isdigit():
+        return None
+    m = db.session.get(MediaItem, int(raw))
+    if not m or not m.stored_filename:
+        return None
+    ext = os.path.splitext(m.stored_filename)[1].lower()
+    return m.stored_filename if ext in imgcache.IMAGE_EXTENSIONS else None
+
+
 def _cleanup_retired_asset(stored):
     """Delete a file from disk and its MediaItem row, but only if nothing
     else in the system still references it. References checked:
@@ -16854,6 +16876,7 @@ def _cleanup_retired_asset(stored):
       - LibraryItem.stored_filename + thumbnail_filename
       - Meeting.logo_filename
       - Post / Story.featured_image_filename
+      - Page.og_image_filename, live or in a draft
       - INLINE references inside Post / Story / BlogPost / Page body
         HTML (``/pub/<original_filename>`` tokens). The body scan
         protects inline screenshots a WP import (or block editor)
@@ -16873,7 +16896,10 @@ def _cleanup_retired_asset(stored):
             + LibraryItem.query.filter_by(thumbnail_filename=stored).count()
             + Meeting.query.filter_by(logo_filename=stored).count()
             + Post.query.filter_by(featured_image_filename=stored).count()
-            + Story.query.filter_by(featured_image_filename=stored).count())
+            + Story.query.filter_by(featured_image_filename=stored).count()
+            # Page preview images, live or in a saved draft.
+            + Page.query.filter_by(og_image_filename=stored).count()
+            + Page.query.filter(Page.draft_json.contains('"' + stored + '"')).count())
     if refs > 0:
         return
     # Post gallery references — the column stores a JSON list of

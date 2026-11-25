@@ -12,6 +12,7 @@ release notes expanded by default and the changelog collapsed.
 New features:
 
 - page and popup previews: click a block to edit it
+- page preview image chosen from the File Browser
 
 ## 3.8.1 — 2026-11-25 (latest)
 

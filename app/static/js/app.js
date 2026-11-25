@@ -1743,6 +1743,17 @@
     });
   });
 
+  // Page editor, Sharing tab: preview image from the File Browser. The
+  // page's own script (window.tspPageOgPicked) takes the pick.
+  document.querySelectorAll("[data-page-og-picker]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentMediaTarget = null;
+      currentMediaMode = "page-og";
+      pointPicker(false, "img");
+      openModal("media-picker-modal");
+    });
+  });
+
   // Post edit page — Gallery "Choose from File Browser" button. Same
   // picker modal as the featured-image one but the selected item
   // gets appended to the gallery list (up to the 10-image cap)
@@ -1954,6 +1965,13 @@
       if (ta && item && item.original_filename && window.tspMdInsertImage) {
         window.tspMdInsertImage(ta, item.original_filename);
       }
+      return;
+    }
+    if (currentMediaMode === "page-og") {
+      if (typeof window.tspPageOgPicked === "function") window.tspPageOgPicked(item);
+      const mp = document.getElementById("media-picker-modal");
+      if (mp) closeModal(mp);
+      currentMediaMode = null;
       return;
     }
     if (currentMediaMode === "post-gallery") {
