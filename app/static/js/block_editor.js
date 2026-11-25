@@ -780,17 +780,44 @@
     }, ['+ Add section']);
     root.appendChild(addSectionBtn);
 
-    function render() {
-      // Capture focus before wiping so a re-render triggered from
-      // inside a focused block (e.g. flipping a container's display
-      // from Flex to Grid) doesn't strand the editor in focus-mode
-      // with no `.be-block-focused` element. Without this restore,
-      // the .is-focus-mode CSS hides every block + section and the
-      // modal looks empty.
-      const prevFocused = sectionsEl.querySelector('.be-block-focused');
-      const focusedId = prevFocused ? prevFocused.dataset.id : null;
+    // Focus: the id of the one block being edited, or null for the
+    // whole tree. A focused render builds that block alone (no
+    // sections, ancestors, siblings or nested children), so opening a
+    // block's settings costs one block, not the page.
+    let focusId = opts.focusId || null;
+    function locate(id, blocks) {
+      for (let bi = 0; bi < blocks.length; bi++) {
+        const b = blocks[bi];
+        if (b.id === id) return { list: blocks, block: b, index: bi };
+        if (b.type === 'container' && b.data && Array.isArray(b.data.blocks)) {
+          const hit = locate(id, b.data.blocks);
+          if (hit) return hit;
+        }
+      }
+      return null;
+    }
+    function locateBlock(id) {
+      for (const sec of state.sections) {
+        const hit = locate(id, sec.blocks || []);
+        if (hit) return hit;
+      }
+      return null;
+    }
 
+    function render() {
       sectionsEl.innerHTML = '';
+      root.classList.toggle('be-root--focus', !!focusId);
+      if (focusId) {
+        // A focused block that no longer exists (deleted) renders
+        // nothing; the host closes the drawer on `blockremove`.
+        const hit = locateBlock(focusId);
+        if (hit) {
+          const w = renderBlock(hit.list, hit.block, hit.index);
+          w.classList.add('be-block-focused');
+          sectionsEl.appendChild(w);
+        }
+        return;
+      }
       state.sections.forEach((sec, idx) => sectionsEl.appendChild(renderSection(sec, idx)));
       // Sortable on sections
       Sortable.create(sectionsEl, {
@@ -802,26 +829,14 @@
           notifyChange();
         },
       });
+    }
 
-      // Re-apply focus to the same block so .is-focus-mode keeps
-      // showing the right subtree. Walks up `.be-block` / `.be-section`
-      // ancestors stamping `.be-block-focused-path`, matching the
-      // logic in frontend_page_edit.html's focusBlock helper.
-      if (focusedId) {
-        const target = sectionsEl.querySelector(
-          '.be-block[data-id="' + (window.CSS && CSS.escape ? CSS.escape(focusedId) : focusedId) + '"]');
-        if (target) {
-          target.classList.add('be-block-focused');
-          let node = target.parentElement;
-          while (node && node !== sectionsEl) {
-            if (node.classList && (node.classList.contains('be-block')
-                                    || node.classList.contains('be-section'))) {
-              node.classList.add('be-block-focused-path');
-            }
-            node = node.parentElement;
-          }
-        }
-      }
+    // Show one block (id) or the whole tree (null). Returns the
+    // focused block's element, or null.
+    function focus(id) {
+      focusId = id || null;
+      render();
+      return focusId ? sectionsEl.querySelector('.be-block-focused') : null;
     }
 
     // Locate the blocks-array (`sec.blocks` or a container's
@@ -4834,13 +4849,17 @@
       wrap.appendChild(hoverPanel);
 
       // ── Children (recursive blocks list) ─────────────────────────
-      const childrenPanel = el('div', { class: 'be-container-children' });
-      childrenPanel.appendChild(el('div', { class: 'be-container-children-head' },
-        [el('span', {}, ['Children'])]));
-      const childList = renderBlocksList(d.blocks, b.id);
-      childrenPanel.appendChild(childList.blocksEl);
-      childrenPanel.appendChild(childList.addBar);
-      wrap.appendChild(childrenPanel);
+      // A focused container shows its own settings only; its children
+      // are edited from their own entries in the structure card.
+      if (focusId !== b.id) {
+        const childrenPanel = el('div', { class: 'be-container-children' });
+        childrenPanel.appendChild(el('div', { class: 'be-container-children-head' },
+          [el('span', {}, ['Children'])]));
+        const childList = renderBlocksList(d.blocks, b.id);
+        childrenPanel.appendChild(childList.blocksEl);
+        childrenPanel.appendChild(childList.addBar);
+        wrap.appendChild(childrenPanel);
+      }
 
       return wrap;
     }
@@ -4904,8 +4923,9 @@
       return JSON.stringify(state.sections);
     }
 
-    render();
-    return { serialize, getState: () => state.sections };
+    // `lazy`: build nothing until focus() asks for a block or the tree.
+    if (!opts.lazy) render();
+    return { serialize, getState: () => state.sections, focus };
   }
 
   // The hero modal's button preview needs the same catalog lookup to

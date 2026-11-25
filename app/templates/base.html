@@ -783,19 +783,27 @@
             applyPreview();
           });
           syncSlots(); applyPreview();
-          // Start paused until the settings modal opens (avoid wasted work if user never visits).
+          // Animate only while the preview can be seen: Settings open on
+          // this pane. A closed modal is only visibility-hidden, so
+          // offsetParent alone kept the loop drawing on every admin page.
           const modal = document.getElementById('settings-modal');
-          const tabBtn = modal && modal.querySelector('[data-tab="appearance"]');
-          function maybeStart(){
-            if (preview.offsetParent !== null && !fx && effectSel.value !== 'off') rebuild();
+          const inModal = !!(modal && modal.contains(preview));
+          function seen(){
+            if (preview.offsetParent === null) return false;
+            if (!inModal) return true;
+            const pane = preview.closest('.settings-pane');
+            return modal.classList.contains('open') && (!pane || pane.classList.contains('active'));
           }
-          if (modal){
-            const obs = new MutationObserver(maybeStart);
-            obs.observe(modal, { attributes: true, attributeFilter: ['class'] });
+          function sync(){
+            const want = seen() && effectSel.value !== 'off';
+            if (want && !fx) rebuild();
+            else if (!want && fx) { fx.destroy(); fx = null; }
           }
-          if (tabBtn) tabBtn.addEventListener('click', maybeStart);
-          document.querySelectorAll('[data-open-modal="settings-modal"]').forEach(b =>
-            b.addEventListener('click', () => setTimeout(maybeStart, 50)));
+          if (inModal){
+            new MutationObserver(sync).observe(modal,
+              { attributes: true, attributeFilter: ['class'], subtree: true });
+          }
+          sync();
         })();
         </script>
         {% endif %}

@@ -1159,22 +1159,14 @@
       m.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
     }
-    // Two rAFs so the modal-open transition has applied AND the
-    // BlockEditor mount has rendered before we try to focus the
-    // block. ensureEditor mounts from the LATEST `dataset.initial`
-    // — which the structure card's syncStateFromDom keeps current
-    // — so freshly-dragged blocks land in the editor with their
-    // full settings UI rendered.
-    requestAnimationFrame(() => {
-      if (typeof window.ensurePageBlockEditor === 'function') {
-        window.ensurePageBlockEditor();
-      }
-      requestAnimationFrame(() => {
-        if (typeof window.focusPageBlock === 'function') {
-          window.focusPageBlock(blockId);
-        }
-      });
-    });
+    // Render the block in the same task as the open, so the drawer
+    // slides in with its contents. focusPageBlock mounts the editor
+    // from the LATEST `dataset.initial` (kept current by the
+    // structure card's syncStateFromDom), so freshly-dragged blocks
+    // open with their settings.
+    if (typeof window.focusPageBlock === 'function') {
+      window.focusPageBlock(blockId);
+    }
   });
 
   // ── Remove-button handlers (delegated) ──────────────────────────

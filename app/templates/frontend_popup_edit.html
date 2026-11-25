@@ -315,57 +315,44 @@ window.tspDesignColorTokens = {
   let editor = null;
   const editModal = document.getElementById('page-layout-edit-modal');
 
+  // Mounted lazily: nothing renders until a block is focused or the
+  // whole layout is asked for, and then only that.
   function ensureEditor() {
     if (editor) return editor;
-    try { editor = BlockEditor.mount(root, { initial: initial, allowedTypes: ALLOWED }); }
+    try { editor = BlockEditor.mount(root, { initial: initial, allowedTypes: ALLOWED, lazy: true }); }
     catch (e) { console.warn('popup editor: mount failed', e); }
     return editor;
   }
-
-  // ── Focus mode (open the modal scrolled to one block) ───────────
+  // ── Focus mode ─────────────────────────────────────────────────
+  // A structure-card click renders that one block in the drawer; the
+  // "Edit layout" buttons render the whole tree (showAll). Closing the
+  // drawer leaves its contents alone, so it closes without work.
   const modalTitle = document.getElementById('page-layout-edit-modal-title');
   const editorHelp = editModal.querySelector('.fe-block-editor-help');
   const defaultTitle = modalTitle ? modalTitle.textContent : 'Edit content';
 
-  function clearFocus() {
+  function showAll() {
+    const ed = ensureEditor();
+    if (ed) ed.focus(null);
     editModal.classList.remove('is-focus-mode');
-    root.querySelectorAll('.be-block-focused, .be-block-focused-path').forEach(el => {
-      el.classList.remove('be-block-focused', 'be-block-focused-path');
-    });
     if (modalTitle) modalTitle.textContent = defaultTitle;
     if (editorHelp) editorHelp.hidden = false;
   }
-  editModal.querySelectorAll('[data-close]').forEach(el =>
-    el.addEventListener('click', clearFocus));
   function focusBlock(id) {
     if (!id) return;
-    const target = root.querySelector('.be-block[data-id="' + id + '"]');
+    const ed = ensureEditor();
+    const target = ed && ed.focus(id);
     if (!target) return;
-    root.querySelectorAll('.be-block-focused, .be-block-focused-path').forEach(el => {
-      el.classList.remove('be-block-focused', 'be-block-focused-path');
-    });
-    target.classList.add('be-block-focused');
-    let node = target.parentElement;
-    while (node && node !== root) {
-      if (node.classList && (node.classList.contains('be-block')
-                              || node.classList.contains('be-section'))) {
-        node.classList.add('be-block-focused-path');
-      }
-      node = node.parentElement;
-    }
     editModal.classList.add('is-focus-mode');
     if (modalTitle) {
       const typeLabel = (target.querySelector('.be-block-type') || {}).textContent || 'block';
       modalTitle.textContent = 'Edit ' + typeLabel;
     }
     if (editorHelp) editorHelp.hidden = true;
-    requestAnimationFrame(() => {
-      const body = editModal.querySelector('.modal-body');
-      if (body) body.scrollTop = 0;
-      target.classList.add('be-block-flash');
-      setTimeout(() => target.classList.remove('be-block-flash'), 1400);
-    });
+    const body = editModal.querySelector('.modal-body');
+    if (body) body.scrollTop = 0;
   }
+
   // Expose the same hooks page_structure.js calls so newly-dragged pills
   // can open + focus the editor without per-pill rebinding.
   window.ensurePageBlockEditor = ensureEditor;
@@ -384,17 +371,13 @@ window.tspDesignColorTokens = {
     pill.addEventListener('click', e => {
       if (e.target.closest('[data-be-remove-block], [data-be-remove-row], '
                          + '[data-be-duplicate-block], [data-be-duplicate-row]')) return;
-      requestAnimationFrame(() => {
-        ensureEditor();
-        const id = pill.dataset.pageBlockId;
-        requestAnimationFrame(() => focusBlock(id));
-      });
+      focusBlock(pill.dataset.pageBlockId);
     });
   });
   // Plain open-modal buttons open the full editor (no focus).
   document.querySelectorAll('[data-open-modal="page-layout-edit-modal"]:not([data-page-block-id])').forEach(btn => {
     btn.addEventListener('click', () => {
-      requestAnimationFrame(() => { ensureEditor(); clearFocus(); });
+      requestAnimationFrame(showAll);
     });
   });
 

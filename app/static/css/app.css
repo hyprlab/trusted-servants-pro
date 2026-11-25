@@ -3994,14 +3994,20 @@ input[type="file"]::-webkit-file-upload-button {
    so the live aspect is obvious; rows briefly highlight when their
    destination changes between polls. */
 .user-log-online .card-head h2 { display: inline-flex; align-items: center; gap: var(--gap-sm); }
-.online-pulse { width: 9px; height: 9px; border-radius: var(--r-pill);
-  background: #10b981; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55);
+.online-pulse { position: relative; width: 9px; height: 9px; border-radius: var(--r-pill);
+  background: #10b981; }
+/* The pulse is a ring that grows and fades. Transform and opacity
+   run on the compositor; the old animated box-shadow repainted the
+   page on every frame, on every admin page. */
+.online-pulse::after, .side-live-dot.is-live::after { content: ""; position: absolute; inset: 0;
+  border-radius: inherit; background: rgba(16, 185, 129, 0.55); pointer-events: none;
   animation: online-pulse 2s ease-out infinite; }
 @keyframes online-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
-  70%  { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  0%   { transform: scale(1); opacity: 1; }
+  70%  { transform: scale(3.2); opacity: 0; }
+  100% { transform: scale(3.2); opacity: 0; }
 }
+@media (prefers-reduced-motion: reduce) { .online-pulse::after { animation: none; opacity: 0; } }
 .online-list { display: flex; flex-direction: column; gap: var(--gap-xs);
   /* Container query context — the row layout reflows based on the
      widget's own width, not the viewport. The "Currently online"
@@ -4331,9 +4337,8 @@ input[type="file"]::-webkit-file-upload-button {
 /* The public site's state: green and pulsing when live, grey when off. */
 .side-live-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%;
   background: color-mix(in srgb, var(--text) 28%, transparent); }
-.side-live-dot.is-live { background: #10b981; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55);
-  animation: online-pulse 2s ease-out infinite; }
-@media (prefers-reduced-motion: reduce) { .side-live-dot.is-live { animation: none; } }
+.side-live-dot.is-live { position: relative; background: #10b981; }
+@media (prefers-reduced-motion: reduce) { .side-live-dot.is-live::after { animation: none; opacity: 0; } }
 @media (max-width: 880px) {
   .side-item-kbd { display: none; }
   .search-modal .modal-panel { margin: 4vh 12px 0; }
@@ -4746,6 +4751,10 @@ form[data-savebar-row].is-dirty {
 .modal.modal--drawer.open > .modal-panel { transform: none; }
 .modal--drawer .modal-head { min-height: 61px; box-sizing: border-box; }
 @media (prefers-reduced-motion: reduce) { .modal.modal--drawer > .modal-panel { transition: none; } }
+/* A closed dialog is only visibility-hidden, so animations inside it
+   (the dynamic-background picker's blurred live thumbnails) kept
+   running on every admin page. They pause until it opens. */
+.modal:not(.open) * { animation-play-state: paused !important; }
 
 /* ── Guided Zoom launcher ──────────────────────────────────────────── */
 .zoom-guide-launch { margin: 4px 0 18px; }
@@ -10599,60 +10608,10 @@ input.page-typo-color-text.is-invalid {
   padding: 12px 8px;
 }
 
-/* ===== Pages admin: layout-structure card actions + block-flash ===== */
+/* ===== Pages admin: layout-structure card actions ===== */
 .fe-page-structure-actions {
   display: flex; gap: var(--gap-sm); flex-wrap: wrap;
   padding: 12px 0 4px;
-}
-/* Soft yellow flash applied to a .be-block when the admin clicks its
-   structure-card pill. Fades back to the resting state after the
-   keyframe runs once. Only used inside the page-edit modal — keeps
-   focus visible without a hard outline. */
-@keyframes be-block-flash {
-  0%   { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.55); }
-  60%  { box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.25); }
-  100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
-}
-.be-block-flash {
-  animation: be-block-flash 1.4s ease-out;
-}
-
-/* Focus mode — set on .fe-page-edit-modal when the admin enters by
-   clicking a structure pill (vs clicking "Edit layout"). Hides every
-   block + section that isn't on the path to the focused block, so
-   the modal reads as a per-block editor instead of the whole tree.
-   Closing the modal clears focus so the next open lands fresh. */
-.fe-page-edit-modal.is-focus-mode .be-section-head,
-.fe-page-edit-modal.is-focus-mode .be-add-section,
-.fe-page-edit-modal.is-focus-mode .be-add-block-bar { display: none; }
-.fe-page-edit-modal.is-focus-mode .be-section { border: 0; padding: 0; }
-.fe-page-edit-modal.is-focus-mode .be-section:not(.be-block-focused-path) { display: none; }
-.fe-page-edit-modal.is-focus-mode .be-block:not(.be-block-focused):not(.be-block-focused-path) {
-  display: none;
-}
-/* Path-only blocks (containers wrapping the focused block) keep their
-   chrome but drop the drag handle / type label / remove button — the
-   admin is editing INSIDE them, not editing them. Container settings
-   (layout / spacing / background / hover details panels + the
-   "Children" label) also hide so the focused descendant is the only
-   thing the admin sees. The child blocks list itself stays visible
-   so the focused block keeps rendering through its container chain. */
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path > .be-block-head { display: none; }
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path > .be-container-body > .be-container-panel,
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path .be-container-children-head { display: none; }
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path { border: 0; padding: 0; background: transparent; }
-/* The focused block IS the modal's subject — its drag handle, type
-   label, and × remove button are all redundant once we're in
-   per-block edit mode. Hide the head and drop the outline so the
-   modal reads as a clean settings sheet for whatever block was
-   clicked. The body keeps rendering normally so the actual controls
-   (Layout / Spacing / etc.) sit at the top of the modal. */
-.fe-page-edit-modal.is-focus-mode .be-block-focused > .be-block-head { display: none; }
-.fe-page-edit-modal.is-focus-mode .be-block-focused {
-  outline: 0;
-  border: 0;
-  padding: 0;
-  background: transparent;
 }
 
 /* Edit-block modal head — push the × close button 1rem away from
@@ -10665,18 +10624,16 @@ input.page-typo-color-text.is-invalid {
 
 /* ── Block drawer (page and popup editors) ─────────────────────────
    One width whether it shows one block or the whole layout, so it
-   never resizes as focus mode switches on. Focus mode strips the chrome of the containers on the
-   way down to the focused block, so its settings start at the top. */
+   never resizes. In focus the editor renders the clicked block
+   alone (BlockEditor focus()); its head (drag, type, remove) is
+   redundant there, and its settings start at the drawer's top. */
 .fe-block-drawer { --drawer-w: 540px; }
-.fe-page-edit-modal.is-focus-mode .be-section.be-block-focused-path > .be-blocks,
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path > .be-container-body,
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path > .be-container-body > .be-container-children,
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path > .be-container-body > .be-container-children > .be-blocks {
-  border: 0; padding: 0; margin: 0; background: transparent; min-height: 0; }
-.fe-page-edit-modal.is-focus-mode .be-block-focused > .be-body { padding: 0; gap: var(--gap-lg); }
-.fe-page-edit-modal.is-focus-mode .be-block-focused.be-block-flash { animation: none; }
-.fe-page-edit-modal.is-focus-mode .be-block-focused > .be-body > .be-container-panel:first-child { border-top: 0; }
-.fe-page-edit-modal.is-focus-mode .be-block-focused > .be-body > .be-container-panel:first-child > summary { padding-top: 0; }
+.be-root--focus > .be-add-section { display: none; }
+.be-root--focus .be-block-focused { border: 0; padding: 0; background: transparent; }
+.be-root--focus .be-block-focused > .be-block-head { display: none; }
+.be-root--focus .be-block-focused > .be-body { padding: 0; gap: var(--gap-lg); }
+.be-root--focus .be-block-focused > .be-body > .be-container-panel:first-child { border-top: 0; }
+.be-root--focus .be-block-focused > .be-body > .be-container-panel:first-child > summary { padding-top: 0; }
 
 /* Settings groups: flat sections divided by a hairline, a chevron
    for open/closed, instead of boxed cards. */

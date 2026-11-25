@@ -19,6 +19,8 @@ Fixes:
 - block settings checkboxes showing ticked when off
 - dark-mode color fields showing when set to Same
 - theme colors showing as black in block settings
+- slow opening and closing of block settings
+- admin pages using the processor while idle
 
 ## 3.7.0 — 2026-11-25 (latest)
 

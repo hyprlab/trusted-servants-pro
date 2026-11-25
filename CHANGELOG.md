@@ -17,6 +17,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - `[hidden]` lost to `.be-body label { display: flex }` and similar rules, so the dark-mode custom color row, the list marker style and other conditional fields showed when they should not; `.be-root [hidden]` now wins.
 - A `token:` color showed a black swatch and the global palette enhancer added a second palette button and hex caption to block editor color inputs.
 - Segmented controls inside a `<label>` were pressed by a click on the label text; they now sit in `.be-field`.
+- Opening a block's settings built the editor for every block on the page and hid all but one with CSS (174 blocks, about 59,000 nodes on the Intergroup Elections page), and closing re-laid out the whole hidden tree. BlockEditor now has `focus(id)`: a focused render builds that block alone (no sections, ancestors, siblings or a focused container's children) and `lazy` mounting builds nothing until asked. The page and popup editors render on the click itself and do no editor work on close; the full tree renders only for `showAll()`. The `be-block-focused-path` hiding rules and the flash animation are gone.
+- Idle admin pages kept repainting: the sidebar's live dot animated `box-shadow` (now a transform and opacity ring on `::after`), CSS animations ran inside closed dialogs such as the dynamic-background picker's blurred thumbnails (`.modal:not(.open) *` now pauses them), and the Settings login preview's canvas loop started on any Settings class change and never stopped (it now runs only while Settings is open on that pane).
 
 ## [3.7.0] — 2026-11-25
 
