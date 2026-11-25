@@ -9,6 +9,17 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Changes:
+
+- Block settings open in a full-height drawer from the right
+- Cleaner block settings with segmented controls, switches and one color field
+
+Fixes:
+
+- block settings checkboxes showing ticked when off
+- dark-mode color fields showing when set to Same
+- theme colors showing as black in block settings
+
 ## 3.7.0 — 2026-11-25 (latest)
 
 New features:
