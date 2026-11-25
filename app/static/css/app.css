@@ -5349,7 +5349,10 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
   font-weight: 600; color: var(--success); }
 .otp-inline-countdown.is-warning, .zg-otp-countdown.is-warning { color: var(--warning); }
 .otp-inline-countdown.is-expired, .zg-otp-countdown.is-expired { color: var(--danger); }
-.otp-manual-label { margin-top: 10px; }
+.otp-manual-label, .otp-manual { margin-top: 10px; }
+/* Manual inbox login folded under a link-colored summary (meeting detail
+   and the Zoom accounts sidebar). */
+.otp-manual > summary { cursor: pointer; color: var(--access, var(--brand)); font-weight: 600; font-size: var(--fs-sm); }
 /* OTP section promoted to a zg-card on the meeting detail page: separate it
    from the Zoom host-account block above, and put a 1rem gap between the
    intro text and the Retrieve button. */
@@ -17210,7 +17213,6 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .za-otp-inline { display: flex; flex-direction: column; gap: var(--gap-sm); padding: 0 2px; }
 .za-otp-inline .otp-inline-fetch { width: 100%; justify-content: center; }
 .za-otp-manual { margin: 10px 2px 0; font-size: var(--fs-sm); }
-.za-otp-manual summary { cursor: pointer; color: var(--access, var(--brand)); font-weight: 600; }
 /* The sidebar is too narrow for label and value side by side: stack
    them, and let a long address break instead of overflowing. */
 .za-otp-manual .zoom-info { margin: 8px 0; grid-template-columns: minmax(0, 1fr); gap: var(--gap-2xs); }

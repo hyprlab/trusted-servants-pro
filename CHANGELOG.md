@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- On the meeting detail page, the OTP card's manual inbox login (email, password, login button) is folded into a closed `<details>` under "Or log in to the inbox manually" when auto-retrieval is configured. Without an IMAP host it stays open, since it is the only route. The summary style is shared with the Zoom accounts sidebar as `.otp-manual`.
+
 ## [3.6.6] — 2026-11-23
 
 ### Changed

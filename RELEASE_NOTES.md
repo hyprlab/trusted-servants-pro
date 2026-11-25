@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Changes:
+
+- Manual OTP inbox login collapsed on meeting pages
+
 ## 3.6.6 — 2026-11-23 (latest)
 
 Changes:

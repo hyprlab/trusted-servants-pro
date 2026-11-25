@@ -273,7 +273,14 @@
       </div>
       {% endif %}
       {% if otp_email.email or otp_email.password_enc or otp_email.login_url %}
-      <div class="muted small otp-manual-label">{% if otp_email.imap_host %}Or log in to the inbox manually{% else %}Webmail login{% endif %}</div>
+      {# With auto-retrieval available the manual login is a fallback, so it
+         stays folded away; without it, it is the only route and shows open. #}
+      {% if otp_email.imap_host %}
+      <details class="otp-manual">
+      <summary>Or log in to the inbox manually</summary>
+      {% else %}
+      <div class="muted small otp-manual-label">Webmail login</div>
+      {% endif %}
       <dl class="zoom-info">
         {% if otp_email.email %}
         <dt>Email</dt>
@@ -291,6 +298,7 @@
         <dd><a class="btn btn-primary otp-login-btn" href="{{ otp_email.login_url|safe_url }}" target="_blank" rel="noopener">Login for OTP Codes</a></dd>
         {% endif %}
       </dl>
+      {% if otp_email.imap_host %}</details>{% endif %}
       {% endif %}
       </div>
       {% endif %}
