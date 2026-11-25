@@ -8,7 +8,7 @@ screen. When the toggle is off, the root URL redirects to the admin login.
 Admin pages remain at /tspro/* and the authenticated dashboard is at /tspro/.
 """
 import os
-from flask import Blueprint, render_template, redirect, url_for, abort, request, current_app
+from flask import Blueprint, render_template, redirect, url_for, abort, request, current_app, g
 from flask_login import current_user
 from .models import SiteSetting, Meeting, FrontendNavItem, Post, Story, BlogPost, BlogCategory, BlogTag
 
@@ -6105,6 +6105,8 @@ def popup_preview(popup_id):
     # Override the context-processor's enabled-only list with this single
     # popup (which may be disabled) so the partial renders it.
     ctx["popups"] = [popup]
+    # Marks each block so the editor's preview can open it on a click.
+    g.pb_marks = True
     return render_template("frontend/popup_preview.html",
                            popup=popup, popup_force_open=popup.name, **ctx)
 

@@ -610,6 +610,7 @@
       if (!m || typeof window.focusPageBlock !== 'function') return;
       openModalEl(m);
       window.focusPageBlock(block.id);
+      preview.draw();
     }
     function edit(id) {
       const el = rowEl(id);
@@ -972,7 +973,10 @@
         else if (e.key === 'ArrowUp') { e.preventDefault(); (items[at - 1] || items[items.length - 1]).focus(); }
         else if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
         else if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
-        else if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); closeMenu(true); }
+        else if (e.key === 'Escape' || e.key === 'Tab') {
+          // Closes only the menu, not the drawer behind it.
+          e.preventDefault(); e.stopPropagation(); closeMenu(true);
+        }
       });
     }
     document.addEventListener('mousedown', e => { if (menu && !menu.contains(e.target)) closeMenu(false); }, true);
@@ -1239,6 +1243,261 @@
         if (none) none.hidden = any;
       });
     }
+
+    // ── Live preview: point at a block, click to edit it ────────────
+    // The editor's preview brackets every block with <!--pb:ID--> and
+    // <!--/pb--> (frontend/page.html, _blocks.html); the elements
+    // between them are that block. Hovering one outlines it with its
+    // name, clicking opens its settings and right-clicking opens the
+    // same menu as its row. While the settings drawer is open its
+    // backdrop leaves the preview uncovered, so the next block can be
+    // picked straight away. Each re-render is a fresh document, wired
+    // again on its 'lp:load'.
+    const preview = (function () {
+      let lp = null;            // the [data-live-preview] whose page has marks
+      let doc = null;
+      let byId = new Map();     // block id -> its top-level elements
+      let hoverId = null;
+      let boxes = null;         // { hover, sel } outline elements in doc
+      const SKIP = /^(SCRIPT|STYLE|LINK|TEMPLATE|NOSCRIPT)$/;
+
+      function index(d) {
+        const map = new Map();
+        const open = [];
+        const walker = d.createTreeWalker(d.body || d.documentElement, NodeFilter.SHOW_COMMENT);
+        let n;
+        while ((n = walker.nextNode())) {
+          const v = n.nodeValue || '';
+          if (v.indexOf('pb:') === 0) { open.push(n); continue; }
+          if (v !== '/pb' || !open.length) continue;
+          const start = open.pop();
+          const id = start.nodeValue.slice(3);
+          if (!locate(id)) continue;
+          const els = [];
+          for (let s = start.nextSibling; s && s !== n; s = s.nextSibling) {
+            if (s.nodeType === 1 && !SKIP.test(s.tagName)) { s.setAttribute('data-pb-id', id); els.push(s); }
+          }
+          if (els.length) map.set(id, els);
+        }
+        return map;
+      }
+      function frame() {
+        if (!lp || !doc) return null;
+        return Array.from(lp.querySelectorAll('iframe')).find(f => {
+          try { return f.contentDocument === doc; } catch (_) { return false; }
+        }) || null;
+      }
+      function scale() {
+        const f = frame();
+        return f && f.offsetWidth ? f.getBoundingClientRect().width / f.offsetWidth : 1;
+      }
+      function rectOf(id) {
+        const els = byId.get(id);
+        if (!els) return null;
+        let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+        els.forEach(el => {
+          const x = el.getBoundingClientRect();
+          if (!x.width && !x.height) return;
+          l = Math.min(l, x.left); t = Math.min(t, x.top);
+          r = Math.max(r, x.right); b = Math.max(b, x.bottom);
+        });
+        return l === Infinity ? null : { left: l, top: t, right: r, bottom: b };
+      }
+      function nameOf(id) {
+        const blk = blockOf(id);
+        return blk ? labelsFor(blk).name : '';
+      }
+
+      // Outlines live in the preview's own document, so they scroll and
+      // scale with it. Sizes are divided by the preview's scale to read
+      // the same on screen at any width.
+      const CSS_TEXT =
+        '.tsp-pick{all:unset;position:fixed;z-index:2147483646;pointer-events:none;box-sizing:border-box;' +
+        'display:none;border:calc(var(--tsp-pick-s,1)*1px) solid var(--tsp-pick-c);' +
+        'border-radius:calc(var(--tsp-pick-s,1)*3px)}' +
+        '.tsp-pick.is-on{display:block}' +
+        '.tsp-pick--sel{border-width:calc(var(--tsp-pick-s,1)*2px);' +
+        'box-shadow:0 0 0 calc(var(--tsp-pick-s,1)*3px) var(--tsp-pick-ring)}' +
+        '.tsp-pick-tag{all:unset;position:absolute;left:calc(var(--tsp-pick-s,1)*-1px);bottom:100%;' +
+        'padding:calc(var(--tsp-pick-s,1)*3px) calc(var(--tsp-pick-s,1)*7px);white-space:nowrap;' +
+        'border-radius:calc(var(--tsp-pick-s,1)*4px) calc(var(--tsp-pick-s,1)*4px) 0 0;' +
+        'background:var(--tsp-pick-c);color:#fff;letter-spacing:.01em;' +
+        'font:600 calc(var(--tsp-pick-s,1)*11px)/1.25 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}' +
+        '.tsp-pick.is-low .tsp-pick-tag{bottom:auto;top:0;' +
+        'border-radius:0 0 calc(var(--tsp-pick-s,1)*4px) 0}' +
+        'html.tsp-picking [data-pb-id],html.tsp-picking [data-pb-id] *{cursor:pointer!important}';
+
+      function ensureBoxes() {
+        if (boxes && boxes.doc === doc) return boxes;
+        const st = doc.createElement('style');
+        st.textContent = CSS_TEXT;
+        (doc.head || doc.documentElement).appendChild(st);
+        const make = cls => {
+          const el = doc.createElement('div');
+          el.className = 'tsp-pick ' + cls;
+          el.setAttribute('aria-hidden', 'true');
+          const tag = doc.createElement('span');
+          tag.className = 'tsp-pick-tag';
+          el.appendChild(tag);
+          doc.documentElement.appendChild(el);
+          return el;
+        };
+        const root = getComputedStyle(document.documentElement);
+        const c = root.getPropertyValue('--brand').trim() || '#0b5cff';
+        doc.documentElement.style.setProperty('--tsp-pick-c', c);
+        doc.documentElement.style.setProperty('--tsp-pick-ring', 'color-mix(in srgb, ' + c + ' 22%, transparent)');
+        doc.documentElement.classList.add('tsp-picking');
+        boxes = { doc, sel: make('tsp-pick--sel'), hover: make('tsp-pick--hover') };
+        return boxes;
+      }
+      function place(box, id) {
+        const r = id && rectOf(id);
+        if (!r) { box.classList.remove('is-on'); return; }
+        const s = 1 / (scale() || 1);
+        doc.documentElement.style.setProperty('--tsp-pick-s', String(s));
+        const pad = 2 * s;
+        box.style.left = (r.left - pad) + 'px';
+        box.style.top = (r.top - pad) + 'px';
+        box.style.width = (r.right - r.left + pad * 2) + 'px';
+        box.style.height = Math.max(r.bottom - r.top + pad * 2, 6 * s) + 'px';
+        box.classList.toggle('is-low', r.top < 24 * s);
+        box.firstChild.textContent = nameOf(id);
+        box.classList.add('is-on');
+      }
+      function selId() {
+        return drawer && drawer.classList.contains('open') ? drawerFocusedId() : null;
+      }
+      function draw() {
+        if (!doc || !byId.size) return;
+        const b = ensureBoxes();
+        const sid = selId();
+        place(b.sel, sid);
+        place(b.hover, hoverId && hoverId !== sid ? hoverId : null);
+      }
+      function hover(id) {
+        if (id === hoverId) return;
+        hoverId = id || null;
+        draw();
+      }
+
+      // Opens what clicking its row opens: the settings drawer, or the
+      // block's own dialog (hero, meetings list, …) in its place.
+      function rowFor(id) {
+        if (filter && filterInput && !rowEl(id)) { filterInput.value = ''; filter = ''; }
+        if (reveal(id) || !rowEl(id)) render();
+        return rowEl(id);
+      }
+      function choose(id) {
+        const blk = blockOf(id);
+        if (!blk || !rowFor(id)) return;
+        if (DEDICATED[blk.type] && drawer && drawer.classList.contains('open')) {
+          const x = drawer.querySelector('.modal-head [data-close]');
+          if (x) x.click();
+        }
+        edit(id);
+        draw();
+      }
+      // The visible part of the preview card, cut out of the backdrop.
+      function cutout() {
+        const bd = drawer && drawer.querySelector(':scope > .modal-backdrop');
+        // Kept while the drawer fades out, so the preview never flashes dim.
+        if (!bd || !drawer.classList.contains('open')) return;
+        if (!lp || !byId.size) { bd.style.clipPath = ''; return; }
+        const r = lp.getBoundingClientRect();
+        const W = window.innerWidth, H = window.innerHeight;
+        const P = 8;
+        const l = r.left - P, t = r.top - P, R = r.right + P, B = r.bottom + P;
+        const k = Math.min(12, (R - l) / 2, (B - t) / 2);
+        bd.style.clipPath = 'path(evenodd, "M0 0H' + W + 'V' + H + 'H0Z' +
+          'M' + (l + k) + ' ' + t + 'H' + (R - k) + 'A' + k + ' ' + k + ' 0 0 1 ' + R + ' ' + (t + k) +
+          'V' + (B - k) + 'A' + k + ' ' + k + ' 0 0 1 ' + (R - k) + ' ' + B +
+          'H' + (l + k) + 'A' + k + ' ' + k + ' 0 0 1 ' + l + ' ' + (B - k) +
+          'V' + (t + k) + 'A' + k + ' ' + k + ' 0 0 1 ' + (l + k) + ' ' + t + 'Z")';
+      }
+      // Bring the block being edited into the preview's view when it
+      // is wholly outside it (it was opened from the tree).
+      function showSelected() {
+        const sid = selId();
+        const r = sid && doc && rectOf(sid);
+        if (!r) return;
+        const win = doc.defaultView;
+        if (r.bottom > 0 && r.top < win.innerHeight) return;
+        const se = doc.scrollingElement || doc.documentElement;
+        se.scrollTo({ top: Math.max(0, se.scrollTop + r.top - win.innerHeight / 4), behavior: 'smooth' });
+      }
+
+      function wire(root, d) {
+        const map = index(d);
+        if (!map.size) {
+          // An emptied page: nothing to point at until blocks come back.
+          if (root === lp) { doc = null; byId = new Map(); hoverId = null; boxes = null; }
+          return;
+        }
+        lp = root; doc = d; byId = map; hoverId = null; boxes = null;
+        const win = d.defaultView;
+        const target = e => {
+          const el = e.target && e.target.closest ? e.target.closest('[data-pb-id]') : null;
+          return el ? el.getAttribute('data-pb-id') : null;
+        };
+        // On the window, ahead of the page's own handlers: in the
+        // preview a click picks a block, it never follows a link or
+        // works a control.
+        win.addEventListener('mouseover', e => hover(target(e)), true);
+        d.addEventListener('mouseout', e => { if (!e.relatedTarget) hover(null); });
+        win.addEventListener('mousedown', e => {
+          closeMenu(false);
+          if (target(e)) e.preventDefault();
+        }, true);
+        ['click', 'auxclick', 'dblclick'].forEach(type => win.addEventListener(type, e => {
+          const id = target(e);
+          if (!id) return;
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (type === 'click' && e.button === 0) choose(id);
+        }, true));
+        win.addEventListener('contextmenu', e => {
+          const id = target(e);
+          if (!id || !rowFor(id)) return;
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          const f = frame();
+          const fr = f ? f.getBoundingClientRect() : { left: 0, top: 0 };
+          const s = scale();
+          select(id, { focus: false });
+          openMenu(id, fr.left + e.clientX * s, fr.top + e.clientY * s);
+        }, true);
+        // Focus can be in the preview; Escape still closes the drawer.
+        win.addEventListener('keydown', e => {
+          if (e.key === 'Escape') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        });
+        const redraw = () => draw();
+        win.addEventListener('scroll', redraw, { passive: true, capture: true });
+        win.addEventListener('resize', redraw);
+        if (win.ResizeObserver && d.body) new win.ResizeObserver(redraw).observe(d.body);
+        draw();
+        cutout();
+      }
+
+      document.addEventListener('lp:load', e => {
+        const root = e.target && e.target.closest && e.target.closest('[data-live-preview]');
+        if (root && e.detail && e.detail.doc) wire(root, e.detail.doc);
+      });
+      // Rows point at their block in the preview too.
+      tree.addEventListener('mouseover', e => {
+        const el = e.target.closest('.fe-layers-row[data-page-block-id]');
+        hover(el ? el.dataset.id : null);
+      });
+      tree.addEventListener('mouseleave', () => hover(null));
+      if (drawer) {
+        new MutationObserver(() => {
+          draw();
+          cutout();
+          if (drawer.classList.contains('open')) showSelected();
+        }).observe(drawer, { attributes: true, attributeFilter: ['class'] });
+      }
+      window.addEventListener('resize', cutout);
+      return { draw, showSelected };
+    })();
 
     // ── Toast ───────────────────────────────────────────────────────
     function toast(msg, action, kind) {

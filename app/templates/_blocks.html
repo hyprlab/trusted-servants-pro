@@ -67,7 +67,11 @@
   {{ _s | join('; ') }}
 {%- endmacro %}
 
+{# The popup editor's preview (g.pb_marks) brackets each block with
+   <!--pb:ID--> and <!--/pb--> so a click on it opens that block's
+   settings; see pp_block in frontend/page.html. #}
 {% macro render_block(b) %}
+  {% if g.pb_marks and b.id %}<!--pb:{{ b.id }}-->{% endif %}
   {% set t = b.type %}{% set d = b.data or {} %}
   {% if t == 'paragraph' %}
     {% set _st = typo_style(d) %}
@@ -602,6 +606,7 @@
   {% elif t == 'container' %}
     {{ render_container_block(d) }}
   {% endif %}
+  {% if g.pb_marks and b.id %}<!--/pb-->{% endif %}
 {% endmacro %}
 
 {# Container block — recursive layout primitive. Resolves the stored

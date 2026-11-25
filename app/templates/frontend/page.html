@@ -193,7 +193,12 @@
   {{ _s | join('; ') }}
 {%- endmacro -%}
 
+{# In the editor's preview each block is bracketed by <!--pb:ID--> and
+   <!--/pb--> so a click on it opens that block's settings
+   (static/js/page_navigator.js). Comments change no layout or selector
+   match, and the public page never has them. #}
 {%- macro pp_block(b) -%}
+  {%- if preview_mode and b.id -%}<!--pb:{{ b.id }}-->{%- endif -%}
   {%- set t = b.type -%}{%- set d = b.data or {} -%}
   {%- if t == 'paragraph' -%}
     {%- set _st = pp_typo_style(d) -%}
@@ -508,6 +513,7 @@
   {%- else -%}
     {{ render_block(b) }}
   {%- endif -%}
+  {%- if preview_mode and b.id -%}<!--/pb-->{%- endif -%}
 {%- endmacro -%}
 
 {# Section renderer — renders ONLY what the admin placed in the layout.

@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+New features:
+
+- page and popup previews: click a block to edit it
+
 ## 3.8.1 — 2026-11-25 (latest)
 
 Fixes:

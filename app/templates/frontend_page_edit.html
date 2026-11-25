@@ -133,7 +133,7 @@
             <button type="submit" form="fe-make-homepage" class="btn" title="Show this page at the site's root address">{{ icon('home') }} Make homepage</button>
             <button type="submit" form="fe-delete-page" class="btn ol-danger" title="Delete this page">{{ icon('trash') }} Delete</button>
             {% endif %}
-            {% call chip('Page') %}The preview shows the page with every unsaved change, blocks included. Save a draft or publish with the yellow bar.{% endcall %}
+            {% call chip('Page') %}The preview shows the page with every unsaved change, blocks included. Click a block in it to edit that block. Save a draft or publish with the yellow bar.{% endcall %}
           </div>
           {% if _is_homepage %}<p class="muted small st-pick-about">{{ icon('lock') }} The homepage is always public and shows at <code>/</code>. To take it down, make another page the homepage first.</p>{% endif %}
           {% endif %}
