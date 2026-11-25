@@ -9,6 +9,14 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+New features:
+
+- Intergroup Elections page template
+
+Fixes:
+
+- in-page heading links landing under the sticky header
+
 ## 3.6.7 — 2026-11-25 (latest)
 
 Changes:

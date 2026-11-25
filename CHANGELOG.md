@@ -6,6 +6,14 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added
+
+- "Intergroup Elections" page layout preset (`page-intergroup-elections`, built in `app/page_layout_presets.py`, seeded by `_seed_page_layouts`). Unlike the other presets it ships its copy, imported from the DC CMA WordPress election page: header, election date and Zoom card, open positions linked to each position card, the election procedure as numbered cards, and a card per position with duties, term and vote. Every word lands in block `data`, so the created page is edited in the page editor like any other. Colors are `token:` design tokens with dark values.
+
+### Fixed
+
+- Heading blocks with an id get `scroll-margin-top` from `--fe-header-full-h`, so jump links and the wiki sidebar no longer park the heading under the sticky header.
+
 ## [3.6.7] — 2026-11-25
 
 ### Changed

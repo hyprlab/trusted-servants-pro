@@ -10165,6 +10165,12 @@ html[data-theme="dark"] .fe-pp {
      --block-cont-hover-bg / -border / -shadow / -transform
    Each var defaults to its non-hover counterpart so an unset hover
    variable simply means "no change on hover". */
+/* Heading blocks carry an id (frontend._collect_page_headings) so
+   in-page links and the wiki sidebar can jump to them; stop the
+   target landing under the sticky site header. */
+.block-heading[id] {
+  scroll-margin-top: calc(var(--fe-header-full-h, 80px) + 24px);
+}
 .block-container {
   /* Reset every container-scoped CSS variable to its default at the
      start of each container instance. CSS custom properties inherit

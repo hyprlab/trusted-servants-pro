@@ -2773,6 +2773,9 @@ def _seed_page_layouts(app):
             ],
         },
     ]
+    # Presets that ship their copy as well as their shape.
+    from .page_layout_presets import intergroup_elections
+    PRESETS.append(intergroup_elections())
     for p in PRESETS:
         row = CustomLayout.query.filter_by(key=p["key"]).first()
         # Preset entries can either be shorthand strings ("image") or
