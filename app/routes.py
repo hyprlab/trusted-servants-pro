@@ -13708,339 +13708,6 @@ def _faq_block_modal_proxy(data):
     }
 
 
-def _block_preview(b):
-    """Tiny preview payload for a block, surfaced as a hover popover
-    on each pill in the structure card / orphan bin. The admin sees
-    enough content to identify which block is which without having
-    to open the editor. Returns a dict {kind, text?, src?, …} that
-    the template stringifies onto `data-preview` for client-side
-    rendering."""
-    if not isinstance(b, dict):
-        return {"kind": "empty"}
-    t = b.get("type")
-    d = b.get("data") or {}
-    if t == "paragraph":
-        md = (d.get("md") or "").strip()
-        return {"kind": "text", "label": "Text",
-                "text": md[:200] if md else "(empty)"}
-    if t == "heading":
-        text = (d.get("text") or "").strip()
-        lvl = d.get("level") or 3
-        return {"kind": "text", "label": f"Heading H{lvl}",
-                "text": text or "(empty)"}
-    if t == "image":
-        src = (d.get("src") or "").strip()
-        alt = (d.get("alt") or "").strip()
-        cap = (d.get("caption") or "").strip()
-        return {"kind": "image", "label": "Image",
-                "src": src, "alt": alt, "text": cap}
-    if t == "button":
-        return {"kind": "text", "label": "Button",
-                "text": (d.get("label") or "").strip() or "(no label)",
-                "subtext": (d.get("url") or "").strip() or "(no link)"}
-    if t == "list":
-        items = [str(i).strip() for i in (d.get("items") or []) if str(i).strip()]
-        n = len(items)
-        return {"kind": "list",
-                "label": f"{'Numbered' if d.get('ordered') else 'Bulleted'} list",
-                "text": " · ".join(items[:5]) + ("…" if n > 5 else ""),
-                "subtext": f"{n} item{'' if n == 1 else 's'}"}
-    if t == "callout":
-        return {"kind": "text", "label": f"Callout · {d.get('variant') or 'info'}",
-                "text": (d.get("title") or d.get("md") or "").strip()[:200]}
-    if t == "video":
-        return {"kind": "text", "label": "Video",
-                "text": (d.get("src") or "").strip() or "(no source)"}
-    if t == "lottie":
-        sp = d.get("speed") or 1
-        flags = []
-        if d.get("playback") == "hover":
-            flags.append("hover-play")
-        elif d.get("autoplay"):
-            flags.append("autoplay")
-        if d.get("loop"):
-            flags.append("loop")
-        return {"kind": "text", "label": "Lottie",
-                "text": (d.get("src") or "").strip() or "(no source)",
-                "subtext": " · ".join(flags + [f"{sp}x"])}
-    if t == "intergroup_member":
-        oid = d.get("officer_id") or 0
-        from .models import IntergroupOfficer
-        try:
-            oid = int(oid)
-        except (TypeError, ValueError):
-            oid = 0
-        officer = db.session.get(IntergroupOfficer, oid) if oid else None
-        if officer is None:
-            return {"kind": "text", "label": "Intergroup Member",
-                    "text": "(no officer selected)",
-                    "subtext": "Pick a row from Settings → Global"}
-        fields = []
-        if d.get("show_role"): fields.append("role")
-        if d.get("show_name"): fields.append("name")
-        if d.get("show_phone"): fields.append("phone")
-        if d.get("show_email"): fields.append("email")
-        return {"kind": "text", "label": "Intergroup Member",
-                "text": (officer.role or "").strip() or "(unset)",
-                "subtext": (officer.name or "").strip() + (
-                    "  ·  " + " · ".join(fields) if fields else "")}
-    if t == "intergroup_member_roster":
-        from .models import IntergroupOfficer
-        n = IntergroupOfficer.query.count()
-        cols = d.get("columns") or 3
-        return {"kind": "text", "label": "Officer Roster",
-                "text": f"{n} officer card" + ("" if n == 1 else "s"),
-                "subtext": f"{cols}-column grid"}
-    if t == "library":
-        from .models import Library, LibraryItem
-        lib_id = d.get("library_id") or 0
-        try: lib_id = int(lib_id)
-        except (TypeError, ValueError): lib_id = 0
-        lib = db.session.get(Library, lib_id) if lib_id else None
-        if lib is None:
-            return {"kind": "text", "label": "Library",
-                    "text": "(no library selected)",
-                    "subtext": "Pick one in the editor"}
-        if (d.get("mode") or "all") == "granular":
-            ids = d.get("item_ids") or []
-            count = sum(1 for i in ids if i)
-            mode_label = f"{count} hand-picked"
-        else:
-            count = LibraryItem.query.filter_by(library_id=lib.id).count()
-            mode_label = f"all {count} items"
-        return {"kind": "text", "label": "Library",
-                "text": lib.name,
-                "subtext": f"{d.get('style') or 'cards'}  ·  {mode_label}"}
-    if t == "code":
-        code = (d.get("code") or "").strip()
-        return {"kind": "code", "label": f"Code{' · ' + d.get('lang') if d.get('lang') else ''}",
-                "text": code[:200] if code else "(empty)"}
-    if t == "container":
-        kids = d.get("blocks") or []
-        return {"kind": "text", "label": "Container",
-                "text": f"{len(kids)} child block{'' if len(kids) == 1 else 's'}",
-                "subtext": (d.get("display") or "flex")
-                            + (f" · {d.get('grid_columns')}" if d.get("display") == "grid" else "")}
-    if t == "toc_sidebar":
-        return {"kind": "text", "label": "Wiki sidebar",
-                "text": d.get("title") or "On this page",
-                "subtext": f"up to H{d.get('max_level') or 3}"}
-    if t == "separator":
-        return {"kind": "text", "label": "Divider", "text": "—"}
-    if t == "icon":
-        nm = (d.get("name") or "").strip()
-        sz = d.get("size") or 32
-        return {"kind": "text", "label": "Icon",
-                "text": nm or "(none)",
-                "subtext": f"{sz}px"}
-    if t == "hero":
-        h = (d.get("heading") or "").strip()
-        sub = (d.get("subheading") or "").strip()
-        n_buttons = len(d.get("buttons") or [])
-        return {"kind": "text", "label": "Hero",
-                "text": h or "(no heading set)",
-                "subtext": (sub[:120] if sub else "")
-                            + ((" · " if sub else "") + f"{n_buttons} button"
-                               + ("" if n_buttons == 1 else "s") if n_buttons else "")}
-    if t == "meetings":
-        cap = d.get("max_count") or 6
-        flt = d.get("filter") or "upcoming_today"
-        return {"kind": "text", "label": "Meetings list",
-                "text": (d.get("heading") or "Upcoming Meetings"),
-                "subtext": f"{flt} · max {cap}" + (" · grouped by day" if d.get("group_by_day") else "")}
-    if t == "events":
-        cap = d.get("max_count") or 6
-        return {"kind": "text", "label": "Upcoming events",
-                "text": (d.get("heading") or "Upcoming Events"),
-                "subtext": f"max {cap}"}
-    if t == "features":
-        n = len(d.get("items") or [])
-        h = (d.get("heading") or "").strip()
-        return {"kind": "text", "label": "Features",
-                "text": h or "(no heading set)",
-                "subtext": f"{n} card" + ("" if n == 1 else "s")}
-    if t == "faq":
-        n = len(d.get("items") or [])
-        cols = 2 if str(d.get("columns") or 1) == "2" else 1
-        wm = d.get("width_mode") or "boxed"
-        sub_bits = [f"{n} item" + ("" if n == 1 else "s"),
-                    f"{cols} col"]
-        if wm == "full":
-            sub_bits.append("full-width")
-        return {"kind": "text", "label": "FAQ",
-                "text": (d.get("heading") or "Frequently asked questions"),
-                "subtext": " · ".join(sub_bits)}
-    return {"kind": "text", "label": t or "block"}
-
-
-def _walk_blocks_by_id(sections):
-    """Yield (block_id, block) for every block in `sections`, recursing
-    into containers. Used by the page-edit template to attach a
-    preview payload to each pill in the structure tree + orphan bin."""
-    def _walk(blocks):
-        for b in (blocks or []):
-            if not isinstance(b, dict):
-                continue
-            bid = b.get("id")
-            if bid:
-                yield bid, b
-            if b.get("type") == "container":
-                yield from _walk((b.get("data") or {}).get("blocks") or [])
-    for sec in (sections or []):
-        if isinstance(sec, dict):
-            yield from _walk(sec.get("blocks") or [])
-
-
-def _page_active_tree(page):
-    """Walk the page's blocks_json into the visualisation shape consumed
-    by `structure_page_tree`. Returns `{tree, orphans}` where `tree` is
-    a list of row entries:
-
-      {type:'block', block_id, t}              — single pill
-      {type:'columns', cols: [[…blocks…], …]}  — multi-column row whose
-                                                 cells are themselves
-                                                 lists of pills
-      {type:'section_label', label}            — section heading divider
-
-    `orphans` is a flat list of `{t, block_id}` pills representing the
-    orphan-bin section's contents (or empty if there is no bin). The
-    page editor renders orphans as a separate "Unplaced blocks" card
-    the admin drags from. Public render skips orphan sections.
-
-    Top-level container blocks whose `display=grid` parses to >1 column
-    (or `display=flex direction=row`) become a multi-column row whose
-    cells list the container's direct children. Other block types stay
-    as single pills carrying their unique `block_id` so the editor modal
-    can scroll-and-focus on click."""
-    import json as _json
-    import re as _re
-    if not page or not page.blocks_json:
-        return {"tree": [], "orphans": []}
-    try:
-        sections = _json.loads(page.blocks_json) or []
-    except (ValueError, TypeError):
-        return {"tree": [], "orphans": []}
-
-    def _grid_col_count(grid_cols):
-        # Count column tracks in a grid-template-columns spec.
-        # `repeat(N, …)` returns N. Otherwise, count whitespace-separated
-        # tokens (so "1fr 1fr" → 2). Returns 0 if unparseable.
-        #
-        # `auto-fit` / `auto-fill` grids have variable column counts at
-        # render time — there's no fixed N the structure tree can map
-        # cells to. Treat them as single-column so the editor stacks
-        # children flat (the public render still flows them as a grid).
-        if not grid_cols:
-            return 0
-        s = grid_cols.strip()
-        if "auto-fit" in s or "auto-fill" in s:
-            return 1
-        m = _re.match(r"\s*repeat\(\s*(\d+)\s*,", s)
-        if m:
-            try: return int(m.group(1))
-            except (ValueError, TypeError): return 0
-        return len([t for t in s.split() if t.strip()])
-
-    def _block_node(b):
-        """Recursively walk a block, producing a structure-tree node:
-
-          • {type:'block',   t, block_id}              — leaf pill
-          • {type:'columns', block_id, cols:[[node,…],…]} — container row
-
-        EVERY container becomes a 'columns' node — single-column or
-        multi-column — so the structure card always exposes a
-        container's contents as their own row(s) with their own drop
-        zones. Cells contain other nodes recursively, so a Container
-        nested inside a column renders AS a row inside that cell, with
-        its own droppable cells, ad infinitum. This lets the admin
-        compose arbitrarily deep nested layouts directly from the
-        structure card without diving into the focused modal."""
-        if not isinstance(b, dict):
-            return None
-        t = b.get("type")
-        if not t:
-            return None
-        if t != "container":
-            return {"type": "block", "t": t, "block_id": b.get("id") or ""}
-        d = b.get("data") or {}
-        kids = [c for c in (d.get("blocks") or []) if isinstance(c, dict)]
-        display_mode = (d.get("display") or "flex").lower()
-        flex_direction = (d.get("direction") or "column").lower()
-        n_cols = 1
-        if display_mode == "grid":
-            # Grid containers retain their N-cell visualisation — that's
-            # how the public CSS lays them out, so the editor mirrors it.
-            n_cols = max(1, _grid_col_count(d.get("grid_columns") or "") or 1)
-        # Flex containers ALWAYS render as a single zone in the editor,
-        # regardless of `direction`. Splitting flex-row children into
-        # per-cell columns misrepresented how flexbox works (children
-        # are siblings inside one container, not isolated tracks) and
-        # left the admin unable to drag siblings between cells. The
-        # cell receives a `flex_direction` flag so the template / CSS
-        # can flow pills in the configured direction inside it.
-        cells = [[] for _ in range(n_cols)]
-        cell_lengths = d.get("cell_lengths")
-        if (isinstance(cell_lengths, list)
-                and len(cell_lengths) == n_cols
-                and all(isinstance(x, int) and x >= 0 for x in cell_lengths)
-                and sum(cell_lengths) == len(kids)):
-            # Cell-aware — kids are stored concatenated by cell with
-            # explicit per-cell counts. Restore each cell exactly so an
-            # unequal split (e.g. 2 left + 3 right) survives the round
-            # trip. The public renderer uses the same `cell_lengths` to
-            # wrap each cell's children in a flex-column sub-wrapper.
-            cursor = 0
-            for ci, n in enumerate(cell_lengths):
-                for child in kids[cursor:cursor + n]:
-                    node = _block_node(child)
-                    if node is not None:
-                        cells[ci].append(node)
-                cursor += n
-        else:
-            # Legacy / equal-bucket — round-robin distribution mirrors
-            # CSS grid's default `grid-auto-flow: row` (item i lands in
-            # column `i mod n_cols`), so 6 items in a 3-col grid stack
-            # as col0:[0,3], col1:[1,4], col2:[2,5] in the editor instead
-            # of dumping everything past the column count into the last
-            # cell. Flex containers (n_cols=1) land every child in the
-            # single cell preserving source order.
-            for i, child in enumerate(kids):
-                node = _block_node(child)
-                if node is not None:
-                    cells[i % n_cols].append(node)
-        return {
-            "type": "columns",
-            "block_id": b.get("id") or "",
-            "label": (d.get("label") or "").strip(),
-            "display_mode": display_mode,
-            "flex_direction": flex_direction,
-            "cols": cells,
-        }
-
-    out = []
-    orphans = []
-    for si, sec in enumerate(sections):
-        if not isinstance(sec, dict):
-            continue
-        if sec.get("_orphans"):
-            for b in (sec.get("blocks") or []):
-                if not isinstance(b, dict):
-                    continue
-                t = b.get("type")
-                if not t:
-                    continue
-                orphans.append({"t": t, "block_id": b.get("id") or ""})
-            continue
-        title = (sec.get("title") or "").strip()
-        if title:
-            out.append({"type": "section_label", "label": title})
-        for b in (sec.get("blocks") or []):
-            node = _block_node(b)
-            if node is not None:
-                out.append(node)
-    return {"tree": out, "orphans": orphans}
-
-
 @bp.route("/frontend/pages/new")
 @admin_required
 def frontend_page_new():
@@ -14143,19 +13810,6 @@ def frontend_page_edit(page_id):
                     except Exception: pass
             draft_active = True
     active_layout = _page_active_layout(page, layouts)
-    tree_data = _page_active_tree(page)
-    # Per-block hover-preview payloads, keyed by block id. Built once
-    # server-side so each pill can stamp its preview JSON without the
-    # template having to reach into nested data structures.
-    try:
-        _sections_for_preview = _json.loads(page.blocks_json or "[]") or []
-    except (ValueError, TypeError):
-        _sections_for_preview = []
-    block_previews = {}
-    block_payloads = {}
-    for bid, b in _walk_blocks_by_id(_sections_for_preview):
-        block_previews[bid] = _block_preview(b)
-        block_payloads[bid] = b
     # Hero-modal proxy — the dedicated `#page-hero-edit-modal` (a verbatim
     # copy of the homepage hero modal markup) reads its values off a
     # `site`-shaped object so the existing markup just works. Default
@@ -14182,11 +13836,7 @@ def frontend_page_edit(page_id):
                            page_layouts=layouts,
                            active_layout=active_layout,
                            active_layout_key=(page.layout_key or "custom"),
-                           active_layout_tree=tree_data["tree"],
-                           active_layout_orphans=tree_data["orphans"],
                            active_layout_customized=_page_is_customized(page, active_layout),
-                           block_previews=block_previews,
-                           block_payloads=block_payloads,
                            page_block_catalog=_PAGE_BLOCK_CATALOG,
                            hero_modal_vals=hero_modal_vals,
                            hero_modal_buttons=[],
@@ -15346,7 +14996,7 @@ _POPUP_ALLOWED_BLOCK_TYPES = [
 # Palette tiles offered in the popup builder's floating "Add block" FAB.
 # Same drag-and-drop palette the page builder uses (`structure_block_palette`)
 # — includes the layout helpers (`split` / `split3` two- and three-panel
-# rows, which page_structure.js expands into containers) on top of the
+# rows, which page_navigator.js expands into containers) on top of the
 # inline-editable content blocks above. Excludes the homepage-section
 # blocks (hero / meetings / events / features / faq), wiki TOC, lottie,
 # and the data-bound officer / library / blog blocks.
@@ -15421,35 +15071,16 @@ def frontend_popup_create():
 @bp.route("/frontend/popups/<int:popup_id>/edit")
 @admin_required
 def frontend_popup_edit(popup_id):
-    import json as _json
     from .models import Popup
     s = _get_site_setting()
     popup = Popup.query.get_or_404(popup_id)
-    # Reuse the page builder's structure-card visualisation: a draggable
-    # tree of block pills + per-pill hover previews, driven by the shared
-    # page_structure.js. _page_active_tree only reads `.blocks_json`, so a
-    # Popup feeds it directly (popups never carry orphan bins).
-    tree_data = _page_active_tree(popup)
-    try:
-        _sections = _json.loads(popup.blocks_json or "[]") or []
-    except (ValueError, TypeError):
-        _sections = []
-    block_previews = {}
-    block_payloads = {}
-    for bid, b in _walk_blocks_by_id(_sections):
-        block_previews[bid] = _block_preview(b)
-        block_payloads[bid] = b
     popup_catalog = [c for c in _PAGE_BLOCK_CATALOG if c["key"] in _POPUP_PALETTE_KEYS]
     session["fe_last_popup"] = popup.id
     return render_template("frontend_popup_edit.html", site=s, popup=popup,
                            picker_groups=_picker_popups(popup.id),
                            blocks_json=popup.blocks_json or "[]",
                            popup_allowed_block_types=_POPUP_ALLOWED_BLOCK_TYPES,
-                           popup_block_catalog=popup_catalog,
-                           active_layout_tree=tree_data["tree"],
-                           active_layout_orphans=tree_data["orphans"],
-                           block_previews=block_previews,
-                           block_payloads=block_payloads)
+                           popup_block_catalog=popup_catalog)
 
 
 @bp.route("/frontend/popups/save", methods=["POST"])

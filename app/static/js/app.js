@@ -2183,20 +2183,38 @@
     }
     return host;
   }
-  function showToast(msg, kind) {
+  // `opts.action` ({label, run}) adds a button (e.g. Undo) and keeps
+  // the toast up longer; `opts.ms` sets how long it stays.
+  function showToast(msg, kind, opts) {
+    opts = opts || {};
     const host = ensureToastHost();
     const el = document.createElement("div");
     el.className = "tsp-toast" + (kind === "error" ? " tsp-toast-error" : "");
-    el.textContent = msg;
-    host.appendChild(el);
-    // Trigger transition next frame.
-    requestAnimationFrame(() => el.classList.add("tsp-toast-in"));
-    setTimeout(() => {
+    el.setAttribute("role", "status");
+    const text = document.createElement("span");
+    text.textContent = msg;
+    el.appendChild(text);
+    function dismiss() {
       el.classList.remove("tsp-toast-in");
       el.addEventListener("transitionend", () => el.remove(), { once: true });
       // Fallback cleanup in case transitionend doesn't fire.
       setTimeout(() => el.remove(), 500);
-    }, 1600);
+    }
+    if (opts.action && opts.action.label) {
+      el.classList.add("tsp-toast-has-action");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tsp-toast-action";
+      btn.textContent = opts.action.label;
+      btn.addEventListener("click", () => {
+        try { opts.action.run(); } finally { dismiss(); }
+      });
+      el.appendChild(btn);
+    }
+    host.appendChild(el);
+    // Trigger transition next frame.
+    requestAnimationFrame(() => el.classList.add("tsp-toast-in"));
+    setTimeout(dismiss, opts.ms || (opts.action ? 6000 : 1600));
   }
   // Expose for manual "Save order" button and other callers.
   window.tspShowToast = showToast;

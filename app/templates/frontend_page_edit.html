@@ -5,7 +5,7 @@
 {% from "_frontend_layout_picker.html" import layout_picker %}
 {% from "_width_control.html" import width_control %}
 {% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
-{% from "_frontend_structure_card.html" import structure_card, structure_page_tree, structure_orphans_card, structure_block_palette %}
+{% from "_frontend_structure_card.html" import structure_card, structure_navigator %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% block heading %}{{ 'Edit page' if page else 'New page' }}{% endblock %}
 {% block heading_help %}{% if page %}Editing <code>/{{ page.slug }}</code>.{% else %}Create a new content page.{% endif %}{% endblock %}
@@ -511,44 +511,22 @@
     </form>
     {% endif %}
 
-    {# ── Active layout structure ────────────────────────────────────
-       Shown for both existing AND new pages. New pages start with an
-       empty structure card + palette so the admin can drag blocks in
-       before the first save (the form's hidden `blocks_json` input
-       carries the dragged structure into `frontend_page_save`). Each
-       pill opens the BlockEditor modal scrolled to that block; the
-       top-right "Change layout" button opens the layout PICKER (the
-       same modal the top-bar Layout pill uses) so the admin can
-       switch layouts or build a custom one. #}
-    {# Pill names and icons come from the palette's own catalog, so a
-       block added there is named correctly here too. #}
-    {% set _PAGE_BLOCK_LABELS = {'separator': ('Divider', 'minus'), 'hero': ('Hero', 'image'),
-                                 'meetings': ('Meetings', 'calendar-clock'), 'events': ('Events', 'calendar')} %}
-    {% for _c in page_block_catalog %}{% set _ = _PAGE_BLOCK_LABELS.update({_c.key: (_c.name, _c.icon or 'square')}) %}{% endfor %}
-    {% set _editable = ['paragraph','heading','image','icon','button','container',
-                        'video','code','callout','list','toc_sidebar',
-                        'hero','meetings','events'] %}
-    {% call structure_card('Active layout', active_layout=active_layout,
+    {# ── Structure ──────────────────────────────────────────────────
+       The page's blocks as a tree (static/js/page_navigator.js), with
+       the block library beside it. It edits the same block data as
+       the settings drawer and writes it to the form's hidden
+       `blocks_json`, so a new page can be built before its first save.
+       "Change layout" opens the layout picker. #}
+    {% call structure_card('Structure', active_layout=active_layout,
                             builder_modal_id='page-layout-builder-modal',
                             picker_modal_id='page-layout-modal',
                             is_customized=active_layout_customized, library=page_block_catalog,
-                            help_text='Click a block to edit it, and drag it to move it. Add blocks from the list beside the structure: click one to add it at the end, or drag it into place.') %}
-      {% if active_layout_tree %}
-      {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
-                              _PAGE_BLOCK_LABELS, _editable,
-                              block_previews, block_payloads) }}
-      {% else %}
-      <p class="muted">This page has no blocks yet. Add some from the list beside this, or pick a layout on the Page part of the settings above.</p>
-      <div class="fe-page-structure-rows" data-be-tree data-be-zone="root">
-        <div class="fe-page-structure-root-empty muted small" data-be-root-empty>
-          Drop a Container or Two-panel here to add a new row, or drag any block to start.
-        </div>
-      </div>
-      {% endif %}
+                            help_text='The page’s blocks as a tree. Click a block to edit it, drag it to move it (onto a container to put it inside), and right-click for duplicate, copy, wrap, delete and more. Undo covers all of it.') %}
+      {{ structure_navigator(page_block_catalog, 'page-layout-edit-modal',
+                             dedicated={'hero': 'page-hero-edit-modal', 'meetings': 'page-meetings-edit-modal',
+                                        'events': 'page-events-edit-modal', 'features': 'page-features-edit-modal',
+                                        'faq': 'page-faq-edit-modal'}) }}
     {% endcall %}
-
-    {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
-                               _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
 
   </div>
 </div>
@@ -693,7 +671,7 @@ window.tspBlogTags = [
 </script>
 <script src="{{ url_for('static', filename='js/vendor/Sortable.min.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/block_editor.js', v=app_build_id) }}"></script>
-<script src="{{ url_for('static', filename='js/page_structure.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/page_navigator.js', v=app_build_id) }}"></script>
 {# Login-FX particle / sinewave engine — also powers the hero block's
    live preview pane in the BlockEditor modal. Same script the homepage
    admin loads; safe to include here because it self-initialises on
@@ -768,47 +746,11 @@ window.tspBlogTags = [
     if (body) body.scrollTop = 0;
   }
 
-  // Expose ensureEditor + focusBlock + a force-remount helper so the
-  // structure-card (page_structure.js) can drive the modal after
-  // drag-drop mutations without re-binding per-pill. The structure-
-  // card's delegated click handler calls these for newly-created
-  // pills; server-rendered pills go through the per-element binder
-  // below.
+  // The structure navigator (page_navigator.js) opens blocks with
+  // these and edits the editor's own block data.
   window.ensurePageBlockEditor = ensureEditor;
   window.focusPageBlock = focusBlock;
-  window.remountPageBlockEditor = () => {
-    if (editor && root) {
-      try { root.innerHTML = ''; } catch (_) {}
-    }
-    editor = null;
-    try { initial = JSON.parse(root.dataset.initial || '[]'); }
-    catch (_) { initial = []; }
-  };
 
-  // Clicking a structure-card pill opens the modal, focuses the matching
-  // block, and scrolls it into view. Pills carry data-page-block-id so
-  // the same handler works for top-level blocks AND ones nested in a
-  // 2-column container, since BlockEditor recurses container children
-  // with the same .be-block[data-id] markup. Mark each as bound so the
-  // delegated fallback in page_structure.js doesn't double-fire.
-  document.querySelectorAll('[data-page-block-id]').forEach(pill => {
-    if (pill.dataset.pillBound === '1') return;
-    pill.dataset.pillBound = '1';
-    pill.addEventListener('click', e => {
-      // Don't open the editor when the click is specifically on an
-      // inner remove button — those have their own handlers and we
-      // don't want to ALSO focus the block before the row/pill is
-      // about to be deleted. Settings buttons (which carry their own
-      // data-page-block-id at the row-label level) should fall
-      // THROUGH to the focus flow, since "click Settings → edit this
-      // container" is the whole point.
-      if (e.target.closest('[data-be-remove-block], [data-be-remove-row], '
-                         + '[data-be-duplicate-block], [data-be-duplicate-row]')) {
-        return;
-      }
-      focusBlock(pill.dataset.pageBlockId);
-    });
-  });
   // Plain "Edit layout" / "Add blocks" buttons open the full editor
   // (no focus). Clear any prior focus state so the admin sees the
   // whole tree, not the previously-focused block.
@@ -818,59 +760,10 @@ window.tspBlogTags = [
     });
   });
 
-  // The modal-based BlockEditor's `notifyChange()` fires `input` on
-  // `#page-editor-root`, but the modal is rendered OUTSIDE the
-  // page-edit form, so that event never bubbles to the form's
-  // listener — the global save-bar IIFE only sees changes when the
-  // user touches a form-level input or the structure card mutates
-  // the hidden field. Listen at the modal level and re-dispatch
-  // onto the form so any block-content edit (heading text,
-  // paragraph md, button URL, image src, container settings,
-  // typography panel, etc.) lights up the yellow bar exactly like
-  // a structure-card drop. Capture so we still see the event if a
-  // child stops propagation.
-  // Throttled serialiser — keeps the hidden `#page-blocks-json` input
-  // in sync with the modal-based BlockEditor's authoritative state as
-  // the admin types / picks icons / etc. Previously this only ran on
-  // form submit, so the live-preview poller (which reads the hidden
-  // input via `window.opener`) saw stale JSON until Save was clicked.
-  //
-  // Why throttle (not debounce): pure debounce only fires AFTER the
-  // user pauses, so continuous typing of a long sentence leaves the
-  // hidden input stuck at the pre-typing value until they take a
-  // breath — and the preview shows only what made it through. Throttle
-  // guarantees a flush at least every SYNC_MS while typing, so the
-  // poller always sees a steady stream of incremental updates.
-  const SYNC_MS = 150;
-  let _syncTimer = null;
-  let _syncLast = 0;
-  function flushHiddenNow() {
-    _syncLast = Date.now();
-    try {
-      if (editor && typeof editor.serialize === 'function') {
-        const v = editor.serialize();
-        if (v != null && v !== hidden.value) hidden.value = v;
-      }
-    } catch (_) {}
-  }
-  function scheduleHiddenSync() {
-    const since = Date.now() - _syncLast;
-    if (since >= SYNC_MS && !_syncTimer) {
-      // Leading edge — flush immediately so the first keystroke after
-      // a quiet period propagates without a lag.
-      flushHiddenNow();
-      return;
-    }
-    if (!_syncTimer) {
-      // Trailing edge — schedule the next flush at the end of the
-      // throttle window. Continuous typing rides this branch every
-      // tick so the preview sees ~6-7 updates / second.
-      _syncTimer = setTimeout(() => {
-        _syncTimer = null;
-        flushHiddenNow();
-      }, Math.max(0, SYNC_MS - since));
-    }
-  }
+  // BlockEditor's `notifyChange()` fires `input` on `#page-editor-root`,
+  // which sits outside the page form, so re-dispatch drawer edits onto
+  // the form to light the save bar. The navigator keeps the hidden
+  // `blocks_json` in step with the editor.
   editModal.addEventListener('input', () => {
     try { form.dispatchEvent(new Event('input', { bubbles: true })); }
     catch (_) {}
@@ -880,24 +773,7 @@ window.tspBlogTags = [
       const m = bar.querySelector('.fe-save-bar-msg');
       if (m) m.textContent = 'Unsaved changes';
     }
-    // Keep the structure-card pill payloads + container settings map
-    // in sync with the editor's authoritative state. Without this,
-    // dragging a block out of a container later in the session reads
-    // the pill's stale `data-block-payload` and clobbers anything the
-    // admin edited in the modal (heading text resetting on move was
-    // the canonical reproduction). The hook is a no-op until the
-    // editor is mounted and the structure script is loaded.
-    try {
-      if (editor && typeof editor.getState === 'function'
-          && typeof window.tspSyncStructurePayloadsFromState === 'function') {
-        window.tspSyncStructurePayloadsFromState(editor.getState());
-      }
-    } catch (_) {}
-    scheduleHiddenSync();
   }, true);
-  // `change` covers blur/commit-style controls (selects, color picker
-  // confirm, etc.) that don't always emit `input`. Same debounced sync.
-  editModal.addEventListener('change', () => { scheduleHiddenSync(); }, true);
   editModal.addEventListener('change', () => {
     try { form.dispatchEvent(new Event('change', { bubbles: true })); }
     catch (_) {}
@@ -922,15 +798,9 @@ window.tspBlogTags = [
     else editModal.classList.remove('is-focus-mode');
   }, true);
 
-  // Same dual-path serialise we shipped before: form's submit (real
-  // form button) + formdata (sticky save bar uses new FormData()).
-  // Only OVERWRITE the hidden input when the modal-based BlockEditor
-  // is currently mounted with an authoritative state. When it isn't
-  // (admin only edited via the structure card's drag-drop, never
-  // opened the per-block modal), the hidden input already carries
-  // the canonical sections JSON — page_structure.js's syncStateFromDom
-  // wrote it on every drop. Wiping it here would silently drop those
-  // edits the moment the form submits.
+  // Serialise the editor's block data on save: the form's submit (a
+  // real button) and formdata (the sticky save bar uses new FormData()).
+  // The navigator mounts the editor at load, so it is the page's data.
   function serialise(handler) {
     try {
       if (editor && typeof editor.serialize === 'function') return editor.serialize();
@@ -949,9 +819,6 @@ window.tspBlogTags = [
       e.formData.set('blocks_json', v);
       hidden.value = v;
     }
-    // else: hidden input already carries the structure-card's state;
-    // leave both `hidden.value` and `e.formData` alone so the save
-    // round-trips it unchanged.
   });
 
   // Page width: the shared _width_control.html needs no script.

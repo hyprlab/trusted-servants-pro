@@ -752,7 +752,9 @@
   function mount(root, opts) {
     opts = opts || {};
     const state = { sections: JSON.parse(JSON.stringify(opts.initial || [])) };
-    if (!state.sections.length) state.sections.push({ id: uid(), title: 'New Section', blocks: [] });
+    // A lazy mount backs the structure navigator, which works from an
+    // empty list; a titled placeholder section would add a heading.
+    if (!opts.lazy && !state.sections.length) state.sections.push({ id: uid(), title: 'New Section', blocks: [] });
 
     root.classList.add('be-root');
     root.innerHTML = '';
@@ -4933,6 +4935,9 @@
   // rather than duplicated so both share one fetch + one cache.
   window.BlockEditor = {
     mount,
+    // Fresh `{id, type, data}` with the same defaults the editor uses,
+    // so the structure navigator creates blocks identical to these.
+    blankBlock,
     iconCatalog: loadBlockEditorIconCatalog,
     iconPaths: findIconPathsInCatalog,
   };

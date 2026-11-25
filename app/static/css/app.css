@@ -3133,6 +3133,10 @@ html.in-settings .flashes { top: 72px; }
   transition: opacity 140ms ease, transform 140ms ease; }
 .tsp-toast.tsp-toast-in { opacity: 1; transform: translateY(0); }
 .tsp-toast-error { background: #b91c1c; }
+.tsp-toast-has-action { display: flex; align-items: center; gap: var(--gap-lg); pointer-events: auto; }
+.tsp-toast-action { border: 0; padding: 0; background: none; color: #93c5fd; font: inherit;
+  font-weight: 650; cursor: pointer; }
+.tsp-toast-action:hover { color: #bfdbfe; text-decoration: underline; }
 .card-hover { transition: transform .08s ease, box-shadow .12s ease;
   display: flex; flex-direction: column; color: inherit; overflow: hidden; }
 .card-hover .tags { margin-top: auto; }
@@ -9141,52 +9145,6 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   font-weight: 700; font-size: var(--fs-xs); letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--muted);
 }
-/* When the admin set a custom container label, render it as a
-   normal-cased title rather than the all-caps "CONTAINER" tag, so
-   "Officers" reads as the actual subject. The role chip below ("container · single column")
-   keeps the structural context. */
-.fe-page-structure .fe-page-structure-row-num--labelled {
-  font-weight: 700; font-size: var(--fs-base); letter-spacing: normal;
-  text-transform: none; color: var(--text);
-}
-/* Inline-editable container label input. Looks like a static title
-   by default; gains a subtle border + focus ring on hover/focus to
-   telegraph "this is editable." When the field is empty, the
-   placeholder reverts to the all-caps muted "CONTAINER"-style label
-   so admins still see the structural fallback. */
-.fe-page-structure .fe-page-structure-row-label-input {
-  width: 100%;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--r-sm);
-  padding: 4px 6px;
-  margin: -4px -6px 0;  /* keep visual position when border appears */
-  font-family: inherit;
-  font-weight: 700; font-size: var(--fs-xs); letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--muted);
-  outline: none;
-  cursor: text;
-  transition: border-color 120ms ease, background-color 120ms ease;
-}
-.fe-page-structure .fe-page-structure-row-label-input.is-labelled {
-  font-size: var(--fs-base); letter-spacing: normal;
-  text-transform: none; color: var(--text);
-}
-.fe-page-structure .fe-page-structure-row-label-input::placeholder {
-  color: var(--muted);
-  font-weight: 700; font-size: var(--fs-xs); letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 1;
-}
-.fe-page-structure .fe-page-structure-row-label-input:hover {
-  border-color: var(--border);
-  background: var(--panel);
-}
-.fe-page-structure .fe-page-structure-row-label-input:focus {
-  border-color: var(--brand, var(--access));
-  background: var(--panel);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand, var(--access)) 18%, transparent);
-}
 /* Single-block rows (homepage non-split entries) drop the label gutter
    and let the pill span the whole width, since "Row 1 / 1 column" is
    noise when every row is one block. */
@@ -9327,18 +9285,6 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   padding: 12px 0; font-style: italic; text-align: center; color: var(--muted);
 }
 
-/* Single-column container row inside the structure tree — keeps the
-   row-label gutter (so the admin sees "Container · single column")
-   and renders its lone cell with the same panel-card chrome a
-   2-column row uses, instead of stripping it like a single-block row
-   would. The pills inside stack vertically so a Container holding
-   heading + paragraph + list reads as a column of 3 pills, not a
-   single opaque "Container" pill. */
-.fe-page-structure .fe-page-structure-row--single-container .fe-page-structure-col {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  padding: 10px 12px 12px;
-}
 
 /* Nested container rows — any row sitting inside another container's
    column cell. The top-level rows pick up a 130 px label gutter at
@@ -9363,25 +9309,10 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   align-items: center;
   gap: var(--gap-sm);
 }
-.fe-page-structure .fe-page-structure-col .fe-page-structure-row-label-input {
-  flex: 1 1 160px;
-  min-width: 0;
-}
 .fe-page-structure .fe-page-structure-col .fe-page-structure-row-action {
   margin-top: 0;
   align-self: auto;
 }
-
-/* Section-title divider in the page admin's structure tree. Renders
-   between rows as a low-volume label so the admin can tell which
-   section a block belongs to without burying the block pills inside
-   nested cards. */
-.fe-page-structure .fe-page-structure-section-label {
-  font-weight: 700; font-size: var(--fs-2xs); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--muted);
-  padding: 6px 4px 0; margin-top: 4px;
-}
-.fe-page-structure .fe-page-structure-section-label:first-child { margin-top: 0; }
 
 /* Page-edit screen title banner — sits above the first card so the
    admin always knows which page they're editing. Uses the same panel
@@ -10608,11 +10539,6 @@ input.page-typo-color-text.is-invalid {
   padding: 12px 8px;
 }
 
-/* ===== Pages admin: layout-structure card actions ===== */
-.fe-page-structure-actions {
-  display: flex; gap: var(--gap-sm); flex-wrap: wrap;
-  padding: 12px 0 4px;
-}
 
 /* Edit-block modal head — push the × close button 1rem away from
    the title so they don't sit visually glued together. The modal-
@@ -11168,120 +11094,10 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 .fe-page-palette-icon .icon { width: 16px; height: 16px; }
 .fe-page-palette-name { font-weight: 600; font-size: var(--fs-sm); }
 
-/* ── Orphan-bin card ────────────────────────────────────────────
-   Hidden when there are no orphans. Pills inside reuse the structure-
-   card pill chrome so they read as the same kind of object — the bin
-   is just a parking spot. The drop zone gets a dashed outline so it's
-   discoverable as a target. */
-/* When the orphan bin is empty, the card stays visible (so drops
-   are always possible) but reads as muted + collapsed-ish. Used to
-   `display: none` here, but that broke the "drag any unwanted block
-   into the bin" workflow because the zone wasn't reachable. */
-.fe-page-orphans.is-empty { opacity: 0.6; }
-.fe-page-orphans.is-empty .fe-page-orphans-list {
-  min-height: 56px;
-}
-.fe-page-orphans.is-empty .fe-page-orphans-list::before {
-  content: 'Drop blocks here to park them — they survive layout switches and saves.';
-  display: block;
-  text-align: center; padding: 14px 16px;
-  color: var(--muted); font-style: italic; font-size: var(--fs-sm);
-}
-.fe-page-orphans.is-empty .fe-page-orphans-list:has(> .fe-page-structure-block)::before {
-  display: none;
-}
-.fe-page-orphans-list {
-  display: flex; flex-direction: column; gap: var(--gap-sm);
-  padding: 12px; border: 1px dashed var(--border); border-radius: var(--r-xl);
-  background: var(--panel-2); min-height: 56px;
-  list-style: none; margin: 0;
-}
-/* Orphan-bin pill chrome — mirrored from the structure-card pill rules
-   because the base `.fe-page-structure .fe-page-structure-block` is
-   scoped to the structure card and doesn't inherit into this sibling
-   section. Background uses `var(--panel)` (one step lighter than the
-   bin's `var(--panel-2)`) so pills read as discrete cards instead of
-   blending into the bin. Icon + label + hover behaviour matches the
-   structure card so a pill looks identical whether it's placed or
-   parked. */
-.fe-page-orphans-list .fe-page-structure-block {
-  display: flex; align-items: center; gap: var(--gap-sm);
-  padding: 10px 12px; border-radius: var(--r-lg);
-  background: var(--panel);
-  color: var(--text); font-size: var(--fs-sm); font-weight: 500;
-  border: 1px solid var(--border);
-  text-align: left; font-family: inherit;
-  cursor: pointer;
-  transition: background 140ms ease, border-color 140ms ease,
-              transform 140ms ease, color 140ms ease;
-}
-.fe-page-orphans-list .fe-page-structure-block:hover {
-  background: var(--brand, var(--access));
-  border-color: var(--brand, var(--access));
-  color: #fff;
-}
-.fe-page-orphans-list .fe-page-structure-block-icon {
-  display: inline-flex; align-items: center; justify-content: center;
-  color: var(--brand, var(--access)); flex: 0 0 auto;
-}
-.fe-page-orphans-list .fe-page-structure-block-icon .icon {
-  width: 14px; height: 14px;
-}
-.fe-page-orphans-list .fe-page-structure-block:hover .fe-page-structure-block-icon { color: #fff; }
-.fe-page-orphans-list .fe-page-structure-block:hover .fe-page-structure-block-edit-hint { opacity: 1; }
-
 /* ── Drag-drop affordances ──────────────────────────────────────
    While dragging, the source pill / palette tile dims, the hovered
    zone gets a brand-tinted outline, and the Sortable ghost shows the
    intended drop position. */
-.fe-page-structure .fe-page-structure-block-list[data-be-zone] {
-  min-height: 36px; transition: background 120ms ease, border-color 120ms ease;
-  border: 1px dashed transparent; border-radius: var(--r-md); padding: 4px;
-}
-
-/* Flex-container drop zones flow pills in the same direction the
-   public renderer will use, so the admin sees the actual layout shape
-   instead of always-stacked columns. Wrap is on so a long horizontal
-   row of pills folds onto a second line at narrow widths rather than
-   pushing the zone wider than its cell. */
-.fe-page-structure .fe-page-structure-block-list--flex {
-  display: flex; gap: var(--gap-sm); flex-wrap: wrap; align-items: flex-start;
-}
-.fe-page-structure .fe-page-structure-block-list--flex-row { flex-direction: row; }
-.fe-page-structure .fe-page-structure-block-list--flex-row-reverse { flex-direction: row-reverse; }
-.fe-page-structure .fe-page-structure-block-list--flex-column,
-.fe-page-structure .fe-page-structure-block-list--flex-column-reverse {
-  flex-direction: column; flex-wrap: nowrap;
-  /* Pills in a column-flow zone stretch the full cell width so the
-     admin can read long block labels + reach the hover Edit / × at
-     the right edge. Cross-axis stretch is what column flexboxes do
-     in CSS too, so the editor matches the public render. */
-  align-items: stretch;
-}
-.fe-page-structure .fe-page-structure-block-list--flex-column-reverse { flex-direction: column-reverse; }
-.fe-page-structure .fe-page-structure-block-list--flex-column > .fe-page-structure-block,
-.fe-page-structure .fe-page-structure-block-list--flex-column-reverse > .fe-page-structure-block {
-  width: 100%;
-  align-self: stretch;
-}
-/* In row flow each pill should size to its content (not stretch the
-   width of the zone) so multiple pills can sit side-by-side. */
-.fe-page-structure .fe-page-structure-block-list--flex-row > .fe-page-structure-block,
-.fe-page-structure .fe-page-structure-block-list--flex-row-reverse > .fe-page-structure-block {
-  width: auto;
-  flex: 0 0 auto;
-}
-
-/* Root zone — the rows container itself is a top-level drop target
-   for Container / Two-panel / leaf palette tiles. The dashed outline
-   only shows during a palette drag-over so it doesn't visually
-   compete with normal browsing. */
-.fe-page-structure-rows[data-be-zone="root"].is-drop-target {
-  outline: 2px dashed var(--brand, var(--access));
-  outline-offset: 6px;
-  border-radius: var(--r-xl);
-  background: color-mix(in srgb, var(--brand, var(--access)) 5%, transparent);
-}
 
 /* Empty-state placeholder — visible only when the active layout has
    no rows at all. JS removes it on the first drop. */
@@ -11292,27 +11108,6 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   text-align: center;
   background: var(--panel-2);
 }
-.fe-page-structure-rows[data-be-zone="root"]:has(> .fe-page-structure-row) > .fe-page-structure-root-empty,
-.fe-page-structure-rows[data-be-zone="root"]:has(> .fe-page-structure-section-label) > .fe-page-structure-root-empty {
-  display: none;
-}
-
-/* Row drag handle — small grip on the left of row-single rows, plus
-   a clickable cursor on row-split rows' label gutter so the admin
-   knows the whole label is grabbable. */
-.fe-page-row-handle {
-  flex: 0 0 auto;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; min-height: 28px;
-  color: var(--muted);
-  cursor: grab; user-select: none;
-  border-radius: var(--r-sm);
-  align-self: center;
-  font-family: ui-monospace, monospace;
-  font-size: var(--fs-sm); letter-spacing: -2px;
-}
-.fe-page-row-handle:hover { color: var(--brand, var(--access)); background: var(--hover); }
-.fe-page-row-handle:active { cursor: grabbing; }
 
 /* Layout-picker — "Custom" radio preview blocks. Three small dashed
    tiles to differentiate from the prebuilt previews (which are typed
@@ -11331,7 +11126,6 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   border-top: 1px solid var(--border);
 }
 .fe-layout-picker-template-tools .btn .icon { width: 14px; height: 14px; }
-.fe-page-row-handle .icon { width: 16px; height: 16px; }
 .fe-page-structure-row--single { display: flex; align-items: stretch; gap: var(--gap-sm); }
 .fe-page-structure-row--single > .fe-page-structure-cols { flex: 1 1 auto; min-width: 0; }
 .fe-page-structure-row-label { cursor: grab; }
@@ -11348,34 +11142,15 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 .fe-page-structure-row.is-row-chosen {
   box-shadow: 0 0 0 2px var(--brand, var(--access));
 }
-.fe-page-structure .fe-page-structure-block-list[data-be-zone].is-drop-target,
-.fe-page-orphans-list.is-drop-target {
-  border-color: var(--brand, var(--access));
-  background: var(--brand-soft);
-}
 .fe-page-structure-block.is-draggable { cursor: grab; }
 .fe-page-structure-block.is-draggable:active,
 .fe-page-structure-block.is-dragging { cursor: grabbing; opacity: 0.55; }
-.fe-page-structure-block.is-drop-ghost {
-  background: var(--brand-soft) !important;
-  color: var(--brand, var(--access));
-  border-color: var(--brand, var(--access));
-  opacity: 0.6;
-}
-.fe-page-structure-block.is-drop-chosen {
-  outline: 2px solid var(--brand, var(--access));
-  outline-offset: 2px;
-}
 
-/* ⧉ duplicate + × delete buttons — small, subtle by default, brighter
-   on hover. Both share the same baseline chrome and reveal pattern;
-   only the hover colour differs (duplicate goes brand-tinted, remove
-   goes danger). Pinned to the right edge of pills via auto margin so
-   the existing "Edit" hint stays visible. Keyboard-focusable for
-   accessibility. */
+/* × delete button — small, subtle by default, danger on hover.
+   Pinned to the right edge of pills via auto margin so the existing
+   "Edit" hint stays visible. Keyboard-focusable for accessibility. */
 .fe-page-structure-block { position: relative; }
-.fe-page-structure-block .fe-page-structure-block-remove,
-.fe-page-structure-block .fe-page-structure-block-duplicate {
+.fe-page-structure-block .fe-page-structure-block-remove {
   flex: 0 0 auto;
   width: 22px; height: 22px; padding: 0;
   border: 0; border-radius: 50%;
@@ -11387,36 +11162,25 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 }
 .fe-page-structure-block .fe-page-structure-block-remove { font-size: var(--fs-base); }
 .fe-page-structure-block:hover .fe-page-structure-block-remove,
-.fe-page-structure-block:focus-within .fe-page-structure-block-remove,
-.fe-page-structure-block:hover .fe-page-structure-block-duplicate,
-.fe-page-structure-block:focus-within .fe-page-structure-block-duplicate {
+.fe-page-structure-block:focus-within .fe-page-structure-block-remove {
   opacity: 1;
 }
 .fe-page-structure-block-remove:hover {
   background: var(--danger);
   color: #fff;
 }
-.fe-page-structure-block-duplicate:hover {
-  background: var(--brand, var(--access));
-  color: #fff;
-}
-.fe-page-structure-block-remove:focus-visible,
-.fe-page-structure-block-duplicate:focus-visible {
+.fe-page-structure-block-remove:focus-visible {
   opacity: 1;
   outline: 2px solid var(--brand, var(--access));
   outline-offset: 1px;
 }
-/* When hovering the × / ⧉ so the pill turns brand-tinted, keep the
-   icons readable against the tinted background. */
-.fe-page-structure-block.is-clickable:hover .fe-page-structure-block-remove,
-.fe-page-structure-block.is-clickable:hover .fe-page-structure-block-duplicate {
+/* When hovering the × so the pill turns brand-tinted, keep it
+   readable against the tinted background. */
+.fe-page-structure-block.is-clickable:hover .fe-page-structure-block-remove {
   color: rgba(255, 255, 255, 0.85);
 }
 .fe-page-structure-block.is-clickable:hover .fe-page-structure-block-remove:hover {
   background: var(--danger); color: #fff;
-}
-.fe-page-structure-block.is-clickable:hover .fe-page-structure-block-duplicate:hover {
-  background: rgba(255, 255, 255, 0.22); color: #fff;
 }
 
 /* Hover-expand: when a clickable pill sits inside a narrow nested
@@ -11436,28 +11200,14 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 }
 
 /* Row × button — sits in the row label gutter alongside the Settings
-   button on container/2-col rows, and as a top-right icon-button on
-   row-single rows. Always visible (admin needs explicit affordance
-   for destructive action). */
+   button. Always visible (admin needs explicit affordance for
+   destructive action). */
 .fe-page-structure-row-remove { color: var(--danger); }
 .fe-page-structure-row-remove:hover {
   background: var(--danger); color: #fff;
   border-color: var(--danger);
 }
 .fe-page-structure-row-remove .icon { width: 14px; height: 14px; }
-.fe-page-structure-row-remove--single {
-  align-self: center; flex: 0 0 auto;
-  width: 32px; height: 32px;
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  background: var(--panel);
-  color: var(--muted);
-  display: inline-flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.fe-page-structure-row-remove--single:hover {
-  color: #fff; background: var(--danger); border-color: var(--danger);
-}
 
 /* Merged Page-settings card — three subsections (Title/URL/publish,
    Page width, Background) live inside one `.fe-page-settings-card`,
@@ -15680,11 +15430,11 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fe-block-library-head h3 { display: flex; align-items: center; gap: var(--gap-xs); margin: 0; font-size: var(--fs-base); }
 .fe-block-library-head h3 .icon { width: 16px; height: 16px; color: var(--brand); }
 .fe-block-library-head p { margin: 0; }
-.fe-block-search { display: flex; align-items: center; gap: var(--gap-xs); padding: 0 10px; border: 1px solid var(--border); border-radius: var(--r-md);
+.fe-block-search, .fe-layers-filter { display: flex; align-items: center; gap: var(--gap-xs); padding: 0 10px; border: 1px solid var(--border); border-radius: var(--r-md);
   background: var(--panel); color: var(--muted); }
-.fe-block-search:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
-.fe-block-search .icon { width: 14px; height: 14px; flex: 0 0 auto; }
-.fe-block-search input { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; padding: 7px 0; font: inherit;
+.fe-block-search:focus-within, .fe-layers-filter:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.fe-block-search .icon, .fe-layers-filter .icon { width: 14px; height: 14px; flex: 0 0 auto; }
+.fe-block-search input, .fe-layers-filter input { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; padding: 7px 0; font: inherit;
   font-size: var(--fs-sm); color: var(--text); outline: none; }
 .fe-block-library-body { overflow: auto; padding: 10px 12px 14px; display: flex; flex-direction: column; gap: var(--gap-xl); }
 .fe-block-group[hidden] { display: none; }
@@ -15701,6 +15451,77 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fe-block-library .fe-page-palette-icon .icon { width: 16px; height: 16px; }
 .fe-block-library .fe-page-palette-name { min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
 .fe-block-none { margin: 0; }
+
+/* ── Structure navigator (page_navigator.js): the page's blocks as an
+   indented tree. Rows are one line; nesting shows as indent guides,
+   not boxes. The ⋯ button shows on hover and on the selected row. ── */
+.fe-layers { display: flex; flex-direction: column; gap: var(--gap-sm); min-width: 0; }
+.fe-layers-toolbar { display: flex; align-items: center; gap: var(--gap-sm); }
+.fe-layers-filter { flex: 1 1 auto; min-width: 0; max-width: 340px; }
+.fe-layers-tools { display: flex; gap: 2px; margin-left: auto; }
+.fe-layers-tools .icon-btn { width: 32px; height: 32px; color: var(--muted); }
+.fe-layers-tools .icon-btn:hover:not(:disabled) { color: var(--text); }
+.fe-layers-tools .icon-btn:disabled { opacity: .4; cursor: default; }
+.fe-layers-tree { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 96px; padding: 4px;
+  border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--panel); }
+.fe-layers-tree.is-drop-root { box-shadow: inset 0 0 0 2px var(--brand); }
+.fe-layers-empty { padding: 28px 16px; text-align: center; color: var(--muted); font-size: var(--fs-sm); }
+.fe-layers-row { --nav-indent: 18px; position: relative; display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 32px;
+  padding: 0 4px 0 calc(6px + var(--depth, 0) * var(--nav-indent)); border-radius: var(--r-md);
+  color: var(--text); font-size: var(--fs-sm); line-height: 1.3; cursor: pointer; user-select: none; outline: none; }
+.fe-layers-row::before { content: ""; position: absolute; top: 0; bottom: 0; left: 6px; pointer-events: none;
+  width: calc(var(--depth, 0) * var(--nav-indent));
+  background: repeating-linear-gradient(90deg, transparent 0 8px, var(--border) 8px 9px, transparent 9px var(--nav-indent)); }
+.fe-layers-row:hover { background: var(--hover); }
+.fe-layers-row.is-selected { background: color-mix(in srgb, var(--brand) 10%, transparent); }
+.fe-layers-row:focus-visible { box-shadow: inset 0 0 0 2px var(--brand); }
+.fe-layers-twisty { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: var(--r-xs); color: var(--muted); }
+.fe-layers-twisty .icon { width: 14px; height: 14px; transition: transform 140ms ease; }
+.fe-layers-twisty.is-open .icon { transform: rotate(90deg); }
+.fe-layers-twisty:not(.is-leaf):hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+.fe-layers-icon { flex: 0 0 auto; display: inline-flex; color: var(--muted); }
+.fe-layers-icon .icon { width: 16px; height: 16px; }
+.fe-layers-row.is-selected .fe-layers-icon { color: var(--brand); }
+.fe-layers-name { flex: 0 1 auto; max-width: 75%; min-width: 2.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; }
+.fe-layers-row--container .fe-layers-name { font-weight: 650; }
+.fe-layers-row--container.is-unnamed .fe-layers-name { font-weight: 550; color: var(--muted); }
+.fe-layers-meta { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--muted); font-size: var(--fs-xs); }
+.fe-layers-more { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  margin-left: auto; padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--muted);
+  cursor: pointer; opacity: 0; }
+.fe-layers-more .icon { width: 16px; height: 16px; }
+.fe-layers-row:hover .fe-layers-more, .fe-layers-row.is-selected .fe-layers-more, .fe-layers-row:focus-visible .fe-layers-more { opacity: 1; }
+.fe-layers-more:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+@media (hover: none) { .fe-layers-more { opacity: 1; } }
+.fe-layers-row--column .fe-layers-name, .fe-layers-row--section .fe-layers-name, .fe-layers-row--orphans .fe-layers-name {
+  font-size: var(--fs-xs); font-weight: 650; color: var(--muted); }
+.fe-layers-row--orphans { margin-top: 6px; }
+.fe-layers-row.is-drag-source { opacity: .4; }
+.fe-layers-row.is-drop-into { background: color-mix(in srgb, var(--brand) 12%, transparent); box-shadow: inset 0 0 0 2px var(--brand); }
+.fe-layers-drop-line { position: absolute; right: 8px; height: 2px; border-radius: 2px; background: var(--brand);
+  pointer-events: none; opacity: 0; z-index: 1; }
+.fe-layers-drop-line::before { content: ""; position: absolute; left: -6px; top: -3px; width: 8px; height: 8px; box-sizing: border-box;
+  border: 2px solid var(--brand); border-radius: 50%; background: var(--panel); }
+.fe-layers-drop-line.is-on { opacity: 1; }
+.fe-layers-rename { flex: 1 1 auto; min-width: 0; height: 26px; padding: 0 6px; border: 1px solid var(--brand); border-radius: var(--r-sm);
+  background: var(--panel); color: var(--text); font: inherit; font-weight: 600; outline: none;
+  box-shadow: 0 0 0 3px var(--brand-soft); }
+.fe-layers-hint { margin: 0; }
+/* Right-click / ⋯ menu. */
+.fe-layers-menu { position: fixed; z-index: 120; min-width: 230px; padding: 5px; border: 1px solid var(--border);
+  border-radius: var(--r-lg); background: var(--panel);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08); }
+.fe-layers-menu-item { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--gap-xl);
+  padding: 6px 10px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text);
+  font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.fe-layers-menu-item:hover:not(:disabled), .fe-layers-menu-item:focus:not(:disabled) { background: var(--hover); outline: none; }
+.fe-layers-menu-item:disabled { opacity: .45; cursor: default; }
+.fe-layers-menu-item.is-danger { color: var(--danger); }
+.fe-layers-menu-item.is-danger:hover, .fe-layers-menu-item.is-danger:focus { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.fe-layers-menu-item kbd { padding: 0; border: 0; background: none; font: inherit; font-size: var(--fs-xs); color: var(--muted); }
+.fe-layers-menu-sep { height: 1px; margin: 4px 6px; background: var(--border); }
 .is-just-added { animation: fe-just-added 1.6s ease; }
 @keyframes fe-just-added { 0%, 40% { box-shadow: 0 0 0 3px var(--brand); } 100% { box-shadow: 0 0 0 0 transparent; } }
 @media (max-width: 1100px) {
@@ -15708,16 +15529,13 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   .fe-block-library { position: static; max-height: none; }
 }
 
-/* ── Page / popup structure: every container gets a one-line head (its
-   name, what it is, and icon buttons) over its columns, so nested
-   containers keep their width for the blocks inside. Columns stack
-   when the container is narrow. ── */
+/* ── Footer structure: every row gets a one-line head (what it is and
+   icon buttons) over its columns. Columns stack when the row is
+   narrow. ── */
 .fe-page-structure .fe-page-structure-row--split { grid-template-columns: minmax(0, 1fr) !important; gap: var(--gap-sm); padding: 10px 12px;
   container-type: inline-size; }
 .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label {
   flex-direction: row; flex-wrap: nowrap; align-items: center; gap: var(--gap-2xs); min-width: 0; }
-.fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-label-input {
-  flex: 1 1 auto; width: auto; min-width: 3em; margin: 0; }
 .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .muted.smaller {
   flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 4px; }
 .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-action {
@@ -15747,25 +15565,14 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .is-lib-folded .fe-block-library-rail:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
 @media (max-width: 1100px) { .fe-structure-split.is-lib-folded { grid-template-columns: minmax(0, 1fr); } }
 
-/* Containers laid out in a row inside a flex-row container: an explicit
-   flexible width (their size containment means they can't size to their
-   content), wrapping when the row runs out of room. */
-.fe-page-structure .fe-page-structure-block-list--flex-row,
-.fe-page-structure .fe-page-structure-block-list--flex-row-reverse { flex-wrap: wrap; }
-.fe-page-structure .fe-page-structure-block-list--flex-row > .fe-page-structure-row,
-.fe-page-structure .fe-page-structure-block-list--flex-row-reverse > .fe-page-structure-row { flex: 1 1 240px; min-width: 0; }
 .fe-block-library-fold { flex: 0 0 auto; width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint,
-.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate,
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove {
   position: absolute; top: 50%; transform: translateY(-50%); margin: 0; pointer-events: none; }
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove { right: 6px; background: var(--panel); }
-.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate { right: 32px; background: var(--panel); }
-.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint { right: 60px; background: var(--panel); color: var(--brand); }
-.fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-duplicate,
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint { right: 32px; background: var(--panel); color: var(--brand); }
 .fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-remove,
-.fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-duplicate,
 .fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-remove { pointer-events: auto; color: var(--text); background: var(--panel); box-shadow: 0 0 0 1px var(--border); }
 /* Narrow pills keep just the buttons. */
 @container (max-width: 300px) {
@@ -15780,12 +15587,9 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 }
 @container (max-width: 260px) {
   .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label { flex-wrap: wrap; }
-  .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-label-input { flex-basis: 100%; }
 }
 
-.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate:hover { background: var(--brand); color: #fff; }
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove:hover { background: var(--danger); color: #fff; }
-.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate .icon,
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove .icon { width: 13px; height: 13px; }
 
 .tp-pick-groups { columns: 2 280px; column-gap: var(--gap-lg); }

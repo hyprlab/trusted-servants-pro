@@ -9,6 +9,13 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+New features:
+
+- Page structure as a collapsible tree with drag and drop and a right-click menu
+- Undo and redo in the page and popup builders
+- Copy and paste blocks between pages and popups
+- Wrap blocks in a container, or unwrap one
+
 Changes:
 
 - Block settings open in a full-height drawer from the right

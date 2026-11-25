@@ -207,7 +207,7 @@
   }
   function writeSections(sections) {
     hidden.value = JSON.stringify(sections);
-    // Mirror the same triple-dispatch page_structure.js uses so the
+    // Mirror the same triple-dispatch page_navigator.js uses so the
     // save bar / form-level dirty trackers all light up.
     try { hidden.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
     if (form) {

@@ -6,8 +6,16 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added
+
+- Structure navigator for the page and popup builders (`static/js/page_navigator.js`, `structure_navigator` in `_frontend_structure_card.html`), replacing the nested structure card. It draws the blocks as an indented ARIA tree from the same `sections` array the settings drawer's BlockEditor edits (lazy-mounted at load), so there is one copy of the page and no DOM-to-data rebuild. Rows open the block's settings (or its own dialog for hero, meetings, events, features and FAQ); drag shows a before/after line or highlights a container to drop inside, collapsed containers included; a right-click or ⋯ menu offers edit, rename, add inside, duplicate, copy, paste after or inside (clipboard in `localStorage`, so it works across pages and popups, filtered to a popup's allowed types), wrap in a container, unwrap, move up or down, move an unplaced block back, and delete. Keyboard: arrows, Home/End, Enter, F2, Delete, Alt+arrows, Shift+F10, and Ctrl/Cmd D, C, V, Z, Shift+Z / Y. Undo and redo cover structure changes and content edits (grouped per burst); delete shows an Undo toast instead of a confirm dialog. A filter box finds blocks, and expand/collapse state is remembered per page. The block library adds after the selected block, inside a selected container, or at the end.
+- `tspShowToast(msg, kind, {action, ms})` takes an optional action button.
+- `BlockEditor.blankBlock` is exported, so the navigator creates blocks with the editor's own defaults (the third hand-kept copy in `page_structure.js` is gone).
+
 ### Changed
 
+- Data conventions are kept: top-level blocks stay one per untitled section, a legacy titled section shows as a heading row, the `_orphans` section shows as "Unplaced blocks", and a grid container with valid `cell_lengths` shows its columns, whose counts moves keep right.
+- Removed `page_structure.js`, the `structure_page_tree` / `structure_orphans_card` / `page_pill` macros, the server's `_page_active_tree`, `_block_preview` and `_walk_blocks_by_id`, the page editor's structure-sync and remount hooks, and the CSS only the old tree used. A lazy BlockEditor mount no longer adds a titled "New Section" to an empty page.
 - The page and popup block editor (`#page-layout-edit-modal`) is a drawer: new `.modal--drawer` modifier (full viewport height, slides in from the right, width from `--drawer-w`, 540px for one block or the whole layout). Focus mode now strips the borders and padding of every container on the way to the focused block.
 - Block settings controls (`block_editor.js`): shared `segmented()` (the `.view-toggle` look), `switchify()` (checkbox labels become `.mode-toggle` switches) and `colorField()` (swatch, value, theme-color button, clear; a theme color shows by name with its real swatch). `colorPickerWithDarkMode` is Same / Auto / Custom on that field; Auto derives from a theme color's resolved hex too. Container `selectInput` renders a segmented control for up to five short options. Typography weight, alignment and heading level are segmented; settings groups are flat sections with a chevron. `attachTokenButton` and the old color CSS are gone.
 
