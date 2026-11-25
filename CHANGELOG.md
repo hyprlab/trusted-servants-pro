@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.7.0] — 2026-11-25
+
 ### Added
 
 - "Intergroup Elections" page layout preset (`page-intergroup-elections`, built in `app/page_layout_presets.py`, seeded by `_seed_page_layouts`). Unlike the other presets it ships its copy, imported from the DC CMA WordPress election page: header, election date and Zoom card, open positions linked to each position card, the election procedure as numbered cards, and a card per position with duties, term and vote. Every word lands in block `data`, so the created page is edited in the page editor like any other. Colors are `token:` design tokens with dark values.
