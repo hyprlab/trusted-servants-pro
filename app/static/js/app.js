@@ -231,9 +231,13 @@
       closeTips();
     }
   });
+  // Capture phase, so Escape with a tooltip open closes only the
+  // tooltip and not the modal or drawer the chip sits in.
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeTips();
-  });
+    if (e.key !== "Escape" || !document.querySelector(".heading-help.open")) return;
+    closeTips();
+    e.stopPropagation();
+  }, true);
 
   // Branding: live-preview footer logo width + selected file
   const bWidth = document.getElementById("branding-width-slider");

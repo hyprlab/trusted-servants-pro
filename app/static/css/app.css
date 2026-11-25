@@ -10333,13 +10333,6 @@ input.page-typo-color-text.is-invalid {
   grid-template-columns: 1fr;
   align-items: start;
 }
-/* The shared hint sits under the *control* in normal 2-column rows
-   via `grid-column: 2 / -1`. Pad-box rows are a single column, so
-   that placement would conjure a phantom second track and shove the
-   diagram sideways — pin the hint back to the lone column here. */
-.be-container-row--pad-box .be-container-row-hint {
-  grid-column: 1 / -1;
-}
 .be-pad-box {
   /* 5 columns × 5 rows. Each side label owns its OWN column/row so
      it never shares a grid cell with an input (the previous 3-col
@@ -10495,10 +10488,6 @@ input.page-typo-color-text.is-invalid {
   opacity: 0.85;
 }
 .be-grid-advanced-toggle:hover { opacity: 1; }
-.be-container-row-hint {
-  grid-column: 2 / -1;
-  margin-top: -4px;
-}
 .be-container-row > select,
 .be-container-row > input[type="text"],
 .be-container-row > input[type="number"] { width: 100%; }
@@ -10581,7 +10570,6 @@ input.page-typo-color-text.is-invalid {
 .be-root .be-container-panel-body { padding: 0 0 18px; gap: var(--gap-md); }
 .be-root .be-container-row { grid-template-columns: 112px minmax(0, 1fr); align-items: start; }
 .be-root .be-container-row-lbl { padding-top: 7px; font-size: var(--fs-sm); font-weight: 500; color: var(--muted); }
-.be-root .be-container-row-hint { grid-column: 2 / -1; }
 .be-root .be-container-row > .be-seg,
 .be-root .be-container-row > .mode-toggle { justify-self: start; }
 .be-root .be-container-row > .mode-toggle { min-height: 32px; }
@@ -10602,7 +10590,6 @@ input.page-typo-color-text.is-invalid {
 @media (max-width: 560px) {
   .be-root .be-container-row { grid-template-columns: minmax(0, 1fr); gap: var(--gap-xs); }
   .be-root .be-container-row-lbl { padding-top: 0; }
-  .be-root .be-container-row-hint { grid-column: 1; }
 }
 
 /* Colour field: swatch, value, theme colour, clear. */

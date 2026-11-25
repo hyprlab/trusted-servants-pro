@@ -608,6 +608,7 @@
 
   const ICON_PATHS = {
     'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    'info': '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
     'grip-vertical': '<circle cx="9" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/>',
     'align-left': '<line x1="21" y1="6" x2="3" y2="6"/><line x1="15" y1="12" x2="3" y2="12"/><line x1="17" y1="18" x2="3" y2="18"/>',
     'align-center': '<line x1="21" y1="6" x2="3" y2="6"/><line x1="17" y1="12" x2="7" y2="12"/><line x1="19" y1="18" x2="5" y2="18"/>',
@@ -747,6 +748,36 @@
     const wrap = document.createElement('span');
     wrap.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICON_PATHS[name] || '') + '</svg>';
     return wrap.firstChild;
+  }
+  // A field's helper prose as an info chip with the text in a popover:
+  // the markup of _help_chip.html's chip(), so app.js opens, places and
+  // closes it. `content` is a string, a node, or a list of them.
+  function helpChip(label, content) {
+    const wrap = document.createElement('span');
+    wrap.className = 'heading-help field-help';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'help-btn';
+    btn.tabIndex = -1;
+    btn.setAttribute('aria-label', label ? 'About ' + label : 'More information');
+    btn.appendChild(iconEl('info'));
+    const tip = document.createElement('span');
+    tip.className = 'help-tooltip';
+    tip.setAttribute('role', 'tooltip');
+    tip.append(...[].concat(content));
+    wrap.append(btn, tip);
+    return wrap;
+  }
+  // A label's text, followed by its help chip when there is help. The
+  // chip stays on the line of the label's last word when it wraps.
+  function withHelp(label, help) {
+    if (!help) return [label];
+    const text = String(label);
+    const cut = text.lastIndexOf(' ') + 1;
+    const tail = document.createElement('span');
+    tail.className = 'nowrap';
+    tail.append(text.slice(cut), ' ', helpChip(text, help));
+    return [text.slice(0, cut), tail];
   }
 
   function mount(root, opts) {
@@ -1309,9 +1340,8 @@
 
       function row(label, control, hint) {
         const r = el('div', { class: 'be-container-row' });
-        r.appendChild(el('span', { class: 'be-container-row-lbl' }, [label]));
+        r.appendChild(el('span', { class: 'be-container-row-lbl' }, withHelp(label, hint)));
         r.appendChild(control);
-        if (hint) r.appendChild(el('div', { class: 'be-container-row-hint muted smaller' }, [hint]));
         return r;
       }
       // Font family — window.tspFonts comes from the page edit
@@ -1823,9 +1853,8 @@
         const cardBody = el('div', { class: 'be-container-panel-body' });
         function cardRow(label, control, hint) {
           const r = el('div', { class: 'be-container-row' });
-          r.appendChild(el('span', { class: 'be-container-row-lbl' }, [label]));
+          r.appendChild(el('span', { class: 'be-container-row-lbl' }, withHelp(label, hint)));
           r.appendChild(control);
-          if (hint) r.appendChild(el('div', { class: 'be-container-row-hint muted smaller' }, [hint]));
           return r;
         }
         cardBody.appendChild(cardRow('Background',
@@ -2990,9 +3019,8 @@
         notifyChange();
       });
 
-      wrap.appendChild(el('div', { class: 'muted smaller', style: 'margin-bottom: 4px;' },
-        ['Filter the rendered list by category and/or tag. Pick neither to show every published post.']));
-      wrap.appendChild(el('label', {}, ['Category', catSel]));
+      wrap.appendChild(el('label', {}, [...withHelp('Category',
+        'Filter the list by category and/or tag. Pick neither to show every published post.'), catSel]));
       wrap.appendChild(el('label', {}, ['Tag', tagSel]));
 
       // ── Title + subtitle ───────────────────────────────────────
@@ -3173,9 +3201,8 @@
       // text/number/range so the bar reflects every keystroke. ──────
       function field(lbl, inner, hintMd) {
         const wrap = el('div', { class: 'nav-megalink-field' });
-        wrap.appendChild(el('span', { class: 'nav-megalink-field-lbl' }, [lbl]));
+        wrap.appendChild(el('span', { class: 'nav-megalink-field-lbl' }, withHelp(lbl, hintMd)));
         wrap.appendChild(inner);
-        if (hintMd) wrap.appendChild(el('p', { class: 'muted smaller' }, [hintMd]));
         return wrap;
       }
       function textInput(key, placeholder) {
@@ -3225,8 +3252,7 @@
         const row = el('li', { class: 'special-page-row',
           style: 'list-style:none; margin: 0.75rem 0;' });
         const info = el('div', { class: 'special-page-info' });
-        info.appendChild(el('div', { class: 'u-name' }, [name]));
-        if (hint) info.appendChild(el('p', { class: 'muted small' }, [hint]));
+        info.appendChild(el('div', { class: 'u-name' }, withHelp(name, hint)));
         row.appendChild(info);
         const lbl = el('label', { class: 'mode-toggle' });
         const cb = el('input', { type: 'checkbox',
@@ -3527,10 +3553,10 @@
 
       // Heights
       const hGrid = el('div', { class: 'hero-heading-opts hero-heading-grad-row' });
-      function heightField(key, lbl) {
+      function heightField(key, lbl, help) {
         const fld = el('div', { class: 'nav-megalink-field hero-slider-field' });
         const out = el('output', {}, [d[key] ? d[key] + 'vh' : 'Auto']);
-        fld.appendChild(el('span', { class: 'nav-megalink-field-lbl' }, [lbl, ' ', out]));
+        fld.appendChild(el('span', { class: 'nav-megalink-field-lbl' }, [lbl, ' ', out, ...(help ? [' ', helpChip(lbl, help)] : [])]));
         fld.appendChild(el('input', { type: 'range', min: '0', max: '200', step: '5',
           value: String(d[key] || 0),
           oninput: e => {
@@ -3541,11 +3567,11 @@
           } }));
         return fld;
       }
-      hGrid.appendChild(heightField('height_vh_desktop', 'Desktop height'));
-      hGrid.appendChild(heightField('height_vh_mobile', 'Mobile height'));
+      hGrid.appendChild(heightField('height_vh_desktop', 'Desktop height',
+        'Set 0 to keep the natural padding-based height. Higher values stretch the hero to that share of the viewport (50 = half-screen, 100 = full-screen).'));
+      hGrid.appendChild(heightField('height_vh_mobile', 'Mobile height',
+        'Falls back to the desktop height when left at 0.'));
       textGroup.appendChild(hGrid);
-      textGroup.appendChild(el('p', { class: 'muted smaller', style: 'margin: 4px 2px 0;' },
-        ["Set 0 to keep the natural padding-based height. Higher values stretch the hero to that share of the viewport (50 = half-screen, 100 = full-screen). Mobile falls back to the desktop value when left at 0."]));
 
       wrap.appendChild(textGroup);
 
@@ -4063,9 +4089,8 @@
       // so they all share alignment + spacing.
       function row(label, control, hint) {
         const r = el('div', { class: 'be-container-row' });
-        r.appendChild(el('span', { class: 'be-container-row-lbl' }, [label]));
+        r.appendChild(el('span', { class: 'be-container-row-lbl' }, withHelp(label, hint)));
         r.appendChild(control);
-        if (hint) r.appendChild(el('div', { class: 'be-container-row-hint muted smaller' }, [hint]));
         return r;
       }
       function selectInput(value, options, oninput) {
@@ -4607,10 +4632,9 @@
       spacingBody.appendChild(padRow);
       const _mobilePadRow = el('div',
         { class: 'be-container-row be-container-row--pad-box be-container-row--mobile-section' }, [
-          el('span', { class: 'be-container-row-lbl' }, ['Padding (mobile)']),
+          el('span', { class: 'be-container-row-lbl' }, withHelp('Padding (mobile)',
+            'Leave any side blank to inherit the matching desktop value at ≤720 px.')),
           paddingBox('padding_mobile', 'Mobile'),
-          el('div', { class: 'be-container-row-hint muted smaller' },
-            ['Leave any side blank to inherit the matching desktop value at ≤720 px.']),
         ]);
       spacingBody.appendChild(_mobilePadRow);
       spacingBody.appendChild(row('Width',
@@ -4899,23 +4923,21 @@
       const customPanel = el('div', { class: 'be-button-custom-panel' });
       customPanel.hidden = (d.style !== 'custom');
 
-      function colorRow(label, key) {
+      function colorRow(label, key, help) {
         return el('div', { class: 'be-button-color-row' }, [
-          el('span', { class: 'be-button-color-lbl' }, [label]),
+          el('span', { class: 'be-button-color-lbl' }, withHelp(label, help)),
           colorField({ value: d[key] || '', placeholder: 'Default',
             onChange: v => { d[key] = v; notifyChange(); } }),
         ]);
       }
-      customPanel.appendChild(colorRow('Background', 'bg'));
+      customPanel.appendChild(colorRow('Background', 'bg',
+        'Each colour is optional: leave it blank to inherit the theme default. Borders render at 1px solid in the chosen colour; Shadow colours the soft drop beneath the button.'));
       customPanel.appendChild(colorRow('Background (hover)', 'hover_bg'));
       customPanel.appendChild(colorRow('Text', 'text_color'));
       customPanel.appendChild(colorRow('Text (hover)', 'hover_text'));
       customPanel.appendChild(colorRow('Border', 'border'));
       customPanel.appendChild(colorRow('Border (hover)', 'hover_border'));
       customPanel.appendChild(colorRow('Shadow', 'shadow'));
-      customPanel.appendChild(el('p', { class: 'muted small' }, [
-        'Each colour is optional — leave blank to inherit the theme defaults. Borders render at 1px solid in the chosen colour. Shadow is the colour of the soft drop beneath the button.'
-      ]));
       wrap.appendChild(customPanel);
 
       return wrap;

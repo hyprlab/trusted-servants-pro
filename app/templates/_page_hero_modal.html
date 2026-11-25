@@ -260,6 +260,7 @@
       <div class="nav-megalink-field hero-slider-field">
         <span class="nav-megalink-field-lbl">Desktop height
           <output data-hero-height-out>{% if _hh_d %}{{ _hh_d }}vh{% else %}Auto{% endif %}</output>
+          {% call chip('Desktop height') %}Set 0 to keep the natural padding-based height. Higher values stretch the hero to that share of the viewport.{% endcall %}
         </span>
         <input type="range" data-hero-field="frontend_hero_height_vh_desktop" min="0" max="200" step="5"
                value="{{ _hh_d }}" data-hero-height-input>
@@ -272,7 +273,6 @@
                value="{{ _hh_m }}" data-hero-height-input>
       </div>
     </div>
-    <p class="muted smaller" style="margin: 4px 2px 0;">Set 0 to keep the natural padding-based height. Higher values stretch the hero to that share of the viewport.</p>
     </div>{# /hero-text-col #}
 
     <div class="hero-bg-col">

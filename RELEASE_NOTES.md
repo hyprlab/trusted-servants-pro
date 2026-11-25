@@ -17,6 +17,10 @@ New features:
 - full-screen page builder: block library, structure, the page at desktop, tablet or phone size, and a toolbar on the selected block
 - drag blocks from the library, or by a selected block's name, onto the page
 
+Changes:
+
+- block settings help text behind info icons
+
 ## 3.8.1 — 2026-11-25 (latest)
 
 Fixes:
