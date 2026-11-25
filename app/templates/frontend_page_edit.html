@@ -5,7 +5,6 @@
 {% from "_frontend_layout_picker.html" import layout_picker %}
 {% from "_width_control.html" import width_control %}
 {% from "_live_preview.html" import live_preview, LP_HEADER, LP_FOOTER, LP_MAIN, LP_FORM %}
-{% from "_frontend_structure_card.html" import structure_card, structure_navigator %}
 {% set _active_theme = (site.frontend_theme if site else 'classic') or 'classic' %}
 {% block heading %}{{ 'Edit page' if page else 'New page' }}{% endblock %}
 {% block heading_help %}{% if page %}Editing <code>/{{ page.slug }}</code>.{% else %}Create a new content page.{% endif %}{% endblock %}
@@ -18,7 +17,7 @@
         title="Browse past saves of this page and roll back to any of them.">
   {{ icon('clock') }} History
 </button>
-<button type="button" class="btn btn-primary" id="page-preview-btn"
+<button type="button" class="btn" id="page-preview-btn"
         data-preview-url="{{ url_for('frontend.page_preview', page_id=page.id) }}"
         title="Open a preview of your current (unsaved) changes in a new tab">Preview ↗</button>
 {% if draft_active and page.is_published %}
@@ -32,6 +31,8 @@
 </button>
 {% endif %}
 <a class="btn" href="{{ url_for('frontend.page_detail', slug=page.slug) }}" target="_blank" rel="noopener" title="Open the live published page">View ↗</a>
+<button type="button" class="btn btn-primary" data-pb-open
+        title="Edit the page's blocks full screen">{{ icon('mouse-pointer-click') }} Open builder</button>
 {% endif %}
 {% endblock %}
 
@@ -517,6 +518,12 @@
             {% if page %}
             {{ live_preview(url_for('frontend.page_preview', page_id=page.id), '#page-edit-form', height=700, width=1280,
                             title='Page preview', overrides={'save_action': 'publish'}, watch=True, only=LP_MAIN) }}
+            {# The blocks are edited in the builder: this opens it, and so
+               does a click on any block in the preview. #}
+            <div class="pb-launch">
+              <button type="button" class="btn btn-primary" data-pb-open>{{ icon('mouse-pointer-click') }} Open builder</button>
+              <span class="muted smaller">or click any part of the page to edit it there</span>
+            </div>
             {% else %}
             <p class="muted small">The preview appears once the page is saved.</p>
             {% endif %}
@@ -540,22 +547,6 @@
     </form>
     {% endif %}
 
-    {# ── Structure ──────────────────────────────────────────────────
-       The page's blocks as a tree (static/js/page_navigator.js), with
-       the block library beside it. It edits the same block data as
-       the settings drawer and writes it to the form's hidden
-       `blocks_json`, so a new page can be built before its first save.
-       "Change layout" opens the layout picker. #}
-    {% call structure_card('Structure', active_layout=active_layout,
-                            builder_modal_id='page-layout-builder-modal',
-                            picker_modal_id='page-layout-modal',
-                            is_customized=active_layout_customized, library=page_block_catalog,
-                            help_text='The page’s blocks as a tree. Click a block to edit it, drag it to move it (onto a container to put it inside), and right-click for duplicate, copy, wrap, delete and more. Undo covers all of it.') %}
-      {{ structure_navigator(page_block_catalog, 'page-layout-edit-modal',
-                             dedicated={'hero': 'page-hero-edit-modal', 'meetings': 'page-meetings-edit-modal',
-                                        'events': 'page-events-edit-modal', 'features': 'page-features-edit-modal',
-                                        'faq': 'page-faq-edit-modal'}) }}
-    {% endcall %}
 
   </div>
 </div>
@@ -621,6 +612,14 @@
       <h2 id="page-layout-edit-modal-title">Edit layout</h2>
       <button type="button" class="icon-btn" data-close aria-label="Close">{{ icon('x') }}</button>
     </div>
+    {# In the builder: where the block sits, and its quick actions. #}
+    <div class="pb-crumbs" data-pb-crumbs hidden>
+      <nav class="pb-crumbs-trail" aria-label="Where this block is" data-pb-crumbs-trail></nav>
+      <div class="pb-crumbs-tools">
+        <button type="button" class="icon-btn" data-pb-block-act="duplicate" title="Duplicate" aria-label="Duplicate">{{ icon('copy') }}</button>
+        <button type="button" class="icon-btn" data-pb-block-act="delete" title="Delete" aria-label="Delete">{{ icon('trash-2') }}</button>
+      </div>
+    </div>
     <div class="modal-body">
       <p class="muted small fe-block-editor-help">
         Drag blocks to reorder. Click <code>+ Container</code> to nest blocks with their own padding, gap, and background. Changes save with the page when you hit <b>Save</b> below.
@@ -632,6 +631,8 @@
     </div>
   </div>
 </div>
+
+{% include "_page_builder.html" %}
 
 <script>
 // Surface the admin's available fonts to BlockEditor so the per-block
@@ -1475,6 +1476,7 @@ window.tspBlogTags = [
 </script>
 <script src="{{ url_for('static', filename='js/fe_live_preview.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/fe_studio.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/page_builder.js', v=app_build_id) }}"></script>
 {# Layout dialogs; their button is the Layout field on the Page part. #}
 {% if page %}
 {{ layout_picker(page_layouts, active_layout_key,

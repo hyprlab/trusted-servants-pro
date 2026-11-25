@@ -4715,8 +4715,10 @@
     // builder's Edit-layout modal re-dispatches its block-editor inputs
     // onto the outer page form (so the form itself looks "non-modal"
     // even though the visitor is actively working inside a modal panel).
+    // The page builder stays open too: it is a layer over the screen.
     const stayOpen = forms.every(f => f.closest('.modal')) ||
-                     !!document.querySelector('.modal.open');
+                     !!document.querySelector('.modal.open') ||
+                     document.body.classList.contains('pb-on');
     try {
       for (const f of forms) {
         const fd = new FormData(f);

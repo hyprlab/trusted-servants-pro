@@ -13792,7 +13792,8 @@ def frontend_page_create():
                 is_published=is_published, is_private=is_private)
     db.session.add(page)
     db.session.commit()
-    return redirect(url_for("main.frontend_page_edit", page_id=page.id))
+    # A new page opens in the builder, where its blocks are made.
+    return redirect(url_for("main.frontend_page_edit", page_id=page.id) + "#builder")
 
 
 @bp.route("/frontend/pages/<int:page_id>/edit")

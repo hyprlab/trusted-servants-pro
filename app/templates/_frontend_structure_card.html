@@ -189,7 +189,8 @@
 {% set _NAV_EXTRA_TYPES = [('separator', 'Divider', 'minus'), ('container', 'Container', 'layout-grid'),
                            ('hero', 'Hero', 'image'), ('meetings', 'Meetings list', 'calendar-clock'),
                            ('events', 'Upcoming events', 'calendar')] %}
-{% set _NAV_UI_ICONS = ['chevron-right', 'more-horizontal', 'columns', 'folder', 'inbox', 'square'] %}
+{% set _NAV_UI_ICONS = ['chevron-right', 'more-horizontal', 'columns', 'folder', 'inbox', 'square',
+                      'arrow-up', 'chevron-up', 'chevron-down', 'copy', 'trash-2'] %}
 {% macro structure_navigator(catalog, modal_id, dedicated={}, allowed_types=None) %}
 {%- set _types = {} -%}
 {%- for c in catalog %}{% set _ = _types.update({c.key: {'name': c.name, 'icon': icon(c.icon or 'square')|string}}) %}{% endfor -%}

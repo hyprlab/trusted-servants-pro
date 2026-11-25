@@ -14,6 +14,8 @@ New features:
 - page and popup previews: click a block to edit it
 - page preview image chosen from the File Browser
 - Pages, Popups, Forms and Page templates open on an index of cards with previews, or a list
+- full-screen page builder: block library, structure, the page at desktop, tablet or phone size, and a toolbar on the selected block
+- drag blocks from the library, or by a selected block's name, onto the page
 
 ## 3.8.1 — 2026-11-25 (latest)
 

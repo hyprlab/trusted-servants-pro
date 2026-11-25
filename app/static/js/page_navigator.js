@@ -1325,30 +1325,188 @@
         'font:600 calc(var(--tsp-pick-s,1)*11px)/1.25 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}' +
         '.tsp-pick.is-low .tsp-pick-tag{bottom:auto;top:0;' +
         'border-radius:0 0 calc(var(--tsp-pick-s,1)*4px) 0}' +
-        'html.tsp-picking [data-pb-id],html.tsp-picking [data-pb-id] *{cursor:pointer!important}';
+        'html.tsp-picking [data-pb-id],html.tsp-picking [data-pb-id] *{cursor:pointer!important}' +
+        // The selected block's tag is its toolbar: drag handle and name,
+        // then select parent, move, duplicate and delete.
+        '.tsp-pick--sel .tsp-pick-tag{pointer-events:auto;display:flex;align-items:center;' +
+        'gap:calc(var(--tsp-pick-s,1)*1px);padding:calc(var(--tsp-pick-s,1)*2px)}' +
+        '.tsp-pick-name{all:unset;padding:0 calc(var(--tsp-pick-s,1)*5px)}' +
+        '.tsp-pick--sel .tsp-pick-name{cursor:grab!important}' +
+        '.tsp-pick-btn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;' +
+        'width:calc(var(--tsp-pick-s,1)*22px);height:calc(var(--tsp-pick-s,1)*20px);' +
+        'border-radius:calc(var(--tsp-pick-s,1)*3px);cursor:pointer!important;color:#fff}' +
+        '.tsp-pick-btn:hover,.tsp-pick-btn:focus-visible{background:rgba(255,255,255,.22)}' +
+        '.tsp-pick-btn[hidden]{display:none}' +
+        '.tsp-pick-btn svg{width:calc(var(--tsp-pick-s,1)*13px);height:calc(var(--tsp-pick-s,1)*13px);pointer-events:none}' +
+        '.tsp-pick-sep{all:unset;width:1px;align-self:stretch;margin:calc(var(--tsp-pick-s,1)*3px) calc(var(--tsp-pick-s,1)*2px);' +
+        'background:rgba(255,255,255,.35)}' +
+        // Where a dragged block will land: a line, or the container it goes into.
+        '.tsp-drop{all:unset;position:fixed;z-index:2147483647;pointer-events:none;display:none;box-sizing:border-box;' +
+        'background:var(--tsp-pick-c);border-radius:calc(var(--tsp-pick-s,1)*2px)}' +
+        '.tsp-drop.is-on{display:block}' +
+        '.tsp-drop.is-into{background:var(--tsp-pick-ring);border:calc(var(--tsp-pick-s,1)*2px) dashed var(--tsp-pick-c)}';
 
       function ensureBoxes() {
         if (boxes && boxes.doc === doc) return boxes;
         const st = doc.createElement('style');
         st.textContent = CSS_TEXT;
         (doc.head || doc.documentElement).appendChild(st);
-        const make = cls => {
+        const make = (cls, tools) => {
           const el = doc.createElement('div');
           el.className = 'tsp-pick ' + cls;
-          el.setAttribute('aria-hidden', 'true');
           const tag = doc.createElement('span');
           tag.className = 'tsp-pick-tag';
+          const name = doc.createElement('span');
+          name.className = 'tsp-pick-name';
+          tag.appendChild(name);
+          if (tools) {
+            name.draggable = true;
+            name.title = 'Drag to move';
+            tag.appendChild(Object.assign(doc.createElement('span'), { className: 'tsp-pick-sep' }));
+            TOOLS.forEach(t => {
+              const b = doc.createElement('button');
+              b.type = 'button';
+              b.className = 'tsp-pick-btn';
+              b.dataset.act = t[0];
+              b.title = t[1];
+              b.setAttribute('aria-label', t[1]);
+              b.innerHTML = ICONS[t[2]] || '';
+              tag.appendChild(b);
+            });
+            wireTools(tag, name);
+          } else {
+            el.setAttribute('aria-hidden', 'true');
+          }
           el.appendChild(tag);
           doc.documentElement.appendChild(el);
           return el;
         };
+        const drop = doc.createElement('div');
+        drop.className = 'tsp-drop';
+        drop.setAttribute('aria-hidden', 'true');
+        doc.documentElement.appendChild(drop);
         const root = getComputedStyle(document.documentElement);
         const c = root.getPropertyValue('--brand').trim() || '#0b5cff';
         doc.documentElement.style.setProperty('--tsp-pick-c', c);
         doc.documentElement.style.setProperty('--tsp-pick-ring', 'color-mix(in srgb, ' + c + ' 22%, transparent)');
         doc.documentElement.classList.add('tsp-picking');
-        boxes = { doc, sel: make('tsp-pick--sel'), hover: make('tsp-pick--hover') };
+        boxes = { doc, sel: make('tsp-pick--sel', true), hover: make('tsp-pick--hover'), drop };
         return boxes;
+      }
+      const TOOLS = [['parent', 'Select the container around it', 'arrow-up'],
+                     ['up', 'Move up', 'chevron-up'], ['down', 'Move down', 'chevron-down'],
+                     ['duplicate', 'Duplicate', 'copy'], ['delete', 'Delete', 'trash-2']];
+      function wireTools(tag, name) {
+        tag.addEventListener('mousedown', e => { if (e.target.closest('.tsp-pick-btn')) e.preventDefault(); });
+        tag.addEventListener('click', e => {
+          const b = e.target.closest('.tsp-pick-btn');
+          const id = selId();
+          if (!b || !id) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const act = b.dataset.act;
+          if (act === 'parent') { const up = ancestorsOf(id).pop(); if (up) choose(up.id); }
+          else if (act === 'up' || act === 'down') { if (rowFor(id)) nudge(id, act === 'up' ? -1 : 1); }
+          else if (act === 'duplicate') { duplicate(id); keepEditing(selectedId); }
+          else if (act === 'delete') remove(id);
+        });
+        // Drag the name to move the block, on the page or onto the tree.
+        name.addEventListener('dragstart', e => {
+          const id = selId();
+          const blk = id && blockOf(id);
+          if (!blk) { e.preventDefault(); return; }
+          dragBlock = blk;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData(NAV_MIME, id);
+          e.dataTransfer.setData('text/plain', nameOf(id));
+        });
+        name.addEventListener('dragend', () => { dragBlock = null; dropAt(null); });
+      }
+      // After a move or a copy, the drawer shows the block that was acted on.
+      function keepEditing(id) {
+        if (!id) return;
+        const blk = blockOf(id);
+        if (blk && !DEDICATED[blk.type] && typeof window.focusPageBlock === 'function') {
+          window.focusPageBlock(id);
+          draw();
+        }
+      }
+
+      // ── Dropping on the page ──────────────────────────────────────
+      // A block dragged from the library, the tree or its own tag lands
+      // before or after the block under the pointer (beside it when its
+      // siblings sit in a row), or inside the container under it.
+      function besides(id) {
+        const loc = locate(id);
+        if (!loc) return false;
+        const r = rectOf(id);
+        return !!r && loc.list.some(o => {
+          if (!o || o.id === id) return false;
+          const q = rectOf(o.id);
+          return q && q.top < r.bottom - 2 && q.bottom > r.top + 2;
+        });
+      }
+      function canvasTarget(x, y) {
+        const hit = doc.elementFromPoint(x, y);
+        const el = hit && hit.closest ? hit.closest('[data-pb-id]') : null;
+        if (!el) {
+          const last = Array.from(byId.keys()).pop();
+          const lr = last && rectOf(last);
+          return lr && y > lr.bottom ? { target: { mode: 'root-end' }, line: { id: last, after: true } } : null;
+        }
+        const id = el.getAttribute('data-pb-id');
+        const blk = blockOf(id);
+        const r = rectOf(id);
+        if (!blk || !r) return null;
+        const row = besides(id);
+        const pos = row ? (x - r.left) / Math.max(1, r.right - r.left) : (y - r.top) / Math.max(1, r.bottom - r.top);
+        if (isContainer(blk)) {
+          const edge = Math.min(0.2, 14 / Math.max(1, row ? r.right - r.left : r.bottom - r.top));
+          if (pos < edge) return { target: { mode: 'before', ref: blk }, line: { id, after: false, row } };
+          if (pos > 1 - edge) return { target: { mode: 'after', ref: blk }, line: { id, after: true, row } };
+          // Between its children: before the first one past the pointer.
+          const list = kids(blk);
+          for (const k of list) {
+            const q = k && rectOf(k.id);
+            if (!q) continue;
+            const kRow = besides(k.id);
+            if ((kRow ? x < (q.left + q.right) / 2 && y < q.bottom : y < (q.top + q.bottom) / 2)) {
+              return { target: { mode: 'before', ref: k }, line: { id: k.id, after: false, row: kRow } };
+            }
+          }
+          return { target: { mode: 'inside', container: blk }, into: id };
+        }
+        return pos < 0.5
+          ? { target: { mode: 'before', ref: blk }, line: { id, after: false, row } }
+          : { target: { mode: 'after', ref: blk }, line: { id, after: true, row } };
+      }
+      let canvasDrop = null;
+      function dropAt(res) {
+        canvasDrop = res ? res.target : null;
+        if (!boxes || boxes.doc !== doc) return;
+        const d = boxes.drop;
+        if (!res) { d.classList.remove('is-on', 'is-into'); return; }
+        const s = 1 / (scale() || 1);
+        const t = 3 * s;
+        if (res.into) {
+          const r = rectOf(res.into);
+          if (!r) return;
+          Object.assign(d.style, { left: r.left + 'px', top: r.top + 'px',
+            width: (r.right - r.left) + 'px', height: (r.bottom - r.top) + 'px' });
+          d.classList.add('is-on', 'is-into');
+          return;
+        }
+        const r = rectOf(res.line.id);
+        if (!r) return;
+        d.classList.remove('is-into');
+        if (res.line.row) {
+          const x = res.line.after ? r.right : r.left;
+          Object.assign(d.style, { left: (x - t / 2) + 'px', top: r.top + 'px', width: t + 'px', height: (r.bottom - r.top) + 'px' });
+        } else {
+          const y = res.line.after ? r.bottom : r.top;
+          Object.assign(d.style, { left: r.left + 'px', top: (y - t / 2) + 'px', width: (r.right - r.left) + 'px', height: t + 'px' });
+        }
+        d.classList.add('is-on');
       }
       function place(box, id) {
         const r = id && rectOf(id);
@@ -1361,7 +1519,9 @@
         box.style.width = (r.right - r.left + pad * 2) + 'px';
         box.style.height = Math.max(r.bottom - r.top + pad * 2, 6 * s) + 'px';
         box.classList.toggle('is-low', r.top < 24 * s);
-        box.firstChild.textContent = nameOf(id);
+        box.querySelector('.tsp-pick-name').textContent = nameOf(id);
+        const up = box.querySelector('[data-act="parent"]');
+        if (up) up.hidden = !ancestorsOf(id).length;
         box.classList.add('is-on');
       }
       function selId() {
@@ -1390,6 +1550,8 @@
       function choose(id) {
         const blk = blockOf(id);
         if (!blk || !rowFor(id)) return;
+        // On the edit screen a click on the page opens the builder on it.
+        if (window.tspBuilder) window.tspBuilder.open();
         if (DEDICATED[blk.type] && drawer && drawer.classList.contains('open')) {
           const x = drawer.querySelector('.modal-head [data-close]');
           if (x) x.click();
@@ -1470,6 +1632,36 @@
         win.addEventListener('keydown', e => {
           if (e.key === 'Escape') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         });
+        win.addEventListener('dragover', e => {
+          const kind = dragKind(e);
+          if (!kind) return;
+          const res = canvasTarget(e.clientX, e.clientY);
+          if (!res || !validTarget(res.target, kind === 'move' ? dragBlock : null)
+              || (kind === 'move' && res.target.ref === dragBlock)) { dropAt(null); return; }
+          e.preventDefault();
+          e.dataTransfer.dropEffect = kind === 'move' ? 'move' : 'copy';
+          hover(null);
+          dropAt(res);
+          // Near the top or bottom edge the page scrolls.
+          const edge = 60 / (scale() || 1);
+          if (e.clientY < edge) win.scrollBy(0, -18 / (scale() || 1));
+          else if (e.clientY > win.innerHeight - edge) win.scrollBy(0, 18 / (scale() || 1));
+        });
+        d.addEventListener('dragleave', e => { if (!e.relatedTarget) dropAt(null); });
+        win.addEventListener('drop', e => {
+          const kind = dragKind(e);
+          const target = canvasDrop;
+          dropAt(null);
+          if (!kind || !target) return;
+          e.preventDefault();
+          if (kind === 'move') {
+            const b = dragBlock;
+            dragBlock = null;
+            if (moveBlock(b, target)) keepEditing(b.id);
+          } else {
+            addNew(e.dataTransfer.getData(NEW_MIME), target);
+          }
+        });
         const redraw = () => draw();
         win.addEventListener('scroll', redraw, { passive: true, capture: true });
         win.addEventListener('resize', redraw);
@@ -1496,8 +1688,25 @@
         }).observe(drawer, { attributes: true, attributeFilter: ['class'] });
       }
       window.addEventListener('resize', cutout);
-      return { draw, showSelected };
+      return { draw, showSelected, choose };
     })();
+
+    // The page builder's settings panel names the block being edited
+    // and the containers around it, and selects them from there.
+    window.tspPageNav = {
+      crumbs(id) {
+        return ancestorsOf(id).map(b => ({ id: b.id, name: labelsFor(b).name }))
+          .concat(blockOf(id) ? [{ id, name: labelsFor(blockOf(id)).name }] : []);
+      },
+      icon(id) { const b = blockOf(id); return b && TYPES[b.type] ? TYPES[b.type].icon : ''; },
+      choose: id => preview.choose(id),
+      remove: id => remove(id),
+      duplicate: id => { duplicate(id); keepFocus(selectedId); },
+    };
+    function keepFocus(id) {
+      const blk = id && blockOf(id);
+      if (blk && !DEDICATED[blk.type] && typeof window.focusPageBlock === 'function') window.focusPageBlock(id);
+    }
 
     // ── Toast ───────────────────────────────────────────────────────
     function toast(msg, action, kind) {

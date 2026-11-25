@@ -24,6 +24,8 @@
 (function () {
   'use strict';
   var DEBOUNCE_MS = 450;
+  // Render widths of the narrower devices; desktop is data-lp-width.
+  var DEVICE_W = { tablet: 768, phone: 390 };
 
   function csrf() {
     var m = document.querySelector('meta[name="csrf-token"]');
@@ -254,6 +256,7 @@
     next.style.width = this.frame.style.width;
     next.style.height = this.frame.style.height;
     next.style.transform = this.frame.style.transform;
+    next.style.left = this.frame.style.left;
     next.addEventListener('load', function () {
       if (!next.srcdoc) return;
       if (seq !== self.seq) { next.remove(); return; }
@@ -358,15 +361,25 @@
   // Render at a real viewport width and scale it down to the column.
   // A fitted preview keeps a realistic viewport height (so vh units hold)
   // and crops the stage to the content.
+  // A filling preview (data-lp-fill, the page builder's canvas) takes
+  // its height from its stage's CSS, and on a desktop wider than the
+  // render width it renders at the stage's own width.
   Preview.prototype.fit = function () {
     if (!this.stage) return;
     var phone = this.device === 'phone';
-    var w = phone ? 390 : parseInt(this.root.getAttribute('data-lp-width') || '1280', 10);
+    var fill = this.root.hasAttribute('data-lp-fill');
+    var w = DEVICE_W[this.device] || parseInt(this.root.getAttribute('data-lp-width') || '1280', 10);
     var avail = this.stage.clientWidth || w;
+    if (fill && this.device === 'desktop') w = Math.max(w, avail);
     var scale = Math.min(1, avail / w);
     var h = parseInt(this.root.getAttribute('data-lp-height') || '640', 10);
     this.frame.style.width = w + 'px';
     this.frame.style.transform = 'scale(' + scale + ')';
+    if (fill) {
+      this.frame.style.left = Math.max(0, Math.round((avail - w * scale) / 2)) + 'px';
+      this.frame.style.height = Math.round((this.stage.clientHeight || h) / scale) + 'px';
+      return;
+    }
     if (this.root.hasAttribute('data-lp-fit')) {
       var content = this.contentH || h / scale;
       var view = phone ? 844 : 900;
@@ -398,6 +411,20 @@
     addSource: function (fn) { sources.push(fn); },
     wake: wake,
     refresh: function (el) { if (el && el._lp) el._lp.render(); },
+    // The page builder's own toolbar drives its preview with these.
+    setDevice: function (el, device) {
+      if (!el || !el._lp) return;
+      el._lp.device = device;
+      el._lp.syncButtons();
+      el._lp.fit();
+    },
+    setMode: function (el, mode) {
+      if (!el || !el._lp) return;
+      el._lp.mode = mode;
+      el._lp.syncButtons();
+      el._lp.applyMode();
+    },
+    state: function (el) { return el && el._lp ? { device: el._lp.device, mode: el._lp.mode } : null; },
     setPath: function (el, path) {
       if (!el || !el._lp) return;
       el.setAttribute('data-lp-path', path);
