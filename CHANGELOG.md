@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.8.1] — 2026-11-25
+
 ### Fixed
 
 - The utility bar's swipe chevrons (`_utility_bar.html`) were `aria-hidden` spans with `pointer-events: none`, so a desktop zoomed in far enough to get the swipe strip (or any mouse or keyboard user at that width) could not reach the other items. They are now labelled buttons that step to the previous or next snap point (item, side or live message, centred as a swipe leaves it). The button holds still with a 28px hit area while the arrow inside pulses; hover and focus stop the pulse.

@@ -9,11 +9,13 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.8.1 — 2026-11-25 (latest)
+
 Fixes:
 
 - utility bar items out of reach without swiping, e.g. on a zoomed-in desktop
 
-## 3.8.0 — 2026-11-25 (latest)
+## 3.8.0 — 2026-11-25
 
 New features:
 
