@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.8.0 — 2026-11-25 (latest)
+
 New features:
 
 - Page structure as a collapsible tree with drag and drop and a right-click menu
@@ -29,7 +31,7 @@ Fixes:
 - slow opening and closing of block settings
 - admin pages using the processor while idle
 
-## 3.7.0 — 2026-11-25 (latest)
+## 3.7.0 — 2026-11-25
 
 New features:
 

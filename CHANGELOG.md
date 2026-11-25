@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.8.0] — 2026-11-25
+
 ### Added
 
 - Structure navigator for the page and popup builders (`static/js/page_navigator.js`, `structure_navigator` in `_frontend_structure_card.html`), replacing the nested structure card. It draws the blocks as an indented ARIA tree from the same `sections` array the settings drawer's BlockEditor edits (lazy-mounted at load), so there is one copy of the page and no DOM-to-data rebuild. Rows open the block's settings (or its own dialog for hero, meetings, events, features and FAQ); drag shows a before/after line or highlights a container to drop inside, collapsed containers included; a right-click or ⋯ menu offers edit, rename, add inside, duplicate, copy, paste after or inside (clipboard in `localStorage`, so it works across pages and popups, filtered to a popup's allowed types), wrap in a container, unwrap, move up or down, move an unplaced block back, and delete. Keyboard: arrows, Home/End, Enter, F2, Delete, Alt+arrows, Shift+F10, and Ctrl/Cmd D, C, V, Z, Shift+Z / Y. Undo and redo cover structure changes and content edits (grouped per burst); delete shows an Undo toast instead of a confirm dialog. A filter box finds blocks, and expand/collapse state is remembered per page. The block library adds after the selected block, inside a selected container, or at the end.
