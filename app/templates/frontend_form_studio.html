@@ -48,7 +48,7 @@
 <section class="card st-studio" data-studio="form-{{ fs.key }}" data-no-collapse>
   <div class="card-head st-pick-head">
     {{ item_picker('Form', fs.name, fs.picker, code=fs.public_path or '', aria='Choose a form',
-                   actions=[{'form': 'fs-new-form', 'label': 'New form', 'icon': 'plus'}]) }}
+                   actions=[{'form': 'fs-new-form', 'label': 'New form', 'icon': 'plus'}, {'href': url_for('main.frontend_forms'), 'label': 'All forms', 'icon': 'layout-grid'}]) }}
     <div class="st-actions">
       <label class="mode-toggle fs-live">
         <input type="checkbox" name="{{ fs.enabled_field }}" value="1" {% if fs.enabled %}checked{% endif %}>

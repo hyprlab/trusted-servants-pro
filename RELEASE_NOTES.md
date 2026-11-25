@@ -13,6 +13,7 @@ New features:
 
 - page and popup previews: click a block to edit it
 - page preview image chosen from the File Browser
+- Pages, Popups, Forms and Page templates open on an index of cards with previews, or a list
 
 ## 3.8.1 — 2026-11-25 (latest)
 

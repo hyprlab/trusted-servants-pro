@@ -15345,6 +15345,84 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fe-empty-section h2 { margin: 4px 0 0; font-size: var(--fs-lg); }
 .fe-empty-section p { margin: 0; max-width: 46ch; }
 
+/* ── Index of Pages, Popups, Forms and Page templates
+   (frontend_content_index.html, js/content_index.js). Cards carry a
+   preview of the page, rendered at 1280px and scaled to the card
+   (--ci-scale); List is the same items as rows. ─────────────────── */
+.ci { display: flex; flex-direction: column; gap: var(--gap-4xl); }
+.ci-bar { display: flex; align-items: center; gap: var(--gap-lg); flex-wrap: wrap; }
+.ci-search { flex: 1 1 240px; max-width: 360px; }
+.ci-total { margin-left: auto; }
+.ci-group { display: flex; flex-direction: column; gap: var(--gap-lg); }
+.ci .ci-group[hidden], .ci[data-view] .ci-item[hidden] { display: none; }
+.ci-group-label { display: flex; align-items: center; gap: var(--gap-sm); margin: 0;
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.ci-group-count { min-width: 20px; padding: 1px 7px; border-radius: var(--r-pill); background: var(--panel);
+  border: 1px solid var(--border); font-size: var(--fs-2xs); letter-spacing: 0; text-align: center; }
+.ci-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--gap-3xl);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+
+.ci-item { position: relative; min-width: 0; background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--card-radius); box-shadow: var(--shadow); overflow: hidden;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.ci-item:hover, .ci-item:focus-within { transform: translateY(-2px); box-shadow: var(--shadow-hover);
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--border)); }
+.ci-link { display: flex; flex-direction: column; height: 100%; color: var(--text); font-weight: 400; }
+.ci-link:hover { text-decoration: none; }
+.ci-link:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: var(--card-radius); }
+
+.ci-thumb { position: relative; display: block; aspect-ratio: 16 / 10; overflow: hidden;
+  background: var(--panel-2); border-bottom: 1px solid var(--border); }
+.ci-thumb-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: var(--gap-xs); color: color-mix(in srgb, var(--muted) 60%, var(--panel-2));
+  transition: opacity .3s ease; }
+.ci-thumb-empty .icon { width: 28px; height: 28px; }
+.ci-thumb.is-loaded .ci-thumb-empty { opacity: 0; }
+.ci-frame { position: absolute; top: 0; left: 0; width: 1280px; height: 800px; border: 0;
+  transform: scale(var(--ci-scale, .22)); transform-origin: 0 0; pointer-events: none;
+  opacity: 0; transition: opacity .35s ease; background: var(--panel); }
+.ci-thumb.is-loaded .ci-frame { opacity: 1; }
+.ci-item.is-off .ci-thumb { filter: grayscale(.85); opacity: .7; }
+
+.ci-body { display: flex; flex-direction: column; gap: var(--gap-2xs); padding: var(--gap-xl) var(--gap-2xl) var(--gap-2xl); min-width: 0; }
+.ci-title { font-size: var(--fs-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ci-code { font-size: var(--fs-xs); color: var(--muted); background: none; padding: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ci-about { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ci-chips { display: flex; flex-wrap: wrap; gap: var(--gap-2xs); margin-top: var(--gap-xs); }
+
+/* Open on the site: floats over the preview, shown on hover or focus. */
+.ci-view { position: absolute; top: var(--gap-md); right: var(--gap-md); flex: 0 0 auto; width: 34px; background: var(--panel);
+  border: 1px solid var(--border); box-shadow: var(--shadow); opacity: 0; transition: opacity .15s ease; }
+.ci-item:hover .ci-view, .ci-view:focus-visible { opacity: 1; }
+@media (hover: none) { .ci-view { opacity: 1; } }
+
+/* List view: one card per group, items as rows with a small preview. */
+.ci[data-view="list"] .ci-grid { display: flex; flex-direction: column; gap: 0; background: var(--panel);
+  border: 1px solid var(--border); border-radius: var(--card-radius); box-shadow: var(--shadow); overflow: hidden; }
+.ci[data-view="list"] .ci-item { display: flex; align-items: center; border: 0; border-radius: 0; box-shadow: none;
+  overflow: visible; background: none; }
+.ci[data-view="list"] .ci-item + .ci-item { border-top: 1px solid var(--border); }
+.ci[data-view="list"] .ci-item:hover, .ci[data-view="list"] .ci-item:focus-within { transform: none; background: var(--hover); }
+.ci[data-view="list"] .ci-link { flex: 1; min-width: 0; flex-direction: row; align-items: center; gap: var(--gap-2xl);
+  padding: var(--gap-md) var(--gap-2xl); }
+.ci[data-view="list"] .ci-thumb { flex: 0 0 auto; width: 96px; border: 1px solid var(--border); border-radius: var(--r-md); }
+.ci[data-view="list"] .ci-thumb-empty .icon { width: 18px; height: 18px; }
+.ci[data-view="list"] .ci-thumb-empty .smaller { display: none; }
+.ci[data-view="list"] .ci-body { flex: 1; flex-direction: row; flex-wrap: wrap; align-items: center;
+  column-gap: var(--gap-lg); row-gap: var(--gap-2xs); padding: 0; }
+.ci[data-view="list"] .ci-title { flex: 0 1 auto; }
+.ci[data-view="list"] .ci-chips { margin: 0 0 0 auto; }
+.ci[data-view="list"] .ci-view { position: static; opacity: 1; margin-right: var(--gap-2xl); box-shadow: none; }
+@media (max-width: 640px) {
+  .ci[data-view="list"] .ci-thumb { width: 72px; }
+  .ci[data-view="list"] .ci-chips { margin-left: 0; flex-basis: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ci-item, .ci-frame, .ci-thumb-empty { transition: none; }
+  .ci-item:hover, .ci-item:focus-within { transform: none; }
+}
+
 /* Buttons beside a selector heading line up with its status control. */
 .st-pick-head .st-actions > .btn { padding: 0 12px; min-height: 34px; display: inline-flex; align-items: center; gap: var(--gap-xs); }
 .st-pick-head .st-actions { align-items: center; }

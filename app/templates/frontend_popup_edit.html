@@ -60,7 +60,7 @@
       <section class="card st-studio fe-page-settings-card" data-studio="popup" data-no-collapse>
         <div class="card-head st-pick-head">
           {{ item_picker('Popup', popup.title, picker_groups, code='#' ~ popup.name, aria='Choose a popup',
-                         actions=[{'modal': 'new-popup-modal', 'label': 'New popup', 'icon': 'plus'}]) }}
+                         actions=[{'modal': 'new-popup-modal', 'label': 'New popup', 'icon': 'plus'}, {'href': url_for('main.frontend_popups'), 'label': 'All popups', 'icon': 'layout-grid'}]) }}
           <div class="st-actions">
             {% if popup.is_enabled %}<span class="post-chip post-chip-online">On</span>{% else %}<span class="post-chip post-chip-draft">Off</span>{% endif %}
             <button type="submit" form="fe-delete-popup" class="btn ol-danger" title="Delete this popup">{{ icon('trash') }} Delete</button>

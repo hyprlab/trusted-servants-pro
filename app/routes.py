@@ -8806,6 +8806,26 @@ def frontend_staged_preview():
     return resp
 
 
+@bp.route("/frontend/thumb")
+@admin_required
+def frontend_thumb():
+    """A public page as the index screens' card previews show it: the
+    staged preview renderer with nothing staged, overlays hidden (or the
+    popup kept, ``overlays=popups``) and no scrollbars. ``path`` is a
+    public address or an editor preview such as ``/_preview/page/3``."""
+    from flask import make_response
+    from .staged_preview import render_staged
+    overlays = "popups" if request.args.get("overlays") == "popups" else False
+    html = render_staged(request.args.get("path") or "/", [], overlays=overlays)
+    html = html.replace("</head>", "<style>html,body{overflow:hidden!important;scrollbar-width:none}"
+                        "::-webkit-scrollbar{display:none}.fe-preview-banner{display:none!important}"
+                        "</style></head>", 1)
+    resp = make_response(html)
+    resp.headers["Content-Type"] = "text/html; charset=utf-8"
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @bp.route("/frontend/toggle", methods=["POST"])
 @admin_required
 def frontend_toggle():
@@ -10014,12 +10034,12 @@ def frontend_fonts_icons():
 @bp.route("/frontend/forms")
 @admin_required
 def frontend_forms():
-    """Forms opens the settings of the form last edited here, else the
-    first form; the selector menu moves between forms."""
-    from .forms_overview import form_rows
-    rows = form_rows(_get_site_setting())
-    row = next((r for r in rows if r["key"] == session.get("fe_last_form")), None) or (rows[0] if rows else None)
-    return redirect(row["settings_url"] if row else url_for("main.frontend_dashboard"))
+    """Every form, built in and your own, as cards or a list; each opens
+    its settings, where the selector menu moves between forms."""
+    from .content_index import form_groups
+    s = _get_site_setting()
+    return render_template("frontend_content_index.html", site=s, kind="form",
+                           groups=form_groups(s))
 
 
 # Routes/slugs we refuse to let a CustomForm claim. Mirrors the same
@@ -12119,8 +12139,8 @@ _HOMEPAGE_BLOCK_CATALOG = [
 @bp.route("/frontend/templates")
 @admin_required
 def frontend_templates():
-    """Page templates: a list of every generated public page, grouped by
-    the part of the site it belongs to (page_templates.GROUPS), and a
+    """Page templates: an index of every generated public page, grouped
+    by the part of the site it belongs to (page_templates.GROUPS), and a
     studio for the one chosen with ``?kind=``: Layout, Appearance and
     Page tabs beside a live preview of the real page."""
     from . import frontend as _fe
@@ -12152,8 +12172,12 @@ def frontend_templates():
             off = bool(meta.get("module")) and not getattr(s, meta["module"], False)
             items.append({"key": k, "label": meta["label"], "layout": name, "off": off})
         rail.append((group, items))
+    kind = request.args.get("kind")
+    if not kind:
+        from .content_index import template_groups
+        return render_template("frontend_content_index.html", site=s, kind="template",
+                               groups=template_groups(rail))
     first = next(it["key"] for _g, its in rail for it in its if not it["off"])
-    kind = request.args.get("kind") or first
     if kind not in PT.KINDS:
         kind = first
     meta = PT.KINDS[kind]
@@ -13402,21 +13426,12 @@ def frontend_theme_save():
 @bp.route("/frontend/pages")
 @admin_required
 def frontend_pages():
-    """Pages opens the page editor on the page last edited here, else the
-    first page (the homepage has its own menu entry); the editor's
-    selector menu moves between pages. With no pages yet, an empty
-    screen offers New page."""
-    from .models import Page
+    """Every page, the homepage first, as cards or a list; each opens the
+    page editor, where the selector menu moves between pages."""
+    from .content_index import page_groups
     s = _get_site_setting()
-    hp = s.homepage_page_id
-    last = db.session.get(Page, session.get("fe_last_page") or 0)
-    if not last or last.id == hp:
-        last = (Page.query.filter(Page.id != (hp or 0)).order_by(Page.title.asc()).first()
-                or (db.session.get(Page, hp) if hp else None))
-    if last:
-        return redirect(url_for("main.frontend_page_edit", page_id=last.id))
-    return render_template("frontend_section_empty.html", site=s, kind="page",
-                           page_layouts=_page_layouts_for_picker())
+    return render_template("frontend_content_index.html", site=s, kind="page",
+                           groups=page_groups(s), page_layouts=_page_layouts_for_picker())
 
 
 # Block catalog for the page-layout drag-and-drop builder. Lists every
@@ -15040,15 +15055,12 @@ def _popup_unique_name(name, exclude_id=None):
 @bp.route("/frontend/popups")
 @admin_required
 def frontend_popups():
-    """Popups opens the popup editor on the popup last edited here, else
-    the first; with none yet, an empty screen offers New popup."""
-    from .models import Popup
+    """Every popup as cards or a list; each opens the popup editor, where
+    the selector menu moves between popups."""
+    from .content_index import popup_groups
     s = _get_site_setting()
-    last = (db.session.get(Popup, session.get("fe_last_popup") or 0)
-            or Popup.query.order_by(Popup.title.asc()).first())
-    if last:
-        return redirect(url_for("main.frontend_popup_edit", popup_id=last.id))
-    return render_template("frontend_section_empty.html", site=s, kind="popup")
+    return render_template("frontend_content_index.html", site=s, kind="popup",
+                           groups=popup_groups(s))
 
 
 @bp.route("/frontend/popups/create", methods=["POST"])

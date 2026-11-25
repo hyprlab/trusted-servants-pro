@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{# The index of Pages, Popups, Forms or Page templates (``kind``): every
+   item as a card with a preview of the page, or as a list. ``groups``
+   comes from app/content_index.py. The view and the filter are the
+   viewer's own (static/js/content_index.js keeps the view in
+   localStorage). Each editor keeps its selector menu for moving between
+   items and links back here. #}
+{% set K = {
+  'page': {'heading': 'Pages', 'one': 'page', 'icon': 'file-text',
+           'help': 'Pages you write yourself, built from blocks. The homepage is one of them.',
+           'empty': 'Make your first page. It opens in the editor.', 'new': 'new-page-modal'},
+  'popup': {'heading': 'Popups', 'one': 'popup', 'icon': 'message-square',
+            'help': 'Boxes that open over a page from a link to their #name.',
+            'empty': 'Make your first popup, then open it from any link to its #name.', 'new': 'new-popup-modal'},
+  'form': {'heading': 'Forms', 'one': 'form', 'icon': 'send',
+           'help': 'The forms visitors fill in: the built-in ones and your own.',
+           'empty': '', 'new_form': 'ci-new-form'},
+  'template': {'heading': 'Page templates', 'one': 'page template', 'icon': 'copy',
+               'help': 'The layout and look of the pages the site builds for you: meeting and event lists, each meeting, event, story and blog post, the library, the directories and the pages around forms. Pages you write yourself are under Pages.',
+               'empty': ''},
+}[kind] %}
+{% set _total = groups|map(attribute=1)|map('length')|sum %}
+{% block heading %}{{ K.heading }}{% endblock %}
+{% block heading_help %}{{ K.help }}{% endblock %}
+{% block top_actions %}
+{% if K.get('new') %}
+<button type="button" class="btn btn-primary" data-open-modal="{{ K.new }}">{{ icon('plus') }} New {{ K.one }}</button>
+{% elif K.get('new_form') %}
+<button type="submit" form="{{ K.new_form }}" class="btn btn-primary">{{ icon('plus') }} New {{ K.one }}</button>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="fe-admin-layout">
+  {% include "_frontend_subnav.html" %}
+  <div class="fe-admin-main">
+    {% if not _total %}
+    <section class="card fe-empty-section" data-no-collapse>
+      <span class="ol-glyph">{{ icon(K.icon) }}</span>
+      <h2>No {{ K.one }}s yet</h2>
+      {% if K.empty %}<p class="muted">{{ K.empty }}</p>{% endif %}
+      {% if K.get('new') %}
+      <button type="button" class="btn btn-primary" data-open-modal="{{ K.new }}">{{ icon('plus') }} New {{ K.one }}</button>
+      {% endif %}
+    </section>
+    {% else %}
+    <section class="ci" data-ci data-view="cards" aria-label="{{ K.heading }}">
+      <div class="ci-bar">
+        <label class="fb-search ci-search">
+          {{ icon('search') }}
+          <input type="search" placeholder="Filter {{ K.heading|lower }}" aria-label="Filter {{ K.heading|lower }}" data-ci-filter autocomplete="off">
+        </label>
+        <span class="ci-total muted small" data-ci-total>{{ _total }} {{ K.one }}{{ '' if _total == 1 else 's' }}</span>
+        <div class="ds-seg-btns" role="radiogroup" aria-label="View">
+          <button type="button" role="radio" aria-checked="true" data-ci-view="cards" title="Cards">{{ icon('layout-grid') }}<span>Cards</span></button>
+          <button type="button" role="radio" aria-checked="false" data-ci-view="list" title="List">{{ icon('list') }}<span>List</span></button>
+        </div>
+      </div>
+
+      {% for group, items in groups if items %}
+      <div class="ci-group" data-ci-group>
+        {% if group %}<h2 class="ci-group-label">{{ group }} <span class="ci-group-count">{{ items|length }}</span></h2>{% endif %}
+        <ul class="ci-grid" role="list">
+          {% for it in items %}
+          <li class="ci-item{% if it.off %} is-off{% endif %}" data-ci-item
+              data-ci-text="{{ (it.title ~ ' ' ~ (it.code or '') ~ ' ' ~ (it.chips|map(attribute=0)|join(' ')))|lower }}">
+            <a class="ci-link" href="{{ it.href }}">
+              <span class="ci-thumb"{% if it.thumb %} data-ci-thumb="{{ url_for('main.frontend_thumb', path=it.thumb, overlays=it.overlays) }}"{% endif %} aria-hidden="true">
+                <span class="ci-thumb-empty">{{ icon(it.icon) }}{% if not it.thumb %}<span class="smaller">{{ it.note }}</span>{% endif %}</span>
+              </span>
+              <span class="ci-body">
+                <span class="ci-title">{{ it.title }}</span>
+                {% if it.code %}<code class="ci-code">{{ it.code }}</code>{% elif it.about %}<span class="ci-about muted small">{{ it.about }}</span>{% endif %}
+                {% if it.chips %}
+                <span class="ci-chips">
+                  {% for label, tone in it.chips %}<span class="post-chip post-chip-{{ tone }}">{{ label }}</span>{% endfor %}
+                </span>
+                {% endif %}
+              </span>
+            </a>
+            {% if it.view %}
+            <a class="ci-view icon-btn" href="{{ it.view }}" target="_blank" rel="noopener"
+               title="Open on the site" aria-label="Open {{ it.title }} on the site">{{ icon('external-link') }}</a>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+      <p class="ci-none muted" data-ci-none hidden>Nothing matches that filter.</p>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% if kind == 'page' %}{% include "_new_page_modal.html" %}
+{% elif kind == 'popup' %}{% include "_new_popup_modal.html" %}
+{% elif kind == 'form' %}
+<form method="post" action="{{ url_for('main.frontend_custom_form_new') }}" id="ci-new-form" hidden>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endif %}
+<script src="{{ url_for('static', filename='js/content_index.js', v=app_build_id) }}"></script>
+{% endblock %}

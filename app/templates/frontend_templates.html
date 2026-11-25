@@ -26,7 +26,8 @@
               'sub': 'Module off' if it.off else (it.layout or ''), 'active': it.key == kind, 'off': it.off}) %}{% endfor %}
         {% set _ = _groups.append((group, _its)) %}
       {% endfor %}
-      {{ item_picker('Page template', meta.label, _groups, code=meta.path or '', aria='Choose a page template') }}
+      {{ item_picker('Page template', meta.label, _groups, code=meta.path or '', aria='Choose a page template',
+                     actions=[{'href': url_for('main.frontend_templates'), 'label': 'All page templates', 'icon': 'layout-grid'}]) }}
       {% if meta.get('about') %}<p class="muted small tp-about">{{ meta.about }}</p>{% endif %}
     </div>
 

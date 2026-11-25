@@ -114,7 +114,7 @@
         <div class="card-head st-pick-head">
           {{ item_picker('Homepage' if _is_homepage else 'Page', page.title if page else 'New page', picker_groups,
                          code=('/' if _is_homepage else '/' ~ page.slug) if page else '', aria='Choose a page',
-                         actions=[{'modal': 'new-page-modal', 'label': 'New page', 'icon': 'plus'}]) }}
+                         actions=[{'modal': 'new-page-modal', 'label': 'New page', 'icon': 'plus'}, {'href': url_for('main.frontend_pages'), 'label': 'All pages', 'icon': 'layout-grid'}]) }}
           {% if page %}
           <div class="st-actions">
             {% if _is_homepage %}
