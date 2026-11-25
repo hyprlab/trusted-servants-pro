@@ -1167,23 +1167,28 @@
       clearDrop();
       tree.querySelectorAll('.is-drag-source').forEach(el => el.classList.remove('is-drag-source'));
     });
-    tree.addEventListener('dragover', e => {
-      const kind = dragKind(e);
-      if (!kind) return;
-      const res = computeTarget(e);
+    // Shows where `res` (from computeTarget) would land a block;
+    // false when it can't land there.
+    function showTreeDrop(res, moving) {
       tree.querySelectorAll('.is-drop-into').forEach(el => el.classList.remove('is-drop-into'));
       tree.classList.remove('is-drop-root');
-      if (!res || !validTarget(res.target, kind === 'move' ? dragBlock : null)) {
+      if (!res || !validTarget(res.target, moving)) {
         dropTarget = null;
         dropLine.classList.remove('is-on');
-        return;
+        return false;
       }
-      e.preventDefault();
-      e.dataTransfer.dropEffect = kind === 'move' ? 'move' : 'copy';
       dropTarget = res.target;
       if (res.into) { dropLine.classList.remove('is-on'); res.into.classList.add('is-drop-into'); }
       else if (res.line) showLine(res.line[0], res.line[1], res.line[2]);
       else { dropLine.classList.remove('is-on'); tree.classList.add('is-drop-root'); }
+      return true;
+    }
+    tree.addEventListener('dragover', e => {
+      const kind = dragKind(e);
+      if (!kind) return;
+      if (!showTreeDrop(computeTarget(e), kind === 'move' ? dragBlock : null)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = kind === 'move' ? 'move' : 'copy';
     });
     tree.addEventListener('dragleave', e => {
       if (!tree.contains(e.relatedTarget)) clearDrop();
@@ -1340,11 +1345,47 @@
         '.tsp-pick-btn svg{width:calc(var(--tsp-pick-s,1)*13px);height:calc(var(--tsp-pick-s,1)*13px);pointer-events:none}' +
         '.tsp-pick-sep{all:unset;width:1px;align-self:stretch;margin:calc(var(--tsp-pick-s,1)*3px) calc(var(--tsp-pick-s,1)*2px);' +
         'background:rgba(255,255,255,.35)}' +
-        // Where a dragged block will land: a line, or the container it goes into.
-        '.tsp-drop{all:unset;position:fixed;z-index:2147483647;pointer-events:none;display:none;box-sizing:border-box;' +
-        'background:var(--tsp-pick-c);border-radius:calc(var(--tsp-pick-s,1)*2px)}' +
-        '.tsp-drop.is-on{display:block}' +
-        '.tsp-drop.is-into{background:var(--tsp-pick-ring);border:calc(var(--tsp-pick-s,1)*2px) dashed var(--tsp-pick-c)}';
+        // Where a dragged block will land: a line that glides from place
+        // to place, or the container it goes into.
+        '.tsp-drop{all:unset;position:fixed;z-index:2147483646;pointer-events:none;display:block;box-sizing:border-box;' +
+        'opacity:0;background:var(--tsp-pick-c);border-radius:calc(var(--tsp-pick-s,1)*2px);' +
+        'box-shadow:0 0 0 calc(var(--tsp-pick-s,1)*3px) var(--tsp-pick-ring);' +
+        'transition:left .14s cubic-bezier(.2,.8,.2,1),top .14s cubic-bezier(.2,.8,.2,1),' +
+        'width .14s cubic-bezier(.2,.8,.2,1),height .14s cubic-bezier(.2,.8,.2,1),opacity .12s ease}' +
+        '.tsp-drop.is-on{opacity:1}' +
+        '.tsp-drop.is-snap{transition:opacity .12s ease}' +
+        '.tsp-drop::before,.tsp-drop::after{content:"";position:absolute;box-sizing:border-box;' +
+        'width:calc(var(--tsp-pick-s,1)*9px);height:calc(var(--tsp-pick-s,1)*9px);border-radius:50%;' +
+        'background:#fff;border:calc(var(--tsp-pick-s,1)*2px) solid var(--tsp-pick-c);' +
+        'top:50%;left:0;transform:translate(-50%,-50%)}' +
+        '.tsp-drop::after{left:100%}' +
+        '.tsp-drop.is-row::before{top:0;left:50%}.tsp-drop.is-row::after{top:100%;left:50%}' +
+        '.tsp-drop.is-into{background:var(--tsp-pick-ring);border:calc(var(--tsp-pick-s,1)*2px) dashed var(--tsp-pick-c);' +
+        'border-radius:calc(var(--tsp-pick-s,1)*6px);box-shadow:none}' +
+        '.tsp-drop.is-into::before,.tsp-drop.is-into::after{display:none}' +
+        // Moving a block: it stays in place, faded, while a small copy
+        // of it follows the pointer.
+        'html.tsp-dragging,html.tsp-dragging *{cursor:grabbing!important;user-select:none!important}' +
+        'html.tsp-dragging .tsp-pick{display:none!important}' +
+        '[data-pb-lifted]{opacity:.28!important;filter:saturate(.5);transition:opacity .18s ease,filter .18s ease!important}' +
+        '.tsp-ghost{all:unset;position:fixed;left:0;top:0;z-index:2147483647;pointer-events:none;' +
+        'will-change:transform;transform-origin:0 0}' +
+        '.tsp-ghost-card{position:relative;overflow:hidden;box-sizing:border-box;pointer-events:none;' +
+        'border-radius:calc(var(--tsp-pick-s,1)*8px);background:var(--tsp-ghost-bg,#fff);' +
+        'box-shadow:0 calc(var(--tsp-pick-s,1)*14px) calc(var(--tsp-pick-s,1)*34px) rgba(15,23,42,.30),' +
+        '0 0 0 calc(var(--tsp-pick-s,1)*2px) var(--tsp-pick-c);' +
+        'animation:tsp-lift .18s cubic-bezier(.2,.8,.2,1)}' +
+        '.tsp-ghost-card.is-cut::after{content:"";position:absolute;left:0;right:0;bottom:0;height:35%;' +
+        'background:linear-gradient(transparent,var(--tsp-ghost-bg,#fff))}' +
+        '.tsp-ghost-inner{transform-origin:0 0;pointer-events:none}' +
+        '.tsp-ghost-name{position:absolute;left:0;top:100%;margin-top:calc(var(--tsp-pick-s,1)*7px);' +
+        'display:flex;align-items:center;gap:calc(var(--tsp-pick-s,1)*5px);white-space:nowrap;' +
+        'padding:calc(var(--tsp-pick-s,1)*3px) calc(var(--tsp-pick-s,1)*9px);border-radius:999px;' +
+        'background:var(--tsp-pick-c);color:#fff;box-shadow:0 calc(var(--tsp-pick-s,1)*4px) calc(var(--tsp-pick-s,1)*12px) rgba(15,23,42,.25);' +
+        'font:600 calc(var(--tsp-pick-s,1)*11px)/1.25 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;' +
+        'animation:tsp-lift .18s cubic-bezier(.2,.8,.2,1)}' +
+        '.tsp-ghost-name svg{width:calc(var(--tsp-pick-s,1)*12px);height:calc(var(--tsp-pick-s,1)*12px)}' +
+        '@keyframes tsp-lift{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}';
 
       function ensureBoxes() {
         if (boxes && boxes.doc === doc) return boxes;
@@ -1360,7 +1401,6 @@
           name.className = 'tsp-pick-name';
           tag.appendChild(name);
           if (tools) {
-            name.draggable = true;
             name.title = 'Drag to move';
             tag.appendChild(Object.assign(doc.createElement('span'), { className: 'tsp-pick-sep' }));
             TOOLS.forEach(t => {
@@ -1410,17 +1450,13 @@
           else if (act === 'duplicate') { duplicate(id); keepEditing(selectedId); }
           else if (act === 'delete') remove(id);
         });
-        // Drag the name to move the block, on the page or onto the tree.
-        name.addEventListener('dragstart', e => {
-          const id = selId();
-          const blk = id && blockOf(id);
-          if (!blk) { e.preventDefault(); return; }
-          dragBlock = blk;
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData(NAV_MIME, id);
-          e.dataTransfer.setData('text/plain', nameOf(id));
-        });
-        name.addEventListener('dragend', () => { dragBlock = null; dropAt(null); });
+      }
+      // A block dropped on the page becomes the one being edited, unless
+      // it has a dialog of its own.
+      function settle(id) {
+        const blk = blockOf(id);
+        if (!blk || DEDICATED[blk.type]) return;
+        if (selId()) keepEditing(id); else choose(id);
       }
       // After a move or a copy, the drawer shows the block that was acted on.
       function keepEditing(id) {
@@ -1485,28 +1521,270 @@
         canvasDrop = res ? res.target : null;
         if (!boxes || boxes.doc !== doc) return;
         const d = boxes.drop;
-        if (!res) { d.classList.remove('is-on', 'is-into'); return; }
+        if (!res) { d.classList.remove('is-on'); return; }
         const s = 1 / (scale() || 1);
         const t = 3 * s;
+        let box;
         if (res.into) {
           const r = rectOf(res.into);
           if (!r) return;
-          Object.assign(d.style, { left: r.left + 'px', top: r.top + 'px',
-            width: (r.right - r.left) + 'px', height: (r.bottom - r.top) + 'px' });
-          d.classList.add('is-on', 'is-into');
+          box = { left: r.left, top: r.top, width: r.right - r.left, height: r.bottom - r.top };
+        } else {
+          const r = rectOf(res.line.id);
+          if (!r) return;
+          if (res.line.row) {
+            const x = res.line.after ? r.right : r.left;
+            box = { left: x - t / 2, top: r.top, width: t, height: r.bottom - r.top };
+          } else {
+            const y = res.line.after ? r.bottom : r.top;
+            box = { left: r.left, top: y - t / 2, width: r.right - r.left, height: t };
+          }
+        }
+        // From hidden it appears in place; after that it glides.
+        const fresh = !d.classList.contains('is-on');
+        if (fresh) d.classList.add('is-snap');
+        Object.keys(box).forEach(k => { d.style[k] = box[k] + 'px'; });
+        d.classList.toggle('is-into', !!res.into);
+        d.classList.toggle('is-row', !res.into && !!res.line.row);
+        if (fresh) { void d.offsetWidth; d.classList.remove('is-snap'); }
+        d.classList.add('is-on');
+      }
+      // ── Moving a block by dragging it on the page ─────────────────
+      // Press on a block and move: the block fades where it is, a small
+      // copy of it follows the pointer, and the drop line glides to
+      // where it will land. Pressing inside the selected block moves
+      // that block, so a container is moved by selecting it first; its
+      // tag's name is a handle too. On release the page shifts to the
+      // new order at once, the blocks around it sliding into place,
+      // before the re-rendered page replaces it. Out over the structure
+      // tree it drops there instead. Escape puts it back.
+      const STILL = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      const EASE = 'cubic-bezier(.2,.8,.2,1)';
+      let press = null;   // a press that may become a drag
+      let drag = null;
+      let swallowClick = false;
+
+      function pressAt(e, id) {
+        press = { id, x: e.clientX, y: e.clientY, pid: e.pointerId, src: e.target };
+      }
+      function scrub(node) {
+        node.querySelectorAll('iframe,video,audio,script,object,embed').forEach(n => n.remove());
+        [node].concat(Array.from(node.querySelectorAll('[data-pb-id],[id]'))).forEach(n => {
+          n.removeAttribute('data-pb-id');
+          n.removeAttribute('id');
+        });
+      }
+      function pageBg() {
+        const win = doc.defaultView;
+        for (const el of [doc.body, doc.documentElement]) {
+          const c = el && win.getComputedStyle(el).backgroundColor;
+          if (c && c !== 'transparent' && !/rgba\([^)]*,\s*0\)$/.test(c)) return c;
+        }
+        return '#fff';
+      }
+      function startDrag() {
+        const id = press.id;
+        const blk = blockOf(id);
+        const els = byId.get(id) || [];
+        const r = rectOf(id);
+        if (!blk || !els.length || !r) { press = null; return; }
+        try { press.src.setPointerCapture(press.pid); } catch (_) {}
+        const s = scale() || 1;
+        const w = Math.max(1, r.right - r.left), hgt = Math.max(1, r.bottom - r.top);
+        const k = Math.min(1, (260 / s) / w);
+        const cardH = Math.min(hgt * k, 170 / s);
+        const ghost = doc.createElement('div');
+        ghost.className = 'tsp-ghost';
+        ghost.setAttribute('aria-hidden', 'true');
+        ghost.style.setProperty('--tsp-ghost-bg', pageBg());
+        const card = doc.createElement('div');
+        card.className = 'tsp-ghost-card' + (cardH < hgt * k - 1 ? ' is-cut' : '');
+        card.style.width = (w * k) + 'px';
+        card.style.height = cardH + 'px';
+        const inner = doc.createElement('div');
+        inner.className = 'tsp-ghost-inner';
+        inner.style.width = w + 'px';
+        inner.style.transform = 'scale(' + k + ')';
+        els.forEach(el => { const c = el.cloneNode(true); scrub(c); inner.appendChild(c); });
+        card.appendChild(inner);
+        const pill = doc.createElement('div');
+        pill.className = 'tsp-ghost-name';
+        pill.innerHTML = (TYPES[blk.type] && TYPES[blk.type].icon) || '';
+        pill.appendChild(doc.createTextNode(nameOf(id)));
+        ghost.append(card, pill);
+        doc.body.appendChild(ghost);
+        // Below and right of the pointer, clear of the line it places;
+        // it glides there from the block's own corner.
+        const offX = -16 / s, offY = -18 / s;
+        drag = { blk, id, els, ghost, k, w: w * k, h: cardH, offX, offY,
+                 x: press.x, y: press.y, gx: r.left, gy: r.top, tilt: 0,
+                 target: null, onTree: false, raf: 0 };
+        press = null;
+        els.forEach(el => el.setAttribute('data-pb-lifted', ''));
+        doc.documentElement.classList.add('tsp-dragging');
+        if (window.FeLivePreview) window.FeLivePreview.hold(lp, true);
+        hover(null);
+        closeMenu(false);
+        dragTo(drag.x, drag.y);
+        drag.raf = doc.defaultView.requestAnimationFrame(frameTick);
+      }
+      // A drop that leaves the page as it is shows no line.
+      function sameSpot(target, blk) {
+        if (target.mode !== 'before' && target.mode !== 'after') return false;
+        const a = locate(blk.id), b = locate(target.ref.id);
+        if (!a || !b || a.list !== b.list) return false;
+        return target.mode === 'before' ? b.index === a.index + 1 : b.index === a.index - 1;
+      }
+      function dragTo(x, y) {
+        drag.x = x; drag.y = y;
+        const win = doc.defaultView;
+        const blk = drag.blk;
+        const inside = x >= 0 && y >= 0 && x <= win.innerWidth && y <= win.innerHeight;
+        if (!inside) {
+          // Out over the structure tree?
+          dropAt(null);
+          drag.target = null;
+          const f = frame();
+          const s = scale() || 1;
+          const fr = f ? f.getBoundingClientRect() : null;
+          const px = fr ? fr.left + x * s : -1, py = fr ? fr.top + y * s : -1;
+          const el = fr ? document.elementFromPoint(px, py) : null;
+          drag.onTree = !!(el && tree.contains(el)) &&
+            showTreeDrop(computeTarget({ target: el, clientY: py }), blk);
+          if (!drag.onTree) clearDrop();
           return;
         }
-        const r = rectOf(res.line.id);
-        if (!r) return;
-        d.classList.remove('is-into');
-        if (res.line.row) {
-          const x = res.line.after ? r.right : r.left;
-          Object.assign(d.style, { left: (x - t / 2) + 'px', top: r.top + 'px', width: t + 'px', height: (r.bottom - r.top) + 'px' });
-        } else {
-          const y = res.line.after ? r.bottom : r.top;
-          Object.assign(d.style, { left: r.left + 'px', top: (y - t / 2) + 'px', width: (r.right - r.left) + 'px', height: t + 'px' });
+        if (drag.onTree) { clearDrop(); drag.onTree = false; }
+        const res = canvasTarget(x, y);
+        const ok = res && validTarget(res.target, blk) && res.target.ref !== blk &&
+          !(res.target.mode === 'inside' && res.target.container === blk) && !sameSpot(res.target, blk);
+        drag.target = ok ? res.target : null;
+        dropAt(ok ? res : null);
+      }
+      function frameTick() {
+        if (!drag) return;
+        const win = doc.defaultView;
+        const s = scale() || 1;
+        // The copy trails the pointer a touch and leans into the motion.
+        const tx = drag.x - drag.offX, ty = drag.y - drag.offY;
+        const f = STILL ? 1 : 0.38;
+        const dx = tx - drag.gx;
+        drag.gx += dx * f;
+        drag.gy += (ty - drag.gy) * f;
+        drag.tilt = STILL ? 0 : Math.max(-6, Math.min(6, drag.tilt * 0.8 + dx * s * 0.06));
+        drag.ghost.style.transform = 'translate3d(' + drag.gx + 'px,' + drag.gy + 'px,0) rotate(' + drag.tilt.toFixed(2) + 'deg)';
+        // Near the top or bottom edge the page scrolls, faster nearer it.
+        const edge = 70 / s;
+        const inX = drag.x >= 0 && drag.x <= win.innerWidth;
+        let v = 0;
+        if (inX && drag.y < edge) v = -Math.min(1, (edge - drag.y) / edge);
+        else if (inX && drag.y > win.innerHeight - edge) v = Math.min(1, (drag.y - (win.innerHeight - edge)) / edge);
+        if (v) {
+          const se = doc.scrollingElement || doc.documentElement;
+          const before = se.scrollTop;
+          se.scrollTop += v * 16 / s;
+          if (se.scrollTop !== before) dragTo(drag.x, drag.y);
         }
-        d.classList.add('is-on');
+        drag.raf = win.requestAnimationFrame(frameTick);
+      }
+      // Ends a drag; `to` is where the copy settles before it goes.
+      function endDrag(to) {
+        const d = drag;
+        drag = null;
+        if (!d) return;
+        d.ghost.ownerDocument.defaultView.cancelAnimationFrame(d.raf);
+        d.ghost.ownerDocument.documentElement.classList.remove('tsp-dragging');
+        d.els.forEach(el => el.removeAttribute('data-pb-lifted'));
+        dropAt(null);
+        // Let go once the drop has changed the page, so the render it
+        // asks for is the one that runs.
+        const root = lp;
+        setTimeout(() => { if (window.FeLivePreview) window.FeLivePreview.hold(root, false); }, 0);
+        swallowClick = true;
+        setTimeout(() => { swallowClick = false; }, 60);
+        const g = d.ghost;
+        if (!to || STILL || !g.animate) { g.remove(); return; }
+        const k = to.w ? Math.min(1.6, to.w / d.w) : 0.6;
+        g.animate([
+          { transform: g.style.transform, opacity: 1 },
+          { transform: 'translate3d(' + to.left + 'px,' + to.top + 'px,0) scale(' + k + ')', opacity: 0 },
+        ], { duration: 220, easing: EASE, fill: 'forwards' }).onfinish = () => g.remove();
+      }
+      function cancelDrag() {
+        if (!drag) return;
+        const r = rectOf(drag.id);
+        clearDrop();
+        endDrag(r ? { left: r.left, top: r.top, w: r.right - r.left } : null);
+      }
+      // The blocks beside the moved one, and those where it lands.
+      function peerIds(id) {
+        const loc = locate(id);
+        if (!loc) return [];
+        const list = loc.owner.kind === 'section' ? sections.flatMap(sec => sec.blocks) : loc.list;
+        return list.filter(Boolean).map(b => b.id);
+      }
+      // Puts the block's elements where the drop will put it, so the
+      // page shows the new order before the re-render arrives. False
+      // when the spot has no element to sit beside.
+      function domMove(blk, target) {
+        const src = byId.get(blk.id);
+        if (!src) return false;
+        let anchor = null, after = true;
+        if (target.mode === 'before' || target.mode === 'after') {
+          const ref = byId.get(target.ref.id);
+          if (!ref) return false;
+          after = target.mode === 'after';
+          anchor = after ? ref[ref.length - 1] : ref[0];
+        } else if (target.mode === 'root-end' || (target.mode === 'inside' && !cellAware(target.container))) {
+          const list = target.mode === 'root-end' ? sections.flatMap(sec => sec.blocks) : kids(target.container);
+          const last = list.filter(b => b && b !== blk).pop();
+          const els = last && byId.get(last.id);
+          if (!els) return false;
+          anchor = els[els.length - 1];
+        }
+        if (!anchor || src.indexOf(anchor) !== -1 || src.some(el => el.contains(anchor))) return false;
+        if (after) anchor.after(...src); else anchor.before(...src);
+        return true;
+      }
+      function dropDrag() {
+        const d = drag;
+        const blk = d.blk;
+        if (d.onTree && dropTarget) {
+          const target = dropTarget;
+          clearDrop();
+          endDrag(null);
+          if (moveBlock(blk, target)) settle(blk.id);
+          return;
+        }
+        const target = d.target;
+        if (!target) { cancelDrag(); return; }
+        // Where everything stands now, to slide it from there.
+        const ids = peerIds(blk.id).concat(target.mode === 'inside' ? kids(target.container).filter(Boolean).map(b => b.id)
+          : target.mode === 'root-end' ? [] : peerIds(target.ref.id));
+        let els = [];
+        ids.forEach(id => (byId.get(id) || []).forEach(el => { if (els.indexOf(el) === -1) els.push(el); }));
+        els = els.filter(el => !els.some(o => o !== el && o.contains(el)));
+        const from = new Map(els.map(el => [el, el.getBoundingClientRect()]));
+        const line = boxes && boxes.doc === doc ? boxes.drop.getBoundingClientRect() : null;
+        const moved = domMove(blk, target);
+        if (moved && window.FeLivePreview) window.FeLivePreview.quiet(lp);
+        const r = moved ? rectOf(blk.id) : null;
+        endDrag(r ? { left: r.left, top: r.top, w: r.right - r.left }
+          : line ? { left: line.left, top: line.top, w: 0 } : null);
+        if (moved && !STILL) {
+          els.forEach(el => {
+            const a = from.get(el), b = el.getBoundingClientRect();
+            const dx = a.left - b.left, dy = a.top - b.top;
+            if (d.els.indexOf(el) !== -1) {
+              el.animate([{ opacity: 0, transform: 'scale(.97)' }, { opacity: 1, transform: 'none' }],
+                { duration: 260, easing: EASE });
+            } else if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+              el.animate([{ transform: 'translate(' + dx + 'px,' + dy + 'px)' }, { transform: 'none' }],
+                { duration: 260, easing: EASE });
+            }
+          });
+        }
+        if (moveBlock(blk, target)) settle(blk.id);
       }
       function place(box, id) {
         const r = id && rectOf(id);
@@ -1595,6 +1873,8 @@
           if (root === lp) { doc = null; byId = new Map(); hoverId = null; boxes = null; }
           return;
         }
+        if (drag) endDrag(null);
+        press = null;
         lp = root; doc = d; byId = map; hoverId = null; boxes = null;
         const win = d.defaultView;
         const target = e => {
@@ -1610,7 +1890,32 @@
           closeMenu(false);
           if (target(e)) e.preventDefault();
         }, true);
+        win.addEventListener('pointerdown', e => {
+          if (e.button !== 0 || !e.isPrimary || drag) return;
+          if (e.target.closest && e.target.closest('.tsp-pick-btn')) return;
+          const sid = selId();
+          if (e.target.closest && e.target.closest('.tsp-pick-name')) { if (sid) pressAt(e, sid); return; }
+          const id = target(e);
+          if (!id) return;
+          const inSel = sid && (byId.get(sid) || []).some(el => el.contains(e.target));
+          pressAt(e, inSel ? sid : id);
+        }, true);
+        win.addEventListener('pointermove', e => {
+          if (drag) { dragTo(e.clientX, e.clientY); return; }
+          if (!press || e.pointerId !== press.pid) return;
+          if (Math.hypot(e.clientX - press.x, e.clientY - press.y) * (scale() || 1) > 5) startDrag();
+        }, true);
+        win.addEventListener('pointerup', e => {
+          press = null;
+          if (drag) { e.preventDefault(); dropDrag(); }
+        }, true);
+        win.addEventListener('pointercancel', () => { press = null; cancelDrag(); }, true);
+        // Links and images in the page are never dragged on their own.
+        win.addEventListener('dragstart', e => {
+          if (e.target.closest && e.target.closest('[data-pb-id]')) e.preventDefault();
+        }, true);
         ['click', 'auxclick', 'dblclick'].forEach(type => win.addEventListener(type, e => {
+          if (swallowClick) { e.preventDefault(); e.stopImmediatePropagation(); return; }
           const id = target(e);
           if (!id) return;
           e.preventDefault();
@@ -1630,7 +1935,9 @@
         }, true);
         // Focus can be in the preview; Escape still closes the drawer.
         win.addEventListener('keydown', e => {
-          if (e.key === 'Escape') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+          if (e.key !== 'Escape') return;
+          if (drag) { cancelDrag(); return; }
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         });
         win.addEventListener('dragover', e => {
           const kind = dragKind(e);
@@ -1688,6 +1995,10 @@
         }).observe(drawer, { attributes: true, attributeFilter: ['class'] });
       }
       window.addEventListener('resize', cutout);
+      // Escape with the focus outside the page puts a dragged block back.
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && drag) { e.stopPropagation(); cancelDrag(); }
+      }, true);
       return { draw, showSelected, choose };
     })();
 

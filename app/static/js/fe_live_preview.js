@@ -193,8 +193,9 @@
 
   Preview.prototype.render = function () {
     var self = this;
-    // Hidden (another tab is open): render when it next shows.
-    if (!this.root.offsetParent) { this.pending = true; return; }
+    // Hidden (another tab is open), or held while a block is dragged
+    // on it: render when it next shows or is let go.
+    if (!this.root.offsetParent || this.held()) { this.pending = true; return; }
     this.pending = false;
     var seq = ++this.seq;
     var over = {};
@@ -214,8 +215,12 @@
       var doc = this.frame.contentDocument;
       if (this.loaded && doc && doc.scrollingElement) this.scrollY = doc.scrollingElement.scrollTop;
     } catch (_) { /* not loaded yet */ }
-    this.root.classList.add('is-loading');
-    this.setStatus('Updating…');
+    // A quiet render brings in a change the page already shows (a block
+    // moved by dragging it), so it doesn't wash the page while it loads.
+    if (!(this.quietUntil > Date.now())) {
+      this.root.classList.add('is-loading');
+      this.setStatus('Updating…');
+    }
     fetch(this.root.getAttribute('data-lp-url'), {
       method: 'POST',
       credentials: 'same-origin',
@@ -227,6 +232,7 @@
       return r.text();
     }).then(function (html) {
       if (seq !== self.seq) return;
+      if (self.held()) { self.pending = true; return; }
       // Links open in a new tab so the preview stays on the page it shows.
       html = html.replace(/<head([^>]*)>/i, '<head$1><base target="_blank">');
       var only = self.root.getAttribute('data-lp-only');
@@ -242,6 +248,8 @@
       self.setStatus('Preview unavailable');
     });
   };
+
+  Preview.prototype.held = function () { return this.root.hasAttribute('data-lp-hold'); };
 
   // Each render loads into a second, hidden frame; it replaces the shown
   // one only once it has loaded, been cut down to its part and sized, so
@@ -260,6 +268,7 @@
     next.addEventListener('load', function () {
       if (!next.srcdoc) return;
       if (seq !== self.seq) { next.remove(); return; }
+      if (self.held()) { next.remove(); self.pending = true; return; }
       var old = self.frame;
       self.frame = next;
       self.onLoad();
@@ -411,6 +420,16 @@
     addSource: function (fn) { sources.push(fn); },
     wake: wake,
     refresh: function (el) { if (el && el._lp) el._lp.render(); },
+    // Renders starting in the next moment are quiet: no wash over the
+    // page while they load.
+    quiet: function (el) { if (el && el._lp) el._lp.quietUntil = Date.now() + DEBOUNCE_MS + 1000; },
+    // Keeps the shown page in place (a block is being dragged on it);
+    // a render asked for meanwhile runs when it is let go.
+    hold: function (el, on) {
+      if (!el || !el._lp) return;
+      el.toggleAttribute('data-lp-hold', !!on);
+      if (!on && el._lp.pending) el._lp.render();
+    },
     // The page builder's own toolbar drives its preview with these.
     setDevice: function (el, device) {
       if (!el || !el._lp) return;
