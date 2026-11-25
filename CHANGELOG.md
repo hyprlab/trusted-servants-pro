@@ -8,7 +8,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ### Changed
 
-- The page and popup block editor (`#page-layout-edit-modal`) is a drawer: new `.modal--drawer` modifier (full viewport height, slides in from the right, width from `--drawer-w`; 540px for one block, 760px for the whole layout). Focus mode now strips the borders and padding of every container on the way to the focused block.
+- The page and popup block editor (`#page-layout-edit-modal`) is a drawer: new `.modal--drawer` modifier (full viewport height, slides in from the right, width from `--drawer-w`, 540px for one block or the whole layout). Focus mode now strips the borders and padding of every container on the way to the focused block.
 - Block settings controls (`block_editor.js`): shared `segmented()` (the `.view-toggle` look), `switchify()` (checkbox labels become `.mode-toggle` switches) and `colorField()` (swatch, value, theme-color button, clear; a theme color shows by name with its real swatch). `colorPickerWithDarkMode` is Same / Auto / Custom on that field; Auto derives from a theme color's resolved hex too. Container `selectInput` renders a segmented control for up to five short options. Typography weight, alignment and heading level are segmented; settings groups are flat sections with a chevron. `attachTokenButton` and the old color CSS are gone.
 
 ### Fixed

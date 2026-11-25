@@ -10664,11 +10664,10 @@ input.page-typo-color-text.is-invalid {
 .fe-page-edit-modal .modal-head > .icon-btn[data-close] { margin-left: 1rem; }
 
 /* ── Block drawer (page and popup editors) ─────────────────────────
-   One block's settings in a narrow drawer; the whole layout in a
-   wider one. Focus mode strips the chrome of the containers on the
+   One width whether it shows one block or the whole layout, so it
+   never resizes as focus mode switches on. Focus mode strips the chrome of the containers on the
    way down to the focused block, so its settings start at the top. */
-.fe-block-drawer { --drawer-w: 760px; }
-.fe-block-drawer.is-focus-mode { --drawer-w: 540px; }
+.fe-block-drawer { --drawer-w: 540px; }
 .fe-page-edit-modal.is-focus-mode .be-section.be-block-focused-path > .be-blocks,
 .fe-page-edit-modal.is-focus-mode .be-block-focused-path > .be-container-body,
 .fe-page-edit-modal.is-focus-mode .be-block-focused-path > .be-container-body > .be-container-children,
