@@ -17473,7 +17473,7 @@ body.pb-on #fe-save-bar { display: none !important; }
 
 .pb-top { flex: 0 0 var(--pb-top-h); display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
   gap: var(--gap-lg); padding: 0 10px; background: var(--panel); border-bottom: 1px solid var(--border); }
-.pb-top-start, .pb-top-mid, .pb-top-end { display: flex; align-items: center; gap: var(--gap-3xs); min-width: 0; }
+.pb-top-start, .pb-top-mid, .pb-top-end { display: flex; align-items: center; gap: var(--gap-xs); min-width: 0; }
 .pb-top-mid { gap: var(--gap-sm); }
 .pb-top-end { justify-content: flex-end; }
 .pb-tool { display: inline-flex; align-items: center; gap: var(--gap-xs); height: 34px; padding: 0 10px; flex: 0 0 auto;
@@ -17487,7 +17487,8 @@ body.pb-on #fe-save-bar { display: none !important; }
 .pb-tool--icon { width: 34px; padding: 0; justify-content: center; }
 .pb-tool--add, .pb-tool--add[aria-pressed] { background: var(--brand); color: #fff; padding: 0 14px 0 10px; }
 .pb-tool--add:hover:not(:disabled) { background: color-mix(in srgb, var(--brand) 86%, #000); }
-.pb-tool--add[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--brand-soft); }
+/* The ring sits outside the button, so it gets room of its own. */
+.pb-tool--add[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--brand-soft); margin-right: var(--gap-2xs); }
 .pb-sep { flex: 0 0 auto; width: 1px; height: 22px; margin: 0 6px; background: var(--border); }
 .pb-doc { display: flex; align-items: baseline; gap: var(--gap-sm); min-width: 0; padding-left: 2px; }
 .pb-doc-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 650; }
