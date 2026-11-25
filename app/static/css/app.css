@@ -2697,6 +2697,10 @@ body.has-fe-save-bar .fe-admin-main .form-actions { display: none; }
 .fe-subnav-status { font-weight: 600; }
 .fe-subnav-status.on { color: #16a34a; }
 .fe-subnav-status.off { color: var(--muted); }
+/* Hide main sidebar switch: hides the main app sidebar. Below 900px that
+   sidebar is always folded away, so the switch has nothing to do. */
+.fe-subnav-wide { margin-top: var(--gap-md); font-size: var(--fs-xs); color: var(--muted); }
+@media (max-width: 900px) { .fe-subnav-wide { display: none; } }
 
 /* The two toggle cards each draw their own box, so they need breathing
    room between them rather than the hairline spacing a divider list uses.
@@ -7101,6 +7105,18 @@ body.fe-admin-autohide .sidebar {
 }
 body.fe-admin-autohide .sidebar.open { transform: translateX(0); }
 body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
+/* The Hide main sidebar switch runs its flip as a view transition: the sidebar
+   slides out or in while the content crossfades, pinned top left so its
+   text never stretches as its box widens or narrows. */
+html.fe-wide-flip .sidebar { view-transition-name: tsp-sidebar; }
+html.fe-wide-flip main.content { view-transition-name: tsp-content; }
+::view-transition-group(tsp-sidebar),
+::view-transition-group(tsp-content) { animation-duration: .24s;
+  animation-timing-function: cubic-bezier(.2, .7, .2, 1); }
+::view-transition-old(tsp-content),
+::view-transition-new(tsp-content) { width: 100%; height: 100%;
+  object-fit: none; object-position: left top; animation-duration: .24s; }
+::view-transition-group(tsp-content) { overflow: hidden; }
 
 @media (max-width: 720px) {
   .hide-sm { display: none !important; }

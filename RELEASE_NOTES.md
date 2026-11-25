@@ -17,6 +17,7 @@ New features:
 - full-screen page builder: block library, structure, the page at desktop, tablet or phone size, and a toolbar on the selected block
 - drag blocks from the library onto the page
 - drag any block on the page to move it
+- Hide main sidebar switch in the Web Frontend sidebar
 
 Changes:
 

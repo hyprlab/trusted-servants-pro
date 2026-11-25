@@ -8850,6 +8850,10 @@ def frontend_autohide_sidebar_save():
     current_user.fe_admin_autohide_sidebar = (
         request.form.get("fe_admin_autohide_sidebar") == "1")
     db.session.commit()
+    # The Hide main sidebar switch in the Web Frontend subnav flips the layout
+    # in place and saves in the background: no flash, no redirect.
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify(ok=True, on=current_user.fe_admin_autohide_sidebar)
     flash("Sidebar auto-hide " + ("enabled" if current_user.fe_admin_autohide_sidebar else "disabled"), "success")
     return redirect(_safe_referrer() or url_for("main.frontend_dashboard"))
 

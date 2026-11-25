@@ -77,6 +77,35 @@
 
   const menu = document.getElementById("menu-toggle");
   const side = document.querySelector(".sidebar");
+
+  // Hide main sidebar switch in the Web Frontend subnav: hides or shows the
+  // main app sidebar at once, then saves the per-user pref. A failed
+  // save puts the switch and the layout back.
+  document.addEventListener("change", e => {
+    const box = e.target.closest && e.target.closest("[data-fe-wide]");
+    if (!box) return;
+    const html = document.documentElement;
+    const apply = on => {
+      document.body.classList.toggle("fe-admin-autohide", on);
+      document.querySelectorAll("[data-fe-wide]").forEach(b => { b.checked = on; });
+      if (side) side.classList.remove("open");
+    };
+    const flip = on => {
+      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!document.startViewTransition || still) { apply(on); return; }
+      html.classList.add("fe-wide-flip");
+      const vt = document.startViewTransition(() => apply(on));
+      vt.finished.finally(() => html.classList.remove("fe-wide-flip"));
+    };
+    const on = box.checked;
+    flip(on);
+    const fd = new FormData();
+    if (on) fd.append("fe_admin_autohide_sidebar", "1");
+    fetch(box.dataset.feWide, { method: "POST", body: fd,
+                                headers: { "X-Requested-With": "fetch" } })
+      .then(r => { if (!r.ok) throw new Error(r.status); })
+      .catch(() => flip(!on));
+  });
   if (menu && side) {
     menu.addEventListener("click", e => {
       e.stopPropagation();
