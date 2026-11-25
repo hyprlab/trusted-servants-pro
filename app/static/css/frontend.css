@@ -7407,18 +7407,45 @@ body.fe-frontend-force-dark a.fe-events-omni-archive:focus-visible .fe-events-om
    currentColor inherits the bar's admin-chosen (or live-yellow)
    text colour in both themes. */
 .fe-utility-bar { position: relative; }
-.fe-utility-scroll-hint,
+/* The utility bar's chevrons are buttons (see _utility_bar.html): a
+   28px hit area around the 16px glyph, no button chrome. */
+.fe-utility-scroll-hint { width: 28px; height: 28px; padding: 0; margin: 0;
+  border: 0; border-radius: 999px; background: transparent; color: inherit;
+  font: inherit; cursor: pointer; pointer-events: auto; }
 .fe-utility-scroll-hint .icon { width: 16px; height: 16px; }
-.fe-utility-scroll-hint.fe-omni-scroll-hint--left { left: 4px; }
-.fe-utility-scroll-hint.fe-omni-scroll-hint--right { right: 4px; }
+@keyframes feUbHintPulseRight {
+  0%, 100% { opacity: 0.45; transform: translateX(0); }
+  50%      { opacity: 0.95; transform: translateX(3px); }
+}
+@keyframes feUbHintPulseLeft {
+  0%, 100% { opacity: 0.45; transform: translateX(0); }
+  50%      { opacity: 0.95; transform: translateX(-3px); }
+}
+/* Pointed at or focused: the pulse stops at full strength. */
+.fe-utility-bar .fe-utility-scroll-hint.fe-omni-scroll-hint--left:hover .icon,
+.fe-utility-bar .fe-utility-scroll-hint.fe-omni-scroll-hint--right:hover .icon,
+.fe-utility-bar .fe-utility-scroll-hint.fe-omni-scroll-hint--left:focus-visible .icon,
+.fe-utility-bar .fe-utility-scroll-hint.fe-omni-scroll-hint--right:focus-visible .icon { animation: none; opacity: 1; }
+.fe-utility-scroll-hint:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
+.fe-utility-scroll-hint:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) {
+  .fe-utility-scroll-hint .icon { animation: none !important; opacity: 0.8; }
+}
+.fe-utility-scroll-hint.fe-omni-scroll-hint--left { left: 0; }
+.fe-utility-scroll-hint.fe-omni-scroll-hint--right { right: 0; }
 @media (max-width: 720px) {
-  .fe-utility-bar.has-right .fe-utility-scroll-hint.fe-omni-scroll-hint--right {
-    display: inline-flex;
-    animation: feOmniHintPulseRight 2.8s ease-in-out infinite;
-  }
+  /* The button holds still (a steady click target); the arrow inside
+     it pulses. */
+  .fe-utility-bar.has-right .fe-utility-scroll-hint.fe-omni-scroll-hint--right,
   .fe-utility-bar.has-left .fe-utility-scroll-hint.fe-omni-scroll-hint--left {
     display: inline-flex;
-    animation: feOmniHintPulseLeft 2.8s ease-in-out infinite;
+    transform: translate(0, -50%);
+  }
+  .fe-utility-bar.has-right .fe-utility-scroll-hint.fe-omni-scroll-hint--right .icon {
+    animation: feUbHintPulseRight 2.8s ease-in-out infinite;
+  }
+  .fe-utility-bar.has-left .fe-utility-scroll-hint.fe-omni-scroll-hint--left .icon {
+    animation: feUbHintPulseLeft 2.8s ease-in-out infinite;
   }
   .fe-utility-bar.has-right:not(.has-left) .fe-utility-bar-inner {
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent 100%);
