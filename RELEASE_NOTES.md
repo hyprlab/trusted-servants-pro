@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.11.0 — 2026-11-26 (latest)
+
 New features:
 
 - Edit page button on public pages for admins
@@ -17,7 +19,7 @@ Fixes:
 
 - Edit post button label taking the site link color
 
-## 3.10.0 — 2026-11-26 (latest)
+## 3.10.0 — 2026-11-26
 
 New features:
 

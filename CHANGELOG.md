@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.11.0] — 2026-11-26
+
 ### Added
 
 - An "Edit page" button, fixed bottom-right, on every public page-builder page (homepage included) for signed-in users with `can_edit_frontend()`; it opens the page's edit screen. Not shown in the editor preview. The blog post "Edit post" button and this one share a new `frontend/_edit_fab.html` partial (class `fe-edit-fab`).
