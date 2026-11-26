@@ -150,14 +150,14 @@
     {% endfor %}
   </div>
   {% else %}
-  <table class="tbl fb-tbl lst-tbl">
+  <table class="tbl fb-tbl lst-tbl lst-tbl--posts">
     <thead>
       <tr>
         <th class="lst-check-col"><label class="lst-check" title="Select all"><input type="checkbox" data-bulk-all aria-label="Select all"></label></th>
         <th class="fb-thumb-col"><span class="sr-only">Image</span></th>
         {{ _sort_th('title', 'Title') }}
         {{ _sort_th('type', 'Type', 'fb-col') }}
-        {% if show == 'pending' %}{{ _sort_th('submitted', 'Submitted', 'fb-col') }}{% else %}{{ _sort_th('posted', 'Posted', 'fb-col') }}{% endif %}
+        {% if show == 'pending' %}{{ _sort_th('submitted', 'Submitted', 'fb-col lst-col-posted') }}{% else %}{{ _sort_th('posted', 'Posted', 'fb-col lst-col-posted') }}{% endif %}
         {{ _sort_th('event', 'When', 'fb-col') }}
         <th class="fb-col fb-col-wide">Where</th>
         {{ _sort_th('updated', 'Edited', 'fb-col fb-col-wide') }}
@@ -175,7 +175,7 @@
           <div class="fb-sub fb-sub--narrow">{{ 'Event' if p.is_event }}{{ ' · ' if p.is_event and p.is_announcement }}{{ 'Announcement' if p.is_announcement }}{% if p.event_starts_at %} · {{ p.event_starts_at.strftime('%b %-d, %Y') }}{% endif %}</div>
         </td>
         <td class="fb-col"><div class="lst-chips">{{ _chips(p) }}</div></td>
-        <td class="fb-col muted">
+        <td class="fb-col muted lst-col-posted">
           {% if show == 'pending' %}{{ p.submitted_at|fmt_site_local('%b %-d, %Y') if p.submitted_at else '—' }}
           {% else %}{{ p.display_posted.strftime('%b %-d, %Y') if p.display_posted else '—' }}{% endif %}
         </td>

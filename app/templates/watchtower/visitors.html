@@ -69,7 +69,7 @@
   <div class="wt-kpi">
     <div class="wt-kpi-label">Lifetime</div>
     <div class="wt-kpi-value">{{ '{:,}'.format(summary.total_views) }}</div>
-    <div class="wt-kpi-sub muted small">{% if summary.first_seen_at %}since {{ summary.first_seen_at.strftime('%b %d, %Y') }}{% else %}—{% endif %} · all-time hits</div>
+    <div class="wt-kpi-sub muted small">{% if summary.first_seen_at %}since {{ summary.first_seen_at|fmt_site_local('%b %d, %Y') }}{% else %}—{% endif %} · all-time hits</div>
   </div>
 </section>
 

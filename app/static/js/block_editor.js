@@ -59,7 +59,7 @@
       paragraph: { md: '', ...TYPO_DEFAULTS },
       heading: { level: 3, text: '', ...TYPO_DEFAULTS },
       image: { src: '', alt: '', caption: '',
-               max_width_pct: 100, align: '',
+               width: '', max_width_pct: 100, align: '',
                caption_color: '', caption_size: '',
                // border_radius: 0-50 px (0 = sharp corners). shadow:
                // a preset key consumed by `_blocks.html` ('' = none,
@@ -77,6 +77,7 @@
         loop: true,
         autoplay: true,
         speed: 1,
+        width: '',
         max_width_pct: 100,
         align: 'center',
         bg_color: '',
@@ -433,9 +434,17 @@
     return null;
   }
 
+  // While a settings form is built for the page builder, each control
+  // created takes the data keys read since the previous one (see
+  // renderBlock), so its heading can show the device being edited.
+  let elHook = null;
   function el(tag, attrs, children) {
     const n = document.createElement(tag);
     if (attrs) for (const k in attrs) {
+      // null / undefined / false mean "no attribute". setAttribute
+      // would write the string "null", which left every checkbox
+      // built as `checked: on ? 'checked' : null` ticked.
+      if (attrs[k] == null || attrs[k] === false) continue;
       if (k === 'class') n.className = attrs[k];
       else if (k === 'html') n.innerHTML = attrs[k];
       else if (k.startsWith('on')) n.addEventListener(k.slice(2), attrs[k]);
@@ -446,6 +455,7 @@
       if (typeof c === 'string') n.appendChild(document.createTextNode(c));
       else n.appendChild(c);
     });
+    if (elHook) elHook(n);
     return n;
   }
 
@@ -565,46 +575,6 @@
     _tokenPopoverActive = null;
   }
 
-  // Adds a 🎨 token button to a color cluster. The caller positions
-  // it within their wrapper. `onPick(value)` runs after a token is
-  // selected so the caller can sync any other state (e.g. commitNotify).
-  function attachTokenButton(textInput, swatchInput, onPick) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn btn-sm be-token-btn';
-    btn.title = 'Pick a design token';
-    // Inline SVG palette icon — keeps the helper self-contained, no
-    // dependency on the server-side icon() helper. Matches the size
-    // of other small inline SVGs in the editor.
-    btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" '
-      + 'fill="none" stroke="currentColor" stroke-width="2" '
-      + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-      + '<circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/>'
-      + '<circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/>'
-      + '<circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/>'
-      + '<circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/>'
-      + '<path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>'
-      + '</svg>';
-    btn.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      // Toggle: clicking again on the same anchor closes it.
-      if (_tokenPopover && !_tokenPopover.hidden
-          && _tokenPopoverActive && _tokenPopoverActive.anchorEl === btn) {
-        _closeTokenPopover();
-        return;
-      }
-      _openTokenPopover(textInput, swatchInput, btn);
-    });
-    if (onPick) {
-      // Surface picks back to the caller via the text input's `input`
-      // event (the popover dispatches one after writing). Caller can
-      // listen there too — this is a convenience hook.
-      textInput.addEventListener('input', () => onPick(textInput.value));
-    }
-    return btn;
-  }
-
   function deriveDarkMode(hex) {
     if (!hex || !_HEX_RE.test(hex)) return '';
     let h = hex.slice(1);
@@ -644,18 +614,241 @@
 
   const ICON_PATHS = {
     'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+    'monitor': '<rect width="20" height="14" x="2" y="3" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+    'tablet': '<rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>',
+    'smartphone': '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
+    'info': '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
     'grip-vertical': '<circle cx="9" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/>',
+    'align-left': '<line x1="21" y1="6" x2="3" y2="6"/><line x1="15" y1="12" x2="3" y2="12"/><line x1="17" y1="18" x2="3" y2="18"/>',
+    'align-center': '<line x1="21" y1="6" x2="3" y2="6"/><line x1="17" y1="12" x2="7" y2="12"/><line x1="19" y1="18" x2="5" y2="18"/>',
+    'align-right': '<line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="12" x2="9" y2="12"/><line x1="21" y1="18" x2="7" y2="18"/>',
+    'align-justify': '<line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="12" x2="3" y2="12"/><line x1="21" y1="18" x2="3" y2="18"/>',
+    'moon': '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    'palette': '<circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
   };
+
+  // ── Shared controls ──────────────────────────────────────────────
+  // Segmented control in the admin's shared look (.view-toggle). Each
+  // option is [value, label] or [value, label, title]; a label may be
+  // an icon name prefixed with "icon:". `onPick(value)` runs on a click.
+  function segmented(options, value, onPick, extraClass) {
+    const seg = el('div', { class: 'view-toggle be-seg' + (extraClass ? ' ' + extraClass : ''),
+                            role: 'radiogroup' });
+    options.forEach(([v, lbl, title]) => {
+      const isIcon = typeof lbl === 'string' && lbl.indexOf('icon:') === 0;
+      const on = String(value == null ? '' : value) === String(v);
+      const btn = el('button', {
+        type: 'button', class: 'btn btn-sm' + (on ? ' active' : ''),
+        role: 'radio', 'aria-checked': on ? 'true' : 'false',
+        'data-value': v, title: title || null,
+        'aria-label': isIcon ? (title || v) : null,
+      }, [isIcon ? iconEl(lbl.slice(5)) : lbl]);
+      seg.appendChild(btn);
+    });
+    seg.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-value]');
+      if (!btn || !seg.contains(btn)) return;
+      seg.querySelectorAll('button[data-value]').forEach(x => {
+        const on = x === btn;
+        x.classList.toggle('active', on);
+        x.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+      onPick(btn.dataset.value);
+    });
+    return seg;
+  }
+
+  // A CSS length as a number and a unit, with a slider over the unit's
+  // usual range. A blank number is no value: `onChange` gets "320px",
+  // "50%", … or ''.
+  const LENGTH_UNITS = ['%', 'px', 'rem', 'em', 'vw'];
+  const LENGTH_MAX = { '%': 100, px: 1600, rem: 100, em: 100, vw: 100 };
+  function lengthField(value, onChange, opts) {
+    opts = opts || {};
+    const m = /^(\d+(?:\.\d+)?)(px|rem|em|%|vw)?$/i.exec(String(value == null ? '' : value).trim());
+    const name = opts.label || 'Width';
+    const num = el('input', {
+      type: 'number', min: '0', step: 'any', value: m ? m[1] : '',
+      placeholder: 'Auto', title: name, 'aria-label': name + ' amount',
+    });
+    const sel = el('select', { class: 'be-pad-cell-unit-sel', title: name + ' unit', 'aria-label': name + ' unit' });
+    const unit = m ? (m[2] || 'px').toLowerCase() : (opts.unit || '%');
+    LENGTH_UNITS.forEach(u => {
+      const o = el('option', { value: u }, [u]);
+      if (u === unit) o.selected = true;
+      sel.appendChild(o);
+    });
+    const slider = el('input', { type: 'range', min: '0', step: '1', 'aria-label': name });
+    function syncSlider() {
+      slider.max = String(LENGTH_MAX[sel.value] || 100);
+      slider.value = num.value === '' ? slider.max : num.value;
+    }
+    syncSlider();
+    const emit = () => onChange(num.value === '' ? '' : num.value + sel.value);
+    num.addEventListener('input', () => { syncSlider(); emit(); });
+    sel.addEventListener('change', () => { syncSlider(); emit(); });
+    slider.addEventListener('input', () => { num.value = slider.value; emit(); });
+    return el('div', { class: 'be-length' }, [el('span', { class: 'be-pad-cell-wrap' }, [num, sel]), slider]);
+  }
+  // A block's width as the field shows it: `width`, or the older
+  // percentage cap when that isn't 100.
+  function widthValue(d) {
+    if (d.width) return d.width;
+    const p = d.max_width_pct;
+    return p != null && p !== '' && Number(p) !== 100 ? p + '%' : '';
+  }
+
+  const ALIGN_3 = [['left', 'icon:align-left', 'Left'], ['center', 'icon:align-center', 'Center'],
+                   ['right', 'icon:align-right', 'Right']];
+
+  // Turns every single-toggle checkbox label in `root` (a checkbox
+  // followed by its text) into the admin's switch (.mode-toggle).
+  // Multi-select rows (library item pickers) keep plain checkboxes.
+  function switchify(root) {
+    root.querySelectorAll('label.be-row, label.be-container-checkbox, label.be-checkbox-row').forEach(lbl => {
+      if (lbl.classList.contains('mode-toggle')) return;
+      const cb = lbl.querySelector(':scope > input[type="checkbox"]');
+      if (!cb) return;
+      lbl.classList.add('mode-toggle', 'be-switch');
+      const track = el('span', { class: 'mode-track' }, [el('span', { class: 'mode-thumb' })]);
+      cb.insertAdjacentElement('afterend', track);
+    });
+  }
+
+  // Colour field: one swatch (opens the system picker), the value
+  // (a hex, or a theme colour shown by name), a theme-colour button
+  // and a clear button. Values are '' / '#rrggbb' / 'token:<key>'.
+  // `onChange(value)` runs on every change; the returned element's
+  // `setValue(v)` updates it without firing onChange.
+  function _tokenLabel(key) {
+    const labels = window.tspDesignColorTokenLabels || {};
+    if (labels[key]) return labels[key];
+    return key.replace(/^color_/, '').replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+  }
+  function colorField(opts) {
+    let cur = opts.value || '';
+    const wrap = el('div', { class: 'be-color' });
+    const chip = el('span', { class: 'be-color-chip', 'aria-hidden': 'true' });
+    const native = el('input', { type: 'color', 'data-no-token-picker': '',
+                                 'aria-label': opts.label || 'Choose a colour' });
+    const swatch = el('label', { class: 'be-color-swatch', title: 'Choose a colour' }, [chip, native]);
+    const text = el('input', { type: 'text', class: 'be-color-value', spellcheck: 'false',
+                               autocomplete: 'off', placeholder: opts.placeholder || 'Default' });
+    // The theme-colour popover writes `token:<key>` into an input and
+    // fires `input`; this hidden proxy receives it.
+    const proxy = el('input', { type: 'hidden' });
+    const tokenBtn = el('button', { type: 'button', class: 'icon-btn be-color-btn',
+                                    title: 'Use a theme colour', 'aria-label': 'Use a theme colour' },
+                        [iconEl('palette')]);
+    const clearBtn = el('button', { type: 'button', class: 'icon-btn be-color-btn',
+                                    title: 'Clear', 'aria-label': 'Clear colour' }, [iconEl('x')]);
+    function paint() {
+      const hex = _resolveSwatchHex(cur);
+      chip.style.background = hex || '';
+      wrap.classList.toggle('is-empty', !cur);
+      const m = cur.match(_TOKEN_RE);
+      text.classList.toggle('is-token', !!m);
+      text.classList.remove('is-invalid');
+      text.readOnly = !!m;
+      text.value = m ? _tokenLabel(m[1]) : cur;
+      text.title = m ? ('Theme colour: ' + _tokenLabel(m[1]) + (hex ? ' (' + hex + ')' : '')
+                        + '. Follows Settings → Design.') : '';
+      if (hex) native.value = hex;
+      clearBtn.hidden = !cur;
+    }
+    function commit(v) {
+      cur = v || '';
+      paint();
+      (opts.onChange || (() => {}))(cur);
+    }
+    native.addEventListener('input', () => commit(native.value.toLowerCase()));
+    text.addEventListener('input', () => {
+      let v = (text.value || '').trim();
+      if (!v) { commit(''); return; }
+      if (!v.startsWith('#')) v = '#' + v;
+      if (_HEX_RE.test(v)) {
+        commit(v.length === 4 ? '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3] : v.toLowerCase());
+        text.value = cur;
+      } else {
+        text.classList.add('is-invalid');
+      }
+    });
+    // A theme colour shown by name: a click selects it for retyping.
+    text.addEventListener('click', () => {
+      if (!text.readOnly) return;
+      text.readOnly = false; text.classList.remove('is-token');
+      text.value = ''; text.focus();
+    });
+    text.addEventListener('blur', () => { if (!text.value.trim()) paint(); });
+    proxy.addEventListener('input', () => commit(proxy.value));
+    tokenBtn.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      if (_tokenPopover && !_tokenPopover.hidden && _tokenPopoverActive
+          && _tokenPopoverActive.anchorEl === tokenBtn) { _closeTokenPopover(); return; }
+      _openTokenPopover(proxy, null, tokenBtn);
+    });
+    clearBtn.addEventListener('click', () => commit(''));
+    [swatch, text, tokenBtn, clearBtn, proxy].forEach(n => wrap.appendChild(n));
+    wrap.setValue = v => { cur = v || ''; paint(); };
+    paint();
+    return wrap;
+  }
+  // Which list items are open for editing, by position, per list
+  // block's data object: kept across the re-render an add or a remove
+  // does, never saved with the page.
+  const LIST_OPEN = new WeakMap();
+  let listFocus = null;   // the list whose newly added item gets the cursor
+  // Grows a textarea to its text where CSS field-sizing can't.
+  const FIELD_SIZING = !!(window.CSS && CSS.supports && CSS.supports('field-sizing', 'content'));
+  function fitText(t) {
+    if (FIELD_SIZING) return;
+    t.style.height = 'auto';
+    if (t.scrollHeight) t.style.height = (t.scrollHeight + t.offsetHeight - t.clientHeight) + 'px';
+  }
+
   function iconEl(name) {
     const wrap = document.createElement('span');
     wrap.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICON_PATHS[name] || '') + '</svg>';
     return wrap.firstChild;
   }
+  // A field's helper prose as an info chip with the text in a popover:
+  // the markup of _help_chip.html's chip(), so app.js opens, places and
+  // closes it. `content` is a string, a node, or a list of them.
+  function helpChip(label, content) {
+    const wrap = document.createElement('span');
+    wrap.className = 'heading-help field-help';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'help-btn';
+    btn.tabIndex = -1;
+    btn.setAttribute('aria-label', label ? 'About ' + label : 'More information');
+    btn.appendChild(iconEl('info'));
+    const tip = document.createElement('span');
+    tip.className = 'help-tooltip';
+    tip.setAttribute('role', 'tooltip');
+    tip.append(...[].concat(content));
+    wrap.append(btn, tip);
+    return wrap;
+  }
+  // A label's text, followed by its help chip when there is help. The
+  // chip stays on the line of the label's last word when it wraps.
+  function withHelp(label, help) {
+    if (!help) return [label];
+    const text = String(label);
+    const cut = text.lastIndexOf(' ') + 1;
+    const tail = document.createElement('span');
+    tail.className = 'nowrap';
+    tail.append(text.slice(cut), ' ', helpChip(text, help));
+    return [text.slice(0, cut), tail];
+  }
 
   function mount(root, opts) {
     opts = opts || {};
     const state = { sections: JSON.parse(JSON.stringify(opts.initial || [])) };
-    if (!state.sections.length) state.sections.push({ id: uid(), title: 'New Section', blocks: [] });
+    // A lazy mount backs the structure navigator, which works from an
+    // empty list; a titled placeholder section would add a heading.
+    if (!opts.lazy && !state.sections.length) state.sections.push({ id: uid(), title: 'New Section', blocks: [] });
 
     root.classList.add('be-root');
     root.innerHTML = '';
@@ -683,17 +876,46 @@
     }, ['+ Add section']);
     root.appendChild(addSectionBtn);
 
-    function render() {
-      // Capture focus before wiping so a re-render triggered from
-      // inside a focused block (e.g. flipping a container's display
-      // from Flex to Grid) doesn't strand the editor in focus-mode
-      // with no `.be-block-focused` element. Without this restore,
-      // the .is-focus-mode CSS hides every block + section and the
-      // modal looks empty.
-      const prevFocused = sectionsEl.querySelector('.be-block-focused');
-      const focusedId = prevFocused ? prevFocused.dataset.id : null;
+    // Focus: the id of the one block being edited, or null for the
+    // whole tree. A focused render builds that block alone (no
+    // sections, ancestors, siblings or nested children), so opening a
+    // block's settings costs one block, not the page.
+    let focusId = opts.focusId || null;
+    function locate(id, blocks) {
+      for (let bi = 0; bi < blocks.length; bi++) {
+        const b = blocks[bi];
+        if (b.id === id) return { list: blocks, block: b, index: bi };
+        if (b.type === 'container' && b.data && Array.isArray(b.data.blocks)) {
+          const hit = locate(id, b.data.blocks);
+          if (hit) return hit;
+        }
+      }
+      return null;
+    }
+    function locateBlock(id) {
+      for (const sec of state.sections) {
+        const hit = locate(id, sec.blocks || []);
+        if (hit) return hit;
+      }
+      return null;
+    }
 
+    function render() {
       sectionsEl.innerHTML = '';
+      root.classList.toggle('be-root--focus', !!focusId);
+      if (focusId) {
+        // A focused block that no longer exists (deleted) renders
+        // nothing; the host closes the drawer on `blockremove`.
+        const hit = locateBlock(focusId);
+        if (hit) {
+          const R = window.tspResponsive;
+          if (R && R.available) sectionsEl.appendChild(fillDeviceBar(el('div', { class: 'be-device-bar' }), hit.block));
+          const w = renderBlock(hit.list, hit.block, hit.index);
+          w.classList.add('be-block-focused');
+          sectionsEl.appendChild(w);
+        }
+        return;
+      }
       state.sections.forEach((sec, idx) => sectionsEl.appendChild(renderSection(sec, idx)));
       // Sortable on sections
       Sortable.create(sectionsEl, {
@@ -705,26 +927,136 @@
           notifyChange();
         },
       });
+    }
 
-      // Re-apply focus to the same block so .is-focus-mode keeps
-      // showing the right subtree. Walks up `.be-block` / `.be-section`
-      // ancestors stamping `.be-block-focused-path`, matching the
-      // logic in frontend_page_edit.html's focusBlock helper.
-      if (focusedId) {
-        const target = sectionsEl.querySelector(
-          '.be-block[data-id="' + (window.CSS && CSS.escape ? CSS.escape(focusedId) : focusedId) + '"]');
-        if (target) {
-          target.classList.add('be-block-focused');
-          let node = target.parentElement;
-          while (node && node !== sectionsEl) {
-            if (node.classList && (node.classList.contains('be-block')
-                                    || node.classList.contains('be-section'))) {
-              node.classList.add('be-block-focused-path');
-            }
-            node = node.parentElement;
-          }
+    // The device bar above a block's settings in the page builder:
+    // which device the form edits, what that device sets itself (each
+    // can go back to the larger device's value) and what the preview
+    // found it couldn't vary.
+    function fillDeviceBar(bar, b) {
+      const R = window.tspResponsive;
+      const dev = R.current();
+      bar.innerHTML = '';
+      bar.appendChild(segmented([
+        ['desktop', 'icon:monitor', 'Desktop'], ['tablet', 'icon:tablet', 'Tablet'],
+        ['phone', 'icon:smartphone', 'Phone'],
+      ], dev, v => R.setDevice(v), 'be-device-seg'));
+      const note = el('p', { class: 'be-device-note' });
+      if (dev === 'desktop') {
+        note.textContent = 'Every screen size, unless Tablet or Phone set their own.';
+        const counts = R.DEVICES.map(x => [x, R.overrides(b.data, b.type, x).length]).filter(c => c[1]);
+        if (counts.length) {
+          note.appendChild(document.createTextNode(' ' + counts.map(c => R.NAMES[c[0]] + ' sets ' + c[1]).join(', ') + '.'));
         }
+      } else {
+        note.textContent = R.NAMES[dev] + ', ' + R.WIDTHS[dev] + 'px and narrower. Layout, spacing and type set here apply '
+          + (dev === 'tablet' ? 'to tablets and phones' : 'to phones') + '; text, links and backgrounds are the same everywhere.';
       }
+      bar.appendChild(note);
+      const keys = R.overrides(b.data, b.type, dev);
+      if (keys.length) {
+        const from = dev === 'phone' ? 'Tablet or Desktop' : 'Desktop';
+        const list = el('div', { class: 'be-device-keys' });
+        keys.forEach(k => list.appendChild(el('button', {
+          type: 'button', class: 'chip be-device-key', title: 'Use the ' + from + ' value',
+          onclick: () => { R.reset(b.data, b.type, dev, k); render(); notifyChange(); },
+        }, [R.keyName(k), iconEl('x')])));
+        list.appendChild(el('button', {
+          type: 'button', class: 'btn btn-sm be-device-reset',
+          onclick: () => { R.reset(b.data, b.type, dev); render(); notifyChange(); },
+        }, ['Reset ' + R.NAMES[dev]]));
+        bar.appendChild(list);
+      }
+      const skips = R.skips(b.id, dev);
+      if (skips.length) {
+        const named = skips.filter(k => k !== '*').map(R.keyName);
+        bar.appendChild(el('p', { class: 'be-device-warn' }, [named.length
+          ? named.join(', ') + ' can\'t differ on ' + R.NAMES[dev] + ' for this block, so '
+            + (named.length > 1 ? 'they stay' : 'it stays') + ' as on the larger screen.'
+          : 'Some of these settings can\'t differ on ' + R.NAMES[dev] + ' for this block and stay as on the larger screen.']));
+      }
+      return bar;
+    }
+    // A block type's defaults: a blank block's data after its form has
+    // been built once, so the values a form fills in for a missing key
+    // count as defaults too.
+    const defaultsCache = {};
+    let buildingDefaults = false;
+    function defaultsFor(type) {
+      if (defaultsCache[type]) return defaultsCache[type];
+      const blank = blankBlock(type);
+      const prevHook = elHook;
+      buildingDefaults = true;
+      elHook = null;
+      try { renderBlockBody(blank); } catch (_) { /* the blank data is still the default */ }
+      finally { buildingDefaults = false; elHook = prevHook; }
+      return (defaultsCache[type] = JSON.parse(JSON.stringify(blank.data || {})));
+    }
+    function sameValue(v, def) {
+      if (v == null) return true;  // missing: the form shows the default
+      if (def === undefined) return v === '' || v === false;
+      if (typeof v === 'object' || typeof def === 'object') return JSON.stringify(v) === JSON.stringify(def);
+      return String(v) === String(def);
+    }
+    // Is `key` set away from its default on `dev`? On Tablet or Phone a
+    // per-device setting counts only when that device sets its own.
+    function isSet(b, key, dev) {
+      const R = window.tspResponsive;
+      if (dev !== 'desktop' && !R.isShared(key, b.data[key])) return R.overrides(b.data, b.type, dev).indexOf(key) >= 0;
+      return !sameValue(b.data[key], defaultsFor(b.type)[key]);
+    }
+    function revertKeys(b, keys, dev) {
+      const R = window.tspResponsive;
+      const defs = defaultsFor(b.type);
+      keys.forEach(k => {
+        if (dev !== 'desktop' && !R.isShared(k, b.data[k])) { R.reset(b.data, b.type, dev, k); return; }
+        if (defs[k] === undefined) delete b.data[k];
+        else b.data[k] = JSON.parse(JSON.stringify(defs[k]));
+      });
+      render();
+      notifyChange();
+    }
+    // The revert button in each setting's heading, shown while that
+    // setting differs from its default.
+    function refreshReverts(wrap) {
+      const R = window.tspResponsive;
+      const st = wrap._reverts;
+      if (!R || !st || !st.b.data) return;
+      st.groups.forEach((keys, h) => {
+        const off = Array.from(keys).filter(k => isSet(st.b, k, st.dev));
+        const own = st.dev !== 'desktop' && off.some(k => !R.isShared(k, st.b.data[k]));
+        R.setRevert(h, off.length > 0, () => revertKeys(st.b, off, st.dev),
+          own ? 'Use the larger screen\'s value' : 'Revert to default');
+      });
+    }
+    let revertsQueued = false;
+    function queueReverts() {
+      if (revertsQueued) return;
+      revertsQueued = true;
+      requestAnimationFrame(() => {
+        revertsQueued = false;
+        sectionsEl.querySelectorAll('.be-block').forEach(w => { if (w._reverts) refreshReverts(w); });
+      });
+    }
+    root.addEventListener('input', queueReverts);
+    root.addEventListener('change', queueReverts);
+    root.addEventListener('click', queueReverts);
+
+    function refreshDeviceBar() {
+      const bar = focusId && sectionsEl.querySelector(':scope > .be-device-bar');
+      const hit = bar && locateBlock(focusId);
+      if (hit) fillDeviceBar(bar, hit.block);
+    }
+    document.addEventListener('tsp:device', () => { if (focusId) render(); });
+    document.addEventListener('tsp:rs-skips', refreshDeviceBar);
+    root.addEventListener('input', refreshDeviceBar);
+
+    // Show one block (id) or the whole tree (null). Returns the
+    // focused block's element, or null.
+    function focus(id) {
+      focusId = id || null;
+      render();
+      return focusId ? sectionsEl.querySelector('.be-block-focused') : null;
     }
 
     // Locate the blocks-array (`sec.blocks` or a container's
@@ -854,7 +1186,87 @@
         }, [iconEl('x')]),
       ]);
       wrap.appendChild(head);
-      wrap.appendChild(renderBlockBody(b));
+      // On Tablet or Phone the form edits that device's view of the
+      // data (static/js/responsive.js); every control is unchanged.
+      const R = window.tspResponsive;
+      const dev = R ? R.current() : 'desktop';
+      const marking = !!(R && R.available && b.data);
+      let body;
+      if (R && b.data && !buildingDefaults) {
+        // Each control created takes the keys read since the one
+        // before it, so its heading can show the device and a revert.
+        const real = b.data;
+        const read = new Set();
+        const controls = [];
+        const prevHook = elHook;
+        // A key read again moves to the end: the order says which keys
+        // were read last before each control was made.
+        b.data = R.view(real, b.type, dev, k => { read.delete(k); read.add(k); });
+        // A select's options may be made before or after it; what was
+        // read for an option goes to the select it ends up in.
+        const options = [];
+        elHook = n => {
+          // A hidden input only carries a value for another control.
+          if (!read.size || (n.tagName === 'INPUT' && n.type === 'hidden')) return;
+          if (n.tagName === 'OPTION') {
+            options.push({ el: n, keys: Array.from(read) });
+            read.clear();
+          } else if (/^(INPUT|SELECT|TEXTAREA)$/.test(n.tagName)
+              || (n.tagName === 'BUTTON' && Array.prototype.some.call(n.attributes, a => a.name.startsWith('data-')))) {
+            controls.push({ el: n, keys: Array.from(read) });
+            read.clear();
+          }
+        };
+        try { body = renderBlockBody(b); } finally { b.data = real; elHook = prevHook; }
+        options.forEach(o => {
+          const sel = o.el.closest('select');
+          if (!sel) return;
+          let c = controls.find(x => x.el === sel);
+          if (!c) controls.push(c = { el: sel, keys: [] });
+          o.keys.forEach(k => {
+            const i = c.keys.indexOf(k);
+            if (i >= 0) c.keys.splice(i, 1);
+            c.keys.push(k);
+          });
+        });
+        // A key read before several controls belongs to the one it was
+        // read closest to: a control reads its own value as it is made,
+        // while a preview, or a row checking the style to decide what
+        // shows, reads it earlier among other keys.
+        // On a tie, the control that read fewer keys (not a block of
+        // defaults filled in at the top). A control with no heading
+        // still takes its keys, so they aren't shown on a neighbour's.
+        const best = new Map();  // key -> { h, dist, n }
+        controls.forEach(c => {
+          const h = R.revertHeadingOf(c.el);
+          const n = c.keys.length;
+          c.keys.forEach((k, i) => {
+            if (R.isContent(k)) return;
+            const dist = n - 1 - i;
+            const was = best.get(k);
+            if (!was || dist < was.dist || (dist === was.dist && n < was.n)) best.set(k, { h, dist, n });
+          });
+        });
+        const groups = new Map();
+        best.forEach((v, k) => {
+          if (!v.h) return;
+          if (!groups.has(v.h)) groups.set(v.h, new Set());
+          groups.get(v.h).add(k);
+        });
+        if (marking) {
+          const own = new Set(R.overrides(real, b.type, dev));
+          R.mark(Array.from(groups, ([head, keys]) => {
+            const ks = Array.from(keys);
+            return { head, keys: ks, own: ks.some(k => own.has(k)) };
+          }), dev);
+        }
+        wrap._reverts = { b, dev, groups };
+        refreshReverts(wrap);
+      } else {
+        body = renderBlockBody(b);
+      }
+      switchify(body);
+      wrap.appendChild(body);
       // Containers render their own children list + +Add bar after the
       // settings panels. The recursion happens in renderContainerBody,
       // not here — keeps the wrap shape consistent for every type.
@@ -1115,146 +1527,64 @@
       return wrap;
     }
 
+    // Colour with a dark-mode choice: Same (one colour for both),
+    // Auto (a dark variant derived from the light colour) or Custom
+    // (a second colour). `onChange(light, dark, mode)`; mode stays
+    // 'same' | 'auto' | 'manual' in the stored data.
     function colorPickerWithDarkMode(opts) {
       const onChange = opts.onChange || (() => {});
       let curLight = opts.value || '';
       let curManualDark = opts.valueDark || '';
       let curMode = ['same', 'auto', 'manual'].includes(opts.mode) ? opts.mode : 'same';
 
+      function autoDark() {
+        return deriveDarkMode(_resolveSwatchHex(curLight) || '');
+      }
       function commitNotify() {
-        const dark = curMode === 'manual'
-          ? curManualDark
-          : (curMode === 'auto' ? deriveDarkMode(curLight) : '');
+        const dark = curMode === 'manual' ? curManualDark
+          : (curMode === 'auto' ? autoDark() : '');
         onChange(curLight, dark, curMode);
       }
 
-      const wrap = el('div', { class: 'be-color-with-dm' });
+      const wrap = el('div', { class: 'be-color-dm' });
+      const light = colorField({
+        value: curLight, placeholder: opts.placeholder || 'Default',
+        onChange: v => { curLight = v; updateAuto(); commitNotify(); },
+      });
+      wrap.appendChild(light);
 
-      // Light swatch + hex + clear
-      const lightSwatch = el('input', {
-        type: 'color', value: curLight || '#0f172a',
-      });
-      const lightText = el('input', {
-        type: 'text', class: 'be-container-color-text',
-        maxlength: '7', spellcheck: 'false', autocomplete: 'off',
-        placeholder: opts.placeholder || 'inherit',
-        value: curLight,
-      });
-      const lightClear = el('button', {
-        type: 'button', class: 'btn btn-sm',
-      }, ['Clear']);
-      function setLight(v) {
-        curLight = v;
-        const swatchHex = _resolveSwatchHex(v);
-        if (swatchHex) lightSwatch.value = swatchHex;
-        lightText.classList.remove('is-invalid');
-        if (curMode === 'auto') updateAutoPreview();
-        commitNotify();
-      }
-      lightSwatch.addEventListener('input', () => { setLight(lightSwatch.value); lightText.value = lightSwatch.value; });
-      lightText.addEventListener('input', () => {
-        let v = (lightText.value || '').trim();
-        if (!v) { setLight(''); return; }
-        // Tokens (`token:key`) bypass hex validation — they're a
-        // valid storage form that the renderer translates to var(...).
-        if (_TOKEN_RE.test(v)) { setLight(v); return; }
-        if (!v.startsWith('#')) v = '#' + v;
-        if (_HEX_RE.test(v)) {
-          const expanded = v.length === 4
-            ? '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3] : v.toLowerCase();
-          setLight(expanded);
-        } else {
-          lightText.classList.add('is-invalid');
-        }
-      });
-      lightClear.addEventListener('click', () => { setLight(''); lightText.value = ''; });
-      const lightTokenBtn = attachTokenButton(lightText, lightSwatch);
-      const lightRow = el('span', { class: 'be-container-color' },
-                         [lightSwatch, lightText, lightTokenBtn, lightClear]);
-      wrap.appendChild(lightRow);
-
-      // Mode toggle [Same | Auto | Manual]
-      const modeLbl = el('span', { class: 'be-color-dm-label muted smaller' },
-                         ['Dark mode']);
-      const modeToggle = el('div', { class: 'view-toggle be-color-dm-mode' });
-      const modeBtns = {};
-      ['same', 'auto', 'manual'].forEach(m => {
-        const btn = el('button', {
-          type: 'button',
-          class: 'btn btn-sm' + (curMode === m ? ' active' : ''),
-          'data-mode': m,
-        }, [m === 'same' ? 'Same' : m === 'auto' ? 'Auto' : 'Manual']);
-        btn.addEventListener('click', () => {
+      const autoChip = el('span', { class: 'be-color-dm-auto' }, []);
+      const modeSeg = segmented([['same', 'Same'], ['auto', 'Auto'], ['manual', 'Custom']],
+        curMode, m => {
           curMode = m;
-          Object.values(modeBtns).forEach(b => b.classList.toggle('active', b === btn));
-          darkRow.hidden = m !== 'manual';
-          autoRow.hidden = m !== 'auto';
-          if (m === 'auto') updateAutoPreview();
+          darkField.hidden = m !== 'manual';
+          updateAuto();
           commitNotify();
-        });
-        modeBtns[m] = btn;
-        modeToggle.appendChild(btn);
-      });
-      const modeRow = el('div', { class: 'be-color-dm-mode-row' },
-                         [modeLbl, modeToggle]);
-      wrap.appendChild(modeRow);
+        }, 'be-seg-sm');
+      wrap.appendChild(el('div', { class: 'be-color-dm-row' }, [
+        el('span', { class: 'be-color-dm-label', title: 'Colour in dark mode' },
+           [iconEl('moon'), 'Dark mode']),
+        modeSeg, autoChip,
+      ]));
 
-      // Manual dark swatch + hex + clear
-      const darkSwatch = el('input', {
-        type: 'color', value: curManualDark || '#e6e8f0',
+      const darkField = colorField({
+        value: curManualDark, placeholder: 'Pick a dark-mode colour',
+        onChange: v => { curManualDark = v; commitNotify(); },
       });
-      const darkText = el('input', {
-        type: 'text', class: 'be-container-color-text',
-        maxlength: '7', spellcheck: 'false', autocomplete: 'off',
-        placeholder: 'pick a dark-mode colour',
-        value: curManualDark,
-      });
-      const darkClear = el('button', {
-        type: 'button', class: 'btn btn-sm',
-      }, ['Clear']);
-      function setManualDark(v) {
-        curManualDark = v;
-        const swatchHex = _resolveSwatchHex(v);
-        if (swatchHex) darkSwatch.value = swatchHex;
-        darkText.classList.remove('is-invalid');
-        commitNotify();
+      darkField.classList.add('be-color-dm-custom');
+      darkField.hidden = curMode !== 'manual';
+      wrap.appendChild(darkField);
+
+      function updateAuto() {
+        autoChip.hidden = curMode !== 'auto';
+        autoChip.innerHTML = '';
+        if (curMode !== 'auto') return;
+        const v = autoDark();
+        autoChip.appendChild(el('span', { class: 'be-color-dm-auto-swatch',
+          style: v ? 'background:' + v : null }));
+        autoChip.appendChild(document.createTextNode(v || 'Set a colour first'));
       }
-      darkSwatch.addEventListener('input', () => { setManualDark(darkSwatch.value); darkText.value = darkSwatch.value; });
-      darkText.addEventListener('input', () => {
-        let v = (darkText.value || '').trim();
-        if (!v) { setManualDark(''); return; }
-        if (_TOKEN_RE.test(v)) { setManualDark(v); return; }
-        if (!v.startsWith('#')) v = '#' + v;
-        if (_HEX_RE.test(v)) {
-          const expanded = v.length === 4
-            ? '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3] : v.toLowerCase();
-          setManualDark(expanded);
-        } else {
-          darkText.classList.add('is-invalid');
-        }
-      });
-      darkClear.addEventListener('click', () => { setManualDark(''); darkText.value = ''; });
-      const darkTokenBtn = attachTokenButton(darkText, darkSwatch);
-      const darkRow = el('span', { class: 'be-container-color be-color-dm-row' },
-                         [darkSwatch, darkText, darkTokenBtn, darkClear]);
-      darkRow.hidden = curMode !== 'manual';
-      wrap.appendChild(darkRow);
-
-      // Auto preview chip
-      const autoChip = el('span', { class: 'be-color-dm-auto-preview' }, []);
-      const autoSwatch = el('span', { class: 'be-color-dm-auto-swatch' });
-      function updateAutoPreview() {
-        const auto = deriveDarkMode(curLight);
-        autoChip.textContent = auto || '(set a light colour first)';
-        autoSwatch.style.background = auto || 'transparent';
-        autoSwatch.style.opacity = auto ? '1' : '0.3';
-      }
-      const autoRow = el('div', { class: 'be-color-dm-auto-row muted small' },
-                         [el('span', {}, ['Auto-derived: ']), autoSwatch, autoChip]);
-      autoRow.hidden = curMode !== 'auto';
-      if (curMode === 'auto') updateAutoPreview();
-      wrap.appendChild(autoRow);
-
+      updateAuto();
       return wrap;
     }
 
@@ -1264,7 +1594,6 @@
     // blocks. Each control commits to `d[key]` directly so the parent
     // editor's serialise picks up the override on next save.
     function renderTypographyPanel(d) {
-      const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
       // Open unless the host asks for it folded (`typographyFolded`:
       // the Zoom Tech editor, where a long page of open panels buries
       // the text).
@@ -1276,101 +1605,63 @@
 
       function row(label, control, hint) {
         const r = el('div', { class: 'be-container-row' });
-        r.appendChild(el('span', { class: 'be-container-row-lbl' }, [label]));
+        r.appendChild(el('span', { class: 'be-container-row-lbl' }, withHelp(label, hint)));
         r.appendChild(control);
-        if (hint) r.appendChild(el('div', { class: 'be-container-row-hint muted smaller' }, [hint]));
         return r;
       }
-      // Font family — pulls from window.tspFonts (populated by the
-      // page edit template at boot from the server's frontend_fonts()
-      // helper). Falls back to a "Theme default" only.
+      // Font family — window.tspFonts comes from the page edit
+      // template (frontend_fonts()); "Theme default" leaves it unset.
       const fonts = (window.tspFonts || []);
       const fontSel = el('select', {
         onchange: e => { d.font_family = e.target.value; notifyChange(); }
       }, [
-        (function(){
-          const o = el('option', { value: '' }, ['Theme default']);
-          if (!d.font_family) o.selected = true;
-          return o;
-        })(),
-        ...fonts.map(f => {
-          const o = el('option', { value: f.stack || f.key }, [f.name]);
-          if (d.font_family === (f.stack || f.key)) o.selected = true;
-          return o;
-        }),
+        el('option', { value: '', selected: !d.font_family ? 'selected' : null }, ['Theme default']),
+        ...fonts.map(f => el('option', {
+          value: f.stack || f.key,
+          selected: d.font_family === (f.stack || f.key) ? 'selected' : null,
+        }, [f.name])),
       ]);
-      body.appendChild(row('Font family', fontSel));
+      body.appendChild(row('Font', fontSel));
 
-      // Font size — free-text CSS value, with placeholder showing
-      // theme default. Accepts 1.25rem, 20px, etc.
-      body.appendChild(row('Font size',
-        el('input', { type: 'text',
-          value: d.font_size || '', placeholder: 'inherit (e.g. 1.25rem, 20px)',
-          oninput: e => { d.font_size = e.target.value; notifyChange(); }
-        })));
+      // Size + line height: free CSS values; blank inherits.
+      function cssInput(key, placeholder) {
+        return el('input', { type: 'text', value: d[key] || '', placeholder,
+          oninput: e => { d[key] = e.target.value.trim(); notifyChange(); } });
+      }
+      body.appendChild(row('Size', cssInput('font_size', 'Default, e.g. 1.25rem or 20px')));
+      body.appendChild(row('Line height', cssInput('line_height', 'Default, e.g. 1.5')));
 
-      // Weight — preset toggle.
-      const weightSel = el('select', {
-        onchange: e => { d.font_weight = e.target.value; notifyChange(); }
-      }, [['', 'Theme default'], ['400', '400 — Regular'], ['500', '500 — Medium'],
-          ['600', '600 — Semibold'], ['700', '700 — Bold'], ['800', '800 — Extrabold']]
-         .map(([v, lbl]) => {
-        const o = el('option', { value: v }, [lbl]);
-        if ((d.font_weight || '') === v) o.selected = true;
-        return o;
-      }));
-      body.appendChild(row('Weight', weightSel));
+      body.appendChild(row('Weight', segmented([
+        ['', 'Auto', 'Theme default'], ['400', '400', 'Regular'], ['500', '500', 'Medium'],
+        ['600', '600', 'Semibold'], ['700', '700', 'Bold'], ['800', '800', 'Extrabold'],
+      ], d.font_weight || '', v => { d.font_weight = v; notifyChange(); })));
 
-      // Colour — light + dark-mode aware. Light value lives in
-      // d.color; dark behaviour lives in d.color_dark_mode (same/auto/
-      // manual) and d.color_dark (the manual hex when mode='manual'
-      // OR the auto-derived hex when mode='auto', so the renderer
-      // doesn't need to know about the mode — just emit color_dark
-      // as the dark-mode CSS variable when non-empty).
-      const colorWrap = colorPickerWithDarkMode({
+      // Colour — d.color is the light value; d.color_dark_mode is
+      // same / auto / manual and d.color_dark the value the renderer
+      // emits for dark mode (blank for "same").
+      body.appendChild(row('Colour', colorPickerWithDarkMode({
         value: d.color || '',
         valueDark: d.color_dark || '',
         mode: d.color_dark_mode || 'same',
-        placeholder: 'inherit',
+        placeholder: 'Default',
         onChange: (light, dark, mode) => {
           d.color = light;
           d.color_dark = dark;
           d.color_dark_mode = mode;
           notifyChange();
         },
-      });
-      body.appendChild(row('Colour', colorWrap));
+      })));
 
-      // Alignment — toggle of Auto / Left / Center / Right / Justify.
-      const alignTog = el('div', { class: 'view-toggle be-typo-align' });
-      [['', 'Auto'], ['left', 'Left'], ['center', 'Center'],
-       ['right', 'Right'], ['justify', 'Justify']].forEach(([v, lbl]) => {
-        alignTog.appendChild(el('button', {
-          type: 'button',
-          class: 'btn btn-sm' + ((d.align || '') === v ? ' active' : ''),
-          'data-align': v,
-        }, [lbl]));
-      });
-      alignTog.addEventListener('click', e => {
-        const btn = e.target.closest('button[data-align]');
-        if (!btn) return;
-        d.align = btn.dataset.align;
-        alignTog.querySelectorAll('button').forEach(x =>
-          x.classList.toggle('active', x === btn));
-        notifyChange();
-      });
-      body.appendChild(row('Alignment', alignTog));
-
-      // Line height — free-text CSS value, with placeholder.
-      body.appendChild(row('Line height',
-        el('input', { type: 'text',
-          value: d.line_height || '', placeholder: 'inherit (e.g. 1.5, 28px)',
-          oninput: e => { d.line_height = e.target.value; notifyChange(); }
-        })));
+      body.appendChild(row('Alignment', segmented([
+        ['', 'Auto', 'Theme default'],
+        ['left', 'icon:align-left', 'Left'], ['center', 'icon:align-center', 'Center'],
+        ['right', 'icon:align-right', 'Right'], ['justify', 'icon:align-justify', 'Justify'],
+      ], d.align || '', v => { d.align = v; notifyChange(); })));
 
       panel.appendChild(body);
       return panel;
     }
+
 
     // ── Image browser modal (lazy-created) ─────────────────────────
     // Shared across every Image block on the page — built on first
@@ -1580,18 +1871,12 @@
         ]);
       }
       if (b.type === 'heading') {
-        const lvlSel = el('select', {
-          onchange: e => { d.level = parseInt(e.target.value, 10); notifyChange(); }
-        }, [2,3,4,5,6].map(n => {
-          const o = el('option', { value: n }, ['H'+n]);
-          if ((d.level||3) === n) o.selected = true;
-          return o;
-        }));
+        const lvlSel = segmented([2, 3, 4, 5, 6].map(n => [String(n), 'H' + n]),
+          String(d.level || 3), v => { d.level = parseInt(v, 10); notifyChange(); });
         // Separate labeled rows for level + heading text. The previous
         // shape (select + input on a single .be-row) clashed with the
         // .be-body width:100% rule, squeezing the text input to invisibility.
         return el('div', { class: 'be-body' }, [
-          el('label', {}, ['Level', lvlSel]),
           el('label', {}, ['Heading text',
             el('input', {
               type: 'text', placeholder: 'Heading text',
@@ -1599,35 +1884,18 @@
               oninput: e => { d.text = e.target.value; notifyChange(); }
             }),
           ]),
+          el('div', { class: 'be-field' }, [el('span', {}, ['Level']), lvlSel]),
           renderTypographyPanel(d),
         ]);
       }
       if (b.type === 'image') {
-        const alignTog = el('div', { class: 'view-toggle be-typo-align' });
-        [['left', 'Left'], ['center', 'Center'], ['right', 'Right']].forEach(([v, lbl]) => {
-          alignTog.appendChild(el('button', {
-            type: 'button',
-            class: 'btn btn-sm' + ((d.align || 'center') === v ? ' active' : ''),
-            'data-align': v,
-          }, [lbl]));
-        });
-        alignTog.addEventListener('click', e => {
-          const btn = e.target.closest('button[data-align]');
-          if (!btn) return;
-          d.align = btn.dataset.align;
-          alignTog.querySelectorAll('button').forEach(x =>
-            x.classList.toggle('active', x === btn));
+        const alignTog = segmented(ALIGN_3, d.align || 'center',
+          v => { d.align = v; notifyChange(); });
+        // Any CSS length; it replaces the older percentage cap.
+        const widthField = lengthField(widthValue(d), v => {
+          d.width = v;
+          d.max_width_pct = 100;
           notifyChange();
-        });
-        const widthOut = el('output', {}, [(d.max_width_pct == null ? 100 : d.max_width_pct) + '%']);
-        const widthSlider = el('input', {
-          type: 'range', min: '20', max: '100', step: '5',
-          value: (d.max_width_pct == null ? 100 : d.max_width_pct),
-          oninput: e => {
-            d.max_width_pct = parseInt(e.target.value, 10) || 100;
-            widthOut.textContent = d.max_width_pct + '%';
-            notifyChange();
-          },
         });
         // Corner roundness — px slider 0..50. The renderer mirrors the
         // value into `border-radius: <n>px` on the <img>. 0 = sharp.
@@ -1726,15 +1994,13 @@
           el('label', {}, ['Caption',
             el('input', { type: 'text', value: d.caption || '',
               oninput: e => { d.caption = e.target.value; notifyChange(); } })]),
-          el('label', {}, [el('span', {}, ['Width ', widthOut]), widthSlider]),
-          el('label', {}, ['Alignment', alignTog]),
+          el('div', { class: 'be-field' }, [el('span', {}, ['Width']), widthField]),
+          el('div', { class: 'be-field' }, [el('span', {}, ['Alignment']), alignTog]),
           el('label', {}, [el('span', {}, ['Corner roundness ', radiusOut]), radiusSlider]),
           el('label', {}, ['Drop shadow', shadowSel]),
-          el('label', {}, ['Caption colour',
-            el('input', { type: 'text', class: 'be-container-color-text',
-              value: d.caption_color || '', placeholder: 'inherit (e.g. #6b7280)',
-              maxlength: '7', spellcheck: 'false', autocomplete: 'off',
-              oninput: e => { d.caption_color = e.target.value; notifyChange(); } })]),
+          el('div', { class: 'be-field' }, [el('span', {}, ['Caption colour']),
+            colorField({ value: d.caption_color || '', placeholder: 'Default',
+              onChange: v => { d.caption_color = v; notifyChange(); } })]),
           el('label', {}, ['Caption size',
             el('input', { type: 'text',
               value: d.caption_size || '', placeholder: 'inherit (e.g. 0.875rem)',
@@ -1848,9 +2114,8 @@
         const cardBody = el('div', { class: 'be-container-panel-body' });
         function cardRow(label, control, hint) {
           const r = el('div', { class: 'be-container-row' });
-          r.appendChild(el('span', { class: 'be-container-row-lbl' }, [label]));
+          r.appendChild(el('span', { class: 'be-container-row-lbl' }, withHelp(label, hint)));
           r.appendChild(control);
-          if (hint) r.appendChild(el('div', { class: 'be-container-row-hint muted smaller' }, [hint]));
           return r;
         }
         cardBody.appendChild(cardRow('Background',
@@ -1950,26 +2215,56 @@
         // Item rows are drag-reorderable via the grip handle. Because a
         // drag rearranges the DOM without re-rendering, the per-row
         // handlers resolve their index from the row's live position
-        // (`rowIndex`) rather than closing over the loop counter —
-        // otherwise every input/remove would keep writing to the slot
-        // the row occupied before the drag.
+        // (`rowIndex`) rather than closing over the loop counter.
+        // Each item is a textarea that can hold paragraphs: closed it
+        // shows one line, open it grows to its text. Clicking into a
+        // closed item opens it; the chevron opens and closes it.
         const items = el('div', { class: 'be-list-items' });
         const rowIndex = (row) => Array.prototype.indexOf.call(items.children, row);
-        (d.items || []).forEach((it) => {
+        const open = LIST_OPEN.get(d) || new Set();
+        LIST_OPEN.set(d, open);
+        const syncOpen = () => {
+          open.clear();
+          Array.prototype.forEach.call(items.children, (r, i) => { if (r.classList.contains('is-open')) open.add(i); });
+          allBtn.textContent = open.size ? 'Collapse all' : 'Expand all';
+        };
+        const setOpen = (row, on) => {
+          const t = row.querySelector('textarea');
+          row.classList.toggle('is-open', on);
+          row.querySelector('.be-list-toggle').setAttribute('aria-expanded', on ? 'true' : 'false');
+          t.rows = on ? 3 : 1;
+          if (on) fitText(t);
+          else { t.style.height = ''; t.scrollTop = 0; }
+        };
+        (d.items || []).forEach((it, i) => {
           const row = el('div', { class: 'be-row be-list-item' });
           row.appendChild(el('span', {
             class: 'be-list-drag', title: 'Drag to reorder',
           }, [iconEl('grip-vertical')]));
-          row.appendChild(el('input', {
-            type: 'text', value: it,
-            oninput: e => { d.items[rowIndex(row)] = e.target.value; notifyChange(); },
-            placeholder: 'List item (supports markdown — e.g. [link](https://example.com))'
-          }));
+          const t = el('textarea', {
+            class: 'be-list-text', rows: '1',
+            placeholder: 'List item (supports markdown, e.g. [link](https://example.com))',
+            oninput: e => { d.items[rowIndex(row)] = e.target.value; fitText(e.target); notifyChange(); },
+            onfocus: () => { if (!row.classList.contains('is-open')) { setOpen(row, true); syncOpen(); } },
+          }, [it || '']);
+          row.appendChild(t);
+          row.appendChild(el('button', {
+            type: 'button', class: 'icon-btn be-list-toggle', title: 'Expand or collapse',
+            'aria-expanded': 'false',
+            onclick: () => { setOpen(row, !row.classList.contains('is-open')); syncOpen(); },
+          }, [iconEl('chevron-down')]));
           row.appendChild(el('button', {
             type: 'button', class: 'icon-btn', title: 'Remove',
-            onclick: () => { d.items.splice(rowIndex(row), 1); render(); notifyChange(); },
+            onclick: () => {
+              const at = rowIndex(row);
+              row.remove();
+              syncOpen();
+              d.items.splice(at, 1);
+              render(); notifyChange();
+            },
           }, [iconEl('x')]));
           items.appendChild(row);
+          if (open.has(i)) setOpen(row, true);
         });
         if (typeof Sortable !== 'undefined') {
           Sortable.create(items, {
@@ -1980,15 +2275,42 @@
               if (e.oldIndex === e.newIndex) return;
               const [moved] = d.items.splice(e.oldIndex, 1);
               d.items.splice(e.newIndex, 0, moved);
+              syncOpen();
               notifyChange();
             },
           });
         }
         body.appendChild(items);
-        body.appendChild(el('button', {
+        // Sizes need the rows on the page: fit the open ones once they are.
+        requestAnimationFrame(() => items.querySelectorAll('.is-open textarea').forEach(fitText));
+        // A new item takes the cursor.
+        if (listFocus === d) {
+          listFocus = null;
+          const last = items.lastElementChild;
+          if (last) requestAnimationFrame(() => last.querySelector('textarea').focus());
+        }
+        const allBtn = el('button', {
           type: 'button', class: 'btn btn-sm',
-          onclick: () => { d.items = d.items || []; d.items.push(''); render(); notifyChange(); }
-        }, ['+ Add item']));
+          onclick: () => {
+            const on = !open.size;
+            Array.prototype.forEach.call(items.children, r => setOpen(r, on));
+            syncOpen();
+          },
+        }, [open.size ? 'Collapse all' : 'Expand all']);
+        allBtn.hidden = !(d.items || []).length;
+        body.appendChild(el('div', { class: 'be-row be-list-foot' }, [
+          el('button', {
+            type: 'button', class: 'btn btn-sm',
+            onclick: () => {
+              d.items = d.items || [];
+              d.items.push('');
+              open.add(d.items.length - 1);
+              listFocus = d;
+              render(); notifyChange();
+            },
+          }, ['+ Add item']),
+          allBtn,
+        ]));
         body.appendChild(renderTypographyPanel(d));
         return body;
       }
@@ -2181,22 +2503,8 @@
 
       // Alignment toggle (left / center / right) mirrors the image
       // block's pattern.
-      const alignTog = el('div', { class: 'view-toggle be-typo-align' });
-      [['left', 'Left'], ['center', 'Center'], ['right', 'Right']].forEach(([v, lbl]) => {
-        alignTog.appendChild(el('button', {
-          type: 'button',
-          class: 'btn btn-sm' + ((d.align || 'center') === v ? ' active' : ''),
-          'data-align': v,
-        }, [lbl]));
-      });
-      alignTog.addEventListener('click', e => {
-        const btn = e.target.closest('button[data-align]');
-        if (!btn) return;
-        d.align = btn.dataset.align;
-        alignTog.querySelectorAll('button').forEach(x =>
-          x.classList.toggle('active', x === btn));
-        notifyChange();
-      });
+      const alignTog = segmented(ALIGN_3, d.align || 'center',
+        v => { d.align = v; notifyChange(); });
 
       const colorWrap = colorPickerWithDarkMode({
         value: d.color || '',
@@ -2232,7 +2540,7 @@
         nameInput, sizeInput, colorSink,
         previewCard,
         el('label', {}, [el('span', {}, ['Size ', sizeOut]), sizeSlider]),
-        el('label', {}, ['Alignment', alignTog]),
+        el('div', { class: 'be-field' }, [el('span', {}, ['Alignment']), alignTog]),
         el('label', {}, ['Colour', colorWrap]),
         el('label', {}, ['Link URL', urlInput]),
         el('label', { class: 'be-row' }, [newTabChk,
@@ -2394,38 +2702,27 @@
         type: 'button', class: 'btn btn-sm be-image-upload',
         onclick: () => uploadInput.click(),
       }, ['⬆ Upload .json']);
+      // Lotties already uploaded, from the File Browser (opened on its
+      // Lottie kind).
+      const browseBtn = window.tspPickFile ? el('button', {
+        type: 'button', class: 'btn btn-sm be-image-browse',
+        onclick: () => window.tspPickFile('lottie', it => {
+          if (it && it.original_filename) setSrc('/pub/' + it.original_filename);
+        }),
+      }, ['📁 Choose from File Browser']) : null;
       const sourceRow = el('div', { class: 'be-image-source-row' },
-        [uploadBtn, uploadInput]);
+        [browseBtn, uploadBtn, uploadInput]);
 
-      // Width slider mirrors the image block.
-      const widthOut = el('output', {}, [(d.max_width_pct || 100) + '%']);
-      const widthSlider = el('input', {
-        type: 'range', min: '20', max: '100', step: '5',
-        value: (d.max_width_pct || 100),
-        oninput: e => {
-          d.max_width_pct = parseInt(e.target.value, 10) || 100;
-          widthOut.textContent = d.max_width_pct + '%';
-          notifyChange();
-        },
+      // Width, as on the image block.
+      const widthField = lengthField(widthValue(d), v => {
+        d.width = v;
+        d.max_width_pct = 100;
+        notifyChange();
       });
 
       // Alignment toggle — same pattern as the image / icon blocks.
-      const alignTog = el('div', { class: 'view-toggle be-typo-align' });
-      [['left', 'Left'], ['center', 'Center'], ['right', 'Right']].forEach(([v, lbl]) => {
-        alignTog.appendChild(el('button', {
-          type: 'button',
-          class: 'btn btn-sm' + ((d.align || 'center') === v ? ' active' : ''),
-          'data-align': v,
-        }, [lbl]));
-      });
-      alignTog.addEventListener('click', e => {
-        const btn = e.target.closest('button[data-align]');
-        if (!btn) return;
-        d.align = btn.dataset.align;
-        alignTog.querySelectorAll('button').forEach(x =>
-          x.classList.toggle('active', x === btn));
-        notifyChange();
-      });
+      const alignTog = segmented(ALIGN_3, d.align || 'center',
+        v => { d.align = v; notifyChange(); });
 
       // Playback mode — `auto` honours autoplay+loop directly; `hover`
       // parks the animation at frame 0 and plays forward only while
@@ -2485,12 +2782,8 @@
       // Background colour — most lottie animations are transparent;
       // this paints the figure behind the stage so admins can sit a
       // light animation on a dark backing or vice versa.
-      const bgInput = el('input', {
-        type: 'text', class: 'be-container-color-text',
-        value: d.bg_color || '', placeholder: 'transparent (e.g. #f8fafc)',
-        maxlength: '7', spellcheck: 'false', autocomplete: 'off',
-        oninput: e => { d.bg_color = e.target.value; notifyChange(); },
-      });
+      const bgInput = colorField({ value: d.bg_color || '', placeholder: 'Transparent',
+        onChange: v => { d.bg_color = v; notifyChange(); } });
 
       const previewCard = el('div', { class: 'be-lottie-preview-card' },
         [stage, meta]);
@@ -2502,14 +2795,14 @@
         el('label', {}, ['Lottie source', srcInput]),
         sourceRow,
         previewCard,
-        el('label', {}, [el('span', {}, ['Width ', widthOut]), widthSlider]),
-        el('label', {}, ['Alignment', alignTog]),
+        el('div', { class: 'be-field' }, [el('span', {}, ['Width']), widthField]),
+        el('div', { class: 'be-field' }, [el('span', {}, ['Alignment']), alignTog]),
         el('label', {}, ['Playback', playbackSel]),
         el('label', { class: 'be-row' }, [loopChk, el('span', {}, ['Loop'])]),
         autoplayLabel,
         el('label', {}, [el('span', {}, ['Speed ', speedOut]), speedSlider]),
         el('label', {}, ['Renderer', rendererSel]),
-        el('label', {}, ['Background colour', bgInput]),
+        el('div', { class: 'be-field' }, [el('span', {}, ['Background colour']), bgInput]),
       ]);
     }
 
@@ -2720,7 +3013,7 @@
       }
       updatePreview();
 
-      wrap.appendChild(el('label', {}, ['Columns', colsTog]));
+      wrap.appendChild(el('div', { class: 'be-field' }, [el('span', {}, ['Columns']), colsTog]));
       wrap.appendChild(el('label', {}, ['Gap', gapInp]));
       wrap.appendChild(el('div', { class: 'be-officer-fields' }, [
         el('div', { class: 'be-officer-fields-label muted smaller' },
@@ -2847,7 +3140,7 @@
           notifyChange();
         },
       });
-      cardsBox.appendChild(el('label', {}, ['Columns', colsTog]));
+      cardsBox.appendChild(el('div', { class: 'be-field' }, [el('span', {}, ['Columns']), colsTog]));
       cardsBox.appendChild(el('label', {}, ['Gap', gapInp]));
       cardsBox.style.display = (d.style === 'cards') ? '' : 'none';
 
@@ -2982,9 +3275,9 @@
 
       wrap.appendChild(el('label', {}, ['Library', libSel]));
       wrap.appendChild(el('label', {}, ['Title (optional)', titleInp]));
-      wrap.appendChild(el('label', {}, ['Display style', styleTog]));
+      wrap.appendChild(el('div', { class: 'be-field' }, [el('span', {}, ['Display style']), styleTog]));
       wrap.appendChild(cardsBox);
-      wrap.appendChild(el('label', {}, ['Items to include', modeTog]));
+      wrap.appendChild(el('div', { class: 'be-field' }, [el('span', {}, ['Items to include']), modeTog]));
       wrap.appendChild(granularBox);
       wrap.appendChild(el('label', {}, ['Sort items by', sortSel]));
       wrap.appendChild(el('label', {}, [
@@ -3047,9 +3340,8 @@
         notifyChange();
       });
 
-      wrap.appendChild(el('div', { class: 'muted smaller', style: 'margin-bottom: 4px;' },
-        ['Filter the rendered list by category and/or tag. Pick neither to show every published post.']));
-      wrap.appendChild(el('label', {}, ['Category', catSel]));
+      wrap.appendChild(el('label', {}, [...withHelp('Category',
+        'Filter the list by category and/or tag. Pick neither to show every published post.'), catSel]));
       wrap.appendChild(el('label', {}, ['Tag', tagSel]));
 
       // ── Title + subtitle ───────────────────────────────────────
@@ -3085,7 +3377,7 @@
         cardsBox.style.display = (d.style === 'cards') ? '' : 'none';
         notifyChange();
       });
-      wrap.appendChild(el('label', {}, ['Display style', styleTog]));
+      wrap.appendChild(el('div', { class: 'be-field' }, [el('span', {}, ['Display style']), styleTog]));
 
       // ── Cards-only controls ───────────────────────────────────
       const cardsBox = el('div', { class: 'be-library-cards-controls' });
@@ -3105,7 +3397,7 @@
           x.classList.toggle('active', x === btn));
         notifyChange();
       });
-      cardsBox.appendChild(el('label', {}, ['Columns', colsTog]));
+      cardsBox.appendChild(el('div', { class: 'be-field' }, [el('span', {}, ['Columns']), colsTog]));
       cardsBox.appendChild(el('label', {}, ['Gap',
         el('input', {
           type: 'text', value: d.gap || '1.25rem',
@@ -3230,9 +3522,8 @@
       // text/number/range so the bar reflects every keystroke. ──────
       function field(lbl, inner, hintMd) {
         const wrap = el('div', { class: 'nav-megalink-field' });
-        wrap.appendChild(el('span', { class: 'nav-megalink-field-lbl' }, [lbl]));
+        wrap.appendChild(el('span', { class: 'nav-megalink-field-lbl' }, withHelp(lbl, hintMd)));
         wrap.appendChild(inner);
-        if (hintMd) wrap.appendChild(el('p', { class: 'muted smaller' }, [hintMd]));
         return wrap;
       }
       function textInput(key, placeholder) {
@@ -3282,8 +3573,7 @@
         const row = el('li', { class: 'special-page-row',
           style: 'list-style:none; margin: 0.75rem 0;' });
         const info = el('div', { class: 'special-page-info' });
-        info.appendChild(el('div', { class: 'u-name' }, [name]));
-        if (hint) info.appendChild(el('p', { class: 'muted small' }, [hint]));
+        info.appendChild(el('div', { class: 'u-name' }, withHelp(name, hint)));
         row.appendChild(info);
         const lbl = el('label', { class: 'mode-toggle' });
         const cb = el('input', { type: 'checkbox',
@@ -3584,10 +3874,10 @@
 
       // Heights
       const hGrid = el('div', { class: 'hero-heading-opts hero-heading-grad-row' });
-      function heightField(key, lbl) {
+      function heightField(key, lbl, help) {
         const fld = el('div', { class: 'nav-megalink-field hero-slider-field' });
         const out = el('output', {}, [d[key] ? d[key] + 'vh' : 'Auto']);
-        fld.appendChild(el('span', { class: 'nav-megalink-field-lbl' }, [lbl, ' ', out]));
+        fld.appendChild(el('span', { class: 'nav-megalink-field-lbl' }, [lbl, ' ', out, ...(help ? [' ', helpChip(lbl, help)] : [])]));
         fld.appendChild(el('input', { type: 'range', min: '0', max: '200', step: '5',
           value: String(d[key] || 0),
           oninput: e => {
@@ -3598,11 +3888,13 @@
           } }));
         return fld;
       }
-      hGrid.appendChild(heightField('height_vh_desktop', 'Desktop height'));
-      hGrid.appendChild(heightField('height_vh_mobile', 'Mobile height'));
+      hGrid.appendChild(heightField('height_vh_desktop', 'Height',
+        'Set 0 to keep the natural padding-based height. Higher values stretch the hero to that share of the viewport (50 = half-screen, 100 = full-screen).'));
+      const _mobileHeight = heightField('height_vh_mobile', 'Mobile height',
+        'Falls back to the desktop height when left at 0.');
+      _mobileHeight.setAttribute('data-rs-legacy', '');
+      hGrid.appendChild(_mobileHeight);
       textGroup.appendChild(hGrid);
-      textGroup.appendChild(el('p', { class: 'muted smaller', style: 'margin: 4px 2px 0;' },
-        ["Set 0 to keep the natural padding-based height. Higher values stretch the hero to that share of the viewport (50 = half-screen, 100 = full-screen). Mobile falls back to the desktop value when left at 0."]));
 
       wrap.appendChild(textGroup);
 
@@ -4120,12 +4412,16 @@
       // so they all share alignment + spacing.
       function row(label, control, hint) {
         const r = el('div', { class: 'be-container-row' });
-        r.appendChild(el('span', { class: 'be-container-row-lbl' }, [label]));
+        r.appendChild(el('span', { class: 'be-container-row-lbl' }, withHelp(label, hint)));
         r.appendChild(control);
-        if (hint) r.appendChild(el('div', { class: 'be-container-row-hint muted smaller' }, [hint]));
         return r;
       }
       function selectInput(value, options, oninput) {
+        // A few short options read better as a segmented control.
+        const chars = options.reduce((n, [, lbl]) => n + String(lbl).length, 0);
+        if (options.length <= 5 && chars <= 36) {
+          return segmented(options, value, oninput);
+        }
         const sel = el('select', { onchange: e => oninput(e.target.value) });
         options.forEach(([v, lbl]) => {
           const o = el('option', { value: v }, [lbl]);
@@ -4154,53 +4450,8 @@
           [inp, el('span', { class: 'be-container-num-suffix muted smaller' }, [suffix])]) : inp;
       }
       function colorPair(value, oninput) {
-        // <input type=color> + editable hex text + 🎨 token picker
-        // + Clear, two-way bound. Accepts hex literals AND
-        // `token:<key>` references (the public renderer translates
-        // tokens to `var(--fe-color-<key>)` via the css_color filter).
-        const wrapEl = el('span', { class: 'be-container-color' });
-        const initialSwatch = _resolveSwatchHex(value) || '#5164ff';
-        const swatch = el('input', { type: 'color', value: initialSwatch });
-        const text = el('input', {
-          type: 'text', class: 'be-container-color-text',
-          maxlength: '64', spellcheck: 'false', autocomplete: 'off',
-          placeholder: 'hex or token:color_brand', value: value || '',
-        });
-        function commit(v) {
-          oninput(v);
-          const swatchHex = _resolveSwatchHex(v);
-          if (swatchHex) swatch.value = swatchHex;
-          text.classList.remove('is-invalid');
-        }
-        swatch.addEventListener('input', () => {
-          commit(swatch.value);
-          text.value = swatch.value;
-          notifyChange();
-        });
-        text.addEventListener('input', () => {
-          let v = (text.value || '').trim();
-          if (!v) { commit(''); notifyChange(); return; }
-          if (_TOKEN_RE.test(v)) { commit(v); notifyChange(); return; }
-          if (!v.startsWith('#')) v = '#' + v;
-          if (_HEX_RE.test(v)) {
-            const expanded = v.length === 4
-              ? '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3] : v.toLowerCase();
-            commit(expanded);
-            notifyChange();
-          } else {
-            text.classList.add('is-invalid');
-          }
-        });
-        const tokenBtn = attachTokenButton(text, swatch);
-        const clear = el('button', {
-          type: 'button', class: 'btn btn-sm',
-          onclick: () => { commit(''); text.value = ''; notifyChange(); }
-        }, ['Clear']);
-        wrapEl.appendChild(swatch);
-        wrapEl.appendChild(text);
-        wrapEl.appendChild(tokenBtn);
-        wrapEl.appendChild(clear);
-        return wrapEl;
+        return colorField({ value: value || '', placeholder: 'None',
+          onChange: v => { oninput(v); notifyChange(); } });
       }
 
       // ── Label panel (admin-only) ──────────────────────────────────
@@ -4272,6 +4523,7 @@
         ], v => { d.mobile_direction = v; notifyChange(); }),
         'Applies at ≤720 px. Default collapses any row into a stacked column; column-reverse surfaces the bottom child first on phones.');
       _mobileDirRow.classList.add('be-container-row--mobile-section');
+      _mobileDirRow.setAttribute('data-rs-legacy', '');
       flexBox.appendChild(_mobileDirRow);
       flexBox.appendChild(row('Wrap',
         (function () {
@@ -4647,9 +4899,10 @@
         const u = PAD_UNITS.indexOf(unit) >= 0 ? unit : 'px';
         return n + u;
       }
-      function sideInput(value, oninput) {
+      function sideInput(value, oninput, side) {
         const parts = splitPaddingValue(value);
         const inp = el('input', {
+          title: side,
           type: 'number',
           value: parts.num,
           min: '0', max: '9999', step: '1',
@@ -4657,9 +4910,10 @@
           // inherit", not as the value 0. A greyed "0" here misled
           // admins into thinking a blank mobile side was set to 0
           // (it actually inherits the desktop value at ≤720px).
-          'aria-label': 'amount',
+          'aria-label': side + ' amount',
         });
-        const sel = el('select', { 'aria-label': 'unit', class: 'be-pad-cell-unit-sel' });
+        const sel = el('select', { 'aria-label': side + ' unit', title: side + ' unit',
+                                   class: 'be-pad-cell-unit-sel' });
         PAD_UNITS.forEach(u => {
           const o = el('option', { value: u }, [u]);
           if (u === parts.unit) o.selected = true;
@@ -4673,28 +4927,16 @@
         return el('span', { class: 'be-pad-cell-wrap' }, [inp, sel]);
       }
       function paddingBox(prefix, centerLabel) {
-        // 3x3 grid: top row = top input, middle row = left | label |
-        // right, bottom row = bottom input. Diagram + axis labels
-        // around the box make it obvious which input is which side.
+        // A box-model diagram: each side's amount on its edge of the
+        // dashed box, the label in the middle (grid areas in app.css).
         const grid = el('div', { class: 'be-pad-box' });
-        // Row 1: blank | "Top" label | blank
-        grid.appendChild(el('div', { class: 'be-pad-box-axis be-pad-box-axis--top' }, ['Top']));
-        // Row 2: top input
-        grid.appendChild(el('div', { class: 'be-pad-box-cell be-pad-box-cell--top' },
-          [sideInput(d[prefix + '_top'], v => { d[prefix + '_top'] = v; notifyChange(); })]));
-        // Row 3: "Left" | center | "Right"
-        grid.appendChild(el('div', { class: 'be-pad-box-axis be-pad-box-axis--left' }, ['Left']));
-        grid.appendChild(el('div', { class: 'be-pad-box-cell be-pad-box-cell--left' },
-          [sideInput(d[prefix + '_left'], v => { d[prefix + '_left'] = v; notifyChange(); })]));
+        const side = (key, name) => el('div', { class: 'be-pad-box-cell be-pad-box-cell--' + key },
+          [sideInput(d[prefix + '_' + key], v => { d[prefix + '_' + key] = v; notifyChange(); }, name)]);
+        grid.appendChild(side('top', 'Top'));
+        grid.appendChild(side('left', 'Left'));
         grid.appendChild(el('div', { class: 'be-pad-box-center' }, [centerLabel]));
-        grid.appendChild(el('div', { class: 'be-pad-box-cell be-pad-box-cell--right' },
-          [sideInput(d[prefix + '_right'], v => { d[prefix + '_right'] = v; notifyChange(); })]));
-        grid.appendChild(el('div', { class: 'be-pad-box-axis be-pad-box-axis--right' }, ['Right']));
-        // Row 4: bottom input
-        grid.appendChild(el('div', { class: 'be-pad-box-cell be-pad-box-cell--bottom' },
-          [sideInput(d[prefix + '_bottom'], v => { d[prefix + '_bottom'] = v; notifyChange(); })]));
-        // Row 5: blank | "Bottom" label | blank
-        grid.appendChild(el('div', { class: 'be-pad-box-axis be-pad-box-axis--bottom' }, ['Bottom']));
+        grid.appendChild(side('right', 'Right'));
+        grid.appendChild(side('bottom', 'Bottom'));
         return grid;
       }
       const padRow = el('div', { class: 'be-container-row be-container-row--pad-box' }, [
@@ -4704,11 +4946,11 @@
       spacingBody.appendChild(padRow);
       const _mobilePadRow = el('div',
         { class: 'be-container-row be-container-row--pad-box be-container-row--mobile-section' }, [
-          el('span', { class: 'be-container-row-lbl' }, ['Padding (mobile)']),
+          el('span', { class: 'be-container-row-lbl' }, withHelp('Padding (mobile)',
+            'Leave any side blank to inherit the matching desktop value at ≤720 px.')),
           paddingBox('padding_mobile', 'Mobile'),
-          el('div', { class: 'be-container-row-hint muted smaller' },
-            ['Leave any side blank to inherit the matching desktop value at ≤720 px.']),
         ]);
+      _mobilePadRow.setAttribute('data-rs-legacy', '');
       spacingBody.appendChild(_mobilePadRow);
       spacingBody.appendChild(row('Width',
         (function () {
@@ -4948,13 +5190,17 @@
       wrap.appendChild(hoverPanel);
 
       // ── Children (recursive blocks list) ─────────────────────────
-      const childrenPanel = el('div', { class: 'be-container-children' });
-      childrenPanel.appendChild(el('div', { class: 'be-container-children-head' },
-        [el('span', {}, ['Children'])]));
-      const childList = renderBlocksList(d.blocks, b.id);
-      childrenPanel.appendChild(childList.blocksEl);
-      childrenPanel.appendChild(childList.addBar);
-      wrap.appendChild(childrenPanel);
+      // A focused container shows its own settings only; its children
+      // are edited from their own entries in the structure card.
+      if (focusId !== b.id) {
+        const childrenPanel = el('div', { class: 'be-container-children' });
+        childrenPanel.appendChild(el('div', { class: 'be-container-children-head' },
+          [el('span', {}, ['Children'])]));
+        const childList = renderBlocksList(d.blocks, b.id);
+        childrenPanel.appendChild(childList.blocksEl);
+        childrenPanel.appendChild(childList.addBar);
+        wrap.appendChild(childrenPanel);
+      }
 
       return wrap;
     }
@@ -4969,161 +5215,44 @@
       const d = b.data;
       const wrap = el('div', { class: 'be-body be-button-body' });
 
-      const row1 = el('div', { class: 'be-row' }, [
-        el('input', {
-          type: 'text', value: d.label || '', placeholder: 'Button label',
-          oninput: e => d.label = e.target.value
-        }),
-      ]);
-      wrap.appendChild(row1);
-
-      const row2 = el('div', { class: 'be-row' }, [
-        el('input', {
-          type: 'text', value: d.url || '',
-          placeholder: 'https://… or /relative/path',
-          oninput: e => d.url = e.target.value
-        }),
-      ]);
-      wrap.appendChild(row2);
-
-      const newTab = el('label', { class: 'be-row be-checkbox-row' }, [
-        el('input', {
-          type: 'checkbox', checked: d.new_tab ? 'checked' : null,
-          onchange: e => { d.new_tab = e.target.checked; }
-        }),
+      wrap.appendChild(el('label', {}, ['Label',
+        el('input', { type: 'text', value: d.label || '', placeholder: 'Button label',
+          oninput: e => { d.label = e.target.value; notifyChange(); } })]));
+      wrap.appendChild(el('label', {}, ['Link',
+        el('input', { type: 'text', value: d.url || '', placeholder: 'https://… or /relative/path',
+          oninput: e => { d.url = e.target.value; notifyChange(); } })]));
+      wrap.appendChild(el('label', { class: 'be-row be-checkbox-row' }, [
+        el('input', { type: 'checkbox', checked: d.new_tab ? 'checked' : null,
+          onchange: e => { d.new_tab = e.target.checked; notifyChange(); } }),
         el('span', {}, ['Open in new tab']),
-      ]);
-      wrap.appendChild(newTab);
-
-      // Style toggle (primary | secondary | custom). The toggle div
-      // carries `view-toggle` so it picks up the existing
-      // `.view-toggle .btn.active` styling (filled accent background) —
-      // without that class the active state has no visual feedback and
-      // the toggle looks unresponsive even when the click is firing.
-      // Event delegation on the toggle div is also more robust than
-      // per-button onclick closures: a single listener owns the state
-      // and there's no chance of a stale `btn` reference if the row
-      // ever gets re-rendered.
-      const styleGroup = el('div', { class: 'be-row be-button-style-row' });
-      styleGroup.appendChild(el('span', { class: 'be-button-style-lbl' }, ['Style']));
-      const styleToggle = el('div', { class: 'view-toggle be-button-style-toggle' });
-      ['primary', 'secondary', 'custom'].forEach(s => {
-        styleToggle.appendChild(el('button', {
-          type: 'button',
-          class: 'btn btn-sm' + ((d.style || 'primary') === s ? ' active' : ''),
-          'data-bb-style': s,
-        }, [s.charAt(0).toUpperCase() + s.slice(1)]));
-      });
-      styleToggle.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-bb-style]');
-        if (!btn) return;
-        const next = btn.dataset.bbStyle;
-        d.style = next;
-        styleToggle.querySelectorAll('button').forEach(x =>
-          x.classList.toggle('active', x === btn));
-        customPanel.hidden = (next !== 'custom');
-        notifyChange();
-      });
-      styleGroup.appendChild(styleToggle);
-      wrap.appendChild(styleGroup);
-
-      // Alignment toggle (left | center | right) — same pattern.
-      const alignGroup = el('div', { class: 'be-row be-button-style-row' });
-      alignGroup.appendChild(el('span', { class: 'be-button-style-lbl' }, ['Align']));
-      const alignToggle = el('div', { class: 'view-toggle be-button-style-toggle' });
-      ['left', 'center', 'right'].forEach(a => {
-        alignToggle.appendChild(el('button', {
-          type: 'button',
-          class: 'btn btn-sm' + ((d.align || 'left') === a ? ' active' : ''),
-          'data-bb-align': a,
-        }, [a.charAt(0).toUpperCase() + a.slice(1)]));
-      });
-      alignToggle.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-bb-align]');
-        if (!btn) return;
-        d.align = btn.dataset.bbAlign;
-        alignToggle.querySelectorAll('button').forEach(x =>
-          x.classList.toggle('active', x === btn));
-        notifyChange();
-      });
-      alignGroup.appendChild(alignToggle);
-      wrap.appendChild(alignGroup);
+      ]));
+      wrap.appendChild(el('div', { class: 'be-field' }, [el('span', {}, ['Style']),
+        segmented([['primary', 'Primary'], ['secondary', 'Secondary'], ['custom', 'Custom']],
+          d.style || 'primary', v => {
+            d.style = v; customPanel.hidden = (v !== 'custom'); notifyChange();
+          })]));
+      wrap.appendChild(el('div', { class: 'be-field' }, [el('span', {}, ['Alignment']),
+        segmented(ALIGN_3, d.align || 'left', v => { d.align = v; notifyChange(); })]));
 
       // Custom colour panel — revealed only when style === 'custom'.
       const customPanel = el('div', { class: 'be-button-custom-panel' });
       customPanel.hidden = (d.style !== 'custom');
 
-      function colorRow(label, key) {
-        const row = el('div', { class: 'be-button-color-row' });
-        row.appendChild(el('span', { class: 'be-button-color-lbl' }, [label]));
-        // Visual picker + editable hex input + clear button. Either
-        // input commits to the data model (`d[key]`); the other side
-        // mirrors back. The hex input accepts #rgb or #rrggbb (the
-        // leading # is optional while typing and gets prepended on
-        // validation). Invalid input flags the field but doesn't
-        // clobber the stored value, so partial typing survives.
-        const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-        const swatch = el('input', {
-          type: 'color',
-          value: d[key] || '#5164ff',
-        });
-        const text = el('input', {
-          type: 'text', class: 'be-button-color-val',
-          placeholder: 'inherit', maxlength: '7',
-          spellcheck: 'false', autocomplete: 'off',
-          value: d[key] || '',
-        });
-        function setStored(v) {
-          d[key] = v;
-          if (v) swatch.value = v;
-          text.classList.remove('is-invalid');
-        }
-        swatch.addEventListener('input', () => {
-          setStored(swatch.value);
-          text.value = swatch.value;
-        });
-        text.addEventListener('input', () => {
-          let v = (text.value || '').trim();
-          if (!v) { d[key] = ''; text.classList.remove('is-invalid'); return; }
-          if (!v.startsWith('#')) v = '#' + v;
-          if (HEX_RE.test(v)) {
-            const expanded = v.length === 4
-              ? '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3]
-              : v.toLowerCase();
-            setStored(expanded);
-          } else {
-            text.classList.add('is-invalid');
-          }
-        });
-        text.addEventListener('blur', () => {
-          // Snap back to the saved value so the field doesn't lie.
-          text.value = d[key] || '';
-          text.classList.remove('is-invalid');
-        });
-        const clear = el('button', {
-          type: 'button', class: 'btn btn-sm',
-          onclick: () => {
-            d[key] = '';
-            text.value = '';
-            text.classList.remove('is-invalid');
-            notifyChange();
-          }
-        }, ['Clear']);
-        row.appendChild(swatch);
-        row.appendChild(text);
-        row.appendChild(clear);
-        return row;
+      function colorRow(label, key, help) {
+        return el('div', { class: 'be-button-color-row' }, [
+          el('span', { class: 'be-button-color-lbl' }, withHelp(label, help)),
+          colorField({ value: d[key] || '', placeholder: 'Default',
+            onChange: v => { d[key] = v; notifyChange(); } }),
+        ]);
       }
-      customPanel.appendChild(colorRow('Background', 'bg'));
+      customPanel.appendChild(colorRow('Background', 'bg',
+        'Each colour is optional: leave it blank to inherit the theme default. Borders render at 1px solid in the chosen colour; Shadow colours the soft drop beneath the button.'));
       customPanel.appendChild(colorRow('Background (hover)', 'hover_bg'));
       customPanel.appendChild(colorRow('Text', 'text_color'));
       customPanel.appendChild(colorRow('Text (hover)', 'hover_text'));
       customPanel.appendChild(colorRow('Border', 'border'));
       customPanel.appendChild(colorRow('Border (hover)', 'hover_border'));
       customPanel.appendChild(colorRow('Shadow', 'shadow'));
-      customPanel.appendChild(el('p', { class: 'muted small' }, [
-        'Each colour is optional — leave blank to inherit the theme defaults. Borders render at 1px solid in the chosen colour. Shadow is the colour of the soft drop beneath the button.'
-      ]));
       wrap.appendChild(customPanel);
 
       return wrap;
@@ -5133,8 +5262,9 @@
       return JSON.stringify(state.sections);
     }
 
-    render();
-    return { serialize, getState: () => state.sections };
+    // `lazy`: build nothing until focus() asks for a block or the tree.
+    if (!opts.lazy) render();
+    return { serialize, getState: () => state.sections, focus };
   }
 
   // The hero modal's button preview needs the same catalog lookup to
@@ -5142,6 +5272,9 @@
   // rather than duplicated so both share one fetch + one cache.
   window.BlockEditor = {
     mount,
+    // Fresh `{id, type, data}` with the same defaults the editor uses,
+    // so the structure navigator creates blocks identical to these.
+    blankBlock,
     iconCatalog: loadBlockEditorIconCatalog,
     iconPaths: findIconPathsInCatalog,
   };

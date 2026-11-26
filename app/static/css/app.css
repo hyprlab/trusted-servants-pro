@@ -340,7 +340,9 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
    A squared track (9px) holds the options (6px); the chosen option is a
    raised panel with a hairline ring. The tracks and options are listed by
    class because several are built by script or keep their own markup;
-   component rules further down add layout only (width, wrap, flex). */
+   component rules further down add layout only (width, wrap, flex).
+   .st-seg (a settings column's parts) keeps its own shape further down
+   but takes its colors from here. */
 .ds-seg-btns, .ds-kind, .nav-megalink-seg, .ar-view-tabs, .fe-mlist-link-type,
 .dynbg-modal-tabs, .pbe-segmented,
 .view-toggle, .fe-template-picker {
@@ -360,7 +362,7 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
 .ds-seg-btns > button:hover, .ds-kind > button:hover, .ds-seg-btns > label:hover, .ds-seg-btns > a:hover,
 .nav-megalink-seg-opt:hover, .ar-view-tab:hover,
 .fe-mlist-link-type-opt:hover > span, .dynbg-modal-tab-wrap:hover, .pbe-segmented-btn:hover,
-.content-mode-seg-btn:hover, .view-toggle > .btn:hover {
+.content-mode-seg-btn:hover, .view-toggle > .btn:hover, .st-seg button:hover, .st-seg > a:hover {
   background: transparent; color: var(--text); text-decoration: none;
 }
 .ds-seg-btns > [aria-checked="true"], .ds-kind > [aria-checked="true"], .ds-seg-btns > label.is-active,
@@ -368,7 +370,8 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
 .ds-seg-btns > label:has(input:checked), .nav-megalink-seg-opt:has(input:checked), .ar-view-tab.is-active,
 .fe-mlist-link-type-opt input:checked + span, .dynbg-modal-tab-wrap.is-active,
 .pbe-segmented-btn.is-active, .content-mode-seg-btn.is-active,
-.view-toggle > .btn.active, .view-toggle > .btn.active:hover, .fe-template-picker .btn {
+.view-toggle > .btn.active, .view-toggle > .btn.active:hover, .fe-template-picker .btn,
+.st-seg button[aria-selected="true"], .st-seg > a[aria-current="page"] {
   background: var(--panel); color: var(--text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border);
 }
@@ -377,8 +380,9 @@ input[type="color"]::-moz-color-swatch { border: 0; border-radius: inherit; }
    .st-seg) the chosen part drops its own chip and the shape behind it,
    in the same chip look, slides from part to part. */
 .ds-seg-btns.has-thumb { position: relative; }
-.ds-seg-btns > .st-seg-thumb { background: var(--panel); border-radius: var(--r-sm);
+.ds-seg-btns > .st-seg-thumb, .st-seg > .st-seg-thumb { background: var(--panel);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--border); }
+.ds-seg-btns > .st-seg-thumb { border-radius: var(--r-sm); }
 .ds-seg-btns.has-thumb > :not(.st-seg-thumb) { position: relative; z-index: 1; }
 .ds-seg-btns.has-thumb > :is([aria-checked="true"], [aria-current="page"], label:has(input:checked), label.is-active) {
   background: transparent; box-shadow: none; }
@@ -2693,6 +2697,10 @@ body.has-fe-save-bar .fe-admin-main .form-actions { display: none; }
 .fe-subnav-status { font-weight: 600; }
 .fe-subnav-status.on { color: #16a34a; }
 .fe-subnav-status.off { color: var(--muted); }
+/* Hide main sidebar switch: hides the main app sidebar. Below 900px that
+   sidebar is always folded away, so the switch has nothing to do. */
+.fe-subnav-wide { margin-top: var(--gap-md); font-size: var(--fs-xs); color: var(--muted); }
+@media (max-width: 900px) { .fe-subnav-wide { display: none; } }
 
 /* The two toggle cards each draw their own box, so they need breathing
    room between them rather than the hairline spacing a divider list uses.
@@ -3129,6 +3137,10 @@ html.in-settings .flashes { top: 72px; }
   transition: opacity 140ms ease, transform 140ms ease; }
 .tsp-toast.tsp-toast-in { opacity: 1; transform: translateY(0); }
 .tsp-toast-error { background: #b91c1c; }
+.tsp-toast-has-action { display: flex; align-items: center; gap: var(--gap-lg); pointer-events: auto; }
+.tsp-toast-action { border: 0; padding: 0; background: none; color: #93c5fd; font: inherit;
+  font-weight: 650; cursor: pointer; }
+.tsp-toast-action:hover { color: #bfdbfe; text-decoration: underline; }
 .card-hover { transition: transform .08s ease, box-shadow .12s ease;
   display: flex; flex-direction: column; color: inherit; overflow: hidden; }
 .card-hover .tags { margin-top: auto; }
@@ -3708,7 +3720,7 @@ input[type="file"]::-webkit-file-upload-button {
 /* Pills and status chips are atomic labels — never break them. Their
    natural width is small, so holding them on one line costs the table
    almost nothing. */
-.tbl td .chip, .tbl td .post-chip { white-space: nowrap; }
+.tbl td .chip, .tbl td .post-chip, .tbl td .badge { white-space: nowrap; }
 .tbl th { color: var(--muted); font-weight: 600; font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: .5px; }
 .tbl input, .tbl select { padding: 6px 8px; font-size: var(--fs-xs); }
 .nowrap { white-space: nowrap; }
@@ -3990,14 +4002,20 @@ input[type="file"]::-webkit-file-upload-button {
    so the live aspect is obvious; rows briefly highlight when their
    destination changes between polls. */
 .user-log-online .card-head h2 { display: inline-flex; align-items: center; gap: var(--gap-sm); }
-.online-pulse { width: 9px; height: 9px; border-radius: var(--r-pill);
-  background: #10b981; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55);
+.online-pulse { position: relative; width: 9px; height: 9px; border-radius: var(--r-pill);
+  background: #10b981; }
+/* The pulse is a ring that grows and fades. Transform and opacity
+   run on the compositor; the old animated box-shadow repainted the
+   page on every frame, on every admin page. */
+.online-pulse::after, .side-live-dot.is-live::after { content: ""; position: absolute; inset: 0;
+  border-radius: inherit; background: rgba(16, 185, 129, 0.55); pointer-events: none;
   animation: online-pulse 2s ease-out infinite; }
 @keyframes online-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
-  70%  { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  0%   { transform: scale(1); opacity: 1; }
+  70%  { transform: scale(3.2); opacity: 0; }
+  100% { transform: scale(3.2); opacity: 0; }
 }
+@media (prefers-reduced-motion: reduce) { .online-pulse::after { animation: none; opacity: 0; } }
 .online-list { display: flex; flex-direction: column; gap: var(--gap-xs);
   /* Container query context — the row layout reflows based on the
      widget's own width, not the viewport. The "Currently online"
@@ -4327,9 +4345,8 @@ input[type="file"]::-webkit-file-upload-button {
 /* The public site's state: green and pulsing when live, grey when off. */
 .side-live-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%;
   background: color-mix(in srgb, var(--text) 28%, transparent); }
-.side-live-dot.is-live { background: #10b981; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55);
-  animation: online-pulse 2s ease-out infinite; }
-@media (prefers-reduced-motion: reduce) { .side-live-dot.is-live { animation: none; } }
+.side-live-dot.is-live { position: relative; background: #10b981; }
+@media (prefers-reduced-motion: reduce) { .side-live-dot.is-live::after { animation: none; opacity: 0; } }
 @media (max-width: 880px) {
   .side-item-kbd { display: none; }
   .search-modal .modal-panel { margin: 4vh 12px 0; }
@@ -4517,7 +4534,7 @@ html.login-fade-in body { animation: login-page-fade-in 650ms ease-out both; }
 .login-submit.is-loading, .btn.is-submitting { position: relative; color: transparent; pointer-events: none; }
 .login-submit.is-loading::after, .btn.is-submitting::after {
   content: ""; position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
-  margin: -9px 0 0 -9px; border-radius: 50%;
+  margin: -9px 0 0 -9px; border-radius: 50%; box-sizing: border-box;
   border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff;
   animation: login-spin 0.7s linear infinite;
 }
@@ -4729,12 +4746,36 @@ form[data-savebar-row].is-dirty {
 .modal-foot { flex-shrink: 0; padding: 20px var(--content-px); border-top: 1px solid var(--border);
   display: flex; justify-content: flex-end; gap: var(--gap-md); }
 
+/* Drawer: a dialog that slides in from the right edge and fills the
+   viewport's height, leaving the page beside it in view. Width comes
+   from --drawer-w; phones get the full-screen rule further down. */
+.modal--drawer > .modal-backdrop { background: rgba(17, 24, 39, 0.28);
+  backdrop-filter: none; -webkit-backdrop-filter: none; }
+.modal.modal--drawer > .modal-panel { position: absolute; top: 0; right: 0; bottom: 0; margin: 0;
+  width: min(var(--drawer-w, 560px), 100vw); max-width: none; height: 100dvh; max-height: none;
+  border: 0; border-left: 1px solid var(--border); border-radius: 0;
+  box-shadow: -20px 0 50px rgba(15, 23, 42, 0.16);
+  transform: translateX(100%); transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1); }
+.modal.modal--drawer.open > .modal-panel { transform: none; }
+/* The page builder's drawer cuts the live preview out of its backdrop
+   (page_navigator.js) so another block can be picked there; only the
+   backdrop and panel take the pointer, not the dialog box around them. */
+.modal.fe-block-drawer.open { pointer-events: none; }
+.modal.fe-block-drawer.open > * { pointer-events: auto; }
+.modal--drawer .modal-head { min-height: 61px; box-sizing: border-box; }
+@media (prefers-reduced-motion: reduce) { .modal.modal--drawer > .modal-panel { transition: none; } }
+/* A closed dialog is only visibility-hidden, so animations inside it
+   (the dynamic-background picker's blurred live thumbnails) kept
+   running on every admin page. They pause until it opens. */
+.modal:not(.open) * { animation-play-state: paused !important; }
+
 /* ── Guided Zoom launcher ──────────────────────────────────────────── */
 .zoom-guide-launch { margin: 4px 0 18px; }
-.zoom-guide-btn { font-size: var(--fs-md); padding: 11px 20px; display: inline-flex;
-  align-items: center; gap: var(--gap-sm); box-shadow: 0 6px 18px rgba(11,92,255,.22); }
+.zoom-guide-btn { font-size: var(--fs-md); padding: 11px 20px; display: flex; width: 100%;
+  align-items: center; justify-content: center; gap: var(--gap-sm); box-shadow: 0 6px 18px rgba(11,92,255,.22); }
 .zoom-guide-btn .icon { width: 1.15em; height: 1.15em; }
 .zoom-guide-hint { margin: 1rem 2px 0; }
+.zoom-guide-launch .zg-callout { margin-top: 1rem; }
 
 /* Otp/IMAP settings block in the Security tab */
 .otp-imap-divider { display: flex; align-items: center; gap: var(--gap-md); margin: 10px 0 2px;
@@ -5344,7 +5385,10 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
   font-weight: 600; color: var(--success); }
 .otp-inline-countdown.is-warning, .zg-otp-countdown.is-warning { color: var(--warning); }
 .otp-inline-countdown.is-expired, .zg-otp-countdown.is-expired { color: var(--danger); }
-.otp-manual-label { margin-top: 10px; }
+.otp-manual-label, .otp-manual { margin-top: 10px; }
+/* Manual inbox login folded under a link-colored summary (meeting detail
+   and the Zoom accounts sidebar). */
+.otp-manual > summary { cursor: pointer; color: var(--access, var(--brand)); font-weight: 600; font-size: var(--fs-sm); }
 /* OTP section promoted to a zg-card on the meeting detail page: separate it
    from the Zoom host-account block above, and put a 1rem gap between the
    intro text and the Retrieve button. */
@@ -5437,7 +5481,7 @@ body.embed .card.data-card.teams-card { border-left: 4px solid #8157f6; }
 .library-picker .library-detail { display: flex; flex-direction: column; gap: var(--gap-sm);
   padding: 0 0 0 26px; }
 .library-picker .library-readings { display: flex; flex-direction: column; gap: var(--gap-2xs);
-  padding: 4px 0 0 0; max-height: 240px; overflow-y: auto; }
+  padding: 4px 0 0 0; }
 .library-picker .reading-check { display: flex; flex-direction: row; align-items: center;
   gap: var(--gap-sm); cursor: pointer; padding: 2px 0; margin: 0; font-weight: 400; text-align: left;
   flex: 1 1 auto; min-width: 0; }
@@ -6434,6 +6478,10 @@ html[data-theme="dark"] .access-matrix .access-foot-mark { color: #facc15; }
    the column the widest in the table. */
 .wt-req-roles { display: flex; flex-direction: column; align-items: flex-start; gap: var(--gap-2xs); }
 .wt-req-roles .chip { white-space: nowrap; }
+/* The contact email breaks at its @ (a <wbr> in the template), never
+   mid-word: the shared mailto rule's `anywhere` let the table squeeze it
+   into four ragged lines. */
+.tbl.wt-req-table td a[href^="mailto:"] { overflow-wrap: break-word; }
 .ar-view-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 6px;
@@ -6904,6 +6952,20 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 .be-list-drag { flex: 0 0 auto; display: inline-flex; align-items: center;
   padding: 4px 2px; touch-action: none; }
 .be-list-item.sortable-ghost { opacity: .4; }
+/* List items are textareas: one clipped line closed, grown to their
+   text open. The grip and buttons stay on the first line. */
+.be-list-items { display: flex; flex-direction: column; gap: var(--gap-xs); }
+.be-row.be-list-item { align-items: flex-start; }
+.be-list-item > .be-list-drag { padding-top: 9px; }
+.be-body .be-list-item > .be-list-text { flex: 1 1 0; min-width: 0; resize: none;
+  overflow: hidden; line-height: 1.5; field-sizing: fixed;
+  white-space: nowrap; text-overflow: ellipsis; }
+.be-body .be-list-item.is-open > .be-list-text { field-sizing: content;
+  white-space: pre-wrap; text-overflow: clip;
+  min-height: calc(3lh + 14px); max-height: 60vh; overflow-y: auto; }
+.be-list-toggle .icon { transition: transform .18s ease; }
+.be-list-item.is-open .be-list-toggle .icon { transform: rotate(180deg); }
+.be-list-foot > .btn:first-child { flex: 1 1 auto; }
 .be-section-title { flex: 1; font-size: var(--fs-base); font-weight: 600;
   background: var(--panel); color: var(--text);
   border: 1px solid var(--border); border-radius: var(--r-sm); padding: 6px 10px; }
@@ -7057,6 +7119,18 @@ body.fe-admin-autohide .sidebar {
 }
 body.fe-admin-autohide .sidebar.open { transform: translateX(0); }
 body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
+/* The Hide main sidebar switch runs its flip as a view transition: the sidebar
+   slides out or in while the content crossfades, pinned top left so its
+   text never stretches as its box widens or narrows. */
+html.fe-wide-flip .sidebar { view-transition-name: tsp-sidebar; }
+html.fe-wide-flip main.content { view-transition-name: tsp-content; }
+::view-transition-group(tsp-sidebar),
+::view-transition-group(tsp-content) { animation-duration: .24s;
+  animation-timing-function: cubic-bezier(.2, .7, .2, 1); }
+::view-transition-old(tsp-content),
+::view-transition-new(tsp-content) { width: 100%; height: 100%;
+  object-fit: none; object-position: left top; animation-duration: .24s; }
+::view-transition-group(tsp-content) { overflow: hidden; }
 
 @media (max-width: 720px) {
   .hide-sm { display: none !important; }
@@ -7141,27 +7215,38 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   /* .tbl.wt-* (not bare .wt-*-table): the shared watchtower td rule
      further down the sheet sets padding + border-top at equal
      specificity and would out-cascade a single class here. */
-  .tbl.wt-ip-table, .tbl.wt-block-table, .tbl.wt-session-table { overflow-x: visible; }
-  .tbl.wt-ip-table thead, .tbl.wt-block-table thead, .tbl.wt-session-table thead { display: none; }
+  .tbl.wt-ip-table, .tbl.wt-block-table, .tbl.wt-session-table, .tbl.wt-reset-table { overflow-x: visible; }
+  .tbl.wt-ip-table thead, .tbl.wt-block-table thead, .tbl.wt-session-table thead,
+  .tbl.wt-reset-table thead { display: none; }
   .tbl.wt-ip-table tbody, .tbl.wt-ip-table tr,
   .tbl.wt-block-table tbody, .tbl.wt-block-table tr,
-  .tbl.wt-session-table tbody, .tbl.wt-session-table tr { display: block; }
-  .tbl.wt-ip-table tr, .tbl.wt-block-table tr, .tbl.wt-session-table tr {
+  .tbl.wt-session-table tbody, .tbl.wt-session-table tr,
+  .tbl.wt-reset-table tbody, .tbl.wt-reset-table tr { display: block; }
+  .tbl.wt-ip-table tr, .tbl.wt-block-table tr, .tbl.wt-session-table tr, .tbl.wt-reset-table tr {
     padding: 12px 0; border-bottom: 2px solid var(--border); }
-  .tbl.wt-ip-table td, .tbl.wt-block-table td, .tbl.wt-session-table td {
+  .tbl.wt-ip-table td, .tbl.wt-block-table td, .tbl.wt-session-table td, .tbl.wt-reset-table td {
     display: block; border: none; padding: 4px 0; white-space: normal; }
   .tbl.wt-ip-table td[data-label]::before,
   .tbl.wt-block-table td[data-label]::before,
-  .tbl.wt-session-table td[data-label]::before { content: attr(data-label); display: block;
+  .tbl.wt-session-table td[data-label]::before,
+  .tbl.wt-reset-table td[data-label]::before { content: attr(data-label); display: block;
     font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); text-transform: uppercase;
     letter-spacing: 0.04em; margin-bottom: 2px; }
-  .tbl.wt-session-table .wt-ua { overflow-wrap: anywhere; }
+  .tbl.wt-session-table .wt-ua,
+  .tbl.wt-reset-table td.wt-reset-user { overflow-wrap: anywhere; }
+  .tbl.wt-reset-table td.wt-reset-actions { padding-top: 8px; }
+  .tbl.wt-reset-table tr:last-child { border-bottom: none; }
   .tbl.wt-ip-table td.wt-ip-actions { display: flex; padding-top: 8px; }
+}
 
-  /* Watchtower → Requests. Nine columns can't fit a phone, and scrolled
-     sideways the Actions menu sat off-screen. Each request becomes a
-     card: status badge and Actions on the first line, the name under
-     them, then each field as a labelled row. */
+/* Watchtower → Requests. The columns need about 1000px (Archived adds
+   one); narrower than that (a phone, or a laptop beside the sidebar)
+   they squeezed and scrolled sideways with the Actions menu off-screen.
+   Measured on the card, not the viewport. Each request becomes a card:
+   status badge and Actions on the first line, the name under them, then
+   each field as a labelled row, in columns when the card is wide. */
+.card:has(> .wt-tbl-scroll > .tbl.wt-req-table) { container: wt-req / inline-size; }
+@container wt-req (max-width: 1020px) {
   .wt-tbl-scroll:has(> .tbl.wt-req-table) { overflow-x: visible; }
   .tbl.wt-req-table { overflow-x: visible; }
   .tbl.wt-req-table thead { display: none; }
@@ -7181,6 +7266,12 @@ body.fe-admin-autohide .menu-btn { display: grid; place-items: center; }
   .tbl.wt-req-table tbody tr .row-menu-btn { opacity: 1; }
   .tbl.wt-req-table td.wt-req-name { font-weight: 600; font-size: var(--fs-base); }
   .tbl.wt-req-table td a { overflow-wrap: anywhere; }
+}
+@container wt-req (min-width: 600px) and (max-width: 1020px) {
+  .tbl.wt-req-table tr { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .tbl.wt-req-table td.wt-req-status { grid-column: 1 / -2; justify-self: start; }
+  .tbl.wt-req-table td.wt-req-actions { grid-column: -2 / -1; justify-self: end; }
+  .tbl.wt-req-table td[data-label] { grid-column: auto; }
 }
 
 /* City / state / ZIP grid inside the Location create / edit modals.
@@ -9089,52 +9180,6 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   font-weight: 700; font-size: var(--fs-xs); letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--muted);
 }
-/* When the admin set a custom container label, render it as a
-   normal-cased title rather than the all-caps "CONTAINER" tag, so
-   "Officers" reads as the actual subject. The role chip below ("container · single column")
-   keeps the structural context. */
-.fe-page-structure .fe-page-structure-row-num--labelled {
-  font-weight: 700; font-size: var(--fs-base); letter-spacing: normal;
-  text-transform: none; color: var(--text);
-}
-/* Inline-editable container label input. Looks like a static title
-   by default; gains a subtle border + focus ring on hover/focus to
-   telegraph "this is editable." When the field is empty, the
-   placeholder reverts to the all-caps muted "CONTAINER"-style label
-   so admins still see the structural fallback. */
-.fe-page-structure .fe-page-structure-row-label-input {
-  width: 100%;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--r-sm);
-  padding: 4px 6px;
-  margin: -4px -6px 0;  /* keep visual position when border appears */
-  font-family: inherit;
-  font-weight: 700; font-size: var(--fs-xs); letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--muted);
-  outline: none;
-  cursor: text;
-  transition: border-color 120ms ease, background-color 120ms ease;
-}
-.fe-page-structure .fe-page-structure-row-label-input.is-labelled {
-  font-size: var(--fs-base); letter-spacing: normal;
-  text-transform: none; color: var(--text);
-}
-.fe-page-structure .fe-page-structure-row-label-input::placeholder {
-  color: var(--muted);
-  font-weight: 700; font-size: var(--fs-xs); letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 1;
-}
-.fe-page-structure .fe-page-structure-row-label-input:hover {
-  border-color: var(--border);
-  background: var(--panel);
-}
-.fe-page-structure .fe-page-structure-row-label-input:focus {
-  border-color: var(--brand, var(--access));
-  background: var(--panel);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand, var(--access)) 18%, transparent);
-}
 /* Single-block rows (homepage non-split entries) drop the label gutter
    and let the pill span the whole width, since "Row 1 / 1 column" is
    noise when every row is one block. */
@@ -9275,18 +9320,6 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   padding: 12px 0; font-style: italic; text-align: center; color: var(--muted);
 }
 
-/* Single-column container row inside the structure tree — keeps the
-   row-label gutter (so the admin sees "Container · single column")
-   and renders its lone cell with the same panel-card chrome a
-   2-column row uses, instead of stripping it like a single-block row
-   would. The pills inside stack vertically so a Container holding
-   heading + paragraph + list reads as a column of 3 pills, not a
-   single opaque "Container" pill. */
-.fe-page-structure .fe-page-structure-row--single-container .fe-page-structure-col {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  padding: 10px 12px 12px;
-}
 
 /* Nested container rows — any row sitting inside another container's
    column cell. The top-level rows pick up a 130 px label gutter at
@@ -9311,25 +9344,10 @@ body.setup-body { margin: 0; min-height: 100vh; background: var(--bg);
   align-items: center;
   gap: var(--gap-sm);
 }
-.fe-page-structure .fe-page-structure-col .fe-page-structure-row-label-input {
-  flex: 1 1 160px;
-  min-width: 0;
-}
 .fe-page-structure .fe-page-structure-col .fe-page-structure-row-action {
   margin-top: 0;
   align-self: auto;
 }
-
-/* Section-title divider in the page admin's structure tree. Renders
-   between rows as a low-volume label so the admin can tell which
-   section a block belongs to without burying the block pills inside
-   nested cards. */
-.fe-page-structure .fe-page-structure-section-label {
-  font-weight: 700; font-size: var(--fs-2xs); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--muted);
-  padding: 6px 4px 0; margin-top: 4px;
-}
-.fe-page-structure .fe-page-structure-section-label:first-child { margin-top: 0; }
 
 /* Page-edit screen title banner — sits above the first card so the
    admin always knows which page they're editing. Uses the same panel
@@ -10085,9 +10103,6 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
 .be-button-body { display: flex; flex-direction: column; gap: var(--gap-md); }
 .be-button-body input[type="text"] { width: 100%; }
 .be-checkbox-row { display: flex; gap: var(--gap-sm); align-items: center; }
-.be-button-style-row { gap: var(--gap-lg); align-items: center; flex-wrap: wrap; }
-.be-button-style-lbl { font-weight: 600; min-width: 60px; font-size: var(--fs-sm); }
-.be-button-style-toggle { display: inline-flex; gap: var(--gap-2xs); flex-wrap: wrap; }
 
 .be-button-custom-panel {
   display: flex;
@@ -10105,33 +10120,6 @@ html[data-theme="dark"] #page-hero-edit-modal .hero-unified-actions {
 .be-button-color-lbl {
   flex: 0 0 auto; min-width: 140px;
   font-size: var(--fs-sm); font-weight: 500;
-}
-.be-button-color-row input[type="color"] {
-  width: 44px; height: 32px; border: 1px solid var(--border);
-  border-radius: var(--r-sm); padding: 2px; background: var(--panel);
-  cursor: pointer;
-}
-/* Editable hex input next to each picker. Either the visual swatch
-   or this text field can drive the colour; the other side mirrors. */
-input.be-button-color-val {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: var(--fs-xs);
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--panel);
-  color: var(--text);
-  width: 9ch;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-input.be-button-color-val::placeholder {
-  text-transform: none; color: var(--muted); letter-spacing: 0;
-}
-input.be-button-color-val.is-invalid {
-  border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
-  color: var(--danger);
 }
 
 /* Page background colour — three labelled rows (light / mode /
@@ -10163,15 +10151,6 @@ input.be-button-color-val.is-invalid {
    adjacent Clear button so the row reads as a tight pill cluster. */
 .fe-page-bg-color-pair .icon { width: 16px; height: 16px; }
 
-/* Block-editor color clusters get the same 🎨 token button via
-   `attachTokenButton()`. Sized to align with the existing Clear
-   button without dominating the row. */
-.be-container-color .be-token-btn {
-  flex: 0 0 auto;
-  width: 30px;
-  padding: 0;
-}
-.be-container-color .be-token-btn svg { display: block; margin: auto; }
 
 /* Token popover — anchored under whichever Tokens trigger fired
    it. Uses `position: fixed` so its top/left are simple viewport
@@ -10375,57 +10354,39 @@ input.page-typo-color-text.is-invalid {
    four inputs on the inner cross, and a centred "Padding" tag
    inside the rectangle. The bordered centre + axis lines mirror
    the actual padding the box represents. */
-.be-container-row--pad-box {
-  /* Full-width single column: the "Padding" / "Padding (mobile)"
-     row label stacks above the diagram so the 5-column cross below
-     has the whole modal width to breathe. The old 140px label
-     gutter squeezed the box and forced the LEFT/RIGHT labels to
-     overlap their inputs. */
-  grid-template-columns: 1fr;
-  align-items: start;
+.be-root .be-container-row.be-container-row--pad-box {
+  /* The "Padding" / "Padding (mobile)" label stacks above the
+     diagram, which takes the whole row: beside a label column it
+     overflowed narrow panels such as the builder's. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gap-xs);
 }
-/* The shared hint sits under the *control* in normal 2-column rows
-   via `grid-column: 2 / -1`. Pad-box rows are a single column, so
-   that placement would conjure a phantom second track and shove the
-   diagram sideways — pin the hint back to the lone column here. */
-.be-container-row--pad-box .be-container-row-hint {
-  grid-column: 1 / -1;
-}
+.be-root .be-container-row--pad-box > .be-container-row-lbl { padding-top: 0; }
+/* Padding box: a box-model diagram. The dashed box is the padding,
+   each side's amount sits on its edge and the block's name is in the
+   middle. Each input's label is its title and aria-label. */
 .be-pad-box {
-  /* 5 columns × 5 rows. Each side label owns its OWN column/row so
-     it never shares a grid cell with an input (the previous 3-col
-     layout put LEFT/RIGHT labels in the same cell as their inputs,
-     so they overlapped and overflowed). Centre column is the only
-     flexible track; the four input chips + their labels are sized
-     to content. */
   display: grid;
-  grid-template-columns: auto auto minmax(72px, 1fr) auto auto;
-  grid-template-rows: auto auto auto auto auto;
-  gap: var(--gap-2xs) var(--gap-sm);
+  grid-template-columns: auto minmax(48px, 1fr) auto;
+  grid-template-areas: ". top ." "left mid right" ". bottom .";
+  gap: var(--gap-xs);
   justify-items: center; align-items: center;
-  justify-self: start;
-  max-width: 440px;
-  padding: 4px;
-}
-.be-pad-box-axis {
-  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--muted);
-  white-space: nowrap;
-}
-.be-pad-box-axis--top    { grid-row: 1; grid-column: 3; }
-.be-pad-box-axis--bottom { grid-row: 5; grid-column: 3; }
-.be-pad-box-axis--left   { grid-row: 3; grid-column: 1; }
-.be-pad-box-axis--right  { grid-row: 3; grid-column: 5; }
-.be-pad-box-cell--top    { grid-row: 2; grid-column: 3; }
-.be-pad-box-cell--bottom { grid-row: 4; grid-column: 3; }
-.be-pad-box-cell--left   { grid-row: 3; grid-column: 2; }
-.be-pad-box-cell--right  { grid-row: 3; grid-column: 4; }
-.be-pad-box-center {
-  grid-row: 3; grid-column: 3;
-  min-width: 80px; min-height: 44px;
-  display: flex; align-items: center; justify-content: center;
+  width: 100%; max-width: 360px;
+  padding: var(--gap-sm);
   background: var(--panel-2);
   border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+}
+.be-pad-box-cell--top    { grid-area: top; }
+.be-pad-box-cell--bottom { grid-area: bottom; }
+.be-pad-box-cell--left   { grid-area: left; }
+.be-pad-box-cell--right  { grid-area: right; }
+.be-pad-box-center {
+  grid-area: mid; align-self: stretch; justify-self: stretch;
+  min-height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: var(--r-sm);
   font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--muted);
@@ -10437,10 +10398,12 @@ input.page-typo-color-text.is-invalid {
   transition: border-color 120ms ease;
 }
 .be-pad-cell-wrap:focus-within { border-color: var(--brand, var(--access)); }
-.be-pad-cell-wrap > input[type="number"] {
-  width: 44px; padding: 4px 2px;
-  border: 0; background: transparent; outline: none;
-  font-family: inherit; font-size: var(--fs-sm);
+/* `.be-body .be-pad-cell-wrap` outranks the full-width boxed look
+   `.be-body input / select` give every other field. */
+.be-body .be-pad-cell-wrap > input[type="number"] {
+  width: 40px; padding: 4px 2px;
+  border: 0; border-radius: 0; background: transparent; outline: none;
+  font-family: inherit; font-size: var(--fs-sm); color: var(--text);
   text-align: right;
   font-variant-numeric: tabular-nums;
   -moz-appearance: textfield;
@@ -10452,21 +10415,23 @@ input.page-typo-color-text.is-invalid {
 /* Unit selector sits flush against the number; native chevron is
    suppressed to keep the chip compact, the muted colour tells the
    admin it's a secondary control (the number is the focus). */
-.be-pad-cell-unit-sel {
-  border: 0; background: transparent; outline: none;
+.be-body .be-pad-cell-wrap > .be-pad-cell-unit-sel {
+  width: auto; min-width: 0;
+  border: 0; border-radius: 0; background: transparent; outline: none;
   font-family: inherit; font-size: var(--fs-2xs); font-weight: 600;
   color: var(--muted); cursor: pointer;
   padding: 2px 2px 2px 0;
   -webkit-appearance: none; -moz-appearance: none; appearance: none;
   text-align: center; text-transform: lowercase;
 }
-.be-pad-cell-unit-sel:focus-visible { color: var(--text); }
-.be-pad-cell-unit-sel:hover { color: var(--text); }
-
-@media (max-width: 600px) {
-  .be-container-row--pad-box { grid-template-columns: 1fr; }
-  .be-pad-box { margin-left: 0; }
-}
+.be-body .be-pad-cell-wrap > .be-pad-cell-unit-sel:focus-visible,
+.be-body .be-pad-cell-wrap > .be-pad-cell-unit-sel:hover { color: var(--text); }
+/* A length (block_editor.js lengthField): the amount-and-unit chip,
+   then a slider over the unit's range. */
+.be-length { display: flex; align-items: center; gap: var(--gap-sm); }
+.be-length > .be-pad-cell-wrap { flex: none; }
+.be-body .be-length > .be-pad-cell-wrap > input[type="number"] { width: 48px; }
+.be-length > input[type="range"] { flex: 1; min-width: 0; }
 
 /* ── Grid-column GUI controls ───────────────────────────────────
    Replaces the free-form `grid-template-columns` text input with a
@@ -10546,10 +10511,6 @@ input.page-typo-color-text.is-invalid {
   opacity: 0.85;
 }
 .be-grid-advanced-toggle:hover { opacity: 1; }
-.be-container-row-hint {
-  grid-column: 2 / -1;
-  margin-top: -4px;
-}
 .be-container-row > select,
 .be-container-row > input[type="text"],
 .be-container-row > input[type="number"] { width: 100%; }
@@ -10561,32 +10522,6 @@ input.page-typo-color-text.is-invalid {
   font-size: var(--fs-sm);
 }
 
-.be-container-color { display: inline-flex; gap: var(--gap-xs); align-items: center; flex-wrap: wrap; }
-.be-container-color input[type="color"] {
-  width: 40px; height: 30px; border: 1px solid var(--border);
-  border-radius: var(--r-sm); padding: 2px; background: var(--panel);
-  cursor: pointer;
-}
-input.be-container-color-text {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: var(--fs-xs);
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--panel);
-  color: var(--text);
-  width: 11ch;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-input.be-container-color-text::placeholder {
-  text-transform: none; color: var(--muted); letter-spacing: 0;
-}
-input.be-container-color-text.is-invalid {
-  border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
-  color: var(--danger);
-}
 
 .be-container-width-toggle { display: inline-flex; gap: var(--gap-xs); flex-wrap: wrap; }
 
@@ -10621,61 +10556,6 @@ input.be-container-color-text.is-invalid {
   padding: 12px 8px;
 }
 
-/* ===== Pages admin: layout-structure card actions + block-flash ===== */
-.fe-page-structure-actions {
-  display: flex; gap: var(--gap-sm); flex-wrap: wrap;
-  padding: 12px 0 4px;
-}
-/* Soft yellow flash applied to a .be-block when the admin clicks its
-   structure-card pill. Fades back to the resting state after the
-   keyframe runs once. Only used inside the page-edit modal — keeps
-   focus visible without a hard outline. */
-@keyframes be-block-flash {
-  0%   { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.55); }
-  60%  { box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.25); }
-  100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
-}
-.be-block-flash {
-  animation: be-block-flash 1.4s ease-out;
-}
-
-/* Focus mode — set on .fe-page-edit-modal when the admin enters by
-   clicking a structure pill (vs clicking "Edit layout"). Hides every
-   block + section that isn't on the path to the focused block, so
-   the modal reads as a per-block editor instead of the whole tree.
-   Closing the modal clears focus so the next open lands fresh. */
-.fe-page-edit-modal.is-focus-mode .be-section-head,
-.fe-page-edit-modal.is-focus-mode .be-add-section,
-.fe-page-edit-modal.is-focus-mode .be-add-block-bar { display: none; }
-.fe-page-edit-modal.is-focus-mode .be-section { border: 0; padding: 0; }
-.fe-page-edit-modal.is-focus-mode .be-section:not(.be-block-focused-path) { display: none; }
-.fe-page-edit-modal.is-focus-mode .be-block:not(.be-block-focused):not(.be-block-focused-path) {
-  display: none;
-}
-/* Path-only blocks (containers wrapping the focused block) keep their
-   chrome but drop the drag handle / type label / remove button — the
-   admin is editing INSIDE them, not editing them. Container settings
-   (layout / spacing / background / hover details panels + the
-   "Children" label) also hide so the focused descendant is the only
-   thing the admin sees. The child blocks list itself stays visible
-   so the focused block keeps rendering through its container chain. */
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path > .be-block-head { display: none; }
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path > .be-container-body > .be-container-panel,
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path .be-container-children-head { display: none; }
-.fe-page-edit-modal.is-focus-mode .be-block-focused-path { border: 0; padding: 0; background: transparent; }
-/* The focused block IS the modal's subject — its drag handle, type
-   label, and × remove button are all redundant once we're in
-   per-block edit mode. Hide the head and drop the outline so the
-   modal reads as a clean settings sheet for whatever block was
-   clicked. The body keeps rendering normally so the actual controls
-   (Layout / Spacing / etc.) sit at the top of the modal. */
-.fe-page-edit-modal.is-focus-mode .be-block-focused > .be-block-head { display: none; }
-.fe-page-edit-modal.is-focus-mode .be-block-focused {
-  outline: 0;
-  border: 0;
-  padding: 0;
-  background: transparent;
-}
 
 /* Edit-block modal head — push the × close button 1rem away from
    the title so they don't sit visually glued together. The modal-
@@ -10684,6 +10564,90 @@ input.be-container-color-text.is-invalid {
    minimum air-gap regardless of viewport width. */
 .fe-page-edit-modal .modal-head { gap: var(--gap-2xl); }
 .fe-page-edit-modal .modal-head > .icon-btn[data-close] { margin-left: 1rem; }
+
+/* ── Block drawer (page and popup editors) ─────────────────────────
+   One width whether it shows one block or the whole layout, so it
+   never resizes. In focus the editor renders the clicked block
+   alone (BlockEditor focus()); its head (drag, type, remove) is
+   redundant there, and its settings start at the drawer's top. */
+.fe-block-drawer { --drawer-w: 540px; }
+.be-root--focus > .be-add-section { display: none; }
+.be-root--focus .be-block-focused { border: 0; padding: 0; background: transparent; }
+.be-root--focus .be-block-focused > .be-block-head { display: none; }
+.be-root--focus .be-block-focused > .be-body { padding: 0; gap: var(--gap-lg); }
+.be-root--focus .be-block-focused > .be-body > .be-container-panel:first-child { border-top: 0; }
+.be-root--focus .be-block-focused > .be-body > .be-container-panel:first-child > summary { padding-top: 0; }
+
+/* Settings groups: flat sections divided by a hairline, a chevron
+   for open/closed, instead of boxed cards. */
+.be-root .be-container-panel { border: 0; border-top: 1px solid var(--border); border-radius: 0;
+  background: transparent; }
+.be-root .be-container-panel > summary { display: flex; align-items: center; justify-content: space-between;
+  gap: var(--gap-sm); padding: 14px 0; list-style: none; font-size: var(--fs-sm); font-weight: 650; }
+.be-root .be-container-panel > summary::-webkit-details-marker { display: none; }
+.be-root .be-container-panel > summary::after { content: ""; width: 7px; height: 7px; margin-right: 4px;
+  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg); transition: transform 160ms ease; }
+.be-root .be-container-panel[open] > summary::after { transform: rotate(45deg); }
+.be-root .be-container-panel[open] > summary { border-bottom: 0; }
+.be-root .be-container-panel-body { padding: 0 0 18px; gap: var(--gap-md); }
+.be-root .be-container-row { grid-template-columns: 112px minmax(0, 1fr); align-items: start; }
+.be-root .be-container-row-lbl { padding-top: 7px; font-size: var(--fs-sm); font-weight: 500; color: var(--muted); }
+.be-root .be-container-row > .be-seg,
+.be-root .be-container-row > .mode-toggle { justify-self: start; }
+.be-root .be-container-row > .mode-toggle { min-height: 32px; }
+
+/* Fields: a label over its control. .be-field holds controls that
+   must not sit inside a <label> (a click on the text would press the
+   first button of a segmented control). */
+.be-body .be-field { display: flex; flex-direction: column; gap: var(--gap-2xs); font-size: var(--fs-sm);
+  color: var(--muted); }
+.be-body .be-field > .be-seg, .be-body .be-field > .view-toggle { align-self: flex-start; }
+.be-body label.mode-toggle { flex-direction: row; align-items: center; align-self: flex-start;
+  gap: var(--gap-sm); color: var(--text); font-size: var(--fs-sm); font-weight: 500; }
+.be-body input[type=text], .be-body input[type=number], .be-body select { min-height: 32px; }
+.be-seg { flex-wrap: wrap; max-width: 100%; }
+.be-seg.be-seg-sm > .btn { padding: 3px 8px; font-size: var(--fs-xs); }
+/* Phones: a row's label sits over its control, so segmented controls
+   get the full width instead of wrapping inside their track. */
+@media (max-width: 560px) {
+  .be-root .be-container-row { grid-template-columns: minmax(0, 1fr); gap: var(--gap-xs); }
+  .be-root .be-container-row-lbl { padding-top: 0; }
+}
+
+/* Colour field: swatch, value, theme colour, clear. */
+.be-color { display: flex; align-items: center; gap: var(--gap-xs); min-width: 0; }
+/* [hidden] wins over the editor's display rules (.be-body label is flex). */
+.be-root [hidden] { display: none !important; }
+.be-color-swatch { position: relative; flex: 0 0 auto; display: block; width: 32px; height: 32px;
+  box-sizing: border-box; padding: 3px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--panel); cursor: pointer; }
+.be-color-chip { display: block; width: 100%; height: 100%; border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08); }
+.be-color.is-empty .be-color-chip { background:
+  linear-gradient(135deg, transparent calc(50% - 1px), var(--danger) calc(50% - 1px), var(--danger) calc(50% + 1px), transparent calc(50% + 1px)),
+  var(--panel); opacity: 0.55; }
+.be-color-swatch input[type="color"] { position: absolute; inset: 0; width: 100%; height: 100%;
+  margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.be-body input.be-color-value { flex: 1 1 auto; width: auto; min-width: 0;
+  font-family: ui-monospace, Menlo, monospace; font-size: var(--fs-sm); }
+.be-body input.be-color-value.is-token { font-family: inherit; font-weight: 600; cursor: text; }
+.be-body input.be-color-value.is-invalid { border-color: var(--danger); color: var(--danger); }
+.be-body input.be-color-value::placeholder { font-family: var(--font, inherit); }
+.be-root .be-color-btn { flex: 0 0 auto; color: var(--muted); }
+.be-root .be-color-btn:hover { color: var(--text); }
+.be-root .be-color-btn[hidden] { display: none; }
+.be-color-btn .icon { width: 15px; height: 15px; }
+.be-color-dm { display: flex; flex-direction: column; gap: var(--gap-sm); min-width: 0; }
+.be-color-dm-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--gap-sm); }
+.be-color-dm-label { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-xs);
+  font-weight: 500; color: var(--muted); }
+.be-color-dm-label .icon { width: 13px; height: 13px; }
+.be-color-dm-auto { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs);
+  color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+.be-color-dm-auto[hidden] { display: none; }
+.be-color-dm-auto-swatch { display: inline-block; width: 14px; height: 14px; border-radius: var(--r-xs);
+  border: 1px solid var(--border); }
 
 /* Icon block — visual preview card. The visual box renders the
    actual SVG (or <img> for custom icons) at the chosen `font-size`
@@ -10940,35 +10904,6 @@ input.be-container-color-text.is-invalid {
 }
 .be-image-picker-empty { text-align: center; padding: 24px 0; }
 
-/* Color picker with dark-mode mode toggle — used by typography,
-   container bg/border, etc. Three rows stacked: light swatch + hex
-   + clear; mode toggle [Same | Auto | Manual]; manual dark swatch
-   + hex + clear (visible only in Manual mode); auto-derived preview
-   chip (visible only in Auto mode). */
-.be-color-with-dm {
-  display: flex; flex-direction: column; gap: var(--gap-xs);
-  width: 100%;
-}
-.be-color-dm-mode-row {
-  display: flex; align-items: center; gap: var(--gap-md); flex-wrap: wrap;
-  font-size: var(--fs-2xs);
-}
-.be-color-dm-mode-row .be-color-dm-label {
-  letter-spacing: 0.04em; text-transform: uppercase;
-}
-.be-color-dm-row { /* manual hex+swatch row */ }
-.be-color-dm-auto-row {
-  display: flex; align-items: center; gap: var(--gap-sm);
-  font-size: var(--fs-xs);
-}
-.be-color-dm-auto-swatch {
-  display: inline-block; width: 14px; height: 14px;
-  border-radius: var(--r-xs); border: 1px solid var(--border);
-  vertical-align: middle;
-}
-.be-color-dm-auto-preview {
-  font-family: ui-monospace, Menlo, monospace;
-}
 
 /* Per-block typography panel (heading / paragraph / list). Reuses the
    container-panel chrome so the visual rhythm of "click block →
@@ -11174,120 +11109,10 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 .fe-page-palette-icon .icon { width: 16px; height: 16px; }
 .fe-page-palette-name { font-weight: 600; font-size: var(--fs-sm); }
 
-/* ── Orphan-bin card ────────────────────────────────────────────
-   Hidden when there are no orphans. Pills inside reuse the structure-
-   card pill chrome so they read as the same kind of object — the bin
-   is just a parking spot. The drop zone gets a dashed outline so it's
-   discoverable as a target. */
-/* When the orphan bin is empty, the card stays visible (so drops
-   are always possible) but reads as muted + collapsed-ish. Used to
-   `display: none` here, but that broke the "drag any unwanted block
-   into the bin" workflow because the zone wasn't reachable. */
-.fe-page-orphans.is-empty { opacity: 0.6; }
-.fe-page-orphans.is-empty .fe-page-orphans-list {
-  min-height: 56px;
-}
-.fe-page-orphans.is-empty .fe-page-orphans-list::before {
-  content: 'Drop blocks here to park them — they survive layout switches and saves.';
-  display: block;
-  text-align: center; padding: 14px 16px;
-  color: var(--muted); font-style: italic; font-size: var(--fs-sm);
-}
-.fe-page-orphans.is-empty .fe-page-orphans-list:has(> .fe-page-structure-block)::before {
-  display: none;
-}
-.fe-page-orphans-list {
-  display: flex; flex-direction: column; gap: var(--gap-sm);
-  padding: 12px; border: 1px dashed var(--border); border-radius: var(--r-xl);
-  background: var(--panel-2); min-height: 56px;
-  list-style: none; margin: 0;
-}
-/* Orphan-bin pill chrome — mirrored from the structure-card pill rules
-   because the base `.fe-page-structure .fe-page-structure-block` is
-   scoped to the structure card and doesn't inherit into this sibling
-   section. Background uses `var(--panel)` (one step lighter than the
-   bin's `var(--panel-2)`) so pills read as discrete cards instead of
-   blending into the bin. Icon + label + hover behaviour matches the
-   structure card so a pill looks identical whether it's placed or
-   parked. */
-.fe-page-orphans-list .fe-page-structure-block {
-  display: flex; align-items: center; gap: var(--gap-sm);
-  padding: 10px 12px; border-radius: var(--r-lg);
-  background: var(--panel);
-  color: var(--text); font-size: var(--fs-sm); font-weight: 500;
-  border: 1px solid var(--border);
-  text-align: left; font-family: inherit;
-  cursor: pointer;
-  transition: background 140ms ease, border-color 140ms ease,
-              transform 140ms ease, color 140ms ease;
-}
-.fe-page-orphans-list .fe-page-structure-block:hover {
-  background: var(--brand, var(--access));
-  border-color: var(--brand, var(--access));
-  color: #fff;
-}
-.fe-page-orphans-list .fe-page-structure-block-icon {
-  display: inline-flex; align-items: center; justify-content: center;
-  color: var(--brand, var(--access)); flex: 0 0 auto;
-}
-.fe-page-orphans-list .fe-page-structure-block-icon .icon {
-  width: 14px; height: 14px;
-}
-.fe-page-orphans-list .fe-page-structure-block:hover .fe-page-structure-block-icon { color: #fff; }
-.fe-page-orphans-list .fe-page-structure-block:hover .fe-page-structure-block-edit-hint { opacity: 1; }
-
 /* ── Drag-drop affordances ──────────────────────────────────────
    While dragging, the source pill / palette tile dims, the hovered
    zone gets a brand-tinted outline, and the Sortable ghost shows the
    intended drop position. */
-.fe-page-structure .fe-page-structure-block-list[data-be-zone] {
-  min-height: 36px; transition: background 120ms ease, border-color 120ms ease;
-  border: 1px dashed transparent; border-radius: var(--r-md); padding: 4px;
-}
-
-/* Flex-container drop zones flow pills in the same direction the
-   public renderer will use, so the admin sees the actual layout shape
-   instead of always-stacked columns. Wrap is on so a long horizontal
-   row of pills folds onto a second line at narrow widths rather than
-   pushing the zone wider than its cell. */
-.fe-page-structure .fe-page-structure-block-list--flex {
-  display: flex; gap: var(--gap-sm); flex-wrap: wrap; align-items: flex-start;
-}
-.fe-page-structure .fe-page-structure-block-list--flex-row { flex-direction: row; }
-.fe-page-structure .fe-page-structure-block-list--flex-row-reverse { flex-direction: row-reverse; }
-.fe-page-structure .fe-page-structure-block-list--flex-column,
-.fe-page-structure .fe-page-structure-block-list--flex-column-reverse {
-  flex-direction: column; flex-wrap: nowrap;
-  /* Pills in a column-flow zone stretch the full cell width so the
-     admin can read long block labels + reach the hover Edit / × at
-     the right edge. Cross-axis stretch is what column flexboxes do
-     in CSS too, so the editor matches the public render. */
-  align-items: stretch;
-}
-.fe-page-structure .fe-page-structure-block-list--flex-column-reverse { flex-direction: column-reverse; }
-.fe-page-structure .fe-page-structure-block-list--flex-column > .fe-page-structure-block,
-.fe-page-structure .fe-page-structure-block-list--flex-column-reverse > .fe-page-structure-block {
-  width: 100%;
-  align-self: stretch;
-}
-/* In row flow each pill should size to its content (not stretch the
-   width of the zone) so multiple pills can sit side-by-side. */
-.fe-page-structure .fe-page-structure-block-list--flex-row > .fe-page-structure-block,
-.fe-page-structure .fe-page-structure-block-list--flex-row-reverse > .fe-page-structure-block {
-  width: auto;
-  flex: 0 0 auto;
-}
-
-/* Root zone — the rows container itself is a top-level drop target
-   for Container / Two-panel / leaf palette tiles. The dashed outline
-   only shows during a palette drag-over so it doesn't visually
-   compete with normal browsing. */
-.fe-page-structure-rows[data-be-zone="root"].is-drop-target {
-  outline: 2px dashed var(--brand, var(--access));
-  outline-offset: 6px;
-  border-radius: var(--r-xl);
-  background: color-mix(in srgb, var(--brand, var(--access)) 5%, transparent);
-}
 
 /* Empty-state placeholder — visible only when the active layout has
    no rows at all. JS removes it on the first drop. */
@@ -11298,27 +11123,6 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   text-align: center;
   background: var(--panel-2);
 }
-.fe-page-structure-rows[data-be-zone="root"]:has(> .fe-page-structure-row) > .fe-page-structure-root-empty,
-.fe-page-structure-rows[data-be-zone="root"]:has(> .fe-page-structure-section-label) > .fe-page-structure-root-empty {
-  display: none;
-}
-
-/* Row drag handle — small grip on the left of row-single rows, plus
-   a clickable cursor on row-split rows' label gutter so the admin
-   knows the whole label is grabbable. */
-.fe-page-row-handle {
-  flex: 0 0 auto;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; min-height: 28px;
-  color: var(--muted);
-  cursor: grab; user-select: none;
-  border-radius: var(--r-sm);
-  align-self: center;
-  font-family: ui-monospace, monospace;
-  font-size: var(--fs-sm); letter-spacing: -2px;
-}
-.fe-page-row-handle:hover { color: var(--brand, var(--access)); background: var(--hover); }
-.fe-page-row-handle:active { cursor: grabbing; }
 
 /* Layout-picker — "Custom" radio preview blocks. Three small dashed
    tiles to differentiate from the prebuilt previews (which are typed
@@ -11337,7 +11141,6 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
   border-top: 1px solid var(--border);
 }
 .fe-layout-picker-template-tools .btn .icon { width: 14px; height: 14px; }
-.fe-page-row-handle .icon { width: 16px; height: 16px; }
 .fe-page-structure-row--single { display: flex; align-items: stretch; gap: var(--gap-sm); }
 .fe-page-structure-row--single > .fe-page-structure-cols { flex: 1 1 auto; min-width: 0; }
 .fe-page-structure-row-label { cursor: grab; }
@@ -11354,34 +11157,15 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 .fe-page-structure-row.is-row-chosen {
   box-shadow: 0 0 0 2px var(--brand, var(--access));
 }
-.fe-page-structure .fe-page-structure-block-list[data-be-zone].is-drop-target,
-.fe-page-orphans-list.is-drop-target {
-  border-color: var(--brand, var(--access));
-  background: var(--brand-soft);
-}
 .fe-page-structure-block.is-draggable { cursor: grab; }
 .fe-page-structure-block.is-draggable:active,
 .fe-page-structure-block.is-dragging { cursor: grabbing; opacity: 0.55; }
-.fe-page-structure-block.is-drop-ghost {
-  background: var(--brand-soft) !important;
-  color: var(--brand, var(--access));
-  border-color: var(--brand, var(--access));
-  opacity: 0.6;
-}
-.fe-page-structure-block.is-drop-chosen {
-  outline: 2px solid var(--brand, var(--access));
-  outline-offset: 2px;
-}
 
-/* ⧉ duplicate + × delete buttons — small, subtle by default, brighter
-   on hover. Both share the same baseline chrome and reveal pattern;
-   only the hover colour differs (duplicate goes brand-tinted, remove
-   goes danger). Pinned to the right edge of pills via auto margin so
-   the existing "Edit" hint stays visible. Keyboard-focusable for
-   accessibility. */
+/* × delete button — small, subtle by default, danger on hover.
+   Pinned to the right edge of pills via auto margin so the existing
+   "Edit" hint stays visible. Keyboard-focusable for accessibility. */
 .fe-page-structure-block { position: relative; }
-.fe-page-structure-block .fe-page-structure-block-remove,
-.fe-page-structure-block .fe-page-structure-block-duplicate {
+.fe-page-structure-block .fe-page-structure-block-remove {
   flex: 0 0 auto;
   width: 22px; height: 22px; padding: 0;
   border: 0; border-radius: 50%;
@@ -11393,36 +11177,25 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 }
 .fe-page-structure-block .fe-page-structure-block-remove { font-size: var(--fs-base); }
 .fe-page-structure-block:hover .fe-page-structure-block-remove,
-.fe-page-structure-block:focus-within .fe-page-structure-block-remove,
-.fe-page-structure-block:hover .fe-page-structure-block-duplicate,
-.fe-page-structure-block:focus-within .fe-page-structure-block-duplicate {
+.fe-page-structure-block:focus-within .fe-page-structure-block-remove {
   opacity: 1;
 }
 .fe-page-structure-block-remove:hover {
   background: var(--danger);
   color: #fff;
 }
-.fe-page-structure-block-duplicate:hover {
-  background: var(--brand, var(--access));
-  color: #fff;
-}
-.fe-page-structure-block-remove:focus-visible,
-.fe-page-structure-block-duplicate:focus-visible {
+.fe-page-structure-block-remove:focus-visible {
   opacity: 1;
   outline: 2px solid var(--brand, var(--access));
   outline-offset: 1px;
 }
-/* When hovering the × / ⧉ so the pill turns brand-tinted, keep the
-   icons readable against the tinted background. */
-.fe-page-structure-block.is-clickable:hover .fe-page-structure-block-remove,
-.fe-page-structure-block.is-clickable:hover .fe-page-structure-block-duplicate {
+/* When hovering the × so the pill turns brand-tinted, keep it
+   readable against the tinted background. */
+.fe-page-structure-block.is-clickable:hover .fe-page-structure-block-remove {
   color: rgba(255, 255, 255, 0.85);
 }
 .fe-page-structure-block.is-clickable:hover .fe-page-structure-block-remove:hover {
   background: var(--danger); color: #fff;
-}
-.fe-page-structure-block.is-clickable:hover .fe-page-structure-block-duplicate:hover {
-  background: rgba(255, 255, 255, 0.22); color: #fff;
 }
 
 /* Hover-expand: when a clickable pill sits inside a narrow nested
@@ -11442,28 +11215,14 @@ body:has(.modal.open) .fe-page-palette-floating > * { pointer-events: none; }
 }
 
 /* Row × button — sits in the row label gutter alongside the Settings
-   button on container/2-col rows, and as a top-right icon-button on
-   row-single rows. Always visible (admin needs explicit affordance
-   for destructive action). */
+   button. Always visible (admin needs explicit affordance for
+   destructive action). */
 .fe-page-structure-row-remove { color: var(--danger); }
 .fe-page-structure-row-remove:hover {
   background: var(--danger); color: #fff;
   border-color: var(--danger);
 }
 .fe-page-structure-row-remove .icon { width: 14px; height: 14px; }
-.fe-page-structure-row-remove--single {
-  align-self: center; flex: 0 0 auto;
-  width: 32px; height: 32px;
-  border: 1px solid var(--border); border-radius: var(--r-md);
-  background: var(--panel);
-  color: var(--muted);
-  display: inline-flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.fe-page-structure-row-remove--single:hover {
-  color: #fff; background: var(--danger); border-color: var(--danger);
-}
 
 /* Merged Page-settings card — three subsections (Title/URL/publish,
    Page width, Background) live inside one `.fe-page-settings-card`,
@@ -12974,7 +12733,7 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
    other admin pages. ============================================ */
 
 /* Tabs strip ───────────────────────────────────────────────────────
-   The shared accent segmented control (.st-seg): only its spacing and
+   The shared segmented control (.st-seg): only its spacing and
    the phone swipe live here. Phones: one row that
    swipes sideways, with the fade mask driven by topActionsSwipeFade in
    app.js. */
@@ -13146,19 +12905,23 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
   border-radius: var(--r-md);
 }
 .wtc-svg { width: 100%; height: auto; display: block; overflow: visible; }
+/* The viewBox scales with the card. --wtc-k (set in app.js) is viewBox
+   units per screen pixel, so text sized by it, and strokes that don't
+   scale, look the same on a narrow card and a wide one. */
+.wtc-grid, .wtc-axis, .wtc-crosshair, .wtc-line, .wtc-focus-dot { vector-effect: non-scaling-stroke; }
 /* One shade off the surface — present enough to measure against, quiet
    enough that the series reads first. */
 .wtc-grid { stroke: color-mix(in srgb, var(--text) 10%, transparent); stroke-width: 1; }
 .wtc-axis { stroke: color-mix(in srgb, var(--text) 22%, transparent); stroke-width: 1; }
 .wtc-tick {
   fill: var(--muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--wtc-k, 1));
   font-variant-numeric: tabular-nums;
   font-family: inherit;
 }
 .wtc-axis-title {
   fill: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--wtc-k, 1));
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -13173,6 +12936,9 @@ body.pbe-is-palette-dragging .pbe-section-canvas {
   stroke-width: 1;
   pointer-events: none;
 }
+/* The UA stylesheet doesn't hide SVG elements with `hidden`, so the idle
+   crosshair drew as a rule at the chart's left edge. */
+.wtc-crosshair[hidden], .wtc-focus-dots[hidden] { display: none; }
 /* 2px surface ring so a dot sitting on its own line stays legible. */
 .wtc-focus-dot {
   stroke: var(--panel);
@@ -15260,7 +15026,7 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   gap: var(--gap-3xs);
   margin: 14px 18px 2px;
   padding: 3px;
-  background: var(--panel);
+  background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   /* Segmented control: as many equal parts as fit a row, wrapping when a page has more (a form's seven). */
@@ -15282,21 +15048,17 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background .12s, color .12s;
+  transition: background .12s, color .12s, box-shadow .12s;
   white-space: normal; line-height: 1.2; text-align: center; min-height: 34px; text-decoration: none;
 }
 /* Links work as parts too (a page's sections), the current one marked
    aria-current="page". */
 .st-seg button .icon, .st-seg > a .icon { width: 15px; height: 15px; flex: 0 0 auto; }
-.st-seg button:not([aria-selected="true"]):hover,
-.st-seg > a:not([aria-current="page"]):hover { color: var(--text); background: var(--hover); text-decoration: none; }
-.st-seg button[aria-selected="true"],
-.st-seg > a[aria-current="page"] { background: var(--brand); color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
 /* With app.js's sliding highlight (.st-seg-thumb) the chosen part drops
-   its own fill and the shape behind it moves from part to part. */
+   its own chip and the shape behind it moves from part to part. */
 .st-seg.has-thumb { position: relative; }
 .st-seg-thumb { position: absolute; top: 0; left: 0; width: 0; height: 0; border-radius: 7px; pointer-events: none;
-  background: var(--brand); box-shadow: 0 1px 2px rgba(0, 0, 0, .15); opacity: 0; z-index: 0;
+  opacity: 0; z-index: 0;
   transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.2, .8, .2, 1),
     height .28s cubic-bezier(.2, .8, .2, 1), opacity .15s ease; }
 .st-seg-thumb.is-still { transition: none; }
@@ -15534,7 +15296,6 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 
 .st-seg .ds-tab-count { font-size: var(--fs-2xs); font-weight: 700; padding: 0 6px; border-radius: var(--r-pill); line-height: 16px;
   background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand); }
-.st-seg button[aria-selected="true"] .ds-tab-count { background: rgba(255, 255, 255, .25); color: #fff; }
 
 /* Page templates: the template picker in the card head. */
 .tp-head { position: relative; }
@@ -15593,6 +15354,84 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fe-empty-section .ol-glyph .icon { width: 22px; height: 22px; }
 .fe-empty-section h2 { margin: 4px 0 0; font-size: var(--fs-lg); }
 .fe-empty-section p { margin: 0; max-width: 46ch; }
+
+/* ── Index of Pages, Popups, Forms and Page templates
+   (frontend_content_index.html, js/content_index.js). Cards carry a
+   preview of the page, rendered at 1280px and scaled to the card
+   (--ci-scale); List is the same items as rows. ─────────────────── */
+.ci { display: flex; flex-direction: column; gap: var(--gap-4xl); }
+.ci-bar { display: flex; align-items: center; gap: var(--gap-lg); flex-wrap: wrap; }
+.ci-search { flex: 1 1 240px; max-width: 360px; }
+.ci-total { margin-left: auto; }
+.ci-group { display: flex; flex-direction: column; gap: var(--gap-lg); }
+.ci .ci-group[hidden], .ci[data-view] .ci-item[hidden] { display: none; }
+.ci-group-label { display: flex; align-items: center; gap: var(--gap-sm); margin: 0;
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.ci-group-count { min-width: 20px; padding: 1px 7px; border-radius: var(--r-pill); background: var(--panel);
+  border: 1px solid var(--border); font-size: var(--fs-2xs); letter-spacing: 0; text-align: center; }
+.ci-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--gap-3xl);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+
+.ci-item { position: relative; min-width: 0; background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--card-radius); box-shadow: var(--shadow); overflow: hidden;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.ci-item:hover, .ci-item:focus-within { transform: translateY(-2px); box-shadow: var(--shadow-hover);
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--border)); }
+.ci-link { display: flex; flex-direction: column; height: 100%; color: var(--text); font-weight: 400; }
+.ci-link:hover { text-decoration: none; }
+.ci-link:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: var(--card-radius); }
+
+.ci-thumb { position: relative; display: block; aspect-ratio: 16 / 10; overflow: hidden;
+  background: var(--panel-2); border-bottom: 1px solid var(--border); }
+.ci-thumb-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: var(--gap-xs); color: color-mix(in srgb, var(--muted) 60%, var(--panel-2));
+  transition: opacity .3s ease; }
+.ci-thumb-empty .icon { width: 28px; height: 28px; }
+.ci-thumb.is-loaded .ci-thumb-empty { opacity: 0; }
+.ci-frame { position: absolute; top: 0; left: 0; width: 1280px; height: 800px; border: 0;
+  transform: scale(var(--ci-scale, .22)); transform-origin: 0 0; pointer-events: none;
+  opacity: 0; transition: opacity .35s ease; background: var(--panel); }
+.ci-thumb.is-loaded .ci-frame { opacity: 1; }
+.ci-item.is-off .ci-thumb { filter: grayscale(.85); opacity: .7; }
+
+.ci-body { display: flex; flex-direction: column; gap: var(--gap-2xs); padding: var(--gap-xl) var(--gap-2xl) var(--gap-2xl); min-width: 0; }
+.ci-title { font-size: var(--fs-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ci-code { font-size: var(--fs-xs); color: var(--muted); background: none; padding: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ci-about { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ci-chips { display: flex; flex-wrap: wrap; gap: var(--gap-2xs); margin-top: var(--gap-xs); }
+
+/* Open on the site: floats over the preview, shown on hover or focus. */
+.ci-view { position: absolute; top: var(--gap-md); right: var(--gap-md); flex: 0 0 auto; width: 34px; background: var(--panel);
+  border: 1px solid var(--border); box-shadow: var(--shadow); opacity: 0; transition: opacity .15s ease; }
+.ci-item:hover .ci-view, .ci-view:focus-visible { opacity: 1; }
+@media (hover: none) { .ci-view { opacity: 1; } }
+
+/* List view: one card per group, items as rows with a small preview. */
+.ci[data-view="list"] .ci-grid { display: flex; flex-direction: column; gap: 0; background: var(--panel);
+  border: 1px solid var(--border); border-radius: var(--card-radius); box-shadow: var(--shadow); overflow: hidden; }
+.ci[data-view="list"] .ci-item { display: flex; align-items: center; border: 0; border-radius: 0; box-shadow: none;
+  overflow: visible; background: none; }
+.ci[data-view="list"] .ci-item + .ci-item { border-top: 1px solid var(--border); }
+.ci[data-view="list"] .ci-item:hover, .ci[data-view="list"] .ci-item:focus-within { transform: none; background: var(--hover); }
+.ci[data-view="list"] .ci-link { flex: 1; min-width: 0; flex-direction: row; align-items: center; gap: var(--gap-2xl);
+  padding: var(--gap-md) var(--gap-2xl); }
+.ci[data-view="list"] .ci-thumb { flex: 0 0 auto; width: 96px; border: 1px solid var(--border); border-radius: var(--r-md); }
+.ci[data-view="list"] .ci-thumb-empty .icon { width: 18px; height: 18px; }
+.ci[data-view="list"] .ci-thumb-empty .smaller { display: none; }
+.ci[data-view="list"] .ci-body { flex: 1; flex-direction: row; flex-wrap: wrap; align-items: center;
+  column-gap: var(--gap-lg); row-gap: var(--gap-2xs); padding: 0; }
+.ci[data-view="list"] .ci-title { flex: 0 1 auto; }
+.ci[data-view="list"] .ci-chips { margin: 0 0 0 auto; }
+.ci[data-view="list"] .ci-view { position: static; opacity: 1; margin-right: var(--gap-2xl); box-shadow: none; }
+@media (max-width: 640px) {
+  .ci[data-view="list"] .ci-thumb { width: 72px; }
+  .ci[data-view="list"] .ci-chips { margin-left: 0; flex-basis: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ci-item, .ci-frame, .ci-thumb-empty { transition: none; }
+  .ci-item:hover, .ci-item:focus-within { transform: none; }
+}
 
 /* Buttons beside a selector heading line up with its status control. */
 .st-pick-head .st-actions > .btn { padding: 0 12px; min-height: 34px; display: inline-flex; align-items: center; gap: var(--gap-xs); }
@@ -15684,11 +15523,11 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fe-block-library-head h3 { display: flex; align-items: center; gap: var(--gap-xs); margin: 0; font-size: var(--fs-base); }
 .fe-block-library-head h3 .icon { width: 16px; height: 16px; color: var(--brand); }
 .fe-block-library-head p { margin: 0; }
-.fe-block-search { display: flex; align-items: center; gap: var(--gap-xs); padding: 0 10px; border: 1px solid var(--border); border-radius: var(--r-md);
+.fe-block-search, .fe-layers-filter { display: flex; align-items: center; gap: var(--gap-xs); padding: 0 10px; border: 1px solid var(--border); border-radius: var(--r-md);
   background: var(--panel); color: var(--muted); }
-.fe-block-search:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
-.fe-block-search .icon { width: 14px; height: 14px; flex: 0 0 auto; }
-.fe-block-search input { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; padding: 7px 0; font: inherit;
+.fe-block-search:focus-within, .fe-layers-filter:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.fe-block-search .icon, .fe-layers-filter .icon { width: 14px; height: 14px; flex: 0 0 auto; }
+.fe-block-search input, .fe-layers-filter input { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; padding: 7px 0; font: inherit;
   font-size: var(--fs-sm); color: var(--text); outline: none; }
 .fe-block-library-body { overflow: auto; padding: 10px 12px 14px; display: flex; flex-direction: column; gap: var(--gap-xl); }
 .fe-block-group[hidden] { display: none; }
@@ -15705,6 +15544,77 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .fe-block-library .fe-page-palette-icon .icon { width: 16px; height: 16px; }
 .fe-block-library .fe-page-palette-name { min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
 .fe-block-none { margin: 0; }
+
+/* ── Structure navigator (page_navigator.js): the page's blocks as an
+   indented tree. Rows are one line; nesting shows as indent guides,
+   not boxes. The ⋯ button shows on hover and on the selected row. ── */
+.fe-layers { display: flex; flex-direction: column; gap: var(--gap-sm); min-width: 0; }
+.fe-layers-toolbar { display: flex; align-items: center; gap: var(--gap-sm); }
+.fe-layers-filter { flex: 1 1 auto; min-width: 0; max-width: 340px; }
+.fe-layers-tools { display: flex; gap: 2px; margin-left: auto; }
+.fe-layers-tools .icon-btn { width: 32px; height: 32px; color: var(--muted); }
+.fe-layers-tools .icon-btn:hover:not(:disabled) { color: var(--text); }
+.fe-layers-tools .icon-btn:disabled { opacity: .4; cursor: default; }
+.fe-layers-tree { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 96px; padding: 4px;
+  border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--panel); }
+.fe-layers-tree.is-drop-root { box-shadow: inset 0 0 0 2px var(--brand); }
+.fe-layers-empty { padding: 28px 16px; text-align: center; color: var(--muted); font-size: var(--fs-sm); }
+.fe-layers-row { --nav-indent: 18px; position: relative; display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 32px;
+  padding: 0 4px 0 calc(6px + var(--depth, 0) * var(--nav-indent)); border-radius: var(--r-md);
+  color: var(--text); font-size: var(--fs-sm); line-height: 1.3; cursor: pointer; user-select: none; outline: none; }
+.fe-layers-row::before { content: ""; position: absolute; top: 0; bottom: 0; left: 6px; pointer-events: none;
+  width: calc(var(--depth, 0) * var(--nav-indent));
+  background: repeating-linear-gradient(90deg, transparent 0 8px, var(--border) 8px 9px, transparent 9px var(--nav-indent)); }
+.fe-layers-row:hover { background: var(--hover); }
+.fe-layers-row.is-selected { background: color-mix(in srgb, var(--brand) 10%, transparent); }
+.fe-layers-row:focus-visible { box-shadow: inset 0 0 0 2px var(--brand); }
+.fe-layers-twisty { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: var(--r-xs); color: var(--muted); }
+.fe-layers-twisty .icon { width: 14px; height: 14px; transition: transform 140ms ease; }
+.fe-layers-twisty.is-open .icon { transform: rotate(90deg); }
+.fe-layers-twisty:not(.is-leaf):hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+.fe-layers-icon { flex: 0 0 auto; display: inline-flex; color: var(--muted); }
+.fe-layers-icon .icon { width: 16px; height: 16px; }
+.fe-layers-row.is-selected .fe-layers-icon { color: var(--brand); }
+.fe-layers-name { flex: 0 1 auto; max-width: 75%; min-width: 2.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; }
+.fe-layers-row--container .fe-layers-name { font-weight: 650; }
+.fe-layers-row--container.is-unnamed .fe-layers-name { font-weight: 550; color: var(--muted); }
+.fe-layers-meta { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--muted); font-size: var(--fs-xs); }
+.fe-layers-more { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  margin-left: auto; padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--muted);
+  cursor: pointer; opacity: 0; }
+.fe-layers-more .icon { width: 16px; height: 16px; }
+.fe-layers-row:hover .fe-layers-more, .fe-layers-row.is-selected .fe-layers-more, .fe-layers-row:focus-visible .fe-layers-more { opacity: 1; }
+.fe-layers-more:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+@media (hover: none) { .fe-layers-more { opacity: 1; } }
+.fe-layers-row--column .fe-layers-name, .fe-layers-row--section .fe-layers-name, .fe-layers-row--orphans .fe-layers-name {
+  font-size: var(--fs-xs); font-weight: 650; color: var(--muted); }
+.fe-layers-row--orphans { margin-top: 6px; }
+.fe-layers-row.is-drag-source { opacity: .4; }
+.fe-layers-row.is-drop-into { background: color-mix(in srgb, var(--brand) 12%, transparent); box-shadow: inset 0 0 0 2px var(--brand); }
+.fe-layers-drop-line { position: absolute; right: 8px; height: 2px; border-radius: 2px; background: var(--brand);
+  pointer-events: none; opacity: 0; z-index: 1; }
+.fe-layers-drop-line::before { content: ""; position: absolute; left: -6px; top: -3px; width: 8px; height: 8px; box-sizing: border-box;
+  border: 2px solid var(--brand); border-radius: 50%; background: var(--panel); }
+.fe-layers-drop-line.is-on { opacity: 1; }
+.fe-layers-rename { flex: 1 1 auto; min-width: 0; height: 26px; padding: 0 6px; border: 1px solid var(--brand); border-radius: var(--r-sm);
+  background: var(--panel); color: var(--text); font: inherit; font-weight: 600; outline: none;
+  box-shadow: 0 0 0 3px var(--brand-soft); }
+.fe-layers-hint { margin: 0; }
+/* Right-click / ⋯ menu. */
+.fe-layers-menu { position: fixed; z-index: 120; min-width: 230px; padding: 5px; border: 1px solid var(--border);
+  border-radius: var(--r-lg); background: var(--panel);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08); }
+.fe-layers-menu-item { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--gap-xl);
+  padding: 6px 10px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text);
+  font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
+.fe-layers-menu-item:hover:not(:disabled), .fe-layers-menu-item:focus:not(:disabled) { background: var(--hover); outline: none; }
+.fe-layers-menu-item:disabled { opacity: .45; cursor: default; }
+.fe-layers-menu-item.is-danger { color: var(--danger); }
+.fe-layers-menu-item.is-danger:hover, .fe-layers-menu-item.is-danger:focus { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.fe-layers-menu-item kbd { padding: 0; border: 0; background: none; font: inherit; font-size: var(--fs-xs); color: var(--muted); }
+.fe-layers-menu-sep { height: 1px; margin: 4px 6px; background: var(--border); }
 .is-just-added { animation: fe-just-added 1.6s ease; }
 @keyframes fe-just-added { 0%, 40% { box-shadow: 0 0 0 3px var(--brand); } 100% { box-shadow: 0 0 0 0 transparent; } }
 @media (max-width: 1100px) {
@@ -15712,16 +15622,13 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
   .fe-block-library { position: static; max-height: none; }
 }
 
-/* ── Page / popup structure: every container gets a one-line head (its
-   name, what it is, and icon buttons) over its columns, so nested
-   containers keep their width for the blocks inside. Columns stack
-   when the container is narrow. ── */
+/* ── Footer structure: every row gets a one-line head (what it is and
+   icon buttons) over its columns. Columns stack when the row is
+   narrow. ── */
 .fe-page-structure .fe-page-structure-row--split { grid-template-columns: minmax(0, 1fr) !important; gap: var(--gap-sm); padding: 10px 12px;
   container-type: inline-size; }
 .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label {
   flex-direction: row; flex-wrap: nowrap; align-items: center; gap: var(--gap-2xs); min-width: 0; }
-.fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-label-input {
-  flex: 1 1 auto; width: auto; min-width: 3em; margin: 0; }
 .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .muted.smaller {
   flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 4px; }
 .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-action {
@@ -15751,25 +15658,14 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 .is-lib-folded .fe-block-library-rail:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
 @media (max-width: 1100px) { .fe-structure-split.is-lib-folded { grid-template-columns: minmax(0, 1fr); } }
 
-/* Containers laid out in a row inside a flex-row container: an explicit
-   flexible width (their size containment means they can't size to their
-   content), wrapping when the row runs out of room. */
-.fe-page-structure .fe-page-structure-block-list--flex-row,
-.fe-page-structure .fe-page-structure-block-list--flex-row-reverse { flex-wrap: wrap; }
-.fe-page-structure .fe-page-structure-block-list--flex-row > .fe-page-structure-row,
-.fe-page-structure .fe-page-structure-block-list--flex-row-reverse > .fe-page-structure-row { flex: 1 1 240px; min-width: 0; }
 .fe-block-library-fold { flex: 0 0 auto; width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint,
-.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate,
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove {
   position: absolute; top: 50%; transform: translateY(-50%); margin: 0; pointer-events: none; }
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove { right: 6px; background: var(--panel); }
-.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate { right: 32px; background: var(--panel); }
-.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint { right: 60px; background: var(--panel); color: var(--brand); }
-.fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-duplicate,
+.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-edit-hint { right: 32px; background: var(--panel); color: var(--brand); }
 .fe-page-structure .fe-page-structure-block:hover > .fe-page-structure-block-remove,
-.fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-duplicate,
 .fe-page-structure .fe-page-structure-block:focus-within > .fe-page-structure-block-remove { pointer-events: auto; color: var(--text); background: var(--panel); box-shadow: 0 0 0 1px var(--border); }
 /* Narrow pills keep just the buttons. */
 @container (max-width: 300px) {
@@ -15784,12 +15680,9 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
 }
 @container (max-width: 260px) {
   .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label { flex-wrap: wrap; }
-  .fe-page-structure .fe-page-structure-row--split > .fe-page-structure-row-label > .fe-page-structure-row-label-input { flex-basis: 100%; }
 }
 
-.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate:hover { background: var(--brand); color: #fff; }
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove:hover { background: var(--danger); color: #fff; }
-.fe-page-structure .fe-page-structure-block > .fe-page-structure-block-duplicate .icon,
 .fe-page-structure .fe-page-structure-block > .fe-page-structure-block-remove .icon { width: 13px; height: 13px; }
 
 .tp-pick-groups { columns: 2 280px; column-gap: var(--gap-lg); }
@@ -15813,7 +15706,7 @@ html.tsp-preload body.fe-admin-autohide .sidebar:not(.open) { visibility: hidden
    The frame is on the wrapper so the fade doesn't eat the border. */
 @property --seg-fade-l { syntax: "<length>"; inherits: false; initial-value: 0px; }
 @property --seg-fade-r { syntax: "<length>"; inherits: false; initial-value: 0px; }
-.st-seg-scroll { margin: 14px 18px 2px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg); min-width: 0; }
+.st-seg-scroll { margin: 14px 18px 2px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--r-lg); min-width: 0; }
 .st-seg-scroll > .st-seg { display: flex; margin: 0; border: 0; background: transparent; overflow-x: auto; overflow-y: hidden;
   overscroll-behavior-x: contain; scrollbar-width: none; scroll-padding-inline: 48px;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--seg-fade-l), #000 calc(100% - var(--seg-fade-r)), transparent);
@@ -16701,23 +16594,27 @@ form.hide-zoom .post-studio .day-row { grid-template-columns: 78px repeat(2, min
 
 /* ── Meeting page (meeting_detail.html): the meeting on the left (about,
    schedule, files), where and how to join it on the right, which stays
-   in view on a wide screen and comes first on a narrow one. ── */
+   in view on a wide screen and sits between the schedule and the files on
+   a narrow one: the main column dissolves into the grid there, so the
+   layout takes over as the container for the About/Schedule query. ── */
 .mtg-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: var(--layout-gap); align-items: start; }
 .mtg-layout--single { grid-template-columns: minmax(0, 1fr); }
 .mtg-main, .mtg-side { display: flex; flex-direction: column; gap: var(--layout-gap); min-width: 0; }
 .mtg-main > .card, .mtg-side > .card { margin: 0; }
 /* Cards styled like the Dashboard's widgets. */
 .mtg-files .data-card-head .mtg-files-edit .icon { width: 14px; height: 14px; color: inherit; }
+.mtg-main { container-type: inline-size; }
 .mtg-side { position: sticky; top: calc(var(--topbar-h, 56px) + var(--content-px, 20px)); }
 @media (max-width: 1000px) {
-  .mtg-layout { grid-template-columns: minmax(0, 1fr); }
-  .mtg-side { order: -1; position: static; }
+  .mtg-layout { grid-template-columns: minmax(0, 1fr); container-type: inline-size; }
+  .mtg-main { display: contents; container-type: normal; }
+  .mtg-main > :not(.mtg-pair) { order: 1; }
+  .mtg-side { position: static; }
 }
 .mtg-public-alert { display: flex; gap: var(--gap-md); align-items: flex-start; margin: 0 0 16px; padding: 12px 16px;
   border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: var(--r-xl); background: var(--panel);
   font-size: var(--fs-sm); }
 .mtg-public-alert > .icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--brand); margin-top: 1px; }
-.mtg-main { container-type: inline-size; }
 .mtg-pair { display: flex; flex-direction: column; gap: var(--gap-3xl); min-width: 0; }
 .mtg-pair > .card { margin: 0; }
 /* About and Schedule side by side, 40 / 60, once the column is wide
@@ -16895,6 +16792,17 @@ html.is-live-loading [data-live="main"] { opacity: .65; transition: opacity 120m
 /* Titles may take two lines before they're cut short. */
 .lst-tbl .fb-name { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .lst-tbl-where { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+/* Posts: columns drop by the card's width, not the window's, so the
+   sidebars never squeeze the title; below that only Title and Posted
+   stay, and each title carries a type and date line. */
+.card.fb.lst:has(> .lst-tbl--posts) { container-type: inline-size; }
+@container (min-width: 821px) { .lst-tbl--posts .media-name-cell { min-width: 200px; } }
+@container (max-width: 1080px) { .lst-tbl--posts .fb-col-wide { display: none; } }
+@container (max-width: 820px) {
+  .lst-tbl--posts .fb-col:not(.lst-col-posted) { display: none; }
+  .lst-tbl--posts .fb-sub--narrow { display: block; }
+  .lst-tbl--posts td { padding-top: 10px; padding-bottom: 10px; }
+}
 .lst-submitter a { position: relative; z-index: 1; }
 
 /* The bar of bulk actions: at the foot of the list while rows are
@@ -16990,8 +16898,10 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
    primary button looked ready). */
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 
-/* A request's message under the name (Watchtower > Requests): three
-   lines at most, the whole of it on hover. */
+/* A request's name and message (Watchtower > Requests): both open the
+   request's own page; the message shows three lines at most here. */
+.wt-req-open { color: var(--text); }
+.wt-req-open:hover, a.wt-req-message:hover { color: var(--access, var(--brand)); text-decoration: none; }
 .wt-req-message { margin-top: 4px; max-width: 32ch; color: var(--muted); font-size: var(--fs-xs); font-weight: 400; line-height: 1.4;
   white-space: pre-line; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
@@ -17165,8 +17075,11 @@ html[data-theme="dark"] .post-chip-danger { background: rgba(220, 38, 38, 0.22);
 .za-otp-inline { display: flex; flex-direction: column; gap: var(--gap-sm); padding: 0 2px; }
 .za-otp-inline .otp-inline-fetch { width: 100%; justify-content: center; }
 .za-otp-manual { margin: 10px 2px 0; font-size: var(--fs-sm); }
-.za-otp-manual summary { cursor: pointer; color: var(--access, var(--brand)); font-weight: 600; }
-.za-otp-manual .zoom-info { margin: 8px 0; }
+/* The sidebar is too narrow for label and value side by side: stack
+   them, and let a long address break instead of overflowing. */
+.za-otp-manual .zoom-info { margin: 8px 0; grid-template-columns: minmax(0, 1fr); gap: var(--gap-2xs); }
+.za-otp-manual .zoom-info dd + dt { margin-top: var(--gap-sm); }
+.za-otp-manual .zoom-info .copy-btn { max-width: 100%; text-align: left; overflow-wrap: anywhere; }
 .za-otp-login { display: inline-flex; align-items: center; gap: var(--gap-xs); }
 .za-cal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-lg); flex-wrap: wrap; margin: 16px 0 12px; }
 .za-cal-head h2 { margin: 0; font-size: var(--fs-md); }
@@ -17394,6 +17307,14 @@ html[data-theme="dark"] .lst-kind-text { color: #fbbf24; }
 .msg-subject { margin: 4px 0 0; font-size: var(--fs-lg); line-height: 1.35; }
 .msg-body { white-space: pre-wrap; font-size: var(--fs-base); line-height: 1.65; color: var(--text); overflow-wrap: anywhere; }
 .msg-fields { padding: 0; border: 0; background: none; }
+/* Replies sent from the message's page, then the box to write one. */
+.msg-replies, .msg-reply-form { display: flex; flex-direction: column; gap: var(--stack-gap);
+  padding-top: 16px; border-top: 1px solid var(--border); }
+.msg-replies .ds-group-title, .msg-reply-form .ds-group-title { margin: 0; }
+.msg-reply { display: flex; flex-direction: column; gap: var(--gap-xs); padding-left: 14px; border-left: 2px solid var(--border); }
+.msg-reply-head, .msg-reply-retry { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-sm); }
+.msg-reply-who { font-weight: 700; color: var(--text); }
+.msg-reply-note { margin: 0; }
 
 /* ── Zoom Tech Training (zoom_tech.html): the text at a reading width,
    centered in a wide window, and in the Wiki layout the sections beside
@@ -17562,3 +17483,159 @@ html.ilb-open, html.ilb-open body { overflow: hidden; }
 /* Last rule: the stylesheet has applied, show the page (base.html hides
    <html> until now). */
 html { visibility: visible; background: var(--bg); }
+
+/* ── Page builder (_page_builder.html, page_builder.js): the page full
+   screen over its edit screen. A toolbar along the top; the block
+   library on the left, where a block's settings drawer also docks; the
+   page in the middle; the structure on the right. ── */
+body.pb-on { --pb-top-h: 52px; --pb-left-w: 340px; --pb-right-w: 300px; overflow: hidden; }
+body.pb-on .fe-admin-layout { display: none; }
+body.pb-on #fe-save-bar { display: none !important; }
+.pb { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: var(--bg); color: var(--text); }
+.pb[hidden] { display: none; }
+
+.pb-top { flex: 0 0 var(--pb-top-h); display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
+  gap: var(--gap-lg); padding: 0 10px; background: var(--panel); border-bottom: 1px solid var(--border); }
+.pb-top-start, .pb-top-mid, .pb-top-end { display: flex; align-items: center; gap: var(--gap-xs); min-width: 0; }
+.pb-top-mid { gap: var(--gap-sm); }
+.pb-top-end { justify-content: flex-end; }
+.pb-tool { display: inline-flex; align-items: center; gap: var(--gap-xs); height: 34px; padding: 0 10px; flex: 0 0 auto;
+  border: 0; border-radius: var(--r-md); background: transparent; color: var(--text); font: inherit; font-size: var(--fs-sm);
+  font-weight: 600; white-space: nowrap; cursor: pointer; transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease; }
+.pb-tool .icon { width: 17px; height: 17px; }
+.pb-tool:hover:not(:disabled) { background: var(--hover); }
+.pb-tool:disabled { opacity: .4; cursor: default; }
+.pb-tool:focus-visible, .pb-seg > button:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.pb-tool[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand); }
+.pb-tool--icon { width: 34px; padding: 0; justify-content: center; }
+.pb-tool--add, .pb-tool--add[aria-pressed] { background: var(--brand); color: #fff; padding: 0 14px 0 10px; }
+.pb-tool--add:hover:not(:disabled) { background: color-mix(in srgb, var(--brand) 86%, #000); }
+/* The ring sits outside the button, so it gets room of its own. */
+.pb-tool--add[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--brand-soft); margin-right: var(--gap-2xs); }
+.pb-sep { flex: 0 0 auto; width: 1px; height: 22px; margin: 0 6px; background: var(--border); }
+.pb-doc { display: flex; align-items: baseline; gap: var(--gap-sm); min-width: 0; padding-left: 2px; }
+.pb-doc-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 650; }
+.pb-doc-slug { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); color: var(--muted); }
+.pb-seg > button { padding: 5px 9px; }
+.pb-seg .icon { width: 16px; height: 16px; }
+.pb-state { min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-right: var(--gap-sm); white-space: nowrap;
+  font-size: var(--fs-xs); color: var(--muted); }
+.pb-state.is-unsaved { color: var(--text); }
+.pb-state.is-unsaved::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%;
+  background: var(--warning); vertical-align: 1px; }
+.pb-btn { flex: 0 0 auto; height: 34px; padding: 0 14px; }
+.pb-btn[hidden] { display: none; }
+
+.pb-body { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
+.pb-left, .pb-right { flex: 0 0 auto; display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+.pb-left { width: var(--pb-left-w); border-right: 1px solid var(--border); }
+.pb-right { width: var(--pb-right-w); border-left: 1px solid var(--border); }
+.pb.is-add-hidden:not(.is-inspecting) .pb-left, .pb.is-structure-hidden .pb-right { display: none; }
+/* The settings drawer lies over the library while a block is open. */
+.pb.is-inspecting .pb-left { visibility: hidden; }
+.pb-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-sm); min-height: 48px;
+  padding: 0 8px 0 14px; border-bottom: 1px solid var(--border); box-sizing: border-box; }
+.pb-panel-head h2 { display: flex; align-items: center; gap: var(--gap-xs); margin: 0; font-size: var(--fs-base); }
+.pb-panel-head h2 .icon { width: 16px; height: 16px; color: var(--brand); }
+.pb-panel-head .icon-btn { flex: 0 0 auto; width: 30px; height: 30px; }
+
+/* Block library: tiles with the icon over the name, three across. */
+.pb-left .fe-block-library { position: static; flex: 1 1 auto; min-height: 0; max-height: none; border: 0; border-radius: 0; background: transparent; }
+.pb-left .fe-block-library-rail, .pb-left .fe-block-library-fold { display: none; }
+.pb-left .fe-block-library-head { padding: 12px 14px; }
+.pb-left .fe-block-library-body { flex: 1 1 auto; min-height: 0; padding: 14px; }
+.pb-left .fe-block-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap-sm); }
+.pb-left .fe-block-library .fe-page-palette-tile { flex-direction: column; justify-content: center; gap: 7px; min-height: 76px;
+  padding: 10px 4px; text-align: center; font-size: var(--fs-xs); background: var(--panel-2); }
+.pb-left .fe-block-library .fe-page-palette-tile:hover { background: var(--panel); }
+.pb-left .fe-block-library .fe-page-palette-icon .icon { width: 20px; height: 20px; }
+
+/* Structure: the tree fills the panel; undo and redo are in the toolbar. */
+.pb-right .fe-layers { flex: 1 1 auto; min-height: 0; padding: 10px 8px 0; }
+.pb-right .fe-layers-toolbar { padding: 0 2px; }
+.pb-right .fe-layers-filter { max-width: none; }
+.pb-right .fe-layers-tools [data-fe-layers-act="undo"], .pb-right .fe-layers-tools [data-fe-layers-act="redo"] { display: none; }
+.pb-right .fe-layers-tree { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 0 12px; border: 0; border-radius: 0; background: transparent; }
+.pb-right .fe-layers-hint { display: none; }
+
+/* Canvas: the page at the chosen size on a quiet ground. */
+.pb-canvas { flex: 1 1 auto; min-width: 0; display: flex; padding: var(--gap-xl);
+  background: color-mix(in srgb, var(--text) 5%, var(--bg)); }
+.pb-canvas .lp { flex: 1 1 auto; min-height: 0; }
+.pb-canvas .lp-bar, .pb-canvas .lp-note { display: none; }
+.pb-canvas .lp-stage { flex: 1 1 auto; height: auto !important; border: 0; border-radius: 0; background: transparent; overflow: hidden; }
+.pb-canvas .lp-stage iframe { margin-left: 0 !important; transform-origin: 0 0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .1), 0 10px 30px rgba(15, 23, 42, .1); transition: left 200ms ease; }
+
+/* A block's settings drawer, docked on the left under the toolbar. */
+body.pb-on .modal.fe-block-drawer { top: var(--pb-top-h); }
+body.pb-on .modal.fe-block-drawer > .modal-backdrop { display: none; }
+body.pb-on .modal.fe-block-drawer > .modal-panel { right: auto; left: 0; width: min(var(--pb-left-w), 100vw); height: auto;
+  border-left: 0; border-right: 1px solid var(--border); box-shadow: none; transform: translateX(-100%); }
+body.pb-on .modal.fe-block-drawer.open > .modal-panel { transform: none; }
+body.pb-on .fe-block-drawer .modal-head { min-height: 48px; padding-top: 8px; padding-bottom: 8px; }
+body.pb-on .fe-block-drawer .modal-head h2 { font-size: var(--fs-base); }
+body.pb-on .fe-block-drawer .modal-foot { display: none; }
+.pb-crumbs { display: none; }
+body.pb-on .pb-crumbs:not([hidden]) { display: flex; align-items: center; gap: var(--gap-sm); flex-shrink: 0;
+  padding: 6px 8px 6px var(--content-px); border-bottom: 1px solid var(--border); background: var(--panel-2); }
+.pb-crumbs-trail { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-size: var(--fs-xs); }
+.pb-crumb { padding: 2px 5px; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--muted); font: inherit; }
+button.pb-crumb { cursor: pointer; }
+button.pb-crumb:hover { background: var(--hover); color: var(--brand); }
+.pb-crumb.is-current { color: var(--text); font-weight: 650; }
+.pb-crumbs-sep { color: var(--muted); }
+.pb-crumbs-tools { display: flex; gap: 2px; flex: 0 0 auto; }
+.pb-crumbs-tools .icon-btn { flex: 0 0 auto; width: 28px; height: 28px; color: var(--muted); }
+.pb-crumbs-tools .icon-btn:hover { color: var(--text); }
+.pb-crumbs-tools [data-pb-block-act="delete"]:hover { color: var(--danger); }
+
+/* The edit screen's way in, under its preview. */
+.pb-launch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-sm) var(--gap-md); margin-top: var(--gap-md); }
+
+@media (max-width: 1280px) {
+  body.pb-on { --pb-left-w: 300px; --pb-right-w: 260px; }
+  .pb-hide-lg { display: none; }
+}
+@media (max-width: 980px) {
+  body.pb-on { --pb-left-w: 320px; --pb-right-w: 280px; }
+  .pb-hide-md, .pb-tool--exit span { display: none; }
+  /* The panels lie over the page instead of beside it. */
+  .pb-left, .pb-right { position: absolute; top: 0; bottom: 0; z-index: 1; box-shadow: 0 12px 40px rgba(15, 23, 42, .18); }
+  .pb-left { left: 0; }
+  .pb-right { right: 0; }
+}
+@media (max-width: 720px) {
+  .pb-top { grid-template-columns: minmax(0, 1fr) auto; }
+  .pb-top-mid, .pb-state { display: none; }
+  .pb-canvas { padding: var(--gap-sm); }
+}
+@media (prefers-reduced-motion: reduce) { .pb-canvas .lp-stage iframe { transition: none; } }
+
+/* Per-device settings (static/js/responsive.js). In the page builder
+   the device switch sets which device a settings form edits, so the
+   older phone-only rows (mobile padding, direction and height) are
+   that switch's Phone setting and don't show separately. */
+body.pb-on [data-rs-legacy] { display: none !important; }
+.be-device-bar { display: flex; flex-direction: column; gap: var(--gap-xs);
+  padding-bottom: var(--gap-md); margin-bottom: var(--gap-sm); border-bottom: 1px solid var(--border); }
+.be-device-seg { align-self: flex-start; }
+.be-device-note, .be-device-warn { margin: 0; font-size: var(--fs-xs); line-height: 1.45; color: var(--muted); }
+.be-device-warn { color: var(--warn, #b45309); }
+.be-device-keys { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gap-2xs); }
+.be-device-key { display: inline-flex; align-items: center; gap: var(--gap-3xs); }
+.be-device-key .icon { width: 11px; height: 11px; }
+.be-device-reset { margin-left: auto; }
+.pb-device-badge { margin-left: var(--gap-sm); vertical-align: middle; }
+.rs-dev-icon { display: inline-flex; vertical-align: -1px; margin: 0 var(--gap-3xs) 0 var(--gap-2xs);
+  color: var(--muted); opacity: .75; }
+.rs-dev-icon .icon { width: 12px; height: 12px; }
+.rs-dev-icon.is-own { color: var(--access, var(--brand)); opacity: 1; }
+/* Revert a setting to its default (responsive.js setRevert). */
+.rs-revert { display: inline-flex; align-items: center; justify-content: center; vertical-align: -2px;
+  margin: 0 var(--gap-3xs) 0 var(--gap-2xs); padding: 1px; border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--access, var(--brand)); cursor: pointer; line-height: 0; }
+.rs-dev-icon + .rs-revert { margin-left: 0; }
+.rs-revert .icon { width: 12px; height: 12px; }
+.rs-revert:hover { background: color-mix(in srgb, var(--access, var(--brand)) 14%, transparent); }
+.rs-revert:focus-visible { outline: 2px solid var(--access, var(--brand)); outline-offset: 1px; }

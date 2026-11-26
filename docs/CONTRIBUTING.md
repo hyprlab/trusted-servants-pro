@@ -156,6 +156,14 @@ version of both release records.
   admin can't see or change from the edit modal.
 - In the page builder, content is grouped with `container` blocks, never with
   section titles.
+- Block settings can differ by device without per-control code: on Tablet or
+  Phone a form edits `data.responsive` through `static/js/responsive.js`, and
+  `app/responsive.py` turns the inline styles that change into media queries.
+  A new setting that is content or markup (text, links, records, a different
+  element or class) belongs in that file's `SHARED` list. Style that should
+  vary by device belongs in an inline style, not a class. Content keys are
+  also in its `CONTENT` list, so they get no revert button; a setting's
+  default is its value in `blankBlock()`.
 - The local SQLite database is real data. Tests and checks never delete user
   rows or reset settings to defaults.
 - Rebuild and run the app (`tools/redeploy.sh`) before saying something works.

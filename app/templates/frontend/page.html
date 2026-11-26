@@ -1,5 +1,5 @@
 {% extends "frontend/base.html" %}
-{% from "_blocks.html" import render_sections, render_toc, render_block %}
+{% from "_blocks.html" import render_sections, render_toc, render_block, render_block_inner %}
 {% block title %}{% if page %}{{ page.title }} · {% endif %}{{ frontend_title }}{% endblock %}
 
 {# Shadow lookup mirrors `_BLOCK_CONT_SHADOW` in _blocks.html. Kept here
@@ -193,7 +193,39 @@
   {{ _s | join('; ') }}
 {%- endmacro -%}
 
+{# In the editor's preview each block is bracketed by <!--pb:ID--> and
+   <!--/pb--> so a click on it opens that block's settings
+   (static/js/page_navigator.js). Comments change no layout or selector
+   match, and the public page never has them. #}
+{# Per-device settings (data.responsive, app/responsive.py): a block
+   with any is rendered again with each device's values and the inline
+   styles that change become media-query CSS. While an ancestor is
+   being compared, each block brackets its output with <!--rs:ID-->
+   and <!--/rs--> so the comparison skips it; a stub (a child in those
+   extra renders) is just the brackets. #}
 {%- macro pp_block(b) -%}
+  {%- if b.type == rs_stub_type -%}<!--rs:{{ b.id }}--><!--/rs-->
+  {%- else -%}
+  {%- set _rs = rs_plan(b, preview_mode) -%}
+  {%- if rs_marking() %}<!--rs:{{ b.id }}-->{% endif -%}
+  {%- if _rs -%}
+    {%- set _ = rs_enter() -%}
+    {%- set _deep = pp_block_inner(b) -%}
+    {%- set _vars = [] -%}
+    {%- for v in _rs.variants -%}{%- set _ = _vars.append(pp_block_inner(v)) -%}{%- endfor -%}
+    {%- set _singles = [] -%}
+    {%- for s in _rs.get('singles') or [] -%}{%- set _ = _singles.append(pp_block_inner(s[2])) -%}{%- endfor -%}
+    {%- set _ = rs_leave() -%}
+    {{- rs_apply(b, _rs, _deep, _vars, _singles, preview_mode) -}}
+  {%- else -%}
+    {{- pp_block_inner(b) -}}
+  {%- endif -%}
+  {%- if rs_marking() %}<!--/rs-->{% endif -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro pp_block_inner(b) -%}
+  {%- if preview_mode and b.id -%}<!--pb:{{ b.id }}-->{%- endif -%}
   {%- set t = b.type -%}{%- set d = b.data or {} -%}
   {%- if t == 'paragraph' -%}
     {%- set _st = pp_typo_style(d) -%}
@@ -253,7 +285,12 @@
     {%- elif _align == 'center' -%}
       {%- set _ = _fig_styles.extend(['text-align: center', 'margin-left: auto', 'margin-right: auto']) -%}
     {%- endif -%}
-    {%- if (_w | int) != 100 -%}
+    {#- `width` (any CSS length) sets the image's width, up to its
+        column; without it the older `max_width_pct` caps it. -#}
+    {%- set _wlen = d.get('width', '') | css_length -%}
+    {%- if _wlen -%}
+      {%- set _ = _fig_styles.extend(['width: ' ~ _wlen, 'max-width: 100%']) -%}
+    {%- elif (_w | int) != 100 -%}
       {%- set _ = _fig_styles.append('max-width: ' ~ _w ~ '%') -%}
     {%- endif -%}
     {%- set _img_styles = ['max-width: 100%'] -%}
@@ -276,7 +313,10 @@
        doesn't get upscaled. #}
     {%- set _src_lower = (d.src or '')|lower -%}
     {%- set _src_path  = _src_lower.split('?')[0].split('#')[0] -%}
-    {%- if _src_path.endswith('.svg') -%}
+    {%- if _wlen -%}
+      {%- set _ = _img_styles.append('width: 100%') -%}
+      {%- set _ = _img_styles.append('height: auto') -%}
+    {%- elif _src_path.endswith('.svg') -%}
       {%- set _ = _fig_styles.append('width: ' ~ _w ~ '%') -%}
       {%- set _ = _img_styles.append('width: 100%') -%}
       {%- set _ = _img_styles.append('height: auto') -%}
@@ -506,8 +546,9 @@
       {%- endif -%}
     </div>
   {%- else -%}
-    {{ render_block(b) }}
+    {{ render_block_inner(b) }}
   {%- endif -%}
+  {%- if preview_mode and b.id -%}<!--/pb-->{%- endif -%}
 {%- endmacro -%}
 
 {# Section renderer — renders ONLY what the admin placed in the layout.
@@ -858,6 +899,12 @@
     {% for sec in sections %}{{ pp_section(sec) }}{% endfor %}
   </div>
 </article>
+{% if not preview_mode and current_user.is_authenticated and current_user.can_edit_frontend() %}
+  {% set edit_fab_url = url_for('main.frontend_page_edit', page_id=page.id) %}
+  {% set edit_fab_label = 'Edit page' %}
+  {% set edit_fab_title = 'Edit this page in the admin' %}
+  {% include "frontend/_edit_fab.html" %}
+{% endif %}
 {% endif %}
 {% if has_lottie %}
 {# Vendored lottie-web (Bodymovin) player + a minimal init script. Only

@@ -102,6 +102,15 @@
           <textarea name="private_key_text" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;..."></textarea>
         </label>
       </details>
+      {% if t.sftp_host_key %}
+      <p class="muted smaller">Server key fingerprint: <code>{{ t.sftp_host_key|ssh_fp }}</code>. Backups stop if the server presents a different key. To compare, run <code>ssh-keygen -lf</code> on the server's public host key.</p>
+      <label class="check">
+        <input type="checkbox" name="forget_host_key" value="1">
+        <span>Forget this key and accept the one the server presents on the next connection. Only do this if you know the server's key changed.</span>
+      </label>
+      {% else %}
+      <p class="muted smaller">The server's key is saved on the first successful connection and must match after that. Test the connection to see its fingerprint.</p>
+      {% endif %}
       {% endif %}
       {% elif t.kind == 'tspro_backup' %}
       <label>Backup server API endpoint
@@ -262,7 +271,7 @@
       // sees a clean request.
       var connNames = ['csrf_token', 'embed', 'name',
                        'host', 'port', 'username', 'password',
-                       'remote_path', 'use_tls',
+                       'remote_path', 'use_tls', 'forget_host_key',
                        'private_key', 'private_key_text', 'oauth_token',
                        'api_base_url', 'api_key'];
       var data = new FormData();
@@ -288,6 +297,9 @@
         var j = await testRes.json();
         testOut.textContent = j.message || (j.ok ? 'ok' : 'failed');
         testOut.className = 'backup-test-result small ' + (j.ok ? 'backup-test-ok' : 'backup-test-fail');
+        // The test has acted on it, so saving must not forget the new key.
+        var forget = form.querySelector('[name="forget_host_key"]');
+        if (j.ok && forget) forget.checked = false;
       } catch (e) {
         testOut.textContent = String(e);
         testOut.className = 'backup-test-result small backup-test-fail';

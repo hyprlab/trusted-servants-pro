@@ -2,7 +2,7 @@
 {% from "_live_preview.html" import live_preview %}
 {% from "_help_chip.html" import chip, hrow %}
 {% from "_item_picker.html" import item_picker %}
-{% from "_frontend_structure_card.html" import structure_page_tree, structure_orphans_card, structure_block_palette %}
+{% from "_frontend_structure_card.html" import structure_navigator, structure_block_palette %}
 {% block heading %}Edit popup{% endblock %}
 {% block heading_help %}Triggered from <code>#{{ popup.name }}</code>.{% endblock %}
 
@@ -43,7 +43,7 @@
 
     {# ── Popup settings form ────────────────────────────────────────
        The hidden #page-blocks-json input lives here so a save round-trips
-       both the block content (written by page_structure.js / the modal
+       both the block content (written by page_navigator.js / the drawer
        editor) and the chrome settings below. #}
     <form method="post" action="{{ url_for('main.frontend_popup_save') }}"
           class="form" id="popup-edit-form">
@@ -60,7 +60,7 @@
       <section class="card st-studio fe-page-settings-card" data-studio="popup" data-no-collapse>
         <div class="card-head st-pick-head">
           {{ item_picker('Popup', popup.title, picker_groups, code='#' ~ popup.name, aria='Choose a popup',
-                         actions=[{'modal': 'new-popup-modal', 'label': 'New popup', 'icon': 'plus'}]) }}
+                         actions=[{'modal': 'new-popup-modal', 'label': 'New popup', 'icon': 'plus'}, {'href': url_for('main.frontend_popups'), 'label': 'All popups', 'icon': 'layout-grid'}]) }}
           <div class="st-actions">
             {% if popup.is_enabled %}<span class="post-chip post-chip-online">On</span>{% else %}<span class="post-chip post-chip-draft">Off</span>{% endif %}
             <button type="submit" form="fe-delete-popup" class="btn ol-danger" title="Delete this popup">{{ icon('trash') }} Delete</button>
@@ -189,30 +189,22 @@
       {# The yellow save bar saves the popup. #}
     </form>
 
-    {# ── Content: the page-builder structure card + draggable pills ──
-       Same drag-and-drop interface as content pages, with the block
-       library docked beside the tree; clicking a pill opens the
-       BlockEditor modal focused on it. Driven
-       by page_structure.js, which keys off the shared element IDs below
-       (#page-blocks-json / #page-editor-root / #page-layout-edit-modal). #}
+    {# ── Content: the structure navigator (page_navigator.js) with
+       the block library beside it, the same as the page builder;
+       it edits the drawer's block data and writes the hidden
+       `blocks_json` the form saves. #}
     <section class="card fe-page-structure">
       <div class="card-head">
-        <h2>Content {% call chip('Content') %}Click a block to edit it, and drag it to move it. Add blocks from the list beside the structure: click one to add it at the end, or drag it into place.{% endcall %}</h2>
+        <h2>Content {% call chip('Content') %}The popup’s blocks as a tree. Click a block to edit it, drag it to move it (onto a container to put it inside), and right-click for duplicate, copy, wrap, delete and more. Undo covers all of it.{% endcall %}</h2>
       </div>
       <div class="fe-structure-split">
         <div class="fe-structure-main">
-      {{ structure_page_tree(active_layout_tree, 'page-layout-edit-modal',
-                             _PAGE_BLOCK_LABELS, _editable,
-                             block_previews, block_payloads) }}
+          {{ structure_navigator(popup_block_catalog, 'page-layout-edit-modal',
+                                 allowed_types=popup_allowed_block_types) }}
         </div>
         {{ structure_block_palette(popup_block_catalog) }}
       </div>
     </section>
-
-    {# Self-hiding "Unplaced blocks" bin — only appears if removing a
-       container leaves its children unplaced (drag them back in). #}
-    {{ structure_orphans_card(active_layout_orphans, 'page-layout-edit-modal',
-                              _PAGE_BLOCK_LABELS, block_previews, block_payloads) }}
 
 
   </div>
@@ -220,8 +212,8 @@
 
 {# ── BlockEditor modal — hosts the full editor. Lives outside
    .fe-admin-main so it covers the whole viewport. Same IDs the page
-   builder uses so the shared page_structure.js + mount glue drive it. #}
-<div class="modal fe-page-edit-modal fe-page-edit-modal--wide" id="page-layout-edit-modal" aria-hidden="true">
+   builder uses so the shared page_navigator.js + mount glue drive it. #}
+<div class="modal modal--drawer fe-page-edit-modal fe-block-drawer" id="page-layout-edit-modal" aria-hidden="true">
   <div class="modal-backdrop" data-close></div>
   <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="page-layout-edit-modal-title">
     <div class="modal-head">
@@ -297,12 +289,13 @@ window.tspDesignColorTokens = {
 };
 </script>
 <script src="{{ url_for('static', filename='js/vendor/Sortable.min.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/responsive.js', v=app_build_id) }}"></script>
 <script src="{{ url_for('static', filename='js/block_editor.js', v=app_build_id) }}"></script>
-<script src="{{ url_for('static', filename='js/page_structure.js', v=app_build_id) }}"></script>
+<script src="{{ url_for('static', filename='js/page_navigator.js', v=app_build_id) }}"></script>
 <script>
-// BlockEditor mount + structure-card glue. Adapted from the page editor:
-// same element IDs so page_structure.js drives the structure card, with
-// the popup's restricted block palette passed to the modal editor.
+// BlockEditor mount + drawer glue, as in the page editor: the same
+// element IDs, so page_navigator.js drives the structure, with the
+// popup's restricted block palette passed to the editor.
 (function () {
   const ALLOWED = {{ popup_allowed_block_types|tojson }};
   const root = document.getElementById('page-editor-root');
@@ -315,92 +308,59 @@ window.tspDesignColorTokens = {
   let editor = null;
   const editModal = document.getElementById('page-layout-edit-modal');
 
+  // Mounted lazily: nothing renders until a block is focused or the
+  // whole layout is asked for, and then only that.
   function ensureEditor() {
     if (editor) return editor;
-    try { editor = BlockEditor.mount(root, { initial: initial, allowedTypes: ALLOWED }); }
+    try { editor = BlockEditor.mount(root, { initial: initial, allowedTypes: ALLOWED, lazy: true }); }
     catch (e) { console.warn('popup editor: mount failed', e); }
     return editor;
   }
-
-  // ── Focus mode (open the modal scrolled to one block) ───────────
+  // ── Focus mode ─────────────────────────────────────────────────
+  // A structure-card click renders that one block in the drawer; the
+  // "Edit layout" buttons render the whole tree (showAll). Closing the
+  // drawer leaves its contents alone, so it closes without work.
   const modalTitle = document.getElementById('page-layout-edit-modal-title');
   const editorHelp = editModal.querySelector('.fe-block-editor-help');
   const defaultTitle = modalTitle ? modalTitle.textContent : 'Edit content';
 
-  function clearFocus() {
+  function showAll() {
+    const ed = ensureEditor();
+    if (ed) ed.focus(null);
     editModal.classList.remove('is-focus-mode');
-    root.querySelectorAll('.be-block-focused, .be-block-focused-path').forEach(el => {
-      el.classList.remove('be-block-focused', 'be-block-focused-path');
-    });
     if (modalTitle) modalTitle.textContent = defaultTitle;
     if (editorHelp) editorHelp.hidden = false;
   }
-  editModal.querySelectorAll('[data-close]').forEach(el =>
-    el.addEventListener('click', clearFocus));
   function focusBlock(id) {
     if (!id) return;
-    const target = root.querySelector('.be-block[data-id="' + id + '"]');
+    const ed = ensureEditor();
+    const target = ed && ed.focus(id);
     if (!target) return;
-    root.querySelectorAll('.be-block-focused, .be-block-focused-path').forEach(el => {
-      el.classList.remove('be-block-focused', 'be-block-focused-path');
-    });
-    target.classList.add('be-block-focused');
-    let node = target.parentElement;
-    while (node && node !== root) {
-      if (node.classList && (node.classList.contains('be-block')
-                              || node.classList.contains('be-section'))) {
-        node.classList.add('be-block-focused-path');
-      }
-      node = node.parentElement;
-    }
     editModal.classList.add('is-focus-mode');
     if (modalTitle) {
       const typeLabel = (target.querySelector('.be-block-type') || {}).textContent || 'block';
       modalTitle.textContent = 'Edit ' + typeLabel;
     }
     if (editorHelp) editorHelp.hidden = true;
-    requestAnimationFrame(() => {
-      const body = editModal.querySelector('.modal-body');
-      if (body) body.scrollTop = 0;
-      target.classList.add('be-block-flash');
-      setTimeout(() => target.classList.remove('be-block-flash'), 1400);
-    });
+    const body = editModal.querySelector('.modal-body');
+    if (body) body.scrollTop = 0;
   }
-  // Expose the same hooks page_structure.js calls so newly-dragged pills
-  // can open + focus the editor without per-pill rebinding.
+
+  // The structure navigator opens blocks with these and edits the
+  // editor's own block data.
   window.ensurePageBlockEditor = ensureEditor;
   window.focusPageBlock = focusBlock;
-  window.remountPageBlockEditor = () => {
-    if (editor && root) { try { root.innerHTML = ''; } catch (_) {} }
-    editor = null;
-    try { initial = JSON.parse(root.dataset.initial || '[]'); }
-    catch (_) { initial = []; }
-  };
 
-  // Server-rendered pills → open the modal focused on the block.
-  document.querySelectorAll('[data-page-block-id]').forEach(pill => {
-    if (pill.dataset.pillBound === '1') return;
-    pill.dataset.pillBound = '1';
-    pill.addEventListener('click', e => {
-      if (e.target.closest('[data-be-remove-block], [data-be-remove-row], '
-                         + '[data-be-duplicate-block], [data-be-duplicate-row]')) return;
-      requestAnimationFrame(() => {
-        ensureEditor();
-        const id = pill.dataset.pageBlockId;
-        requestAnimationFrame(() => focusBlock(id));
-      });
-    });
-  });
   // Plain open-modal buttons open the full editor (no focus).
   document.querySelectorAll('[data-open-modal="page-layout-edit-modal"]:not([data-page-block-id])').forEach(btn => {
     btn.addEventListener('click', () => {
-      requestAnimationFrame(() => { ensureEditor(); clearFocus(); });
+      requestAnimationFrame(showAll);
     });
   });
 
-  // Re-dispatch BlockEditor edits (made inside the modal, outside the
-  // form) onto the form so the save bar lights up + structure pills stay
-  // in sync with the editor's authoritative state.
+  // Re-dispatch BlockEditor edits (made in the drawer, outside the
+  // form) onto the form so the save bar lights up. The navigator keeps
+  // the hidden `blocks_json` in step with the editor.
   editModal.addEventListener('input', () => {
     try { form.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
     const bar = document.getElementById('fe-save-bar');
@@ -409,12 +369,6 @@ window.tspDesignColorTokens = {
       const m = bar.querySelector('.fe-save-bar-msg');
       if (m) m.textContent = 'Unsaved changes';
     }
-    try {
-      if (editor && typeof editor.getState === 'function'
-          && typeof window.tspSyncStructurePayloadsFromState === 'function') {
-        window.tspSyncStructurePayloadsFromState(editor.getState());
-      }
-    } catch (_) {}
   }, true);
   editModal.addEventListener('change', () => {
     try { form.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
@@ -430,10 +384,8 @@ window.tspDesignColorTokens = {
     else editModal.classList.remove('is-focus-mode');
   }, true);
 
-  // Serialise the editor's tree into the hidden input on save. Only
-  // overwrite when the modal editor is mounted with authoritative state;
-  // otherwise page_structure.js's structure-card value already in the
-  // hidden input is canonical (don't clobber drag-only edits).
+  // Serialise the editor's block data into the hidden input on save.
+  // The navigator mounts the editor at load, so it is the popup's data.
   function serialise() {
     try {
       if (editor && typeof editor.serialize === 'function') return editor.serialize();

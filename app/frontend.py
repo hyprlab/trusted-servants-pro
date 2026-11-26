@@ -8,7 +8,7 @@ screen. When the toggle is off, the root URL redirects to the admin login.
 Admin pages remain at /tspro/* and the authenticated dashboard is at /tspro/.
 """
 import os
-from flask import Blueprint, render_template, redirect, url_for, abort, request, current_app
+from flask import Blueprint, render_template, redirect, url_for, abort, request, current_app, g
 from flask_login import current_user
 from .models import SiteSetting, Meeting, FrontendNavItem, Post, Story, BlogPost, BlogCategory, BlogTag
 
@@ -23,6 +23,8 @@ def _record_visitor_event():
     fully defensive — any failure is swallowed so a flaky write
     can't break the public site."""
     from . import visitor_metrics
+    if request.environ.get("tspro.mcp_token_id"):
+        return  # an agent checking its work (app/mcp.py), not a visitor
     visitor_metrics.record_visit()
 
 
@@ -1031,6 +1033,8 @@ def _template_meta(templates, key):
 #   body_font     — same shape as heading_font
 #   heading_size  — int percent scale (default 100)
 #   body_size     — int percent scale (default 100)
+#   heading_weight, heading_spacing, heading_case, heading_link_hover,
+#   body_weight, body_line_height — a key from TPL_TYPE_CHOICES
 #
 # Resolves at render time into a CSS-vars string injected onto the template's
 # top-level <section> via inline style. Each template's CSS reads those vars
@@ -1041,6 +1045,27 @@ def _template_meta(templates, key):
 
 import re as _re_tpl
 _HEX_RE_TPL = _re_tpl.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
+
+# Typography settings every page template offers besides font and size:
+# setting -> (CSS variable, [(stored key, label, CSS value)]). The rules
+# that apply them to any layout are under "Per-template typography" in
+# frontend.css.
+_TPL_WEIGHTS = [("300", "Light", "300"), ("400", "Regular", "400"), ("500", "Medium", "500"),
+                ("600", "Semibold", "600"), ("700", "Bold", "700"), ("800", "Extra bold", "800"),
+                ("900", "Black", "900")]
+TPL_TYPE_CHOICES = {
+    "heading_weight": ("--tpl-heading-weight", _TPL_WEIGHTS),
+    "heading_spacing": ("--tpl-heading-spacing", [
+        ("tighter", "Tighter", "-0.03em"), ("tight", "Tight", "-0.015em"), ("normal", "Normal", "0"),
+        ("wide", "Wide", "0.03em"), ("wider", "Wider", "0.08em")]),
+    "heading_case": ("--tpl-heading-case", [("none", "As typed", "none"), ("uppercase", "Uppercase", "uppercase")]),
+    "heading_link_hover": ("--tpl-heading-link-hover", [
+        ("underline", "Underline", "underline"), ("none", "No underline", "none")]),
+    "body_weight": ("--tpl-body-weight", _TPL_WEIGHTS[:5]),
+    "body_line_height": ("--tpl-body-line", [
+        ("compact", "Compact", "1.4"), ("normal", "Normal", "1.6"), ("relaxed", "Relaxed", "1.8"),
+        ("loose", "Loose", "2")]),
+}
 
 
 def template_settings(site, kind, key):
@@ -1054,7 +1079,8 @@ def template_settings(site, kind, key):
     import json
     defaults = {"bg": "", "bg_dark": "", "bg_dark_mode": "same",
                 "heading_font": "", "body_font": "",
-                "heading_size": 0.0, "body_size": 0.0}
+                "heading_size": 0.0, "body_size": 0.0,
+                **{k: "" for k in TPL_TYPE_CHOICES}}
     raw = (site.frontend_template_settings_json if site else None) or ""
     if not raw:
         return defaults
@@ -1081,6 +1107,9 @@ def template_settings(site, kind, key):
                 out[k] = round(v, 1)
         except (TypeError, ValueError):
             pass
+    for k, (_var, choices) in TPL_TYPE_CHOICES.items():
+        if leaf.get(k) in {c[0] for c in choices}:
+            out[k] = leaf[k]
     # Pass through every dynbg-related leaf key so the admin's
     # customize panel and the public-render shell can both read what
     # was saved. Earlier the function silently dropped these keys
@@ -1154,7 +1183,6 @@ def template_css_vars(settings):
     so the admin-chosen rem value behaves as the *desktop* size and shrinks
     on narrow viewports — matching the responsive behavior of each
     template's built-in defaults."""
-    from .fonts import font_stack
     from .design import derive_dark_color
     parts = []
     bg = settings.get("bg")
@@ -1177,6 +1205,18 @@ def template_css_vars(settings):
             bg_dark_val = manual or "var(--fe-color-surface-dark)"
         if bg_dark_val:
             parts.append(f"--tpl-bg-dark: {bg_dark_val};")
+    type_vars = template_type_vars(settings)
+    if type_vars:
+        parts.append(type_vars)
+    return " ".join(parts)
+
+
+def template_type_vars(settings):
+    """The typography part of ``template_css_vars``: fonts, sizes and the
+    TPL_TYPE_CHOICES settings. List pages put only this on their outer
+    element, since their background comes from the dynamic background."""
+    from .fonts import font_stack
+    parts = []
     if settings.get("heading_font"):
         parts.append(f"--tpl-heading-font: {font_stack(settings['heading_font'])};")
     if settings.get("body_font"):
@@ -1187,6 +1227,10 @@ def template_css_vars(settings):
     bs = settings.get("body_size") or 0
     if bs:
         parts.append(f"--tpl-body-size: {_fluid_clamp(bs, 1.0)};")
+    for k, (var, choices) in TPL_TYPE_CHOICES.items():
+        css = next((c[2] for c in choices if c[0] == settings.get(k)), None)
+        if css is not None:
+            parts.append(f"{var}: {css};")
     return " ".join(parts)
 
 
@@ -2426,7 +2470,7 @@ def story_submission_submit():
                           f"(download via the Stories admin)"]
         email_body = "\n".join(lines)
         body_html = _render_branded_email(
-            site, eyebrow="New story submission", title=title,
+            site, title=title,
             submitted=_email_submission_local(site, s.submitted_at),
             intro=("Reply directly to this email to reach the submitter."
                    if submitter_email else None),
@@ -2436,7 +2480,7 @@ def story_submission_submit():
                 _branded_field("Story", s.body),
             ],
             files=([{"name": s.submission_attachment_original,
-                     "label": "download via the Stories admin"}]
+                     "label": "Attachment"}]
                    if s.submission_attachment_original else None),
             cta_url=url_for("main.stories", show="pending", _external=True),
             cta_label="Review in the holding tank",
@@ -2592,6 +2636,10 @@ def submission_submit():
         return redirect(url_for("frontend.submission_form"))
     if not (is_announcement or is_event):
         flash("Pick at least one type — Announcement or Event.", "danger")
+        return redirect(url_for("frontend.submission_form"))
+    from .phone import is_phone, PHONE_HINT
+    if not is_phone(f.get("contact_phone")):
+        flash("Contact phone: " + PHONE_HINT, "danger")
         return redirect(url_for("frontend.submission_form"))
     if not submitter_name or not submitter_email:
         flash("Please include your name and email so we can follow up.", "danger")
@@ -2808,7 +2856,7 @@ def submission_submit():
                 _branded_field("Website label", p.website_label),
             ]
         body_html = _render_branded_email(
-            site, eyebrow=f"New {kind_label.lower()} submission", title=title,
+            site, title=title,
             intro="Reply directly to this email to reach the submitter.",
             sections=[
                 {"heading": "Submitter", "rows": [
@@ -4464,6 +4512,21 @@ def contact_submit():
             flash(err or "Security check failed — please try again.", "danger")
             return redirect(url_for("frontend.contact"))
 
+    success_msg = (getattr(site, "contact_form_success_message", None)
+                   or "Thanks — your message has been sent. We'll be in touch shortly.")
+
+    # A second post of the same message (a double click, a resend after a
+    # slow reply) saves and emails nothing more.
+    from datetime import datetime as _dt, timedelta as _td
+    from sqlalchemy import func as _func
+    if (ContactSubmission.query
+            .filter(_func.lower(ContactSubmission.email) == email.lower(),
+                    ContactSubmission.message == message,
+                    ContactSubmission.created_at >= _dt.utcnow() - _td(minutes=10))
+            .first()):
+        flash(success_msg, "success")
+        return redirect(url_for("frontend.contact"))
+
     sub = ContactSubmission(
         name=name, email=email, phone=phone, subject=subject,
         message=message, ip_address=(_client_ip() or "")[:64],
@@ -4502,7 +4565,7 @@ def contact_submit():
             lines.append(f"IP:      {sub.ip_address}")
         lines += ["", "─" * 60, "", message, "", "─" * 60]
         try:
-            review_url = url_for("main.contact_form", _external=True)
+            review_url = url_for("main.contact_message", cid=sub.id, _external=True)
             lines += ["", f"View in the admin: {review_url}"]
         except Exception:  # noqa: BLE001 — url_for can fail outside request ctx
             pass
@@ -4510,10 +4573,9 @@ def contact_submit():
 
         # Branded HTML twin (same look as every other form email).
         body_html = _render_branded_email(
-            site, eyebrow="New contact message",
-            title=(subject or f"Message from {name}"),
+            site, title=(subject or f"Message from {name}"),
             submitted=_email_submission_local(site, sub.created_at),
-            intro="Reply directly to this email — your reply goes to the visitor.",
+            intro="Reply directly to this email and your reply goes to the visitor.",
             fields=[
                 _branded_field("Name", name),
                 _branded_field("Email", email, "email"),
@@ -4521,31 +4583,21 @@ def contact_submit():
                 _branded_field("Subject", subject),
                 _branded_field("Message", message),
             ],
-            cta_url=url_for("main.contact_form", _external=True),
+            cta_url=url_for("main.contact_message", cid=sub.id, _external=True),
             cta_label="View in the admin",
             meta_text=(f"IP {sub.ip_address}" if sub.ip_address else None),
         )
 
-        # Override the From + Reply-To so admins can hit Reply in
-        # their mail client and have it route straight back to the
-        # visitor. send_mail() always writes From from SMTP settings
-        # and doesn't accept extras yet, so we hand-build the message
-        # below. Falls back to send_mail() on failure so an install
-        # that customised send_mail() doesn't lose the email path.
-        ok, err = _send_with_reply_to(site, recipients, subject_line,
-                                      body_text, body_html=body_html,
-                                      reply_to=email, reply_to_name=name)
-        if not ok:
-            # Fall back to the standard helper — drops Reply-To but
-            # still gets the message out (HTML twin included).
-            ok, err = send_mail(site, recipients, subject_line, body_text,
-                                body_html=body_html)
+        # Reply-To is the visitor, so admins can hit Reply in their mail
+        # client. One attempt only: a send that fails after the server
+        # took the message would otherwise deliver it twice.
+        ok, err = send_mail(site, recipients, subject_line, body_text,
+                            body_html=body_html,
+                            reply_to=email, reply_to_name=name)
         sub.email_sent = bool(ok)
         sub.email_error = (err or None) if not ok else None
         _db.session.commit()
 
-    success_msg = (getattr(site, "contact_form_success_message", None)
-                   or "Thanks — your message has been sent. We'll be in touch shortly.")
     flash(success_msg, "success")
     return redirect(url_for("frontend.contact"))
 
@@ -4820,7 +4872,7 @@ def recovery_contacts_submit():
                            "Contacts listing. Confirm below and your listing updates "
                            "automatically.")
             body_html = _render_branded_email(
-                site, eyebrow="Please confirm", title=_vtitle, intro=_vintro,
+                site, title=_vtitle, intro=_vintro,
                 buttons=[
                     {"url": confirm_url,
                      "label": ("Confirm removal" if wants_removal else "Confirm update"),
@@ -4864,8 +4916,7 @@ def recovery_contacts_submit():
             except Exception:  # noqa: BLE001
                 pass
             body_html = _render_branded_email(
-                site, eyebrow="New Recovery Contacts entry",
-                title=f"New listing from {name}",
+                site, title=f"New listing from {name}",
                 intro="It is awaiting your approval and is not yet visible to the public.",
                 fields=[
                     _branded_field("Name", name),
@@ -4942,8 +4993,7 @@ def recovery_contacts_confirm(token):
         if getattr(site, "recovery_contacts_removal_alerts", False) and site.mail_ready() and recipients:
             site_label = (site.frontend_title or "Trusted Servants")
             body_html = _render_branded_email(
-                site, eyebrow="Recovery Contacts removal confirmed",
-                title=f"{name} was removed from the list",
+                site, title=f"{name} was removed from the list",
                 intro=(f"{name} confirmed their removal from the {site_label} Recovery "
                        "Contacts list and has been taken off it automatically. No action needed."),
             )
@@ -5054,8 +5104,7 @@ def recovery_contacts_disavow(token):
         except Exception:  # noqa: BLE001
             _wt_url = None
         body_html = _render_branded_email(
-            site, eyebrow="Reported as not submitted by the owner",
-            title=f"Disavowed {kind} request — {name}",
+            site, title=f"Disavowed {kind} request — {name}",
             intro=(f"A {kind} request for the {site_label} Recovery Contacts listing "
                    f"“{name}” was reported as not submitted by the owner. The "
                    "request has been discarded and the listing locked against further "
@@ -5202,20 +5251,16 @@ def recovery_contacts_contact():
         "", "─" * 56, "", vmsg, "", "─" * 56,
     ])
     body_html = _render_branded_email(
-        site, eyebrow="Someone wants to connect",
-        title=f"{vname} would like to connect with you",
-        intro="You received this through the contact list. Reply directly to this email — your reply goes straight to them.",
+        site, title=f"{vname} would like to connect with you",
+        intro="You received this through the contact list. Reply directly to this email and your reply goes straight to them.",
         fields=[
             _branded_field("From", vname),
             _branded_field("Email", vemail, "email"),
             _branded_field("Message", vmsg),
         ],
     )
-    ok, err = _send_with_reply_to(site, entry.email, subject, body,
-                                  body_html=body_html,
-                                  reply_to=vemail, reply_to_name=vname)
-    if not ok:
-        ok, err = send_mail(site, entry.email, subject, body, body_html=body_html)
+    ok, err = send_mail(site, entry.email, subject, body, body_html=body_html,
+                        reply_to=vemail, reply_to_name=vname)
     if not ok:
         flash("Sorry — we couldn't send your message. Please try again later.", "danger")
         return back
@@ -5345,6 +5390,7 @@ def custom_form_submit(slug):
     everything."""
     import json as _json
     import uuid as _uuid
+    from .mail import send_mail
     from .models import CustomForm as _CF, FormSubmission as _FS, db as _db
 
     site = _site()
@@ -5511,26 +5557,22 @@ def custom_form_submit(slug):
             # must never block the notification, so guard it.
             _labels = {b.get("name"): (b.get("label") or b.get("name"))
                        for b in blocks if isinstance(b, dict) and b.get("name")}
-            try:
-                body_html = render_template(
-                    "email/form_submission.html",
-                    site_name=(site.frontend_title if site else None) or "Submission",
-                    site_logo_url=_email_site_logo_url(site),
-                    tspro_logo_url=_email_tspro_logo_url(site),
-                    form_title=cf.title,
-                    submitted=_email_submission_local(site, sub.created_at),
-                    ip=sub.ip,
-                    public_url=url_for("frontend.page_detail", slug=cf.slug, _external=True),
-                    detail_url=url_for("main.frontend_form_submission_detail",
-                                       sub_id=sub.id, _external=True),
-                    fields=_email_submission_fields(blocks, payload),
-                    files=[{"name": info.get("original"), "label": _labels.get(n)}
-                           for n, info in file_attachments.items()],
-                )
-            except Exception:
-                body_html = None
-            _send_with_reply_to(site, rcpts, subject, "\n".join(body_lines),
-                                body_html=body_html, reply_to=reply_to)
+            _fields = _email_submission_fields(blocks, payload)
+            body_html = _render_branded_email(
+                site, title=cf.title,
+                submitted=_email_submission_local(site, sub.created_at),
+                intro=(None if _fields else "No field values were submitted."),
+                fields=_fields,
+                files=[{"name": info.get("original"), "label": _labels.get(n)}
+                       for n, info in file_attachments.items()],
+                cta_url=url_for("main.frontend_form_submission_detail",
+                                sub_id=sub.id, _external=True),
+                cta_label="View submission in the admin",
+                meta_url=url_for("frontend.page_detail", slug=cf.slug, _external=True),
+                meta_text=f"IP {sub.ip or 'unknown'}",
+            )
+            send_mail(site, rcpts, subject, "\n".join(body_lines),
+                      body_html=body_html, reply_to=reply_to)
 
     # Success handoff: redirect if configured, otherwise render the form
     # template again with a success message inline.
@@ -5538,69 +5580,6 @@ def custom_form_submit(slug):
         return redirect(cf.redirect_url)
     msg = cf.thank_you_message or "Thanks — your submission was received."
     return _render_custom_form(cf, ctx=_frontend_context(site), success_message=msg)
-
-
-def _send_with_reply_to(site, recipients, subject, body_text, body_html=None,
-                        reply_to=None, reply_to_name=None):
-    """Lightweight twin of mail.send_mail that lets us set Reply-To.
-
-    Mirrors the outer helper's transport handling (SSL vs STARTTLS
-    vs plain) so a site whose SMTP server requires implicit TLS still
-    works. Sends a ``multipart/alternative`` (text + HTML) when
-    ``body_html`` is given. Returns ``(ok, error)`` exactly like
-    ``send_mail`` so the caller can branch identically.
-    """
-    import smtplib, ssl
-    from email.message import EmailMessage
-    from email.utils import formataddr
-    from .crypto import decrypt
-    from .mail import _recipients, send_mail
-
-    # API-relay transport has no local SMTP socket — hand the whole
-    # message (Reply-To + HTML included) to the canonical relay sender.
-    if (getattr(site, "mail_transport", "smtp") or "smtp") == "relay":
-        return send_mail(site, recipients, subject, body_text,
-                         body_html=body_html,
-                         reply_to=reply_to, reply_to_name=reply_to_name)
-
-    if not site or not site.smtp_host or not site.smtp_from_email:
-        return False, "SMTP is not configured"
-    rcpts = recipients if isinstance(recipients, list) else _recipients(recipients)
-    if not rcpts:
-        return False, "No recipients"
-
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = formataddr((site.smtp_from_name or "", site.smtp_from_email))
-    msg["To"] = ", ".join(rcpts)
-    if reply_to:
-        msg["Reply-To"] = formataddr((reply_to_name or "", reply_to))
-    msg.set_content(body_text or "")
-    if body_html:
-        msg.add_alternative(body_html, subtype="html")
-
-    password = decrypt(site.smtp_password_enc) if site.smtp_password_enc else ""
-    port = int(site.smtp_port or (465 if site.smtp_security == "ssl" else 587))
-    host = site.smtp_host
-    try:
-        if site.smtp_security == "ssl":
-            ctx = ssl.create_default_context()
-            with smtplib.SMTP_SSL(host, port, timeout=20, context=ctx) as s:
-                if site.smtp_username:
-                    s.login(site.smtp_username, password)
-                s.send_message(msg)
-        else:
-            with smtplib.SMTP(host, port, timeout=20) as s:
-                s.ehlo()
-                if site.smtp_security == "starttls":
-                    s.starttls(context=ssl.create_default_context())
-                    s.ehlo()
-                if site.smtp_username:
-                    s.login(site.smtp_username, password)
-                s.send_message(msg)
-        return True, None
-    except Exception as exc:  # noqa: BLE001
-        return False, str(exc)
 
 
 def _branded_field(label, value, ftype=None):
@@ -5615,7 +5594,7 @@ def _branded_field(label, value, ftype=None):
     return {"label": label, "value": v, "type": ftype}
 
 
-def _render_branded_email(site, *, eyebrow, title, submitted=None, intro=None,
+def _render_branded_email(site, *, title, submitted=None, intro=None,
                           sections=None, fields=None, files=None,
                           cta_url=None, cta_label=None, buttons=None,
                           meta_text=None, meta_url=None, meta_url_label=None):
@@ -5638,7 +5617,9 @@ def _render_branded_email(site, *, eyebrow, title, submitted=None, intro=None,
             site_name=(getattr(site, "frontend_title", None) if site else None) or "Notification",
             site_logo_url=_email_site_logo_url(site),
             tspro_logo_url=_email_tspro_logo_url(site),
-            eyebrow=eyebrow, title=title, submitted=submitted, intro=intro,
+            site_home_url=((getattr(site, "site_url", None) or "").strip().rstrip("/") + "/"
+                           if (getattr(site, "site_url", None) or "").strip() else None),
+            title=title, submitted=submitted, intro=intro,
             sections=sections, files=files or [], buttons=buttons or [],
             cta_url=cta_url, cta_label=cta_label,
             meta_text=meta_text, meta_url=meta_url, meta_url_label=meta_url_label,
@@ -5678,7 +5659,7 @@ def _email_asset_url(site, endpoint, **values):
 
 def _email_tspro_logo_url(site):
     """Absolute URL to the bundled Trusted Servants Pro email logo."""
-    return _email_asset_url(site, "static", filename="img/logo_email.png")
+    return _email_asset_url(site, "static", filename="img/logo_tspro_email.png")
 
 
 def _email_logo_png_ready(site, filename):
@@ -6124,6 +6105,8 @@ def popup_preview(popup_id):
     # Override the context-processor's enabled-only list with this single
     # popup (which may be disabled) so the partial renders it.
     ctx["popups"] = [popup]
+    # Marks each block so the editor's preview can open it on a click.
+    g.pb_marks = True
     return render_template("frontend/popup_preview.html",
                            popup=popup, popup_force_open=popup.name, **ctx)
 

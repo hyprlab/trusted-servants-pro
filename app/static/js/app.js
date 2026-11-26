@@ -77,6 +77,35 @@
 
   const menu = document.getElementById("menu-toggle");
   const side = document.querySelector(".sidebar");
+
+  // Hide main sidebar switch in the Web Frontend subnav: hides or shows the
+  // main app sidebar at once, then saves the per-user pref. A failed
+  // save puts the switch and the layout back.
+  document.addEventListener("change", e => {
+    const box = e.target.closest && e.target.closest("[data-fe-wide]");
+    if (!box) return;
+    const html = document.documentElement;
+    const apply = on => {
+      document.body.classList.toggle("fe-admin-autohide", on);
+      document.querySelectorAll("[data-fe-wide]").forEach(b => { b.checked = on; });
+      if (side) side.classList.remove("open");
+    };
+    const flip = on => {
+      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!document.startViewTransition || still) { apply(on); return; }
+      html.classList.add("fe-wide-flip");
+      const vt = document.startViewTransition(() => apply(on));
+      vt.finished.finally(() => html.classList.remove("fe-wide-flip"));
+    };
+    const on = box.checked;
+    flip(on);
+    const fd = new FormData();
+    if (on) fd.append("fe_admin_autohide_sidebar", "1");
+    fetch(box.dataset.feWide, { method: "POST", body: fd,
+                                headers: { "X-Requested-With": "fetch" } })
+      .then(r => { if (!r.ok) throw new Error(r.status); })
+      .catch(() => flip(!on));
+  });
   if (menu && side) {
     menu.addEventListener("click", e => {
       e.stopPropagation();
@@ -231,9 +260,13 @@
       closeTips();
     }
   });
+  // Capture phase, so Escape with a tooltip open closes only the
+  // tooltip and not the modal or drawer the chip sits in.
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeTips();
-  });
+    if (e.key !== "Escape" || !document.querySelector(".heading-help.open")) return;
+    closeTips();
+    e.stopPropagation();
+  }, true);
 
   // Branding: live-preview footer logo width + selected file
   const bWidth = document.getElementById("branding-width-slider");
@@ -1743,6 +1776,31 @@
     });
   });
 
+  // Any script: pick one file from the File Browser, opened on `kind`
+  // (a Kind filter key, or '' for every file). `onPick(item)` gets the
+  // picked file ({id, original_filename, …}).
+  let currentMediaCallback = null;
+  window.tspPickFile = function (kind, onPick) {
+    if (!document.getElementById("media-picker-modal")) return false;
+    currentMediaTarget = null;
+    currentMediaMode = "callback";
+    currentMediaCallback = onPick;
+    pointPicker(false, kind || "");
+    openModal("media-picker-modal");
+    return true;
+  };
+
+  // Page editor, Sharing tab: preview image from the File Browser. The
+  // page's own script (window.tspPageOgPicked) takes the pick.
+  document.querySelectorAll("[data-page-og-picker]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentMediaTarget = null;
+      currentMediaMode = "page-og";
+      pointPicker(false, "img");
+      openModal("media-picker-modal");
+    });
+  });
+
   // Post edit page — Gallery "Choose from File Browser" button. Same
   // picker modal as the featured-image one but the selected item
   // gets appended to the gallery list (up to the 10-image cap)
@@ -1954,6 +2012,22 @@
       if (ta && item && item.original_filename && window.tspMdInsertImage) {
         window.tspMdInsertImage(ta, item.original_filename);
       }
+      return;
+    }
+    if (currentMediaMode === "callback") {
+      const cb = currentMediaCallback;
+      currentMediaCallback = null;
+      const mc = document.getElementById("media-picker-modal");
+      if (mc) closeModal(mc);
+      currentMediaMode = null;
+      if (typeof cb === "function" && item) cb(item);
+      return;
+    }
+    if (currentMediaMode === "page-og") {
+      if (typeof window.tspPageOgPicked === "function") window.tspPageOgPicked(item);
+      const mp = document.getElementById("media-picker-modal");
+      if (mp) closeModal(mp);
+      currentMediaMode = null;
       return;
     }
     if (currentMediaMode === "post-gallery") {
@@ -2183,20 +2257,38 @@
     }
     return host;
   }
-  function showToast(msg, kind) {
+  // `opts.action` ({label, run}) adds a button (e.g. Undo) and keeps
+  // the toast up longer; `opts.ms` sets how long it stays.
+  function showToast(msg, kind, opts) {
+    opts = opts || {};
     const host = ensureToastHost();
     const el = document.createElement("div");
     el.className = "tsp-toast" + (kind === "error" ? " tsp-toast-error" : "");
-    el.textContent = msg;
-    host.appendChild(el);
-    // Trigger transition next frame.
-    requestAnimationFrame(() => el.classList.add("tsp-toast-in"));
-    setTimeout(() => {
+    el.setAttribute("role", "status");
+    const text = document.createElement("span");
+    text.textContent = msg;
+    el.appendChild(text);
+    function dismiss() {
       el.classList.remove("tsp-toast-in");
       el.addEventListener("transitionend", () => el.remove(), { once: true });
       // Fallback cleanup in case transitionend doesn't fire.
       setTimeout(() => el.remove(), 500);
-    }, 1600);
+    }
+    if (opts.action && opts.action.label) {
+      el.classList.add("tsp-toast-has-action");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tsp-toast-action";
+      btn.textContent = opts.action.label;
+      btn.addEventListener("click", () => {
+        try { opts.action.run(); } finally { dismiss(); }
+      });
+      el.appendChild(btn);
+    }
+    host.appendChild(el);
+    // Trigger transition next frame.
+    requestAnimationFrame(() => el.classList.add("tsp-toast-in"));
+    setTimeout(dismiss, opts.ms || (opts.action ? 6000 : 1600));
   }
   // Expose for manual "Save order" button and other callers.
   window.tspShowToast = showToast;
@@ -4679,8 +4771,10 @@
     // builder's Edit-layout modal re-dispatches its block-editor inputs
     // onto the outer page form (so the form itself looks "non-modal"
     // even though the visitor is actively working inside a modal panel).
+    // The page builder stays open too: it is a layer over the screen.
     const stayOpen = forms.every(f => f.closest('.modal')) ||
-                     !!document.querySelector('.modal.open');
+                     !!document.querySelector('.modal.open') ||
+                     document.body.classList.contains('pb-on');
     try {
       for (const f of forms) {
         const fd = new FormData(f);
@@ -8488,6 +8582,18 @@
     const dots = fig.querySelector('.wtc-focus-dots');
     if (!svg || !dataEl || !tip) return;
 
+    // The viewBox scales with the card, and its text with it: 11px ticks
+    // read near 20px on a wide screen. --wtc-k is viewBox units per screen
+    // pixel; the CSS multiplies font sizes by it. Capped so a phone-width
+    // chart doesn't grow labels past its gutters.
+    const fitText = () => {
+      const w = svg.getBoundingClientRect().width;
+      const vw = Number((svg.getAttribute('viewBox') || '').split(/\s+/)[2]) || 0;
+      if (w && vw) fig.style.setProperty('--wtc-k', Math.min(vw / w, 1.6).toFixed(3));
+    };
+    fitText();
+    if (window.ResizeObserver) new ResizeObserver(fitText).observe(svg);
+
     let points = [];
     try {
       points = JSON.parse(dataEl.textContent) || [];
@@ -8633,7 +8739,7 @@
   });
 });
 
-// Segmented controls (.st-seg, accent; .ds-seg-btns, raised chip): the
+// Segmented controls (.st-seg, .ds-seg-btns, both a raised chip): the
 // chosen part's highlight is one shape that slides to whichever part is
 // chosen, rather than each part lighting up on its own. It moves in both
 // directions, since a control with many parts wraps onto a second row,

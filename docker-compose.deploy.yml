@@ -26,10 +26,13 @@ services:
         max-file: "3"
 
   # Daily image-prune janitor — an independent safety net for disk growth.
-  # Removes everything unused for >72h, catching images orphaned by manual
-  # `docker compose pull`, :latest churn, or partial pulls (which Watchtower's
-  # own cleanup never touches). NOTE: prune is host-wide; this is intended for
-  # a dedicated TSP host, not a shared box running other stacks.
+  # Removes untagged images, catching images orphaned by manual
+  # `docker compose pull` or :latest churn (which Watchtower's own cleanup never
+  # touches). Don't add -a to the image prune: on the containerd image store,
+  # "until" reads the age of the tag record, not of the image, so it can delete
+  # a fresh pull while Watchtower replaces a container. NOTE: prune is
+  # host-wide; this is intended for a dedicated TSP host, not a shared box
+  # running other stacks.
   docker-prune:
     image: docker:cli
     container_name: tspro-prune
@@ -39,7 +42,7 @@ services:
     command:
       - |
         while true; do
-          docker image prune -af --filter "until=72h" || true
+          docker image prune -f || true
           docker builder prune -af --filter "until=72h" || true
           sleep 86400
         done

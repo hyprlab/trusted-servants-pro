@@ -20,6 +20,7 @@
       {% else %}
       <dt>Destination</dt>    <dd>{{ t.kind|upper }}{% if t.kind != 'dropbox' %} · {{ t.host }}{% if t.port %}:{{ t.port }}{% endif %}{% endif %}</dd>
       {% if t.kind == 'ftp' %}<dt>Connection</dt><dd>{{ 'FTPS (encrypted)' if t.use_tls else 'Plain FTP — not encrypted' }}</dd>{% endif %}
+      {% if t.kind == 'sftp' and t.sftp_host_key %}<dt>Server key</dt><dd><code>{{ t.sftp_host_key|ssh_fp }}</code></dd>{% endif %}
       {% if t.username %}<dt>Username</dt><dd>{{ t.username }}</dd>{% endif %}
       <dt>Remote path</dt>    <dd><code>{{ t.remote_path or '/' }}</code></dd>
       {% endif %}

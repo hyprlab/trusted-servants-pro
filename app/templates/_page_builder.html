@@ -1,0 +1,83 @@
+{# The page builder: the page full screen, with the block library on the
+   left, the structure on the right and a toolbar along the top
+   (static/js/page_builder.js). It edits the same form as the edit
+   screen behind it, so going in and out keeps unsaved changes; a block's
+   settings open in the left panel (the editor's settings drawer, docked
+   there while the builder is open).
+
+   Expects `page`, `page_block_catalog`, and `draft_active`. #}
+{% from "_live_preview.html" import live_preview %}
+{% from "_frontend_structure_card.html" import structure_navigator, structure_block_palette %}
+<div class="pb" id="page-builder" data-pb hidden role="region" aria-label="Page builder">
+  <header class="pb-top">
+    <div class="pb-top-start">
+      <button type="button" class="pb-tool pb-tool--add" data-pb-toggle="add" aria-pressed="true"
+              title="Blocks to add to the page">{{ icon('plus') }}<span>Add</span></button>
+      <button type="button" class="pb-tool" data-pb-toggle="structure" aria-pressed="true"
+              title="The page's structure">{{ icon('indent') }}<span class="pb-hide-md">Structure</span></button>
+      <span class="pb-sep" aria-hidden="true"></span>
+      <button type="button" class="pb-tool pb-tool--icon" data-pb-proxy="undo" disabled title="Undo" aria-label="Undo">{{ icon('undo') }}</button>
+      <button type="button" class="pb-tool pb-tool--icon" data-pb-proxy="redo" disabled title="Redo" aria-label="Redo">{{ icon('redo') }}</button>
+      <button type="button" class="pb-tool pb-tool--icon" data-pb-history title="Edit history" aria-label="Edit history">{{ icon('history') }}</button>
+      <span class="pb-sep pb-hide-lg" aria-hidden="true"></span>
+      <div class="pb-doc pb-hide-lg">
+        <span class="pb-doc-title">{{ page.title or 'Untitled' }}</span>
+        <code class="pb-doc-slug">/{{ page.slug }}</code>
+      </div>
+    </div>
+
+    <div class="pb-top-mid">
+      <div class="ds-seg-btns pb-seg" role="radiogroup" aria-label="Screen size">
+        <button type="button" role="radio" aria-checked="true" data-pb-device="desktop" title="Desktop">{{ icon('monitor') }}</button>
+        <button type="button" role="radio" aria-checked="false" data-pb-device="tablet" title="Tablet, 768px">{{ icon('tablet') }}</button>
+        <button type="button" role="radio" aria-checked="false" data-pb-device="phone" title="Phone, 390px">{{ icon('smartphone') }}</button>
+      </div>
+      <div class="ds-seg-btns pb-seg" role="radiogroup" aria-label="Color mode">
+        <button type="button" role="radio" aria-checked="true" data-pb-mode="light" title="Light mode">{{ icon('sun') }}</button>
+        <button type="button" role="radio" aria-checked="false" data-pb-mode="dark" title="Dark mode">{{ icon('moon') }}</button>
+      </div>
+      <button type="button" class="pb-tool pb-tool--icon" data-pb-refresh title="Refresh the page" aria-label="Refresh the page">{{ icon('refresh') }}</button>
+    </div>
+
+    <div class="pb-top-end">
+      <span class="pb-state" data-pb-state aria-live="polite"></span>
+      <button type="button" class="pb-tool pb-tool--icon" data-pb-preview title="Open a preview of these changes in a new tab"
+              aria-label="Preview in a new tab">{{ icon('eye') }}</button>
+      {% if page.is_published %}
+      <button type="button" class="btn pb-btn" data-pb-save="draft" disabled
+              title="Save as a private draft; the live page stays as it is">Save draft</button>
+      {% endif %}
+      <button type="button" class="btn btn-primary pb-btn" data-pb-save="publish" disabled
+              title="{{ 'Publish these changes to the live page' if page.is_published else 'Save the page' }}">{{ 'Publish' if page.is_published else 'Save' }}</button>
+      {% if page.is_published %}
+      <button type="button" class="btn btn-primary pb-btn" data-pb-publish-draft data-pb-has-draft="{{ '1' if draft_active else '0' }}" hidden
+              title="Publish the saved draft to the live page as it stands">Publish draft</button>
+      {% endif %}
+      <span class="pb-sep" aria-hidden="true"></span>
+      <button type="button" class="pb-tool pb-tool--exit" data-pb-exit title="Back to the page settings (unsaved changes stay)">
+        {{ icon('log-out') }}<span>Exit</span></button>
+    </div>
+  </header>
+
+  <div class="pb-body">
+    <aside class="pb-left" data-pb-panel="add" aria-label="Add a block">
+      {{ structure_block_palette(page_block_catalog) }}
+    </aside>
+
+    <main class="pb-canvas" data-pb-canvas>
+      {{ live_preview(url_for('frontend.page_preview', page_id=page.id), '#page-edit-form', height=700, width=1280,
+                      title='Page', overrides={'save_action': 'publish'}, watch=True, id='pb-preview', fill=True) }}
+    </main>
+
+    <aside class="pb-right" data-pb-panel="structure" aria-label="Structure">
+      <div class="pb-panel-head">
+        <h2>{{ icon('indent') }}Structure</h2>
+        <button type="button" class="icon-btn" data-pb-toggle="structure" title="Hide the structure" aria-label="Hide the structure">{{ icon('x') }}</button>
+      </div>
+      {{ structure_navigator(page_block_catalog, 'page-layout-edit-modal',
+                             dedicated={'hero': 'page-hero-edit-modal', 'meetings': 'page-meetings-edit-modal',
+                                        'events': 'page-events-edit-modal', 'features': 'page-features-edit-modal',
+                                        'faq': 'page-faq-edit-modal'}) }}
+    </aside>
+  </div>
+</div>

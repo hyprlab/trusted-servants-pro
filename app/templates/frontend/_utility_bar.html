@@ -237,14 +237,19 @@
          role="group" aria-label="More links" hidden></div>
     <div class="fe-utility-overflow-panel" data-fe-utility-overflow-panel="right"
          role="group" aria-label="More links" hidden></div>
-    {# Mobile swipe hints — same pulsing chevrons as the announcements
-       omni bar (.fe-omni-scroll-hint) at half the pulse speed, pinned
-       to the bar's outer edges outside the swipe strip's content. The
+    {# Swipe chevrons — same pulsing chevrons as the announcements omni
+       bar (.fe-omni-scroll-hint) at half the pulse speed, pinned to the
+       bar's outer edges outside the swipe strip's content. The
        `has-left` / `has-right` classes are stamped on the bar by the
        scroll listener below; content near an active edge fades out
-       under a CSS mask so long items never collide with a chevron. #}
-    <span class="fe-omni-scroll-hint fe-utility-scroll-hint fe-omni-scroll-hint--left" aria-hidden="true">{{ icon('chevron-left') }}</span>
-    <span class="fe-omni-scroll-hint fe-utility-scroll-hint fe-omni-scroll-hint--right" aria-hidden="true">{{ icon('chevron-right') }}</span>
+       under a CSS mask so long items never collide with a chevron.
+       They are buttons: a click (or Enter) steps to the previous or
+       next item, for a mouse or keyboard that can't swipe, e.g. a
+       desktop zoomed in far enough to get the swipe strip. #}
+    <button type="button" class="fe-omni-scroll-hint fe-utility-scroll-hint fe-omni-scroll-hint--left"
+            data-fe-utility-step="-1" aria-label="Previous links" title="Previous">{{ icon('chevron-left') }}</button>
+    <button type="button" class="fe-omni-scroll-hint fe-utility-scroll-hint fe-omni-scroll-hint--right"
+            data-fe-utility-step="1" aria-label="More links" title="Next">{{ icon('chevron-right') }}</button>
   </div>
 
   <script>
@@ -305,6 +310,33 @@
       window.addEventListener('resize', updateHints);
       updateHints();
       setTimeout(updateHints, 140);
+
+      // A chevron click steps to the neighbouring snap point (an item,
+      // a side or the live message, whichever the mobile mode snaps
+      // to), centred the way a swipe would leave it.
+      var step = function(dir){
+        var box = strip.getBoundingClientRect();
+        var mid = strip.scrollLeft + strip.clientWidth / 2;
+        var best = null;
+        strip.querySelectorAll('.fe-utility-bar-center, .fe-utility-bar-side, .fe-utility-mobile-item').forEach(function(el){
+          if (!el.offsetWidth) return;
+          if ((getComputedStyle(el).scrollSnapAlign || '').indexOf('center') === -1) return;
+          var r = el.getBoundingClientRect();
+          var c = r.left - box.left + strip.scrollLeft + r.width / 2;
+          if (dir > 0 ? c > mid + 4 : c < mid - 4) {
+            if (best === null || Math.abs(c - mid) < Math.abs(best - mid)) best = c;
+          }
+        });
+        var max = strip.scrollWidth - strip.clientWidth;
+        var left = best === null ? strip.scrollLeft + dir * strip.clientWidth
+                                 : best - strip.clientWidth / 2;
+        strip.scrollTo({left: Math.max(0, Math.min(max, left)), behavior: 'smooth'});
+      };
+      bar.querySelectorAll('[data-fe-utility-step]').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          step(parseInt(btn.getAttribute('data-fe-utility-step'), 10) || 1);
+        });
+      });
     }
 
     // ── Desktop collision guard (overflow popover) ──

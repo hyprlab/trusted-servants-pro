@@ -40,7 +40,7 @@
 {%- set _dynbg_color_vars = dynbg_colors_css(dynbg_resolve_colors(_dynbg_cfg), _dynbg_cfg) -%}
 {%- set _dynbg_pos_vars = dynbg_resolve_positions(_dynbg_cfg, _dynbg) -%}
 {%- set _dynbg_inline = (_dynbg_color_vars ~ " " ~ _dynbg_pos_vars) | trim -%}
-<section class="fe-section fe-contact-section fe-dynbg-host fe-mlist--w-{{ _cwmode }}"{% if _dynbg_inline %} style="{{ _dynbg_inline }}"{% endif %}>
+<section class="fe-section fe-contact-section fe-dynbg-host fe-mlist--w-{{ _cwmode }}"{% set _host_style = (_dynbg_inline ~ ' ' ~ template_type_vars(_tpl)) | trim %}{% if _host_style %} style="{{ _host_style }}"{% endif %}>
   {% with dynbg_key=_dynbg, dynbg_config=_dynbg_cfg_raw %}{% include "frontend/_dynbg_apply.html" %}{% endwith %}
   <div class="{% if _cwmode == 'boxed' %}fe-container{% else %}fe-mlist-fullwrap{% endif %} fe-contact-container"
        {% if _cwmode == 'boxed' %}style="max-width: {{ _cwmax }}px;"
@@ -143,7 +143,10 @@
             {% endif %}
 
             <div class="fe-submission-actions fe-contact-actions">
-              <button class="btn btn-primary fe-submission-submit" type="submit">{{ _submit_label }}</button>
+              <button class="btn btn-primary fe-submission-submit" type="submit" data-fe-submit-btn>
+                <span class="fe-btn-spinner" aria-hidden="true"></span>
+                <span class="fe-btn-label">{{ _submit_label }}</span>
+              </button>
             </div>
             <p class="muted smaller fe-submission-fineprint fe-contact-fineprint">
               We only use your email to reply to your message. Required fields are marked <span class="req">*</span>.
@@ -155,6 +158,30 @@
   </div>
 </section>
 
+<script>
+// Send the message once, with a spinner on the button while it posts: a
+// second click would send it twice.
+(function () {
+  var form = document.getElementById('contact-form');
+  if (!form) return;
+  var btn = form.querySelector('[data-fe-submit-btn]');
+  var label = btn && btn.querySelector('.fe-btn-label');
+  var labelText = label && label.textContent;
+  var sent = false;
+  form.addEventListener('submit', function (e) {
+    if (sent) { e.preventDefault(); return; }
+    sent = true;
+    if (btn) btn.setAttribute('aria-busy', 'true');
+    if (label) label.textContent = 'Sending…';
+  });
+  // Back from the next page: the form can be sent again.
+  window.addEventListener('pageshow', function () {
+    sent = false;
+    if (btn) btn.removeAttribute('aria-busy');
+    if (label) label.textContent = labelText;
+  });
+})();
+</script>
 {% if site and site.turnstile_enabled and site.turnstile_site_key %}
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 {% endif %}

@@ -53,6 +53,8 @@ _SECTIONS = [
          ("main.frontend_cookie_compliance",)),
         ("library", "Font & icon library", "type", "main.frontend_fonts_icons",
          ("main.frontend_fonts_icons",)),
+        ("agents", "Agent access", "plug", "main.frontend_mcp",
+         ("main.frontend_mcp",)),
         ("metrics", "Visitor metrics", "bar-chart", "main.watchtower_visitors", ()),
     ]),
 ]

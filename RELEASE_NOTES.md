@@ -9,7 +9,263 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
-## 3.2.1 — 2026-10-10 (latest)
+## 3.11.0 — 2026-11-26 (latest)
+
+New features:
+
+- Edit page button on public pages for admins
+
+Fixes:
+
+- Edit post button label taking the site link color
+
+## 3.10.0 — 2026-11-26
+
+New features:
+
+- revert button beside each changed block setting
+- image and Lottie widths in %, px, rem, em or vw
+- Lottie files chosen from the File Browser, which gains a Lottie filter
+
+Changes:
+
+- live previews update in place without greying out
+
+## 3.9.0 — 2026-11-26
+
+New features:
+
+- popup preview and page builder: click a block to edit it
+- page preview image chosen from the File Browser
+- Pages, Popups, Forms and Page templates open on an index of cards with previews, or a list
+- full-screen page builder: block library, structure, the page at desktop, tablet or phone size, and a toolbar on the selected block
+- drag blocks from the library onto the page
+- drag any block on the page to move it
+- Hide main sidebar switch in the Web Frontend sidebar
+- page builder settings per device: Desktop, Tablet and Phone
+
+Changes:
+
+- block settings help text behind info icons
+- list items edited in boxes that expand for paragraphs
+
+Fixes:
+
+- container padding controls overflowing their panel, with blank unit boxes
+
+## 3.8.1 — 2026-11-25
+
+Fixes:
+
+- utility bar items out of reach without swiping, e.g. on a zoomed-in desktop
+
+## 3.8.0 — 2026-11-25
+
+New features:
+
+- Page structure as a collapsible tree with drag and drop and a right-click menu
+- Undo and redo in the page and popup builders
+- Copy and paste blocks between pages and popups
+- Wrap blocks in a container, or unwrap one
+
+Changes:
+
+- Block settings open in a full-height drawer from the right
+- Cleaner block settings with segmented controls, switches and one color field
+
+Fixes:
+
+- block settings checkboxes showing ticked when off
+- dark-mode color fields showing when set to Same
+- theme colors showing as black in block settings
+- slow opening and closing of block settings
+- admin pages using the processor while idle
+
+## 3.7.0 — 2026-11-25
+
+New features:
+
+- Intergroup Elections page template
+
+Fixes:
+
+- in-page heading links landing under the sticky header
+
+## 3.6.7 — 2026-11-25
+
+Changes:
+
+- Manual OTP inbox login collapsed on meeting pages
+
+## 3.6.6 — 2026-11-23
+
+Changes:
+
+- Clearer Announcement and Event hints on the submission form
+
+## 3.6.5 — 2026-11-13
+
+Changes:
+
+- Event contact phone accepts numbers only
+
+Fixes:
+
+- long contact emails overflowing the event contact card
+- saves blocked without a message when a field on a hidden editor tab was invalid
+
+## 3.6.4 — 2026-11-12
+
+Changes:
+
+- access requests first on Watchtower Requests, then pending and recent password resets
+- site logo centered in notification emails
+
+Fixes:
+
+- Watchtower Requests columns squeezed by long email addresses: pills and dates wrapping, contact email split mid-word, table running off the side
+
+## 3.6.3 — 2026-11-11
+
+Fixes:
+
+- library readings on the meeting edit page hidden behind an inner scrollbar
+
+## 3.6.2 — 2026-11-06
+
+Fixes:
+
+- image janitor deleting a fresh pull during an auto-update, leaving the service missing
+- SFTP backups not checking the server's identity
+
+## 3.6.1 — 2026-11-01
+
+Changes:
+
+- no Reply button above a contact message, the reply box is on the page
+
+## 3.6.0 — 2026-11-01
+
+New features:
+
+- reply to contact messages from the message's page
+- a personal reply signature in Settings, filled in under contact replies
+
+Changes:
+
+- a spinner on the contact and access request send buttons while they send
+
+Fixes:
+
+- contact message notifications opening the inbox instead of the message
+- a double click filing a contact message, access request or form submission twice
+- contact form emails sometimes arriving twice
+
+## 3.5.0 — 2026-10-27
+
+New features:
+
+- draft posts keep a posted date set by hand, including a past one
+
+Changes:
+
+- more room around the text of the cards under More events
+
+Fixes:
+
+- event cards showing their text twice
+- the year in event date chips in a second color
+- links in shortened event and announcement card text showing their HTML
+- the Today button in the event editor not bringing up the save bar
+- duplicated and draft posts opening with a posted time hours in the future
+
+## 3.4.0 — 2026-10-27
+
+New features:
+
+- MCP server for AI agents to edit the web frontend, under Web Frontend → Agent access
+- heading weight, letter spacing, case and link hover, text weight and line spacing for every page template
+
+Fixes:
+
+- linked headings on public pages drawn thinner than their template sets
+- the next event's title on the events page underlined on hover
+
+## 3.3.9 — 2026-10-25
+
+Fixes:
+
+- access requests and locked accounts counted twice, in the notifications modal and on Watchtower
+
+## 3.3.8 — 2026-10-23
+
+Fixes:
+
+- security flaws in Pillow, which resizes uploaded images
+
+## 3.3.7 — 2026-10-23
+
+Changes:
+
+- Plainer notification emails: site logo and time in the header, answers in a label and value table, no uppercase heading
+
+## 3.3.6 — 2026-10-21
+
+Changes:
+
+- Every admin segmented control in the neutral raised-chip style
+
+## 3.3.5 — 2026-10-21
+
+Changes:
+
+- Computer-only hosting notice in the Zoom panel of a meeting
+- Full-width Launch Zoom Meeting (Guided) button
+
+Fixes:
+
+- passcode inbox details overflowing the Zoom Accounts sidebar
+
+## 3.3.4 — 2026-10-16
+
+Fixes:
+
+- Announcements & Events list squeezing titles when the window is narrow
+
+## 3.3.3 — 2026-10-16
+
+Changes:
+
+- Meeting page on a phone shows the Zoom details between the schedule and the files
+
+## 3.3.2 — 2026-10-11
+
+Changes:
+
+- Generated passwords for new users default to 16 characters
+
+Fixes:
+
+- Create user button spinner sitting off center
+
+## 3.3.1 — 2026-10-11
+
+Fixes:
+
+- Watchtower times shown in UTC instead of the site timezone
+
+## 3.3.0 — 2026-10-10
+
+New features:
+
+- Access requests open on their own page, with the whole message
+
+Fixes:
+
+- Watchtower chart labels oversized on wide screens
+- a stray line at the left edge of Watchtower charts
+
+## 3.2.1 — 2026-10-10
 
 Fixes:
 

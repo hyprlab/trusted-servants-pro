@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Display-only phone-number formatting for the public frontend.
+"""Phone-number input rules and display formatting for the public frontend.
 
-Stored values are never touched — submitters can type whatever they like,
-and we tidy it up only when rendering. The goals:
+Fields that use ``PHONE_PATTERN`` / ``is_phone`` accept digits and the
+usual separators only, so a name or email typed into the wrong box is
+caught. Stored values are otherwise kept as typed and tidied only when
+rendering. The display goals:
 
   * 10-digit North American numbers     ->  202-555-0100
   * 11-digit North American (leading 1) ->  1-202-555-0100
@@ -13,6 +15,19 @@ Anything we can't confidently parse is returned exactly as entered, so an
 unusual or partial number is shown verbatim rather than mangled.
 """
 import re
+
+# Digits plus spaces and + ( ) - . with at least one digit. The HTML
+# form is for an <input pattern>, which browsers compile with the "v"
+# flag, so the class punctuation is escaped.
+PHONE_PATTERN = r"[ \+\(\)\.\-]*[0-9][0-9 \+\(\)\.\-]*"
+PHONE_HINT = "Numbers only, with optional spaces and + ( ) - ."
+_PHONE_RE = re.compile(r"[ +().\-]*[0-9][0-9 +().\-]*")
+
+
+def is_phone(value):
+    """True when ``value`` is blank or a phone number by PHONE_PATTERN."""
+    s = (value or "").strip()
+    return not s or bool(_PHONE_RE.fullmatch(s))
 
 
 def _hyphenate_nanp(national_digits):

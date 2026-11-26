@@ -102,16 +102,26 @@
   var btn = form.querySelector('[data-fe-submit-btn]');
   var label = btn && btn.querySelector('.fe-btn-label');
   var submitting = false;
-  form.addEventListener('submit', function () {
+  form.addEventListener('submit', function (e) {
     // Honour native required-field validation: a blocked submit never
-    // reaches here, so the spinner only fires on a genuine send.
-    if (submitting) return;
+    // reaches here, so the spinner only fires on a genuine send. A second
+    // click while it posts would send it twice.
+    if (submitting) { e.preventDefault(); return; }
     submitting = true;
     form.classList.add('is-submitting');
     if (label) label.textContent = 'Submitting…';
     // Defer the busy flag so the button's value still posts and the
     // submit navigation proceeds uninterrupted.
     setTimeout(function () { if (btn) btn.setAttribute('aria-busy', 'true'); }, 0);
+  });
+  // Back from the next page: the form can be sent again.
+  var labelText = label && label.textContent;
+  window.addEventListener('pageshow', function (e) {
+    if (!e.persisted) return;
+    submitting = false;
+    form.classList.remove('is-submitting');
+    if (label) label.textContent = labelText;
+    if (btn) btn.removeAttribute('aria-busy');
   });
 })();
 </script>

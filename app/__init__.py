@@ -373,6 +373,65 @@ def create_app():
         html = md_lib.markdown(prepped, extensions=["extra", "nl2br", "sane_lists"])
         return Markup(_clean_html(html, SAFE_RICH_TAGS, SAFE_RICH_ATTRS))
 
+    @app.template_filter("truncate_html")
+    def truncate_html_filter(value, length=200, end="…", leeway=5):
+        """Shorten rendered HTML to `length` characters of visible text,
+        closing any tags left open. Slicing the source instead can cut
+        through a tag and print its markup. Same leeway as Jinja's
+        `truncate`: text within `length + leeway` is left whole."""
+        from html import escape
+        from html.parser import HTMLParser
+        html = str(value or "")
+        void = {"br", "hr", "img", "input", "wbr", "source", "col"}
+
+        class _Cut(HTMLParser):
+            def __init__(self):
+                super().__init__(convert_charrefs=True)
+                self.out, self.open, self.left, self.done = [], [], length, False
+
+            def handle_starttag(self, tag, attrs):
+                if self.done:
+                    return
+                self.out.append(self.get_starttag_text())
+                if tag not in void:
+                    self.open.append(tag)
+
+            def handle_startendtag(self, tag, attrs):
+                if not self.done:
+                    self.out.append(self.get_starttag_text())
+
+            def handle_endtag(self, tag):
+                if self.done or tag not in self.open:
+                    return
+                while self.open:
+                    t = self.open.pop()
+                    self.out.append(f"</{t}>")
+                    if t == tag:
+                        break
+
+            def handle_data(self, data):
+                if self.done:
+                    return
+                if len(data) <= self.left:
+                    self.out.append(escape(data, quote=False))
+                    self.left -= len(data)
+                    return
+                self.out.append(escape(data[:self.left].rstrip(), quote=False) + end)
+                self.done = True
+                self.out.extend(f"</{t}>" for t in reversed(self.open))
+
+        probe = HTMLParser(convert_charrefs=True)
+        text = []
+        probe.handle_data = text.append
+        probe.feed(html)
+        probe.close()
+        if len("".join(text)) <= length + leeway:
+            return Markup(html)
+        cut = _Cut()
+        cut.feed(html)
+        cut.close()
+        return Markup("".join(cut.out))
+
     @app.template_filter("initials")
     def initials_filter(value):
         """Up to two capital letters from a name, for a person's avatar:
@@ -393,6 +452,12 @@ def create_app():
         """Short fingerprint of a TS Pro Backup site public key."""
         from .pubkey import fingerprint
         return fingerprint(public_key or "")
+
+    @app.template_filter("ssh_fp")
+    def ssh_fp_filter(host_key):
+        """SHA256 fingerprint of a saved SFTP server host key."""
+        from .backup_backends import ssh_host_key_fingerprint
+        return ssh_host_key_fingerprint(host_key)
 
     @app.template_filter("safe_url")
     def safe_url_filter(value):
@@ -439,6 +504,10 @@ def create_app():
         from .phone import format_phone
         return format_phone(value)
 
+    from .phone import PHONE_PATTERN, PHONE_HINT
+    app.jinja_env.globals["phone_pattern"] = PHONE_PATTERN
+    app.jinja_env.globals["phone_hint"] = PHONE_HINT
+
     @app.template_filter("fmt_site_local")
     def fmt_site_local(value, fmt="%Y-%m-%d %H:%M %Z"):
         """Format a naive-UTC datetime in the site's configured timezone.
@@ -458,13 +527,18 @@ def create_app():
         from datetime import datetime, timezone as _tz
         if not value or not isinstance(value, datetime):
             return ""
+        from flask import g, has_app_context
         from .timezone import site_timezone as _stz
         from .models import SiteSetting as _SS
-        try:
-            site = _SS.query.first()
-        except Exception:  # noqa: BLE001 — DB hiccup; fall back to UTC
-            site = None
-        zone = _stz(site)
+        zone = g.get("_site_zone") if has_app_context() else None
+        if zone is None:
+            try:
+                site = _SS.query.first()
+            except Exception:  # noqa: BLE001 — DB hiccup; fall back to UTC
+                site = None
+            zone = _stz(site)
+            if has_app_context():
+                g._site_zone = zone
         aware = value if value.tzinfo else value.replace(tzinfo=_tz.utc)
         return aware.astimezone(zone).strftime(fmt)
 
@@ -496,6 +570,11 @@ def create_app():
     # form-CSRF.
     csrf.exempt(restore_bp)
     csrf.exempt(frontend_sync_bp)
+    # Built-in MCP server: bearer-token JSON-RPC, so no form CSRF. Its
+    # changes are posted to the admin routes inside the app, with CSRF.
+    from .mcp import bp as mcp_bp
+    app.register_blueprint(mcp_bp)
+    csrf.exempt(mcp_bp)
 
     # Common attacker probe paths (env files, git internals, server config
     # files, off-the-shelf admin panels). We don't serve any of these — Flask
@@ -887,6 +966,8 @@ def create_app():
     app.jinja_env.globals["is_offsite"] = _is_offsite
     from .fe_admin_nav import fe_subnav as _fe_subnav
     app.jinja_env.globals["fe_subnav"] = _fe_subnav
+    from .responsive import register as _register_responsive
+    _register_responsive(app)
     from .widths import width_px as _width_px
     app.jinja_env.globals["width_px"] = _width_px
     from .form_specs import resolve_fields as _resolve_fields, field_map as _field_map
@@ -962,6 +1043,8 @@ def create_app():
     # each shell when the per-template entry is empty.
     from .frontend import template_settings as _template_settings
     app.jinja_env.globals["template_settings"] = _template_settings
+    from .frontend import template_type_vars as _template_type_vars
+    app.jinja_env.globals["template_type_vars"] = _template_type_vars
     app.jinja_env.globals["dynbg_animated_keys"] = lambda: list(_dynbg.ANIMATED_KEYS)
     app.jinja_env.globals["dynbg_defaults"] = lambda: {
         "noise_size": _dynbg.NOISE_SIZE_DEFAULT,
@@ -1294,6 +1377,18 @@ def create_app():
             return "var(--fe-" + key.replace("_", "-") + ")"
         return v
     app.jinja_env.filters["css_color"] = _css_color
+
+    # A width or other length from block data, for an inline style: a
+    # number with a unit (a bare number is px), or "" when it is
+    # anything else, so a stored value can't add other declarations.
+    _CSS_LEN_RE = re.compile(r"^(\d+(?:\.\d+)?)(px|rem|em|%|vw|vh|ch)?$", re.I)
+
+    def _css_length(value):
+        m = _CSS_LEN_RE.match(str(value if value is not None else "").strip())
+        if not m:
+            return ""
+        return m.group(1) + (m.group(2) or "px").lower()
+    app.jinja_env.filters["css_length"] = _css_length
 
     # Site-wide design tokens. Same layered model as fonts: theme
     # defaults + per-site overrides → flat dict + a CSS-vars string the
@@ -1826,6 +1921,7 @@ def _migrate_sqlite(app):
                          ("frontend_404_cta_url", "VARCHAR(500)"),
                          ("frontend_404_image_filename", "VARCHAR(500)"),
                          ("frontend_module_enabled", "BOOLEAN NOT NULL DEFAULT 1"),
+                         ("mcp_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("frontend_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
                          # Cookie & privacy compliance — see app/cookie_compliance.py
                          # and SiteSetting.cookie_compliance_* commentary.
@@ -2086,7 +2182,9 @@ def _migrate_sqlite(app):
                          # from mfa_enabled (enrolment complete).
                          ("mfa_required", "BOOLEAN NOT NULL DEFAULT 0"),
                          # Admin look: system / light / dark (empty: not yet chosen).
-                         ("theme_pref", "VARCHAR(8)")):
+                         ("theme_pref", "VARCHAR(8)"),
+                         # Signature for replies to contact messages.
+                         ("reply_signature", "TEXT")):
             add("user", col, ddl)
         # 2.14.0 shipped before mfa_required existed and gated the login
         # challenge on mfa_enabled alone. Under the new master-gate model
@@ -2118,7 +2216,9 @@ def _migrate_sqlite(app):
                          ("allow_remote_restore", "BOOLEAN NOT NULL DEFAULT 0"),
                          ("restore_token_enc", "BLOB"),
                          ("public_url", "VARCHAR(500)"),
-                         ("last_remote_restore_at", "DATETIME")):
+                         ("last_remote_restore_at", "DATETIME"),
+                         # SFTP server host key, saved on first connection.
+                         ("sftp_host_key", "TEXT")):
             add("backup_target", col, ddl)
         for col, ddl in (("asset_files_json", "TEXT"),):
             add("custom_font", col, ddl)
@@ -2144,7 +2244,8 @@ def _migrate_sqlite(app):
                          # before the column existed.
                          ("public_visibility",
                           "VARCHAR(16) NOT NULL DEFAULT 'auto'"),
-                         ("duplicated_from_id", "INTEGER")):
+                         ("duplicated_from_id", "INTEGER"),
+                         ("published_at_manual", "BOOLEAN NOT NULL DEFAULT 0")):
             add("post", col, ddl)
         for col, ddl in (("published_at", "DATETIME"),
                          ("is_pending_review", "BOOLEAN NOT NULL DEFAULT 0"),
@@ -2727,6 +2828,9 @@ def _seed_page_layouts(app):
             ],
         },
     ]
+    # Presets that ship their copy as well as their shape.
+    from .page_layout_presets import intergroup_elections
+    PRESETS.append(intergroup_elections())
     for p in PRESETS:
         row = CustomLayout.query.filter_by(key=p["key"]).first()
         # Preset entries can either be shorthand strings ("image") or

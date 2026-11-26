@@ -67,7 +67,34 @@
   {{ _s | join('; ') }}
 {%- endmacro %}
 
-{% macro render_block(b) %}
+{# The popup editor's preview (g.pb_marks) brackets each block with
+   <!--pb:ID--> and <!--/pb--> so a click on it opens that block's
+   settings; see pp_block in frontend/page.html. #}
+{# Per-device settings: the same wrapper as pp_block in
+   frontend/page.html (app/responsive.py). #}
+{% macro render_block(b) -%}
+  {%- if b.type == rs_stub_type -%}<!--rs:{{ b.id }}--><!--/rs-->
+  {%- else -%}
+  {%- set _rs = rs_plan(b, g.pb_marks) -%}
+  {%- if rs_marking() %}<!--rs:{{ b.id }}-->{% endif -%}
+  {%- if _rs -%}
+    {%- set _ = rs_enter() -%}
+    {%- set _deep = render_block_inner(b) -%}
+    {%- set _vars = [] -%}
+    {%- for v in _rs.variants -%}{%- set _ = _vars.append(render_block_inner(v)) -%}{%- endfor -%}
+    {%- set _singles = [] -%}
+    {%- for s in _rs.get('singles') or [] -%}{%- set _ = _singles.append(render_block_inner(s[2])) -%}{%- endfor -%}
+    {%- set _ = rs_leave() -%}
+    {{- rs_apply(b, _rs, _deep, _vars, _singles, g.pb_marks) -}}
+  {%- else -%}
+    {{- render_block_inner(b) -}}
+  {%- endif -%}
+  {%- if rs_marking() %}<!--/rs-->{% endif -%}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro render_block_inner(b) %}
+  {% if g.pb_marks and b.id %}<!--pb:{{ b.id }}-->{% endif %}
   {% set t = b.type %}{% set d = b.data or {} %}
   {% if t == 'paragraph' %}
     {% set _st = typo_style(d) %}
@@ -96,7 +123,11 @@
     {% if _align == 'left' %}{% set _ = _fig_styles.append('text-align: left') %}{% set _ = _fig_styles.append('margin-left: 0') %}{% set _ = _fig_styles.append('margin-right: auto') %}
     {% elif _align == 'right' %}{% set _ = _fig_styles.append('text-align: right') %}{% set _ = _fig_styles.append('margin-left: auto') %}{% set _ = _fig_styles.append('margin-right: 0') %}
     {% elif _align == 'center' %}{% set _ = _fig_styles.append('text-align: center') %}{% set _ = _fig_styles.append('margin-left: auto') %}{% set _ = _fig_styles.append('margin-right: auto') %}{% endif %}
-    {% if (_w | int) != 100 %}{% set _ = _fig_styles.append('max-width: ' ~ _w ~ '%') %}{% endif %}
+    {# `width` (any CSS length) sets the image's width, up to its
+       column; without it the older `max_width_pct` caps it. #}
+    {% set _wlen = d.get('width', '') | css_length %}
+    {% if _wlen %}{% set _ = _fig_styles.extend(['width: ' ~ _wlen, 'max-width: 100%']) %}
+    {% elif (_w | int) != 100 %}{% set _ = _fig_styles.append('max-width: ' ~ _w ~ '%') %}{% endif %}
     {% set _img_styles = ['max-width: 100%'] %}
     {# SVGs are vectors — admins expect them to scale to the chosen
        width regardless of the source file's intrinsic dimensions. We
@@ -108,7 +139,10 @@
        query/fragment-stripped so `logo.svg?v=2` still matches. #}
     {% set _src_lower = (d.src or '')|lower %}
     {% set _src_path  = _src_lower.split('?')[0].split('#')[0] %}
-    {% if _src_path.endswith('.svg') %}
+    {% if _wlen %}
+      {% set _ = _img_styles.append('width: 100%') %}
+      {% set _ = _img_styles.append('height: auto') %}
+    {% elif _src_path.endswith('.svg') %}
       {% set _ = _fig_styles.append('width: ' ~ _w ~ '%') %}
       {% set _ = _img_styles.append('width: 100%') %}
       {% set _ = _img_styles.append('height: auto') %}
@@ -144,7 +178,9 @@
     {% if _align == 'left' %}{% set _ = _fig_styles.extend(['margin-left: 0', 'margin-right: auto']) %}
     {% elif _align == 'right' %}{% set _ = _fig_styles.extend(['margin-left: auto', 'margin-right: 0']) %}
     {% else %}{% set _ = _fig_styles.extend(['margin-left: auto', 'margin-right: auto']) %}{% endif %}
-    {% if (_w | int) != 100 %}{% set _ = _fig_styles.append('max-width: ' ~ _w ~ '%') %}{% endif %}
+    {% set _wlen = d.get('width', '') | css_length %}
+    {% if _wlen %}{% set _ = _fig_styles.extend(['width: ' ~ _wlen, 'max-width: 100%']) %}
+    {% elif (_w | int) != 100 %}{% set _ = _fig_styles.append('max-width: ' ~ _w ~ '%') %}{% endif %}
     {% if d.get('bg_color') %}{% set _ = _fig_styles.append('background-color: ' ~ (d.get('bg_color')|css_color)) %}{% endif %}
     <figure class="block block-lottie"{% if _fig_styles %} style="{{ _fig_styles | join('; ') }}"{% endif %}>
       <div class="block-lottie-stage"
@@ -602,6 +638,7 @@
   {% elif t == 'container' %}
     {{ render_container_block(d) }}
   {% endif %}
+  {% if g.pb_marks and b.id %}<!--/pb-->{% endif %}
 {% endmacro %}
 
 {# Container block — recursive layout primitive. Resolves the stored

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% from "_help_chip.html" import chip %}
+{% from "watchtower/_ip_cell.html" import ip_cell %}
+{% block title %}Request from {{ r.name }} · Watchtower{% endblock %}
+{% block heading %}Request from {{ r.name }}{% endblock %}
+{% block heading_help %}An access request from the sign-in page. Create the account or reply by email, then mark it handled or archive it.{% endblock %}
+{% set _here = url_for('main.watchtower_request', rid=r.id) %}
+{% block top_actions %}
+  <a class="btn" href="{{ url_for('main.watchtower_requests', view=view) }}">← All</a>
+  {% if r.is_archived %}<span class="post-chip post-chip-header">Archived</span>{% endif %}
+  <a class="btn btn-primary" href="mailto:{{ r.email }}?subject={{ 'Your access request'|urlencode }}">{{ icon('mail') }} Reply</a>
+  {% if not r.is_archived %}
+  {% if xu %}
+  <button type="button" class="btn js-pwreset-open"
+          data-uid="{{ xu.id }}" data-username="{{ xu.username }}" data-email="{{ xu.email or '' }}">{{ icon('key') }} Reset password</button>
+  {% else %}
+  <button type="button" class="btn" data-create-user-from-request data-email="{{ r.email }}"
+          data-name="{{ r.name }}" data-phone="{{ r.phone or '' }}" data-rid="{{ r.id }}">{{ icon('user-plus') }} Create user</button>
+  {% endif %}
+  <form method="post" action="{{ url_for('main.watchtower_request_handled', rid=r.id) }}" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="return_url" value="{{ _here }}">
+    <button type="submit" class="btn">{{ 'Mark handled' if r.status == 'pending' else 'Reopen' }}</button>
+  </form>
+  <form method="post" action="{{ url_for('main.watchtower_request_archive', rid=r.id) }}" style="display:inline"
+        {% if r.status != 'handled' %}data-confirm-title="Archive this pending request?" data-confirm-label="Archive" data-confirm="It will be marked handled and moved to the archive."{% endif %}>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="return_url" value="{{ _here }}">
+    <button type="submit" class="btn">Archive</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ url_for('main.watchtower_request_unarchive', rid=r.id) }}" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="return_url" value="{{ _here }}">
+    <button type="submit" class="btn">Restore</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('main.watchtower_request_delete', rid=r.id) }}" style="display:inline"
+        data-confirm-title="Delete this request?" data-confirm-label="Delete" data-confirm="The request from {{ r.name }} will be deleted for good.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="view" value="{{ view }}">
+    <button type="submit" class="btn btn-danger">Delete</button>
+  </form>
+{% endblock %}
+{% block content %}
+{% include "watchtower/_tabs.html" %}
+{# Laid out like a Contact Form message (contact_message.html): the
+   note on the left, the request's details on the right. #}
+<section class="card st-studio post-studio msg-studio" data-no-collapse>
+  <div class="st-body st-body--split">
+    <div class="post-studio-main">
+      <header class="msg-from">
+        <span class="lst-thumb lst-thumb--person" aria-hidden="true">{{ r.name|initials if r.name else '?' }}</span>
+        <div class="msg-from-text">
+          <div class="msg-from-name">{{ r.name }}</div>
+          <div class="msg-from-contact">
+            <a href="mailto:{{ r.email }}">{{ icon('mail') }}<span>{{ r.email }}</span></a>
+            {% if r.phone %}<a href="tel:{{ r.phone }}">{{ icon('phone') }}<span>{{ r.phone }}</span></a>{% endif %}
+          </div>
+        </div>
+      </header>
+      {% if r.message %}
+      <div class="msg-body">{{ r.message }}</div>
+      {% else %}
+      <p class="muted">No message came with this request.</p>
+      {% endif %}
+    </div>
+    <div class="st-controls">
+      <div class="ds-group st-group-body">
+        <h3 class="ds-group-title">{{ icon('inbox') }}Request</h3>
+        <dl class="pe-facts">
+          <dt>Status</dt><dd><span class="badge {% if r.status == 'pending' %}badge-warning{% else %}badge-muted{% endif %}" data-request-status="{{ r.id }}">{{ r.status }}</span></dd>
+          <dt>Roles</dt><dd>{% if r.roles %}<div class="wt-req-roles">{% for role in r.roles %}<span class="chip">{{ role }}</span>{% endfor %}</div>{% else %}—{% endif %}</dd>
+          <dt>Meeting</dt><dd>{{ r.meeting_name or '—' }}</dd>
+        </dl>
+      </div>
+      <div class="ds-group st-group-body">
+        <h3 class="ds-group-title">{{ icon('clock') }}Received</h3>
+        <dl class="pe-facts">
+          <dt>When</dt><dd>{{ r.created_at|fmt_site_local('%b %-d, %Y · %-I:%M %p %Z') if r.created_at else '—' }}</dd>
+          <dt>From</dt><dd class="muted">{% if r.ip_address %}{{ ip_cell(r.ip_address) }}{% if blk %} <span class="badge badge-danger">blocked</span>{% endif %}{% else %}Unknown{% endif %}</dd>
+          {% if r.handled_at %}<dt>Handled</dt><dd>{{ r.handled_at|fmt_site_local('%b %-d, %Y') }}</dd>{% endif %}
+          {% if r.is_archived and r.archived_at %}<dt>Archived</dt><dd>{{ r.archived_at|fmt_site_local('%b %-d, %Y') }}</dd>{% endif %}
+        </dl>
+        {% if r.ip_address %}
+        {% if blk %}
+        <form method="post" action="{{ url_for('main.watchtower_unban_ip', bid=blk.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="return_url" value="{{ _here }}">
+          <button class="btn btn-sm btn-secondary" title="Remove this IP from the blocklist">Unblock IP</button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('main.watchtower_ban_ip') }}"
+              data-confirm-title="Block {{ r.ip_address }}?" data-confirm-label="Block IP" data-confirm="Visitors from this IP will get a 403 across the whole site.">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="ip" value="{{ r.ip_address }}">
+          <input type="hidden" name="reason" value="Access request from {{ r.name }}">
+          <input type="hidden" name="ttl_hours" value="0">
+          <input type="hidden" name="protect_known_users" value="1">
+          <input type="hidden" name="return_url" value="{{ _here }}">
+          <button class="btn btn-sm btn-danger" title="Add this IP to the blocklist (permanent)">Block IP</button>
+        </form>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% if xu %}
+      <div class="ds-group st-group-body">
+        <h3 class="ds-group-title">{{ icon('user') }}Existing account {% call chip('Existing account') %}This email already had an account when the request came in. They were emailed their username and a sign-in link.{% endcall %}</h3>
+        <dl class="pe-facts">
+          <dt>Username</dt><dd>{{ xu.username }}</dd>
+          <dt>Role</dt><dd>{{ role_labels.get(xu.role, xu.role) }}</dd>
+        </dl>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% with return_url = _here %}
+  {% include "_pwreset_modal.html" %}
+{% endwith %}
+
+<script>
+(function(){
+  // Create user (Settings → Users) archives this request server-side and
+  // posts a message up here. Reload once Settings closes so the page
+  // shows the request as handled and archived.
+  if (window.__wtReqDetailBridge) return;
+  window.__wtReqDetailBridge = true;
+  window.addEventListener('message', function(ev){
+    if (ev.origin !== window.location.origin) return;
+    var d = ev.data || {};
+    if (d.type !== 'tsp:access-request-archived') return;
+    var status = document.querySelector('[data-request-status]');
+    if (!status || String(d.rid) !== status.dataset.requestStatus) return;
+    var modal = document.getElementById('settings-modal');
+    if (!modal || !modal.classList.contains('open')) { location.reload(); return; }
+    new MutationObserver(function(_, obs){
+      if (modal.classList.contains('open')) return;
+      obs.disconnect();
+      location.reload();
+    }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+  });
+})();
+</script>
+{% include "watchtower/_self_block_modal.html" %}
+{% endblock %}

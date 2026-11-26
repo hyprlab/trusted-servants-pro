@@ -10,6 +10,15 @@
         <span class="fe-subnav-status off">● Off</span>
       {% endif %}
     </div>
+    {# Folds the main app sidebar away so these pages get the whole
+       window. The same per-user pref as the overview's Customize modal;
+       app.js flips it in place and saves it in the background. #}
+    <label class="mode-toggle fe-subnav-wide" title="Hide the main sidebar while in Web Frontend">
+      <input type="checkbox" data-fe-wide="{{ url_for('main.frontend_autohide_sidebar_save') }}"
+             {% if current_user.fe_admin_autohide_sidebar %}checked{% endif %}>
+      <span class="mode-track"><span class="mode-thumb"></span></span>
+      <span>Hide main sidebar</span>
+    </label>
   </div>
 
   {# One list (app/fe_admin_nav.py) drives both views: the desktop link

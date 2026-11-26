@@ -8,9 +8,10 @@
 # to `gh release create`: every release page would carry the whole history.
 #
 # With the tag present, it appends one "Full changelog:" line, the compare link
-# against the previous release tag, which GitHub shows as vA...vB. No list of
-# commits: the compare page is that list, and a week of commits here is too
-# long to read in a release.
+# from the previous release commit to this tag. It names a commit, not a tag:
+# the previous tag is deleted when a patch supersedes it, which would turn the
+# link into a 404. No list of commits: the compare page is that list, and a
+# week of commits here is too long to read in a release.
 #
 # GitHub keeps every line break in a release body, so paragraphs and list items
 # are unwrapped to one line each. An @handle keeps its @ only if the person is
@@ -47,8 +48,8 @@ print(re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip())
 PY
 
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-    prev=$(git tag -l 'v*' --sort=-v:refname | grep -vE -- '-' | grep -vx "$TAG" \
-           | while read -r t; do git merge-base --is-ancestor "$t" "$TAG" && { echo "$t"; break; }; done || true)
+    prev=$(git log "$TAG^" -1 --format=%h --abbrev=12 -E \
+           --grep='^chore\(release\): [0-9]+\.[0-9]+\.[0-9]+$' || true)
     repo=$(git remote get-url origin 2>/dev/null | sed -E 's#^(git@[^:]+:|https://github\.com/)##; s#\.git$##' || true)
     if [ -n "$prev" ] && [ -n "$repo" ]; then
         echo

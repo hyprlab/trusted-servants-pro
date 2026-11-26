@@ -6,6 +6,257 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.11.0] — 2026-11-26
+
+### Added
+
+- An "Edit page" button, fixed bottom-right, on every public page-builder page (homepage included) for signed-in users with `can_edit_frontend()`; it opens the page's edit screen. Not shown in the editor preview. The blog post "Edit post" button and this one share a new `frontend/_edit_fab.html` partial (class `fe-edit-fab`).
+
+### Fixed
+
+- The blog "Edit post" button's label took the site link color and underline from `.fe-page a`, which outranked its own rule; the button's selectors are now `a.fe-edit-fab`.
+
+## [3.10.0] — 2026-11-26
+
+### Added
+
+- A revert button (accent, rotate-ccw) beside the heading of each block setting that differs from its default, in the page builder, the popup editor and the Zoom Tech editor, and in the hero, meetings, events, features and FAQ dialogs. It puts the setting back; on Tablet or Phone a per-device setting goes back to the larger screen's value. `block_editor.js` now tracks the keys each control reads in every editor (`responsive.js` is loaded there too): a key goes to the control it was read closest to, an option's reads to its select, and hidden inputs are skipped. Defaults are `blankBlock()` after one build of its form, cached per type. Dialog fields revert to their markup's value (`defaultValue`, `defaultChecked`, `defaultSelected`). Content keys (`CONTENT` in `responsive.js`) get none. Forms built after a fetch (library, officer, blog list category) are not tracked.
+
+- Image and Lottie block width as any CSS length: a new `width` key (number and unit, `%`, `px`, `rem`, `em` or `vw`, with a slider over the unit's range; `lengthField()` in `block_editor.js`) renders as `width: <len>; max-width: 100%` on the figure, with the image at `width: 100%; height: auto`. Without it the older `max_width_pct` cap applies as before, and setting a width puts that back to 100. Stored values pass through a new `css_length` Jinja filter, which drops anything that isn't a number and unit.
+- Lottie block: "Choose from File Browser", through a new `window.tspPickFile(kind, onPick)` in `app.js` that opens the shared picker on a Kind filter and hands back the picked item. The File Browser gains a Lottie kind (`.json` and `.lottie` files, `MEDIA_KINDS["lottie"]`), which no longer count under Other.
+
+### Changed
+
+- Device icons in the block settings use the same key matching as the revert buttons, and a label's wording in a span of its own carries them (a slider's icon was below the slider).
+- Live previews (`fe_live_preview.js`) wash the stage only while their first render loads. Later renders already load in a hidden second frame and swap in once ready, so the shown page stays as it is meanwhile; the "Updating…" status remains. `FeLivePreview.quiet()`, which kept the wash off renders after a drag, is gone.
+
+## [3.9.0] — 2026-11-26
+
+### Added
+
+- Pick a block in the page builder's canvas and the popup editor's live preview. In the editor's preview `pp_block` (`frontend/page.html`, when `preview_mode`) and `render_block` (`_blocks.html`, when the popup preview route sets `g.pb_marks`) bracket each block with `<!--pb:ID-->` and `<!--/pb-->`; comments change no layout or selector match, and public pages never carry them. `page_navigator.js` reads them on each `lp:load`, outlines the block under the pointer with its name (rows in the structure tree point at their block too), opens its settings or its own dialog on a click, and opens the row's menu on a right-click. Links and controls in the preview no longer act on a click. While the settings drawer is open its backdrop is cut away over the preview (`clip-path`, with the dialog box itself click-through), so the next block can be picked straight away, and the block being edited stays outlined across re-renders.
+- Page editor, Sharing tab: "Choose from File Browser" next to the preview image upload. The pick posts `og_image_media_id`, resolved to the item's stored file (images only) in both the draft and publish branches of `frontend_page_save`; an upload on the same save wins. `_cleanup_retired_asset` now counts `Page.og_image_filename` and saved page drafts as references, so a library image shared by a page and a post is not deleted when either one drops it.
+- Index screens for Pages, Popups, Forms and Page templates (`frontend_content_index.html`, items from `app/content_index.py`), in place of opening the last-edited item. Cards or List, kept per browser; a filter box; groups match the editors' selector menus. Each card previews its page through the new `main.frontend_thumb` route (the staged-preview renderer with nothing staged, overlays and the editor preview strip hidden), drawn at 1280px in a lazily loaded iframe scaled to the card, three at a time (`static/js/content_index.js`). Switched-off forms and modules show a placeholder. Each editor's selector menu gains an All link back to its index. `frontend_section_empty.html` is folded into the index.
+- Full-screen page builder (`_page_builder.html`, `static/js/page_builder.js`), opened from "Open builder" on the page edit screen or with `#builder` in the address; a new page opens in it. It is a fixed layer over the edit screen and edits the same form, so going in and out keeps unsaved changes. Toolbar: Add and Structure panel toggles (remembered per browser), undo and redo, history, desktop / tablet (768px) / phone (390px) and light / dark for the canvas, refresh, preview in a tab, and Save draft / Publish / Publish draft, which press the yellow save bar's buttons and mirror its state; Cmd/Ctrl+S saves. The block library and the structure tree move into its left and right panels; a block's settings drawer docks on the left with a breadcrumb of the containers around it and duplicate / delete buttons. The edit screen's own preview is for looking only: no picking, dragging or link clicks there. A save from the builder no longer reloads the page (`feSaveBar` stays open while `body.pb-on`); a form submit, a reload, or Exit after saving returns to the same place.
+- Canvas editing in the page previews (`page_navigator.js`): the selected block's tag is a toolbar (select the container around it, move up, move down, duplicate, delete), and blocks dragged from the library or the tree drop onto the page before or after the block under the pointer (beside it when its siblings sit in a row) or into the container under it, with a line or outline showing where.
+- Moving blocks by dragging them on the page and popup previews (`page_navigator.js`), with pointer events rather than native drag and drop: a press on a block (or inside the selected block, which then moves whole, or on its tag's name) that travels 5px lifts it. The block fades in place while a scaled copy of it trails the pointer, the drop line glides between spots and is hidden where the page would not change, the page scrolls near its top and bottom edges, and the structure tree takes the drop when the pointer leaves the page over it. On release the block's elements move in the shown page at once and their neighbours slide into place (FLIP, Web Animations) before the re-render replaces it; the dropped block is selected. Escape puts it back. Reduced motion drops the trailing, tilt and slides. `FeLivePreview.hold(el, on)` keeps a preview from re-rendering during the drag and runs the deferred render on release; `FeLivePreview.quiet(el)` keeps the loading wash off the renders that follow a drop the page already shows, so the next block can be picked up at once.
+- `live_preview(..., fill=True)` sizes the stage from CSS and renders desktop at the stage's width when it is wider than the render width; `FeLivePreview.setDevice`, `setMode` and `state`, and a `tablet` device (768px).
+- "Hide main sidebar" switch in the Web Frontend subnav head (`_frontend_subnav.html`) for the per-user `fe_admin_autohide_sidebar` pref, which was only reachable from the overview's Customize modal. `app.js` toggles `body.fe-admin-autohide` in a view transition (sidebar slides, content pinned top left, skipped under reduced motion) and posts to `/frontend/autohide-sidebar-save`, which answers JSON to `X-Requested-With: fetch`; a failed save reverts it. Hidden below 900px, where the app sidebar is always folded away.
+- Per-device block settings in the page builder. The toolbar's Desktop / Tablet / Phone switch, and a matching switch atop the settings panel, set the device every settings form edits. `static/js/responsive.js` gives each form a Proxy over the block data that reads through Phone, Tablet, Desktop and writes style keys to `data.responsive[device]`; content keys (text, links, records, backgrounds, markup choices) stay shared. The dedicated hero, meetings, events, features and FAQ dialogs read and write through the same helper. `app/responsive.py` renders a block with overrides again per device with its children stubbed, diffs its own elements' inline styles and emits `!important` rules under `@media (max-width: 1024px)` and `(max-width: 720px)`, scoped by a `data-rs` attribute; class, attribute, text or element differences are left alone and named in an `rs-skip` comment in the preview, which the settings panel reports. On Phone, the existing mobile fields (container padding and direction, hero height) are that device's value and no longer show as separate controls in the builder. The panel lists what each device sets, with a reset per setting. Each per-device setting's heading carries the device's icon (accent when that device sets its own value): the form's Proxy reports the keys each control reads as it is built, `el()` hands them to the next control created, and `tspResponsive.mark()` finds the row heading; the dedicated dialogs match by their `data-*-field` names.
+
+### Changed
+
+- The page edit screen keeps the page's settings and its preview; the Structure card and block library moved into the builder.
+- Block settings show helper text as info chips beside their labels instead of paragraphs under the controls: `block_editor.js` gains `helpChip()` and `withHelp()`, which build the `_help_chip.html` markup, and every row and field hint goes through them (the `.be-container-row-hint` rules are gone). The FAQ and hero dialogs' remaining hints become chips too. Escape with a help tooltip open now closes only the tooltip, not the dialog or drawer around it.
+- List block items are textareas instead of one-line inputs (`block_editor.js`): one line closed, grown to their text when open (`field-sizing: content`, with a JS fallback), up to 60vh. Focus opens an item; a chevron opens and closes it; Expand all / Collapse all sits beside "+ Add item". Open items are remembered per list across re-renders in a `WeakMap`, never saved. A new item opens with the cursor in it.
+
+### Fixed
+
+- Container padding controls (`block_editor.js` `paddingBox`, `.be-pad-box`): the generic `.be-body input / select` rules outranked the side chips, boxing each number and squeezing its unit select to an empty box, and `.be-root .be-container-row` kept a label column that pushed the diagram past narrow panels such as the builder's. The label now stacks above a compact box-model diagram (grid areas, no axis labels; each input is titled and labelled by its side).
+
+## [3.8.1] — 2026-11-25
+
+### Fixed
+
+- The utility bar's swipe chevrons (`_utility_bar.html`) were `aria-hidden` spans with `pointer-events: none`, so a desktop zoomed in far enough to get the swipe strip (or any mouse or keyboard user at that width) could not reach the other items. They are now labelled buttons that step to the previous or next snap point (item, side or live message, centred as a swipe leaves it). The button holds still with a 28px hit area while the arrow inside pulses; hover and focus stop the pulse.
+
+## [3.8.0] — 2026-11-25
+
+### Added
+
+- Structure navigator for the page and popup builders (`static/js/page_navigator.js`, `structure_navigator` in `_frontend_structure_card.html`), replacing the nested structure card. It draws the blocks as an indented ARIA tree from the same `sections` array the settings drawer's BlockEditor edits (lazy-mounted at load), so there is one copy of the page and no DOM-to-data rebuild. Rows open the block's settings (or its own dialog for hero, meetings, events, features and FAQ); drag shows a before/after line or highlights a container to drop inside, collapsed containers included; a right-click or ⋯ menu offers edit, rename, add inside, duplicate, copy, paste after or inside (clipboard in `localStorage`, so it works across pages and popups, filtered to a popup's allowed types), wrap in a container, unwrap, move up or down, move an unplaced block back, and delete. Keyboard: arrows, Home/End, Enter, F2, Delete, Alt+arrows, Shift+F10, and Ctrl/Cmd D, C, V, Z, Shift+Z / Y. Undo and redo cover structure changes and content edits (grouped per burst); delete shows an Undo toast instead of a confirm dialog. A filter box finds blocks, and expand/collapse state is remembered per page. The block library adds after the selected block, inside a selected container, or at the end.
+- `tspShowToast(msg, kind, {action, ms})` takes an optional action button.
+- `BlockEditor.blankBlock` is exported, so the navigator creates blocks with the editor's own defaults (the third hand-kept copy in `page_structure.js` is gone).
+
+### Changed
+
+- Data conventions are kept: top-level blocks stay one per untitled section, a legacy titled section shows as a heading row, the `_orphans` section shows as "Unplaced blocks", and a grid container with valid `cell_lengths` shows its columns, whose counts moves keep right.
+- Removed `page_structure.js`, the `structure_page_tree` / `structure_orphans_card` / `page_pill` macros, the server's `_page_active_tree`, `_block_preview` and `_walk_blocks_by_id`, the page editor's structure-sync and remount hooks, and the CSS only the old tree used. A lazy BlockEditor mount no longer adds a titled "New Section" to an empty page.
+- The page and popup block editor (`#page-layout-edit-modal`) is a drawer: new `.modal--drawer` modifier (full viewport height, slides in from the right, width from `--drawer-w`, 540px for one block or the whole layout). Focus mode now strips the borders and padding of every container on the way to the focused block.
+- Block settings controls (`block_editor.js`): shared `segmented()` (the `.view-toggle` look), `switchify()` (checkbox labels become `.mode-toggle` switches) and `colorField()` (swatch, value, theme-color button, clear; a theme color shows by name with its real swatch). `colorPickerWithDarkMode` is Same / Auto / Custom on that field; Auto derives from a theme color's resolved hex too. Container `selectInput` renders a segmented control for up to five short options. Typography weight, alignment and heading level are segmented; settings groups are flat sections with a chevron. `attachTokenButton` and the old color CSS are gone.
+
+### Fixed
+
+- `el()` wrote `setAttribute(k, null)` as the string "null", so every checkbox built with `checked: x ? 'checked' : null` rendered ticked whatever the saved value. Null, undefined and false now skip the attribute.
+- `[hidden]` lost to `.be-body label { display: flex }` and similar rules, so the dark-mode custom color row, the list marker style and other conditional fields showed when they should not; `.be-root [hidden]` now wins.
+- A `token:` color showed a black swatch and the global palette enhancer added a second palette button and hex caption to block editor color inputs.
+- Segmented controls inside a `<label>` were pressed by a click on the label text; they now sit in `.be-field`.
+- Opening a block's settings built the editor for every block on the page and hid all but one with CSS (174 blocks, about 59,000 nodes on the Intergroup Elections page), and closing re-laid out the whole hidden tree. BlockEditor now has `focus(id)`: a focused render builds that block alone (no sections, ancestors, siblings or a focused container's children) and `lazy` mounting builds nothing until asked. The page and popup editors render on the click itself and do no editor work on close; the full tree renders only for `showAll()`. The `be-block-focused-path` hiding rules and the flash animation are gone.
+- Idle admin pages kept repainting: the sidebar's live dot animated `box-shadow` (now a transform and opacity ring on `::after`), CSS animations ran inside closed dialogs such as the dynamic-background picker's blurred thumbnails (`.modal:not(.open) *` now pauses them), and the Settings login preview's canvas loop started on any Settings class change and never stopped (it now runs only while Settings is open on that pane).
+
+## [3.7.0] — 2026-11-25
+
+### Added
+
+- "Intergroup Elections" page layout preset (`page-intergroup-elections`, built in `app/page_layout_presets.py`, seeded by `_seed_page_layouts`). Unlike the other presets it ships its copy, imported from the DC CMA WordPress election page: header, election date and Zoom card, open positions linked to each position card, the election procedure as numbered cards, and a card per position with duties, term and vote. Every word lands in block `data`, so the created page is edited in the page editor like any other. Colors are `token:` design tokens with dark values.
+
+### Fixed
+
+- Heading blocks with an id get `scroll-margin-top` from `--fe-header-full-h`, so jump links and the wiki sidebar no longer park the heading under the sticky header.
+
+## [3.6.7] — 2026-11-25
+
+### Changed
+
+- On the meeting detail page, the OTP card's manual inbox login (email, password, login button) is folded into a closed `<details>` under "Or log in to the inbox manually" when auto-retrieval is configured. Without an IMAP host it stays open, since it is the only route. The summary style is shared with the Zoom accounts sidebar as `.otp-manual`.
+
+## [3.6.6] — 2026-11-23
+
+### Changed
+
+- The public submission form's Announcement hint covers anything not tied to a specific dated event, and the Event hint tells visitors to tick both Event and Announcement to have the event added to the GSR summary (`frontend/_submission_form_body.html`).
+
+## [3.6.5] — 2026-11-13
+
+### Changed
+
+- The event contact phone, in the post editor and the public submission form, accepts only digits, spaces and `+ ( ) - .` with at least one digit (`app/phone.py` `PHONE_PATTERN` for the input's `pattern`, `is_phone` on the server). The server rejects anything else with a flash, so a name typed into the phone box is no longer saved.
+
+### Fixed
+
+- `fe_studio.js` opens the tab holding a field that fails the browser's validation, so a native submit no longer stops silently on an invalid field in a hidden panel.
+- Event detail contact details wrap long values (`overflow-wrap: anywhere`, `minmax(0, 1fr)` value column) in the classic, poster, timeline and minimal templates instead of running past the card edge.
+
+## [3.6.4] — 2026-11-12
+
+### Changed
+
+- Watchtower → Requests lists access requests first, then pending and recent password resets. The reset tables fold the Email column into User (shown only when it differs from the username) and show `Self` as the actor of a self-service reset; on a phone each reset is a stacked card like the other Watchtower tables.
+- The header of `email/branded.html` centers the site logo, with the submitted time under it instead of to its right.
+
+### Fixed
+
+- Watchtower → Requests: `.badge` pills inside `.tbl` no longer wrap (same rule as `.chip`), date cells are `nowrap`, and the contact email breaks only after its `@` (a `<wbr>`, with `overflow-wrap: break-word` instead of the shared `anywhere`). The requests table switches to its card layout from a container query on its card (below 1020px) instead of a 720px viewport query, so it no longer overflows beside the sidebar; between 600px and 1020px the card's fields sit in columns. "Has an account" omits the username when it is the request's email.
+
+## [3.6.3] — 2026-11-11
+
+### Fixed
+
+- The granular readings list in the meeting editor's library picker (`.library-picker .library-readings`) no longer caps its height at 240px with its own scrollbar; the library card grows to show every reading.
+
+## [3.6.2] — 2026-11-06
+
+### Fixed
+
+- The `docker-prune` janitor in `install.sh`'s generated compose and `docker-compose.deploy.yml` could delete a freshly pulled image while Watchtower was replacing its container, so the replacement failed with `No such image` and the service stayed gone (seen with `tspro-caddy`, which took a production site offline). On the containerd image store, `until` compares the tag record's creation date, which a pull onto an existing tag keeps, so the new image counted as old and, with its container stopped, as unused. The janitor now runs `docker image prune -f`, which never removes a tagged image. Images left behind by a tag moving are untagged and still swept; a tag no longer used stays until removed by hand. The build-cache prune is unchanged. Existing installs adopt this by re-running `install.sh`.
+- SFTP backups never checked the server's host key, so anyone able to intercept the connection could pose as the server and collect the SFTP password and the archives. `SFTPBackend` now saves the key on the first connection that authenticates (the new `BackupTarget.sftp_host_key`, added by `_migrate_sqlite()`) and refuses a different key before sending credentials, for runs, tests and restores alike. Existing targets save theirs on their next connection, so whatever answers then is trusted, as with OpenSSH's `accept-new`. Changing the host or port clears the saved key, the edit page and wizard show its fingerprint and can forget it, and Test connection reports it. A connection that fails during `open()` now also closes its transport.
+
+## [3.6.1] — 2026-11-01
+
+### Changed
+
+- The message page's top bar (`contact_message.html`) loses its Reply button: the reply box sits under the message, so the button only moved the cursor there. The inbox's Reply still opens the page at `#reply` with the cursor in the box.
+
+## [3.6.0] — 2026-11-01
+
+### Added
+
+- Contact messages can be answered from their page (`contact_message.html`): a subject and message box send a plain-text email to the visitor through `send_mail`, quoting their message, with Reply-To set to the Contact form's recipient (first address of `contact_form_to`, `pic_email`, `access_request_to`, else the admin). Each reply is kept in the new `contact_reply` table (created by `db.create_all()` on existing installs) and listed under the message; one that fails to send keeps its error and a Send again button. The inbox marks answered messages Replied, its row menu's Reply opens the reply box, and replies are logged as `contact_submission.reply`.
+- Settings, Account, Reply Signature (admins, who are the ones who can reply): `User.reply_signature`, added to existing installs by `_migrate_sqlite()` and saved by `main.reply_signature_save`. The reply box starts with the greeting, a blank line to write on and the signature, with the cursor on that line; a signature saved from the message's page fills in at once while the box is untouched. A reply left as only the greeting and signature is refused.
+
+### Changed
+
+- The Contact page's send button and the public site's Request access button show the frontend's `.fe-btn-spinner` and "Sending…" while the form posts; the spinner now keys off `[data-fe-submit-btn][aria-busy="true"]` rather than `.fe-custom-form.is-submitting`, so custom forms keep theirs. The sign-in page's Request Access button takes the admin `.btn.is-submitting` spinner, as Sign in does.
+
+### Fixed
+
+- A contact message notification linked to the Contact Form inbox (`main.contact_form`); it now opens the message (`main.contact_message`), which marks it read. The notification email's link goes there too.
+- The contact form, the sign-in page's access request form and custom forms posted again on a second click while the first was in flight. They now ignore the repeat, and the server drops a contact message or access request identical to one from the same email in the last 10 minutes, without saving or emailing it.
+- Contact form and contact list emails went through `_send_with_reply_to` and, if that reported a failure, a second send through `send_mail`. A failure raised after the server had taken the message (or a relay timeout) delivered it twice. Both now make one `send_mail` call, which sets Reply-To itself, and the duplicate helper is gone.
+
+## [3.5.0] — 2026-10-27
+
+### Added
+
+- `Post.published_at_manual` records that the admin set Posted on by hand (typed or picked; Today clears it), sent by the editor as `published_at_set`. A draft keeps such a date when reopened and when published, through the form or the Publish button, so a post can go out back-dated. Other drafts still open at site-local now.
+
+### Changed
+
+- The More events cards on the events magazine layout have 2rem of padding around their text on desktop (18px from 720px down). The padding is `--fe-mag-card-pad`, which the cover's negative margin also reads, so the image stays edge to edge; the neobrutal theme's cover margin reads it too.
+
+### Fixed
+
+- Event cards (`events_list/_event_card.html`) showed the summary and then the body preview, which usually open with the same words. A card now shows the body, per the layout's "Text on each card" setting, and the summary only when there is no body.
+- The year in the one-line date chip of the More events cards was drawn at 65% of the chip color, a leftover from the stacked date block; it now takes the chip color.
+- Shortened card text on event and announcement cards sliced the raw body before rendering it, so a cut inside a link printed `<a href="…` as text. The new `truncate_html` filter renders the markdown first, shortens the visible text and closes any open tags.
+- The Today buttons in the announcement and event editor (`post_edit.html`) set the date without firing a change event, so the save bar did not appear. They now dispatch `change`, which also runs the Starts to Ends sync.
+- A duplicated post has no `published_at`, so its Posted on field fell back to `created_at`, which is UTC and reads hours ahead of site-local time; publishing it as filled scheduled it into the future. Drafts now open with site-local now in that field, like pending submissions, unless their stored date is in the future.
+
+## [3.4.0] — 2026-10-27
+
+### Added
+
+- Built-in MCP server at `/tspro/mcp` (`app/mcp.py`, `app/mcp_forms.py`): JSON-RPC over Streamable HTTP with bearer tokens (`McpToken`, SHA-256 hashed, read / write / delete access), off by default (`SiteSetting.mcp_enabled`). Tools read a Web Frontend screen's forms as a browser would and post them with named fields changed, through an in-app test client signed in as the token's admin, so every change runs the admin's own route, validation and revisions. Scripted requests (reorders, mega menu blocks, themes, layouts, page status, popups) go through `call_action`. Page and popup `blocks_json` is checked against the editor's `BLOCK_TYPES`, and new blocks get `blankBlock` defaults read from `block_editor.js`. Each change is an `mcp.change` activity-log row. New screen Web Frontend → Agent access for the switch, tokens and the change list. Paths outside `/tspro/frontend`, form submissions, token routes and the module switch are refused.
+- Page templates → Appearance has Headings and Text groups for every layout but the printable list: font, weight, letter spacing, case, hover underline on linked headings and page title size for headings; font, weight and line spacing for text. The new settings are `TPL_TYPE_CHOICES` keys in the per-template leaf, emitted by `frontend.template_type_vars` as `--tpl-*` variables and applied by generic `[style*="--tpl-…"]` rules in `frontend.css`. List pages now put the type variables on their outer element, so their font and size choices take effect.
+
+### Fixed
+
+- Linked headings on public pages inherit the heading's weight instead of the admin stylesheet's `a { font-weight: 500 }`, so titles such as the events magazine hero, archive cards and library items render at the weight their CSS sets.
+- The events magazine hero title no longer underlines on hover; `.fe-page a:hover` was overriding the title link's `text-decoration: none`.
+
+## [3.3.9] — 2026-10-25
+
+### Fixed
+
+- The notifications modal no longer lists pending access requests or locked accounts. Both already show as chips on the sidebar Watchtower button, so `app/notifications.py` drops those two sources and the count no longer doubles them.
+
+## [3.3.8] — 2026-10-23
+
+### Fixed
+- `Pillow` 12.3.0 to 13.0.0 for the 35 advisories pip-audit reported against 12.3.0 (34 CVEs plus GHSA-78g4-xqwv-q3g8, all fixed in 13.0.0), which failed the pip-audit workflow. None of 13.0's breaking changes touch the calls in `app/thumbnails.py` or `app/routes.py`; WeasyPrint and CairoSVG accept it.
+
+## [3.3.7] — 2026-10-23
+
+### Changed
+- Notification emails (`email/branded.html`): the uppercase eyebrow is gone, and the `eyebrow` argument of `_render_branded_email` with it; the inbox preview text is the intro, else the title. Solid 4px blue bar instead of the gradient, site logo left (linked to the Site URL when one is set) and submitted time right in the header, left-aligned title, fields as a two-column label/value table in sentence case, buttons after the fields without the arrow, 12px corners. The grey Powered by footer uses the TS Pro mark (`img/logo_tspro_email.png`, rasterized from `logo_tspro_about.svg`), replacing `logo_email.png`.
+- Custom-form submission emails render through `_render_branded_email`; `email/form_submission.html` is removed.
+
+## [3.3.6] — 2026-10-21
+
+### Changed
+- Admin segmented controls: `.st-seg` (studio and settings sections, Watchtower tabs, meeting files) drops its brand-filled chosen part for the shared `.ds-seg-btns` colors, a `--panel-2` track with a raised `--panel` chip and hairline ring, in light and dark. Its colors now come from the shared segmented-control rules; the tab count on the chosen part keeps its brand tint.
+
+## [3.3.5] — 2026-10-21
+
+### Changed
+- Meeting page Zoom panel (`meeting_detail.html`): the guided wizard's "Use a computer to host" warning (`.zg-callout-warn`) also shows under the Launch Zoom Meeting (Guided) button, above the meeting ID and passcode.
+- Launch Zoom Meeting (Guided) button (`.zoom-guide-btn`) spans the full width of the Zoom panel, label centered.
+
+### Fixed
+- Zoom Accounts filter sidebar: "Open the passcode inbox yourself" laid Email and Password out in two columns, so the address and the Reveal button ran past the 222px sidebar. `.za-otp-manual .zoom-info` now stacks each label above its value and lets the address wrap.
+
+## [3.3.4] — 2026-10-16
+
+### Fixed
+- Announcements & Events list (`posts.html`, `.lst-tbl--posts`): columns dropped at viewport widths (1100px, 760px), but the nav and filter sidebar leave the card far narrower, so a 1280px window crushed titles to a few letters behind a horizontal scroll. The card is now an inline-size container: Where and Edited go below 1080px of card, below 820px only Title, Posted and Actions stay (headings included), with a type and date line under each title, and the title keeps 200px while the other columns show.
+
+## [3.3.3] — 2026-10-16
+
+### Changed
+- Meeting page (`meeting_detail.html`): below 1000px the join column (`.mtg-side`) comes after the about and schedule cards and before the files instead of first. `.mtg-main` becomes `display: contents` there, so `.mtg-layout` is the inline-size container for the About/Schedule side-by-side query.
+
+## [3.3.2] — 2026-10-11
+
+### Changed
+- Users > Create user: `PASSWORD_GEN_DEFAULT_LENGTH` is 16 instead of 20, so the length select and the generate endpoint start at 16.
+
+### Fixed
+- Button spinner (`.btn.is-submitting::after`, `.login-submit.is-loading::after`): `* { box-sizing: border-box }` does not reach pseudo-elements, so the 18px ring rendered 22px with its border and sat 2px low and right of center. The pseudo-element sets `box-sizing: border-box` itself.
+
+## [3.3.1] — 2026-10-11
+
+### Fixed
+- Watchtower: login, session, block, password reset, request, 404 and deleted-file times called `strftime` on the naive UTC columns, so they read in UTC whatever the site timezone. They go through `fmt_site_local` now, which caches the zone on `g` for the request instead of querying `SiteSetting` per value.
+
+## [3.3.0] — 2026-10-10
+
+### Added
+- Watchtower > Requests: each request opens on its own page (`/watchtower/requests/<id>`, `watchtower/request.html`), laid out like a Contact Form message: the full message, contact, roles, meeting, IP with Block or Unblock, the matched account, and the row actions. The name, the message preview and a new Open menu item lead there. The handled, archive and unarchive routes honor a `return_url`.
+
+### Fixed
+- Watchtower charts: the SVG scales its 900-unit viewBox to the card, so 11px tick labels rendered near 20px on a wide screen. app.js sets `--wtc-k` (viewBox units per pixel, capped at 1.6) and the tick and title font sizes multiply by it; label offsets are in em and strokes are non-scaling.
+- Watchtower charts: the idle crosshair drew at x=0, because the UA stylesheet doesn't hide SVG elements with `hidden`.
+
 ## [3.2.1] — 2026-10-10
 
 ### Fixed

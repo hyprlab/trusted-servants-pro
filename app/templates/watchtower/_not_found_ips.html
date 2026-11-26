@@ -20,7 +20,7 @@
         <span class="wt-self-ip-chip" title="This is the IP you're browsing from right now — blocking it would lock you out of the portal.">{{ icon('user') }} your IP</span>
         {% endif %}</span>
       <span class="wt-nf-ips-count" title="{{ r.count }} hit{{ '' if r.count == 1 else 's' }}">{{ '{:,}'.format(r.count) }}× </span>
-      {% if r.last_seen %}<span class="wt-nf-ips-last muted smaller">last {{ r.last_seen.strftime('%b %d, %H:%M') }}</span>{% endif %}
+      {% if r.last_seen %}<span class="wt-nf-ips-last muted smaller">last {{ r.last_seen|fmt_site_local('%b %d, %H:%M') }}</span>{% endif %}
       <span class="wt-nf-ips-action">
         {% if r.is_blocked %}
         <span class="wt-nf-ips-blocked" title="This IP is currently on the blocklist (manage from Watchtower → Access)">{{ icon('slash') }} Blocked</span>

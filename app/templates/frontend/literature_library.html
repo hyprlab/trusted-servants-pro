@@ -17,7 +17,8 @@
 {%- set _dynbg_color_vars = dynbg_colors_css(dynbg_resolve_colors(_dynbg_cfg), _dynbg_cfg) -%}
 {%- set _dynbg_active = _dynbg or _dynbg_cfg.overlay -%}
 <section class="fe-section fe-mlist fe-mlist-sidebar fe-events fe-archive fe-library fe-mlist--w-{{ list_width_mode }}{% if _dynbg_active %} fe-dynbg-host{% endif %}" id="library"
-         {% if _dynbg_active and _dynbg_color_vars %}style="{{ _dynbg_color_vars }}"{% endif %}>
+         {%- set _host_style = ((_dynbg_color_vars if _dynbg_active else '') ~ ' ' ~ template_type_vars(_literature_library_tpl)) | trim %}
+         {% if _host_style %}style="{{ _host_style }}"{% endif %}>
   {% if _dynbg_active %}{% with dynbg_key=_dynbg, dynbg_config=_dynbg_cfg_raw %}{% include "frontend/_dynbg_apply.html" %}{% endwith %}{% endif %}
   <div class="{% if list_width_mode == 'boxed' %}fe-container{% else %}fe-mlist-fullwrap{% endif %} fe-mlist-shell"
        {% if list_width_mode == 'boxed' %}style="max-width: {{ list_max_width }}px;"

@@ -328,12 +328,15 @@ services:
 
   # Independent safety net for disk growth. WATCHTOWER_CLEANUP only removes
   # images from updates Watchtower itself performs — it does NOT clean up
-  # images orphaned by manual \`docker compose pull\`, re-tagged :latest churn,
-  # or partial pulls, which is how a box can still pile up hundreds of stale
-  # images. This janitor sweeps everything unused for >72h once a day, so disk
-  # use stays bounded no matter how an image got orphaned. NOTE: prune is
-  # host-wide (every unused image on the daemon), which is correct for a
-  # dedicated TSP host; don't add it on a shared host running other stacks.
+  # images orphaned by manual \`docker compose pull\` or re-tagged :latest
+  # churn, which is how a box can still pile up hundreds of stale images. This
+  # janitor sweeps untagged images once a day, so disk use stays bounded no
+  # matter how an image got orphaned. Don't add -a to the image prune: on the
+  # containerd image store, "until" reads the age of the tag record, not of the
+  # image, so it can delete a fresh pull while Watchtower replaces a container.
+  # NOTE: prune is host-wide (every untagged image on the daemon), which is
+  # correct for a dedicated TSP host; don't add it on a shared host running
+  # other stacks.
   docker-prune:
     image: docker:cli
     container_name: tspro-prune
@@ -343,7 +346,7 @@ services:
     command:
       - |
         while true; do
-          docker image prune -af --filter "until=72h" || true
+          docker image prune -f || true
           docker builder prune -af --filter "until=72h" || true
           sleep 86400
         done

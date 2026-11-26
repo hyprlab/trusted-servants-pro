@@ -400,6 +400,7 @@
       ('Account', [
         ('appearance', 'Appearance', 'sun', True),
         ('your-access', 'Your Access', 'key', True),
+        ('signature', 'Reply Signature', 'pencil', False),
       ]),
       ('Administration', [
         ('users', 'Users', 'users', False),
@@ -783,19 +784,27 @@
             applyPreview();
           });
           syncSlots(); applyPreview();
-          // Start paused until the settings modal opens (avoid wasted work if user never visits).
+          // Animate only while the preview can be seen: Settings open on
+          // this pane. A closed modal is only visibility-hidden, so
+          // offsetParent alone kept the loop drawing on every admin page.
           const modal = document.getElementById('settings-modal');
-          const tabBtn = modal && modal.querySelector('[data-tab="appearance"]');
-          function maybeStart(){
-            if (preview.offsetParent !== null && !fx && effectSel.value !== 'off') rebuild();
+          const inModal = !!(modal && modal.contains(preview));
+          function seen(){
+            if (preview.offsetParent === null) return false;
+            if (!inModal) return true;
+            const pane = preview.closest('.settings-pane');
+            return modal.classList.contains('open') && (!pane || pane.classList.contains('active'));
           }
-          if (modal){
-            const obs = new MutationObserver(maybeStart);
-            obs.observe(modal, { attributes: true, attributeFilter: ['class'] });
+          function sync(){
+            const want = seen() && effectSel.value !== 'off';
+            if (want && !fx) rebuild();
+            else if (!want && fx) { fx.destroy(); fx = null; }
           }
-          if (tabBtn) tabBtn.addEventListener('click', maybeStart);
-          document.querySelectorAll('[data-open-modal="settings-modal"]').forEach(b =>
-            b.addEventListener('click', () => setTimeout(maybeStart, 50)));
+          if (inModal){
+            new MutationObserver(sync).observe(modal,
+              { attributes: true, attributeFilter: ['class'], subtree: true });
+          }
+          sync();
         })();
         </script>
         {% endif %}
@@ -1425,6 +1434,25 @@
         </section>
 
       </div>
+      {% if current_user.is_admin() %}
+      <div class="settings-pane" data-pane="signature">
+        <section class="card data-card">
+          <div class="data-card-head">
+            {{ icon('pencil') }}
+            <span>Reply Signature {% call chip('Reply Signature') %}Yours alone: it fills in under your replies to Contact Form messages, where you can still change it before sending.{% endcall %}</span>
+          </div>
+          <form class="form" method="post" action="{{ url_for('main.reply_signature_save') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>Signature
+              <textarea name="reply_signature" rows="5" maxlength="2000"
+                        placeholder="{{ current_user.name or 'Your name' }}&#10;Public Information Chair">{{ current_user.reply_signature or '' }}</textarea>
+            </label>
+            <div class="data-card-actions"><button class="btn btn-primary">Save Signature</button></div>
+          </form>
+        </section>
+      </div>
+      {% endif %}
+
       <div class="settings-pane" data-pane="timezone">
 
         {# ── Server Timezone ─────────────────────────────────────── #}
