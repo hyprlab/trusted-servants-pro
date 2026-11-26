@@ -128,7 +128,7 @@
 /* ── hero ───────────────────────────────────────────────────────────────── */
 .pp-hero { padding: clamp(3.5rem, 8vw, 7rem) 0 clamp(2rem, 5vw, 4rem); }
 .pp-hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(2rem, 4vw, 4rem); align-items: center; }
-.pp-hero h1 { font-size: clamp(2.8rem, 6.4vw, 5.1rem); letter-spacing: -0.035em; margin: 1.1rem 0 0; }
+.pp-hero h1 { font-size: clamp(2.8rem, 6.4vw, 5.1rem); letter-spacing: -0.035em; margin: 0; }
 .pp-hero p.lede { color: var(--muted); font-size: clamp(1.05rem, 1.6vw, 1.28rem); margin: 1.4rem 0 0; max-width: 34ch; }
 .pp-hero-cta { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 2rem; }
 .pp-hero-note { margin-top: 1.1rem; color: var(--muted-2); font-size: 0.86rem; font-family: var(--mono); }
