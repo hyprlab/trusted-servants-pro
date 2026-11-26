@@ -4646,9 +4646,10 @@
         const u = PAD_UNITS.indexOf(unit) >= 0 ? unit : 'px';
         return n + u;
       }
-      function sideInput(value, oninput) {
+      function sideInput(value, oninput, side) {
         const parts = splitPaddingValue(value);
         const inp = el('input', {
+          title: side,
           type: 'number',
           value: parts.num,
           min: '0', max: '9999', step: '1',
@@ -4656,9 +4657,10 @@
           // inherit", not as the value 0. A greyed "0" here misled
           // admins into thinking a blank mobile side was set to 0
           // (it actually inherits the desktop value at ≤720px).
-          'aria-label': 'amount',
+          'aria-label': side + ' amount',
         });
-        const sel = el('select', { 'aria-label': 'unit', class: 'be-pad-cell-unit-sel' });
+        const sel = el('select', { 'aria-label': side + ' unit', title: side + ' unit',
+                                   class: 'be-pad-cell-unit-sel' });
         PAD_UNITS.forEach(u => {
           const o = el('option', { value: u }, [u]);
           if (u === parts.unit) o.selected = true;
@@ -4672,28 +4674,16 @@
         return el('span', { class: 'be-pad-cell-wrap' }, [inp, sel]);
       }
       function paddingBox(prefix, centerLabel) {
-        // 3x3 grid: top row = top input, middle row = left | label |
-        // right, bottom row = bottom input. Diagram + axis labels
-        // around the box make it obvious which input is which side.
+        // A box-model diagram: each side's amount on its edge of the
+        // dashed box, the label in the middle (grid areas in app.css).
         const grid = el('div', { class: 'be-pad-box' });
-        // Row 1: blank | "Top" label | blank
-        grid.appendChild(el('div', { class: 'be-pad-box-axis be-pad-box-axis--top' }, ['Top']));
-        // Row 2: top input
-        grid.appendChild(el('div', { class: 'be-pad-box-cell be-pad-box-cell--top' },
-          [sideInput(d[prefix + '_top'], v => { d[prefix + '_top'] = v; notifyChange(); })]));
-        // Row 3: "Left" | center | "Right"
-        grid.appendChild(el('div', { class: 'be-pad-box-axis be-pad-box-axis--left' }, ['Left']));
-        grid.appendChild(el('div', { class: 'be-pad-box-cell be-pad-box-cell--left' },
-          [sideInput(d[prefix + '_left'], v => { d[prefix + '_left'] = v; notifyChange(); })]));
+        const side = (key, name) => el('div', { class: 'be-pad-box-cell be-pad-box-cell--' + key },
+          [sideInput(d[prefix + '_' + key], v => { d[prefix + '_' + key] = v; notifyChange(); }, name)]);
+        grid.appendChild(side('top', 'Top'));
+        grid.appendChild(side('left', 'Left'));
         grid.appendChild(el('div', { class: 'be-pad-box-center' }, [centerLabel]));
-        grid.appendChild(el('div', { class: 'be-pad-box-cell be-pad-box-cell--right' },
-          [sideInput(d[prefix + '_right'], v => { d[prefix + '_right'] = v; notifyChange(); })]));
-        grid.appendChild(el('div', { class: 'be-pad-box-axis be-pad-box-axis--right' }, ['Right']));
-        // Row 4: bottom input
-        grid.appendChild(el('div', { class: 'be-pad-box-cell be-pad-box-cell--bottom' },
-          [sideInput(d[prefix + '_bottom'], v => { d[prefix + '_bottom'] = v; notifyChange(); })]));
-        // Row 5: blank | "Bottom" label | blank
-        grid.appendChild(el('div', { class: 'be-pad-box-axis be-pad-box-axis--bottom' }, ['Bottom']));
+        grid.appendChild(side('right', 'Right'));
+        grid.appendChild(side('bottom', 'Bottom'));
         return grid;
       }
       const padRow = el('div', { class: 'be-container-row be-container-row--pad-box' }, [

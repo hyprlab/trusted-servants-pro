@@ -23,6 +23,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 - Block settings show helper text as info chips beside their labels instead of paragraphs under the controls: `block_editor.js` gains `helpChip()` and `withHelp()`, which build the `_help_chip.html` markup, and every row and field hint goes through them (the `.be-container-row-hint` rules are gone). The FAQ and hero dialogs' remaining hints become chips too. Escape with a help tooltip open now closes only the tooltip, not the dialog or drawer around it.
 - List block items are textareas instead of one-line inputs (`block_editor.js`): one line closed, grown to their text when open (`field-sizing: content`, with a JS fallback), up to 60vh. Focus opens an item; a chevron opens and closes it; Expand all / Collapse all sits beside "+ Add item". Open items are remembered per list across re-renders in a `WeakMap`, never saved. A new item opens with the cursor in it.
 
+### Fixed
+
+- Container padding controls (`block_editor.js` `paddingBox`, `.be-pad-box`): the generic `.be-body input / select` rules outranked the side chips, boxing each number and squeezing its unit select to an empty box, and `.be-root .be-container-row` kept a label column that pushed the diagram past narrow panels such as the builder's. The label now stacks above a compact box-model diagram (grid areas, no axis labels; each input is titled and labelled by its side).
+
 ## [3.8.1] — 2026-11-25
 
 ### Fixed

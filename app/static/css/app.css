@@ -10354,50 +10354,39 @@ input.page-typo-color-text.is-invalid {
    four inputs on the inner cross, and a centred "Padding" tag
    inside the rectangle. The bordered centre + axis lines mirror
    the actual padding the box represents. */
-.be-container-row--pad-box {
-  /* Full-width single column: the "Padding" / "Padding (mobile)"
-     row label stacks above the diagram so the 5-column cross below
-     has the whole modal width to breathe. The old 140px label
-     gutter squeezed the box and forced the LEFT/RIGHT labels to
-     overlap their inputs. */
-  grid-template-columns: 1fr;
-  align-items: start;
+.be-root .be-container-row.be-container-row--pad-box {
+  /* The "Padding" / "Padding (mobile)" label stacks above the
+     diagram, which takes the whole row: beside a label column it
+     overflowed narrow panels such as the builder's. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gap-xs);
 }
+.be-root .be-container-row--pad-box > .be-container-row-lbl { padding-top: 0; }
+/* Padding box: a box-model diagram. The dashed box is the padding,
+   each side's amount sits on its edge and the block's name is in the
+   middle. Each input's label is its title and aria-label. */
 .be-pad-box {
-  /* 5 columns × 5 rows. Each side label owns its OWN column/row so
-     it never shares a grid cell with an input (the previous 3-col
-     layout put LEFT/RIGHT labels in the same cell as their inputs,
-     so they overlapped and overflowed). Centre column is the only
-     flexible track; the four input chips + their labels are sized
-     to content. */
   display: grid;
-  grid-template-columns: auto auto minmax(72px, 1fr) auto auto;
-  grid-template-rows: auto auto auto auto auto;
-  gap: var(--gap-2xs) var(--gap-sm);
+  grid-template-columns: auto minmax(48px, 1fr) auto;
+  grid-template-areas: ". top ." "left mid right" ". bottom .";
+  gap: var(--gap-xs);
   justify-items: center; align-items: center;
-  justify-self: start;
-  max-width: 440px;
-  padding: 4px;
-}
-.be-pad-box-axis {
-  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--muted);
-  white-space: nowrap;
-}
-.be-pad-box-axis--top    { grid-row: 1; grid-column: 3; }
-.be-pad-box-axis--bottom { grid-row: 5; grid-column: 3; }
-.be-pad-box-axis--left   { grid-row: 3; grid-column: 1; }
-.be-pad-box-axis--right  { grid-row: 3; grid-column: 5; }
-.be-pad-box-cell--top    { grid-row: 2; grid-column: 3; }
-.be-pad-box-cell--bottom { grid-row: 4; grid-column: 3; }
-.be-pad-box-cell--left   { grid-row: 3; grid-column: 2; }
-.be-pad-box-cell--right  { grid-row: 3; grid-column: 4; }
-.be-pad-box-center {
-  grid-row: 3; grid-column: 3;
-  min-width: 80px; min-height: 44px;
-  display: flex; align-items: center; justify-content: center;
+  width: 100%; max-width: 360px;
+  padding: var(--gap-sm);
   background: var(--panel-2);
   border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+}
+.be-pad-box-cell--top    { grid-area: top; }
+.be-pad-box-cell--bottom { grid-area: bottom; }
+.be-pad-box-cell--left   { grid-area: left; }
+.be-pad-box-cell--right  { grid-area: right; }
+.be-pad-box-center {
+  grid-area: mid; align-self: stretch; justify-self: stretch;
+  min-height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: var(--r-sm);
   font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--muted);
@@ -10409,10 +10398,12 @@ input.page-typo-color-text.is-invalid {
   transition: border-color 120ms ease;
 }
 .be-pad-cell-wrap:focus-within { border-color: var(--brand, var(--access)); }
-.be-pad-cell-wrap > input[type="number"] {
-  width: 44px; padding: 4px 2px;
-  border: 0; background: transparent; outline: none;
-  font-family: inherit; font-size: var(--fs-sm);
+/* `.be-body .be-pad-cell-wrap` outranks the full-width boxed look
+   `.be-body input / select` give every other field. */
+.be-body .be-pad-cell-wrap > input[type="number"] {
+  width: 40px; padding: 4px 2px;
+  border: 0; border-radius: 0; background: transparent; outline: none;
+  font-family: inherit; font-size: var(--fs-sm); color: var(--text);
   text-align: right;
   font-variant-numeric: tabular-nums;
   -moz-appearance: textfield;
@@ -10424,21 +10415,17 @@ input.page-typo-color-text.is-invalid {
 /* Unit selector sits flush against the number; native chevron is
    suppressed to keep the chip compact, the muted colour tells the
    admin it's a secondary control (the number is the focus). */
-.be-pad-cell-unit-sel {
-  border: 0; background: transparent; outline: none;
+.be-body .be-pad-cell-wrap > .be-pad-cell-unit-sel {
+  width: auto; min-width: 0;
+  border: 0; border-radius: 0; background: transparent; outline: none;
   font-family: inherit; font-size: var(--fs-2xs); font-weight: 600;
   color: var(--muted); cursor: pointer;
   padding: 2px 2px 2px 0;
   -webkit-appearance: none; -moz-appearance: none; appearance: none;
   text-align: center; text-transform: lowercase;
 }
-.be-pad-cell-unit-sel:focus-visible { color: var(--text); }
-.be-pad-cell-unit-sel:hover { color: var(--text); }
-
-@media (max-width: 600px) {
-  .be-container-row--pad-box { grid-template-columns: 1fr; }
-  .be-pad-box { margin-left: 0; }
-}
+.be-body .be-pad-cell-wrap > .be-pad-cell-unit-sel:focus-visible,
+.be-body .be-pad-cell-wrap > .be-pad-cell-unit-sel:hover { color: var(--text); }
 
 /* ── Grid-column GUI controls ───────────────────────────────────
    Replaces the free-form `grid-template-columns` text input with a
