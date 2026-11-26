@@ -11,7 +11,7 @@ release notes expanded by default and the changelog collapsed.
 
 New features:
 
-- page and popup previews: click a block to edit it
+- popup preview and page builder: click a block to edit it
 - page preview image chosen from the File Browser
 - Pages, Popups, Forms and Page templates open on an index of cards with previews, or a list
 - full-screen page builder: block library, structure, the page at desktop, tablet or phone size, and a toolbar on the selected block

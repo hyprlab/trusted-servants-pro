@@ -518,11 +518,10 @@
             {% if page %}
             {{ live_preview(url_for('frontend.page_preview', page_id=page.id), '#page-edit-form', height=700, width=1280,
                             title='Page preview', overrides={'save_action': 'publish'}, watch=True, only=LP_MAIN) }}
-            {# The blocks are edited in the builder: this opens it, and so
-               does a click on any block in the preview. #}
+            {# The blocks are edited only in the builder; this preview is
+               for looking. #}
             <div class="pb-launch">
               <button type="button" class="btn btn-primary" data-pb-open>{{ icon('mouse-pointer-click') }} Open builder</button>
-              <span class="muted smaller">or click any part of the page to edit it there</span>
             </div>
             {% else %}
             <p class="muted small">The preview appears once the page is saved.</p>

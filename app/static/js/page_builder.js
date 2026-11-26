@@ -12,8 +12,8 @@
      • a block's settings drawer docks in the left panel, over the
        library (app.css, body.pb-on);
      • the address carries #builder, so a reload comes back to it.
-   A click on a block in the edit screen's preview opens the builder on
-   that block (page_navigator.js calls tspBuilder.open()).
+   Blocks are picked and moved only here: the edit screen's preview is
+   for looking, and its links go nowhere.
    Keyboard: ⌘/Ctrl+S saves (a draft when the page is published),
    ⌘/Ctrl+Z / ⇧⌘Z undo and redo outside text fields. */
 (function () {
@@ -181,6 +181,16 @@
   })();
   var refreshBtn = $('[data-pb-refresh]');
   if (refreshBtn) refreshBtn.addEventListener('click', function () { if (lpApi()) lpApi().refresh(canvasLp); });
+
+  if (editLp) {
+    editLp.addEventListener('lp:load', function (e) {
+      var d = e.detail && e.detail.doc;
+      if (!d) return;
+      d.addEventListener('click', function (ev) {
+        if (ev.target.closest && ev.target.closest('a[href]')) ev.preventDefault();
+      });
+    });
+  }
 
   // The canvas is for building: the editor's preview strip goes, and a
   // click that isn't on a block (a menu link, a footer link) does nothing.

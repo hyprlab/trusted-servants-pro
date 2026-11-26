@@ -1828,7 +1828,8 @@
       function choose(id) {
         const blk = blockOf(id);
         if (!blk || !rowFor(id)) return;
-        // On the edit screen a click on the page opens the builder on it.
+        // Picked from the builder's structure tree or crumbs, the
+        // builder is already open; anywhere else this opens it.
         if (window.tspBuilder) window.tspBuilder.open();
         if (DEDICATED[blk.type] && drawer && drawer.classList.contains('open')) {
           const x = drawer.querySelector('.modal-head [data-close]');
@@ -1977,8 +1978,12 @@
         cutout();
       }
 
+      // Where there is a builder, blocks are picked and moved only in
+      // it: the edit screen's own preview is just for looking.
+      const builder = document.querySelector('[data-pb]');
       document.addEventListener('lp:load', e => {
         const root = e.target && e.target.closest && e.target.closest('[data-live-preview]');
+        if (builder && root && !builder.contains(root)) return;
         if (root && e.detail && e.detail.doc) wire(root, e.detail.doc);
       });
       // Rows point at their block in the preview too.
