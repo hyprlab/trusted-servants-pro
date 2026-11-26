@@ -58,6 +58,6 @@ Role-based access (admin / editor / viewer) gates every edit route. Rich-text in
 docker compose up -d --build
 ```
 
-That's the whole install on a laptop. For a production server on Ubuntu 24.04, `install.sh` provisions Docker, writes a hardened compose file, generates keys, configures Caddy for TLS, and installs Watchtower — all from one command.
+That's the whole install on a laptop. For a production server on Ubuntu 26.04, `install.sh` provisions Docker, writes a hardened compose file, generates keys, configures Caddy for TLS, and installs Watchtower — all from one command.
 
 Trusted Servants Pro is purpose-built for the people who keep fellowships running, and designed to stay out of their way. Spin it up, brand it, import your meetings, and hand it to your group.

@@ -1,12 +1,12 @@
 # Installing on a server
 
-The one-command installer for Ubuntu 24.04, upgrades, disk usage and uninstalling. For a local or hand-written Docker setup, the [README](../README.md#quick-start) has the compose file.
+The one-command installer for Ubuntu 26.04, upgrades, disk usage and uninstalling. For a local or hand-written Docker setup, the [README](../README.md#quick-start) has the compose file.
 
-`install.sh` in this repo is a turnkey installer that provisions Docker, writes a hardened `docker-compose.yml`, generates a `TSP_SECRET_KEY`, configures Caddy for TLS (Let's Encrypt or self-signed), and installs Watchtower so the portal picks up new releases automatically. Follow these steps on a fresh Ubuntu 24.04 server:
+`install.sh` in this repo is a turnkey installer that provisions Docker, writes a hardened `docker-compose.yml`, generates a `TSP_SECRET_KEY`, configures Caddy for TLS (Let's Encrypt or self-signed), and installs Watchtower so the portal picks up new releases automatically. Follow these steps on a fresh Ubuntu 26.04 server:
 
 ## 1. Provision a server
 
-Spin up an Ubuntu 24.04 LTS instance on whatever provider you like (DigitalOcean, Hetzner, AWS Lightsail, bare metal, etc.). You'll need root or sudo access. The portal is happy on 1 vCPU / 1 GB RAM for small groups.
+Spin up an Ubuntu 26.04 LTS instance on whatever provider you like (DigitalOcean, Hetzner, AWS Lightsail, bare metal, etc.). You'll need root or sudo access. The portal is happy on 1 vCPU / 1 GB RAM for small groups.
 
 ## 2. Point DNS at the server (required for Let's Encrypt)
 
