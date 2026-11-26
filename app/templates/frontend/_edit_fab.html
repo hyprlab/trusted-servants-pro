@@ -1,0 +1,47 @@
+{# Floating "Edit" shortcut from a public page to its admin edit
+   screen, for signed-in users allowed to edit it. The caller does the
+   permission check and sets ``edit_fab_url``, ``edit_fab_label`` and
+   ``edit_fab_title`` before including this. Fixed bottom-right so it
+   doesn't fight any per-template header layout; below 640 px it
+   collapses to an icon-only pill. Selectors are ``a.fe-edit-fab`` so they
+   outrank the site-wide ``.fe-page a`` link color. #}
+<a class="fe-edit-fab"
+   href="{{ edit_fab_url }}"
+   title="{{ edit_fab_title }}"
+   aria-label="{{ edit_fab_title }}">
+  <span class="fe-edit-fab-icon" aria-hidden="true">{{ icon('pencil') }}</span>
+  <span class="fe-edit-fab-label">{{ edit_fab_label }}</span>
+</a>
+<style>
+  a.fe-edit-fab {
+    position: fixed; right: 18px; bottom: 18px; z-index: 60;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: #0f172a; color: #f8fafc;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.28);
+    font: inherit; font-size: 0.9rem; font-weight: 600;
+    text-decoration: none;
+    transition: transform 160ms ease, box-shadow 160ms ease,
+                background-color 160ms ease;
+  }
+  a.fe-edit-fab:hover {
+    background: #1e293b; color: #f8fafc; text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.36);
+  }
+  a.fe-edit-fab:focus-visible {
+    outline: 2px solid #38bdf8; outline-offset: 3px;
+  }
+  .fe-edit-fab-icon { display: inline-flex; }
+  .fe-edit-fab-icon svg { width: 16px; height: 16px; }
+  [data-theme="dark"] a.fe-edit-fab {
+    background: #e2e8f0; color: #0f172a;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  }
+  [data-theme="dark"] a.fe-edit-fab:hover { background: #f1f5f9; color: #0f172a; }
+  @media (max-width: 640px) {
+    a.fe-edit-fab { padding: 10px 12px; right: 12px; bottom: 12px; }
+    .fe-edit-fab-label { display: none; }
+  }
+</style>

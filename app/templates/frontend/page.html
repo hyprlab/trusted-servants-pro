@@ -899,6 +899,12 @@
     {% for sec in sections %}{{ pp_section(sec) }}{% endfor %}
   </div>
 </article>
+{% if not preview_mode and current_user.is_authenticated and current_user.can_edit_frontend() %}
+  {% set edit_fab_url = url_for('main.frontend_page_edit', page_id=page.id) %}
+  {% set edit_fab_label = 'Edit page' %}
+  {% set edit_fab_title = 'Edit this page in the admin' %}
+  {% include "frontend/_edit_fab.html" %}
+{% endif %}
 {% endif %}
 {% if has_lottie %}
 {# Vendored lottie-web (Bodymovin) player + a minimal init script. Only
