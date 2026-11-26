@@ -17621,3 +17621,7 @@ body.pb-on [data-rs-legacy] { display: none !important; }
 .be-device-key .icon { width: 11px; height: 11px; }
 .be-device-reset { margin-left: auto; }
 .pb-device-badge { margin-left: var(--gap-sm); vertical-align: middle; }
+.rs-dev-icon { display: inline-flex; vertical-align: -1px; margin: 0 var(--gap-3xs) 0 var(--gap-2xs);
+  color: var(--muted); opacity: .75; }
+.rs-dev-icon .icon { width: 12px; height: 12px; }
+.rs-dev-icon.is-own { color: var(--access, var(--brand)); opacity: 1; }

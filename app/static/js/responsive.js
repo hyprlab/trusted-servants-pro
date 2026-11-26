@@ -39,9 +39,9 @@
     'show_email', 'show_name', 'show_phone', 'show_role',
     'level', 'ordered', 'display', 'display_style', 'bullet_style', 'style', 'variant',
     'card_style', 'mode', 'renderer', 'animation', 'playback', 'autoplay', 'loop', 'speed',
-    'sticky', 'particle_effect', 'stagger_ms',
+    'sticky', 'particle_effect', 'stagger_ms', 'tagline', 'cta_style', 'group_by_day',
   ]);
-  const SHARED_RE = /^(bg_|particle_)|_(id|ids|url|src|text|md|html|title|caption|label|items)$/;
+  const SHARED_RE = /^(bg_|sinewave_|particle_|show_|hide_)|_(id|ids|url|src|text|md|html|title|caption|label|items|new_tab)$/;
 
   // Phone-only fields the page already renders: on Phone, `key` reads
   // and writes `to`. `empty` is shown when `to` is blank; `inherit`
@@ -60,6 +60,28 @@
       height_vh_desktop: { to: 'height_vh_mobile', inherit: true, blank: 0 },
     },
   };
+
+  // Beside the heading of each setting that can differ by device, the
+  // device being edited: muted when it shows a larger screen's value,
+  // in the accent colour when this device sets its own.
+  const ICONS = {
+    desktop: '<rect width="20" height="14" x="2" y="3" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+    tablet: '<rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>',
+    phone: '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
+  };
+  // A control's row, and the row's heading, in the shapes the
+  // settings forms and the block dialogs use. A bare <label> counts
+  // only outside those rows (a switch's or an option's own label is
+  // not the setting's heading).
+  const ROWS = '.be-container-row, .nav-megalink-field, .special-page-row, .be-button-color-row';
+  const HEADS = '.be-container-row-lbl, .nav-megalink-field-lbl, .u-name, .be-button-color-lbl, .field-label-row';
+  function headingOf(control) {
+    const row = control.closest(ROWS);
+    if (row) return row.querySelector(HEADS);
+    const lbl = control.closest('label:not(.mode-toggle)');
+    if (!lbl || /^(radio|checkbox)$/.test(control.type || '')) return null;
+    return lbl.querySelector(HEADS) || lbl;
+  }
 
   let device = 'desktop';
   let available = false;
@@ -180,11 +202,17 @@
 
     // The block's data as `dev` (default: the current device) sees it,
     // for a form to read and write.
-    view(d, type, dev) {
+    // `onRead(key)`, when given, hears every key the form reads, so a
+    // control can be matched to the keys it edits.
+    view(d, type, dev, onRead) {
       dev = dev || api.current();
-      if (!d || dev === 'desktop') return d;
+      if (!d || (dev === 'desktop' && !onRead)) return d;
       return new Proxy(d, {
-        get(t, k) { return typeof k === 'string' ? get(t, k, dev, type) : t[k]; },
+        get(t, k) {
+          if (typeof k !== 'string') return t[k];
+          if (onRead) onRead(k);
+          return get(t, k, dev, type);
+        },
         set(t, k, v) {
           if (typeof k === 'string') set(t, k, v, dev, type);
           else t[k] = v;
@@ -270,6 +298,33 @@
     skips(id, dev) {
       dev = dev || api.current();
       return (skipped[id] && skipped[id][dev]) || [];
+    },
+
+    // Put the device icon beside the heading of each control in
+    // `items` ([{ el, keys, own }]) that edits a per-device key; `own`
+    // when the device sets one of them itself.
+    mark(items, dev) {
+      dev = dev || api.current();
+      const heads = new Map();
+      (items || []).forEach(it => {
+        if (!it.el || !(it.keys || []).some(k => !isShared(k))) return;
+        const h = headingOf(it.el);
+        if (h) heads.set(h, heads.get(h) || !!it.own);
+      });
+      heads.forEach((own, h) => {
+        let ic = h.querySelector('.rs-dev-icon');
+        if (!ic) {
+          ic = document.createElement('span');
+          const help = h.querySelector('.heading-help');
+          if (help) help.before(ic);
+          else h.appendChild(ic);
+        }
+        ic.className = 'rs-dev-icon' + (own ? ' is-own' : '');
+        ic.title = dev === 'desktop' ? 'Desktop: every screen size, unless Tablet or Phone set their own'
+          : NAMES[dev] + ', ' + WIDTHS[dev] + 'px and narrower' + (own ? ': set for this screen' : ': same as the larger screen');
+        ic.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+          + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[dev] + '</svg>';
+      });
     },
 
     // "padding_top" → "Padding top".

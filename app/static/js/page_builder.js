@@ -178,6 +178,25 @@
     });
   });
   document.addEventListener('tsp:device', function (e) { showDevice(e.detail.device); });
+  // Each setting in a block's dialog that can differ by device shows
+  // the device beside its heading. The field names are the block's
+  // keys (the hero's with a frontend_hero_ prefix).
+  function markDialog(m, dev) {
+    if (!RS) return;
+    var items = $$('[data-hero-field], [data-meetings-field], [data-events-field], [data-features-field], [data-faq-field]', m)
+      .map(function (f) {
+        var a = Array.prototype.find.call(f.attributes, function (x) { return /^data-[a-z]+-field$/.test(x.name); });
+        var key = (a ? a.value : '').replace(/^frontend_hero_/, '').replace(/^frontend_/, '');
+        return { el: f, keys: key ? [key] : [] };
+      });
+    RS.mark(items, dev);
+  }
+  $$('.modal[id^="page-"][id$="-edit-modal"]', document).forEach(function (m) {
+    if (m.id === 'page-layout-edit-modal') return;
+    new MutationObserver(function () {
+      if (m.classList.contains('open')) markDialog(m, RS ? RS.current() : 'desktop');
+    }).observe(m, { attributes: true, attributeFilter: ['class'] });
+  });
   // A block's own dialog (hero, FAQ, …) edits the device too: its
   // header says which one.
   function deviceBadges() {
@@ -192,6 +211,7 @@
         badge.className = 'badge badge-muted pb-device-badge';
         title.appendChild(badge);
       }
+      markDialog(m, dev);
       badge.hidden = dev === 'desktop';
       badge.textContent = dev === 'desktop' ? '' : RS.NAMES[dev] + ' · ' + RS.WIDTHS[dev] + 'px and narrower';
     });

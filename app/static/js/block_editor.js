@@ -433,6 +433,10 @@
     return null;
   }
 
+  // While a settings form is built for the page builder, each control
+  // created takes the data keys read since the previous one (see
+  // renderBlock), so its heading can show the device being edited.
+  let elHook = null;
   function el(tag, attrs, children) {
     const n = document.createElement(tag);
     if (attrs) for (const k in attrs) {
@@ -450,6 +454,7 @@
       if (typeof c === 'string') n.appendChild(document.createTextNode(c));
       else n.appendChild(c);
     });
+    if (elHook) elHook(n);
     return n;
   }
 
@@ -1079,11 +1084,30 @@
       // data (static/js/responsive.js); every control is unchanged.
       const R = window.tspResponsive;
       const dev = R ? R.current() : 'desktop';
+      const marking = !!(R && R.available && b.data);
       let body;
-      if (dev !== 'desktop' && b.data) {
+      if (b.data && (dev !== 'desktop' || marking)) {
         const real = b.data;
-        b.data = R.view(real, b.type, dev);
-        try { body = renderBlockBody(b); } finally { b.data = real; }
+        const read = new Set();
+        const controls = [];
+        const prevHook = elHook;
+        b.data = R.view(real, b.type, dev, marking ? k => read.add(k) : null);
+        if (marking) {
+          elHook = n => {
+            if (!read.size) return;
+            if (/^(INPUT|SELECT|TEXTAREA)$/.test(n.tagName)
+                || (n.tagName === 'BUTTON' && Array.prototype.some.call(n.attributes, a => a.name.startsWith('data-')))) {
+              controls.push({ el: n, keys: Array.from(read) });
+              read.clear();
+            }
+          };
+        }
+        try { body = renderBlockBody(b); } finally { b.data = real; elHook = prevHook; }
+        if (marking) {
+          const own = new Set(R.overrides(real, b.type, dev));
+          controls.forEach(c => { c.own = c.keys.some(k => own.has(k)); });
+          R.mark(controls, dev);
+        }
       } else {
         body = renderBlockBody(b);
       }
