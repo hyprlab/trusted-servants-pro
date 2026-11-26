@@ -90,7 +90,6 @@
 
 /* ── primitives ─────────────────────────────────────────────────────────── */
 .pp-wrap { width: min(1400px, 92vw); margin-inline: auto; }
-.pp-eyebrow { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--accent); }
 .pp-kicker { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted-2); }
 .pp h1, .pp h2, .pp h3 { font-family: var(--display); font-weight: 600; line-height: 1.04; margin: 0; }
 .pp h2 { font-size: clamp(2rem, 4.4vw, 3.4rem); letter-spacing: -0.02em; }
@@ -201,7 +200,6 @@
 /* ── sections ───────────────────────────────────────────────────────────── */
 .pp-section { padding: clamp(3.5rem, 8vw, 6.5rem) 0; }
 .pp-section-head { max-width: 52ch; margin-bottom: clamp(2rem, 4vw, 3rem); }
-.pp-section-head h2 { margin-top: 0.8rem; }
 .pp-section-head p { color: var(--muted); margin: 1rem 0 0; font-size: 1.06rem; }
 
 /* two surfaces */
@@ -267,7 +265,7 @@
 
 /* ── final cta ──────────────────────────────────────────────────────────── */
 .pp-cta-band { border-radius: 26px; padding: clamp(2.5rem, 6vw, 4.5rem); text-align: center; background: radial-gradient(120% 140% at 50% 0%, rgba(11,92,255,0.32), transparent 60%), var(--ink-2); border: 1px solid var(--line); position: relative; overflow: hidden; }
-.pp-cta-band h2 { max-width: 18ch; margin: 0.6rem auto 0; }
+.pp-cta-band h2 { max-width: 18ch; margin: 0 auto; }
 .pp-cta-band p { color: var(--muted); max-width: 50ch; margin: 1rem auto 2rem; }
 .pp-cta-band .pp-hero-cta { justify-content: center; }
 
@@ -389,7 +387,7 @@
 .pp-docs-crumb a { color: var(--muted); } .pp-docs-crumb a:hover { color: var(--text); }
 
 .pp-docs-head, .pp-docs-arthead { margin-bottom: 2rem; }
-.pp-docs-head h1, .pp-docs-arthead h1 { font-family: var(--display); font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; font-size: clamp(2rem, 4vw, 2.9rem); margin: 0.5rem 0 0; }
+.pp-docs-head h1, .pp-docs-arthead h1 { font-family: var(--display); font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; font-size: clamp(2rem, 4vw, 2.9rem); margin: 0; }
 .pp-docs-lede { color: var(--muted); font-size: 1.06rem; line-height: 1.6; margin: 0.9rem 0 0; max-width: 60ch; }
 .pp-docs-lede a { color: var(--doc-link); }
 .pp-docs-lede a:hover { text-decoration: underline; }
@@ -522,7 +520,7 @@
 .pp-fr-close:hover { color: var(--text); border-color: var(--text); }
 .pp-fr-close svg { width: 16px; height: 16px; }
 
-.pp-fr-head h2 { font-family: var(--display); font-weight: 600; font-size: 1.7rem; letter-spacing: -0.01em; margin: 0.4rem 0 0; }
+.pp-fr-head h2 { font-family: var(--display); font-weight: 600; font-size: 1.7rem; letter-spacing: -0.01em; margin: 0; }
 .pp-fr-head p { color: var(--muted); font-size: 0.95rem; line-height: 1.55; margin: 0.6rem 0 0; }
 
 .pp-fr-form { margin-top: 1.4rem; display: flex; flex-direction: column; gap: 0.9rem; }
