@@ -6952,6 +6952,20 @@ h5.block-heading { font-size: var(--fs-sm); font-weight: 600; margin: 12px 0 4px
 .be-list-drag { flex: 0 0 auto; display: inline-flex; align-items: center;
   padding: 4px 2px; touch-action: none; }
 .be-list-item.sortable-ghost { opacity: .4; }
+/* List items are textareas: one clipped line closed, grown to their
+   text open. The grip and buttons stay on the first line. */
+.be-list-items { display: flex; flex-direction: column; gap: var(--gap-xs); }
+.be-row.be-list-item { align-items: flex-start; }
+.be-list-item > .be-list-drag { padding-top: 9px; }
+.be-body .be-list-item > .be-list-text { flex: 1 1 0; min-width: 0; resize: none;
+  overflow: hidden; line-height: 1.5; field-sizing: fixed;
+  white-space: nowrap; text-overflow: ellipsis; }
+.be-body .be-list-item.is-open > .be-list-text { field-sizing: content;
+  white-space: pre-wrap; text-overflow: clip;
+  min-height: calc(3lh + 14px); max-height: 60vh; overflow-y: auto; }
+.be-list-toggle .icon { transition: transform .18s ease; }
+.be-list-item.is-open .be-list-toggle .icon { transform: rotate(180deg); }
+.be-list-foot > .btn:first-child { flex: 1 1 auto; }
 .be-section-title { flex: 1; font-size: var(--fs-base); font-weight: 600;
   background: var(--panel); color: var(--text);
   border: 1px solid var(--border); border-radius: var(--r-sm); padding: 6px 10px; }

@@ -608,6 +608,7 @@
 
   const ICON_PATHS = {
     'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    'chevron-down': '<path d="m6 9 6 6 6-6"/>',
     'info': '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
     'grip-vertical': '<circle cx="9" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/>',
     'align-left': '<line x1="21" y1="6" x2="3" y2="6"/><line x1="15" y1="12" x2="3" y2="12"/><line x1="17" y1="18" x2="3" y2="18"/>',
@@ -744,6 +745,19 @@
     paint();
     return wrap;
   }
+  // Which list items are open for editing, by position, per list
+  // block's data object: kept across the re-render an add or a remove
+  // does, never saved with the page.
+  const LIST_OPEN = new WeakMap();
+  let listFocus = null;   // the list whose newly added item gets the cursor
+  // Grows a textarea to its text where CSS field-sizing can't.
+  const FIELD_SIZING = !!(window.CSS && CSS.supports && CSS.supports('field-sizing', 'content'));
+  function fitText(t) {
+    if (FIELD_SIZING) return;
+    t.style.height = 'auto';
+    if (t.scrollHeight) t.style.height = (t.scrollHeight + t.offsetHeight - t.clientHeight) + 'px';
+  }
+
   function iconEl(name) {
     const wrap = document.createElement('span');
     wrap.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICON_PATHS[name] || '') + '</svg>';
@@ -1954,26 +1968,56 @@
         // Item rows are drag-reorderable via the grip handle. Because a
         // drag rearranges the DOM without re-rendering, the per-row
         // handlers resolve their index from the row's live position
-        // (`rowIndex`) rather than closing over the loop counter —
-        // otherwise every input/remove would keep writing to the slot
-        // the row occupied before the drag.
+        // (`rowIndex`) rather than closing over the loop counter.
+        // Each item is a textarea that can hold paragraphs: closed it
+        // shows one line, open it grows to its text. Clicking into a
+        // closed item opens it; the chevron opens and closes it.
         const items = el('div', { class: 'be-list-items' });
         const rowIndex = (row) => Array.prototype.indexOf.call(items.children, row);
-        (d.items || []).forEach((it) => {
+        const open = LIST_OPEN.get(d) || new Set();
+        LIST_OPEN.set(d, open);
+        const syncOpen = () => {
+          open.clear();
+          Array.prototype.forEach.call(items.children, (r, i) => { if (r.classList.contains('is-open')) open.add(i); });
+          allBtn.textContent = open.size ? 'Collapse all' : 'Expand all';
+        };
+        const setOpen = (row, on) => {
+          const t = row.querySelector('textarea');
+          row.classList.toggle('is-open', on);
+          row.querySelector('.be-list-toggle').setAttribute('aria-expanded', on ? 'true' : 'false');
+          t.rows = on ? 3 : 1;
+          if (on) fitText(t);
+          else { t.style.height = ''; t.scrollTop = 0; }
+        };
+        (d.items || []).forEach((it, i) => {
           const row = el('div', { class: 'be-row be-list-item' });
           row.appendChild(el('span', {
             class: 'be-list-drag', title: 'Drag to reorder',
           }, [iconEl('grip-vertical')]));
-          row.appendChild(el('input', {
-            type: 'text', value: it,
-            oninput: e => { d.items[rowIndex(row)] = e.target.value; notifyChange(); },
-            placeholder: 'List item (supports markdown — e.g. [link](https://example.com))'
-          }));
+          const t = el('textarea', {
+            class: 'be-list-text', rows: '1',
+            placeholder: 'List item (supports markdown, e.g. [link](https://example.com))',
+            oninput: e => { d.items[rowIndex(row)] = e.target.value; fitText(e.target); notifyChange(); },
+            onfocus: () => { if (!row.classList.contains('is-open')) { setOpen(row, true); syncOpen(); } },
+          }, [it || '']);
+          row.appendChild(t);
+          row.appendChild(el('button', {
+            type: 'button', class: 'icon-btn be-list-toggle', title: 'Expand or collapse',
+            'aria-expanded': 'false',
+            onclick: () => { setOpen(row, !row.classList.contains('is-open')); syncOpen(); },
+          }, [iconEl('chevron-down')]));
           row.appendChild(el('button', {
             type: 'button', class: 'icon-btn', title: 'Remove',
-            onclick: () => { d.items.splice(rowIndex(row), 1); render(); notifyChange(); },
+            onclick: () => {
+              const at = rowIndex(row);
+              row.remove();
+              syncOpen();
+              d.items.splice(at, 1);
+              render(); notifyChange();
+            },
           }, [iconEl('x')]));
           items.appendChild(row);
+          if (open.has(i)) setOpen(row, true);
         });
         if (typeof Sortable !== 'undefined') {
           Sortable.create(items, {
@@ -1984,15 +2028,42 @@
               if (e.oldIndex === e.newIndex) return;
               const [moved] = d.items.splice(e.oldIndex, 1);
               d.items.splice(e.newIndex, 0, moved);
+              syncOpen();
               notifyChange();
             },
           });
         }
         body.appendChild(items);
-        body.appendChild(el('button', {
+        // Sizes need the rows on the page: fit the open ones once they are.
+        requestAnimationFrame(() => items.querySelectorAll('.is-open textarea').forEach(fitText));
+        // A new item takes the cursor.
+        if (listFocus === d) {
+          listFocus = null;
+          const last = items.lastElementChild;
+          if (last) requestAnimationFrame(() => last.querySelector('textarea').focus());
+        }
+        const allBtn = el('button', {
           type: 'button', class: 'btn btn-sm',
-          onclick: () => { d.items = d.items || []; d.items.push(''); render(); notifyChange(); }
-        }, ['+ Add item']));
+          onclick: () => {
+            const on = !open.size;
+            Array.prototype.forEach.call(items.children, r => setOpen(r, on));
+            syncOpen();
+          },
+        }, [open.size ? 'Collapse all' : 'Expand all']);
+        allBtn.hidden = !(d.items || []).length;
+        body.appendChild(el('div', { class: 'be-row be-list-foot' }, [
+          el('button', {
+            type: 'button', class: 'btn btn-sm',
+            onclick: () => {
+              d.items = d.items || [];
+              d.items.push('');
+              open.add(d.items.length - 1);
+              listFocus = d;
+              render(); notifyChange();
+            },
+          }, ['+ Add item']),
+          allBtn,
+        ]));
         body.appendChild(renderTypographyPanel(d));
         return body;
       }

@@ -21,6 +21,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 - The page edit screen keeps the page's settings and its preview; the Structure card and block library moved into the builder.
 - Block settings show helper text as info chips beside their labels instead of paragraphs under the controls: `block_editor.js` gains `helpChip()` and `withHelp()`, which build the `_help_chip.html` markup, and every row and field hint goes through them (the `.be-container-row-hint` rules are gone). The FAQ and hero dialogs' remaining hints become chips too. Escape with a help tooltip open now closes only the tooltip, not the dialog or drawer around it.
+- List block items are textareas instead of one-line inputs (`block_editor.js`): one line closed, grown to their text when open (`field-sizing: content`, with a JS fallback), up to 60vh. Focus opens an item; a chevron opens and closes it; Expand all / Collapse all sits beside "+ Add item". Open items are remembered per list across re-renders in a `WeakMap`, never saved. A new item opens with the cursor in it.
 
 ## [3.8.1] — 2026-11-25
 

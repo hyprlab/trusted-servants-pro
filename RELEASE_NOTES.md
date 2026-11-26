@@ -22,6 +22,7 @@ New features:
 Changes:
 
 - block settings help text behind info icons
+- list items edited in boxes that expand for paragraphs
 
 ## 3.8.1 — 2026-11-25 (latest)
 
