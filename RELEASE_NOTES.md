@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+New features:
+
+- revert button beside each changed block setting
+
 Changes:
 
 - live previews update in place without greying out

@@ -17625,3 +17625,11 @@ body.pb-on [data-rs-legacy] { display: none !important; }
   color: var(--muted); opacity: .75; }
 .rs-dev-icon .icon { width: 12px; height: 12px; }
 .rs-dev-icon.is-own { color: var(--access, var(--brand)); opacity: 1; }
+/* Revert a setting to its default (responsive.js setRevert). */
+.rs-revert { display: inline-flex; align-items: center; justify-content: center; vertical-align: -2px;
+  margin: 0 var(--gap-3xs) 0 var(--gap-2xs); padding: 1px; border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--access, var(--brand)); cursor: pointer; line-height: 0; }
+.rs-dev-icon + .rs-revert { margin-left: 0; }
+.rs-revert .icon { width: 12px; height: 12px; }
+.rs-revert:hover { background: color-mix(in srgb, var(--access, var(--brand)) 14%, transparent); }
+.rs-revert:focus-visible { outline: 2px solid var(--access, var(--brand)); outline-offset: 1px; }

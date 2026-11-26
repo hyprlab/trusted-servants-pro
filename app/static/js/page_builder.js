@@ -190,12 +190,21 @@
         return { el: f, keys: key ? [key] : [] };
       });
     RS.mark(items, dev);
+    RS.markDialogReverts(m, dev);
   }
   $$('.modal[id^="page-"][id$="-edit-modal"]', document).forEach(function (m) {
     if (m.id === 'page-layout-edit-modal') return;
-    new MutationObserver(function () {
-      if (m.classList.contains('open')) markDialog(m, RS ? RS.current() : 'desktop');
-    }).observe(m, { attributes: true, attributeFilter: ['class'] });
+    var queued = false;
+    var again = function () {
+      if (queued || !m.classList.contains('open')) return;
+      queued = true;
+      requestAnimationFrame(function () { queued = false; markDialog(m, RS ? RS.current() : 'desktop'); });
+    };
+    new MutationObserver(again).observe(m, { attributes: true, attributeFilter: ['class'] });
+    // Each edit can make a setting differ from its default, or not.
+    m.addEventListener('input', again);
+    m.addEventListener('change', again);
+    m.addEventListener('click', again);
   });
   // A block's own dialog (hero, FAQ, …) edits the device too: its
   // header says which one.

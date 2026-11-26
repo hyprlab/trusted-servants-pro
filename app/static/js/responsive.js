@@ -73,18 +73,70 @@
   // settings forms and the block dialogs use. A bare <label> counts
   // only outside those rows (a switch's or an option's own label is
   // not the setting's heading).
-  const ROWS = '.be-container-row, .nav-megalink-field, .special-page-row, .be-button-color-row';
+  const ROWS = '.be-container-row, .nav-megalink-field, .special-page-row, .be-button-color-row, .be-field';
   const HEADS = '.be-container-row-lbl, .nav-megalink-field-lbl, .u-name, .be-button-color-lbl, .field-label-row';
+  // A label's own wording (its first text), in a span so an icon can
+  // sit right after it rather than after the control it holds.
+  function labelText(lbl) {
+    const own = lbl.querySelector(':scope > .rs-lbl-text');
+    if (own) return own;
+    const t = Array.prototype.find.call(lbl.childNodes, n => n.nodeType === 3 && n.nodeValue.trim());
+    if (!t) return lbl;
+    const span = document.createElement('span');
+    span.className = 'rs-lbl-text';
+    t.replaceWith(span);
+    span.appendChild(t);
+    // A help chip right after the wording stays with it.
+    const next = span.nextSibling;
+    if (next && next.nodeType === 1 && next.classList.contains('nowrap')) span.appendChild(next);
+    return span;
+  }
   function headingOf(control) {
     const row = control.closest(ROWS);
-    if (row) return row.querySelector(HEADS);
-    const lbl = control.closest('label:not(.mode-toggle)');
-    if (!lbl || /^(radio|checkbox)$/.test(control.type || '')) return null;
-    return lbl.querySelector(HEADS) || lbl;
+    if (row) return row.matches('.be-field') ? row.querySelector(':scope > span') : row.querySelector(HEADS);
+    if (/^(radio|checkbox)$/.test(control.type || '')) return null;
+    // The nearest label with wording of its own (a colour field's
+    // swatch is a label with none).
+    const first = control.closest('label:not(.mode-toggle)');
+    let lbl = first;
+    while (lbl && !lbl.querySelector(HEADS) && !hasText(lbl)) {
+      lbl = lbl.parentElement && lbl.parentElement.closest('label:not(.mode-toggle)');
+    }
+    lbl = lbl || first;
+    if (!lbl) return null;
+    return lbl.querySelector(HEADS) || labelText(lbl);
   }
+  function hasText(lbl) {
+    return !!lbl.querySelector(':scope > .rs-lbl-text')
+      || Array.prototype.some.call(lbl.childNodes, n => n.nodeType === 3 && n.nodeValue.trim());
+  }
+  // Where a setting's revert button goes: its heading, or for a switch
+  // or tick box, after its own wording.
+  function revertHeadingOf(control) {
+    const h = headingOf(control);
+    if (h || control.type !== 'checkbox') return h;
+    const lbl = control.closest('label');
+    return lbl ? labelText(lbl) : null;
+  }
+
+  // What a block says or holds rather than how it looks or behaves:
+  // these never get a revert button (it would wipe the content).
+  const CONTENT = new Set([
+    'responsive', 'blocks', 'cell_lengths', 'id', 'label',
+    'text', 'md', 'html', 'code', 'title', 'subtitle', 'heading', 'subheading', 'eyebrow',
+    'intro', 'caption', 'alt', 'name', 'items', 'item_ids', 'buttons', 'empty_message',
+    'url', 'href', 'src', 'poster', 'tagline', 'text_dynamic',
+  ]);
+  const CONTENT_RE = /_(text|md|html|title|subtitle|caption|label|alt|heading|subheading|eyebrow|intro|tagline)$/;
+  const NOT_CONTENT = new Set(['hover_text']);  // a colour
+  const REVERT_ICON = '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>';
 
   let device = 'desktop';
   let available = false;
+  // What the larger screen shows for each block type the last time a
+  // dialog read a block (read()), for its revert buttons on Tablet or
+  // Phone.
+  const inheritedFor = {};
   // Keys the last preview found it couldn't apply per device:
   // { blockId: { tablet: [keys], phone: [keys] } } ('*' = unnamed).
   let skipped = {};
@@ -229,6 +281,10 @@
     // from an object.
     read(d, type, dev) {
       dev = dev || api.current();
+      if (type) {
+        inheritedFor[type] = d && dev !== 'desktop'
+          ? Object.assign({}, api.read(d, type, dev === 'phone' ? 'tablet' : 'desktop')) : null;
+      }
       if (!d || dev === 'desktop') return d;
       const out = Object.assign({}, d);
       Object.keys(d).forEach(k => { out[k] = get(d, k, dev, type); });
@@ -324,6 +380,104 @@
           : NAMES[dev] + ', ' + WIDTHS[dev] + 'px and narrower' + (own ? ': set for this screen' : ': same as the larger screen');
         ic.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
           + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[dev] + '</svg>';
+      });
+    },
+
+    headingOf,
+    revertHeadingOf,
+    isContent(key) { return !NOT_CONTENT.has(key) && (CONTENT.has(key) || CONTENT_RE.test(key)); },
+
+    // Show (or take away) the revert button in a setting's heading.
+    // `onclick` puts the setting back.
+    setRevert(head, on, onclick, title) {
+      let btn = head && head.querySelector('.rs-revert');
+      if (!on) { if (btn) btn.remove(); return; }
+      if (!head) return;
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'rs-revert';
+        btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+          + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + REVERT_ICON + '</svg>';
+        const after = head.querySelector('.rs-dev-icon');
+        const help = head.querySelector('.heading-help');
+        if (after) after.after(btn);
+        else if (help) help.before(btn);
+        else head.appendChild(btn);
+      }
+      btn.title = title || 'Revert to default';
+      btn.setAttribute('aria-label', btn.title);
+      btn.onclick = e => { e.preventDefault(); e.stopPropagation(); onclick(); };
+    },
+
+    // Revert buttons for a block dialog's fields ([data-<type>-field]).
+    // On Desktop a field goes back to the value its markup starts with;
+    // on Tablet or Phone to what the larger screen shows.
+    markDialogReverts(m, dev) {
+      dev = dev || api.current();
+      const byKey = new Map();
+      m.querySelectorAll('[data-hero-field], [data-meetings-field], [data-events-field], [data-features-field], [data-faq-field]')
+        .forEach(f => {
+          const a = Array.prototype.find.call(f.attributes, x => /^data-[a-z]+-field$/.test(x.name));
+          if (!a || f.type === 'file') return;
+          const type = /^data-([a-z]+)-field$/.exec(a.name)[1];
+          const key = a.value.replace(/^frontend_hero_/, '').replace(/^frontend_/, '');
+          if (!key || api.isContent(key)) return;
+          const id = type + ':' + key;
+          if (!byKey.has(id)) byKey.set(id, { type, key, els: [] });
+          byKey.get(id).els.push(f);
+        });
+      const kind = it => it.els[0].type === 'radio' ? 'radio' : it.els[0].type === 'checkbox' ? 'check' : 'value';
+      const val = it => {
+        const k = kind(it);
+        if (k === 'radio') { const c = it.els.find(f => f.checked); return c ? c.value : ''; }
+        return k === 'check' ? it.els[0].checked : it.els[0].value;
+      };
+      const start = it => {
+        const k = kind(it), f = it.els[0];
+        if (k === 'radio') { const c = it.els.find(x => x.defaultChecked); return c ? c.value : ''; }
+        if (k === 'check') return f.defaultChecked;
+        if (f.tagName === 'SELECT') {
+          const o = Array.prototype.find.call(f.options, x => x.defaultSelected) || f.options[0];
+          return o ? o.value : '';
+        }
+        return f.defaultValue;
+      };
+      const target = it => {
+        if (dev === 'desktop' || isShared(it.key)) return start(it);
+        const inh = inheritedFor[it.type];
+        // A field saved under another name (the hero's sizes) can't be
+        // matched to the larger screen's value: no button.
+        if (!inh || !Object.prototype.hasOwnProperty.call(inh, it.key)) return null;
+        const v = inh[it.key];
+        return kind(it) === 'check' ? !!v && v !== '0' && v !== 'false' : (v == null ? '' : String(v));
+      };
+      const put = (it, t) => {
+        const k = kind(it);
+        let f = it.els[0];
+        if (k === 'radio') {
+          f = it.els.find(x => x.value === String(t));
+          if (!f) return;
+          f.checked = true;
+        } else if (k === 'check') f.checked = !!t;
+        else f.value = t;
+        f.dispatchEvent(new Event('input', { bubbles: true }));
+        f.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      const heads = new Map();
+      byKey.forEach(it => {
+        const anchor = it.els[0].type === 'radio' ? it.els[0].closest(ROWS) : it.els[0];
+        const h = anchor && revertHeadingOf(anchor);
+        if (!h) return;
+        if (!heads.has(h)) heads.set(h, []);
+        heads.get(h).push(it);
+      });
+      heads.forEach((items, h) => {
+        const off = items.filter(it => { const t = target(it); return t !== null && String(val(it)) !== String(t); });
+        api.setRevert(h, off.length > 0, () => {
+          off.forEach(it => put(it, target(it)));
+          api.markDialogReverts(m, dev);
+        }, dev !== 'desktop' && off.some(it => !isShared(it.key)) ? 'Use the larger screen\'s value' : 'Revert to default');
       });
     },
 

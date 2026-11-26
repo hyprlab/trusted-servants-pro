@@ -936,6 +936,71 @@
       }
       return bar;
     }
+    // A block type's defaults: a blank block's data after its form has
+    // been built once, so the values a form fills in for a missing key
+    // count as defaults too.
+    const defaultsCache = {};
+    let buildingDefaults = false;
+    function defaultsFor(type) {
+      if (defaultsCache[type]) return defaultsCache[type];
+      const blank = blankBlock(type);
+      const prevHook = elHook;
+      buildingDefaults = true;
+      elHook = null;
+      try { renderBlockBody(blank); } catch (_) { /* the blank data is still the default */ }
+      finally { buildingDefaults = false; elHook = prevHook; }
+      return (defaultsCache[type] = JSON.parse(JSON.stringify(blank.data || {})));
+    }
+    function sameValue(v, def) {
+      if (v == null) return true;  // missing: the form shows the default
+      if (def === undefined) return v === '' || v === false;
+      if (typeof v === 'object' || typeof def === 'object') return JSON.stringify(v) === JSON.stringify(def);
+      return String(v) === String(def);
+    }
+    // Is `key` set away from its default on `dev`? On Tablet or Phone a
+    // per-device setting counts only when that device sets its own.
+    function isSet(b, key, dev) {
+      const R = window.tspResponsive;
+      if (dev !== 'desktop' && !R.isShared(key, b.data[key])) return R.overrides(b.data, b.type, dev).indexOf(key) >= 0;
+      return !sameValue(b.data[key], defaultsFor(b.type)[key]);
+    }
+    function revertKeys(b, keys, dev) {
+      const R = window.tspResponsive;
+      const defs = defaultsFor(b.type);
+      keys.forEach(k => {
+        if (dev !== 'desktop' && !R.isShared(k, b.data[k])) { R.reset(b.data, b.type, dev, k); return; }
+        if (defs[k] === undefined) delete b.data[k];
+        else b.data[k] = JSON.parse(JSON.stringify(defs[k]));
+      });
+      render();
+      notifyChange();
+    }
+    // The revert button in each setting's heading, shown while that
+    // setting differs from its default.
+    function refreshReverts(wrap) {
+      const R = window.tspResponsive;
+      const st = wrap._reverts;
+      if (!R || !st || !st.b.data) return;
+      st.groups.forEach((keys, h) => {
+        const off = Array.from(keys).filter(k => isSet(st.b, k, st.dev));
+        const own = st.dev !== 'desktop' && off.some(k => !R.isShared(k, st.b.data[k]));
+        R.setRevert(h, off.length > 0, () => revertKeys(st.b, off, st.dev),
+          own ? 'Use the larger screen\'s value' : 'Revert to default');
+      });
+    }
+    let revertsQueued = false;
+    function queueReverts() {
+      if (revertsQueued) return;
+      revertsQueued = true;
+      requestAnimationFrame(() => {
+        revertsQueued = false;
+        sectionsEl.querySelectorAll('.be-block').forEach(w => { if (w._reverts) refreshReverts(w); });
+      });
+    }
+    root.addEventListener('input', queueReverts);
+    root.addEventListener('change', queueReverts);
+    root.addEventListener('click', queueReverts);
+
     function refreshDeviceBar() {
       const bar = focusId && sectionsEl.querySelector(':scope > .be-device-bar');
       const hit = bar && locateBlock(focusId);
@@ -1086,28 +1151,74 @@
       const dev = R ? R.current() : 'desktop';
       const marking = !!(R && R.available && b.data);
       let body;
-      if (b.data && (dev !== 'desktop' || marking)) {
+      if (R && b.data && !buildingDefaults) {
+        // Each control created takes the keys read since the one
+        // before it, so its heading can show the device and a revert.
         const real = b.data;
         const read = new Set();
         const controls = [];
         const prevHook = elHook;
-        b.data = R.view(real, b.type, dev, marking ? k => read.add(k) : null);
-        if (marking) {
-          elHook = n => {
-            if (!read.size) return;
-            if (/^(INPUT|SELECT|TEXTAREA)$/.test(n.tagName)
-                || (n.tagName === 'BUTTON' && Array.prototype.some.call(n.attributes, a => a.name.startsWith('data-')))) {
-              controls.push({ el: n, keys: Array.from(read) });
-              read.clear();
-            }
-          };
-        }
+        // A key read again moves to the end: the order says which keys
+        // were read last before each control was made.
+        b.data = R.view(real, b.type, dev, k => { read.delete(k); read.add(k); });
+        // A select's options may be made before or after it; what was
+        // read for an option goes to the select it ends up in.
+        const options = [];
+        elHook = n => {
+          // A hidden input only carries a value for another control.
+          if (!read.size || (n.tagName === 'INPUT' && n.type === 'hidden')) return;
+          if (n.tagName === 'OPTION') {
+            options.push({ el: n, keys: Array.from(read) });
+            read.clear();
+          } else if (/^(INPUT|SELECT|TEXTAREA)$/.test(n.tagName)
+              || (n.tagName === 'BUTTON' && Array.prototype.some.call(n.attributes, a => a.name.startsWith('data-')))) {
+            controls.push({ el: n, keys: Array.from(read) });
+            read.clear();
+          }
+        };
         try { body = renderBlockBody(b); } finally { b.data = real; elHook = prevHook; }
+        options.forEach(o => {
+          const sel = o.el.closest('select');
+          if (!sel) return;
+          let c = controls.find(x => x.el === sel);
+          if (!c) controls.push(c = { el: sel, keys: [] });
+          o.keys.forEach(k => {
+            const i = c.keys.indexOf(k);
+            if (i >= 0) c.keys.splice(i, 1);
+            c.keys.push(k);
+          });
+        });
         if (marking) {
           const own = new Set(R.overrides(real, b.type, dev));
           controls.forEach(c => { c.own = c.keys.some(k => own.has(k)); });
           R.mark(controls, dev);
         }
+        // A key read before several controls belongs to the one it was
+        // read closest to: a control reads its own value as it is made,
+        // while a preview, or a row checking the style to decide what
+        // shows, reads it earlier among other keys.
+        // On a tie, the control that read fewer keys (not a block of
+        // defaults filled in at the top). A control with no heading
+        // still takes its keys, so they aren't shown on a neighbour's.
+        const best = new Map();  // key -> { h, dist, n }
+        controls.forEach(c => {
+          const h = R.revertHeadingOf(c.el);
+          const n = c.keys.length;
+          c.keys.forEach((k, i) => {
+            if (R.isContent(k)) return;
+            const dist = n - 1 - i;
+            const was = best.get(k);
+            if (!was || dist < was.dist || (dist === was.dist && n < was.n)) best.set(k, { h, dist, n });
+          });
+        });
+        const groups = new Map();
+        best.forEach((v, k) => {
+          if (!v.h) return;
+          if (!groups.has(v.h)) groups.set(v.h, new Set());
+          groups.get(v.h).add(k);
+        });
+        wrap._reverts = { b, dev, groups };
+        refreshReverts(wrap);
       } else {
         body = renderBlockBody(b);
       }
