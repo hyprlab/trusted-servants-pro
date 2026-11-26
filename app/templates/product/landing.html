@@ -46,8 +46,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Trusted Servants Pro — the all-in-one web platform for recovery fellowships</title>
-  <meta name="description" content="TSP Pro runs your fellowship's entire web presence — public site and admin backend — from one self-hosted app. Explore the live, fully interactive demo.">
+  <title>Trusted Servants Pro: website and admin software for recovery fellowships</title>
+  <meta name="description" content="Trusted Servants Pro is a self-hosted app that runs a fellowship's public website and the admin area behind it. Try the demo.">
   <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/product.css') }}">
 </head>
@@ -68,9 +68,9 @@
       <nav class="pp-nav-cta">
         <div class="pp-nav-menu" id="navMenu" data-nav-menu>
           <a class="pp-btn pp-btn-ghost pp-nav-docs" href="{{ url_for('docs.index') }}">Docs</a>
-          <a class="pp-btn pp-btn-ghost pp-nav-frontend" href="{{ DEMO_SITE }}">Frontend Demo</a>
+          <a class="pp-btn pp-btn-ghost pp-nav-frontend" href="{{ DEMO_SITE }}">Public site demo</a>
         </div>
-        <a class="pp-btn pp-btn-primary" href="{{ DEMO_ADMIN }}">Launch live demo
+        <a class="pp-btn pp-btn-primary" href="{{ DEMO_ADMIN }}">Try the demo
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>
         <button class="pp-navtoggle" type="button" data-nav-toggle aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
@@ -84,16 +84,16 @@
   <section class="pp-hero">
     <div class="pp-wrap pp-hero-grid">
       <div class="pp-reveal in">
-        <span class="pp-eyebrow">Content management for recovery fellowships</span>
-        <h1>Your fellowship's web presence, <span class="pp-grad">supercharged</span>.</h1>
-        <p class="lede">Meeting schedules, a literature library, events, stories, a blog, a drag-and-drop page builder, analytics, backups — public site <em>and</em> admin backend, run from a single app you control.</p>
+        <span class="pp-eyebrow">Self-hosted software for recovery fellowships</span>
+        <h1>Your fellowship's website and the <span class="pp-grad">admin</span> behind it.</h1>
+        <p class="lede">Meeting lists, a literature library, events, stories, a blog, a page builder, visitor counts and backups. The public site and the admin area are one app, installed on a server you control.</p>
         <div class="pp-hero-cta">
-          <a class="pp-btn pp-btn-primary pp-btn-lg" href="{{ DEMO_ADMIN }}">Explore the live demo
+          <a class="pp-btn pp-btn-primary pp-btn-lg" href="{{ DEMO_ADMIN }}">Try the admin demo
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
-          <a class="pp-btn pp-btn-ghost pp-btn-lg" href="{{ DEMO_SITE }}">Frontend Demo</a>
+          <a class="pp-btn pp-btn-ghost pp-btn-lg" href="{{ DEMO_SITE }}">See the public site</a>
         </div>
-        <p class="pp-hero-note">Fully interactive demo. <b>Edit anything</b> — your changes are private to your session and reset automatically when you leave.</p>
+        <p class="pp-hero-note">You can <b>edit anything</b> in the demo. Only you see your changes, and they are cleared when you leave.</p>
         {{ source_links('pp-srclinks-hero') }}
       </div>
 
@@ -104,10 +104,10 @@
 
     <div class="pp-wrap">
       <div class="pp-stats pp-stagger pp-reveal">
-        <div class="pp-stat"><b data-count="20" data-suffix="+">20+</b><span>built-in modules, all toggleable</span></div>
-        <div class="pp-stat"><b>Privacy first</b><span>Your data never leaves your server</span></div>
-        <div class="pp-stat"><b>Zero</b><span>subscription fees</span></div>
-        <div class="pp-stat"><b>Free</b><span>open source &amp; self-hosted</span></div>
+        <div class="pp-stat"><b data-count="20" data-suffix="+">20+</b><span>modules, each one optional</span></div>
+        <div class="pp-stat"><b>Self-hosted</b><span>Your data stays on your server</span></div>
+        <div class="pp-stat"><b>No fees</b><span>No subscription or per-user pricing</span></div>
+        <div class="pp-stat"><b>Open source</b><span>Licensed under the AGPL</span></div>
       </div>
     </div>
   </section>
@@ -131,9 +131,9 @@
       ] -%}
       <div class="pp-surfaces-top pp-reveal">
         <div class="pp-section-head">
-          <span class="pp-eyebrow">Two surfaces, one app</span>
-          <h2>A polished <span class="pp-grad">public site</span>, and the backend to run it.</h2>
-          <p>Members get a fast, themeable website. Trusted servants get a friendly admin area with roles, audit logs, and backups.</p>
+          <span class="pp-eyebrow">Public site and admin</span>
+          <h2>A public website, and an <span class="pp-grad">admin area</span> to manage it.</h2>
+          <p>Members and newcomers use the public site. Trusted servants sign in to the admin area to keep it up to date, with roles, an activity log and backups.</p>
         </div>
         <div class="pp-builtwith">
           <span class="pp-builtwith-label">Built with</span>
@@ -147,13 +147,13 @@
 
       <div class="pp-split pp-reveal">
         <div>
-          <span class="pp-kicker">The frontend</span>
-          <h3>A website members actually want to use</h3>
-          <p>Meeting schedules with live "happening now" badges, a browsable literature library, events, recovery stories, a blog, and a visual page builder — wrapped in a theme you control down to the design tokens.</p>
+          <span class="pp-kicker">The public site</span>
+          <h3>What visitors see</h3>
+          <p>A meeting schedule that marks the meetings happening now, a literature library, events, recovery stories, a blog, and pages you build from blocks. Colors, fonts and layout are all set in the admin.</p>
           <ul class="pp-ticks">
-            <li>{{ tick() }}<span>Day/time schedule, in-person · online · hybrid, with one-click Zoom join</span></li>
-            <li>{{ tick() }}<span>Drag-and-drop pages, light/dark mode, custom fonts &amp; colors</span></li>
-            <li>{{ tick() }}<span>Stories, blog, events &amp; announcements, fellowships index</span></li>
+            <li>{{ tick() }}<span>Meetings by day and time, marked in person, online or hybrid, with a Zoom join link</span></li>
+            <li>{{ tick() }}<span>Pages built from blocks, light and dark mode, your own fonts and colors</span></li>
+            <li>{{ tick() }}<span>Stories, a blog, events, announcements and a list of fellowships</span></li>
           </ul>
           <p style="margin-top:1.4rem"><a class="pp-btn pp-btn-ghost" href="{{ DEMO_SITE }}">See the public site →</a></p>
         </div>
@@ -165,14 +165,14 @@
 
       <div class="pp-split rev pp-reveal">
         <div>
-          <span class="pp-kicker">The backend</span>
-          <h3>An admin area built for volunteers</h3>
-          <p>Three roles, an audit trail, a recycle bin, visitor analytics, scheduled off-site backups, and a one-screen restore. Powerful where it needs to be, gentle for the trusted servant doing it after their day job.</p>
+          <span class="pp-kicker">The admin area</span>
+          <h3>Made for volunteers</h3>
+          <p>Three roles, an activity log, a recycle bin, visitor counts, scheduled off-site backups and a restore screen. It is meant to be usable by a trusted servant with no technical background.</p>
           <ul class="pp-ticks">
-            <li>{{ tick() }}<span>Admin · editor · viewer roles with per-module gating</span></li>
-            <li>{{ tick() }}<span>Watchtower: visitor metrics, 404s, access requests, IP controls</span></li>
-            <li>{{ tick() }}<span>Daily snapshots, end-to-end-encrypted off-site backups, full-portal export/restore</span></li>
-            <li>{{ tick() }}<span>Every list searchable as you type, with filters, sort, and list or grid views</span></li>
+            <li>{{ tick() }}<span>Admin, editor and viewer roles, with access set per module</span></li>
+            <li>{{ tick() }}<span>Watchtower: visitor counts, missing pages, access requests and IP blocking</span></li>
+            <li>{{ tick() }}<span>Daily snapshots, encrypted off-site backups, and export and restore of the whole portal</span></li>
+            <li>{{ tick() }}<span>Search, filters, sorting, and list or grid views on every list</span></li>
           </ul>
           <p style="margin-top:1.4rem"><a class="pp-btn pp-btn-ghost" href="{{ DEMO_ADMIN }}">Open the admin (admin / admin) →</a></p>
         </div>
@@ -185,15 +185,15 @@
   <section class="pp-section" id="tour">
     <div class="pp-wrap">
       <div class="pp-section-head pp-reveal">
-        <span class="pp-eyebrow">A look inside</span>
-        <h2>Control <span class="pp-grad">every aspect</span> of your website.</h2>
-        <p>Pages and design, meetings and schedules, visitor analytics and security — powerful where it needs to be, gentle for the volunteers who keep it running.</p>
+        <span class="pp-eyebrow">Screenshots</span>
+        <h2>What it <span class="pp-grad">looks like</span>.</h2>
+        <p>The page and design editors, meeting management, and the public pages they produce.</p>
       </div>
       <div class="pp-showcase pp-stagger pp-reveal">
-        <figure>{{ shot('be-frontend.png', '/tspro/frontend', 'Web Frontend admin') }}<figcaption><b>Web Frontend studio</b>Pages, branding, design tokens, navigation, footer, forms — a CMS for your whole public site.</figcaption></figure>
-        <figure>{{ shot('be-meetings.png', '/tspro/meetings', 'Meetings admin') }}<figcaption><b>Meetings &amp; schedules</b>Recurring days/times, Zoom details, libraries, and public visibility per meeting.</figcaption></figure>
-        <figure>{{ shot('fe-meetings.png', 'meridianrecovery.example/meetings', 'Public meeting schedule') }}<figcaption><b>Public meeting schedule</b>Day/time grid with in-person, online &amp; hybrid badges and one-click Zoom join.</figcaption></figure>
-        <figure>{{ shot('fe-library.png', 'meridianrecovery.example/library', 'Public literature library') }}<figcaption><b>Literature library</b>Curated readings, scripts, and service docs — public on the site, managed in the admin.</figcaption></figure>
+        <figure>{{ shot('be-frontend.png', '/tspro/frontend', 'Web Frontend admin') }}<figcaption><b>Web Frontend</b>Pages, branding, design settings, menus, footer and forms for the public site.</figcaption></figure>
+        <figure>{{ shot('be-meetings.png', '/tspro/meetings', 'Meetings admin') }}<figcaption><b>Meetings</b>Meeting days and times, Zoom details, linked libraries, and whether each meeting is listed publicly.</figcaption></figure>
+        <figure>{{ shot('fe-meetings.png', 'meridianrecovery.example/meetings', 'Public meeting schedule') }}<figcaption><b>Public meeting schedule</b>Meetings by day and time, marked in person, online or hybrid, with a Zoom join link.</figcaption></figure>
+        <figure>{{ shot('fe-library.png', 'meridianrecovery.example/library', 'Public literature library') }}<figcaption><b>Literature library</b>Readings, scripts and service documents, published on the site and managed in the admin.</figcaption></figure>
       </div>
     </div>
   </section>
@@ -202,24 +202,24 @@
   <section class="pp-section" id="features">
     <div class="pp-wrap">
       <div class="pp-section-head pp-reveal">
-        <span class="pp-eyebrow">Everything in the box</span>
-        <h2>One app. <span class="pp-grad">Every tool</span> your fellowship needs.</h2>
-        <p>Each module is independently toggleable, so you ship exactly the site your fellowship wants — nothing more.</p>
+        <span class="pp-eyebrow">Features</span>
+        <h2>What's <span class="pp-grad">included</span>.</h2>
+        <p>Every module can be switched off, so the site shows only what your fellowship uses.</p>
       </div>
       <div class="pp-features pp-stagger pp-reveal">
         {% set cards = [
-          ('calendar', 'Meetings & schedules', 'Recurring day/time schedules across every time zone, in-person · online · hybrid, with Zoom details and live badges.'),
-          ('book', 'Literature libraries', 'Curated readings, scripts, and service docs — files, links, or pasted markdown, public or members-only.'),
-          ('megaphone', 'Events & announcements', 'Post events with locations and Zoom links; announcements auto-archive when they expire.'),
-          ('heart', 'Recovery stories', 'First-person stories with author bylines and milestone dates — a moderated, public submission flow included.'),
-          ('feather', 'Blog', 'Long-form posts with categories and tags; one table can power many committee blogs.'),
-          ('layout', 'Page builder', 'Build any page from blocks (heroes, cards, galleries, containers), with the page structure, block library, and a live preview side by side.'),
-          ('palette', 'Design system', 'A design page with a live preview: themes, colors with light and dark values, fonts, buttons, cards, mega menus, headers, and footers.'),
-          ('shield', 'Roles & access requests', 'Admin, editor, and viewer roles with per-module gating, two-factor sign-in, and a Request Access popup on the public site.'),
-          ('activity', 'Watchtower analytics', 'Privacy-first visitor metrics, 404 tracking, access requests, and IP blocking.'),
-          ('save', 'Backups & restore', 'Daily snapshots and scheduled off-site backups — end-to-end encrypted to TS Pro Backup, or SFTP/FTP/Dropbox — with one-screen restore.'),
-          ('video', 'Zoom & tech hub', 'Zoom host accounts on a weekly calendar, plus a training page of hosting checklists with zoomable screenshots.'),
-          ('globe', 'Files, forms & more', "A file browser that shows each file with where it's used, custom forms, contact routing, a trusted-servant email list, and an alert bar for your team.")
+          ('calendar', 'Meetings & schedules', 'Weekly schedules in any time zone, in person, online or hybrid, with Zoom details and a badge on meetings that are on now.'),
+          ('book', 'Literature libraries', 'Readings, scripts and service documents as files, links or Markdown, public or for members only.'),
+          ('megaphone', 'Events & announcements', 'Events with a location and Zoom link. Announcements move to the archive when they expire.'),
+          ('heart', 'Recovery stories', 'First-person stories with a byline and milestone dates. Visitors can send in stories for review.'),
+          ('feather', 'Blog', 'Posts with categories and tags. Each committee can have its own blog.'),
+          ('layout', 'Page builder', 'Build pages from blocks such as heroes, cards, galleries and containers, with a live preview beside the editor.'),
+          ('palette', 'Design system', 'Themes, colors for light and dark mode, fonts, buttons, cards, menus, headers and footers, with a live preview.'),
+          ('shield', 'Roles & access requests', 'Admin, editor and viewer roles, two-factor sign-in, and a form on the public site for requesting access.'),
+          ('activity', 'Watchtower analytics', 'Visitor counts without third-party tracking, missing-page reports, access requests and IP blocking.'),
+          ('save', 'Backups & restore', 'Daily snapshots and scheduled off-site backups to TS Pro Backup (encrypted end to end), SFTP, FTP or Dropbox. Restore from one screen.'),
+          ('video', 'Zoom & tech hub', 'Zoom host accounts on a weekly calendar, and a training page of hosting checklists with screenshots.'),
+          ('globe', 'Files, forms & more', "A file browser that shows where each file is used, custom forms, contact routing, an email list for trusted servants, and an alert bar.")
         ] %}
         {% for icon, title, body in cards %}
         <article class="pp-card">
@@ -236,9 +236,9 @@
   <section class="pp-section" id="deploy">
     <div class="pp-wrap">
       <div class="pp-section-head pp-reveal">
-        <span class="pp-eyebrow">Own your stack</span>
-        <h2>Deploy it yourself <span class="pp-grad">in minutes</span>.</h2>
-        <p>No SaaS lock-in, no per-seat pricing — a single Flask app backed by SQLite. Use the turnkey installer for a production server with automatic HTTPS, auto-updates, and disk-housekeeping built in, or Docker Compose to run it on any machine.</p>
+        <span class="pp-eyebrow">Install</span>
+        <h2>Run it on <span class="pp-grad">your own server</span>.</h2>
+        <p>It is one Flask app with a SQLite database. The installer sets up a production server with HTTPS, automatic updates and disk cleanup. Docker Compose runs it on any machine with Docker.</p>
         <p style="margin-top:1.4rem"><a class="pp-btn pp-btn-ghost" href="{{ url_for('docs.index') }}">Read the full documentation
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a></p>
@@ -249,28 +249,28 @@
         <div class="pp-deploy-card">
           <span class="pp-kicker">Option A · production + HTTPS</span>
           <h3>One-command installer</h3>
-          <p>The turnkey path for a public server: it installs Docker, writes a hardened Compose file, generates your secret key, and configures Caddy for automatic Let's Encrypt TLS — then keeps the image up to date and the disk tidy, so it runs unattended for months.</p>
+          <p>For a public server. It installs Docker, writes a Compose file, generates a secret key, and sets up Caddy to get a Let's Encrypt certificate. After that it updates the app and clears out old files on its own.</p>
           <ol class="pp-deploy-steps">
             <li>
               <span class="pp-step-h">Provision a server</span>
-              <p>Spin up a fresh <b>Ubuntu 24.04 LTS</b> box on any provider (DigitalOcean, Hetzner, Lightsail, or bare metal). 1 vCPU / 1 GB RAM handles most fellowships. SSH in as root or a sudo user.</p>
+              <p>Start a fresh <b>Ubuntu 24.04 LTS</b> server with any provider (DigitalOcean, Hetzner, Lightsail) or on your own hardware. 1 vCPU and 1 GB of RAM is enough for most fellowships. Sign in over SSH as root or a user with sudo.</p>
               <div class="pp-code"><pre><span class="g">$</span> ssh root@your-server-ip</pre></div>
             </li>
             <li>
               <span class="pp-step-h">Point your domain at it</span>
-              <p>For a real certificate, add a DNS <b>A record</b> for your hostname pointing to the server's public IP. On Cloudflare, set it to <b>“DNS only” (grey cloud)</b> during install so the TLS challenge can complete. No domain? Skip this and the installer issues a self-signed cert.</p>
+              <p>For a real certificate, add a DNS <b>A record</b> that points your hostname at the server's IP address. On Cloudflare, set it to <b>“DNS only” (gray cloud)</b> while installing so the certificate check can reach the server. Without a domain, the installer uses a self-signed certificate.</p>
               <div class="pp-code"><pre><span class="c"># DNS A record</span>
 portal.yourfellowship.org   <span class="p">→</span>   203.0.113.10</pre></div>
             </li>
             <li>
               <span class="pp-step-h">Run the installer</span>
-              <p>One command does the rest. Pipe it straight from GitHub — or clone the repo first if you'd like to read the script before running it.</p>
+              <p>Run the install script from GitHub. If you want to read it first, download it or clone the repository.</p>
               <div class="pp-code"><pre><span class="g">$</span> curl -fsSL https://raw.githubusercontent.com/\
 hyprlab/trusted-servants-pro/main/install.sh | sudo bash</pre></div>
             </li>
             <li>
               <span class="pp-step-h">Answer two prompts</span>
-              <p>Enter your <b>domain</b> (press Enter to skip for a self-signed cert) and a <b>contact email</b> for renewal notices. It then pulls the image and starts everything in 2–5 minutes. Prefer no prompts? Pass the answers inline instead.</p>
+              <p>Enter your <b>domain</b> (or press Enter for a self-signed certificate) and an <b>email address</b> for certificate notices. It then downloads the app and starts it, which takes 2 to 5 minutes. To skip the prompts, give the answers as variables.</p>
               <div class="pp-code"><pre><span class="c"># interactive prompts</span>
 Domain (blank = self-signed): portal.yourfellowship.org
 Contact email: you@yourfellowship.org
@@ -282,7 +282,7 @@ Contact email: you@yourfellowship.org
             </li>
             <li>
               <span class="pp-step-h">Sign in &amp; secure it</span>
-              <p>Open the URL the installer prints and sign in with the admin password it generated (also saved in <code>/opt/tspro/.env</code>). The first sign-in sets up <b>two-factor authentication</b>.</p>
+              <p>Open the address the installer prints and sign in with the admin password it generated, which is also saved in <code>/opt/tspro/.env</code>. You set up <b>two-factor authentication</b> at first sign-in.</p>
               <div class="pp-code"><pre><span class="p">→</span> https://portal.yourfellowship.org
    username : <span class="g">admin</span>
    password : <span class="g">(printed by the installer)</span></pre></div>
@@ -294,16 +294,16 @@ Contact email: you@yourfellowship.org
         <div class="pp-deploy-card">
           <span class="pp-kicker">Option B · any machine</span>
           <h3>Docker Compose</h3>
-          <p>The quickest way to run it anywhere — a laptop, a homelab, or any VPS. One container, one SQLite file.</p>
+          <p>Runs on a laptop, a home server or any VPS: one container and one SQLite file.</p>
           <ol class="pp-deploy-steps">
             <li>
               <span class="pp-step-h">Check Docker is installed</span>
-              <p>You only need Docker Engine and the Compose plugin. Confirm both are available before you start.</p>
+              <p>You need Docker Engine and the Compose plugin. Check that both are installed.</p>
               <div class="pp-code"><pre><span class="g">$</span> docker --version && docker compose version</pre></div>
             </li>
             <li>
               <span class="pp-step-h">Create a compose file</span>
-              <p>In an empty directory, drop a <code>docker-compose.yml</code> that pulls the published image.</p>
+              <p>In an empty folder, create a <code>docker-compose.yml</code> that uses the published image.</p>
               <div class="pp-code"><pre><span class="c"># docker-compose.yml</span>
 services:
   tsp:
@@ -324,21 +324,21 @@ services:
             </li>
             <li>
               <span class="pp-step-h">Set a secret key and admin password</span>
-              <p>The secret key signs session cookies; the password seeds the first admin. It won't start without both, so generate them into a <code>.env</code> file.</p>
+              <p>The secret key signs session cookies, and the password is for the first admin account. The app won't start without both, so put them in a <code>.env</code> file.</p>
               <div class="pp-code"><pre><span class="g">$</span> echo "TSP_SECRET_KEY=$(openssl rand -hex 32)" &gt; .env
 <span class="g">$</span> echo "TSP_ADMIN_PASSWORD=$(openssl rand -base64 18)" &gt;&gt; .env
 <span class="g">$</span> cat .env   <span class="c"># note the password</span></pre></div>
             </li>
             <li>
               <span class="pp-step-h">Start it</span>
-              <p>Pull the image and launch the container in the background on port 8090.</p>
+              <p>This downloads the image and starts the container in the background on port 8090.</p>
               <div class="pp-code"><pre><span class="g">$</span> docker compose up -d</pre></div>
             </li>
             <li>
               <span class="pp-step-h">Open it</span>
-              <p>Visit the public site and the admin backend, and sign in as <code>admin</code> with the password from <code>.env</code>; it then sets up two-factor authentication.</p>
+              <p>Open the public site or the admin, and sign in as <code>admin</code> with the password from <code>.env</code>. You set up two-factor authentication at first sign-in.</p>
               <div class="pp-code"><pre><span class="p">→</span> http://localhost:8090         <span class="c"># public site</span>
-<span class="p">→</span> http://localhost:8090/tspro   <span class="c"># admin backend</span></pre></div>
+<span class="p">→</span> http://localhost:8090/tspro   <span class="c"># admin</span></pre></div>
             </li>
           </ol>
         </div>
@@ -350,14 +350,14 @@ services:
   <section class="pp-section">
     <div class="pp-wrap">
       <div class="pp-cta-band pp-reveal">
-        <span class="pp-eyebrow">See it for yourself</span>
-        <h2>Take it for a <span class="pp-grad">spin</span>.</h2>
-        <p>Step into a live, fully-loaded fellowship portal. Edit freely — it resets itself.</p>
+        <span class="pp-eyebrow">Demo</span>
+        <h2>Try the <span class="pp-grad">demo</span>.</h2>
+        <p>The demo is a complete example fellowship site. Change anything you like. It resets when you leave.</p>
         <div class="pp-hero-cta">
-          <a class="pp-btn pp-btn-primary pp-btn-lg" href="{{ DEMO_ADMIN }}">Explore the live demo
+          <a class="pp-btn pp-btn-primary pp-btn-lg" href="{{ DEMO_ADMIN }}">Try the admin demo
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
-          <a class="pp-btn pp-btn-ghost pp-btn-lg" href="{{ DEMO_SITE }}">Frontend Demo</a>
+          <a class="pp-btn pp-btn-ghost pp-btn-lg" href="{{ DEMO_SITE }}">See the public site</a>
         </div>
       </div>
     </div>
@@ -380,7 +380,7 @@ services:
       </div>
     </div>
     <div class="pp-wrap" style="margin-top:1.2rem;color:var(--muted-2);font-size:0.78rem;">
-      The demo content (Meridian Recovery Collective and all names, meetings, and contact details) is fictitious, created solely to showcase the software.
+      Meridian Recovery Collective and every name, meeting and contact detail in the demo are made up.
     </div>
   </footer>
 
