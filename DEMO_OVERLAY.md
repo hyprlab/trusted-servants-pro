@@ -26,7 +26,7 @@ app/templates/product/docs_*.html        docs site pages
 app/static/js/docs.js                    docs site search and navigation
 app/feature_request.py                   the feature request form
 app/templates/product/_feature_request.html, app/static/js/feature_request.js
-app/static/img/logo_tspro_teal.svg       the marketing page's logo
+app/static/img/logo_tspro_blue.svg       the marketing page's logo
 app/templates/product/landing.html       the marketing homepage
 app/templates/product/_demo_banner.html  the per-page demo banner
 app/static/css/product.css               marketing page styles (light + dark)
