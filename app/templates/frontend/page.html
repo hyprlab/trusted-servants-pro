@@ -285,7 +285,12 @@
     {%- elif _align == 'center' -%}
       {%- set _ = _fig_styles.extend(['text-align: center', 'margin-left: auto', 'margin-right: auto']) -%}
     {%- endif -%}
-    {%- if (_w | int) != 100 -%}
+    {#- `width` (any CSS length) sets the image's width, up to its
+        column; without it the older `max_width_pct` caps it. -#}
+    {%- set _wlen = d.get('width', '') | css_length -%}
+    {%- if _wlen -%}
+      {%- set _ = _fig_styles.extend(['width: ' ~ _wlen, 'max-width: 100%']) -%}
+    {%- elif (_w | int) != 100 -%}
       {%- set _ = _fig_styles.append('max-width: ' ~ _w ~ '%') -%}
     {%- endif -%}
     {%- set _img_styles = ['max-width: 100%'] -%}
@@ -308,7 +313,10 @@
        doesn't get upscaled. #}
     {%- set _src_lower = (d.src or '')|lower -%}
     {%- set _src_path  = _src_lower.split('?')[0].split('#')[0] -%}
-    {%- if _src_path.endswith('.svg') -%}
+    {%- if _wlen -%}
+      {%- set _ = _img_styles.append('width: 100%') -%}
+      {%- set _ = _img_styles.append('height: auto') -%}
+    {%- elif _src_path.endswith('.svg') -%}
       {%- set _ = _fig_styles.append('width: ' ~ _w ~ '%') -%}
       {%- set _ = _img_styles.append('width: 100%') -%}
       {%- set _ = _img_styles.append('height: auto') -%}

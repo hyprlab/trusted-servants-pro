@@ -1776,6 +1776,20 @@
     });
   });
 
+  // Any script: pick one file from the File Browser, opened on `kind`
+  // (a Kind filter key, or '' for every file). `onPick(item)` gets the
+  // picked file ({id, original_filename, …}).
+  let currentMediaCallback = null;
+  window.tspPickFile = function (kind, onPick) {
+    if (!document.getElementById("media-picker-modal")) return false;
+    currentMediaTarget = null;
+    currentMediaMode = "callback";
+    currentMediaCallback = onPick;
+    pointPicker(false, kind || "");
+    openModal("media-picker-modal");
+    return true;
+  };
+
   // Page editor, Sharing tab: preview image from the File Browser. The
   // page's own script (window.tspPageOgPicked) takes the pick.
   document.querySelectorAll("[data-page-og-picker]").forEach(btn => {
@@ -1998,6 +2012,15 @@
       if (ta && item && item.original_filename && window.tspMdInsertImage) {
         window.tspMdInsertImage(ta, item.original_filename);
       }
+      return;
+    }
+    if (currentMediaMode === "callback") {
+      const cb = currentMediaCallback;
+      currentMediaCallback = null;
+      const mc = document.getElementById("media-picker-modal");
+      if (mc) closeModal(mc);
+      currentMediaMode = null;
+      if (typeof cb === "function" && item) cb(item);
       return;
     }
     if (currentMediaMode === "page-og") {

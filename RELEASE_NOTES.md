@@ -12,6 +12,8 @@ release notes expanded by default and the changelog collapsed.
 New features:
 
 - revert button beside each changed block setting
+- image and Lottie widths in %, px, rem, em or vw
+- Lottie files chosen from the File Browser, which gains a Lottie filter
 
 Changes:
 

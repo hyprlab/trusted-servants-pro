@@ -59,7 +59,7 @@
       paragraph: { md: '', ...TYPO_DEFAULTS },
       heading: { level: 3, text: '', ...TYPO_DEFAULTS },
       image: { src: '', alt: '', caption: '',
-               max_width_pct: 100, align: '',
+               width: '', max_width_pct: 100, align: '',
                caption_color: '', caption_size: '',
                // border_radius: 0-50 px (0 = sharp corners). shadow:
                // a preset key consumed by `_blocks.html` ('' = none,
@@ -77,6 +77,7 @@
         loop: true,
         autoplay: true,
         speed: 1,
+        width: '',
         max_width_pct: 100,
         align: 'center',
         bg_color: '',
@@ -658,6 +659,46 @@
     return seg;
   }
 
+  // A CSS length as a number and a unit, with a slider over the unit's
+  // usual range. A blank number is no value: `onChange` gets "320px",
+  // "50%", … or ''.
+  const LENGTH_UNITS = ['%', 'px', 'rem', 'em', 'vw'];
+  const LENGTH_MAX = { '%': 100, px: 1600, rem: 100, em: 100, vw: 100 };
+  function lengthField(value, onChange, opts) {
+    opts = opts || {};
+    const m = /^(\d+(?:\.\d+)?)(px|rem|em|%|vw)?$/i.exec(String(value == null ? '' : value).trim());
+    const name = opts.label || 'Width';
+    const num = el('input', {
+      type: 'number', min: '0', step: 'any', value: m ? m[1] : '',
+      placeholder: 'Auto', title: name, 'aria-label': name + ' amount',
+    });
+    const sel = el('select', { class: 'be-pad-cell-unit-sel', title: name + ' unit', 'aria-label': name + ' unit' });
+    const unit = m ? (m[2] || 'px').toLowerCase() : (opts.unit || '%');
+    LENGTH_UNITS.forEach(u => {
+      const o = el('option', { value: u }, [u]);
+      if (u === unit) o.selected = true;
+      sel.appendChild(o);
+    });
+    const slider = el('input', { type: 'range', min: '0', step: '1', 'aria-label': name });
+    function syncSlider() {
+      slider.max = String(LENGTH_MAX[sel.value] || 100);
+      slider.value = num.value === '' ? slider.max : num.value;
+    }
+    syncSlider();
+    const emit = () => onChange(num.value === '' ? '' : num.value + sel.value);
+    num.addEventListener('input', () => { syncSlider(); emit(); });
+    sel.addEventListener('change', () => { syncSlider(); emit(); });
+    slider.addEventListener('input', () => { num.value = slider.value; emit(); });
+    return el('div', { class: 'be-length' }, [el('span', { class: 'be-pad-cell-wrap' }, [num, sel]), slider]);
+  }
+  // A block's width as the field shows it: `width`, or the older
+  // percentage cap when that isn't 100.
+  function widthValue(d) {
+    if (d.width) return d.width;
+    const p = d.max_width_pct;
+    return p != null && p !== '' && Number(p) !== 100 ? p + '%' : '';
+  }
+
   const ALIGN_3 = [['left', 'icon:align-left', 'Left'], ['center', 'icon:align-center', 'Center'],
                    ['right', 'icon:align-right', 'Right']];
 
@@ -1188,11 +1229,6 @@
             c.keys.push(k);
           });
         });
-        if (marking) {
-          const own = new Set(R.overrides(real, b.type, dev));
-          controls.forEach(c => { c.own = c.keys.some(k => own.has(k)); });
-          R.mark(controls, dev);
-        }
         // A key read before several controls belongs to the one it was
         // read closest to: a control reads its own value as it is made,
         // while a preview, or a row checking the style to decide what
@@ -1217,6 +1253,13 @@
           if (!groups.has(v.h)) groups.set(v.h, new Set());
           groups.get(v.h).add(k);
         });
+        if (marking) {
+          const own = new Set(R.overrides(real, b.type, dev));
+          R.mark(Array.from(groups, ([head, keys]) => {
+            const ks = Array.from(keys);
+            return { head, keys: ks, own: ks.some(k => own.has(k)) };
+          }), dev);
+        }
         wrap._reverts = { b, dev, groups };
         refreshReverts(wrap);
       } else {
@@ -1848,15 +1891,11 @@
       if (b.type === 'image') {
         const alignTog = segmented(ALIGN_3, d.align || 'center',
           v => { d.align = v; notifyChange(); });
-        const widthOut = el('output', {}, [(d.max_width_pct == null ? 100 : d.max_width_pct) + '%']);
-        const widthSlider = el('input', {
-          type: 'range', min: '20', max: '100', step: '5',
-          value: (d.max_width_pct == null ? 100 : d.max_width_pct),
-          oninput: e => {
-            d.max_width_pct = parseInt(e.target.value, 10) || 100;
-            widthOut.textContent = d.max_width_pct + '%';
-            notifyChange();
-          },
+        // Any CSS length; it replaces the older percentage cap.
+        const widthField = lengthField(widthValue(d), v => {
+          d.width = v;
+          d.max_width_pct = 100;
+          notifyChange();
         });
         // Corner roundness — px slider 0..50. The renderer mirrors the
         // value into `border-radius: <n>px` on the <img>. 0 = sharp.
@@ -1955,7 +1994,7 @@
           el('label', {}, ['Caption',
             el('input', { type: 'text', value: d.caption || '',
               oninput: e => { d.caption = e.target.value; notifyChange(); } })]),
-          el('label', {}, [el('span', {}, ['Width ', widthOut]), widthSlider]),
+          el('div', { class: 'be-field' }, [el('span', {}, ['Width']), widthField]),
           el('div', { class: 'be-field' }, [el('span', {}, ['Alignment']), alignTog]),
           el('label', {}, [el('span', {}, ['Corner roundness ', radiusOut]), radiusSlider]),
           el('label', {}, ['Drop shadow', shadowSel]),
@@ -2663,19 +2702,22 @@
         type: 'button', class: 'btn btn-sm be-image-upload',
         onclick: () => uploadInput.click(),
       }, ['⬆ Upload .json']);
+      // Lotties already uploaded, from the File Browser (opened on its
+      // Lottie kind).
+      const browseBtn = window.tspPickFile ? el('button', {
+        type: 'button', class: 'btn btn-sm be-image-browse',
+        onclick: () => window.tspPickFile('lottie', it => {
+          if (it && it.original_filename) setSrc('/pub/' + it.original_filename);
+        }),
+      }, ['📁 Choose from File Browser']) : null;
       const sourceRow = el('div', { class: 'be-image-source-row' },
-        [uploadBtn, uploadInput]);
+        [browseBtn, uploadBtn, uploadInput]);
 
-      // Width slider mirrors the image block.
-      const widthOut = el('output', {}, [(d.max_width_pct || 100) + '%']);
-      const widthSlider = el('input', {
-        type: 'range', min: '20', max: '100', step: '5',
-        value: (d.max_width_pct || 100),
-        oninput: e => {
-          d.max_width_pct = parseInt(e.target.value, 10) || 100;
-          widthOut.textContent = d.max_width_pct + '%';
-          notifyChange();
-        },
+      // Width, as on the image block.
+      const widthField = lengthField(widthValue(d), v => {
+        d.width = v;
+        d.max_width_pct = 100;
+        notifyChange();
       });
 
       // Alignment toggle — same pattern as the image / icon blocks.
@@ -2753,7 +2795,7 @@
         el('label', {}, ['Lottie source', srcInput]),
         sourceRow,
         previewCard,
-        el('label', {}, [el('span', {}, ['Width ', widthOut]), widthSlider]),
+        el('div', { class: 'be-field' }, [el('span', {}, ['Width']), widthField]),
         el('div', { class: 'be-field' }, [el('span', {}, ['Alignment']), alignTog]),
         el('label', {}, ['Playback', playbackSel]),
         el('label', { class: 'be-row' }, [loopChk, el('span', {}, ['Loop'])]),

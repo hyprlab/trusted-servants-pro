@@ -10,8 +10,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 - A revert button (accent, rotate-ccw) beside the heading of each block setting that differs from its default, in the page builder, the popup editor and the Zoom Tech editor, and in the hero, meetings, events, features and FAQ dialogs. It puts the setting back; on Tablet or Phone a per-device setting goes back to the larger screen's value. `block_editor.js` now tracks the keys each control reads in every editor (`responsive.js` is loaded there too): a key goes to the control it was read closest to, an option's reads to its select, and hidden inputs are skipped. Defaults are `blankBlock()` after one build of its form, cached per type. Dialog fields revert to their markup's value (`defaultValue`, `defaultChecked`, `defaultSelected`). Content keys (`CONTENT` in `responsive.js`) get none. Forms built after a fetch (library, officer, blog list category) are not tracked.
 
+- Image and Lottie block width as any CSS length: a new `width` key (number and unit, `%`, `px`, `rem`, `em` or `vw`, with a slider over the unit's range; `lengthField()` in `block_editor.js`) renders as `width: <len>; max-width: 100%` on the figure, with the image at `width: 100%; height: auto`. Without it the older `max_width_pct` cap applies as before, and setting a width puts that back to 100. Stored values pass through a new `css_length` Jinja filter, which drops anything that isn't a number and unit.
+- Lottie block: "Choose from File Browser", through a new `window.tspPickFile(kind, onPick)` in `app.js` that opens the shared picker on a Kind filter and hands back the picked item. The File Browser gains a Lottie kind (`.json` and `.lottie` files, `MEDIA_KINDS["lottie"]`), which no longer count under Other.
+
 ### Changed
 
+- Device icons in the block settings use the same key matching as the revert buttons, and a label's wording in a span of its own carries them (a slider's icon was below the slider).
 - Live previews (`fe_live_preview.js`) wash the stage only while their first render loads. Later renders already load in a hidden second frame and swap in once ready, so the shown page stays as it is meanwhile; the "Updating…" status remains. `FeLivePreview.quiet()`, which kept the wash off renders after a drag, is gone.
 
 ## [3.9.0] — 2026-11-26

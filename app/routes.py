@@ -16782,6 +16782,7 @@ MEDIA_KINDS = {
     "doc": ("pdf", "doc", "xls", "ppt"),
     "vid": ("vid",),
     "aud": ("aud",),
+    "lottie": ("lottie",),
     "other": ("zzz",),
 }
 
@@ -17004,6 +17005,8 @@ def _media_browse(args):
         (_ext_in("jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "avif"), "img"),
         (_ext_in("mp4", "mov", "avi", "mkv", "webm"), "vid"),
         (_ext_in("mp3", "wav", "m4a", "ogg", "flac"), "aud"),
+        # Lottie animations (the Lottie block's File Browser pick).
+        (_ext_in("json", "lottie"), "lottie"),
         else_="zzz",
     )
     # The kind filter (the picker's sidebar): how many files of each

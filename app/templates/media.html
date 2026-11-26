@@ -71,7 +71,8 @@
 {% endmacro %}
 
 {% set FB_KINDS = [('', 'All files', 'folder'), ('img', 'Images', 'image'), ('doc', 'Documents', 'file-text'),
-                    ('vid', 'Video', 'video'), ('aud', 'Audio', 'music'), ('other', 'Other', 'file')] %}
+                    ('vid', 'Video', 'video'), ('aud', 'Audio', 'music'), ('lottie', 'Lottie', 'sparkles'),
+                    ('other', 'Other', 'file')] %}
 {# The finding tools sit in a sidebar beside the files: search, upload,
    the kind of file, who uploaded it, sort and view. On the page it's a
    card that stays in view; in the picker (the File Browser opened from
@@ -80,7 +81,7 @@
 <div class="fb-pick{{ '' if picker else ' fb-pick--page' }}">
 <aside class="fb-side" aria-label="Find a file">
   {% set _total = pagination.total if pagination else items|length %}
-  {% set _noun = {'img': 'image', 'doc': 'document', 'vid': 'video', 'aud': 'audio file', 'other': 'other file'}.get(kind, 'file') %}
+  {% set _noun = {'img': 'image', 'doc': 'document', 'vid': 'video', 'aud': 'audio file', 'lottie': 'Lottie file', 'other': 'other file'}.get(kind, 'file') %}
   {% if picker %}<h1 class="fb-side-head">File Browser</h1>{% endif %}
   <div class="fb-side-top" data-live="total">
     <p class="fb-side-total" aria-live="polite">{{ _total }} {{ _noun }}{{ '' if _total == 1 else 's' }}{% if q %} matching “{{ q }}”{% endif %}{% if mine %}, uploaded by you{% endif %}</p>

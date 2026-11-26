@@ -10426,6 +10426,12 @@ input.page-typo-color-text.is-invalid {
 }
 .be-body .be-pad-cell-wrap > .be-pad-cell-unit-sel:focus-visible,
 .be-body .be-pad-cell-wrap > .be-pad-cell-unit-sel:hover { color: var(--text); }
+/* A length (block_editor.js lengthField): the amount-and-unit chip,
+   then a slider over the unit's range. */
+.be-length { display: flex; align-items: center; gap: var(--gap-sm); }
+.be-length > .be-pad-cell-wrap { flex: none; }
+.be-body .be-length > .be-pad-cell-wrap > input[type="number"] { width: 48px; }
+.be-length > input[type="range"] { flex: 1; min-width: 0; }
 
 /* ── Grid-column GUI controls ───────────────────────────────────
    Replaces the free-form `grid-template-columns` text input with a

@@ -81,7 +81,11 @@
     const own = lbl.querySelector(':scope > .rs-lbl-text');
     if (own) return own;
     const t = Array.prototype.find.call(lbl.childNodes, n => n.nodeType === 3 && n.nodeValue.trim());
-    if (!t) return lbl;
+    if (!t) {
+      // Wording already in a span of its own ("Width 40%").
+      const first = lbl.firstElementChild;
+      return first && first.tagName === 'SPAN' && !first.querySelector('input, select, textarea, button') ? first : lbl;
+    }
     const span = document.createElement('span');
     span.className = 'rs-lbl-text';
     t.replaceWith(span);
@@ -357,14 +361,14 @@
     },
 
     // Put the device icon beside the heading of each control in
-    // `items` ([{ el, keys, own }]) that edits a per-device key; `own`
+    // `items` ([{ el or head, keys, own }]) that edits a per-device key; `own`
     // when the device sets one of them itself.
     mark(items, dev) {
       dev = dev || api.current();
       const heads = new Map();
       (items || []).forEach(it => {
-        if (!it.el || !(it.keys || []).some(k => !isShared(k))) return;
-        const h = headingOf(it.el);
+        if (!(it.head || it.el) || !(it.keys || []).some(k => !isShared(k))) return;
+        const h = it.head || headingOf(it.el);
         if (h) heads.set(h, heads.get(h) || !!it.own);
       });
       heads.forEach((own, h) => {

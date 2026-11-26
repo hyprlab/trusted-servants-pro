@@ -1337,6 +1337,18 @@ def create_app():
         return v
     app.jinja_env.filters["css_color"] = _css_color
 
+    # A width or other length from block data, for an inline style: a
+    # number with a unit (a bare number is px), or "" when it is
+    # anything else, so a stored value can't add other declarations.
+    _CSS_LEN_RE = re.compile(r"^(\d+(?:\.\d+)?)(px|rem|em|%|vw|vh|ch)?$", re.I)
+
+    def _css_length(value):
+        m = _CSS_LEN_RE.match(str(value if value is not None else "").strip())
+        if not m:
+            return ""
+        return m.group(1) + (m.group(2) or "px").lower()
+    app.jinja_env.filters["css_length"] = _css_length
+
     # Site-wide design tokens. Same layered model as fonts: theme
     # defaults + per-site overrides → flat dict + a CSS-vars string the
     # public base template inlines on <body>.
