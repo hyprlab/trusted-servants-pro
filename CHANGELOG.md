@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- `install.sh` targets Ubuntu 26.04 LTS: its OS check expects `VERSION_ID` 26.04 (other releases still install, with a warning) and the Docker apt codename falls back to `resolute` instead of `noble`. Docker publishes `docker-ce`, `containerd.io` and the buildx and Compose plugins for `resolute`. `docs/INSTALL.md` names 26.04 throughout.
+
 ## [3.11.0] — 2026-11-26
 
 ### Added

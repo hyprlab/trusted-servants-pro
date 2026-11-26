@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Changes:
+
+- installer targets Ubuntu 26.04 LTS
+
 ## 3.11.0 — 2026-11-26 (latest)
 
 New features:

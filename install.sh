@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Trusted Servants Pro — unattended installer for Ubuntu 24.04.
+# Trusted Servants Pro — unattended installer for Ubuntu 26.04.
 #
-# Run as root (or with sudo) on a fresh Ubuntu 24.04 server:
+# Run as root (or with sudo) on a fresh Ubuntu 26.04 server:
 #
 #   curl -fsSL https://raw.githubusercontent.com/hyprlab/trusted-servants-pro/main/install.sh | sudo bash
 #
@@ -57,7 +57,7 @@ esac
 if [[ -r /etc/os-release ]]; then
   . /etc/os-release
   [[ "${ID:-}" == "ubuntu" ]] || warn "This installer targets Ubuntu — detected ID=${ID:-unknown}, continuing anyway."
-  [[ "${VERSION_ID:-}" == "24.04" ]] || warn "This installer targets Ubuntu 24.04 — detected ${VERSION_ID:-unknown}, continuing anyway."
+  [[ "${VERSION_ID:-}" == "26.04" ]] || warn "This installer targets Ubuntu 26.04 — detected ${VERSION_ID:-unknown}, continuing anyway."
 else
   warn "Could not detect OS via /etc/os-release — continuing anyway."
 fi
@@ -157,7 +157,7 @@ if ! command -v docker >/dev/null 2>&1; then
   fi
 
   ARCH="$(dpkg --print-architecture)"
-  CODENAME="$( . /etc/os-release && echo "${UBUNTU_CODENAME:-${VERSION_CODENAME:-noble}}" )"
+  CODENAME="$( . /etc/os-release && echo "${UBUNTU_CODENAME:-${VERSION_CODENAME:-resolute}}" )"
   cat >/etc/apt/sources.list.d/docker.list <<EOF
 deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${CODENAME} stable
 EOF
