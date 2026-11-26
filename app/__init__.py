@@ -925,6 +925,8 @@ def create_app():
     app.jinja_env.globals["is_offsite"] = _is_offsite
     from .fe_admin_nav import fe_subnav as _fe_subnav
     app.jinja_env.globals["fe_subnav"] = _fe_subnav
+    from .responsive import register as _register_responsive
+    _register_responsive(app)
     from .widths import width_px as _width_px
     app.jinja_env.globals["width_px"] = _width_px
     from .form_specs import resolve_fields as _resolve_fields, field_map as _field_map

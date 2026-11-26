@@ -70,7 +70,30 @@
 {# The popup editor's preview (g.pb_marks) brackets each block with
    <!--pb:ID--> and <!--/pb--> so a click on it opens that block's
    settings; see pp_block in frontend/page.html. #}
-{% macro render_block(b) %}
+{# Per-device settings: the same wrapper as pp_block in
+   frontend/page.html (app/responsive.py). #}
+{% macro render_block(b) -%}
+  {%- if b.type == rs_stub_type -%}<!--rs:{{ b.id }}--><!--/rs-->
+  {%- else -%}
+  {%- set _rs = rs_plan(b, g.pb_marks) -%}
+  {%- if rs_marking() %}<!--rs:{{ b.id }}-->{% endif -%}
+  {%- if _rs -%}
+    {%- set _ = rs_enter() -%}
+    {%- set _deep = render_block_inner(b) -%}
+    {%- set _vars = [] -%}
+    {%- for v in _rs.variants -%}{%- set _ = _vars.append(render_block_inner(v)) -%}{%- endfor -%}
+    {%- set _singles = [] -%}
+    {%- for s in _rs.get('singles') or [] -%}{%- set _ = _singles.append(render_block_inner(s[2])) -%}{%- endfor -%}
+    {%- set _ = rs_leave() -%}
+    {{- rs_apply(b, _rs, _deep, _vars, _singles, g.pb_marks) -}}
+  {%- else -%}
+    {{- render_block_inner(b) -}}
+  {%- endif -%}
+  {%- if rs_marking() %}<!--/rs-->{% endif -%}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro render_block_inner(b) %}
   {% if g.pb_marks and b.id %}<!--pb:{{ b.id }}-->{% endif %}
   {% set t = b.type %}{% set d = b.data or {} %}
   {% if t == 'paragraph' %}

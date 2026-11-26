@@ -160,14 +160,42 @@
       b.setAttribute('aria-checked', b.getAttribute(attr) === value ? 'true' : 'false');
     });
   }
+  // The screen size is also the device every settings form edits
+  // (static/js/responsive.js): the toolbar and the settings panel's
+  // own switch both set it, and both follow it.
+  var RS = window.tspResponsive;
+  if (RS) RS.enable();
+  function showDevice(d) {
+    setSeg('data-pb-device', d);
+    pb.setAttribute('data-pb-device-now', d);
+    if (lpApi()) lpApi().setDevice(canvasLp, d);
+    deviceBadges();
+  }
   $$('[data-pb-device]').forEach(function (b) {
     b.addEventListener('click', function () {
       var d = b.getAttribute('data-pb-device');
-      setSeg('data-pb-device', d);
-      pb.setAttribute('data-pb-device-now', d);
-      if (lpApi()) lpApi().setDevice(canvasLp, d);
+      if (RS) RS.setDevice(d); else showDevice(d);
     });
   });
+  document.addEventListener('tsp:device', function (e) { showDevice(e.detail.device); });
+  // A block's own dialog (hero, FAQ, …) edits the device too: its
+  // header says which one.
+  function deviceBadges() {
+    var dev = RS ? RS.current() : 'desktop';
+    $$('.modal[id^="page-"][id$="-edit-modal"]', document).forEach(function (m) {
+      if (m.id === 'page-layout-edit-modal') return;
+      var title = m.querySelector('.modal-panel .card-head h2, .modal-panel h2');
+      if (!title) return;
+      var badge = title.querySelector('.pb-device-badge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'badge badge-muted pb-device-badge';
+        title.appendChild(badge);
+      }
+      badge.hidden = dev === 'desktop';
+      badge.textContent = dev === 'desktop' ? '' : RS.NAMES[dev] + ' · ' + RS.WIDTHS[dev] + 'px and narrower';
+    });
+  }
   $$('[data-pb-mode]').forEach(function (b) {
     b.addEventListener('click', function () {
       var m = b.getAttribute('data-pb-mode');
@@ -198,6 +226,7 @@
     canvasLp.addEventListener('lp:load', function (e) {
       var d = e.detail && e.detail.doc;
       if (!d) return;
+      if (RS) RS.readSkips(d);
       var st = d.createElement('style');
       st.textContent = '.fe-preview-banner{display:none!important}';
       (d.head || d.documentElement).appendChild(st);

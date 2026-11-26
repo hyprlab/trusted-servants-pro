@@ -609,6 +609,9 @@
   const ICON_PATHS = {
     'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
     'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+    'monitor': '<rect width="20" height="14" x="2" y="3" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+    'tablet': '<rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>',
+    'smartphone': '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
     'info': '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
     'grip-vertical': '<circle cx="9" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/>',
     'align-left': '<line x1="21" y1="6" x2="3" y2="6"/><line x1="15" y1="12" x2="3" y2="12"/><line x1="17" y1="18" x2="3" y2="18"/>',
@@ -859,6 +862,8 @@
         // nothing; the host closes the drawer on `blockremove`.
         const hit = locateBlock(focusId);
         if (hit) {
+          const R = window.tspResponsive;
+          if (R && R.available) sectionsEl.appendChild(fillDeviceBar(el('div', { class: 'be-device-bar' }), hit.block));
           const w = renderBlock(hit.list, hit.block, hit.index);
           w.classList.add('be-block-focused');
           sectionsEl.appendChild(w);
@@ -877,6 +882,63 @@
         },
       });
     }
+
+    // The device bar above a block's settings in the page builder:
+    // which device the form edits, what that device sets itself (each
+    // can go back to the larger device's value) and what the preview
+    // found it couldn't vary.
+    function fillDeviceBar(bar, b) {
+      const R = window.tspResponsive;
+      const dev = R.current();
+      bar.innerHTML = '';
+      bar.appendChild(segmented([
+        ['desktop', 'icon:monitor', 'Desktop'], ['tablet', 'icon:tablet', 'Tablet'],
+        ['phone', 'icon:smartphone', 'Phone'],
+      ], dev, v => R.setDevice(v), 'be-device-seg'));
+      const note = el('p', { class: 'be-device-note' });
+      if (dev === 'desktop') {
+        note.textContent = 'Every screen size, unless Tablet or Phone set their own.';
+        const counts = R.DEVICES.map(x => [x, R.overrides(b.data, b.type, x).length]).filter(c => c[1]);
+        if (counts.length) {
+          note.appendChild(document.createTextNode(' ' + counts.map(c => R.NAMES[c[0]] + ' sets ' + c[1]).join(', ') + '.'));
+        }
+      } else {
+        note.textContent = R.NAMES[dev] + ', ' + R.WIDTHS[dev] + 'px and narrower. Layout, spacing and type set here apply '
+          + (dev === 'tablet' ? 'to tablets and phones' : 'to phones') + '; text, links and backgrounds are the same everywhere.';
+      }
+      bar.appendChild(note);
+      const keys = R.overrides(b.data, b.type, dev);
+      if (keys.length) {
+        const from = dev === 'phone' ? 'Tablet or Desktop' : 'Desktop';
+        const list = el('div', { class: 'be-device-keys' });
+        keys.forEach(k => list.appendChild(el('button', {
+          type: 'button', class: 'chip be-device-key', title: 'Use the ' + from + ' value',
+          onclick: () => { R.reset(b.data, b.type, dev, k); render(); notifyChange(); },
+        }, [R.keyName(k), iconEl('x')])));
+        list.appendChild(el('button', {
+          type: 'button', class: 'btn btn-sm be-device-reset',
+          onclick: () => { R.reset(b.data, b.type, dev); render(); notifyChange(); },
+        }, ['Reset ' + R.NAMES[dev]]));
+        bar.appendChild(list);
+      }
+      const skips = R.skips(b.id, dev);
+      if (skips.length) {
+        const named = skips.filter(k => k !== '*').map(R.keyName);
+        bar.appendChild(el('p', { class: 'be-device-warn' }, [named.length
+          ? named.join(', ') + ' can\'t differ on ' + R.NAMES[dev] + ' for this block, so '
+            + (named.length > 1 ? 'they stay' : 'it stays') + ' as on the larger screen.'
+          : 'Some of these settings can\'t differ on ' + R.NAMES[dev] + ' for this block and stay as on the larger screen.']));
+      }
+      return bar;
+    }
+    function refreshDeviceBar() {
+      const bar = focusId && sectionsEl.querySelector(':scope > .be-device-bar');
+      const hit = bar && locateBlock(focusId);
+      if (hit) fillDeviceBar(bar, hit.block);
+    }
+    document.addEventListener('tsp:device', () => { if (focusId) render(); });
+    document.addEventListener('tsp:rs-skips', refreshDeviceBar);
+    root.addEventListener('input', refreshDeviceBar);
 
     // Show one block (id) or the whole tree (null). Returns the
     // focused block's element, or null.
@@ -1013,7 +1075,18 @@
         }, [iconEl('x')]),
       ]);
       wrap.appendChild(head);
-      const body = renderBlockBody(b);
+      // On Tablet or Phone the form edits that device's view of the
+      // data (static/js/responsive.js); every control is unchanged.
+      const R = window.tspResponsive;
+      const dev = R ? R.current() : 'desktop';
+      let body;
+      if (dev !== 'desktop' && b.data) {
+        const real = b.data;
+        b.data = R.view(real, b.type, dev);
+        try { body = renderBlockBody(b); } finally { b.data = real; }
+      } else {
+        body = renderBlockBody(b);
+      }
       switchify(body);
       wrap.appendChild(body);
       // Containers render their own children list + +Add bar after the
@@ -3638,10 +3711,12 @@
           } }));
         return fld;
       }
-      hGrid.appendChild(heightField('height_vh_desktop', 'Desktop height',
+      hGrid.appendChild(heightField('height_vh_desktop', 'Height',
         'Set 0 to keep the natural padding-based height. Higher values stretch the hero to that share of the viewport (50 = half-screen, 100 = full-screen).'));
-      hGrid.appendChild(heightField('height_vh_mobile', 'Mobile height',
-        'Falls back to the desktop height when left at 0.'));
+      const _mobileHeight = heightField('height_vh_mobile', 'Mobile height',
+        'Falls back to the desktop height when left at 0.');
+      _mobileHeight.setAttribute('data-rs-legacy', '');
+      hGrid.appendChild(_mobileHeight);
       textGroup.appendChild(hGrid);
 
       wrap.appendChild(textGroup);
@@ -4271,6 +4346,7 @@
         ], v => { d.mobile_direction = v; notifyChange(); }),
         'Applies at ≤720 px. Default collapses any row into a stacked column; column-reverse surfaces the bottom child first on phones.');
       _mobileDirRow.classList.add('be-container-row--mobile-section');
+      _mobileDirRow.setAttribute('data-rs-legacy', '');
       flexBox.appendChild(_mobileDirRow);
       flexBox.appendChild(row('Wrap',
         (function () {
@@ -4697,6 +4773,7 @@
             'Leave any side blank to inherit the matching desktop value at ≤720 px.')),
           paddingBox('padding_mobile', 'Mobile'),
         ]);
+      _mobilePadRow.setAttribute('data-rs-legacy', '');
       spacingBody.appendChild(_mobilePadRow);
       spacingBody.appendChild(row('Width',
         (function () {

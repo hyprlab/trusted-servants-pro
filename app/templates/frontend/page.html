@@ -1,5 +1,5 @@
 {% extends "frontend/base.html" %}
-{% from "_blocks.html" import render_sections, render_toc, render_block %}
+{% from "_blocks.html" import render_sections, render_toc, render_block, render_block_inner %}
 {% block title %}{% if page %}{{ page.title }} · {% endif %}{{ frontend_title }}{% endblock %}
 
 {# Shadow lookup mirrors `_BLOCK_CONT_SHADOW` in _blocks.html. Kept here
@@ -197,7 +197,34 @@
    <!--/pb--> so a click on it opens that block's settings
    (static/js/page_navigator.js). Comments change no layout or selector
    match, and the public page never has them. #}
+{# Per-device settings (data.responsive, app/responsive.py): a block
+   with any is rendered again with each device's values and the inline
+   styles that change become media-query CSS. While an ancestor is
+   being compared, each block brackets its output with <!--rs:ID-->
+   and <!--/rs--> so the comparison skips it; a stub (a child in those
+   extra renders) is just the brackets. #}
 {%- macro pp_block(b) -%}
+  {%- if b.type == rs_stub_type -%}<!--rs:{{ b.id }}--><!--/rs-->
+  {%- else -%}
+  {%- set _rs = rs_plan(b, preview_mode) -%}
+  {%- if rs_marking() %}<!--rs:{{ b.id }}-->{% endif -%}
+  {%- if _rs -%}
+    {%- set _ = rs_enter() -%}
+    {%- set _deep = pp_block_inner(b) -%}
+    {%- set _vars = [] -%}
+    {%- for v in _rs.variants -%}{%- set _ = _vars.append(pp_block_inner(v)) -%}{%- endfor -%}
+    {%- set _singles = [] -%}
+    {%- for s in _rs.get('singles') or [] -%}{%- set _ = _singles.append(pp_block_inner(s[2])) -%}{%- endfor -%}
+    {%- set _ = rs_leave() -%}
+    {{- rs_apply(b, _rs, _deep, _vars, _singles, preview_mode) -}}
+  {%- else -%}
+    {{- pp_block_inner(b) -}}
+  {%- endif -%}
+  {%- if rs_marking() %}<!--/rs-->{% endif -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro pp_block_inner(b) -%}
   {%- if preview_mode and b.id -%}<!--pb:{{ b.id }}-->{%- endif -%}
   {%- set t = b.type -%}{%- set d = b.data or {} -%}
   {%- if t == 'paragraph' -%}
@@ -511,7 +538,7 @@
       {%- endif -%}
     </div>
   {%- else -%}
-    {{ render_block(b) }}
+    {{ render_block_inner(b) }}
   {%- endif -%}
   {%- if preview_mode and b.id -%}<!--/pb-->{%- endif -%}
 {%- endmacro -%}

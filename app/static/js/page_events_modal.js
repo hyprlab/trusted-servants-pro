@@ -90,7 +90,10 @@
       for (const sec of sections) {
         walkBlocks(sec.blocks || [], (b) => {
           if (b.id === activeBlockId) {
-            b.data = Object.assign({}, b.data || {}, modalData);
+            // On Tablet or Phone the values go to that device (static/js/responsive.js).
+            b.data = window.tspResponsive ? window.tspResponsive.merge(b.data, modalData, b.type)
+              : Object.assign({}, b.data || {}, modalData);
+            if (window.tspResponsive) edits.set(activeBlockId, window.tspResponsive.written(b.data, modalData, b.type));
             touched = true;
             touchedBlock = b;
           }
@@ -107,7 +110,7 @@
 
     function populateModalFromBlock(block) {
       if (!block || !block.data) return;
-      const data = block.data;
+      const data = window.tspResponsive ? window.tspResponsive.read(block.data, block.type) : block.data;
       modal.querySelectorAll('[data-events-field]').forEach(inp => {
         const key = inp.dataset.eventsField;
         if (!key) return;

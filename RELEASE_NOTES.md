@@ -18,6 +18,7 @@ New features:
 - drag blocks from the library onto the page
 - drag any block on the page to move it
 - Hide main sidebar switch in the Web Frontend sidebar
+- page builder settings per device: Desktop, Tablet and Phone
 
 Changes:
 
