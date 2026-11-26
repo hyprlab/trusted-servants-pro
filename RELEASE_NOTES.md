@@ -9,6 +9,8 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+## 3.10.0 — 2026-11-26 (latest)
+
 New features:
 
 - revert button beside each changed block setting
@@ -19,7 +21,7 @@ Changes:
 
 - live previews update in place without greying out
 
-## 3.9.0 — 2026-11-26 (latest)
+## 3.9.0 — 2026-11-26
 
 New features:
 

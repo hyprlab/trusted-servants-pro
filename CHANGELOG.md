@@ -6,6 +6,8 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [3.10.0] — 2026-11-26
+
 ### Added
 
 - A revert button (accent, rotate-ccw) beside the heading of each block setting that differs from its default, in the page builder, the popup editor and the Zoom Tech editor, and in the hero, meetings, events, features and FAQ dialogs. It puts the setting back; on Tablet or Phone a per-device setting goes back to the larger screen's value. `block_editor.js` now tracks the keys each control reads in every editor (`responsive.js` is loaded there too): a key goes to the control it was read closest to, an option's reads to its select, and hidden inputs are skipped. Defaults are `blankBlock()` after one build of its form, cached per type. Dialog fields revert to their markup's value (`defaultValue`, `defaultChecked`, `defaultSelected`). Content keys (`CONTENT` in `responsive.js`) get none. Forms built after a fetch (library, officer, blog list category) are not tracked.
