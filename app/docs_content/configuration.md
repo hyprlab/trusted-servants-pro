@@ -3,7 +3,7 @@ Category: Configuration
 Order: 1
 Slug: configuration
 Icon: sliders
-Summary: Every environment variable, the .env file, the maximum upload size, and how Trusted Servants Pro encrypts stored credentials.
+Summary: Every environment variable, the .env file, the maximum upload size, how Trusted Servants Pro encrypts stored credentials, and agent access.
 
 Trusted Servants Pro is configured entirely through environment variables, with
 sensible defaults for everything except the session secret. In a Compose
@@ -23,9 +23,8 @@ A typical `.env`:
 
 ```ini
 TSP_SECRET_KEY=replace-with-the-output-of-the-command-above
-TSP_ADMIN_USERNAME=admin
+TSP_ADMIN_EMAIL=you@yourfellowship.org
 TSP_ADMIN_PASSWORD=change-me-before-first-boot
-TSP_ADMIN_EMAIL=admin@example.com
 ```
 
 !!! warning "Keep .env private"
@@ -41,18 +40,22 @@ All variables have defaults except `TSP_SECRET_KEY` and, on the first boot,
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `TSP_SECRET_KEY` | _none_ | Flask session signing key. **Required.** |
-| `TSP_ADMIN_USERNAME` | `admin` | Seeded on first boot only. |
+| `TSP_ADMIN_EMAIL` | `admin@example.com` | The first admin's email address, which is also their username. Seeded on first boot only. |
 | `TSP_ADMIN_PASSWORD` | _none_ | Seeded on first boot only, and required then. The seeded admin sets up two-factor authentication at first sign-in. |
-| `TSP_ADMIN_EMAIL` | `admin@example.com` | Seeded on first boot only. |
+| `TSP_ADMIN_USERNAME` | `TSP_ADMIN_EMAIL` | Seeded on first boot only. Usernames are email addresses; one that isn't is replaced by `TSP_ADMIN_EMAIL`. |
 | `TSP_DATA_DIR` | `/data` | In-container data directory. Mounted to `./data` by default. |
 | `TSP_UPLOAD_DIR` | `$TSP_DATA_DIR/uploads` | Where uploaded files are stored. |
 | `TSP_TMP_DIR` | _the data volume_ | Scratch location for building backup archives. Defaults to the data volume (guaranteed headroom); point it at a dedicated scratch disk to override. Falls back to the system temp dir if unwritable. |
 | `TSP_MAX_UPLOAD_MB` | `4096` | Maximum upload size in MiB (default 4 GiB). |
-| `TSP_DEBUG` | `0` | Local development only: plain HTTP cookies, a fallback secret key, and an `admin` / `admin` seed without two-factor. Never in production. |
+| `TSP_SESSION_DAYS` | `180` | How long a sign-in lasts, in days. Lower it (for example `7`) to sign people out sooner. |
+| `TSP_TRUSTED_PROXIES` | `1` | Number of reverse proxies in front of the portal whose `X-Forwarded-For` header is trusted. Set to `0` when nothing sits in front, so a forged header is never believed. |
+| `TSP_TRUST_CF_HEADER` | `1` (on) | Use Cloudflare's `CF-Connecting-IP` header to find the visitor's real IP. It is only read when the request comes from a Cloudflare address, so it is safe to leave on without Cloudflare. Set to `0` to turn it off. |
 | `TSP_FERNET_KEY` | _auto-generated_ | Encryption key for stored credentials. If unset, a key is generated and saved to `data/zoom.key`. |
+| `TSP_IMPORTER_ALLOW_PRIVATE` | _unset_ | Set to `1` to let the WordPress importer fetch from private or LAN addresses, for importing from a local test site. |
+| `TSP_DEBUG` | `0` | Local development only: plain HTTP cookies, a fallback secret key, and a seeded admin (`TSP_ADMIN_EMAIL`, password `admin`) without two-factor. Never in production. |
 
 !!! note "The admin variables only seed the first boot"
-    `TSP_ADMIN_USERNAME` / `TSP_ADMIN_PASSWORD` / `TSP_ADMIN_EMAIL` create the
+    `TSP_ADMIN_EMAIL` / `TSP_ADMIN_PASSWORD` / `TSP_ADMIN_USERNAME` create the
     initial admin **only when the database is empty**. Changing them later has no
     effect — manage users from **Settings → Users** instead.
 
@@ -93,6 +96,35 @@ intentionally without hashes or tokens. These URLs are **unauthenticated**:
 anyone with the link can read the file. Don't upload anything you wouldn't want
 shared. See [Security](#how-credentials-are-encrypted) above for how stored
 secrets differ from public files.
+
+## Agent access (MCP)
+
+The portal has a built-in [MCP](https://modelcontextprotocol.io) server, so an
+AI agent such as Claude Code can make changes to the public website. It is off
+until an admin turns it on under **Web Frontend → Agent access**, which is also
+where tokens are made and revoked and where every change an agent made is
+listed.
+
+- **Address:** `https://<your site>/tspro/mcp`, over Streamable HTTP. The agent
+  sends its token as `Authorization: Bearer <token>`. When you make a token, the
+  Agent access screen shows the `claude mcp add` command and a JSON block for
+  other agents.
+- **Tokens** belong to the admin who makes them and act as that admin. Each is
+  read only; read and change; or read, change and delete. Only a hash is
+  stored, and the token is shown once. A token stops working when it is
+  revoked, when the server is turned off, or when its admin is no longer an
+  admin.
+- **How changes are made.** An agent reads a Web Frontend screen's forms and
+  saves one with some fields changed. The save goes through the same route as
+  the admin's own Save button, so it is checked and stored exactly as a click
+  would be, and shows on that screen at once.
+- **Review.** Each change is in the activity log under the admin's name with the
+  token's label, on the Agent access screen, and in Watchtower's user log. Page
+  saves are kept in the page's History, and an agent can save a published page
+  as a draft for someone to publish.
+- **Limits.** Agents reach only the Web Frontend section of the admin. They
+  cannot read form submissions, make tokens, turn the server off, or change an
+  admin's own preferences.
 
 ## Next steps
 

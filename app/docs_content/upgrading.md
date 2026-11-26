@@ -20,9 +20,11 @@ Watchtower also removes the superseded image after each update
 (`WATCHTOWER_CLEANUP=true`), and the installer's compose file adds a daily
 image-prune janitor to catch anything that escapes — so a long-running host
 doesn't quietly fill its disk with stale images. If you installed an **older
-release** that predates those safeguards, see
+release** that predates those safeguards, or any release before 3.6.2 (whose
+janitor could delete a freshly pulled image in the middle of an update), see
 [Disk Space &amp; Housekeeping](disk-space.md) for how to reclaim space and
-adopt them by re-running `install.sh` (your `.env` and `data/` are preserved).
+adopt the current ones by re-running `install.sh` (your `.env` and `data/` are
+preserved).
 
 ## Forcing an upgrade
 

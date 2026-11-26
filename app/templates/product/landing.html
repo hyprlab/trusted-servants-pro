@@ -248,7 +248,7 @@
           <ol class="pp-deploy-steps">
             <li>
               <span class="pp-step-h">Provision a server</span>
-              <p>Start a fresh <b>Ubuntu 24.04 LTS</b> server with any provider (DigitalOcean, Hetzner, Lightsail) or on your own hardware. 1 vCPU and 1 GB of RAM is enough for most fellowships. Sign in over SSH as root or a user with sudo.</p>
+              <p>Start a fresh <b>Ubuntu 26.04 LTS</b> server with any provider (DigitalOcean, Hetzner, Lightsail) or on your own hardware. 1 vCPU and 1 GB of RAM is enough for most fellowships. Sign in over SSH as root or a user with sudo.</p>
               <div class="pp-code"><pre><span class="g">$</span> ssh root@your-server-ip</pre></div>
             </li>
             <li>
@@ -273,13 +273,14 @@ Contact email: you@yourfellowship.org
 <span class="c"># …or fully non-interactive</span>
 <span class="g">$</span> sudo TSP_DOMAIN=portal.yourfellowship.org \
        TSP_ACME_EMAIL=you@yourfellowship.org \
+       TSP_ADMIN_EMAIL=you@yourfellowship.org \
        TSP_ADMIN_PASSWORD='a-strong-password' bash install.sh</pre></div>
             </li>
             <li>
               <span class="pp-step-h">Sign in &amp; secure it</span>
-              <p>Open the address the installer prints and sign in with the admin password it generated, which is also saved in <code>/opt/tspro/.env</code>. You set up <b>two-factor authentication</b> at first sign-in.</p>
+              <p>Open the address the installer prints. The username is the admin's email address: <code>admin@example.com</code> unless you set <code>TSP_ADMIN_EMAIL</code>. The password is the one the installer generated, which is also saved in <code>/opt/tspro/.env</code>. You set up <b>two-factor authentication</b> at first sign-in.</p>
               <div class="pp-code"><pre><span class="p">→</span> https://portal.yourfellowship.org
-   username : <span class="g">admin</span>
+   username : <span class="g">admin@example.com</span>
    password : <span class="g">(printed by the installer)</span></pre></div>
             </li>
           </ol>
@@ -310,6 +311,7 @@ services:
       - ./data:/data
     environment:
       - TSP_SECRET_KEY=${TSP_SECRET_KEY:?TSP_SECRET_KEY must be set in .env}
+      - TSP_ADMIN_EMAIL=${TSP_ADMIN_EMAIL:-admin@example.com}
       - TSP_ADMIN_PASSWORD=${TSP_ADMIN_PASSWORD:?TSP_ADMIN_PASSWORD must be set in .env}
     restart: unless-stopped
     <span class="c"># cap logs so they can't fill the disk over time</span>
@@ -318,9 +320,10 @@ services:
       options: { max-size: "10m", max-file: "3" }</pre></div>
             </li>
             <li>
-              <span class="pp-step-h">Set a secret key and admin password</span>
-              <p>The secret key signs session cookies, and the password is for the first admin account. The app won't start without both, so put them in a <code>.env</code> file.</p>
+              <span class="pp-step-h">Set a secret key and the first admin</span>
+              <p>The secret key signs session cookies. The email address is the first admin's username, and the password is theirs. The app won't start without the key and password, so put them in a <code>.env</code> file.</p>
               <div class="pp-code"><pre><span class="g">$</span> echo "TSP_SECRET_KEY=$(openssl rand -hex 32)" &gt; .env
+<span class="g">$</span> echo "TSP_ADMIN_EMAIL=you@yourfellowship.org" &gt;&gt; .env
 <span class="g">$</span> echo "TSP_ADMIN_PASSWORD=$(openssl rand -base64 18)" &gt;&gt; .env
 <span class="g">$</span> cat .env   <span class="c"># note the password</span></pre></div>
             </li>
@@ -331,7 +334,7 @@ services:
             </li>
             <li>
               <span class="pp-step-h">Open it</span>
-              <p>Open the public site or the admin, and sign in as <code>admin</code> with the password from <code>.env</code>. You set up two-factor authentication at first sign-in.</p>
+              <p>Open the public site or the admin, and sign in with the email address and password from <code>.env</code>. You set up two-factor authentication at first sign-in.</p>
               <div class="pp-code"><pre><span class="p">→</span> http://localhost:8090         <span class="c"># public site</span>
 <span class="p">→</span> http://localhost:8090/tspro   <span class="c"># admin</span></pre></div>
             </li>

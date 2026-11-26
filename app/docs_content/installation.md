@@ -17,7 +17,7 @@ There are two supported paths. Pick the one that matches where you're running it
 | --- | --- | --- |
 | Best for | A public production server | A laptop, homelab, or any VPS |
 | You get | Docker, hardened Compose file, generated secret, **automatic HTTPS** (Caddy + Let's Encrypt), auto-updates (Watchtower) | A single container you manage yourself |
-| Requires | A fresh **Ubuntu 24.04** host with root/sudo | Any machine with Docker Engine + the Compose plugin |
+| Requires | A fresh **Ubuntu 26.04** host with root/sudo | Any machine with Docker Engine + the Compose plugin |
 | TLS | Issued and renewed for you | You add your own reverse proxy if needed |
 | Time | 2–5 minutes | Under a minute |
 
@@ -33,7 +33,7 @@ just want to kick the tires or run it behind your own proxy, use **Path B**.
 
 Whichever path you choose, it helps to have these ready:
 
-- **A host to run it on.** For Path A this must be a fresh Ubuntu 24.04 LTS
+- **A host to run it on.** For Path A this should be a fresh Ubuntu 26.04 LTS
   server. 1 vCPU / 1 GB RAM comfortably handles a small-to-medium fellowship.
 - **(Optional) A domain name.** Only needed if you want a browser-trusted TLS
   certificate. Without one, the installer issues a self-signed certificate and
@@ -61,7 +61,7 @@ Whichever path you choose, it helps to have these ready:
 
 ### 1. Provision a server
 
-Spin up a fresh **Ubuntu 24.04 LTS** instance on any provider — DigitalOcean,
+Spin up a fresh **Ubuntu 26.04 LTS** instance on any provider — DigitalOcean,
 Hetzner, AWS Lightsail, or bare metal all work. SSH in as `root` or a user with
 `sudo`:
 
@@ -135,13 +135,15 @@ When it finishes, the installer prints your portal URL — either
 `https://<your-domain>` or `https://<server-ip>`, and the seeded admin:
 
 ```text
-username : admin
+username : admin@example.com   (or the TSP_ADMIN_EMAIL you passed)
 password : (a random password the installer generated)
 ```
 
-The password is also saved in `/opt/tspro/.env`. To choose your own, pass
-`TSP_ADMIN_PASSWORD` with the non-interactive install below. The first sign-in
-walks the admin through setting up two-factor authentication.
+Usernames are email addresses. The admin's is `admin@example.com` unless you
+pass `TSP_ADMIN_EMAIL` with the non-interactive install below. The password is
+also saved in `/opt/tspro/.env`; to choose your own, pass `TSP_ADMIN_PASSWORD`.
+The first sign-in walks the admin through setting up two-factor
+authentication.
 
 ### Non-interactive installs
 
@@ -150,6 +152,7 @@ Skip every prompt by passing answers inline on the same command:
 ```bash
 sudo TSP_DOMAIN=portal.yourfellowship.org \
      TSP_ACME_EMAIL=you@yourfellowship.org \
+     TSP_ADMIN_EMAIL=you@yourfellowship.org \
      TSP_ADMIN_PASSWORD='a-strong-password' \
      bash install.sh
 ```
@@ -162,9 +165,9 @@ Recognized installer variables:
 | `TSP_IMAGE` | `hyprlab/tspro:latest` | Image tag to deploy. |
 | `TSP_DOMAIN` | _unset_ | Public hostname. If set, Caddy requests a Let's Encrypt cert. |
 | `TSP_ACME_EMAIL` | `admin@$TSP_DOMAIN` | Contact address for renewal notices. |
-| `TSP_ADMIN_USERNAME` | `admin` | Seeded on first boot only. |
+| `TSP_ADMIN_EMAIL` | `admin@example.com` | The first admin's email address and username. Seeded on first boot only. |
 | `TSP_ADMIN_PASSWORD` | _random, printed at the end_ | Seeded on first boot only. |
-| `TSP_ADMIN_EMAIL` | `admin@example.com` | Seeded on first boot only. |
+| `TSP_ADMIN_USERNAME` | `TSP_ADMIN_EMAIL` | Seeded on first boot only. Usernames are email addresses; one that isn't is replaced by `TSP_ADMIN_EMAIL`. |
 
 ## Path B: Docker Compose (any machine)
 
@@ -198,9 +201,8 @@ services:
       - ./data:/data
     environment:
       - TSP_SECRET_KEY=${TSP_SECRET_KEY:?TSP_SECRET_KEY must be set in .env}
-      - TSP_ADMIN_USERNAME=admin
+      - TSP_ADMIN_EMAIL=${TSP_ADMIN_EMAIL:-admin@example.com}
       - TSP_ADMIN_PASSWORD=${TSP_ADMIN_PASSWORD:?TSP_ADMIN_PASSWORD must be set in .env}
-      - TSP_ADMIN_EMAIL=admin@example.com
     restart: unless-stopped
     # Cap container logs so they can't grow without bound over time.
     logging:
@@ -220,14 +222,16 @@ database and uploads persist in `./data` next to the compose file.
     [Disk Space &amp; Housekeeping](disk-space.md) if you want to add it, plus
     how the built-in low-disk warning works.
 
-### 3. Set a secret key and an admin password
+### 3. Set a secret key and the first admin
 
 Trusted Servants Pro signs session cookies with `TSP_SECRET_KEY` and seeds the
 first admin with `TSP_ADMIN_PASSWORD`; it won't start on an empty database
-without both. Generate them into a `.env` file beside your compose file:
+without both. `TSP_ADMIN_EMAIL` is the admin's email address, which is also
+their username. Write all three into a `.env` file beside your compose file:
 
 ```bash
 echo "TSP_SECRET_KEY=$(openssl rand -hex 32)" > .env
+echo "TSP_ADMIN_EMAIL=you@yourfellowship.org" >> .env
 echo "TSP_ADMIN_PASSWORD=$(openssl rand -base64 18)" >> .env
 cat .env   # note the password
 ```
@@ -248,8 +252,8 @@ pulling it, use `docker compose up -d --build`.)
 → http://localhost:8090/tspro   # admin
 ```
 
-Sign in as `admin` with the password from your `.env`, and set up two-factor
-authentication when it asks.
+Sign in with your `TSP_ADMIN_EMAIL` address as the username and the password
+from your `.env`, and set up two-factor authentication when it asks.
 
 ## After installation
 
@@ -258,8 +262,8 @@ A few things worth doing right away:
 - **Change the admin password** (Settings → Users) if you haven't already.
 - **Set up email** (Settings → Domain / Email) so access-request notifications can be
   delivered, and send yourself a test message.
-- **Brand it** (Settings → Appearance) — pick a theme, upload your logo, and
-  configure the login screen.
+- **Brand it** under **Web Frontend**: your logo and site name in Branding,
+  and the theme, fonts and colors in Design.
 - **Take your first backup** once you've added content — see
   [Backup &amp; Restore](backup-restore.md).
 

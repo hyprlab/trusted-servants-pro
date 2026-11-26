@@ -69,6 +69,16 @@ set up an off-site target under **Settings → Data → Off-site backups**. The
 dedicated [TS Pro Backup](tspro-backup.md) guide walks through the
 end-to-end-encrypted option end to end.
 
+!!! note "SFTP targets check the server's identity"
+    The first connection that signs in to an SFTP server saves that server's
+    key, and the target shows its fingerprint. After that, a server presenting a
+    different key is refused before the password is sent, and backups to it
+    stop. To compare the fingerprint, run `ssh-keygen -lf` on the server's
+    public host key. If you know the server's key changed (a rebuilt server,
+    say), edit the target, tick **Forget this key**, and test the connection to
+    save the new one. Targets set up before release 3.6.2 save their key on
+    their next backup.
+
 Two robustness details are worth knowing, because they remove the disk-related
 ways a large portal's off-site backup used to fail:
 

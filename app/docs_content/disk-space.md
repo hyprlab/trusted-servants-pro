@@ -39,8 +39,8 @@ overlap on purpose — each covers a gap the others don't.
 
 ### 1. The daily image-prune janitor
 
-A small sidecar service, `docker-prune`, runs once a day and sweeps every image
-and build-cache entry unused for more than 72 hours:
+A small sidecar service, `docker-prune`, runs once a day and sweeps every
+untagged image, and every build-cache entry unused for more than 72 hours:
 
 ```yaml
   # Daily image-prune janitor — an independent safety net for disk growth.
@@ -53,7 +53,7 @@ and build-cache entry unused for more than 72 hours:
     command:
       - |
         while true; do
-          docker image prune -af --filter "until=72h" || true
+          docker image prune -f || true
           docker builder prune -af --filter "until=72h" || true
           sleep 86400
         done
@@ -67,8 +67,23 @@ and build-cache entry unused for more than 72 hours:
 
 This is the real guarantee against the disk-fill failure mode. Unlike
 Watchtower's cleanup (below), it reclaims images **no matter how they were
-orphaned** — manual pulls, re-tag churn, partial pulls — not just the ones a
-Watchtower-performed update left behind.
+orphaned**, not just the ones a Watchtower update left behind: a manual
+`docker compose pull` or a re-tagged `:latest` leaves the old image untagged,
+and the janitor removes it.
+
+It leaves tagged images alone. An image under an old tag you no longer use
+needs a manual `docker image prune -af` (see
+[below](#adopting-the-safeguards-on-an-existing-install)).
+
+!!! danger "Older installs: check the janitor's command"
+    Installs made before release 3.6.2 ran `docker image prune -af --filter
+    "until=72h"`. On Docker's containerd image store that can delete a freshly
+    pulled image while Watchtower is replacing a container, which leaves the
+    service missing and the site down. If your `docker-compose.yml` still has
+    that line, re-run the installer as shown
+    [below](#adopting-the-safeguards-on-an-existing-install). If the site is
+    already down and `tspro-caddy` is missing from `docker ps -a`, run
+    `docker compose up -d` in the install directory to bring it back.
 
 !!! warning "The prune is host-wide — use a dedicated TSP host"
     `docker image prune` operates on the **whole Docker daemon**, not just the
@@ -123,13 +138,12 @@ on its own once you free space back below the threshold.
 
 ## The Disk tile on the dashboard
 
-For an at-a-glance read without waiting for the warning, the admin **Server**
-panel on the dashboard (*Dashboard → "Your Role and Server Stats"*) shows a
-**Disk** tile beside CPU and Memory. It reports percent used plus `used / total`
+For an at-a-glance read without waiting for the warning, the **Server** card
+on the admin dashboard shows a **Disk** tile beside CPU and Memory. It reports percent used plus `used / total`
 (e.g. "92 GB / 196 GB") with a sparkline, measured on the **data volume** — the
-disk that actually fills. The tile turns **amber at 85%**, the same point the
+disk that actually fills. The tile switches to its alert color **at 85%**, the same point the
 low-disk warning trips, so the dashboard doubles as a live disk monitor. Like
-the rest of the Server panel, it's visible to admins only.
+the rest of the Server card, it's visible to admins only.
 
 ## Where backups stage their scratch files
 
@@ -147,9 +161,10 @@ temp dir automatically.
 
 ## Adopting the safeguards on an existing install
 
-If you installed an **older release** — before these settings shipped — and your
-disk is filling up, you can reclaim space and adopt the safeguards **without a
-reinstall**. Your `.env` and `data/` are preserved.
+If you installed an **older release** (before these settings shipped, or
+before 3.6.2 changed the janitor's command) you can reclaim space and adopt the
+current safeguards **without a reinstall**. Your `.env` and `data/` are
+preserved.
 
 First, clear out what's already accumulated:
 

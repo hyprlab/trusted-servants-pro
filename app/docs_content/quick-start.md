@@ -32,18 +32,21 @@ services:
       - ./data:/data
     environment:
       - TSP_SECRET_KEY=${TSP_SECRET_KEY:?TSP_SECRET_KEY must be set in .env}
+      - TSP_ADMIN_EMAIL=${TSP_ADMIN_EMAIL:-admin@example.com}
       - TSP_ADMIN_PASSWORD=${TSP_ADMIN_PASSWORD:?TSP_ADMIN_PASSWORD must be set in .env}
     restart: unless-stopped
 ```
 
-## 2. Generate a secret key and an admin password
+## 2. Generate a secret key and the first admin
 
 The portal signs session cookies with `TSP_SECRET_KEY`, and seeds the first
 admin with `TSP_ADMIN_PASSWORD`. It won't start on an empty database without
-both. Write random ones into a `.env` file next to the compose file:
+both. `TSP_ADMIN_EMAIL` is the admin's email address and username. Write them
+into a `.env` file next to the compose file:
 
 ```bash
 echo "TSP_SECRET_KEY=$(openssl rand -hex 32)" > .env
+echo "TSP_ADMIN_EMAIL=you@yourfellowship.org" >> .env
 echo "TSP_ADMIN_PASSWORD=$(openssl rand -base64 18)" >> .env
 cat .env   # note the password
 ```
@@ -66,9 +69,9 @@ Open the two entry points:
 → http://localhost:8090/tspro   # admin backend
 ```
 
-Sign in to the admin as `admin` with the password from your `.env`. The first
-sign-in walks you through setting up two-factor authentication with an
-authenticator app.
+Sign in to the admin with your `TSP_ADMIN_EMAIL` address as the username and
+the password from your `.env`. The first sign-in walks you through setting up
+two-factor authentication with an authenticator app.
 
 ## What next?
 
