@@ -1767,7 +1767,6 @@
         const from = new Map(els.map(el => [el, el.getBoundingClientRect()]));
         const line = boxes && boxes.doc === doc ? boxes.drop.getBoundingClientRect() : null;
         const moved = domMove(blk, target);
-        if (moved && window.FeLivePreview) window.FeLivePreview.quiet(lp);
         const r = moved ? rectOf(blk.id) : null;
         endDrag(r ? { left: r.left, top: r.top, w: r.right - r.left }
           : line ? { left: line.left, top: line.top, w: 0 } : null);

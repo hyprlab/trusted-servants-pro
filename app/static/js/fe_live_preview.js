@@ -215,12 +215,10 @@
       var doc = this.frame.contentDocument;
       if (this.loaded && doc && doc.scrollingElement) this.scrollY = doc.scrollingElement.scrollTop;
     } catch (_) { /* not loaded yet */ }
-    // A quiet render brings in a change the page already shows (a block
-    // moved by dragging it), so it doesn't wash the page while it loads.
-    if (!(this.quietUntil > Date.now())) {
-      this.root.classList.add('is-loading');
-      this.setStatus('Updating…');
-    }
+    // Only the first render washes the stage. After that the shown page
+    // stays as it is until the next one has loaded behind it (swapIn).
+    if (!this.loaded) this.root.classList.add('is-loading');
+    this.setStatus('Updating…');
     fetch(this.root.getAttribute('data-lp-url'), {
       method: 'POST',
       credentials: 'same-origin',
@@ -420,9 +418,6 @@
     addSource: function (fn) { sources.push(fn); },
     wake: wake,
     refresh: function (el) { if (el && el._lp) el._lp.render(); },
-    // Renders starting in the next moment are quiet: no wash over the
-    // page while they load.
-    quiet: function (el) { if (el && el._lp) el._lp.quietUntil = Date.now() + DEBOUNCE_MS + 1000; },
     // Keeps the shown page in place (a block is being dragged on it);
     // a render asked for meanwhile runs when it is let go.
     hold: function (el, on) {

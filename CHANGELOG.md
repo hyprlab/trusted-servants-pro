@@ -6,6 +6,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed
+
+- Live previews (`fe_live_preview.js`) wash the stage only while their first render loads. Later renders already load in a hidden second frame and swap in once ready, so the shown page stays as it is meanwhile; the "Updating…" status remains. `FeLivePreview.quiet()`, which kept the wash off renders after a drag, is gone.
+
 ## [3.9.0] — 2026-11-26
 
 ### Added

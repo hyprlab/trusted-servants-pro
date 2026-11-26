@@ -9,6 +9,10 @@ release notes expanded by default and the changelog collapsed.
 
 ## Unreleased
 
+Changes:
+
+- live previews update in place without greying out
+
 ## 3.9.0 — 2026-11-26 (latest)
 
 New features:
